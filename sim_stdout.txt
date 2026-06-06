@@ -65,6 +65,8 @@ Canonical: T_s=10.413142mK, P_tot=4.1314nW
   Omega_R=139591rad/s, tau_pi2=11252.8ns, N_seq=140
   tau_c_min(SNR=5)=27.7us [SUPERSEDED v3.0; NOT_CANONICAL; NOT_LIVE_GATE_LOGIC]. Canonical live threshold: tau_c >= 292us (v3.3). deltaGamma=262rad/s
 
+[multiphysics] non-lumped 1D/2D layer: 20 gates (0 PASS; statuses ['BLOCKED', 'CONDITIONAL', 'DERIVED_CHECK'])
+
 ────────────────────────────────────────────────────────────────────────
 MODE A -- GROWTH
 Gate       Name                                   Status
@@ -129,7 +131,7 @@ MODE SUMMARY:
   B Purge     : 0P 4C 0F 1U
   C Recool    : 0P 4C 0F 0U
   D Sense     : 0P 13C 0F 1U
-  TOTAL       : 0P 39C 0F 2U
+  TOTAL       : 0P 47C 0F 2U
 
 ────────────────────────────────────────────────────────────────────────
 HARD INTERLOCK TABLE:
@@ -164,7 +166,7 @@ MONTE CARLO RESULTS
 
 A. CURRENT PHYSICAL STATE MC:
    Rule: any BLOCKED gate → full-cycle pass rate = 0.0%
-   21 BLOCKED gates present → Full-cycle pass rate: 0.0%
+   23 BLOCKED gates present → Full-cycle pass rate: 0.0%
    This is not a Monte Carlo result — it is a logical consequence.
 
 B. POST-INSTALLATION FORECAST MC (HYPOTHETICAL — all hardware installed):
@@ -496,6 +498,106 @@ B. POST-INSTALLATION FORECAST MC (HYPOTHETICAL — all hardware installed):
     Why: SPECIFIED:No  INSTALLED:No  VERIFIED:No. Status=BLOCKED. Optional upstream cooling plant. Baseline DESIGN_OPTION = 4 modules; redundant/derated DESIGN_OPTION = 8 modules. Not a 10 mK cooler and not a replacement for the 
     Fix: (1) Obtain vendor lift curves at target stage temperatures. (2) Compute N_modules = ceil((P_ModeA_dump + P_parasitic + P_margin) * safety_factor / P_lift_per_mo
 
+  [MODE_B_PROCESS] THERMAL_1D_STABILITY_CHECK: 1D thermal solver numerically stable  [DERIVED_CHECK]
+    Eq:  diffusion_sanity rel_err < 0.10 AND finite AND solver=ok
+    Why: 1D PDE reproduces analytic diffusion decay; fields finite; BDF converged. Numerical self-consistency only (MODEL_ONLY); not hardware-validated.
+    Fix: Hardware thermometry of the NV-layer during Mode B to validate the model.
+
+  [MODE_B_PROCESS] THERMAL_2D_STABILITY_CHECK: 2D axisymmetric thermal solver stable  [DERIVED_CHECK]
+    Eq:  2D fields finite AND axis non-singular AND solver=ok
+    Why: 2D axisymmetric FV solver produces finite fields with no r=0 singularity (MODEL_ONLY).
+    Fix: Hardware validation of 2D thermal profile.
+
+  [MODE_B_PROCESS] THERMAL_1D_MESH_CONVERGENCE_CHECK: 1D thermal mesh convergence  [DERIVED_CHECK]
+    Eq:  |NV_T(400)-NV_T(200)|/NV_T < 0.15
+    Why: NV-layer temperature changes <15% between n=200 and n=400 (MODEL_ONLY mesh refinement).
+    Fix: Confirm against measured profiles.
+
+  [MODE_B_PROCESS] THERMAL_2D_MESH_CONVERGENCE_CHECK: 2D thermal mesh convergence  [DERIVED_CHECK]
+    Eq:  |NVmax(fine)-NVmax(med)|/NVmax < 0.25
+    Why: 2D NV-layer max temperature changes <25% between medium and fine mesh (MODEL_ONLY).
+    Fix: Confirm against measured 2D profile.
+
+  [MODE_B_PROCESS] KAPITZA_BC_CHECK: Kapitza backside boundary sign-correct  [DERIVED_CHECK]
+    Eq:  T>Tf -> heat leaves; T<Tf -> heat enters
+    Why: Backside Kapitza-radiative term cools when hotter than the fridge and warms when colder (MODEL_ONLY). alpha_K is ASSUMED.
+    Fix: Measure interfacial (Kapitza) conductance at 10 mK.
+
+  [MODE_B_PROCESS] MOVING_BOUNDARY_MODEL_CHECK: Moving-boundary front model present  [DERIVED_CHECK]
+    Eq:  s(t)=s0+v_front*t implemented; Stefan-ready structure
+    Why: Front position is integrated as s(t)=s0+v_front*t and the code is structured for a later Stefan condition. First pass uses v_front=0 (static front). MODEL_ONLY / FORECAST_ONLY.
+    Fix: Supply measured growth-front velocity / latent-heat data.
+
+  [MODE_B_PROCESS] OPTICAL_ABSORPTION_PROFILE_CHECK: Optical absorption energy-conserving  [DERIVED_CHECK]
+    Eq:  int Q dV == absorbed power within tol (1D & 2D)
+    Why: Beer-Lambert (depth) x Gaussian (radial) deposition integrates to the absorbed power within tolerance (MODEL_ONLY). alpha, absorbed_fraction ASSUMED.
+    Fix: Measure absorption coefficient and absorbed fraction at 1030 nm, 10 mK.
+
+  [MODE_C_PURGE] GAS_TRANSPORT_STABILITY_CHECK: Gas-transport PDE stable & finite  [DERIVED_CHECK]
+    Eq:  advection-diffusion-sink finite; non-negative; solver ok
+    Why: 1D advection-diffusion-sink transport integrates stably with non-negative densities (MODEL_ONLY). Transport coefficients ASSUMED.
+    Fix: Measure species conductances / pumping speeds in the actual line.
+
+  [MODE_B_PROCESS] LUMPED_MODEL_RETIRED_CHECK: Lumped model is comparator-only  [DERIVED_CHECK]
+    Eq:  non-lumped feeds gates; lumped only in comparison CSV
+    Why: The legacy lumped thermal/gas estimate is retained ONLY in lumped_vs_nonlumped_comparison.csv as a regression sanity check; the non-lumped 1D/2D models are the gate authority (MODEL_ONLY).
+    Fix: N/A (bookkeeping check).
+
+  [ALL (multiphysics)] THREE_D_FUTURE_WORK_CHECK: 3D multiphysics deferred (not faked)  [DERIVED_CHECK]
+    Eq:  3D status == FUTURE_WORK/NOT_IMPLEMENTED; excluded from gates
+    Why: 3D solvers are explicitly NOT_IMPLEMENTED / FUTURE_WORK and are excluded from all physical gates. 1D (canonical) and 2D axisymmetric are the implemented non-lumped backends.
+    Fix: Implement real 3D solvers + verification + outputs before any 3D claim.
+
+  [MODE_D_SENSE] NV_LAYER_TEMPERATURE_CHECK: NV-layer recools for sensing  [CONDITIONAL]
+    Eq:  T_NV_layer(after Mode C) <= 50 mK
+    Why: Model forecasts the NV layer recools to base after Mode C. FORECAST_ONLY; REQUIRES_EXPERIMENT (NV thermometry). Not a validated result.
+    Fix: Measure NV-layer temperature post-recovery via ODMR thermometry.
+
+  [MODE_B_PROCESS] HOTSPOT_MARGIN_CHECK: Mode B peak temperature within material margin  [CONDITIONAL]
+    Eq:  max_T(Mode B) below graphitization/damage margin
+    Why: Reduced-order near-field model forecasts a peak temperature. The damage margin itself is ASSUMED; FORECAST_ONLY.
+    Fix: Measure local peak temperature / damage threshold under the actual pulse train.
+
+  [MODE_D_SENSE] POST_PULSE_DRIFT_CHECK: Post-recovery NV-layer drift small  [CONDITIONAL]
+    Eq:  post-pulse drift small over sensing window
+    Why: Model forecasts the NV-layer temperature settles after Mode C. FORECAST_ONLY; REQUIRES_EXPERIMENT.
+    Fix: Measure temperature drift during the sensing window.
+
+  [MODE_C_PURGE] CRYOBAFFLE_CAPTURE_CHECK: Cryobaffle captures process species  [CONDITIONAL]
+    Eq:  cryobaffle capture fraction adequate
+    Why: Capture probabilities are ASSUMED; the transport model uses them to forecast cleanup. FORECAST_ONLY.
+    Fix: Measure baffle capture efficiency for each species at temperature.
+
+  [MODE_D_SENSE] SURFACE_COVERAGE_DECAY_CHECK: Surface coverage decays before sensing  [CONDITIONAL]
+    Eq:  residual theta(after Mode C) < 1e-3
+    Why: Langmuir model forecasts coverage decays during Mode C. Sticking and desorption energetics ASSUMED; FORECAST_ONLY; REQUIRES_EXPERIMENT.
+    Fix: Measure surface coverage (e.g. desorption spectroscopy) at 10 mK.
+
+  [MODE_D_SENSE] MICROWAVE_HEATING_PROFILE_CHECK: MW dissipation anchored away from NV  [CONDITIONAL]
+    Eq:  dissipated power at NV region within budget
+    Why: Path-distributed attenuation model forecasts where MW power dissipates. Attenuations DESIGN_SPECIFIED; FORECAST_ONLY.
+    Fix: Measure attenuator heat loads and CPW termination dissipation at 10 mK.
+
+  [MODE_D_SENSE] RADIATION_VIEWFACTOR_CHECK: Radiation leakage to 10 mK bounded  [CONDITIONAL]
+    Eq:  sum q_ij reaching 10 mK within budget
+    Why: Staged view-factor cascade forecasts radiative load. Emissivities/view factors ASSUMED; FORECAST_ONLY.
+    Fix: Measure radiative heat load with shutter/baffle engaged.
+
+  [MODE_D_SENSE] VIBRATION_TRANSFER_CHECK: Vibration attenuated for sensing  [CONDITIONAL]
+    Eq:  NV-region amplitude below threshold; settled
+    Why: Banded transfer model forecasts vibration attenuation and settling. Transfer factors ASSUMED; FORECAST_ONLY.
+    Fix: Measure vibration spectrum at the sample mount.
+
+  [MODE_D_SENSE] RESIDUAL_SPECIES_MODE_D_CHECK: Residual process species cleared for Mode D  [BLOCKED]
+    Eq:  residual CH4/H2 at sample below sensing-safe level
+    Why: Mode D sensing capability is itself BLOCKED (helium-isotope sensing not validated; Mode B feasibility not established). The transport model forecasts residuals but cannot be a PASS. FORECAST_ONLY.
+    Fix: Establish Mode B feasibility and validated Mode D sensing first; then measure residual partial pressures at the sample.
+
+  [ALL (multiphysics)] COUPLED_MODE_RECOVERY_CHECK: Full B->C->D recovery cycle viable  [BLOCKED]
+    Eq:  Mode D readiness from final distributed state
+    Why: End-to-end recovery depends on unvalidated LCVD (Mode B) and unvalidated helium sensing (Mode D). The coupled model forecasts recovery (limiting process: surface_decay_s), but the full cycle cannot PASS pre-experiment. F
+    Fix: Validate Mode B and Mode D independently, then demonstrate a full cycle.
+
 ────────────────────────────────────────────────────────────────────────
 REQUIRED EXPERIMENTS:
 
@@ -543,21 +645,21 @@ REQUIRED EXPERIMENTS:
 PARAMETER REGISTRY:
   MEASURED    :   0  []
   LITERATURE  :   9  [alpha_K_Ag, kappa_Kev_4K, kappa_G10_4K, f_th_NV...]
-  ASSUMED     :  25  [P_H2_postbake, G_eff, P_cond_wiring, eta_abs...]
+  ASSUMED     :  44  [P_H2_postbake, G_eff, P_cond_wiring, eta_abs...]
   UNKNOWN     :   6  [G_eff_meas, A_sinter, tau_c, C_contr_10mK...]
-  DESIGN      :   3  [Z0_CPW, w_CPW, P_CH4_purge_tgt]
+  DESIGN      :   8  [Z0_CPW, w_CPW, P_CH4_purge_tgt, mp_pulse_energy...]
 
 ========================================================================
-GATE COUNTS: 0P | 39C | 0F | 2U | 21BLOCKED
+GATE COUNTS: 0P | 47C | 0F | 2U | 23BLOCKED
 FULL-CYCLE MC (post-bakeout Mode D): 33.3% pass rate
 
 CURRENT SYSTEM STATE:
   Mode D is BLOCKED — Mode B prerequisites not executed.
-  21 BLOCKED gate(s): IL-05/06 + D10a/D10b prevent sensing until Mode B+D10a executed.
+  23 BLOCKED gate(s): IL-05/06 + D10a/D10b prevent sensing until Mode B+D10a executed.
   Bakeout not done; NEG not installed; RGA not performed.
 
 POST-BAKEOUT FORECAST (hypothetical; Mode B preconditions satisfied):
-  Gate counts post-installation forecast (Mode D only): PASS=0 | CONDITIONAL=39 | FAIL=0 | UNKNOWN=2. NOTE: forecast is FORECAST_ONLY; can_PASS_now=NO holds for all 56 canonical gates.
+  Gate counts post-installation forecast (Mode D only): PASS=0 | CONDITIONAL=47 | FAIL=0 | UNKNOWN=2. NOTE: forecast is FORECAST_ONLY; can_PASS_now=NO holds for all 56 canonical gates.
   NOTE: D9 = DERIVED_CHECK (Kn=46; first-principles gas-kinetic check). DERIVED_CHECK is not PASS. All other gates remain CONDITIONAL or BLOCKED. No gate is PASS at this time.
         until hardware installed AND measurements verify performance.
   D10a (engineering readiness): BLOCKED — bakeout_executed=False
@@ -608,7 +710,7 @@ ENGINEERING READINESS (E01-E14): 0P | 8C | 13BLOCKED
   0 of 35 engineering fixes VERIFIED. SPECIFIED ≠ INSTALLED ≠ VERIFIED.
 
 FINAL VERDICT: CONDITIONAL — EXPERIMENTAL VALIDATION REQUIRED
-  CURRENT: Mode D BLOCKED (21 BLOCKED gate(s) from Mode B not executed). POST-BAKEOUT FORECAST: 39C + 2U gates, 0 FAIL. Unknown physics gates (NOT engineering failures; require experiment not hardware): B3,D12_G23 -- EXPERIMENTAL VALIDATION REQUIRED. SPECIFIED/INSTALLED/VERIFIED rule applied: SPECIFIED != INSTALLED != VERIFIED. No hardware is installed or verified. The model has no physics FAIL in the post-bakeout Mode D forecast, but the current hardware state is BLOCKED until Mode B prerequisites are physically executed and verified.
+  CURRENT: Mode D BLOCKED (23 BLOCKED gate(s) from Mode B not executed). POST-BAKEOUT FORECAST: 47C + 2U gates, 0 FAIL. Unknown physics gates (NOT engineering failures; require experiment not hardware): B3,D12_G23 -- EXPERIMENTAL VALIDATION REQUIRED. SPECIFIED/INSTALLED/VERIFIED rule applied: SPECIFIED != INSTALLED != VERIFIED. No hardware is installed or verified. The model has no physics FAIL in the post-bakeout Mode D forecast, but the current hardware state is BLOCKED until Mode B prerequisites are physically executed and verified.
 
 VERDICT STRUCTURE:
   CURRENT PHYSICAL STATE:
@@ -619,7 +721,7 @@ VERDICT STRUCTURE:
   EXPERIMENTALLY VERIFIED STATE:
     PASS — achievable only after all required hardware is VERIFIED (measured).
     Currently: 0 of 35 engineering fixes in VERIFIED state.
-  CURRENT: Mode D BLOCKED (21 BLOCKED gate(s) from Mode B not executed). POST-BAKEOUT FORECAST: 39C + 2U gates, 0 FAIL. Unknown physics gates (NOT engineering failures; require experiment not hardware): B3,D12_G23 -- EXPERIMENTAL VALIDATION REQUIRED. SPECIFIED/INSTALLED/VERIFIED rule applied: SPECIFIED != INSTALLED != VERIFIED. No hardware is installed or verified. The model has no physics FAIL in the post-bakeout Mode D forecast, but the current hardware state is BLOCKED until Mode B prerequisites are physically executed and verified.
+  CURRENT: Mode D BLOCKED (23 BLOCKED gate(s) from Mode B not executed). POST-BAKEOUT FORECAST: 47C + 2U gates, 0 FAIL. Unknown physics gates (NOT engineering failures; require experiment not hardware): B3,D12_G23 -- EXPERIMENTAL VALIDATION REQUIRED. SPECIFIED/INSTALLED/VERIFIED rule applied: SPECIFIED != INSTALLED != VERIFIED. No hardware is installed or verified. The model has no physics FAIL in the post-bakeout Mode D forecast, but the current hardware state is BLOCKED until Mode B prerequisites are physically executed and verified.
 
   SIMULATED:    T_s(baseline)=10.413mK, T_peak(transient)=673.1mK
                 Omega_R=139591rad/s, P_tot=4131pW

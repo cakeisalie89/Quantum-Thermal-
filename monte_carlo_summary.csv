@@ -12,12 +12,12 @@ full_cycle_forecast_threshold_satisfied_count,0
 full_cycle_forecast_threshold_satisfied_frac,0.0
 best_SNR,260.6890982580665
 note,"Post-bakeout MC (Mode D only). tau_c log-U[1ns,100ms]. d/T2*/C_contr independent — pass rate overestimated. C_contr@10mK and tau_c: EXPERIMENTAL VALIDATION REQUIRED. G_eff: ASSUMED from Kapitza model, not measured."
-total_gates,63
+total_gates,83
 PASS_count,0
-CONDITIONAL_count,39
-BLOCKED_count,21
+CONDITIONAL_count,47
+BLOCKED_count,23
 UNKNOWN_count,2
-DERIVED_CHECK_count,1
+DERIVED_CHECK_count,11
 current_full_cycle_MC_pct,0.0
 forecast_mode_D_pct,33.8
 forecast_only,true

@@ -30,18 +30,28 @@ PKG = Path(__file__).resolve().parent
 
 # ===================== CANONICAL_EXPECTED ====================================
 CANONICAL_EXPECTED = {
-    "total_gates": 63,
+    "total_gates": 83,
     "PASS": 0,
-    "CONDITIONAL": 39,
-    "BLOCKED": 21,
+    "CONDITIONAL": 47,
+    "BLOCKED": 23,
     "UNKNOWN": 2,
-    "DERIVED_CHECK": 1,
+    "DERIVED_CHECK": 11,
     "tau_c_canonical_us": 292,
     "tau_c_superseded_us": 27.728,
     "required_generated_gates_include": [
         "A6","A7","A8","A9","A10","A11","A12","A13","A14",
         "Shield-RAD","Shield-RF","Shield-OPT","Shield-MAG","Shield-CHEM",
         "C_to_D_Readiness","RTB_JT_OPTIONAL_COOLING_PLANT",
+        # Pass 15: non-lumped 1D/2D multiphysics gates (all CONDITIONAL/BLOCKED/DERIVED_CHECK)
+        "THERMAL_1D_STABILITY_CHECK","THERMAL_2D_STABILITY_CHECK",
+        "THERMAL_1D_MESH_CONVERGENCE_CHECK","THERMAL_2D_MESH_CONVERGENCE_CHECK",
+        "KAPITZA_BC_CHECK","MOVING_BOUNDARY_MODEL_CHECK","NV_LAYER_TEMPERATURE_CHECK",
+        "HOTSPOT_MARGIN_CHECK","POST_PULSE_DRIFT_CHECK","OPTICAL_ABSORPTION_PROFILE_CHECK",
+        "GAS_TRANSPORT_STABILITY_CHECK","CRYOBAFFLE_CAPTURE_CHECK",
+        "RESIDUAL_SPECIES_MODE_D_CHECK","SURFACE_COVERAGE_DECAY_CHECK",
+        "MICROWAVE_HEATING_PROFILE_CHECK","RADIATION_VIEWFACTOR_CHECK",
+        "VIBRATION_TRANSFER_CHECK","COUPLED_MODE_RECOVERY_CHECK",
+        "LUMPED_MODEL_RETIRED_CHECK","THREE_D_FUTURE_WORK_CHECK",
     ],
     "all_can_PASS_now": "NO",
     "all_measured_in_this_system": "false",
@@ -135,12 +145,12 @@ else:
 
     ids = [r["gate_id"] for r in gen_rows]
     if len(ids) != CANONICAL_EXPECTED["total_gates"]:
-        fail("exactly 63 gate rows in generated table", f"got {len(ids)}")
+        fail("exactly 83 gate rows in generated table", f"got {len(ids)}")
     elif len(set(ids)) != len(ids):
         dups = [x for x in set(ids) if ids.count(x) > 1]
         fail("no duplicate gate_id rows", f"duplicates: {dups}")
     else:
-        ok("exactly 63 unique gate rows in generated table")
+        ok("exactly 83 unique gate rows in generated table")
 
     counts = Counter(r["status"] for r in gen_rows)
     expected_counts = {
@@ -175,13 +185,13 @@ else:
     if bad:
         fail("can_PASS_now=NO for all rows", f"violations: {bad[:5]}")
     else:
-        ok("can_PASS_now=NO for all 63 rows")
+        ok("can_PASS_now=NO for all 83 rows")
 
     bad_m = [r["gate_id"] for r in gen_rows if r.get("measured_in_this_system") != "false"]
     if bad_m:
         fail("measured_in_this_system=false for all rows", f"violations: {bad_m[:5]}")
     else:
-        ok("measured_in_this_system=false for all 63 rows")
+        ok("measured_in_this_system=false for all 83 rows")
 
     d9 = [r for r in gen_rows if r["gate_id"] == "D9"]
     if not d9:
@@ -248,28 +258,28 @@ if not readme_path.exists():
     fail("README.md present", "missing")
 else:
     readme = readme_path.read_text()
-    required_pairs = [("63","total gates"),("0","PASS"),("39","CONDITIONAL"),
-                      ("21","BLOCKED"),("2","UNKNOWN"),("1","DERIVED_CHECK"),
+    required_pairs = [("83","total gates"),("0","PASS"),("47","CONDITIONAL"),
+                      ("23","BLOCKED"),("2","UNKNOWN"),("11","DERIVED_CHECK"),
                       ("292","tau_c canonical threshold")]
     missing = [f"{n}/{l}" for n,l in required_pairs if n not in readme or l not in readme]
     if missing:
         fail("README contains all canonical numbers/labels", f"missing: {missing}")
     else:
-        ok("README contains 63/0/39/21/2/1/292 and labels")
+        ok("README contains 83/0/47/23/2/11/292 and labels")
 
     # Reviewer-driven: detect internal count contradictions. Every "BLOCKED count | N"
-    # row (GLOBAL STATUS table or elsewhere) must equal the canonical 21, and the
-    # GLOBAL STATUS table must sum to 63. Step 5 previously only checked that "21"
+    # row (GLOBAL STATUS table or elsewhere) must equal the canonical 23, and the
+    # GLOBAL STATUS table must sum to 83. Step 5 previously only checked that "21"
     # appeared *somewhere*, so a contradicting "BLOCKED count | 20" slipped through.
     blocked_count_rows = re.findall(r"BLOCKED count\s*\|\s*(\d+)", readme)
-    bad_blocked = [n for n in blocked_count_rows if n != "21"]
+    bad_blocked = [n for n in blocked_count_rows if n != "23"]
     if bad_blocked:
-        fail("README BLOCKED count rows all equal canonical 21",
-             f"found BLOCKED count = {bad_blocked} (canonical = 21)")
+        fail("README BLOCKED count rows all equal canonical 23",
+             f"found BLOCKED count = {bad_blocked} (canonical = 23)")
     else:
-        ok(f"README BLOCKED count rows all equal 21 ({len(blocked_count_rows)} row(s) checked)")
+        ok(f"README BLOCKED count rows all equal 23 ({len(blocked_count_rows)} row(s) checked)")
 
-    # GLOBAL STATUS table internal sum: PASS+BLOCKED+CONDITIONAL+UNKNOWN+DERIVED = 63
+    # GLOBAL STATUS table internal sum: PASS+BLOCKED+CONDITIONAL+UNKNOWN+DERIVED = 83
     gs_pass = re.search(r"PASS count\s*\|\s*(\d+)", readme)
     gs_blocked = re.search(r"BLOCKED count\s*\|\s*(\d+)", readme)
     gs_cond = re.search(r"CONDITIONAL count\s*\|\s*(\d+)", readme)
@@ -277,11 +287,11 @@ else:
     gs_derived = re.search(r"DERIVED(?:_CHECK)? count\s*\|\s*(\d+)", readme)
     if all([gs_pass, gs_blocked, gs_cond, gs_unknown, gs_derived]):
         gs_sum = sum(int(x.group(1)) for x in [gs_pass, gs_blocked, gs_cond, gs_unknown, gs_derived])
-        if gs_sum != 63:
-            fail("README GLOBAL STATUS table sums to 63",
-                 f"PASS+BLOCKED+CONDITIONAL+UNKNOWN+DERIVED = {gs_sum} (expected 63)")
+        if gs_sum != 83:
+            fail("README GLOBAL STATUS table sums to 83",
+                 f"PASS+BLOCKED+CONDITIONAL+UNKNOWN+DERIVED = {gs_sum} (expected 83)")
         else:
-            ok("README GLOBAL STATUS table sums to 63")
+            ok("README GLOBAL STATUS table sums to 83")
 
     forbidden = ["DARPA-ready","Nobel-worthy","proof of feasibility",
                  "validated system","breakthrough"]
@@ -310,13 +320,13 @@ if not tex_path.exists():
 else:
     tex = tex_path.read_text()
 
-    required_text = ["63", "0 PASS", "39 CONDITIONAL", "21 BLOCKED", "292"]
+    required_text = ["83", "0 PASS", "47 CONDITIONAL", "23 BLOCKED", "292"]
     missing = [s for s in required_text if s not in tex]
     if missing:
         fail("manuscript contains canonical counts",
              f"missing literal strings: {missing}")
     else:
-        ok("manuscript contains 63 / 0 PASS / 39 CONDITIONAL / 21 BLOCKED / 292")
+        ok("manuscript contains 83 / 0 PASS / 47 CONDITIONAL / 23 BLOCKED / 292")
 
     stale = []
     for p in STALE_FORBIDDEN_IN_TEX_OR_PDF:
@@ -408,13 +418,13 @@ else:
         ok("PDF text free of stale 34/10 gate counts, 25-row claim, source_audit.csv reference")
 
     # Required canonical counts present
-    needed = ["39 conditional","21 blocked","0 Pass | 39"]
+    needed = ["47 conditional","23 blocked","0 Pass | 47"]
     missing = [s for s in needed if s not in pdf_text]
     if missing:
         fail("PDF contains canonical counts",
              f"missing in extracted text: {missing}")
     else:
-        ok("PDF contains '39 conditional' / '21 blocked' / '0 Pass | 39'")
+        ok("PDF contains '47 conditional' / '23 blocked' / '0 Pass | 47'")
 
     # validation_matrix row count claim in PDF
     m = re.search(r"validation[_\\ ]matrix(?:\.csv)?[^.\n]{0,80}?(\d+)\s*rows?", pdf_text, re.I)
@@ -1562,6 +1572,172 @@ else:
              f"{len(bad_hashes)} mismatches: {bad_hashes[:3]}")
     else:
         ok("manifest SHA256 hashes match every listed file (no placeholders)")
+
+# ===================== Step 12: non-lumped multiphysics layer ================
+print()
+print("Step 12: non-lumped 1D/2D multiphysics layer — outputs, columns, finite, "
+      "zero-PASS, lumped comparator-only")
+
+MP_REQUIRED_OUTPUTS = [
+    "distributed_thermal_profile.csv", "distributed_thermal_2d_slices.csv",
+    "distributed_thermal_metrics.csv", "optical_absorption_profile.csv",
+    "optical_absorption_2d_slices.csv", "optical_absorption_metrics.csv",
+    "gas_transport_profile.csv", "gas_transport_2d_map.csv", "gas_transport_metrics.csv",
+    "surface_coverage_profile.csv", "surface_coverage_2d_map.csv",
+    "surface_coverage_metrics.csv", "microwave_heating_profile.csv",
+    "microwave_heating_metrics.csv", "radiation_leakage_paths.csv",
+    "radiation_leakage_metrics.csv", "vibration_transfer_profile.csv",
+    "vibration_transfer_metrics.csv", "coupled_mode_recovery_metrics.csv",
+    "coupled_mode_state_summary.json", "multiphysics_summary.json",
+    "mesh_convergence_summary.csv", "numerical_stability_summary.csv",
+    "multiphysics_verification_summary.csv", "fidelity_comparison.csv",
+    "lumped_vs_nonlumped_comparison.csv",
+]
+mp_missing = [f for f in MP_REQUIRED_OUTPUTS if not (PKG / f).exists()]
+if mp_missing:
+    fail("multiphysics: all declared outputs exist", f"missing: {mp_missing}")
+else:
+    ok(f"multiphysics: all {len(MP_REQUIRED_OUTPUTS)} declared outputs exist")
+
+# (a) package imports and 3D is FUTURE_WORK / NOT_IMPLEMENTED (not faked)
+try:
+    import importlib
+    f3 = importlib.import_module("qta_multiphysics.future_3d")
+    if getattr(f3, "IMPLEMENTED", True) is not False or getattr(f3, "STATUS", "") != "FUTURE_WORK":
+        fail("multiphysics: 3D is FUTURE_WORK/NOT_IMPLEMENTED", f"status={getattr(f3,'STATUS',None)}")
+    else:
+        ok("multiphysics: 3D explicitly FUTURE_WORK / NOT_IMPLEMENTED (not faked)")
+    try:
+        f3.thermal_3d()
+        fail("multiphysics: 3D solver refuses to run", "thermal_3d() did not raise")
+    except NotImplementedError:
+        ok("multiphysics: 3D solver raises NotImplementedError (no fake 3D)")
+    except Exception as _e:
+        fail("multiphysics: 3D solver refuses to run", f"unexpected error {_e}")
+except Exception as e:
+    fail("multiphysics: package import", str(e))
+
+# (b) expected columns + finite numeric values in key CSVs
+def _read_csv_rows(name):
+    with open(PKG / name, newline="") as fh:
+        return list(csv.DictReader(fh))
+
+MP_EXPECTED_COLS = {
+    "distributed_thermal_metrics.csv": {"metric", "value", "evidence_class", "measured_in_this_system"},
+    "gas_transport_metrics.csv": {"species", "residual_mode_D_density_m3", "evidence_class", "measured_in_this_system"},
+    "surface_coverage_metrics.csv": {"species", "residual_theta_mode_D", "evidence_class", "measured_in_this_system"},
+    "coupled_mode_recovery_metrics.csv": {"metric", "value", "evidence_class", "measured_in_this_system"},
+    "mesh_convergence_summary.csv": {"model", "mesh", "metric", "value"},
+    "lumped_vs_nonlumped_comparison.csv": {"quantity", "lumped_model", "nonlumped_1d_model", "role"},
+}
+col_problems = []
+for name, need in MP_EXPECTED_COLS.items():
+    try:
+        rows = _read_csv_rows(name)
+        have = set(rows[0].keys()) if rows else set()
+        if not need.issubset(have):
+            col_problems.append(f"{name}: missing {need - have}")
+    except Exception as e:
+        col_problems.append(f"{name}: {e}")
+if col_problems:
+    fail("multiphysics: required columns present", "; ".join(col_problems))
+else:
+    ok("multiphysics: required columns present in key CSVs")
+
+# finite check across numeric cells of all metric CSVs
+def _is_number(x):
+    try:
+        float(x); return True
+    except Exception:
+        return False
+nonfinite = []
+for name in MP_REQUIRED_OUTPUTS:
+    if not name.endswith(".csv"):
+        continue
+    try:
+        with open(PKG / name, newline="") as fh:
+            for row in csv.reader(fh):
+                for cell in row:
+                    c = str(cell).strip().lower()
+                    if c in ("nan", "inf", "-inf", "+inf"):
+                        nonfinite.append(f"{name}:{cell}")
+    except Exception as e:
+        nonfinite.append(f"{name}: read error {e}")
+if nonfinite:
+    fail("multiphysics: no NaN/inf in output CSVs", f"{nonfinite[:4]}")
+else:
+    ok("multiphysics: no NaN/inf literals in output CSVs")
+
+# (c) measured_in_this_system=false everywhere it appears in MP outputs;
+#     and no MEASURED tag on model-only outputs
+measured_problems = []
+for name in MP_REQUIRED_OUTPUTS:
+    if not name.endswith(".csv"):
+        continue
+    try:
+        rows = _read_csv_rows(name)
+        for r in rows:
+            if "measured_in_this_system" in r and str(r["measured_in_this_system"]).strip().lower() not in ("false", ""):
+                measured_problems.append(f"{name}: measured_in_this_system={r['measured_in_this_system']}")
+            for k, v in r.items():
+                if isinstance(v, str) and v.strip().upper() == "MEASURED":
+                    measured_problems.append(f"{name}: MEASURED tag in {k}")
+    except Exception:
+        pass
+if measured_problems:
+    fail("multiphysics: outputs carry no MEASURED status", f"{measured_problems[:4]}")
+else:
+    ok("multiphysics: all outputs model-only (measured_in_this_system=false; no MEASURED tags)")
+
+# (d) lumped model is comparator-only (role column says so; nonlumped is authority)
+try:
+    lr = _read_csv_rows("lumped_vs_nonlumped_comparison.csv")
+    roles = " ".join(r.get("role", "") for r in lr).lower()
+    if "comparator_only" in roles and "gate_authority" in roles:
+        ok("multiphysics: lumped model is comparator-only; non-lumped is gate authority")
+    else:
+        fail("multiphysics: lumped comparator-only", f"role column unexpected: {roles[:80]}")
+except Exception as e:
+    fail("multiphysics: lumped comparator-only", str(e))
+
+# (e) the 20 multiphysics gates are present in the gate table and none is PASS
+try:
+    gt = _read_csv_rows("results_gate_table.csv")
+    mp_ids = {"THERMAL_1D_STABILITY_CHECK", "THERMAL_2D_STABILITY_CHECK",
+              "THERMAL_1D_MESH_CONVERGENCE_CHECK", "THERMAL_2D_MESH_CONVERGENCE_CHECK",
+              "KAPITZA_BC_CHECK", "MOVING_BOUNDARY_MODEL_CHECK", "NV_LAYER_TEMPERATURE_CHECK",
+              "HOTSPOT_MARGIN_CHECK", "POST_PULSE_DRIFT_CHECK", "OPTICAL_ABSORPTION_PROFILE_CHECK",
+              "GAS_TRANSPORT_STABILITY_CHECK", "CRYOBAFFLE_CAPTURE_CHECK",
+              "RESIDUAL_SPECIES_MODE_D_CHECK", "SURFACE_COVERAGE_DECAY_CHECK",
+              "MICROWAVE_HEATING_PROFILE_CHECK", "RADIATION_VIEWFACTOR_CHECK",
+              "VIBRATION_TRANSFER_CHECK", "COUPLED_MODE_RECOVERY_CHECK",
+              "LUMPED_MODEL_RETIRED_CHECK", "THREE_D_FUTURE_WORK_CHECK"}
+    present = set(r["gate_id"] for r in gt)
+    miss = mp_ids - present
+    bad_status = [r["gate_id"] for r in gt if r["gate_id"] in mp_ids and r["status"] not in
+                  ("CONDITIONAL", "BLOCKED", "UNKNOWN", "DERIVED_CHECK")]
+    if miss:
+        fail("multiphysics: all 20 gates present in table", f"missing {miss}")
+    elif bad_status:
+        fail("multiphysics: no MP gate is PASS", f"forbidden status on {bad_status}")
+    else:
+        ok("multiphysics: all 20 gates present; statuses in {CONDITIONAL,BLOCKED,UNKNOWN,DERIVED_CHECK}")
+except Exception as e:
+    fail("multiphysics: gate-table check", str(e))
+
+# (f) no source_audit.csv reference inside multiphysics outputs
+sa_refs = []
+for name in MP_REQUIRED_OUTPUTS:
+    try:
+        if "source_audit.csv" in (PKG / name).read_text(errors="ignore"):
+            sa_refs.append(name)
+    except Exception:
+        pass
+if sa_refs:
+    fail("multiphysics: no source_audit.csv reference", f"{sa_refs}")
+else:
+    ok("multiphysics: no source_audit.csv reference in outputs")
+
 
 # ===================== FINAL VERDICT =========================================
 print()

@@ -6,7 +6,8 @@ modesty.
 
 ## The package does NOT claim
 
-- No PASS gates. The current canonical state is 0 PASS out of 63 gates.
+- The non-lumped 1D/2D multiphysics layer (qta_multiphysics/) is model-only / forecast-only / pre-experimental. Its 1D and 2D thermal, optical, gas-transport, surface-coverage, microwave, radiation, vibration, and coupled Mode B->C->D backends produce forecasts only; 3D is FUTURE_WORK / NOT_IMPLEMENTED. No multiphysics output is measured in this system, none carries a MEASURED tag, and none of its 20 gates is PASS. The legacy lumped model is retained only as a comparator. Numerical convergence/verification is not hardware validation.
+- No PASS gates. The current canonical state is 0 PASS out of 83 gates (including the 20 non-lumped multiphysics gates added in pass 15).
 - No proof of feasibility.
 - No validated hardware. Every hardware item in BOM.csv is either
   DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or

@@ -1,0 +1,169 @@
+{
+  "layer": "qta_multiphysics",
+  "status": "MODEL_ONLY;FORECAST_ONLY;ZERO_PASS;PRE_EXPERIMENTAL",
+  "implemented_backends": {
+    "thermal_1d": "canonical/default non-lumped",
+    "thermal_2d_axisymmetric": "serious spatial refinement",
+    "3d": "FUTURE_WORK"
+  },
+  "thermal_metrics": {
+    "NV_layer_T_1d_K": 29.387492621221455,
+    "max_T_1d_K": 29.387492621221455,
+    "max_gradient_1d_K_per_m": 490420.6270087444,
+    "pulse_peak_NV_1d_K": 37.95655442095838,
+    "post_pulse_drift_1d_K": 0.017953348727669627,
+    "NV_layer_mean_2d_K": 6.057451250568322,
+    "NV_layer_max_2d_K": 13.564787957343107,
+    "hotspot_r_m": 5.000000000000001e-07,
+    "hotspot_z_m": 4.166666666666667e-07,
+    "max_T_2d_K": 13.564787957343107,
+    "max_radial_gradient_2d_K_per_m": 1972825.282723883,
+    "max_depth_gradient_2d_K_per_m": 627476.9202631926,
+    "thermal_1d_solver_status": "ok",
+    "thermal_2d_solver_status": "ok"
+  },
+  "coupled_metrics": {
+    "Mode_B_peak_T_K": 29.387492621221455,
+    "Mode_B_peak_surface_T_K": 29.387492621221455,
+    "Mode_B_peak_NV_layer_T_K": 29.387492621221455,
+    "Mode_B_peak_contamination_flux_proxy_m3": 5.6626593847171016e+16,
+    "Mode_C_recool_time_s": 0.0016806722689075631,
+    "Mode_C_cleanup_residual_CH4_m3": 0.0,
+    "Mode_C_surface_decay_time_s": 1.1794871794871795,
+    "Mode_D_T_NV_layer_K": 0.01,
+    "Mode_D_residual_CH4_density_m3": 0.0,
+    "Mode_D_residual_H2_density_m3": 259719665281.75375,
+    "Mode_D_residual_surface_theta": 1.6862138138712673e-10,
+    "Mode_D_readiness_status": "FORECAST_NOT_READY",
+    "limiting_recovery_process": "surface_decay_s",
+    "thermal_solver_status_B": "ok",
+    "thermal_solver_status_C": "ok"
+  },
+  "verification": {
+    "mesh_1d": {
+      "thermal_1d_rel_change_200_400": 0.0005791418231720259,
+      "thermal_1d_converged": true
+    },
+    "mesh_2d": {
+      "thermal_2d_rel_change_med_fine": 0.0042804821986972,
+      "thermal_2d_converged": true
+    },
+    "kapitza": {
+      "hot_outflux_positive": true,
+      "cold_influx_negative": true,
+      "sign_correct": true
+    },
+    "source_1d": {
+      "integral_areal_W_m2": 7626719.711778137,
+      "expected_areal_W_m2": 7639437.268410975,
+      "rel_error": 0.0016647242703890282
+    },
+    "source_2d": {
+      "integral_W": 0.0002934631809782637,
+      "expected_W": 0.0003,
+      "rel_error": 0.02178939673912083
+    },
+    "reduction": {
+      "nv_1d_K": 29.24496948496967,
+      "nv_2d_reduced_K": 28.841597035035754,
+      "rel_error": 0.013792883256083638,
+      "reduces_to_1d": true
+    },
+    "coupling": {
+      "optical_feeds_thermal": true,
+      "gas_feeds_surface": true,
+      "thermal_feeds_desorption": true,
+      "all_couplings_ok": true
+    }
+  },
+  "monte_carlo": {
+    "distributions": [
+      {
+        "metric": "Mode_B_peak_NV_layer_T_K",
+        "n": 30,
+        "mean": 30.252487190215565,
+        "std": 4.398433790080311,
+        "p05": 24.927820809910024,
+        "p50": 29.29194340160325,
+        "p95": 36.9661253452158
+      },
+      {
+        "metric": "Mode_B_max_T_K",
+        "n": 30,
+        "mean": 30.252487190215565,
+        "std": 4.398433790080311,
+        "p05": 24.927820809910024,
+        "p50": 29.29194340160325,
+        "p95": 36.9661253452158
+      },
+      {
+        "metric": "Mode_C_recool_time_s",
+        "n": 30,
+        "mean": 0.00512820512820513,
+        "std": 1.734723475976807e-18,
+        "p05": 0.005128205128205128,
+        "p50": 0.005128205128205128,
+        "p95": 0.005128205128205128
+      },
+      {
+        "metric": "Mode_C_cleanup_time_s",
+        "n": 30,
+        "mean": 1.1530255695593812,
+        "std": 0.5273999944180776,
+        "p05": 0.38214506731528003,
+        "p50": 1.0787609834458176,
+        "p95": 2.126152158320849
+      },
+      {
+        "metric": "Mode_D_residual_CH4_density_m3",
+        "n": 30,
+        "mean": 8.194514384634784,
+        "std": 37.88557696472892,
+        "p05": 1.9743807313836214e-71,
+        "p50": 6.335942594675132e-15,
+        "p95": 18.862907959348817
+      },
+      {
+        "metric": "Mode_D_residual_H2_density_m3",
+        "n": 30,
+        "mean": 4788199974935999.0,
+        "std": 8195317460779973.0,
+        "p05": 82740980197.23138,
+        "p50": 153954709220475.3,
+        "p95": 2.362899208163832e+16
+      },
+      {
+        "metric": "Mode_D_residual_surface_theta",
+        "n": 30,
+        "mean": 4.513030900188662e-16,
+        "std": 1.4283294944171982e-15,
+        "p05": 9.436146037219865e-33,
+        "p50": 1.47028824687329e-23,
+        "p95": 3.2346696255384163e-15
+      }
+    ],
+    "summary": {
+      "n_samples": 30,
+      "n_evaluated": 30,
+      "pde_stability_failure_count": 0,
+      "mesh_convergence_checked": 1,
+      "mesh_convergence_failure_count": 0,
+      "Mode_D_forecast_ready_fraction": 1.0,
+      "note": "FORECAST_ONLY; ready_fraction is a model forecast, NOT a validated pass rate."
+    }
+  },
+  "future_3d": {
+    "module": "future_3d",
+    "status": "FUTURE_WORK",
+    "implemented": false,
+    "planned_architecture": {
+      "thermal_3d": "T(x,y,z,t) full anisotropic conduction; FV on a 3D grid; method-of-lines + sparse stiff integrator. NOT_IMPLEMENTED.",
+      "gas_transport_3d": "3D advection-diffusion in the process volume. NOT_IMPLEMENTED.",
+      "surface_coverage_3d": "Coverage on a 2D surface manifold with 3D flux. NOT_IMPLEMENTED.",
+      "grid_3d": "StructuredGrid3D (x,y,z) with face areas and cell volumes. NOT_IMPLEMENTED.",
+      "verification_3d": "3D mesh convergence, symmetry, 3D->2D reduction. NOT_IMPLEMENTED."
+    },
+    "note": "3D is not claimed and is excluded from all physical gates."
+  },
+  "measured_in_this_system": false
+}

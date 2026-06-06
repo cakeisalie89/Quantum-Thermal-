@@ -12,11 +12,11 @@
 | Same-chamber mode-switched growth and sensing | PROPOSED, not demonstrated |
 | Current full-cycle MC | 0.0% |
 | PASS count | 0 |
-| BLOCKED count | 21 |
-| CONDITIONAL count | 39 |
+| BLOCKED count | 23 |
+| CONDITIONAL count | 47 |
 | UNKNOWN count | 2 |
-| DERIVED_CHECK count | 1 |
-| Total gates | 63 |
+| DERIVED_CHECK count | 11 |
+| Total gates | 83 |
 | Package status | COMPLETE_DRAFT |
 | Source audit | REPRESENTATIVE_ONLY / INCOMPLETE_FOR_SUBMISSION |
 | Bibliography | 23 entries (INCOMPLETE_DRAFT; target 100–200+) |
@@ -74,6 +74,42 @@ concurrently. QTA now asks whether the same cryogenic platform can
 transition from Mode B growth/process operation through Mode C
 isolation and recovery into a clean, thermally stable Mode D sensing
 condition.
+
+
+## Non-lumped 1D/2D multiphysics forecast layer
+
+QTA now ships a serious 1D/2D non-lumped reduced-order multiphysics forecast
+layer (`qta_multiphysics/`) in addition to the original lumped estimates. It
+provides spatially-resolved forecast backends for thermal transport,
+moving-boundary laser absorption, gas/contamination transport, surface coverage,
+optical deposition, microwave heating, radiation leakage, vibration transfer,
+and the coupled Mode B → Mode C → Mode D recovery cycle.
+
+- **1D is the canonical, fast, default non-lumped path.** A finite-volume
+  moving-boundary heat equation `rho Cp(T) dT/dt = d/dz[k(T) dT/dz] + Q_laser +
+  Q_mw + Q_bg` with a Kapitza-type backside sink, integrated by method-of-lines
+  with a stiff (BDF) solver.
+- **2D axisymmetric is the serious spatial refinement.** The same physics in
+  `(r,z)` with cylindrical `2*pi*r` weighting, a symmetry axis at `r=0`, a cold
+  outer contact, and a Gaussian radial beam profile. It reduces to the 1D result
+  to ~1.4% when radial transport is disabled (verified).
+- **3D is FUTURE_WORK / NOT_IMPLEMENTED.** It is neither claimed nor used by any
+  gate in this pass; the 3D entry points raise `NotImplementedError`.
+
+Because the fs spot (~5 µm) and absorption depth (~1 µm) are microscopic relative
+to the mm-scale sample, the thermal solvers resolve a near-field micro-domain
+embedded in cold bulk — an explicit, documented reduced-order choice.
+
+Everything in this layer is **model-only / forecast-only / pre-experimental**.
+All of its outputs carry `measured_in_this_system = false`, no output carries a
+MEASURED tag, and the 20 multiphysics gates it adds are all
+CONDITIONAL / BLOCKED / DERIVED_CHECK — **none is PASS**. The legacy lumped model
+is retained **only** as a comparator in `lumped_vs_nonlumped_comparison.csv`; the
+non-lumped models are the gate authority. The layer's numerical self-consistency
+(mesh convergence, energy conservation, Kapitza sign, 2D→1D reduction, coupling)
+is recorded in `mesh_convergence_summary.csv`, `numerical_stability_summary.csv`,
+and `multiphysics_verification_summary.csv`. None of this constitutes hardware
+validation.
 
 
 ## Shielding and Isolation Stack
@@ -170,7 +206,7 @@ If you are a technical reviewer, the recommended read order is:
 1. `README.md` — this file
 2. `REVIEWER_COVER_NOTE.md` — one-page summary of scope and request
 3. `qta_manuscript_v4.pdf` — full manuscript
-4. `results_gate_table.csv` — the 63-gate canonical decision table
+4. `results_gate_table.csv` — the 83-gate canonical decision table
 5. `FIRST_VALIDATION_EXPERIMENTS.md` — proposed first experiments (priority order)
 6. `risk_register.csv` — 107 risks (84 legacy numeric IDs + 16 shielding/mode entries + 7 RTB/JT entries)
 7. `interface_map.csv` — interfaces I001 through I075
@@ -205,12 +241,12 @@ verifies the canonical state against every packaged file.
 
 | Quantity | Canonical value |
 |----------|-----------------|
-| total gates | 63 |
+| total gates | 83 |
 | PASS | 0 |
-| CONDITIONAL | 39 |
-| BLOCKED | 21 |
+| CONDITIONAL | 47 |
+| BLOCKED | 23 |
 | UNKNOWN | 2 |
-| DERIVED_CHECK | 1 |
+| DERIVED_CHECK | 11 |
 | tau_c canonical threshold | 292 µs |
 | tau_c v3.0 (SUPERSEDED) | 27.728 µs (NOT_CANONICAL, NOT_LIVE_GATE_LOGIC) |
 | LCVD during active sensing | NOT VIABLE, NOT CLAIMED |
@@ -340,7 +376,7 @@ detection fails regardless of τ_c.
 
 No gate reaches PASS from: ASSUMED, UNKNOWN, INDIRECT, MANUFACTURER_SPEC,
 DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or UNVERIFIED inputs.
-All 63 gates: can_PASS_now = NO.
+All 83 gates: can_PASS_now = NO.
 
 ---
 
@@ -397,7 +433,7 @@ Live operating-point file is `best_forecast_operating_point.json` with
 | qta_manuscript_v4.pdf | COMPLETE_DRAFT | Manuscript with Mode B LCVD feasibility-limits section, gates A6–A14, IL-14, thermal dump, cycling |
 | qta_manuscript_v4.tex | COMPLETE_DRAFT | LaTeX source. verdictbox macro uses \bfseries inside parbox (paragraph-safe) |
 | qta_full_sim.py | COMPLETE | Relative output path; canonical tau_c=292; duplicate defs removed; tau_c_sweep gates against 292 µs |
-| results_gate_table.csv | COMPLETE_DRAFT | 63 gates total — 0P 39C 21 BLOCKED 2U 1DC; all can_PASS_now=NO |
+| results_gate_table.csv | COMPLETE_DRAFT | 83 gates total — 0P 47C 23 BLOCKED 2U 11DC; all can_PASS_now=NO |
 | monte_carlo_summary.csv | COMPLETE | 14 rows; forecast_only=true; current=0.0% |
 | BOM.csv | COMPLETE_DRAFT | 121 rows with anchoring columns; 0 Vespel (added 51 validation/isolation entries B081-B131) |
 | rejected_baseline_BOM.csv | COMPLETE | 2 rows (Vespel SP-22, AOM) |
@@ -414,8 +450,8 @@ Live operating-point file is `best_forecast_operating_point.json` with
 | source_audit_status.txt | COMPLETE | Explains audit incompleteness |
 | output_sync_report.txt | COMPLETE | Real check |
 | README.md | COMPLETE | This file |
-| monte_carlo_parameter_registry.csv | COMPLETE_DRAFT | 151 parameters categorized FIXED_DESIGN/ASSUMED_UNCERTAIN/MEASURED_REQUIRED/DERIVED/MODE_DEPENDENT; sampling rules per category |
-| monte_carlo_gate_failure_rates.csv | COMPLETE_DRAFT | 63 gates with forecast failure rates; BLOCKED=100% (hardware/measurement not present); CONDITIONAL=NOT_QUANTIFIED |
+| monte_carlo_parameter_registry.csv | COMPLETE_DRAFT | 175 parameters categorized FIXED_DESIGN/ASSUMED_UNCERTAIN/MEASURED_REQUIRED/DERIVED/MODE_DEPENDENT; sampling rules per category |
+| monte_carlo_gate_failure_rates.csv | COMPLETE_DRAFT | 83 gates with forecast failure rates; BLOCKED=100% (hardware/measurement not present); CONDITIONAL=NOT_QUANTIFIED |
 | monte_carlo_sensitivity_rankings.csv | COMPLETE_DRAFT | 13 ranked sensitivity parameters; tau_c rank 1, C_contr rank 2, T2* rank 3 |
 
 ---

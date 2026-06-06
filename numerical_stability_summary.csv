@@ -1,0 +1,7 @@
+check,value,pass_if_measured,evidence,measured_in_this_system
+diffusion_sanity_1d_rel_error,2.068892859971764e-05,True,MODEL_ONLY,false
+thermal_1d_finite,1.0,True,MODEL_ONLY,false
+source_energy_integral_1d_rel_error,0.0016647242703890282,True,MODEL_ONLY,false
+source_energy_integral_2d_rel_error,0.02178939673912083,True,MODEL_ONLY,false
+kapitza_sign_correct,1.0,True,MODEL_ONLY,false
+axis_no_singularity_finite,1.0,True,MODEL_ONLY,false

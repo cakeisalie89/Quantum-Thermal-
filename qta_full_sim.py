@@ -251,6 +251,31 @@ PARAM_REGISTRY=[
     ("t_growth",30.,"s",ASSUMED,"Design growth pulse","A","+-factor3"),
     ("t_purge_min",7200.,"s",ASSUMED,"Min pumpout; outgassing dominated","B","+0/-50%"),
     ("t_vib_settle",100.,"s",ASSUMED,"Vib settling after shutter","C","+-factor3"),
+    # ── Pass 15: non-lumped 1D/2D multiphysics parameters (forecast/model-only) ──
+    ("mp_k_ref",2000.,"W/m/K",ASSUMED,"Reduced diamond k(T) anchor (boundary-limited)","B","factor 2x"),
+    ("mp_k_exponent",3.0,"",ASSUMED,"Reduced k(T) low-T power law exponent","B","+-0.5"),
+    ("mp_k_plateau",3000.,"W/m/K",ASSUMED,"Reduced k(T) high-T cap","B","factor 2x"),
+    ("mp_alpha_K",50.,"W/m2/K4",ASSUMED,"Kapitza-radiative backside sink coefficient","B","factor 3x"),
+    ("mp_alpha_abs",1e6,"1/m",ASSUMED,"Beer-Lambert absorption coefficient @1030nm","B","factor 3x"),
+    ("mp_absorbed_fraction",0.30,"",ASSUMED,"Absorbed fraction of incident pulse","B","range 0.1-0.5"),
+    ("mp_pulse_energy",1e-9,"J",DESIGN,"fs process-laser pulse energy target","B","factor 2x"),
+    ("mp_pulse_duration",250e-15,"s",DESIGN,"fs pulse duration","B","+-30%"),
+    ("mp_rep_rate",1e6,"Hz",DESIGN,"Pulse repetition rate","B","+-20%"),
+    ("mp_spot_radius",5e-6,"m",DESIGN,"1/e^2 beam radius at sample","B","+-20%"),
+    ("mp_thermal_radius",4e-5,"m",ASSUMED,"Near-field thermal domain radius (reduced-order)","B","model domain"),
+    ("mp_thermal_depth",4e-5,"m",ASSUMED,"Near-field thermal domain depth (reduced-order)","B","model domain"),
+    ("mp_front_velocity",0.0,"m/s",ASSUMED,"Moving-front velocity (static first pass; Stefan-ready)","B","Stefan-ready"),
+    ("mp_gas_D_CH4",2e-2,"m2/s",ASSUMED,"Effective axial diffusion CH4 (molecular-flow surrogate)","BC","factor 3x"),
+    ("mp_gas_v_eff",5e-2,"m/s",ASSUMED,"Effective species drift toward pump","BC","factor 3x"),
+    ("mp_cryobaffle_capture_CH4",0.9,"",ASSUMED,"Cryobaffle capture probability CH4","C","+-0.1"),
+    ("mp_pump_sink",50.,"1/s",ASSUMED,"Pump removal rate near sink","C","factor 2x"),
+    ("mp_stick_CH4",0.5,"",ASSUMED,"Sticking coefficient CH4","BC","factor 2x"),
+    ("mp_Edes_CH4",0.16,"eV",ASSUMED,"Desorption energy CH4 (physisorption)","BCD","+-0.05eV"),
+    ("mp_Edes_He4",0.012,"eV",ASSUMED,"Desorption energy He4","D","+-0.005eV"),
+    ("mp_mw_atten_total",26.,"dB",DESIGN,"Total microwave line attenuation","D","+-3dB"),
+    ("mp_rad_epsilon_eff",0.05,"",ASSUMED,"Effective emissivity for radiation cascade","D","factor 2x"),
+    ("mp_rad_view_factor",0.1,"",ASSUMED,"View factor for radiation cascade","D","factor 2x"),
+    ("mp_vib_Q",20.,"",ASSUMED,"Vibration settling quality factor","CD","factor 2x"),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1844,6 +1869,34 @@ def main():
     # Mode D as BLOCKED because mode_D_blocked=True.
     gE = engineering_readiness_gates()
     all_gates=gA+gB+gC+gD+gE
+
+    # ── Pass 15: non-lumped 1D/2D reduced-order multiphysics layer ──────────
+    # Runs the qta_multiphysics package (serious 1D canonical + 2D axisymmetric
+    # backends; 3D is FUTURE_WORK/NOT_IMPLEMENTED and excluded from gates). The
+    # layer writes its own model-only/forecast-only outputs to outputs/ and
+    # returns gate specs whose status is always one of CONDITIONAL/BLOCKED/
+    # UNKNOWN/DERIVED_CHECK — never PASS. Gate.to_dict() stamps
+    # measured_in_this_system=false and can_PASS_now=NO for every one of them.
+    gMP = []
+    try:
+        from pathlib import Path as _P
+        import qta_multiphysics
+        _mp_out = _P(__file__).resolve().parent / "outputs"
+        _mp_out.mkdir(parents=True, exist_ok=True)
+        _mp_summary, _mp_specs = qta_multiphysics.run_all(str(_mp_out), mc_samples=30,
+                                                          verbose=False)
+        for _s in _mp_specs:
+            assert _s["status"] in ("CONDITIONAL", "BLOCKED", "UNKNOWN", "DERIVED_CHECK"), \
+                f"multiphysics gate {_s['gid']} has forbidden status {_s['status']}"
+            gMP.append(Gate(gid=_s["gid"], name=_s["name"], mode=_s["mode"], eq=_s["eq"],
+                            computed=_s["computed"], thresh=_s["thresh"], status=_s["status"],
+                            reason=_s["reason"], fix=_s["fix"], unit=_s.get("unit", "")))
+        print(f"\n[multiphysics] non-lumped 1D/2D layer: {len(gMP)} gates "
+              f"(0 PASS; statuses {sorted(set(g.status for g in gMP))})")
+    except Exception as _e:
+        print(f"[multiphysics] WARNING: layer did not run ({_e}); proceeding without it")
+        gMP = []
+    all_gates = all_gates + gMP
 
     for lbl,gates in [("MODE A -- GROWTH",gA),("MODE B -- PURGE/RESET",gB),
                        ("MODE C -- RECOOLING",gC),("MODE D -- SENSING",gD)]:

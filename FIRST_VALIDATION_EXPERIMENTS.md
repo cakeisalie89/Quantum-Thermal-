@@ -142,3 +142,17 @@ performed and reported.
 - No PASS gate is achievable until the relevant in-system measurement is
   performed. Literature values, manufacturer specs, and design intent
   cannot upgrade any gate to PASS.
+- The non-lumped 1D/2D multiphysics layer (qta_multiphysics/) sharpens what
+  several of these experiments must measure, but does not substitute for any of
+  them. Its forecasts are model-only. In particular: experiment E should measure
+  the NV-layer temperature and post-recovery drift that the 1D/2D thermal solver
+  forecasts (feeding NV_LAYER_TEMPERATURE_CHECK, HOTSPOT_MARGIN_CHECK,
+  POST_PULSE_DRIFT_CHECK); experiment D should measure the residual gas/coverage
+  the transport and surface-coverage models forecast (GAS_TRANSPORT_STABILITY_CHECK,
+  CRYOBAFFLE_CAPTURE_CHECK, SURFACE_COVERAGE_DECAY_CHECK, RESIDUAL_SPECIES_MODE_D_CHECK);
+  and the reduced-model inputs k(T), alpha_K, the absorption coefficient,
+  sticking coefficients, and desorption energies (now registered in
+  source_gap_register.csv) each require their own measurement before the
+  corresponding gate can carry anything other than a forecast status. The
+  layer's mesh-convergence / energy-conservation / Kapitza-sign / 2D->1D checks
+  are numerical self-consistency only and are not hardware validation.

@@ -1,11 +1,11 @@
 QTA OUTPUT SYNC REPORT — canonical hardened package
 ================================================================
 
-Single source of truth: qta_full_sim.py generates the canonical 63-gate table.
+Single source of truth: qta_full_sim.py generates the canonical 83-gate table.
 
 Reproducible build statement:
   Running `python3 qta_full_sim.py` from the package directory:
-  - generates outputs/results_gate_table.csv with 63 unique gate_id rows
+  - generates outputs/results_gate_table.csv with 83 unique gate_id rows
   - generates outputs/monte_carlo_summary.csv with canonical metric rows
   - generates outputs/best_forecast_operating_point.json (forecast_only=true)
   - generates outputs/tau_c_sweep.csv (gates against canonical 292 µs)
@@ -19,18 +19,18 @@ Reproducible build statement:
   re-running the sim and comparing SHA-256 hashes.
 
 Canonical state (single source of truth):
-  total gates                = 63
+  total gates                = 83
   PASS                       = 0
-  CONDITIONAL                = 39
-  BLOCKED                    = 21
+  CONDITIONAL                = 47
+  BLOCKED                    = 23
   UNKNOWN                    = 2
-  DERIVED_CHECK              = 1
+  DERIVED_CHECK              = 11
   tau_c canonical threshold  = 292 µs (v3.3)
   tau_c SUPERSEDED v3.0      = 27.728 µs (NOT_CANONICAL, NOT_LIVE_GATE_LOGIC)
   D9 status                  = DERIVED_CHECK (not PASS)
 
 Truth statements verified by package_consistency_check.py:
-  - qta_full_sim.py generated the canonical 63-gate table.
+  - qta_full_sim.py generated the canonical 83-gate table.
   - Packaged results match generated outputs (byte-identical SHA-256).
   - Manuscript counts match the CSV.
   - README counts match the CSV.
@@ -938,3 +938,55 @@ CANONICAL STATE (unchanged)
   After:  63 gates / 0 PASS / 39 CONDITIONAL / 21 BLOCKED / 2 UNKNOWN / 1 DERIVED_CHECK
 
 PHYSICS, EQUATIONS, GATE LOGIC, THRESHOLDS, MC LOGIC, CLAIMS: untouched.
+
+
+================================================================
+PASS 15 — NON-LUMPED 1D/2D MULTIPHYSICS LAYER
+================================================================
+  Added qta_multiphysics/ — a serious 1D/2D non-lumped reduced-order
+  multiphysics forecast layer (model-only / forecast-only / zero-PASS).
+
+  Backends (all implemented and executed each run):
+    - thermal_1d (canonical/default): moving-boundary FV heat equation,
+      Kapitza backside sink, BDF method-of-lines
+    - thermal_2d_axisymmetric (serious refinement): (r,z) FV, 2*pi*r weighting,
+      symmetry axis, cold outer contact, Gaussian beam
+    - optical absorption (1D/2D), gas transport (1D advection-diffusion-sink +
+      2D footprint map), surface coverage (1D + 2D radial), microwave path,
+      radiation view-factor cascade, vibration banded transfer
+    - coupled Mode B -> Mode C -> Mode D recovery solver
+    - 3D: FUTURE_WORK / NOT_IMPLEMENTED (raises NotImplementedError; no gate)
+
+  Verification (numerical self-consistency only; NOT hardware validation):
+    mesh_convergence_summary.csv, numerical_stability_summary.csv,
+    multiphysics_verification_summary.csv. Diffusion sanity matches analytic
+    decay; 1D/2D source-energy conservation within tolerance; Kapitza sign
+    correct; 2D->1D reduction ~1.4%; all couplings verified.
+
+  Gate-count change (current-state lines above updated accordingly):
+    Before: 63 gates / 0 PASS / 39 CONDITIONAL / 21 BLOCKED / 2 UNKNOWN / 1 DERIVED_CHECK
+    After:  83 gates / 0 PASS / 47 CONDITIONAL / 23 BLOCKED / 2 UNKNOWN / 11 DERIVED_CHECK
+    (+20 multiphysics gates: 10 DERIVED_CHECK numerical/structural,
+     8 CONDITIONAL model-forecast, 2 BLOCKED behind Mode D / full-cycle prerequisites)
+
+  New outputs (26): distributed_thermal_profile/2d_slices/metrics.csv,
+    optical_absorption_profile/2d_slices/metrics.csv,
+    gas_transport_profile/2d_map/metrics.csv,
+    surface_coverage_profile/2d_map/metrics.csv,
+    microwave_heating_profile/metrics.csv, radiation_leakage_paths/metrics.csv,
+    vibration_transfer_profile/metrics.csv, coupled_mode_recovery_metrics.csv,
+    coupled_mode_state_summary.json, multiphysics_summary.json,
+    mesh_convergence_summary.csv, numerical_stability_summary.csv,
+    multiphysics_verification_summary.csv, fidelity_comparison.csv,
+    lumped_vs_nonlumped_comparison.csv.
+
+  Parameters registered: parameter_registry.csv (+24 mp_*),
+    monte_carlo_parameter_registry.csv (151 -> 175),
+    assumed_parameters.json (111 -> 135 entries),
+    source_gap_register.csv (100 -> 119).
+
+  Lumped model: retained ONLY as a comparator in
+  lumped_vs_nonlumped_comparison.csv; non-lumped models are the gate authority.
+  README, CLAIMS_BOUNDARY, REVIEWER_COVER_NOTE, FIRST_VALIDATION_EXPERIMENTS,
+  and qta_manuscript_v4.tex updated. PASS count remains 0;
+  measured_in_this_system = false for all 83 gates and all multiphysics outputs.

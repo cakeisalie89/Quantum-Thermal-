@@ -2,12 +2,12 @@
   "package": "QTA submission v4",
   "verdict": "BLOCKED now. CONDITIONAL after required hardware installation and measurements.",
   "canonical_state": {
-    "total_gates": 63,
+    "total_gates": 83,
     "PASS": 0,
-    "CONDITIONAL": 39,
-    "BLOCKED": 21,
+    "CONDITIONAL": 47,
+    "BLOCKED": 23,
     "UNKNOWN": 2,
-    "DERIVED_CHECK": 1,
+    "DERIVED_CHECK": 11,
     "tau_c_canonical_us": 292,
     "all_can_PASS_now": "NO",
     "all_measured_in_this_system": "false",
@@ -73,48 +73,54 @@
       "date": "2026-06-03",
       "changes": "Fixed 6 reviewer-found defects: (1) manuscript used the obsolete letter-to-process mode convention (growth mislabeled under the baseline letter) (LaTeX non-breaking space hid it from earlier passes) and contradicted its own mode table -- 32 Mode~A remapped, PDF recompiled; (2) Mode A leaks in CLAIMS_BOUNDARY/FIRST_VALIDATION/README fixed; (3) README GLOBAL STATUS BLOCKED 20->21 (table now sums to 63); (4) CLAIMS_BOUNDARY bibliography 65->23 (65 was the audit row count); (5) measured_parameters.json Knudsen pressure 1uPa->0.4mPa (~400x error); (6) checker Step 8B stale \"147\" PASS message -> f-string {vm_actual}. Swept 46 standalone obsolete-convention growth refs from data-file free text and sim source. Added Step 8H semantic mode-invariant (LaTeX-spacing-normalised), strengthened Step 5 (BLOCKED-count contradiction + GLOBAL STATUS sum), added bibliography-count check. No physics/MC/threshold logic changed; gate count 63 unchanged.",
       "gate_count_change": "none (63 unchanged)"
+    },
+    {
+      "pass": 15,
+      "name": "non-lumped 1D/2D reduced-order multiphysics layer",
+      "date": "2026-06-06",
+      "changes": "Added qta_multiphysics/ package: serious 1D (canonical/default) and 2D axisymmetric (serious refinement) non-lumped reduced-order multiphysics forecast backends for thermal transport (moving-boundary FV heat equation with Kapitza backside sink, BDF method-of-lines), laser absorption, gas transport (advection-diffusion-sink + 2D footprint map), surface coverage (Langmuir 1D + 2D radial), microwave path attenuation, radiation view-factor cascade, vibration banded transfer, and a coupled Mode B->Mode C->Mode D recovery solver. 3D is FUTURE_WORK / NOT_IMPLEMENTED (raises NotImplementedError; excluded from all gates). Numerically self-checked (mesh convergence, source-energy conservation, Kapitza sign, axis non-singularity, 2D->1D reduction ~1.4%, coupling) via mesh_convergence_summary.csv, numerical_stability_summary.csv, multiphysics_verification_summary.csv. Monte Carlo extended over reduced-model parameters with PDE-stability and mesh-convergence failure counts. Added 20 gates (10 DERIVED_CHECK, 8 CONDITIONAL, 2 BLOCKED), all model-only/forecast-only; PASS count remains 0; measured_in_this_system=false for all 83 gates and all multiphysics outputs. Gate counts 63->83 (CONDITIONAL 39->47, BLOCKED 21->23, DERIVED_CHECK 1->11). Legacy lumped model retained ONLY as comparator (lumped_vs_nonlumped_comparison.csv); non-lumped models are the gate authority. Registered 24 mp_* parameters in parameter_registry.csv, 24 in monte_carlo_parameter_registry.csv (151->175), 24 in assumed_parameters.json (111->135), 19 source gaps in source_gap_register.csv (100->119). Added consistency-checker Step 12 (output existence, columns, finite, zero-PASS, model-only, lumped comparator-only, 3D-not-faked). README, CLAIMS_BOUNDARY, REVIEWER_COVER_NOTE, FIRST_VALIDATION_EXPERIMENTS, output_sync_report, and qta_manuscript_v4.tex (+PDF) updated. 26 new model-only output files added to manifest with 28 package source modules."
     }
   ],
   "files": [
     {
       "filename": "qta_manuscript_v4.tex",
-      "size_bytes": 40838,
-      "sha256": "cc147843d91c9eb3e397481257be1d698b8e681602c6e77488b53f6765fafbc5",
+      "size_bytes": 42793,
+      "sha256": "bfe306255c47e61a50af580d4c90194c955ee220544b949ed91ce11ea1e3517f",
       "generated_by": "manuscript",
       "purpose": "manuscript source LaTeX"
     },
     {
       "filename": "qta_manuscript_v4.pdf",
-      "size_bytes": 281327,
-      "sha256": "c7cf397db425d8f5740210860b6f5862b590a7e486a6d4deb635ad95e791e63d",
+      "size_bytes": 286380,
+      "sha256": "b4a36f3d425e7e3733d24bff739c3207c1d84fdce6b38f6ced44bdf31f15800e",
       "generated_by": "pdflatex",
       "purpose": "manuscript PDF, compiled from .tex"
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 157451,
-      "sha256": "f8707cdd0105b268bda679e1a795af08e757a00f5cb7d40622c29df32cf11833",
+      "size_bytes": 161567,
+      "sha256": "6488d58af429344f189845bccaa5d238ed0ad0b1b205ad221f4cacfa3080244a",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
     {
       "filename": "results_gate_table.csv",
-      "size_bytes": 36551,
-      "sha256": "784083e2a6108f6a92fd7e532ab5b07bc7db8d1fcd1112b1c5b987dd6619c4a0",
+      "size_bytes": 46044,
+      "sha256": "e2a6872908a6b49fd83b651f2ecacf9aff5823d0183dc01d8d17ed939768bf39",
       "generated_by": "qta_full_sim.py",
       "purpose": "canonical 63-gate table"
     },
     {
       "filename": "monte_carlo_summary.csv",
-      "size_bytes": 1418,
-      "sha256": "8ffdd557fe298d62154d8bcac04aa6f983808f4cea6648f22ee6c73f80a5034d",
+      "size_bytes": 1419,
+      "sha256": "7e6f3cc58d460ea1fbc86df6a29c94a17f1ab40a63383c5adbf72a66f71e3f47",
       "generated_by": "qta_full_sim.py",
       "purpose": "MC summary + canonical metric rows"
     },
     {
       "filename": "assumed_parameters.json",
-      "size_bytes": 65812,
-      "sha256": "50883c2699b82488da9ab6baecc92da3467f99c64d7835c55005cbc0e2d47806",
+      "size_bytes": 85553,
+      "sha256": "783b4b35580c31f6852c72a8f7b80bfce9f66d45ebf767dc793f76634734d5c3",
       "generated_by": "manual",
       "purpose": "assumed/design parameter registry, 16-field schema"
     },
@@ -169,8 +175,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 73333,
-      "sha256": "d5b25e19367a21f7189137fcefc1a557166aed4c1d032e0e811e783f0db283a5",
+      "size_bytes": 81910,
+      "sha256": "2a876e08c550bd071f9a2157db88d73a80736488e43ef65925b481a3b417f190",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -183,15 +189,15 @@
     },
     {
       "filename": "output_sync_report.txt",
-      "size_bytes": 48073,
-      "sha256": "3f946f29c8ae9c0a07e0e56de23f85bd603b0aabfe02af67a503248843cf82fa",
+      "size_bytes": 50994,
+      "sha256": "89eb23f2726351a8abc415a64abfdfdf0920d85dd4c22c29e3b5f24fa2ae7836",
       "generated_by": "manual",
       "purpose": "sync status of every canonical file"
     },
     {
       "filename": "README.md",
-      "size_bytes": 19119,
-      "sha256": "1325f5109b23218149df41a3add4b6053b09e84f5520d0013e1da3c2c46f1991",
+      "size_bytes": 21284,
+      "sha256": "0aa2603ac170460b9a97f68a59317f5def08d203d4b47da9fd24ec02c9779dff",
       "generated_by": "manual",
       "purpose": "package README \u2014 canonical state and instructions"
     },
@@ -239,8 +245,8 @@
     },
     {
       "filename": "parameter_registry.csv",
-      "size_bytes": 3167,
-      "sha256": "9c374795ec0cafb4ab78f4d73db200189ed90833beab4aa483ab94fb1ea35def",
+      "size_bytes": 5104,
+      "sha256": "213963dcf8a63136c0585709c0135fdda4656b4e95142d3d21060202d130616e",
       "generated_by": "qta_full_sim.py",
       "purpose": "parameter registry, sim-generated"
     },
@@ -253,8 +259,8 @@
     },
     {
       "filename": "sim_stdout.txt",
-      "size_bytes": 73265,
-      "sha256": "bc95a7424d917036c96034b4efec1b9354f74206b6d08b948dd55544a80b7d9f",
+      "size_bytes": 80759,
+      "sha256": "020f5654bf077bed7a12eba5408877be1f41db8131e6776b0d1482b359ff5d23",
       "generated_by": "qta_full_sim.py",
       "purpose": "captured stdout from sim run (for consistency check)"
     },
@@ -281,22 +287,22 @@
     },
     {
       "filename": "REVIEWER_COVER_NOTE.md",
-      "size_bytes": 3295,
-      "sha256": "6f949c20108c10a9a4a6f79a06c80b770e7d07e75cba087119a6b3669adc7bf8",
+      "size_bytes": 3296,
+      "sha256": "ae3e2961d571c0e4381633e2111da669f19dd9f45ded083f379813de9fe1e296",
       "generated_by": "manual",
       "purpose": "one-page cover note for outside technical reviewers"
     },
     {
       "filename": "FIRST_VALIDATION_EXPERIMENTS.md",
-      "size_bytes": 7130,
-      "sha256": "4a51f434108912d48f4a05f45285ce7baf8cc48a11aff15d4518f172d7550a6f",
+      "size_bytes": 8215,
+      "sha256": "24131bd700e7756725145ef5348e8e2ca5e4a419d85a0f18f6cf0ef5a0c4da12",
       "generated_by": "manual",
       "purpose": "priority list of first experiments needed to evaluate the architecture"
     },
     {
       "filename": "CLAIMS_BOUNDARY.md",
-      "size_bytes": 6938,
-      "sha256": "b8db206bb95942a59677e85e547c5fab1169fe5a73b517e33a649c39debe79a0",
+      "size_bytes": 7544,
+      "sha256": "9c28aa967073e1ada758e719825eda5db99760e6679f1cb61d1d4e000378f9fb",
       "generated_by": "manual",
       "purpose": "explicit list of what the package does and does not claim"
     },
@@ -323,8 +329,8 @@
     },
     {
       "filename": "source_gap_register.csv",
-      "size_bytes": 31474,
-      "sha256": "36a279bedf164ec93aa78ef31bd77472dfa9ff439f62d6c2d2bffdcd9aacc7b3",
+      "size_bytes": 38813,
+      "sha256": "f0e584ce4b76faf92f0b543cb8fd21ca6725581221b4aff1b2cf7b269402541a",
       "generated_by": "manual / source-hardening pass",
       "purpose": "visible register of every unresolved source/citation gap (100 rows)"
     },
@@ -400,8 +406,8 @@
     },
     {
       "filename": "monte_carlo_parameter_registry.csv",
-      "size_bytes": 23646,
-      "sha256": "fff212755d3e8c1aaeaef90004dd4c95186317c1b8cd6707626a905a9414db3c",
+      "size_bytes": 28612,
+      "sha256": "2d8f5e81c78057bfe9a978cf54f0012fec03ea531633d4a08d32bf399b98b84d",
       "generated_by": "mc-prep",
       "purpose": "151 parameters categorized FIXED_DESIGN/ASSUMED_UNCERTAIN/MEASURED_REQUIRED/DERIVED/MODE_DEPENDENT"
     },
@@ -418,7 +424,385 @@
       "sha256": "68006cd82dfe6ff65316b4a06b75c619103f5385caae7c7c0315f9d68bb2dbec",
       "generated_by": "mc-prep",
       "purpose": "13 ranked sensitivity parameters; forecast/sensitivity tool only"
+    },
+    {
+      "filename": "distributed_thermal_profile.csv",
+      "size_bytes": 6615,
+      "sha256": "1839d13ea957d0087c6f626aa85d8bbb0bf263aede3f0833c30ee256eb42dded",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D thermal T(z) final profile [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "distributed_thermal_2d_slices.csv",
+      "size_bytes": 4319,
+      "sha256": "983747fd65074c1662f0f81f3a06314fa3145a784b2bc4566aeb3b61de3e6326",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "2D thermal axis/surface slices [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "distributed_thermal_metrics.csv",
+      "size_bytes": 1405,
+      "sha256": "0489d0a70e7753e663b5c1d65e9f665fe3a405a83234cc7c2211f83055d380d1",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D/2D thermal forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "optical_absorption_profile.csv",
+      "size_bytes": 6618,
+      "sha256": "68b0c54c1d18ecc217ad7b9244462d9d5afb4000b1a404300ab1614da74485d5",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D Beer-Lambert absorbed-power depth profile [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "optical_absorption_2d_slices.csv",
+      "size_bytes": 4324,
+      "sha256": "a1dd5d0cb2c9ad41f9f37be68a94c74ed57c30fe3f147b4c295019b428c4ac79",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "2D optical absorption slices [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "optical_absorption_metrics.csv",
+      "size_bytes": 953,
+      "sha256": "1fd3a367faa6bae014590705a3dfb337b21c511ad90b5925961448203b38ce82",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "optical absorption forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "gas_transport_profile.csv",
+      "size_bytes": 9788,
+      "sha256": "b5af43ae8521141e4a76a1d88b79ddba7f8314788bfae79bb5776ab9062c4ada",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D species transport final profiles (Mode C) [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "gas_transport_2d_map.csv",
+      "size_bytes": 2447,
+      "sha256": "09f17a344099658913fd9f0f88029638369cd82d16fa8b5b95759afc57a8784b",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "2D molecular-beam exposure/capture map [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "gas_transport_metrics.csv",
+      "size_bytes": 653,
+      "sha256": "63343753a7e0ebe8ee1a312c4e8424b959d581991dab0fc7b50972c453e2a7f1",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "gas transport forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "surface_coverage_profile.csv",
+      "size_bytes": 3308,
+      "sha256": "40986de6017e3d45366aff47833c664dad58bf617249434ea4f92e57c55aee64",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D surface coverage decay (Mode C) [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "surface_coverage_2d_map.csv",
+      "size_bytes": 2684,
+      "sha256": "dc9e6ce2d037e22618fdf8fca25be01aefbe62f615b1c0d163358d07592ab024",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "2D radial surface coverage map [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "surface_coverage_metrics.csv",
+      "size_bytes": 527,
+      "sha256": "46e39668dbd4d18192c75bbfa41682a26160f9446071248c31256814af28ea8f",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "surface coverage forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "microwave_heating_profile.csv",
+      "size_bytes": 160,
+      "sha256": "bc2118e74e2b9ff0561bb9871b9c4acc2551dd365225a6d9bf103bff8bc4d05f",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "MW per-stage dissipation profile [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "microwave_heating_metrics.csv",
+      "size_bytes": 736,
+      "sha256": "47c9c1ec191d7fc1d276f3c339c01b632c3f0119ad0fd7302bb4d62fc6784f8f",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "MW heating forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "radiation_leakage_paths.csv",
+      "size_bytes": 998,
+      "sha256": "7e744f5e56e3832aaf3c4bf3c22585bd58566a2e1141ebd2be81cdf8f26c79df",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "staged radiation view-factor cascade [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "radiation_leakage_metrics.csv",
+      "size_bytes": 496,
+      "sha256": "0453be60f3d6da94149c1579fd1f8add3619a7bf5e1ab0e7da5242357767aaec",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "radiation leakage forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "vibration_transfer_profile.csv",
+      "size_bytes": 764,
+      "sha256": "d30c1aa883a2b85c5544eaf36b52a491aaad5600d7fb032c8e2c457a2cedb21c",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "banded vibration transfer per stage [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "vibration_transfer_metrics.csv",
+      "size_bytes": 613,
+      "sha256": "d1d279c164d9e6a08dc357d373e32fd30266b88c574a1decf3072340cd063c55",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "vibration transfer forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "coupled_mode_recovery_metrics.csv",
+      "size_bytes": 1564,
+      "sha256": "6c6625e85ae2fcbf5d73b2fe601b43c5b1b87d4ed58d420af53b6b920f10a870",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "coupled Mode B->C->D recovery metrics [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "coupled_mode_state_summary.json",
+      "size_bytes": 2337,
+      "sha256": "f57f31bd7a6263de4cf3750f5df25048d3af3c34703e1c649b23967b561bedfd",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "coupled solver state summary [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "multiphysics_summary.json",
+      "size_bytes": 5676,
+      "sha256": "57712e17fd483d667e5153774a2cfc382c4b674bf589b3d96e8f6f6c7a3173ad",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "top-level multiphysics layer summary [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "mesh_convergence_summary.csv",
+      "size_bytes": 388,
+      "sha256": "103402a9ef1f752f82785b8ae621be6aac74266a50dca7488390bacc7eb61b3a",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D/2D mesh convergence record [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "numerical_stability_summary.csv",
+      "size_bytes": 445,
+      "sha256": "327519f9c780520294761c987d8f2fe013a303e016f088577de22be6262f0490",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "numerical stability checks record [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "multiphysics_verification_summary.csv",
+      "size_bytes": 945,
+      "sha256": "d5820986afea5a5672325b65e058e090a3c4228c2204ebd64b868afbf81853c2",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "multiphysics verification record [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "fidelity_comparison.csv",
+      "size_bytes": 308,
+      "sha256": "0649bc41dc354e3b64a08c97a3b5601b6e7e75988d207f822d5005a4158cd862",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "1D vs 2D fidelity comparison [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "lumped_vs_nonlumped_comparison.csv",
+      "size_bytes": 374,
+      "sha256": "8b6bc6d79bae8b752681a821c835f24ee35541215a449aada5a93eacd6b79913",
+      "generated_by": "qta_multiphysics (pass 15)",
+      "purpose": "lumped comparator vs non-lumped gate authority [MODEL_ONLY/FORECAST_ONLY]"
+    },
+    {
+      "filename": "qta_multiphysics/__init__.py",
+      "size_bytes": 269,
+      "sha256": "06b7b8adc0aa544f2be08bbdca5a5f5d4350249af64d873e7f47f30df6e77c9d",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/config.py",
+      "size_bytes": 7412,
+      "sha256": "196362882c8b11dcfa2aa94e0d38aede6b561fbb62815f24f4179d40950110a3",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/coupled_mode_solver.py",
+      "size_bytes": 5591,
+      "sha256": "85b490fb379127ae7f1be8c9d983bd86005d320412af0f353e3dae60d7b76012",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/exports.py",
+      "size_bytes": 1482,
+      "sha256": "d147e5ad1694b1fea284d308a05433ab6573b64ca27d12bf7aa8899c08fb1b4f",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/fields.py",
+      "size_bytes": 4374,
+      "sha256": "581e568df68a63cd792331c34439cf238a21c95d090f4e15e8a59d0004c62499",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/future_3d.py",
+      "size_bytes": 1696,
+      "sha256": "d518321b990fd89e8413ae45173989915269ecaec7e2ba5bd22b8dd135bce8aa",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/gas_transport_1d.py",
+      "size_bytes": 5677,
+      "sha256": "736f7b62b7dec3176fd26e1fdceeff3ac483c994a1e7ddfa6cdb230482bef878",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/gas_transport_2d.py",
+      "size_bytes": 2131,
+      "sha256": "f5e307b3b8ed222c9bbfb809cf48be8a2ff2ec4c1d27ce8298a8b015cdb8211a",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/grids.py",
+      "size_bytes": 3306,
+      "sha256": "c274303a1bf66b8519162a1f8ba5bcdcf4b1a9c0d7860edc3d12fa8d7e238228",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/laser_source.py",
+      "size_bytes": 5112,
+      "sha256": "9ccaa2c52077766212ac15873f0ed6a2794609b5e9a5eda0ee01abb9c4c24b81",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/material_models.py",
+      "size_bytes": 2822,
+      "sha256": "c3914e1673abecd7f3ddad1a950576e54fa4ccb5323b72a523a8dee4be994266",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/metrics.py",
+      "size_bytes": 10977,
+      "sha256": "2a7f515177f30bea525e885d99d3553d3f1e249a764657a314c14a88203347c7",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/microwave_heating_1d.py",
+      "size_bytes": 2562,
+      "sha256": "325c071e026a69d932a4ba51972364bb90033ad422a06beff013f9d6a3c9045d",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/numerics.py",
+      "size_bytes": 3610,
+      "sha256": "395b6696430f6a8b65ceafd41e96f013cdfc60f4da1b9802b9eb58f145aaa7c4",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/optical_absorption.py",
+      "size_bytes": 2474,
+      "sha256": "68116946ad075b2bd09bdafbad92ba90f0d12fcb1b3732bcd7f95890bea13799",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/optical_absorption_1d.py",
+      "size_bytes": 178,
+      "sha256": "7b65f2686d2a11daf905ac58fa27e3f8be30077e654666398c2aaf6764feb278",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/optical_absorption_2d.py",
+      "size_bytes": 187,
+      "sha256": "033004ff1759d74efcf19070f907bbe93699a6b3486ff9e8b96ff7e7deda9df7",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/radiation_paths.py",
+      "size_bytes": 2515,
+      "sha256": "4c8dab8ff91e1a451ceb8d35a0c3c7e5b767c076e5b1e2854e21ee0e2fef6181",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/runner.py",
+      "size_bytes": 12887,
+      "sha256": "c8e0b0b2c9ac1090f1786926bffd5dabd9790212c5a9acb2bb4264dfedf24774",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/surface_coverage.py",
+      "size_bytes": 4968,
+      "sha256": "051e8cbc3619d8f14c1a405116c8461d203fb35153b20241a4a0970482ccea77",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/surface_coverage_1d.py",
+      "size_bytes": 274,
+      "sha256": "40bd9bdc34bf30c9ab607fd0e1cf50347519a57300bff049ab62eb67768f6ddf",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/surface_coverage_2d.py",
+      "size_bytes": 169,
+      "sha256": "2823abc696869a75faaf8cbfacf33bd432d97033116d3ba78f895c18e4c4f7a8",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/thermal_1d.py",
+      "size_bytes": 5806,
+      "sha256": "d71b6cff92ffd7f6acc4c3020aa73fc3e5406d5df7ca3a1159dc8c93fc1979b6",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/thermal_2d_axisymmetric.py",
+      "size_bytes": 7093,
+      "sha256": "1b7823c6c134ccd9ad6588f9c270fec48a36104dc492fdb9078d31a9b0046bc1",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/uncertainty.py",
+      "size_bytes": 6974,
+      "sha256": "726777d5b7861f7b566ba76985e34c2170986d621cb91747ad8d5dcdb9cb97f9",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/units.py",
+      "size_bytes": 2399,
+      "sha256": "6a3f1bd03f6f6e7260bc824943d9031df64bce8de31ce9dd427ad12ab7782032",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/verification.py",
+      "size_bytes": 11927,
+      "sha256": "52bdcc2bf6d7f55a4230dece53241da182005e561ffde68677bcf6b1e7d0e00e",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "qta_multiphysics/vibration_transfer.py",
+      "size_bytes": 2899,
+      "sha256": "94f401b9905a9be84293e68c52f3a01ead0d0cbe56add7ab7b07f758c8906ccf",
+      "generated_by": "qta_multiphysics package (pass 15)",
+      "purpose": "non-lumped 1D/2D multiphysics layer source module"
     }
   ],
-  "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt)."
+  "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."
 }

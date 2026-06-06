@@ -1,0 +1,76 @@
+{
+  "metrics": {
+    "Mode_B_peak_T_K": 29.387492621221455,
+    "Mode_B_peak_surface_T_K": 29.387492621221455,
+    "Mode_B_peak_NV_layer_T_K": 29.387492621221455,
+    "Mode_B_peak_contamination_flux_proxy_m3": 5.6626593847171016e+16,
+    "Mode_C_recool_time_s": 0.0016806722689075631,
+    "Mode_C_cleanup_residual_CH4_m3": 0.0,
+    "Mode_C_surface_decay_time_s": 1.1794871794871795,
+    "Mode_D_T_NV_layer_K": 0.01,
+    "Mode_D_residual_CH4_density_m3": 0.0,
+    "Mode_D_residual_H2_density_m3": 259719665281.75375,
+    "Mode_D_residual_surface_theta": 1.6862138138712673e-10,
+    "Mode_D_readiness_status": "FORECAST_NOT_READY",
+    "limiting_recovery_process": "surface_decay_s",
+    "thermal_solver_status_B": "ok",
+    "thermal_solver_status_C": "ok"
+  },
+  "state": {
+    "thetaB": {
+      "CH4": 0.08153781017691429,
+      "H2": 1.2496324375285774e-05,
+      "He3": 0.0,
+      "He4": 0.0
+    },
+    "thetaC": {
+      "CH4": 1.6862138138712673e-10,
+      "H2": 7.678921139507847e-11,
+      "He3": 0.0,
+      "He4": 0.0
+    },
+    "gasB_sample": {
+      "CH4": 5.6626593847171016e+16,
+      "H2": 2.710503405383036e+16,
+      "He3": 0.0,
+      "He4": 0.0
+    },
+    "gasC_sample": {
+      "CH4": 0.0,
+      "H2": 259719665281.75375,
+      "He3": 0.0,
+      "He4": 0.0
+    },
+    "ready_terms": {
+      "nv_temperature_ok": true,
+      "drift_ok": true,
+      "gas_residual_ok": true,
+      "coverage_ok": true,
+      "vibration_ok": false
+    },
+    "microwave": {
+      "total_input_power_W": 1e-06,
+      "dissipated_power_10mK_W": 0.0,
+      "dissipated_power_NV_region_W": 2.5118864315095795e-12,
+      "line_attenuation_total_dB": 26.0,
+      "power_reaching_termination_W": 2.5118864315095795e-09
+    },
+    "radiation": {
+      "total_heat_load_to_10mK_W": 1.417451845389526e-24,
+      "attenuation_factor": 5.000000000000001e-07,
+      "shutter_state": "closed",
+      "baffle_state": "engaged",
+      "finite": true
+    },
+    "vibration": {
+      "nv_output_amplitude_m": 4.651e-09,
+      "mode_d_amp_threshold_m": 1e-10,
+      "Mode_D_vibration_ready_if_measured": false,
+      "total_dissipated_power_W": 2.6535713735009996e-11,
+      "max_settling_time_s": 3.183098861837907,
+      "finite": true
+    }
+  },
+  "evidence_class": "FORECAST_ONLY;MODEL_ONLY;NOT_MEASURED_IN_THIS_SYSTEM",
+  "measured_in_this_system": false
+}
