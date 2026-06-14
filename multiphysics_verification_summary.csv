@@ -1,10 +1,10 @@
 check,detail,status_if_measured,evidence,measured_in_this_system
-thermal_1d_mesh_convergence,rel_change(200->400)=5.791e-04,CONVERGING,MODEL_ONLY,false
-thermal_2d_mesh_convergence,rel_change(med->fine)=4.280e-03,CONVERGING,MODEL_ONLY,false
+thermal_1d_mesh_convergence,rel_change(200->400)=1.847e-04,CONVERGING,MODEL_ONLY,false
+thermal_2d_mesh_convergence,rel_change(med->fine)=1.269e-04,CONVERGING,MODEL_ONLY,false
 kapitza_bc_sign,"{'hot_outflux_positive': True, 'cold_influx_negative': True, 'sign_correct': True}",OK,MODEL_ONLY,false
-source_energy_conservation_1d,rel_error=1.665e-03,OK,MODEL_ONLY,false
-source_energy_conservation_2d,rel_error=2.179e-02,OK,MODEL_ONLY,false
-axis_symmetry_2d,"{'axis_finite': True, 'axis_radial_gradient': 271364.5081162894, 'axis_grad_small_vs_bulk': True}",OK,MODEL_ONLY,false
-reduction_2d_to_1d,rel_error=1.379e-02,OK,MODEL_ONLY,false
+source_energy_conservation_1d,rel_error=4.245e-04,OK,MODEL_ONLY,false
+source_energy_conservation_2d,rel_error=6.595e-03,OK,MODEL_ONLY,false
+axis_symmetry_2d,"{'axis_finite': True, 'axis_radial_gradient': 108740.08984348577, 'axis_grad_small_vs_bulk': True}",OK,MODEL_ONLY,false
+reduction_2d_to_1d,rel_error=1.954e-03,OK,MODEL_ONLY,false
 diffusion_sanity_1d,rel_error=2.069e-05,OK,MODEL_ONLY,false
 coupling_optical_thermal_gas_surface,"{'optical_feeds_thermal': True, 'gas_feeds_surface': True, 'thermal_feeds_desorption': True, 'all_couplings_ok': True}",OK,MODEL_ONLY,false

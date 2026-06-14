@@ -1,4 +1,10 @@
-"""LaserSource: shared optical-deposition model for the thermal solvers.
+"""LaserSource: shared optical energy-deposition (HEAT-source) model for the
+thermal solvers.
+
+Here "deposition" means deposition of absorbed optical ENERGY as HEAT into the
+diamond -- i.e. the volumetric heat-source term Q_laser [W/m^3] that drives the
+heat equation. It is NOT material deposition, film growth, carbon
+incorporation, or C13 yield; this module computes no growth rate of any kind.
 
 Supports the package's femtosecond process-laser architecture. Two operating
 modes (both genuinely implemented):

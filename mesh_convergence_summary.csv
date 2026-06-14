@@ -1,7 +1,7 @@
 model,mesh,metric,value,solver_status
-thermal_1d,n=100,NV_layer_T_K,29.334482256922456,ok
-thermal_1d,n=200,NV_layer_T_K,29.387492621221455,ok
-thermal_1d,n=400,NV_layer_T_K,29.40452200970766,ok
-thermal_2d,coarse(24x32),NV_layer_max_T_K,13.406800951071919,ok
-thermal_2d,medium(32x40),NV_layer_max_T_K,13.50672412327892,ok
-thermal_2d,fine(40x48),NV_layer_max_T_K,13.56478795665649,ok
+thermal_1d,n=100,NV_layer_T_K,29.390401287281485,ok
+thermal_1d,n=200,NV_layer_T_K,29.405904455743986,ok
+thermal_1d,n=400,NV_layer_T_K,29.41133548275749,ok
+thermal_2d,coarse(24x32),NV_layer_max_T_K,13.714009129931805,ok
+thermal_2d,medium(32x40),NV_layer_max_T_K,13.709890802136538,ok
+thermal_2d,fine(40x48),NV_layer_max_T_K,13.708151104064278,ok

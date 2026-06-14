@@ -1,3 +1,3 @@
 quantity,lumped_model,nonlumped_1d_model,nonlumped_2d_model,role,evidence_class
-Mode_B_peak_T_K,3.001e+01,2.939e+01,1.356e+01,lumped=comparator_only;nonlumped=gate_authority,FORECAST_ONLY;MODEL_ONLY;NOT_MEASURED_IN_THIS_SYSTEM
-NV_layer_T_K,3.001e+01,2.939e+01,1.356e+01,lumped=comparator_only;nonlumped=gate_authority,FORECAST_ONLY;MODEL_ONLY;NOT_MEASURED_IN_THIS_SYSTEM
+Mode_B_peak_T_K,3.001e+01,2.941e+01,1.371e+01,lumped=comparator_only;nonlumped=gate_authority,FORECAST_ONLY;MODEL_ONLY;NOT_MEASURED_IN_THIS_SYSTEM
+NV_layer_T_K,3.001e+01,2.941e+01,1.371e+01,lumped=comparator_only;nonlumped=gate_authority,FORECAST_ONLY;MODEL_ONLY;NOT_MEASURED_IN_THIS_SYSTEM

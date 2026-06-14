@@ -56,10 +56,19 @@ def run_all(outdir, mc_samples=60, verbose=True):
     # ---------- distributed thermal (1D + 2D) ----------
     t1 = solve_thermal_1d(cfg, source_mode="averaged", n_eval=80)
     t1p = solve_thermal_1d(cfg, source_mode="pulse", n_eval=80)
-    write_profile_csv(out("distributed_thermal_profile.csv"),
-                      ["z_m", "T_final_K"], [list(t1.grid.centers), list(t1.T[:, -1])])
     t2 = solve_thermal_2d(cfg, source_mode="averaged", n_r=40, n_z=48, n_eval=20)
     t2.T_peak.to_slice_csv(out("distributed_thermal_2d_slices.csv"))
+    # Per-cell 1D mesh + field outputs, all generated from the actual finite-
+    # volume arrays the solver integrated (genuinely nonuniform cells).
+    nv1 = t1.nv_layer_samples()
+    write_profile_csv(
+        out("distributed_thermal_profile.csv"),
+        ["z_m", "z_left_face_m", "z_right_face_m", "cell_width_m",
+         "T_initial_K", "T_final_K", "T_peak_K",
+         "Q_laser_W_m3", "Q_mw_W_m3", "gradient_K_per_m", "heat_flux_W_m2"],
+        [list(t1.z_centers), list(t1.grid.faces[:-1]), list(t1.grid.faces[1:]),
+         list(t1.cell_widths), list(t1.T_initial), list(t1.T_final), list(t1.T_peak),
+         list(t1.Q_laser()), list(t1.Q_mw), list(t1.gradient()), list(t1.heat_flux())])
     hz_r, hz_z = t2.hotspot_rz()
     thermal_metrics = {
         "NV_layer_T_1d_K": t1.nv_layer_temperature_K(),
@@ -74,6 +83,27 @@ def run_all(outdir, mc_samples=60, verbose=True):
         "max_depth_gradient_2d_K_per_m": t2.max_depth_gradient_K_per_m(),
         "thermal_1d_solver_status": t1.solver_status,
         "thermal_2d_solver_status": t2.solver_status,
+        # finite-volume energy-balance residual (DERIVED numerical check)
+        "energy_balance_residual_1d_rel": t1.energy_residual(),
+        "energy_balance_residual_2d_rel": t2.energy_residual(),
+        # NV-layer sampled values (1D), from the actual mesh
+        "nv_depth_1d_m": nv1["nv_depth_m"],
+        "nv_T_initial_1d_K": nv1["nv_T_initial_K"],
+        "nv_T_final_1d_K": nv1["nv_T_final_K"],
+        # mesh descriptors (evidence the meshes are genuinely nonuniform)
+        "mesh_1d_min_cell_m": t1.grid.min_width,
+        "mesh_1d_max_cell_m": t1.grid.max_width,
+        "mesh_2d_min_cell_volume_m3": float(t2.cell_volume.min()),
+        "mesh_2d_max_cell_volume_m3": float(t2.cell_volume.max()),
+        # --- interpretation guards (so values are not misread) ---
+        "value_units": "temperatures_in_Kelvin",
+        "nv_temperature_interpretation": (
+            "near-surface thermal hotspot temperature/rise above fridge base; "
+            "NOT a deposition or growth rate"),
+        "deposition_yield_status": (
+            "UNKNOWN/BLOCKED: no LCVD methane-dissociation/sticking/"
+            "carbon-incorporation/yield model; thermal field does not validate "
+            "C13 deposition rate"),
     }
     write_rows_csv(out("distributed_thermal_metrics.csv"),
                    [{"metric": k, "value": v, "evidence_class": EVID,

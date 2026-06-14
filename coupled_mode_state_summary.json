@@ -1,8 +1,8 @@
 {
   "metrics": {
-    "Mode_B_peak_T_K": 29.387492621221455,
-    "Mode_B_peak_surface_T_K": 29.387492621221455,
-    "Mode_B_peak_NV_layer_T_K": 29.387492621221455,
+    "Mode_B_peak_T_K": 29.405904455743986,
+    "Mode_B_peak_surface_T_K": 29.405904455743986,
+    "Mode_B_peak_NV_layer_T_K": 29.405904455743986,
     "Mode_B_peak_contamination_flux_proxy_m3": 5.6626593847171016e+16,
     "Mode_C_recool_time_s": 0.0016806722689075631,
     "Mode_C_cleanup_residual_CH4_m3": 0.0,
@@ -10,7 +10,7 @@
     "Mode_D_T_NV_layer_K": 0.01,
     "Mode_D_residual_CH4_density_m3": 0.0,
     "Mode_D_residual_H2_density_m3": 259719665281.75375,
-    "Mode_D_residual_surface_theta": 1.6862138138712673e-10,
+    "Mode_D_residual_surface_theta": 1.686213933605035e-10,
     "Mode_D_readiness_status": "FORECAST_NOT_READY",
     "limiting_recovery_process": "surface_decay_s",
     "thermal_solver_status_B": "ok",
@@ -18,14 +18,14 @@
   },
   "state": {
     "thetaB": {
-      "CH4": 0.08153781017691429,
-      "H2": 1.2496324375285774e-05,
+      "CH4": 0.08153782264634712,
+      "H2": 1.2342800369305082e-05,
       "He3": 0.0,
       "He4": 0.0
     },
     "thetaC": {
-      "CH4": 1.6862138138712673e-10,
-      "H2": 7.678921139507847e-11,
+      "CH4": 1.686213933605035e-10,
+      "H2": 7.584581482194496e-11,
       "He3": 0.0,
       "He4": 0.0
     },

@@ -7,25 +7,37 @@
     "3d": "FUTURE_WORK"
   },
   "thermal_metrics": {
-    "NV_layer_T_1d_K": 29.387492621221455,
-    "max_T_1d_K": 29.387492621221455,
-    "max_gradient_1d_K_per_m": 490420.6270087444,
-    "pulse_peak_NV_1d_K": 37.95655442095838,
-    "post_pulse_drift_1d_K": 0.017953348727669627,
-    "NV_layer_mean_2d_K": 6.057451250568322,
-    "NV_layer_max_2d_K": 13.564787957343107,
-    "hotspot_r_m": 5.000000000000001e-07,
-    "hotspot_z_m": 4.166666666666667e-07,
-    "max_T_2d_K": 13.564787957343107,
-    "max_radial_gradient_2d_K_per_m": 1972825.282723883,
-    "max_depth_gradient_2d_K_per_m": 627476.9202631926,
+    "NV_layer_T_1d_K": 29.405904455743986,
+    "max_T_1d_K": 29.405904455743986,
+    "max_gradient_1d_K_per_m": 492701.7918544639,
+    "pulse_peak_NV_1d_K": 38.010164258782844,
+    "post_pulse_drift_1d_K": 0.017962487297433945,
+    "NV_layer_mean_2d_K": 6.0638070854306365,
+    "NV_layer_max_2d_K": 13.708151104116787,
+    "hotspot_r_m": 1.8761199748768313e-07,
+    "hotspot_z_m": 9.993124647871412e-08,
+    "max_T_2d_K": 13.708151104116787,
+    "max_radial_gradient_2d_K_per_m": 2684391.4717770657,
+    "max_depth_gradient_2d_K_per_m": 650482.2403587727,
     "thermal_1d_solver_status": "ok",
-    "thermal_2d_solver_status": "ok"
+    "thermal_2d_solver_status": "ok",
+    "energy_balance_residual_1d_rel": 0.006328958515250076,
+    "energy_balance_residual_2d_rel": 0.02631574316191406,
+    "nv_depth_1d_m": 2.39834991548914e-08,
+    "nv_T_initial_1d_K": 0.01,
+    "nv_T_final_1d_K": 29.405904455743986,
+    "mesh_1d_min_cell_m": 4.796699830978254e-08,
+    "mesh_1d_max_cell_m": 2.878019898586978e-07,
+    "mesh_2d_min_cell_volume_m3": 8.840205870759952e-20,
+    "mesh_2d_max_cell_volume_m3": 5.15894506572756e-16,
+    "value_units": "temperatures_in_Kelvin",
+    "nv_temperature_interpretation": "near-surface thermal hotspot temperature/rise above fridge base; NOT a deposition or growth rate",
+    "deposition_yield_status": "UNKNOWN/BLOCKED: no LCVD methane-dissociation/sticking/carbon-incorporation/yield model; thermal field does not validate C13 deposition rate"
   },
   "coupled_metrics": {
-    "Mode_B_peak_T_K": 29.387492621221455,
-    "Mode_B_peak_surface_T_K": 29.387492621221455,
-    "Mode_B_peak_NV_layer_T_K": 29.387492621221455,
+    "Mode_B_peak_T_K": 29.405904455743986,
+    "Mode_B_peak_surface_T_K": 29.405904455743986,
+    "Mode_B_peak_NV_layer_T_K": 29.405904455743986,
     "Mode_B_peak_contamination_flux_proxy_m3": 5.6626593847171016e+16,
     "Mode_C_recool_time_s": 0.0016806722689075631,
     "Mode_C_cleanup_residual_CH4_m3": 0.0,
@@ -33,7 +45,7 @@
     "Mode_D_T_NV_layer_K": 0.01,
     "Mode_D_residual_CH4_density_m3": 0.0,
     "Mode_D_residual_H2_density_m3": 259719665281.75375,
-    "Mode_D_residual_surface_theta": 1.6862138138712673e-10,
+    "Mode_D_residual_surface_theta": 1.686213933605035e-10,
     "Mode_D_readiness_status": "FORECAST_NOT_READY",
     "limiting_recovery_process": "surface_decay_s",
     "thermal_solver_status_B": "ok",
@@ -41,11 +53,11 @@
   },
   "verification": {
     "mesh_1d": {
-      "thermal_1d_rel_change_200_400": 0.0005791418231720259,
+      "thermal_1d_rel_change_200_400": 0.00018465761327594337,
       "thermal_1d_converged": true
     },
     "mesh_2d": {
-      "thermal_2d_rel_change_med_fine": 0.0042804821986972,
+      "thermal_2d_rel_change_med_fine": 0.00012690975311355866,
       "thermal_2d_converged": true
     },
     "kapitza": {
@@ -54,19 +66,19 @@
       "sign_correct": true
     },
     "source_1d": {
-      "integral_areal_W_m2": 7626719.711778137,
+      "integral_areal_W_m2": 7636194.289720571,
       "expected_areal_W_m2": 7639437.268410975,
-      "rel_error": 0.0016647242703890282
+      "rel_error": 0.00042450491789678557
     },
     "source_2d": {
-      "integral_W": 0.0002934631809782637,
+      "integral_W": 0.00029802141537071627,
       "expected_W": 0.0003,
-      "rel_error": 0.02178939673912083
+      "rel_error": 0.006595282097612351
     },
     "reduction": {
-      "nv_1d_K": 29.24496948496967,
-      "nv_2d_reduced_K": 28.841597035035754,
-      "rel_error": 0.013792883256083638,
+      "nv_1d_K": 29.365737369159103,
+      "nv_2d_reduced_K": 29.308369982445267,
+      "rel_error": 0.001953548313555529,
       "reduces_to_1d": true
     },
     "coupling": {
@@ -81,20 +93,20 @@
       {
         "metric": "Mode_B_peak_NV_layer_T_K",
         "n": 30,
-        "mean": 30.252487190215565,
-        "std": 4.398433790080311,
-        "p05": 24.927820809910024,
-        "p50": 29.29194340160325,
-        "p95": 36.9661253452158
+        "mean": 30.343696187386282,
+        "std": 4.397662371010497,
+        "p05": 24.987530347599925,
+        "p50": 29.39882239288761,
+        "p95": 37.03993809444286
       },
       {
         "metric": "Mode_B_max_T_K",
         "n": 30,
-        "mean": 30.252487190215565,
-        "std": 4.398433790080311,
-        "p05": 24.927820809910024,
-        "p50": 29.29194340160325,
-        "p95": 36.9661253452158
+        "mean": 30.343696187386282,
+        "std": 4.397662371010497,
+        "p05": 24.987530347599925,
+        "p50": 29.39882239288761,
+        "p95": 37.03993809444286
       },
       {
         "metric": "Mode_C_recool_time_s",
@@ -135,11 +147,11 @@
       {
         "metric": "Mode_D_residual_surface_theta",
         "n": 30,
-        "mean": 4.513030900188662e-16,
-        "std": 1.4283294944171982e-15,
+        "mean": 4.513030899578399e-16,
+        "std": 1.4283294943223302e-15,
         "p05": 9.436146037219865e-33,
         "p50": 1.47028824687329e-23,
-        "p95": 3.2346696255384163e-15
+        "p95": 3.2346696254014926e-15
       }
     ],
     "summary": {
