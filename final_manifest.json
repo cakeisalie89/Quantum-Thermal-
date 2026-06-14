@@ -265,13 +265,6 @@
       "purpose": "captured stdout from sim run (for consistency check)"
     },
     {
-      "filename": "slop_removal_log.txt",
-      "size_bytes": 4093,
-      "sha256": "7c66e612d2ff48f4c674cf80a225619c5274b617a617aeabc44cd29636a61972",
-      "generated_by": "manual",
-      "purpose": "slop-removal audit log"
-    },
-    {
       "filename": "source_audit_status.txt",
       "size_bytes": 2166,
       "sha256": "be80a35f983149ce0aa2b34e3ec74b3c3321d627451463ed11be1007162daffd",
