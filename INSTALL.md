@@ -53,8 +53,6 @@ Both should exit 0. The first regenerates all simulation outputs in
   is locale-dependent (e.g. `cp1252`).
 - `subprocess.run(..., text=True)` calls also pass `encoding="utf-8",
   errors="replace"` to avoid mojibake when stdout contains non-ASCII.
-- `sim_stdout.txt` is written with `encoding="utf-8", newline="\n"` for
-  byte-stable hashing across platforms.
 - A root `.gitattributes` declares `eol=lf` for every text file so that
   manifest SHA-256 hashes remain stable across `git checkout` on Windows
   vs. POSIX.

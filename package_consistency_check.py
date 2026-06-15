@@ -118,8 +118,6 @@ else:
     else:
         ok("qta_full_sim.py executes (exit 0)")
 
-    (PKG / "sim_stdout.txt").write_text(sim_stdout, encoding="utf-8", newline="\n")
-
 # ===================== STEP 2: gate table checks =============================
 print()
 print("Step 2: gate table — counts, fields, A6-A14, no-PASS")
@@ -697,12 +695,12 @@ if (PKG / "README.txt").exists():
 else:
     ok("README.txt deleted (README.md is canonical)")
 
-# (b) grep_report.txt must NOT exist (superseded by stale_language_audit.txt)
+# (b) grep_report.txt must NOT exist (legacy AI-workflow artifact)
 if (PKG / "grep_report.txt").exists():
-    fail("grep_report.txt removed (superseded by stale_language_audit.txt)",
+    fail("grep_report.txt removed",
          "grep_report.txt still present")
 else:
-    ok("grep_report.txt removed (superseded by stale_language_audit.txt)")
+    ok("grep_report.txt removed")
 
 # (c) B3 and E04 must have distinct names
 gt_path = PKG / "results_gate_table.csv"
@@ -902,12 +900,7 @@ print("-"*70)
 # Live-truth docs the user mandated must not contain stale canonical values
 LIVE_DOCS = [
     "README.md",
-    "REVIEWER_COVER_NOTE.md",
     "CLAIMS_BOUNDARY.md",
-    "REVIEWER_QUESTIONS.md",
-    "SUBMISSION_EMAIL_DRAFT.md",
-    "reviewer_attack_map.md",
-    "output_sync_report.txt",
     "source_audit_status.txt",
     "final_manifest.json",
     "qta_full_sim.py",
@@ -1089,10 +1082,9 @@ OBSOLETE_MODE_MAP_PATTERNS = [
 # Files audited (live canonical docs)
 LIVE_DOCS_8F = [
     # User-facing canonical docs
-    "README.md", "REVIEWER_COVER_NOTE.md", "CLAIMS_BOUNDARY.md", "REVIEWER_QUESTIONS.md",
-    "SUBMISSION_EMAIL_DRAFT.md", "reviewer_attack_map.md", "FIRST_VALIDATION_EXPERIMENTS.md",
+    "README.md", "CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
     # Data files
-    "output_sync_report.txt", "source_audit_status.txt", "final_manifest.json",
+    "source_audit_status.txt", "final_manifest.json",
     "BOM.csv", "interface_map.csv", "assumed_parameters.json", "risk_register.csv",
     "validation_matrix.csv", "results_gate_table.csv", "engineering_fixes.csv",
     "tau_c_sweep.csv", "monte_carlo_summary.csv", "monte_carlo_gate_failure_rates.csv",
@@ -1101,7 +1093,7 @@ LIVE_DOCS_8F = [
     # we still scan this file for substantive claims). package_consistency_check.py is
     # excluded because it must contain the forbidden literal strings inside its regex
     # pattern arrays in order to enforce the rule.
-    "qta_full_sim.py", "qta_manuscript_v4.tex", "sim_stdout.txt",
+    "qta_full_sim.py", "qta_manuscript_v4.tex",
 ]
 
 stale_modemap_hits = []
@@ -1319,7 +1311,7 @@ if bom_path.exists():
 
     # Rule 9: BOM row count freshness in README / final_manifest / output_sync_report
     actual_bom_rows = len(bom_rows)
-    for doc_name in ("README.md", "output_sync_report.txt"):
+    for doc_name in ("README.md",):
         dp = PKG / doc_name
         if not dp.exists():
             continue
@@ -1375,8 +1367,7 @@ def _normalise_mode_spacing(text):
     return text
 
 SEMANTIC_LIVE_DOCS = [
-    "README.md", "REVIEWER_COVER_NOTE.md", "CLAIMS_BOUNDARY.md", "REVIEWER_QUESTIONS.md",
-    "SUBMISSION_EMAIL_DRAFT.md", "reviewer_attack_map.md", "FIRST_VALIDATION_EXPERIMENTS.md",
+    "README.md", "CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
     "qta_manuscript_v4.tex", "BOM.csv", "interface_map.csv", "risk_register.csv",
     "validation_matrix.csv", "results_gate_table.csv", "assumed_parameters.json",
     "measured_parameters.json", "source_gap_register.csv", "source_map.csv",
@@ -1548,7 +1539,6 @@ else:
                             "interlock_table.csv","tau_c_sweep.csv",
                             "representative_source_audit.csv",
                             "package_consistency_check.py",
-                            "stale_language_audit.txt","output_sync_report.txt",
                             "README.md"]
     files_in_manifest = set(e["filename"] for e in manifest.get("files",[]))
     missing = [f for f in required_in_manifest if f not in files_in_manifest]
