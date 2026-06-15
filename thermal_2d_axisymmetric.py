@@ -1,33 +1,61 @@
-"""Thermal 2D axisymmetric non-lumped solver: T(r,z,t).
+"""Thermal 2D axisymmetric non-lumped solver: conservative finite-volume
+T(r,z,t) on a genuinely meshed (graded, nonuniform) AxisymmetricGrid2D.
 
-  rho Cp(T) dT/dt = (1/r) d/dr[r k(T) dT/dr] + d/dz[k(T) dT/dz] + Q(r,z,t)
+  rho Cp(T) dT/dt = (1/r) d/dr[ r k(T) dT/dr ] + d/dz[ k(T) dT/dz ] + Q(r,z,t)
+
+Cell-centred cylindrical finite volume with EXACT geometry from the face radii:
+  * cell volume V_ij      = pi (r_{i+1}^2 - r_i^2) * dz_j        (annular ring)
+  * radial face area      = 2 pi r_face * dz_j                  (lateral)
+  * axial  face area      = pi (r_{i+1}^2 - r_i^2)              (annulus)
+  * face conductances use the distance-weighted harmonic (series) resistance,
+    correct for nonuniform spacing and temperature-dependent k(T).
+The inner radial face of the axis cell has area 0 (r_face[0]=0), so the r=0
+symmetry boundary is enforced exactly with no special-casing of 1/r.
 
 Boundaries:
-  r=0   : symmetry (no radial flux; enforced by 2*pi*r face weighting, area->0)
-  r=R   : insulated by default (configurable)
-  z=0   : insulated (volumetric laser deposition; source side)
-  z=L   : Kapitza sink, q = alpha_K (T^4 - T_fridge^4) per annulus
+  r=0   : symmetry (zero-area axis face -> no radial flux)
+  r=R   : cold radial contact to surrounding bulk at T_fridge (half-cell
+          resistance through the outer face)
+  z=0   : insulated (volumetric laser deposition; surface/source side)
+  z=L   : Kapitza-radiative sink, q = alpha_K (T^4 - T_fridge^4) per annulus
 
-Finite-volume divergence, method-of-lines, solve_ivp BDF with a precomputed
-5-point Jacobian sparsity pattern (keeps BDF tractable on ~3000 unknowns).
+Method-of-lines, solve_ivp BDF with a precomputed 5-point Jacobian sparsity
+pattern. Energy accounting (integrated source, Kapitza and radial boundary
+losses, internal-energy change, residual) is computed from the solution arrays
+as a DERIVED numerical check.
 
-MODEL-ONLY / FORECAST-ONLY.
+SCOPE / WHAT THIS IS NOT. This solver models the *laser thermal loading* into
+the C13-methane / LCVD process zone as a transient Gaussian (radial) x
+Beer-Lambert (depth) volumetric HEAT field [W/m^3], and reports the resulting
+temperature field T(r,z,t) in KELVIN. Outputs such as the NV-layer temperature
+(e.g. NV_layer_mean_2d_K ~ a few K) are thermal-hotspot temperatures / rises
+above the fridge base, NOT a deposition or growth rate. This solver does NOT
+model methane dissociation, surface sticking, carbon incorporation, yield per
+pulse, or growth velocity, and it does NOT validate any C13 deposition rate.
+Deposition yield remains UNKNOWN / BLOCKED until measured or supported by a
+defensible LCVD surface-chemistry model. The temperature-dependent k(T)/Cp(T)
+are reduced ASSUMED models, not measured data for this diamond; convergence and
+energy-balance checks are numerical self-consistency, not hardware validation
+and not a COMSOL-class multiphysics qualification.
+
+MODEL-ONLY / FORECAST-ONLY. No measured data; not validated against hardware.
 """
 from __future__ import annotations
 import numpy as np
 import scipy.sparse as sp
 from scipy.integrate import solve_ivp
 
-from .grids import AxisymmetricGrid2D
+from .grids import AxisymmetricGrid2D, thermal_depth_refinement, thermal_radial_refinement
 from .fields import Field2D
 from .config import MultiphysicsConfig
-from .material_models import diamond_cp, diamond_k
-from .numerics import assert_finite
+from .material_models import diamond_cp, diamond_k, internal_energy_density
+from .numerics import face_series_resistance, assert_finite
 from .laser_source import LaserSource
 
 
 class Thermal2DResult:
-    def __init__(self, grid, t, T_final, T_peak_field, cfg, solver_status, message):
+    def __init__(self, grid, t, T_final, T_peak_field, cfg, solver_status, message,
+                 T_init=None, laser=None, energy=None, Q_laser_field=None):
         self.grid = grid
         self.t = t
         self.T_final = T_final          # Field2D at t_end
@@ -35,15 +63,24 @@ class Thermal2DResult:
         self.cfg = cfg
         self.solver_status = solver_status
         self.message = message
+        self._T_init = (np.asarray(T_init, dtype=float).copy()
+                        if T_init is not None else None)
+        self._laser = laser
+        self.energy = energy or {}
+        self._Q_laser_field = Q_laser_field
+
+    # ---- canonical derived metrics (interfaces preserved) ----
+    def _nv_j(self):
+        return int(np.argmin(np.abs(self.grid.z_centers - self.cfg.geometry.nv_layer_depth_m)))
 
     def nv_layer_mean_K(self):
-        j = int(np.argmin(np.abs(self.grid.z_centers - self.cfg.geometry.nv_layer_depth_m)))
-        # area-weighted mean over the NV-depth annular ring
+        j = self._nv_j()
+        # exact-volume-weighted mean over the NV-depth annular ring
         w = self.grid.cell_volume[:, j]
         return float(np.sum(self.T_peak.values[:, j] * w) / np.sum(w))
 
     def nv_layer_max_K(self):
-        j = int(np.argmin(np.abs(self.grid.z_centers - self.cfg.geometry.nv_layer_depth_m)))
+        j = self._nv_j()
         return float(self.T_peak.values[:, j].max())
 
     def hotspot_rz(self):
@@ -57,6 +94,26 @@ class Thermal2DResult:
 
     def max_depth_gradient_K_per_m(self):
         return self.T_peak.max_abs_depth_gradient()
+
+    # ---- mesh / field outputs (generated from the actual computed arrays) ----
+    @property
+    def r_faces(self):
+        return self.grid.r_faces
+
+    @property
+    def z_faces(self):
+        return self.grid.z_faces
+
+    @property
+    def cell_volume(self):
+        return self.grid.cell_volume
+
+    @property
+    def Q_laser(self):
+        return self._Q_laser_field
+
+    def energy_residual(self):
+        return float(self.energy.get("rel_residual", float("nan")))
 
 
 def _jac_sparsity(nr, nz):
@@ -76,19 +133,21 @@ def _jac_sparsity(nr, nz):
 
 def solve_thermal_2d(cfg: MultiphysicsConfig, source_mode="averaged", t_end=None,
                      q_mw_volumetric=0.0, n_r=None, n_z=None, n_eval=40,
-                     disable_radial=False, spot_radius_override=None, T_init=None):
-    """Solve the 2D axisymmetric heat equation. Returns Thermal2DResult.
+                     disable_radial=False, spot_radius_override=None, T_init=None,
+                     max_ratio=6.0):
+    """Solve the 2D axisymmetric heat equation by conservative finite volume on
+    a graded r-z mesh. Returns Thermal2DResult.
 
-    disable_radial / spot_radius_override are verification hooks to demonstrate
-    that the 2D solver reduces to the 1D result when radial gradients vanish."""
+    The radial mesh is refined near the beam axis, the beam waist, and the cold
+    radial contact; the depth mesh is refined identically to the 1D solver
+    (surface, absorption depth, NV layer, front, cold contact). disable_radial /
+    spot_radius_override are verification hooks: with radial transport disabled
+    each column is an independent 1D depth problem, so the hottest 2D column
+    (near r=0) reproduces the 1D NV result."""
     cfg.validate()
     geo, mat, fr, sol = cfg.geometry, cfg.material, cfg.fridge, cfg.solver
     nr = int(n_r or sol.n_r_2d)
     nz = int(n_z or sol.n_z_2d)
-    grid = AxisymmetricGrid2D(geo.thermal_radius_m, geo.thermal_depth_m, nr, nz)
-    dr, dz = grid.dr, grid.dz
-    rho = mat.rho_kg_m3
-    kkw = mat.k_kwargs()
 
     lcfg = cfg.laser
     if spot_radius_override is not None:
@@ -96,65 +155,76 @@ def solve_thermal_2d(cfg: MultiphysicsConfig, source_mode="averaged", t_end=None
         lcfg = dataclasses.replace(lcfg, spot_radius_m=spot_radius_override)
     laser = LaserSource(lcfg, mode=source_mode)
 
+    # Graded mesh: depth refinement shared with the 1D solver (so the 2D->1D
+    # reduction is exact in z); radial refinement near axis/waist/contact.
+    refine_z = thermal_depth_refinement(geo.thermal_depth_m, laser.absorption_depth_m(),
+                                        geo.nv_layer_depth_m, geo.front_position_m)
+    refine_r = thermal_radial_refinement(geo.thermal_radius_m, lcfg.spot_radius_m)
+    grid = AxisymmetricGrid2D.graded(geo.thermal_radius_m, geo.thermal_depth_m, nr, nz,
+                                     refine_r=refine_r, refine_z=refine_z, max_ratio=max_ratio)
+    rho = mat.rho_kg_m3
+    kkw = mat.k_kwargs()
+
     if t_end is None:
         t_end = sol.pulse_window_s if source_mode == "pulse" else sol.recovery_window_s
 
     Tf = fr.T_fridge_K
     alpha_K = fr.kapitza_coeff_W_m2_K4
     q_bg = fr.background_flux_W_m3
-
-    rc = grid.r_centers
-    rf = grid.r_faces
     shape = (nr, nz)
+
+    # precomputed mesh metrics
+    V = grid.cell_volume                          # (nr, nz)
+    ring = grid.ring_area                         # (nr,)
+    Acr_int = grid.r_face_area[1:nr, :]           # (nr-1, nz) interior radial faces
+    Acr_out = grid.r_face_area[nr, :]             # (nz,) outer face area
+    dor = grid.dist_to_outer_rface                # (nr,)
+    dir_ = grid.dist_to_inner_rface               # (nr,)
+    dhz = grid.dist_to_high_zface                 # (nz,)
+    dlz = grid.dist_to_low_zface                  # (nz,)
+    q_mw_field = np.asarray(q_mw_volumetric, dtype=float)  # scalar or (nr,nz)
 
     if T_init is None:
         T0 = np.full(shape, Tf)
     else:
         T0 = np.asarray(T_init, dtype=float).reshape(shape).copy()
 
+    def laser_field(t):
+        return laser.q_volumetric_2d(grid.R, grid.Z, t,
+                                     front_position_m=geo.front_position_m)
+
     def rhs(t, Tflat):
         T = np.clip(Tflat.reshape(shape), 1e-6, None)
         k = diamond_k(T, **kkw)
         cap = rho * diamond_cp(T)
-        dTdt = np.zeros_like(T)
 
-        # ---- radial divergence (1/r) d/dr(r k dT/dr) ----
+        # ---- radial conservative flux ----
         if not disable_radial:
-            # face k by harmonic mean between adjacent radial cells
-            kf_r = 2.0 * k[:-1, :] * k[1:, :] / (k[:-1, :] + k[1:, :] + 1e-300)  # (nr-1, nz)
-            dTdr = (T[1:, :] - T[:-1, :]) / dr
-            Fr = kf_r * dTdr                       # radial face flux (nr-1, nz) [W/m^2]
-            rface_in = rf[1:nr][:, None]           # radii of interior faces (nr-1,1)
-            rF = rface_in * Fr                     # r * F at interior faces
-            # divergence: (r_{i+1/2}F_{i+1/2} - r_{i-1/2}F_{i-1/2}) / (r_i dr)
-            radial_div = np.zeros_like(T)
-            radial_div[1:-1, :] = (rF[1:, :] - rF[:-1, :]) / (rc[1:-1][:, None] * dr)
-            # axis cell i=0: inner face area ~0; only outer face contributes
-            radial_div[0, :] = (rF[0, :]) / (rc[0] * dr)
-            # outer cell i=nr-1: cold contact to surrounding bulk (Dirichlet T_fridge)
-            # implemented as a sink flux through the outer face (area ~ r_face[nr]).
-            k_out = k[-1, :]
-            F_outer = k_out * (Tf - T[-1, :]) / (0.5 * dr)     # [W/m^2] into cell if T<Tf
-            r_out = rf[nr]
-            radial_div[-1, :] = (r_out * F_outer - rF[-1, :]) / (rc[-1] * dr)
+            Rr = face_series_resistance(k[:-1, :], k[1:, :],
+                                        dor[:-1, None], dir_[1:, None])     # (nr-1, nz)
+            cross_r = Acr_int * (T[:-1, :] - T[1:, :]) / Rr                  # power i-1 -> i [W]
+            Pr = np.zeros_like(T)
+            Pr[1:, :] += cross_r
+            Pr[:-1, :] -= cross_r
+            # outer radial cold contact at T_fridge (half-cell resistance)
+            Rout = dor[-1] / k[-1, :]
+            Pr[-1, :] += Acr_out * (Tf - T[-1, :]) / Rout
         else:
-            radial_div = np.zeros_like(T)
+            Pr = np.zeros_like(T)
 
-        # ---- axial divergence d/dz(k dT/dz) ----
-        kf_z = 2.0 * k[:, :-1] * k[:, 1:] / (k[:, :-1] + k[:, 1:] + 1e-300)  # (nr, nz-1)
-        Fz = kf_z * (T[:, 1:] - T[:, :-1]) / dz                              # (nr, nz-1) [W/m^2]
-        axial_div = np.zeros_like(T)
-        axial_div[:, 1:-1] = (Fz[:, 1:] - Fz[:, :-1]) / dz
-        # z=0 source side: insulated -> only +z face
-        axial_div[:, 0] = (Fz[:, 0]) / dz
-        # z=L sink side: conduction in from -z face minus Kapitza sink
-        q_sink = alpha_K * (T[:, -1] ** 4 - Tf ** 4)                         # [W/m^2]
-        axial_div[:, -1] = (-Fz[:, -1] - q_sink) / dz
+        # ---- axial conservative flux ----
+        Rz = face_series_resistance(k[:, :-1], k[:, 1:],
+                                    dhz[None, :-1], dlz[None, 1:])           # (nr, nz-1)
+        cross_z = ring[:, None] * (T[:, :-1] - T[:, 1:]) / Rz                # power j-1 -> j [W]
+        Pz = np.zeros_like(T)
+        Pz[:, 1:] += cross_z
+        Pz[:, :-1] -= cross_z
+        # z=L Kapitza sink (z=0 is insulated -> no term there)
+        q_sink = alpha_K * (T[:, -1] ** 4 - Tf ** 4)                        # (nr,) [W/m^2]
+        Pz[:, -1] -= ring * q_sink
 
-        # ---- source ----
-        Q = laser.q_volumetric_2d(grid.R, grid.Z, t) + q_mw_volumetric + q_bg
-
-        dTdt = (radial_div + axial_div + Q) / cap
+        Q = laser_field(t) + q_mw_field + q_bg                              # (nr,nz) [W/m^3]
+        dTdt = (Pr + Pz + Q * V) / (cap * V)
         return dTdt.reshape(-1)
 
     t_eval = np.linspace(0.0, t_end, n_eval)
@@ -166,8 +236,45 @@ def solve_thermal_2d(cfg: MultiphysicsConfig, source_mode="averaged", t_end=None
     assert_finite(Y, "thermal_2d.T")
     T_final = Y[:, -1].reshape(shape)
     T_peak = Y.max(axis=1).reshape(shape)
+
+    # ---- energy accounting (DERIVED numerical check, MODEL-ONLY) ----
+    tt = sol_obj.t
+    P_dep = np.empty_like(tt)        # total deposited power in domain [W]
+    P_sink = np.empty_like(tt)       # Kapitza loss [W]
+    P_rout = np.empty_like(tt)       # radial outer-boundary loss [W]
+    for kk, tk in enumerate(tt):
+        Tk = Y[:, kk].reshape(shape)
+        Qk = laser_field(tk) + q_mw_field + q_bg
+        P_dep[kk] = float(np.sum(Qk * V))
+        P_sink[kk] = float(np.sum(ring * alpha_K * (Tk[:, -1] ** 4 - Tf ** 4)))
+        if not disable_radial:
+            k_out = diamond_k(np.clip(Tk[-1, :], 1e-6, None), **kkw)
+            Rout = dor[-1] / k_out
+            P_rout[kk] = float(np.sum(Acr_out * (Tk[-1, :] - Tf) / Rout))
+        else:
+            P_rout[kk] = 0.0
+    E_src = float(np.trapezoid(P_dep, tt)) if tt.size > 1 else 0.0
+    E_sink = float(np.trapezoid(P_sink, tt)) if tt.size > 1 else 0.0
+    E_rout = float(np.trapezoid(P_rout, tt)) if tt.size > 1 else 0.0
+    u_final = internal_energy_density(T_final, rho=rho)
+    u_init = internal_energy_density(T0, rho=rho)
+    dU = float(np.sum((u_final - u_init) * V))
+    residual = E_src - E_sink - E_rout - dU
+    denom = max(abs(E_src), abs(dU), 1e-30)
+    energy = {
+        "integrated_source_energy_J": E_src,
+        "kapitza_sink_energy_J": E_sink,
+        "radial_boundary_energy_J": E_rout,
+        "internal_energy_change_J": dU,
+        "residual_J": residual,
+        "rel_residual": residual / denom,
+    }
+
+    Q_laser_field = laser_field(laser.pulse_center_s if source_mode == "pulse"
+                                else float(tt[-1]))
     return Thermal2DResult(
         grid, sol_obj.t,
         Field2D(grid, T_final, name="T", unit="K"),
         Field2D(grid, T_peak, name="Tpeak", unit="K"),
-        cfg, "ok" if sol_obj.success else "failed", sol_obj.message)
+        cfg, "ok" if sol_obj.success else "failed", sol_obj.message,
+        T_init=T0, laser=laser, energy=energy, Q_laser_field=Q_laser_field)

@@ -1,0 +1,85 @@
+SLOP REMOVAL LOG — QTA Package
+===============================
+Date: current session
+Canonical verdict: CONDITIONALLY DEFINED, BLOCKED, NOT VALIDATED
+
+BEFORE → AFTER (representative entries)
+----------------------------------------
+[Abstract]
+BEFORE: "A self-consistent, first-principles simulation evaluates..."
+AFTER:  "An assumption-tracked, physics-based simulation evaluates..."
+
+BEFORE: "Engineering feasibility is otherwise supported across thermal, optical, and vacuum domains"
+AFTER:  "Engineering conditions are conditionally specified across thermal, optical, and vacuum domains"
+
+BEFORE: "a conditionally validated pathway toward combined atomic-scale fabrication"
+AFTER:  "a conditionally specified, not-yet-validated pathway toward combined"
+
+BEFORE: "feasibility is governed entirely by tau_c"
+AFTER:  "Detection feasibility is governed by two co-equal scientific unknowns: tau_c AND C_contr"
+
+[L8638 manuscript]
+BEFORE: "The framework is complete and honest. Every engineering constraint is closed..."
+AFTER:  "The framework is internally consistent but not physically validated. Every Mode D engineering constraint closes under ASSUMED parameters — not under verified measurement."
+
+[L9694 section title]
+BEFORE: "Constraint-Closed Feasibility Proof: Independent Hostile Audit"
+AFTER:  "Independent Audit: Unverified Assumptions and Remaining Bottlenecks"
+
+[L9710]
+BEFORE: "CONDITIONALLY FEASIBLE. Claims 1, 2, and 4 are proven from first principles."
+AFTER:  "CONDITIONAL — NOT EXPERIMENTALLY VALIDATED. Claims are self-consistent from physics-based models under ASSUMED parameters. No measurement in this system has been performed."
+
+[L9707]
+BEFORE: "all Mode D sensing engineering constraints close under stated assumptions"
+AFTER:  "all Mode D sensing engineering constraints are self-consistent under ASSUMED parameters (not verified measurements)"
+
+[L6727]
+BEFORE: "the validation gates of Stage VIII provide a reviewer-proof experimental protocol"
+AFTER:  "the validation gates of Stage VIII define a structured experimental protocol"
+
+[L170]
+BEFORE: "This is essentially a perfect margin."
+AFTER:  "This ratio is negligibly small."
+
+[L9461/9462]
+BEFORE: "thermal platform works; NV charge state incompatible"
+AFTER:  "thermal architecture is conditionally defined; NV charge state incompatible"
+
+[Support section L342-365]
+BEFORE: Vespel SP-22 presented as committed primary sample support
+AFTER:  Vespel SP-22 labeled REJECTED BASELINE; committed design is Kevlar/G-10CR/thermal-intercepts
+
+[Gate D9]
+BEFORE: status = PASS (gas kinetics Kn number from first principles)
+AFTER:  status = DERIVED_CHECK (mathematical check; not physical PASS; no hardware measurement)
+
+[All 'first-principles' usages]
+BEFORE: "first-principles simulation/calculation"
+AFTER:  "physics-based simulation/model"
+
+PHRASES THAT REMAIN (LEGITIMATE NEGATED OR MATHEMATICAL USES)
+--------------------------------------------------------------
+"not validated" — used as negation (correct)
+"not demonstrated" — used as negation (correct)  
+"not a breakthrough claim" — negation (correct)
+"feasible region F" — mathematical set notation (not a system claim)
+"closed interval" — topology (not a claim)
+"closed inequality" — math (not a claim)
+"cross-validated" — statistical methodology (not a system validation claim)
+
+UNRESOLVED ITEMS
+----------------
+- 27.7 µs tau_c threshold: appears in v3.0 mathematical derivation sections.
+  These sections are marked [SUPERSEDED v3.0]. Full re-derivation would require
+  user decision on whether to delete or retain as historical analysis.
+  UNRESOLVED — requires user decision.
+
+- Bibliography: currently 30 entries. Target 100-200+ for full manuscript scope.
+  UNRESOLVED — requires user to provide or approve additional references.
+  All current numerical parameters have source status but many rely on INDIRECT literature.
+
+- AOM gating: no AOM references found in current manuscript. Not an issue.
+
+- LCVD at 10 mK: correctly labeled as proposed/design-specified in current text.
+  No demonstration claim found after audit.

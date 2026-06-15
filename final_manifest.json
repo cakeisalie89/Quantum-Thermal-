@@ -106,7 +106,7 @@
     {
       "filename": "results_gate_table.csv",
       "size_bytes": 46044,
-      "sha256": "e2a6872908a6b49fd83b651f2ecacf9aff5823d0183dc01d8d17ed939768bf39",
+      "sha256": "d9893707d2534a18497a925f9d895a6185ebf5bea6b373dfa9955a7252b09e46",
       "generated_by": "qta_full_sim.py",
       "purpose": "canonical 63-gate table"
     },
@@ -301,8 +301,8 @@
     },
     {
       "filename": "CLAIMS_BOUNDARY.md",
-      "size_bytes": 7544,
-      "sha256": "9c28aa967073e1ada758e719825eda5db99760e6679f1cb61d1d4e000378f9fb",
+      "size_bytes": 8645,
+      "sha256": "135f6e23f769e4b733334ecfc92fa3c141a111cb250e1cca35a086b2f66beaa9",
       "generated_by": "manual",
       "purpose": "explicit list of what the package does and does not claim"
     },
@@ -333,13 +333,6 @@
       "sha256": "f0e584ce4b76faf92f0b543cb8fd21ca6725581221b4aff1b2cf7b269402541a",
       "generated_by": "manual / source-hardening pass",
       "purpose": "visible register of every unresolved source/citation gap (100 rows)"
-    },
-    {
-      "filename": ".gitattributes",
-      "size_bytes": 152,
-      "sha256": "f503bec1ff0b18fc4c4d52b95d3112632f61b61110f255a4dbe6cc92f1dcb8f7",
-      "generated_by": "manual",
-      "purpose": "disables Git EOL conversion so manifest hashes are stable across platforms"
     },
     {
       "filename": ".gitignore",
@@ -427,22 +420,22 @@
     },
     {
       "filename": "distributed_thermal_profile.csv",
-      "size_bytes": 6615,
-      "sha256": "1839d13ea957d0087c6f626aa85d8bbb0bf263aede3f0833c30ee256eb42dded",
+      "size_bytes": 35733,
+      "sha256": "a24c3ca9aa6c0449d582616d7db8a8ec8ef94e8f18257c2e668c36129a5e2d0e",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "1D thermal T(z) final profile [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "distributed_thermal_2d_slices.csv",
       "size_bytes": 4319,
-      "sha256": "983747fd65074c1662f0f81f3a06314fa3145a784b2bc4566aeb3b61de3e6326",
+      "sha256": "e0c76fb72e4c5851c4a978480ff9f7871c90675855ada3ad184472f52e24c2a2",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "2D thermal axis/surface slices [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "distributed_thermal_metrics.csv",
-      "size_bytes": 1405,
-      "sha256": "0489d0a70e7753e663b5c1d65e9f665fe3a405a83234cc7c2211f83055d380d1",
+      "size_bytes": 2831,
+      "sha256": "195507c6356cb52eb8446af2cf302083bd6a33287d62a11df31d5e324c8a81a7",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "1D/2D thermal forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
     },
@@ -491,21 +484,21 @@
     {
       "filename": "surface_coverage_profile.csv",
       "size_bytes": 3308,
-      "sha256": "40986de6017e3d45366aff47833c664dad58bf617249434ea4f92e57c55aee64",
+      "sha256": "0f3ec49aa388dd6303d0be995f6052d15ab28a6943f17e65964f26ac217c94a9",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "1D surface coverage decay (Mode C) [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "surface_coverage_2d_map.csv",
       "size_bytes": 2684,
-      "sha256": "dc9e6ce2d037e22618fdf8fca25be01aefbe62f615b1c0d163358d07592ab024",
+      "sha256": "9c076f4f01600f934b9435b6cf2959ab9ef711739c522a1485942f0cb72004cd",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "2D radial surface coverage map [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "surface_coverage_metrics.csv",
-      "size_bytes": 527,
-      "sha256": "46e39668dbd4d18192c75bbfa41682a26160f9446071248c31256814af28ea8f",
+      "size_bytes": 526,
+      "sha256": "bbc276193298754925ea45710810383932ba63ae19a8de2428dd983d5cf09c9e",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "surface coverage forecast metrics [MODEL_ONLY/FORECAST_ONLY]"
     },
@@ -553,57 +546,57 @@
     },
     {
       "filename": "coupled_mode_recovery_metrics.csv",
-      "size_bytes": 1564,
-      "sha256": "6c6625e85ae2fcbf5d73b2fe601b43c5b1b87d4ed58d420af53b6b920f10a870",
+      "size_bytes": 1563,
+      "sha256": "88579de31df50b4aed70067ae4024e6abf5789e4e1d93c9381bb893ffb89b29f",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "coupled Mode B->C->D recovery metrics [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "coupled_mode_state_summary.json",
-      "size_bytes": 2337,
-      "sha256": "f57f31bd7a6263de4cf3750f5df25048d3af3c34703e1c649b23967b561bedfd",
+      "size_bytes": 2335,
+      "sha256": "045d22fb93bfb307ee24811335d0680f5ae4da2ac2b9bb65b45cfa68fdd69ce1",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "coupled solver state summary [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "multiphysics_summary.json",
-      "size_bytes": 5676,
-      "sha256": "57712e17fd483d667e5153774a2cfc382c4b674bf589b3d96e8f6f6c7a3173ad",
+      "size_bytes": 6494,
+      "sha256": "6aed2950f7632e5c07b34e3dd96c06f493892c925ef3d0a1758bab35adee880b",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "top-level multiphysics layer summary [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "mesh_convergence_summary.csv",
-      "size_bytes": 388,
-      "sha256": "103402a9ef1f752f82785b8ae621be6aac74266a50dca7488390bacc7eb61b3a",
+      "size_bytes": 390,
+      "sha256": "6b238c47822916030f7848c4b4e78e1c1680403418cc30351e61fa7a589ff604",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "1D/2D mesh convergence record [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "numerical_stability_summary.csv",
-      "size_bytes": 445,
-      "sha256": "327519f9c780520294761c987d8f2fe013a303e016f088577de22be6262f0490",
+      "size_bytes": 447,
+      "sha256": "62ad2dcc68b58f50acd151fb9b9ee817625c14da254ed4beb6a3bf93961c0946",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "numerical stability checks record [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "multiphysics_verification_summary.csv",
-      "size_bytes": 945,
-      "sha256": "d5820986afea5a5672325b65e058e090a3c4228c2204ebd64b868afbf81853c2",
+      "size_bytes": 946,
+      "sha256": "58e36f952705ce86f119aa8a6f6a27ac93e001ccb3a52ff063c227c265629fc9",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "multiphysics verification record [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "fidelity_comparison.csv",
       "size_bytes": 308,
-      "sha256": "0649bc41dc354e3b64a08c97a3b5601b6e7e75988d207f822d5005a4158cd862",
+      "sha256": "b48df288402ab5dfee50f1a75851617edce36d3658c08bd5fb471d5b3524eb78",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "1D vs 2D fidelity comparison [MODEL_ONLY/FORECAST_ONLY]"
     },
     {
       "filename": "lumped_vs_nonlumped_comparison.csv",
       "size_bytes": 374,
-      "sha256": "8b6bc6d79bae8b752681a821c835f24ee35541215a449aada5a93eacd6b79913",
+      "sha256": "609fe0f22dc4c531664b9475ce4c3ede151de272acfc054df055cc861a967f61",
       "generated_by": "qta_multiphysics (pass 15)",
       "purpose": "lumped comparator vs non-lumped gate authority [MODEL_ONLY/FORECAST_ONLY]"
     },
@@ -665,22 +658,22 @@
     },
     {
       "filename": "qta_multiphysics/grids.py",
-      "size_bytes": 3306,
-      "sha256": "c274303a1bf66b8519162a1f8ba5bcdcf4b1a9c0d7860edc3d12fa8d7e238228",
+      "size_bytes": 15164,
+      "sha256": "9ef3b5483a586868712f83a599d3efa0e65c1b328cf41a8c77b1519a6a63894d",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
     {
       "filename": "qta_multiphysics/laser_source.py",
-      "size_bytes": 5112,
-      "sha256": "9ccaa2c52077766212ac15873f0ed6a2794609b5e9a5eda0ee01abb9c4c24b81",
+      "size_bytes": 5437,
+      "sha256": "1509223f2cdc05e2cdc686d4db592b68412ea7d349d82eef94cecc55cc40313a",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
     {
       "filename": "qta_multiphysics/material_models.py",
-      "size_bytes": 2822,
-      "sha256": "c3914e1673abecd7f3ddad1a950576e54fa4ccb5323b72a523a8dee4be994266",
+      "size_bytes": 3718,
+      "sha256": "255dfada08b2c2e497d20b68f4f9fef6425b90e876988ccc7939dcddbdd465ab",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -700,8 +693,8 @@
     },
     {
       "filename": "qta_multiphysics/numerics.py",
-      "size_bytes": 3610,
-      "sha256": "395b6696430f6a8b65ceafd41e96f013cdfc60f4da1b9802b9eb58f145aaa7c4",
+      "size_bytes": 4479,
+      "sha256": "4b298d3698878b91f1637602228063d6f8529552e2610167bb1ca3eedc9cd35b",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -735,8 +728,8 @@
     },
     {
       "filename": "qta_multiphysics/runner.py",
-      "size_bytes": 12887,
-      "sha256": "c8e0b0b2c9ac1090f1786926bffd5dabd9790212c5a9acb2bb4264dfedf24774",
+      "size_bytes": 14662,
+      "sha256": "cc2dc4e80c8d0d88ce13c52c8d562713012ab99f6f0162aad0b6ac2e77dae083",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -763,15 +756,15 @@
     },
     {
       "filename": "qta_multiphysics/thermal_1d.py",
-      "size_bytes": 5806,
-      "sha256": "d71b6cff92ffd7f6acc4c3020aa73fc3e5406d5df7ca3a1159dc8c93fc1979b6",
+      "size_bytes": 13056,
+      "sha256": "ff1f75d57dec1caabbf2bb8da8170abb74cea7347a87392f65aec6b5bbd1e40c",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
     {
       "filename": "qta_multiphysics/thermal_2d_axisymmetric.py",
-      "size_bytes": 7093,
-      "sha256": "1b7823c6c134ccd9ad6588f9c270fec48a36104dc492fdb9078d31a9b0046bc1",
+      "size_bytes": 12389,
+      "sha256": "60ee6541dd673fb957bd44b8653c7d2d8daaf1409e7e4d65c755e8a840ba30ef",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -791,8 +784,8 @@
     },
     {
       "filename": "qta_multiphysics/verification.py",
-      "size_bytes": 11927,
-      "sha256": "52bdcc2bf6d7f55a4230dece53241da182005e561ffde68677bcf6b1e7d0e00e",
+      "size_bytes": 12733,
+      "sha256": "4616b837fc97108679dda534719508f3ee94e963436f683a499f847d67b6ba15",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },

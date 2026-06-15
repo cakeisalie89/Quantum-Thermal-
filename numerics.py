@@ -93,3 +93,19 @@ def build_axisym_diffusion_operator(grid, k_const):
                 diag -= coef
             rows.append(p); cols.append(p); vals.append(diag)
     return sp.csr_matrix((vals, (rows, cols)), shape=(N, N))
+
+
+def face_series_resistance(k_left, k_right, dist_left, dist_right):
+    """Per-unit-area thermal resistance of a finite-volume face.
+
+    For a face shared by two cells with conductivities ``k_left``/``k_right``
+    whose centres lie ``dist_left``/``dist_right`` from the face, series
+    conduction gives ``R = dist_left/k_left + dist_right/k_right`` and the
+    face heat flux is ``(T_left - T_right) / R`` [W/m^2]. This is the
+    physically correct (distance-weighted harmonic) face interpolation on a
+    NONUNIFORM mesh; for equal half-widths and constant k it reduces to the
+    usual harmonic mean dx/k. Arrays broadcast elementwise.
+    """
+    kl = np.maximum(np.asarray(k_left, dtype=float), 1e-300)
+    kr = np.maximum(np.asarray(k_right, dtype=float), 1e-300)
+    return np.asarray(dist_left, dtype=float) / kl + np.asarray(dist_right, dtype=float) / kr
