@@ -294,8 +294,8 @@
     },
     {
       "filename": "INSTALL.md",
-      "size_bytes": 2244,
-      "sha256": "a4b4d76267b199f0f5175f88e48c70fc627d5c6c9fd7f864f84f1f3aea33b72d",
+      "size_bytes": 2086,
+      "sha256": "29e286efd07e8470c97562b509390878804d15357a40faf1db99882aeaf963af",
       "generated_by": "manual",
       "purpose": "External system dependencies and installation instructions"
     },
