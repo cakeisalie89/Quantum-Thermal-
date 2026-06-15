@@ -175,29 +175,15 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 81910,
-      "sha256": "2a876e08c550bd071f9a2157db88d73a80736488e43ef65925b481a3b417f190",
+      "size_bytes": 81210,
+      "sha256": "0cbcce0e2067d5b41e4780e89be1227856aa31bc9988e5e12255f88c87fb6191",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
     {
-      "filename": "stale_language_audit.txt",
-      "size_bytes": 46190,
-      "sha256": "a1ef54fc44e5092f6bbd71ae6482f7a12e9a2e714715b196a0eb9acdb3e91f62",
-      "generated_by": "package_consistency_check.py / manual audit",
-      "purpose": "multi-line context audit"
-    },
-    {
-      "filename": "output_sync_report.txt",
-      "size_bytes": 50994,
-      "sha256": "89eb23f2726351a8abc415a64abfdfdf0920d85dd4c22c29e3b5f24fa2ae7836",
-      "generated_by": "manual",
-      "purpose": "sync status of every canonical file"
-    },
-    {
       "filename": "README.md",
-      "size_bytes": 21284,
-      "sha256": "0aa2603ac170460b9a97f68a59317f5def08d203d4b47da9fd24ec02c9779dff",
+      "size_bytes": 10104,
+      "sha256": "a41a664d8d2c76b1c37f319f6095a76f052925f2fb65c968dfb8c8cc16806529",
       "generated_by": "manual",
       "purpose": "package README \u2014 canonical state and instructions"
     },
@@ -258,20 +244,6 @@
       "purpose": "rejected baseline (Vespel SP-22, AOM)"
     },
     {
-      "filename": "sim_stdout.txt",
-      "size_bytes": 80759,
-      "sha256": "020f5654bf077bed7a12eba5408877be1f41db8131e6776b0d1482b359ff5d23",
-      "generated_by": "qta_full_sim.py",
-      "purpose": "captured stdout from sim run (for consistency check)"
-    },
-    {
-      "filename": "slop_removal_log.txt",
-      "size_bytes": 4093,
-      "sha256": "7c66e612d2ff48f4c674cf80a225619c5274b617a617aeabc44cd29636a61972",
-      "generated_by": "manual",
-      "purpose": "slop-removal audit log"
-    },
-    {
       "filename": "source_audit_status.txt",
       "size_bytes": 2166,
       "sha256": "be80a35f983149ce0aa2b34e3ec74b3c3321d627451463ed11be1007162daffd",
@@ -286,13 +258,6 @@
       "purpose": "QUARANTINED v3.0 operating point (SUPERSEDED)"
     },
     {
-      "filename": "REVIEWER_COVER_NOTE.md",
-      "size_bytes": 3296,
-      "sha256": "ae3e2961d571c0e4381633e2111da669f19dd9f45ded083f379813de9fe1e296",
-      "generated_by": "manual",
-      "purpose": "one-page cover note for outside technical reviewers"
-    },
-    {
       "filename": "FIRST_VALIDATION_EXPERIMENTS.md",
       "size_bytes": 8215,
       "sha256": "24131bd700e7756725145ef5348e8e2ca5e4a419d85a0f18f6cf0ef5a0c4da12",
@@ -305,20 +270,6 @@
       "sha256": "135f6e23f769e4b733334ecfc92fa3c141a111cb250e1cca35a086b2f66beaa9",
       "generated_by": "manual",
       "purpose": "explicit list of what the package does and does not claim"
-    },
-    {
-      "filename": "REVIEWER_QUESTIONS.md",
-      "size_bytes": 4350,
-      "sha256": "67dd6836071b773e60229e2cfa7044fff7e541183ad88d3484d91e2f321aa70c",
-      "generated_by": "manual",
-      "purpose": "eight specific technical questions for reviewer engagement"
-    },
-    {
-      "filename": "SUBMISSION_EMAIL_DRAFT.md",
-      "size_bytes": 2541,
-      "sha256": "628d42c69992ce0405d4b31cca0eb548fde60be3d4c920209247952f8d98c236",
-      "generated_by": "manual",
-      "purpose": "short request-for-feedback email template"
     },
     {
       "filename": "bibliography_audit.csv",
@@ -343,8 +294,8 @@
     },
     {
       "filename": "INSTALL.md",
-      "size_bytes": 2356,
-      "sha256": "2edb63a115687401632f4e8eac8d20235d1b873207f76d5fe1047fc4dbc4735f",
+      "size_bytes": 2086,
+      "sha256": "29e286efd07e8470c97562b509390878804d15357a40faf1db99882aeaf963af",
       "generated_by": "manual",
       "purpose": "External system dependencies and installation instructions"
     },
@@ -382,13 +333,6 @@
       "sha256": "0dcc8b7f55a5ef0bb4e46fe699c78ce57d88502f87cdc105710f9b06dd29122c",
       "generated_by": "hardening",
       "purpose": "4 mode transitions; T-C2D BLOCKED with full sub-conditions"
-    },
-    {
-      "filename": "reviewer_attack_map.md",
-      "size_bytes": 6823,
-      "sha256": "2e3b32c2bbf4aad44b5eeaa3d0d8906d4d53bc18b8770b79e1f6b09a291f5853",
-      "generated_by": "hardening",
-      "purpose": "7 reviewer-attack sections; mode-separated architecture clarified"
     },
     {
       "filename": "kill_gate_ranking.csv",
