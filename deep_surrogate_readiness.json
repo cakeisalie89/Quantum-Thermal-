@@ -1,0 +1,12 @@
+{
+  "calibration": null,
+  "compared_against_direct_mc": false,
+  "controls_experiment_ordering": false,
+  "fallback": "direct_monte_carlo",
+  "predictive_error": null,
+  "reason": "No neural surrogate or neural posterior/likelihood estimator has been trained or validated. Honest fallback to direct MC.",
+  "simulation_trained": false,
+  "status": "NOT_IMPLEMENTED",
+  "train_val_test_split": null,
+  "trust_threshold_note": "Would require predictive error below a documented threshold vs direct MC before controlling ordering."
+}

@@ -1,0 +1,4065 @@
+{
+  "_note": "Typed QTA design-component registry (forecast/pre-hardware). Derived from BOM.csv; no invented geometry/vendors.",
+  "components": {
+    "B001": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "D4"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Mixing chamber flange",
+      "component_id": "B001",
+      "component_type": "Base cooling to 10 mK",
+      "contamination_path": "Closed refrigeration loop",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I059"
+      ],
+      "name": "Dilution refrigerator (Oxford Triton 200)",
+      "parameters": {},
+      "parent": "Building floor (vibration-isolated slab)",
+      "part_number_or_spec": "Triton 200",
+      "provenance_source": "Oxford Instruments",
+      "source_record": "BOM.csv:B001",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Cryogenic platform",
+      "thermal_intercepts": [
+        "50K",
+        "4K",
+        "1K",
+        "100mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Building floor (vibration-isolated slab)"
+    },
+    "B002": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D4",
+        "D5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Ag sinter interface (10 mK)",
+      "component_id": "B002",
+      "component_type": "Mount diamond sample at MC node",
+      "contamination_path": "Open to chamber vacuum",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I059"
+      ],
+      "name": "Mixing chamber sample stage",
+      "parameters": {},
+      "parent": "MC flange (10 mK)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (custom machined)",
+      "source_record": "BOM.csv:B002",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Cryogenic platform",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "MC flange (10 mK)"
+    },
+    "B003": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample-stage mounting plate",
+      "component_id": "B003",
+      "component_type": "Hard thermal anchor for sample bus to MC",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I059"
+      ],
+      "name": "Mixing-chamber anchor interface",
+      "parameters": {},
+      "parent": "MC flange",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (custom OFHC Cu)",
+      "source_record": "BOM.csv:B003",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Cryogenic platform",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "MC flange"
+    },
+    "B004": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D4",
+        "D5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Diamond sample mount",
+      "component_id": "B004",
+      "component_type": "Rigid reference plane for diamond mount and suspension",
+      "contamination_path": "Open to chamber vacuum",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I059"
+      ],
+      "name": "Sample-stage mounting plate",
+      "parameters": {},
+      "parent": "Anchor interface (10 mK)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (OFHC Cu or Al)",
+      "source_record": "BOM.csv:B004",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Cryogenic platform",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Anchor interface (10 mK)"
+    },
+    "B005": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "E06"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "10mK sample-stage plate",
+      "component_id": "B005",
+      "component_type": "Mechanical support with thermal isolation",
+      "contamination_path": "Open to chamber; no gas contamination",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "Kevlar 49 tension suspension (4 fibers)",
+      "parameters": {},
+      "parent": "4K thermal intercept clamp",
+      "part_number_or_spec": "ASTM D7269 or equivalent",
+      "provenance_source": "TBD (Kevlar 49 fiber supplier)",
+      "source_record": "BOM.csv:B005",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK",
+        "10mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "4K thermal intercept clamp"
+    },
+    "B006": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "E06"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "10mK mounting plate",
+      "component_id": "B006",
+      "component_type": "Secure fiber ends; transmit tension load",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "Kevlar end clamps / termination hardware",
+      "parameters": {},
+      "parent": "4K plate or anchor block",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B006",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "4K plate or anchor block"
+    },
+    "B007": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "E06"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Cold intercept plate",
+      "component_id": "B007",
+      "component_type": "Low-resistance thermal interface at each intercept",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "Kevlar anchor blocks (gold-plated OFHC Cu)",
+      "parameters": {},
+      "parent": "Warm intercept plate",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B007",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK",
+        "10mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Warm intercept plate"
+    },
+    "B008": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "E06"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Cold lateral attachment",
+      "component_id": "B008",
+      "component_type": "Lateral compliance; vibration decoupling",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "G-10CR fiberglass flexures",
+      "parameters": {},
+      "parent": "Warm lateral anchor",
+      "part_number_or_spec": "G-10CR per NEMA LI-1 or equivalent",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B008",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Warm lateral anchor"
+    },
+    "B009": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "E06"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample stage (cold side)",
+      "component_id": "B009",
+      "component_type": "Attach flexures to frame and sample stage",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "G-10CR flexure mounts",
+      "parameters": {},
+      "parent": "Frame (warm side)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B009",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Frame (warm side)"
+    },
+    "B010": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "E06"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Stage plate (cold side of intercept)",
+      "component_id": "B010",
+      "component_type": "Staged thermal interception at 4K/1K/100mK/10mK",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "OFHC Cu thermal intercept clamps (4 stages)",
+      "parameters": {},
+      "parent": "Stage plate (warm side of intercept)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (custom OFHC Cu)",
+      "source_record": "BOM.csv:B010",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Stage plate (warm side of intercept)"
+    },
+    "B011": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "1K anchor",
+      "component_id": "B011",
+      "component_type": "First thermal intercept at 4K",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "4K thermal anchor (intercept clamp)",
+      "parameters": {},
+      "parent": "4K plate",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B011",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [
+        "4K"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "4K plate"
+    },
+    "B012": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "100mK anchor",
+      "component_id": "B012",
+      "component_type": "Second thermal intercept at 1K",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "1K thermal anchor",
+      "parameters": {},
+      "parent": "1K plate",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B012",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [
+        "1K"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "1K plate"
+    },
+    "B013": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "10mK anchor",
+      "component_id": "B013",
+      "component_type": "Third thermal intercept at 100mK",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "100mK thermal anchor",
+      "parameters": {},
+      "parent": "100mK plate",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B013",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [
+        "100mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "100mK plate"
+    },
+    "B014": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "D5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample stage",
+      "component_id": "B014",
+      "component_type": "Final intercept at mixing chamber (10mK)",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I013",
+        "I036",
+        "I037",
+        "I038",
+        "I039"
+      ],
+      "name": "10mK / MC thermal anchor",
+      "parameters": {},
+      "parent": "MC flange",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B014",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Support architecture",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "MC flange"
+    },
+    "B015": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D5",
+        "E05"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Diamond sample mount",
+      "component_id": "B015",
+      "component_type": "G_eff between sample stage and MC",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012",
+        "I013",
+        "I022",
+        "I023",
+        "I024",
+        "I025",
+        "I033",
+        "I036",
+        "I038",
+        "I039",
+        "I041",
+        "I042",
+        "I043",
+        "I044",
+        "I050",
+        "I052",
+        "I053"
+      ],
+      "name": "Ag sinter thermal interface (45 cm\u00b2)",
+      "parameters": {},
+      "parent": "MC flange",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (sintered Ag powder on diamond substrate)",
+      "source_record": "BOM.csv:B015",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Thermal interface",
+      "thermal_intercepts": [
+        "10mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "MC flange"
+    },
+    "B016": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D5",
+        "E05"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A",
+      "component_id": "B016",
+      "component_type": "Tooling to sinter Ag onto diamond substrate",
+      "contamination_path": "N/A",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012",
+        "I013",
+        "I022",
+        "I023",
+        "I024",
+        "I025",
+        "I033",
+        "I036",
+        "I038",
+        "I039",
+        "I041",
+        "I042",
+        "I043",
+        "I044",
+        "I050",
+        "I052",
+        "I053"
+      ],
+      "name": "Ag sinter fabrication tooling",
+      "parameters": {},
+      "parent": "N/A (bench process)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B016",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Thermal interface",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "N/A (bench process)"
+    },
+    "B017": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "E01"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Chamber walls",
+      "component_id": "B017",
+      "component_type": "H2 suppression by thermal desorption",
+      "contamination_path": "N/A",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "UHV bakeout system (250\u00b0C/48h)",
+      "parameters": {},
+      "parent": "External heater controller",
+      "part_number_or_spec": "250\u00b0C-capable heater + temp controller",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B017",
+      "status": "NOT_INSTALLED",
+      "subsystem": "Vacuum system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "External heater controller"
+    },
+    "B018": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "E02"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Interior chamber (cold during operation)",
+      "component_id": "B018",
+      "component_type": "H2/CO getter post-bakeout",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "SAES St707 NEG pump",
+      "parameters": {},
+      "parent": "Chamber flange (warm)",
+      "part_number_or_spec": "St707 or equivalent",
+      "provenance_source": "SAES Getters",
+      "source_record": "BOM.csv:B018",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vacuum system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Chamber flange (warm)"
+    },
+    "B019": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "B2",
+        "E03"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Interior chamber",
+      "component_id": "B019",
+      "component_type": "Cryopumping of condensable gases (H2O, CO, hydrocarbons)",
+      "contamination_path": "None (cryopumps condensables)",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "77K charcoal cryotrap",
+      "parameters": {},
+      "parent": "LN2 reservoir (77K)",
+      "part_number_or_spec": "Charcoal/zeolite at 77K",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B019",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vacuum system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "LN2 reservoir (77K)"
+    },
+    "B020": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "B3",
+        "D2",
+        "E04"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sampling path in chamber",
+      "component_id": "B020",
+      "component_type": "All-species pressure verification (FC-corrected)",
+      "contamination_path": "Gas sampling",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "RGA (residual gas analyzer)",
+      "parameters": {},
+      "parent": "Room T (external electronics)",
+      "part_number_or_spec": "QMS 200 type",
+      "provenance_source": "TBD (Pfeiffer QMS 200, MKS, or equivalent)",
+      "source_record": "BOM.csv:B020",
+      "status": "NOT_INSTALLED",
+      "subsystem": "Vacuum diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room T (external electronics)"
+    },
+    "B021": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "B3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sensing volume (4K)",
+      "component_id": "B021",
+      "component_type": "Gas transport from sensing volume to RGA",
+      "contamination_path": "Gas",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "RGA sampling path",
+      "parameters": {},
+      "parent": "RGA flange (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B021",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vacuum diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "RGA flange (room T)"
+    },
+    "B022": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [
+        "B5",
+        "D11"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Adjacent to sample (cryogenic)",
+      "component_id": "B022",
+      "component_type": "Coverage proxy: He-3 and CH4 dose monitoring",
+      "contamination_path": "Open to chamber",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "QCM (5 MHz AT-cut crystal)",
+      "parameters": {},
+      "parent": "Room-T electronics (external)",
+      "part_number_or_spec": "AT-cut 5 MHz quartz",
+      "provenance_source": "TBD (Inficon, Maxtek, or equivalent)",
+      "source_record": "BOM.csv:B022",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK",
+        "10mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T electronics (external)"
+    },
+    "B023": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [
+        "B5",
+        "D11"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "QCM crystal",
+      "component_id": "B023",
+      "component_type": "Mechanical reference for QCM crystal",
+      "contamination_path": "Open",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "QCM mount",
+      "parameters": {},
+      "parent": "Chamber wall (4K or warmer)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B023",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Chamber wall (4K or warmer)"
+    },
+    "B024": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [
+        "B5",
+        "D3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "QCM crystal",
+      "component_id": "B024",
+      "component_type": "Thermalize QCM signal wiring to prevent heat leak",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "QCM wiring anchors",
+      "parameters": {},
+      "parent": "Room-T feedthrough",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B024",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T feedthrough"
+    },
+    "B025": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11",
+        "E08"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Line-of-sight to sample (cryogenic)",
+      "component_id": "B025",
+      "component_type": "Controlled isotope dose pulses",
+      "contamination_path": "He-3 gas path",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I010",
+        "I032",
+        "I047",
+        "I048"
+      ],
+      "name": "PMB (pulsed molecular beam doser)",
+      "parameters": {},
+      "parent": "Room-T gas line",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B025",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Helium dosing",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T gas line"
+    },
+    "B026": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample line-of-sight",
+      "component_id": "B026",
+      "component_type": "Mount PMB on chamber with line-of-sight",
+      "contamination_path": "Gas path",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I010",
+        "I032",
+        "I047",
+        "I048"
+      ],
+      "name": "PMB mechanical mount",
+      "parameters": {},
+      "parent": "Chamber flange",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B026",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Helium dosing",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Chamber flange"
+    },
+    "B027": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11",
+        "E08"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Shutter face (cryogenic)",
+      "component_id": "B027",
+      "component_type": "Shutter control of He-3 line-of-sight to sample",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I010",
+        "I032",
+        "I047",
+        "I048"
+      ],
+      "name": "Shuttered cryo-baffle",
+      "parameters": {},
+      "parent": "Baffle actuator (warm side)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B027",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Helium dosing",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Baffle actuator (warm side)"
+    },
+    "B028": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Baffle body",
+      "component_id": "B028",
+      "component_type": "Mechanical support for cryo-baffle",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I010",
+        "I032",
+        "I047",
+        "I048"
+      ],
+      "name": "Cryo-baffle mount",
+      "parameters": {},
+      "parent": "Chamber wall",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B028",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Helium dosing",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Chamber wall"
+    },
+    "B029": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "A4",
+        "D11",
+        "E07"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample chamber (4K section)",
+      "component_id": "B029",
+      "component_type": "Isolated He-3 dose for Mode D",
+      "contamination_path": "He-3 gas",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Independent 3He sensing line",
+      "parameters": {},
+      "parent": "He-3 cylinder (room T)",
+      "part_number_or_spec": "SS VCR/CF; cryo-compatible valves",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B029",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [
+        "4K",
+        "1K"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "He-3 cylinder (room T)"
+    },
+    "B030": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample chamber",
+      "component_id": "B030",
+      "component_type": "Isolated He-4 for isotope contrast",
+      "contamination_path": "He-4 gas",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Independent 4He reference line",
+      "parameters": {},
+      "parent": "He-4 cylinder (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B030",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [
+        "4K",
+        "1K"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "He-4 cylinder (room T)"
+    },
+    "B031": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "A4",
+        "D2"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Mode B delivery zone",
+      "component_id": "B031",
+      "component_type": "LCVD precursor for Mode B",
+      "contamination_path": "CH4 gas",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "CH4/carbon precursor line",
+      "parameters": {},
+      "parent": "CH4 cylinder (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B031",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "CH4 cylinder (room T)"
+    },
+    "B032": {
+      "allowed_modes": [
+        "C"
+      ],
+      "associated_gates": [
+        "B1"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Chamber",
+      "component_id": "B032",
+      "component_type": "Mode C purge of chamber after LCVD",
+      "contamination_path": "Inert gas",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Purge/inert gas line",
+      "parameters": {},
+      "parent": "Inert gas cylinder (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B032",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Inert gas cylinder (room T)"
+    },
+    "B033": {
+      "allowed_modes": [
+        "B",
+        "C"
+      ],
+      "associated_gates": [
+        "B1"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Chamber",
+      "component_id": "B033",
+      "component_type": "Emergency gas dump; controlled pump-down",
+      "contamination_path": "Pumped gas",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Pumpout/dump/recovery path",
+      "parameters": {},
+      "parent": "Scroll/turbo pump (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B033",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Scroll/turbo pump (room T)"
+    },
+    "B034": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "D4"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Colder stage",
+      "component_id": "B034",
+      "component_type": "Thermalize gas lines at each cryogenic stage",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Gas-line thermal anchors (per cryogenic line)",
+      "parameters": {},
+      "parent": "Warmer stage",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B034",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Warmer stage"
+    },
+    "B035": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D17"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Line body",
+      "component_id": "B035",
+      "component_type": "Prevent gas-line vibration coupling to sample",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Gas-line mechanical anchors",
+      "parameters": {},
+      "parent": "Chamber wall",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B035",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Chamber wall"
+    },
+    "B036": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Line body",
+      "component_id": "B036",
+      "component_type": "Mode-controlled gas isolation",
+      "contamination_path": "Through gas column",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Isolation valves (per line)",
+      "parameters": {},
+      "parent": "Room T (actuator)",
+      "part_number_or_spec": "Cryo-compatible shutoff",
+      "provenance_source": "TBD (VAT, Swagelok, or equivalent)",
+      "source_record": "BOM.csv:B036",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room T (actuator)"
+    },
+    "B037": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D11",
+        "D2"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Downstream of sample",
+      "component_id": "B037",
+      "component_type": "Prevent backstreaming between gas lines",
+      "contamination_path": "Gas path",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Check valves or equivalent isolation hardware",
+      "parameters": {},
+      "parent": "Upstream of sample",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B037",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Upstream of sample"
+    },
+    "B038": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sensing volume",
+      "component_id": "B038",
+      "component_type": "Line-specific pressure monitoring",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Pressure gauges (per line)",
+      "parameters": {},
+      "parent": "Room-T electronics",
+      "part_number_or_spec": "Range-appropriate for each line",
+      "provenance_source": "TBD (MKS Baratron, Leybold)",
+      "source_record": "BOM.csv:B038",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T electronics"
+    },
+    "B039": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "RGA sampling point",
+      "component_id": "B039",
+      "component_type": "RGA or mass-spec of He-3/He-4 supply",
+      "contamination_path": "Gas sampling",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Helium isotope purity verification path",
+      "parameters": {},
+      "parent": "Gas cylinder (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B039",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Gas cylinder (room T)"
+    },
+    "B040": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "D6",
+        "D7"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Diamond surface (10mK via optical window)",
+      "component_id": "B040",
+      "component_type": "LCVD process pulse source",
+      "contamination_path": "None (photons only)",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "Femtosecond laser (LCVD/process, Mode B)",
+      "parameters": {},
+      "parent": "Optical bench (room T)",
+      "part_number_or_spec": "100 fs, 1 MHz rep rate, 532 nm class",
+      "provenance_source": "TBD (Coherent, Spectra-Physics, or equivalent)",
+      "source_record": "BOM.csv:B040",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics (Mode B)",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Optical bench (room T)"
+    },
+    "B041": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "D6",
+        "D7"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Diamond surface (via viewport)",
+      "component_id": "B041",
+      "component_type": "Beam shaping and delivery for LCVD",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "LCVD process optics",
+      "parameters": {},
+      "parent": "Laser output (room T)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B041",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics (Mode B)",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Laser output (room T)"
+    },
+    "B042": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D12",
+        "D13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "NV layer (10mK via viewport)",
+      "component_id": "B042",
+      "component_type": "CW or pulsed 532 nm for ODMR/Ramsey",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "NV readout laser (Mode D)",
+      "parameters": {},
+      "parent": "Laser bench (room T)",
+      "part_number_or_spec": "532 nm CW or pulsed",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B042",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics (Mode D)",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Laser bench (room T)"
+    },
+    "B043": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [
+        "D7"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A (inline)",
+      "component_id": "B043",
+      "component_type": "Ultrafast pulse gating (replaces AOM for fs pulses)",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "Pockels cell or pulse picker",
+      "parameters": {},
+      "parent": "Optical bench (room T)",
+      "part_number_or_spec": "<1 ns switching",
+      "provenance_source": "TBD (Leysop, Thorlabs EOM, or equivalent)",
+      "source_record": "BOM.csv:B043",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Optical bench (room T)"
+    },
+    "B044": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D7"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A (inline)",
+      "component_id": "B044",
+      "component_type": "CW beam modulation only (NOT for fs pulse gating)",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "AOM (acousto-optic modulator)",
+      "parameters": {},
+      "parent": "Optical bench",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B044",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Optical bench"
+    },
+    "B045": {
+      "allowed_modes": [
+        "A",
+        "D"
+      ],
+      "associated_gates": [
+        "D14",
+        "D6",
+        "D7"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Cryogenic interior",
+      "component_id": "B045",
+      "component_type": "Laser access to cryogenic sample",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "Optical access / window / feedthrough mount",
+      "parameters": {},
+      "parent": "Room-T flange",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (AR-coated viewport or fiber feedthrough)",
+      "source_record": "BOM.csv:B045",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics",
+      "thermal_intercepts": [
+        "4K",
+        "1K"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T flange"
+    },
+    "B046": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D15",
+        "D16",
+        "D8"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A (external)",
+      "component_id": "B046",
+      "component_type": "MW drive for NV spin manipulation",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I044"
+      ],
+      "name": "Microwave source",
+      "parameters": {},
+      "parent": "Electronics rack (room T)",
+      "part_number_or_spec": "2.87 GHz class",
+      "provenance_source": "TBD (Rohde & Schwarz, Keysight, or equivalent)",
+      "source_record": "BOM.csv:B046",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Microwave",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Electronics rack (room T)"
+    },
+    "B047": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D15",
+        "D8",
+        "E13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "CPW traces at 10mK sample",
+      "component_id": "B047",
+      "component_type": "Near-field MW delivery to NV",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I044"
+      ],
+      "name": "CPW (coplanar waveguide)",
+      "parameters": {},
+      "parent": "Coax feed at 4K connector",
+      "part_number_or_spec": "50 \u03a9, <3 \u00b5m linewidth near NV",
+      "provenance_source": "TBD (custom or commercial)",
+      "source_record": "BOM.csv:B047",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Microwave",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Coax feed at 4K connector"
+    },
+    "B048": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D16"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "CPW substrate",
+      "component_id": "B048",
+      "component_type": "Support CPW on sample stage",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I044"
+      ],
+      "name": "CPW mount",
+      "parameters": {},
+      "parent": "Sample stage plate",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B048",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Microwave",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Sample stage plate"
+    },
+    "B049": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D16"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "10mK stage",
+      "component_id": "B049",
+      "component_type": "Thermal noise suppression and attenuation",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I044"
+      ],
+      "name": "MW attenuators / filters",
+      "parameters": {},
+      "parent": "4K stage",
+      "part_number_or_spec": "Attenuators at 4K/1K/100mK/10mK",
+      "provenance_source": "TBD (XMA, Precision Cryogenics, or equivalent)",
+      "source_record": "BOM.csv:B049",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Microwave",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "4K stage"
+    },
+    "B050": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D16",
+        "D3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "10mK CPW",
+      "component_id": "B050",
+      "component_type": "Thermalize MW coax to prevent heat leak",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I044"
+      ],
+      "name": "Microwave-line thermal anchors",
+      "parameters": {},
+      "parent": "Room-T feedthrough",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B050",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Microwave",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T feedthrough"
+    },
+    "B051": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3",
+        "D4"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "10mK sensor/heater",
+      "component_id": "B051",
+      "component_type": "DC bias, signal wiring, thermalized per stage",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I025",
+        "I043"
+      ],
+      "name": "Cryogenic wiring (DC + signal)",
+      "parameters": {},
+      "parent": "Room-T feedthrough",
+      "part_number_or_spec": "Thermocoax for MW; manganin for DC",
+      "provenance_source": "TBD (Thermocoax, phosphor-bronze, manganin)",
+      "source_record": "BOM.csv:B051",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Electrical",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Room-T feedthrough"
+    },
+    "B052": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D3"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Colder stage plate",
+      "component_id": "B052",
+      "component_type": "Clamp wiring to each cryogenic stage to reduce heat leak",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I025",
+        "I043"
+      ],
+      "name": "Wire thermal anchors (per wiring bundle)",
+      "parameters": {},
+      "parent": "Warmer stage plate",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B052",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Electrical",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Warmer stage plate"
+    },
+    "B053": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "C3",
+        "D4"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample stage (10mK)",
+      "component_id": "B053",
+      "component_type": "Sample temperature monitoring",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Thermal sensors (RuO2)",
+      "parameters": {},
+      "parent": "External bridge electronics (room T)",
+      "part_number_or_spec": "RuO2 or Cernox",
+      "provenance_source": "TBD (Lake Shore, Magnicon)",
+      "source_record": "BOM.csv:B053",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [
+        "4K",
+        "1K",
+        "100mK"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "External bridge electronics (room T)"
+    },
+    "B054": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D4"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sensor body",
+      "component_id": "B054",
+      "component_type": "Locate sensors at true thermal node",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Temperature sensor mounts",
+      "parameters": {},
+      "parent": "Sample stage (10mK)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B054",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Sample stage (10mK)"
+    },
+    "B055": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D5",
+        "E05"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample stage (10mK)",
+      "component_id": "B055",
+      "component_type": "Inject known power; measure G_eff",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Heater for step-response test",
+      "parameters": {},
+      "parent": "External current source (room T)",
+      "part_number_or_spec": "Small resistive heater at sample stage",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B055",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "External current source (room T)"
+    },
+    "B056": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Heater body",
+      "component_id": "B056",
+      "component_type": "Support heater at sample stage",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Heater mount",
+      "parameters": {},
+      "parent": "Sample stage",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B056",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Sample stage"
+    },
+    "B057": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D17"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample stage (cryogenic)",
+      "component_id": "B057",
+      "component_type": "PSD measurement at sample stage",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Vibration sensors",
+      "parameters": {},
+      "parent": "Signal conditioning electronics (room T)",
+      "part_number_or_spec": "IEPE accelerometer or geophone",
+      "provenance_source": "TBD (Wilcoxon, PCB Piezotronics)",
+      "source_record": "BOM.csv:B057",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [
+        "4K",
+        "1K"
+      ],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Signal conditioning electronics (room T)"
+    },
+    "B058": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D17"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sensor body",
+      "component_id": "B058",
+      "component_type": "Locate sensor at sample-stage PSD measurement point",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Vibration sensor mounts",
+      "parameters": {},
+      "parent": "Chamber wall or stage",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B058",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Chamber wall or stage"
+    },
+    "B059": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "A4",
+        "A5",
+        "D1",
+        "D2"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Valve actuators; laser shutters; MW gate (room T)",
+      "component_id": "B059",
+      "component_type": "Hardware mode separation enforcement",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I016",
+        "I027",
+        "I028",
+        "I029",
+        "I056",
+        "I072"
+      ],
+      "name": "Interlock controller",
+      "parameters": {},
+      "parent": "Control rack (room T)",
+      "part_number_or_spec": "Fail-safe; hardwired IL-01/IL-02",
+      "provenance_source": "TBD (PLC, custom logic controller)",
+      "source_record": "BOM.csv:B059",
+      "status": "NOT_INSTALLED",
+      "subsystem": "Control system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Control rack (room T)"
+    },
+    "B060": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [
+        "D1",
+        "D2"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Valve actuators",
+      "component_id": "B060",
+      "component_type": "Hardwired control of gas valves by IL-01/IL-02",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I016",
+        "I027",
+        "I028",
+        "I029",
+        "I056",
+        "I072"
+      ],
+      "name": "Valve interlock wiring",
+      "parameters": {},
+      "parent": "Interlock controller",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B060",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Control system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Interlock controller"
+    },
+    "B061": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [
+        "D1"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Laser shutter",
+      "component_id": "B061",
+      "component_type": "Hardwired laser shutter control by IL-01",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I016",
+        "I027",
+        "I028",
+        "I029",
+        "I056",
+        "I072"
+      ],
+      "name": "Laser interlock wiring",
+      "parameters": {},
+      "parent": "Interlock controller",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B061",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Control system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Interlock controller"
+    },
+    "B062": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [
+        "D1"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "MW source gate",
+      "component_id": "B062",
+      "component_type": "Hardwired MW gate by IL-01",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I016",
+        "I027",
+        "I028",
+        "I029",
+        "I056",
+        "I072"
+      ],
+      "name": "Microwave interlock wiring",
+      "parameters": {},
+      "parent": "Interlock controller",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B062",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Control system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Interlock controller"
+    },
+    "B063": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D12",
+        "D13",
+        "D14",
+        "D8",
+        "E12",
+        "E14"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Sample mount (10mK)",
+      "component_id": "B063",
+      "component_type": "NV ensemble for sensing",
+      "contamination_path": "Open to chamber vacuum",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I019",
+        "I034",
+        "I040"
+      ],
+      "name": "NV diamond sample",
+      "parameters": {},
+      "parent": "N/A (sample)",
+      "part_number_or_spec": "CVD diamond; <111> or <100>; shallow NV implant",
+      "provenance_source": "TBD (Element Six, Sumitomo, custom)",
+      "source_record": "BOM.csv:B063",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diamond",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "N/A (sample)"
+    },
+    "B064": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D4",
+        "D5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Diamond (10mK)",
+      "component_id": "B064",
+      "component_type": "Secure diamond to sample stage with good thermal contact",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I019",
+        "I034",
+        "I040"
+      ],
+      "name": "Diamond sample mount",
+      "parameters": {},
+      "parent": "Sample stage plate (10mK)",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B064",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diamond",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Sample stage plate (10mK)"
+    },
+    "B065": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11",
+        "D13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Diamond surface",
+      "component_id": "B065",
+      "component_type": "F-termination of diamond surface",
+      "contamination_path": "F gas exposure",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I019",
+        "I034",
+        "I040"
+      ],
+      "name": "Surface termination tooling",
+      "parameters": {},
+      "parent": "Process chamber (room T)",
+      "part_number_or_spec": "XeF2 exposure chamber or CF4 plasma",
+      "provenance_source": "TBD (XeF2 system or plasma fluorination)",
+      "source_record": "BOM.csv:B065",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diamond",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Process chamber (room T)"
+    },
+    "B066": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11",
+        "D13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A",
+      "component_id": "B066",
+      "component_type": "Surface XPS characterization",
+      "contamination_path": "Surface transport",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I019",
+        "I034",
+        "I040"
+      ],
+      "name": "XPS verification path",
+      "parameters": {},
+      "parent": "N/A",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD (university facility or commercial)",
+      "source_record": "BOM.csv:B066",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diamond",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "N/A"
+    },
+    "B067": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D11"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A",
+      "component_id": "B067",
+      "component_type": "Surface AFM characterization",
+      "contamination_path": "Surface transport",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I019",
+        "I034",
+        "I040"
+      ],
+      "name": "AFM verification path",
+      "parameters": {},
+      "parent": "N/A",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B067",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diamond",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "N/A"
+    },
+    "B068": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D12",
+        "D13"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "N/A",
+      "component_id": "B068",
+      "component_type": "Surface and NV Raman characterization",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I019",
+        "I034",
+        "I040"
+      ],
+      "name": "Raman verification path",
+      "parameters": {},
+      "parent": "N/A",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B068",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diamond",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "N/A"
+    },
+    "B069": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [
+        "A4",
+        "A5"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Laser/valve actuators",
+      "component_id": "B069",
+      "component_type": "Prevent unsafe LCVD conditions",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I016",
+        "I027",
+        "I028",
+        "I029",
+        "I056",
+        "I072"
+      ],
+      "name": "Mode B process safety interlocks",
+      "parameters": {},
+      "parent": "Interlock controller",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B069",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Control system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Interlock controller"
+    },
+    "B070": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [
+        "D1",
+        "D2"
+      ],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "Laser/MW/valve actuators",
+      "component_id": "B070",
+      "component_type": "Prevent LCVD during sensing",
+      "contamination_path": "None",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I016",
+        "I027",
+        "I028",
+        "I029",
+        "I056",
+        "I072"
+      ],
+      "name": "Mode D sensing interlocks",
+      "parameters": {},
+      "parent": "Interlock controller",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B070",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Control system",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "Interlock controller"
+    },
+    "B081": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B081",
+      "component_type": "Read calibrated mK thermometers and support controlled heater/step-response tests.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Lake Shore 372-class AC resistance bridge / mK temperature controller",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "372 AC bridge class",
+      "provenance_source": "Lake Shore (target)",
+      "source_record": "BOM.csv:B081",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics / thermometry",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B082": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B082",
+      "component_type": "Separate true sample temperature, stage temperature, intercept temperature, and transient recovery.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Multi-sensor thermometry set: RuO2/RuOx + Cernox + calibrated heater",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "RuO2/RuOx + Cernox",
+      "provenance_source": "Lake Shore / equivalent",
+      "source_record": "BOM.csv:B082",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics / thermometry",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B083": {
+      "allowed_modes": [
+        "A",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B083",
+      "component_type": "Inject known heat loads to validate G_eff, recovery constants, and Mode-D readiness criteria.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I011",
+        "I015",
+        "I022",
+        "I023",
+        "I031",
+        "I046",
+        "I049",
+        "I050",
+        "I054",
+        "I055"
+      ],
+      "name": "Sample-stage calibrated heater / thermal step-response actuator",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B083",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Diagnostics / thermal validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B084": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B084",
+      "component_type": "Reject electrical noise on signal/control lines and thermalize wiring near cryogenic stages.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I025",
+        "I043"
+      ],
+      "name": "Multi-stage low-pass quantum filter bank for DC/control lines",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B084",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Electrical / filtering",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B085": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B085",
+      "component_type": "Suppress high-energy photon leakage down coaxial/microwave lines into the mK region.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012"
+      ],
+      "name": "Cryogenic IR filters on coax/microwave lines",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B085",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "RF / microwave shielding",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B086": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B086",
+      "component_type": "Add lossy high-frequency filtering and controlled thermal anchoring on microwave/readout lines.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012"
+      ],
+      "name": "Thermocoax / lossy cryogenic coax wiring option",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B086",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "RF / microwave wiring",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B087": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B087",
+      "component_type": "Thermalize and attenuate microwave lines at 4 K / 1 K / 100 mK / 10 mK stages.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012"
+      ],
+      "name": "Cryogenic microwave attenuator stack at staged temperatures",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B087",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "RF / microwave wiring",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B088": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B088",
+      "component_type": "Provide a controlled test path for blackbody/microwave leakage into the sensing region.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012"
+      ],
+      "name": "Microwave blackbody leakage test load / calibrated termination",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B088",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "RF / leakage validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B089": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B089",
+      "component_type": "Inject known RF fields outside shielding and measure leakage inside the 10 mK sample region.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I012"
+      ],
+      "name": "RF leakage injection/test antenna pair",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B089",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "RF / leakage validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B090": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B090",
+      "component_type": "Electrically isolate the sample/NV region during sensing.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "RF-tight 10 mK sample can / Faraday enclosure",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B090",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Shielding / sample enclosure",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B091": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B091",
+      "component_type": "Reduce external magnetic-field noise while preserving NV bias-field compatibility.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Cryogenic magnetic shield: Cryoperm/equivalent",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B091",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Magnetic shielding",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B092": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B092",
+      "component_type": "Provide controlled NV bias field for ODMR and helium-isotope sensing tests.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "NV-compatible bias magnet / vector coil package",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B092",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Magnetic control",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B093": {
+      "allowed_modes": [
+        "A",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B093",
+      "component_type": "Measure cooldown field drift, shield performance, and bias-field repeatability.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Magnetic-field probe / Hall or fluxgate witness instrumentation",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B093",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Magnetic diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B094": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B094",
+      "component_type": "Provide optical access while preventing process deposition from coating the viewport.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "UHV optical viewport with protective shutter, fused silica or sapphire",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B094",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics / vacuum boundary",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B095": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B095",
+      "component_type": "Improve NV fluorescence collection and focus stability at cryogenic temperature.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I020",
+        "I021",
+        "I045",
+        "I051"
+      ],
+      "name": "Cryogenic-compatible high-NA objective / cold objective mount",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B095",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optics / NV readout",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B096": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B096",
+      "component_type": "Remove room-temperature line of sight and reduce stray optical/radiative loading.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Cold optical aperture stack",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B096",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optical shielding",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B097": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B097",
+      "component_type": "Absorb rejected/scattered process and sensing light at higher-capacity cryogenic stages.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Thermally anchored cold beam dumps",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B097",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optical shielding",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B098": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B098",
+      "component_type": "Measure delivered Mode-B pulse train and Mode-D readout power before entering the cryostat.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Optical power monitor before chamber",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B098",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optical diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B099": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B099",
+      "component_type": "Verify optical extinction and leakage after shutters/apertures.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Optical power monitor after cold aperture/shutter",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B099",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optical diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B100": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B100",
+      "component_type": "Detect scattered optical power reaching protected cryogenic zones.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Cold-stage optical scatter witness photodiodes",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B100",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optical diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B101": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B101",
+      "component_type": "Provide candidate femtosecond pulse source for material-processing/LCVD experiments.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I007",
+        "I008",
+        "I020",
+        "I021",
+        "I026",
+        "I027",
+        "I028",
+        "I029",
+        "I030",
+        "I032",
+        "I034",
+        "I051",
+        "I052",
+        "I053",
+        "I054",
+        "I062",
+        "I065",
+        "I067",
+        "I068",
+        "I071"
+      ],
+      "name": "Industrial femtosecond laser, 1030/1035/1040 nm class, vendor-spec target",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "1030-1040nm fs laser, MANUFACTURER_SPEC_TARGET",
+      "provenance_source": "TBD (Spectra-Physics / Amplitude / Coherent class)",
+      "source_record": "BOM.csv:B101",
+      "status": "MANUFACTURER_SPEC_TARGET",
+      "subsystem": "Mode B process laser",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B102": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B102",
+      "component_type": "Convert femtosecond source wavelength if process or NV optical path requires green output.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I007",
+        "I008",
+        "I020",
+        "I021",
+        "I026",
+        "I027",
+        "I028",
+        "I029",
+        "I030",
+        "I032",
+        "I034",
+        "I051",
+        "I052",
+        "I053",
+        "I054",
+        "I062",
+        "I065",
+        "I067",
+        "I068",
+        "I071"
+      ],
+      "name": "Frequency-conversion path if green excitation/process wavelength is required",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B102",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mode B/D optics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B103": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B103",
+      "component_type": "Gate femtosecond pulse delivery during material processing and enforce B/D exclusion.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I007",
+        "I008",
+        "I020",
+        "I021",
+        "I026",
+        "I027",
+        "I028",
+        "I029",
+        "I030",
+        "I032",
+        "I034",
+        "I051",
+        "I052",
+        "I053",
+        "I054",
+        "I062",
+        "I065",
+        "I067",
+        "I068",
+        "I071"
+      ],
+      "name": "Electro-optic pulse picker / Pockels-cell gate for Mode B",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B103",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mode B optics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B104": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B104",
+      "component_type": "Measure actual Mode-B pulse timing, pulse leakage, and shutter extinction.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I007",
+        "I008",
+        "I020",
+        "I021",
+        "I026",
+        "I027",
+        "I028",
+        "I029",
+        "I030",
+        "I032",
+        "I034",
+        "I051",
+        "I052",
+        "I053",
+        "I054",
+        "I062",
+        "I065",
+        "I067",
+        "I068",
+        "I071"
+      ],
+      "name": "Fast photodiode pulse monitor",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B104",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mode B diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B105": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B105",
+      "component_type": "Measure pulse energy and average deposited optical power for the thermal model.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I007",
+        "I008",
+        "I020",
+        "I021",
+        "I026",
+        "I027",
+        "I028",
+        "I029",
+        "I030",
+        "I032",
+        "I034",
+        "I051",
+        "I052",
+        "I053",
+        "I054",
+        "I062",
+        "I065",
+        "I067",
+        "I068",
+        "I071"
+      ],
+      "name": "Pulse-energy meter",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B105",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mode B diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B106": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B106",
+      "component_type": "Safely absorb rejected process pulses outside the sensing path.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I001",
+        "I002",
+        "I007",
+        "I008",
+        "I020",
+        "I021",
+        "I026",
+        "I027",
+        "I028",
+        "I029",
+        "I030",
+        "I032",
+        "I034",
+        "I051",
+        "I052",
+        "I053",
+        "I054",
+        "I062",
+        "I065",
+        "I067",
+        "I068",
+        "I071"
+      ],
+      "name": "Beam dump rated for rejected femtosecond pulses",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B106",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mode B optical safety / thermal isolation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B107": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B107",
+      "component_type": "Prevent Mode-B pulse train from being enabled during Mode-D sensing.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Hard interlock between pulse picker and Mode D sensing",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B107",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Interlocks",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B108": {
+      "allowed_modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B108",
+      "component_type": "Improve compatibility with high-purity and UHV-style gas delivery.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "UHP/VCR gas fittings + welded high-purity line hardware",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B108",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B109": {
+      "allowed_modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B109",
+      "component_type": "Provide clean isolation of precursor, purge, and helium isotope lines.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "UHP diaphragm valves for isotope and precursor isolation",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B109",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery / isolation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B110": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B110",
+      "component_type": "Reduce moisture, oxygen, CO, CO2, hydrocarbons, and particles before gas enters chamber.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Dedicated point-of-use gas purifier for He/precursor lines",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B110",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas purity",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B111": {
+      "allowed_modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B111",
+      "component_type": "Provide gas-independent pressure measurement for dosing and purge/recovery validation.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Baratron-style capacitance manometers",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B111",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas delivery diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B112": {
+      "allowed_modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B112",
+      "component_type": "Track H2, H2O, hydrocarbons, precursor fragments, He, and purge recovery.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "RGA upgrade: isotope/purity verification and residual-process-gas tracking",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B112",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vacuum diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B113": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B113",
+      "component_type": "Verify chamber, gas lines, viewports, feedthroughs, and valves before claiming UHV isolation.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "Helium leak detector",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B113",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vacuum QA",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B114": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B114",
+      "component_type": "Provide a measurement path for verifying He-3/He-4 purity and contamination state.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Dedicated isotope purity verification port",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B114",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B115": {
+      "allowed_modes": [
+        "C"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B115",
+      "component_type": "Verify thermal uniformity and exposure during chamber/line bakeout.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I009",
+        "I015",
+        "I017",
+        "I026"
+      ],
+      "name": "Bakeout thermocouple array",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B115",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vacuum / bakeout diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B116": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B116",
+      "component_type": "Reduce building/floor vibration coupling into cryostat, optics, and sensing hardware.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I014"
+      ],
+      "name": "Passive vibration damping frame",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B116",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mechanical isolation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B117": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B117",
+      "component_type": "Provide active suppression for vibration-sensitive Mode-D measurements.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I014"
+      ],
+      "name": "Active vibration damping option",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B117",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mechanical isolation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B118": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B118",
+      "component_type": "Reduce pulse-tube mechanical coupling into the dilution refrigerator and sample stage.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I014"
+      ],
+      "name": "Pulse-tube vibration decoupling interface",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B118",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Mechanical isolation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B119": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B119",
+      "component_type": "Measure vibration at frame, 4 K, mixing chamber, and sample stage.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I049",
+        "I073"
+      ],
+      "name": "Accelerometer/geophone sensor package",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B119",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Vibration diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B120": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B120",
+      "component_type": "Recover optical/NV/microwave/dosing alignment after cooldown and thermal cycling.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Cryogenic nanopositioner / alignment stage",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B120",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Alignment",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B121": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B121",
+      "component_type": "Maintain or recover focus on the NV/diamond sensing region after thermal cycling.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Cryogenic focus stage",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B121",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Alignment / optics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B122": {
+      "allowed_modes": [
+        "A",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B122",
+      "component_type": "Provide visible/optical reference targets to quantify alignment drift across cooldown and mode cycling.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Cooldown alignment fiducials / Mode-D verification target",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B122",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Alignment diagnostics",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B123": {
+      "allowed_modes": [
+        "B"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B123",
+      "component_type": "Provide a repeatable test target for calibrating Mode-B pulse energy and thermal response.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Mode-B pulse-energy calibration artifact",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B123",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Validation artifact",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B124": {
+      "allowed_modes": [
+        "C"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B124",
+      "component_type": "Track vacuum, thermal, optical, and contamination recovery between Mode B and Mode D.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Mode-C recovery witness sensor package",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B124",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Validation artifact",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B125": {
+      "allowed_modes": [
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B125",
+      "component_type": "Verify ODMR/PL/T2* baseline before declaring Mode-D readiness.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Mode-D NV baseline witness protocol hardware",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B125",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Validation artifact",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B126": {
+      "allowed_modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B126",
+      "component_type": "Detect cross-contamination between process-side and sensing-side shutter regions.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Dirty/clean shutter witness plate set",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B126",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Contamination validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B127": {
+      "allowed_modes": [
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B127",
+      "component_type": "Capture residual species between Mode B and Mode D for contamination analysis.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Sacrificial cryopanel witness plate set",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B127",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Contamination validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B128": {
+      "allowed_modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B128",
+      "component_type": "Provide sampling/diagnostic access for testing precursor, purge, and helium-line separation.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I004",
+        "I005",
+        "I006",
+        "I007",
+        "I008",
+        "I018",
+        "I030",
+        "I035",
+        "I042"
+      ],
+      "name": "Gas-line cross-contamination witness port",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B128",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Gas validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B129": {
+      "allowed_modes": [
+        "B",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B129",
+      "component_type": "Capture and quantify optical scatter or deposition on protected cold-stage surfaces.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Optical scatter witness plates / cold-stage witness targets",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B129",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Optical validation",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B130": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B130",
+      "component_type": "Record shutter states, laser interlock state, gas valve state, pressure, temperature, and sensing readiness during transitions.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [],
+      "name": "Mode-transition event logger / interlock state recorder",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "TBD",
+      "provenance_source": "TBD",
+      "source_record": "BOM.csv:B130",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Controls / validation logging",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    },
+    "B131": {
+      "allowed_modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "associated_gates": [],
+      "can_PASS_now": "NO",
+      "cold_side_anchor": "TBD",
+      "component_id": "B131",
+      "component_type": "Compare candidate cryostat classes by base temperature, cooling power, optical access, wiring capacity, sample space, vibration isolation, and integration constraints.",
+      "contamination_path": "",
+      "current_or_forecast": "forecast",
+      "interfaces": [
+        "I059"
+      ],
+      "name": "Dilution refrigerator vendor option matrix",
+      "parameters": {},
+      "parent": "TBD",
+      "part_number_or_spec": "vendor option matrix",
+      "provenance_source": "Oxford / Bluefors / equivalent",
+      "source_record": "BOM.csv:B131",
+      "status": "DESIGN_SPECIFIED",
+      "subsystem": "Cryogenic platform",
+      "thermal_intercepts": [],
+      "validation_state": "VALID",
+      "warm_side_anchor": "TBD"
+    }
+  },
+  "forecast_only": true
+}

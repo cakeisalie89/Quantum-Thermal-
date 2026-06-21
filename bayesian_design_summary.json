@@ -1,0 +1,60 @@
+{
+  "_note": "Bayesian experimental-design summary. EIG = mutual information I(theta;data), nested-MC estimate with batched SE. Ranking blends EIG, gate criticality, falsification value, dependencies, and cost/duration/risk - not gate count. Forecast-only; no measured results.",
+  "estimator_source": "direct_monte_carlo",
+  "forecast_only": true,
+  "human_priority_was": [
+    "EXP-A",
+    "EXP-B",
+    "EXP-C",
+    "EXP-D",
+    "EXP-E",
+    "EXP-F"
+  ],
+  "monte_carlo": {
+    "n_batches": 8,
+    "n_inner": 600,
+    "n_outer": 600,
+    "seed": 42
+  },
+  "profile": "standard",
+  "ranking": [
+    {
+      "experiment_id": "EXP-A",
+      "rank": 1,
+      "score": 0.6099516849811151
+    },
+    {
+      "experiment_id": "EXP-C",
+      "rank": 2,
+      "score": 0.5712669175265466
+    },
+    {
+      "experiment_id": "EXP-B",
+      "rank": 3,
+      "score": 0.5163621459771819
+    },
+    {
+      "experiment_id": "EXP-F",
+      "rank": 4,
+      "score": 0.4061309965324057
+    },
+    {
+      "experiment_id": "EXP-D",
+      "rank": 5,
+      "score": 0.37282222716128466
+    },
+    {
+      "experiment_id": "EXP-E",
+      "rank": 6,
+      "score": 0.314299906992973
+    }
+  ],
+  "ranking_differs_from_human_priority": true,
+  "ranking_weights": {
+    "criticality": 0.3,
+    "dependency": 0.1,
+    "eig": 0.3,
+    "falsification": 0.3
+  },
+  "top_experiment": "EXP-A"
+}

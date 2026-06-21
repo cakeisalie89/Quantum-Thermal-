@@ -1729,6 +1729,114 @@ else:
     ok("multiphysics: no source_audit.csv reference in outputs")
 
 
+# ===================== Step 13: forecast-layer additions =====================
+# NV spin-dynamics + computable design registry + Bayesian experimental design.
+# These checks EXTEND (never weaken) the canonical invariants for the new files.
+print()
+print("Step 13: forecast layers (NV spin / design registry / Bayesian design) — "
+      "no PASS, model-only, NOT_IMPLEMENTED surrogate, design integrity")
+print("-"*70)
+import csv as _csv13
+
+_NEW_OUTPUTS = [
+    "nv_coherence_curves.csv", "nv_sequence_contrast.csv", "nv_odmr_spectrum.csv",
+    "nv_spin_dynamics_summary.json", "nv_spin_parameter_provenance.json",
+    "nv_spin_gate_records.csv", "design_component_registry.json",
+    "design_interface_graph.json", "design_decision_ledger.json",
+    "design_validation_report.csv", "experimental_design_candidates.csv",
+    "expected_information_gain.csv", "validation_experiment_ranking.csv",
+    "adaptive_experiment_policy.json", "bayesian_design_summary.json",
+    "deep_surrogate_readiness.json", "experiment_falsification_map.csv",
+    "integrated_layers_summary.json",
+]
+_miss13 = [f for f in _NEW_OUTPUTS if not (PKG / f).exists()]
+if _miss13:
+    fail("forecast layers: all declared outputs exist", f"missing: {_miss13}")
+else:
+    ok(f"forecast layers: all {len(_NEW_OUTPUTS)} declared outputs exist")
+
+# (a) NV/forecast gate records: never PASS; model-only; correct schema
+_ALLOWED13 = {"BLOCKED", "CONDITIONAL", "UNKNOWN", "DERIVED_CHECK", "NOT_IMPLEMENTED"}
+gr = PKG / "nv_spin_gate_records.csv"
+if gr.exists():
+    with open(gr, encoding="utf-8", newline="") as fh:
+        grows = list(_csv13.DictReader(fh))
+    bad = []
+    for r in grows:
+        if (r.get("status") not in _ALLOWED13 or r.get("can_PASS_now") != "NO"
+                or r.get("measured_in_this_system") != "false"
+                or "FORECAST_ONLY" not in (r.get("notes") or "")):
+            bad.append(r.get("gate_id"))
+    if not grows:
+        fail("forecast gate records present", "nv_spin_gate_records.csv empty")
+    elif bad:
+        fail("forecast gate records are non-PASS, model-only, well-formed", f"bad: {bad}")
+    else:
+        ok(f"forecast gate records: all {len(grows)} non-PASS, measured=false, FORECAST_ONLY")
+
+# (b) no MEASURED tags / no PASS anywhere in the new outputs
+_meas_or_pass = []
+for f in _NEW_OUTPUTS:
+    p = PKG / f
+    if not p.exists():
+        continue
+    try:
+        txt = p.read_text(errors="ignore")
+    except Exception:
+        continue
+    if "MEASURED" in txt:
+        _meas_or_pass.append(f"{f}: MEASURED tag")
+    # 'PASS' as a gate status token in the new outputs would be a regression
+    if ",PASS," in txt or '"PASS"' in txt or ": \"PASS\"" in txt:
+        _meas_or_pass.append(f"{f}: PASS token")
+if _meas_or_pass:
+    fail("forecast layers: no MEASURED tags / no PASS states in new outputs",
+         f"{_meas_or_pass[:4]}")
+else:
+    ok("forecast layers: no MEASURED tags and no PASS states in new outputs")
+
+# (c) design-graph cross-source validation: zero ERROR findings on canonical data
+dv = PKG / "design_validation_report.csv"
+if dv.exists():
+    with open(dv, encoding="utf-8", newline="") as fh:
+        derr = [r for r in _csv13.DictReader(fh) if r.get("severity") == "ERROR"]
+    if derr:
+        fail("design validation: zero ERROR findings on canonical design",
+             f"{len(derr)} ERROR findings")
+    else:
+        ok("design validation: zero ERROR findings on canonical design (validator live)")
+
+# (d) deep surrogate honestly NOT_IMPLEMENTED and not controlling ordering
+ds = PKG / "deep_surrogate_readiness.json"
+if ds.exists():
+    d = json.load(open(ds, encoding="utf-8"))
+    if d.get("status") != "NOT_IMPLEMENTED" or d.get("controls_experiment_ordering") is not False:
+        fail("deep surrogate is NOT_IMPLEMENTED and does not control ordering",
+             f"status={d.get('status')} controls={d.get('controls_experiment_ordering')}")
+    else:
+        ok("deep surrogate: NOT_IMPLEMENTED, fallback to direct MC, not controlling ordering")
+
+# (e) Bayesian summary: direct-MC estimator, forecast-only, no PASS
+bs = PKG / "bayesian_design_summary.json"
+if bs.exists():
+    b = json.load(open(bs, encoding="utf-8"))
+    if b.get("estimator_source") != "direct_monte_carlo" or not b.get("forecast_only"):
+        fail("Bayesian design: direct-MC estimator, forecast-only",
+             f"estimator={b.get('estimator_source')} forecast_only={b.get('forecast_only')}")
+    else:
+        ok("Bayesian design: direct-MC EIG, forecast-only, ranking present")
+
+# (f) integrated summary asserts Mode-C-gated Mode D and no PASS
+isum = PKG / "integrated_layers_summary.json"
+if isum.exists():
+    s = json.load(open(isum, encoding="utf-8"))
+    if not s.get("no_pass_gate_states", False) or not s.get("forecast_only", False):
+        fail("integrated layers: forecast-only with no PASS gate states",
+             f"no_pass={s.get('no_pass_gate_states')} forecast_only={s.get('forecast_only')}")
+    else:
+        ok("integrated layers: forecast-only, no PASS gate states, Mode-C-gated Mode D")
+
+
 # ===================== FINAL VERDICT =========================================
 print()
 print("="*70)

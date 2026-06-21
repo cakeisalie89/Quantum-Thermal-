@@ -1,0 +1,30 @@
+{
+  "_note": "Outcome-dependent next-experiment selection. The recommended next experiment may differ between outcomes. Forecast-only.",
+  "first_experiment": "EXP-A",
+  "first_experiment_parameter": "C_contr_10mK",
+  "next_changes_with_outcome": true,
+  "outcomes": {
+    "advance": {
+      "outcome_meaning": "measured value supports the forecast (advance)",
+      "recommended_next_experiment": "EXP-C",
+      "remaining_scores": {
+        "EXP-B": 0.51636,
+        "EXP-C": 0.57127,
+        "EXP-D": 0.37282,
+        "EXP-E": 0.3143,
+        "EXP-F": 0.40613
+      }
+    },
+    "kill": {
+      "outcome_meaning": "measured value below the falsification threshold (kill/redesign)",
+      "recommended_next_experiment": "EXP-F",
+      "remaining_scores": {
+        "EXP-B": 0.01549,
+        "EXP-C": 0.01714,
+        "EXP-D": 0.37282,
+        "EXP-E": 0.09429,
+        "EXP-F": 0.40613
+      }
+    }
+  }
+}

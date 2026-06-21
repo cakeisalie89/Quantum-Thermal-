@@ -98,8 +98,8 @@
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 161567,
-      "sha256": "6488d58af429344f189845bccaa5d238ed0ad0b1b205ad221f4cacfa3080244a",
+      "size_bytes": 162658,
+      "sha256": "438c47ae36d88883786ad8ac111aa17b8fdaae894a09f2de83293dd265c3327d",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
@@ -175,8 +175,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 81210,
-      "sha256": "0cbcce0e2067d5b41e4780e89be1227856aa31bc9988e5e12255f88c87fb6191",
+      "size_bytes": 86270,
+      "sha256": "d67cc036333fd181037e5ffdaf63c5565b059d4ae033f9e71df1d51bc8bdfa6a",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -739,6 +739,272 @@
       "sha256": "94f401b9905a9be84293e68c52f3a01ead0d0cbe56add7ab7b07f758c8906ccf",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
+    },
+    {
+      "filename": "adaptive_experiment_policy.json",
+      "size_bytes": 908,
+      "sha256": "8d94103c7cd0bfe4b0f1de6f6a288da8b8fcdb7ac3ea179f37f05e52f27aecdc",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "adaptive experiment policy (forecast)"
+    },
+    {
+      "filename": "bayesian_design_summary.json",
+      "size_bytes": 1369,
+      "sha256": "48f68080347e60a69e201849cf58ae37fa43a3aadf09982cacda7eb597e6848c",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian design summary (forecast)"
+    },
+    {
+      "filename": "deep_surrogate_readiness.json",
+      "size_bytes": 532,
+      "sha256": "236ff64e72d8519383765f1831c58f8960d9a600d2275fe9efeabcb250749d7d",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "deep-surrogate readiness (NOT_IMPLEMENTED)"
+    },
+    {
+      "filename": "design_component_registry.json",
+      "size_bytes": 112686,
+      "sha256": "9ead2bbd030e2c7e68472beec7101dcc002cad0d87dc561f537b2795925d6e54",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "design-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "design_decision_ledger.json",
+      "size_bytes": 12249,
+      "sha256": "8d909ad5a5f1cceda81cd1d36d6d9c5850d616f09653016399b14036c98f7a99",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "design-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "design_interface_graph.json",
+      "size_bytes": 40140,
+      "sha256": "0ba2818ef6fb1c45c47591bbd6d953ff940693a5017954ed9c7eee11ed41d1c4",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "design-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "design_validation_report.csv",
+      "size_bytes": 305,
+      "sha256": "bb3bcad779520d06ee1c13095e766c8e4d68a2a5864e01d6faf760d371070d57",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "design-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "expected_information_gain.csv",
+      "size_bytes": 852,
+      "sha256": "53d008c70ed6e5be5199c1d7c06e4fac4de05e5bcf5cca67b0bbe71b1a657a3a",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian EIG deterministic output (forecast)"
+    },
+    {
+      "filename": "experiment_falsification_map.csv",
+      "size_bytes": 3168,
+      "sha256": "db90d4fdb8c88804e41e73b6663a202224ee2571e66b9300134f61881e83aa74",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "experiment falsification map (forecast)"
+    },
+    {
+      "filename": "experimental_design_candidates.csv",
+      "size_bytes": 2062,
+      "sha256": "b01b6c8fb229850a92ff3cf6fd4adea8b2decf954b01e986948d0fb45fb9b860",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian design deterministic output (forecast)"
+    },
+    {
+      "filename": "generate_manifest.py",
+      "size_bytes": 6576,
+      "sha256": "bd3cc5d05077a6139a14072aca88d9ad05d17bdcb8d62d42afa1ada90fdcad83",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "deterministic manifest regenerator"
+    },
+    {
+      "filename": "integrated_layers_summary.json",
+      "size_bytes": 2074,
+      "sha256": "dd590da9763467a11427e8348e8363946ea905e868193c70cd439975cae104d2",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "integrated forecast-layer summary"
+    },
+    {
+      "filename": "nv_coherence_curves.csv",
+      "size_bytes": 4123,
+      "sha256": "1dfa6dc7acaa74277dff6ec268b5281c5c6d7a71a348a5d68a8763cee8df4b18",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV spin-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "nv_odmr_spectrum.csv",
+      "size_bytes": 13659,
+      "sha256": "c146841d39f61f583b2cfed46ad84e4f8dc75f49f0c872b8fa90c5d52a1b4936",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV spin-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "nv_sequence_contrast.csv",
+      "size_bytes": 332,
+      "sha256": "60fb709e1dbeddca81b36501d2a0df17f90ffeb795dae96cf7937c8dbc217bf5",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV spin-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "nv_spin_dynamics_summary.json",
+      "size_bytes": 1928,
+      "sha256": "12a1da12ce31b16cf226f2c0c94f7411d4276bff2821b7d16180647917084c3e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV spin-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "nv_spin_gate_records.csv",
+      "size_bytes": 2532,
+      "sha256": "77e2fcc92886f4d0ae2505349fea5bce9b555059424abd54a0567f4bc0693550",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV spin-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "nv_spin_parameter_provenance.json",
+      "size_bytes": 2733,
+      "sha256": "75bf8aa99ef7963d37b0e7c9365dfdbeae484e1110ad85b3b358cf83e4439d38",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV spin-layer deterministic output (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/design/__init__.py",
+      "size_bytes": 915,
+      "sha256": "288bc3ac34ba2b1db7f95f8a542dca680ea233b196f0065325f623a2ddd8d62e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "computable design-registry layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/design/registry.py",
+      "size_bytes": 9974,
+      "sha256": "616d1589446f899c0e4dcd838caf6d84cbc01d7d1d2ba130811a107750be5e65",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "computable design-registry layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/design/validation.py",
+      "size_bytes": 12172,
+      "sha256": "261953acf3f33235b1ab7800e619be762e090828c7c96141786933db4d7b0006",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "computable design-registry layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/expdesign/__init__.py",
+      "size_bytes": 1083,
+      "sha256": "89c712ccd0fd4be34c81f033ff85ad9ffe5b2376db42b56bf3600b380b7e6aef",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian experimental-design layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/expdesign/engine.py",
+      "size_bytes": 9234,
+      "sha256": "db8b26e97a27a1d7514a87e1b603f6fad09ae7ac6a037907867845b291c05c79",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian experimental-design layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/expdesign/model.py",
+      "size_bytes": 8705,
+      "sha256": "e37deb7758a6f80e5ee1177d90acf38dd2886e2b1b809a6443e608954c2ff6da",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian experimental-design layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/expdesign/runner.py",
+      "size_bytes": 6605,
+      "sha256": "c926cf78a4f98b96d02fc4cfc6616766bc7f90cf8707d15ca1ae868752ed733b",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian experimental-design layer source (forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/integrated_layers.py",
+      "size_bytes": 8162,
+      "sha256": "afdc31e8171afa3d6a78ef62067989b89fce82663b0b2647228f7c00204af4a0",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "integrated forecast-layer orchestrator"
+    },
+    {
+      "filename": "qta_multiphysics/nv_spin/__init__.py",
+      "size_bytes": 1263,
+      "sha256": "d8ef9c5ac7497b95f71a78b27827b28605d5f51eaa390a1d5484e3fa7230d50b",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/nv_spin/model.py",
+      "size_bytes": 6670,
+      "sha256": "591761eebdf1054a7ddd8451a6088b559b9fc32d21c8eb2be0a6cbc6aeb9a404",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/nv_spin/noise.py",
+      "size_bytes": 6111,
+      "sha256": "1d3e3248e7b7f06a9de44cf9a84f9fe2b25f519f7a7e3bc9d32932935b934f3c",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/nv_spin/runner.py",
+      "size_bytes": 11728,
+      "sha256": "a85d8f19c42af62bf5d2f9e7c40faa352ff9d7871b886da5637b65e5748b4151",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/nv_spin/sequences.py",
+      "size_bytes": 5891,
+      "sha256": "017329ea441ec16b87e9cf54f5fd40ac1797c6654f79236efbf453e01450b577",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
+    },
+    {
+      "filename": "qta_multiphysics/nv_spin/spin_config.py",
+      "size_bytes": 4197,
+      "sha256": "5b168562bf65cfa3468bb5ef3dcccb97352a9ddb734fed7696553c8b404bf350",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
+    },
+    {
+      "filename": "requirements.txt",
+      "size_bytes": 728,
+      "sha256": "dc10c697e855163faf9e268c69f717eecf040a9e280663c79fc4e838eb30508c",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "pinned runtime dependencies (numpy, scipy, qutip)"
+    },
+    {
+      "filename": "tests/test_design.py",
+      "size_bytes": 5807,
+      "sha256": "2be33d8a3a1a58b51fc0d58e2a86db435e6fba30eeb6574e74bad90e5076e76f",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_expdesign.py",
+      "size_bytes": 6872,
+      "sha256": "f1c6a1444aed88144bfebdd5736d0418df51b6ee63fea517348122a045121f96",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_integration.py",
+      "size_bytes": 3357,
+      "sha256": "b678f80123e12c6e42af92e96dff7a326b417d8b14f7d312e2537ec58f9e0ef9",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_nv_spin.py",
+      "size_bytes": 8636,
+      "sha256": "e05ac18b060048ecca1f1e681f9044fa09906195aaa81125d17dc88e6fe54c9d",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "validation_experiment_ranking.csv",
+      "size_bytes": 1299,
+      "sha256": "9fefa33e8b3a2b27dc61c6e6a9bfc58547eef1caf60e025e6f13fb6498a7e999",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "Bayesian ranking deterministic output (forecast)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."

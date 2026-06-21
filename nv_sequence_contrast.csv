@@ -1,0 +1,4 @@
+sequence,observable,one_over_e_time_s,tau_c_s_input,isotope_or_surface,status
+ramsey,T2star_s,5.7877268328e-05,4.0000000000e-03,bare_diamond_forecast,FORECAST_ONLY
+hahn,T2_echo_s,3.5395112165e-04,4.0000000000e-03,bare_diamond_forecast,FORECAST_ONLY
+xy8,T2_xy8_s,1.4835185072e-03,4.0000000000e-03,bare_diamond_forecast,FORECAST_ONLY

@@ -2666,3 +2666,19 @@ def print_engineering_fixes():
 if __name__ == "__main__":
     main()
     print_engineering_fixes()
+
+    # ---- integrated forecast layers (NV spin / design registry / Bayesian design) ----
+    # Runs AFTER the existing multiphysics so the canonical outputs are written
+    # first (step 2 of the execution path). The integrated layer then performs, in
+    # order: design-graph validation, Mode C readiness gate, QuTiP Mode D spin
+    # dynamics, forecast-observable update, Bayesian experiment ranking, and gate-
+    # record updates that are never PASS. Use '--ci' for the fast CI profile.
+    import sys as _sys
+    from pathlib import Path as _Path
+    from qta_multiphysics.integrated_layers import run_integrated_layers as _run_integrated
+    _profile = "ci" if "--ci" in _sys.argv else "standard"
+    _outdir = _Path(__file__).resolve().parent / "outputs"
+    print(f"\n[integrated forecast layers: profile={_profile}, Mode C readiness enforced]")
+    _run_integrated(profile=_profile, output_dir=_outdir, seed=42)
+    print("Saved: design_*, nv_*, Bayesian design outputs, nv_spin_gate_records.csv, "
+          "integrated_layers_summary.json (forecast-only; no PASS gate states)")

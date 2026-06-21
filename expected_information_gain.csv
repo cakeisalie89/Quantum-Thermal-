@@ -1,0 +1,7 @@
+experiment_id,eig_nats,eig_se,prior_entropy_nats,expected_posterior_entropy_nats,n_outer,n_inner,n_batches,method
+EXP-A,2.0255507172e+00,1.0983309156e-02,-1.2039728043e+00,-3.2295235215e+00,600,600,8,nested_monte_carlo_mutual_information
+EXP-B,1.6647486396e+00,1.1138424112e-02,0.0000000000e+00,-1.6647486396e+00,600,600,8,nested_monte_carlo_mutual_information
+EXP-C,1.9349230209e+00,6.9746000073e-03,1.3862943611e+00,-5.4862865980e-01,600,600,8,nested_monte_carlo_mutual_information
+EXP-D,1.4130928527e+00,1.1976289890e-02,1.0986122887e+00,-3.1448056399e-01,600,600,8,nested_monte_carlo_mutual_information
+EXP-E,1.6835454291e+00,7.3690804134e-03,1.0986122887e+00,-5.8493314047e-01,600,600,8,nested_monte_carlo_mutual_information
+EXP-F,1.5065438335e+00,1.0556768916e-02,1.6094379124e+00,1.0289407892e-01,600,600,8,nested_monte_carlo_mutual_information
