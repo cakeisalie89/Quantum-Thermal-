@@ -1,0 +1,15 @@
+# QTA runtime dependencies — pinned to the verified environment.
+#
+# These are the third-party runtime imports actually used by the tracked
+# Python tree (qta_full_sim.py, package_consistency_check.py, and the
+# qta_multiphysics package). They were previously unpinned (no tracked
+# dependency file existed); they are pinned here to the audited versions so
+# the scientific pipeline is reproducible.
+#
+# numpy / scipy : pre-existing QTA runtime dependencies (preserved).
+# qutip         : added for the NV S=1 spin-dynamics / decoherence layer
+#                 (qta_multiphysics.nv_spin). Pure forecast/model-only; does
+#                 not introduce any measured experimental input.
+numpy==2.4.4
+scipy==1.17.1
+qutip==5.2.1
