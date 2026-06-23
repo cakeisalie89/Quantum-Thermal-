@@ -1,0 +1,74 @@
+{
+  "_note": "Integrated forecast-layer summary (design + NV spin + Bayesian design). Forecast-only; no PASS gate states; no measured results.",
+  "bayesian_estimator_source": "direct_monte_carlo",
+  "bayesian_top_experiment": "EXP-A",
+  "design": {
+    "finding_counts": {
+      "INFO": 2,
+      "WARN": 1
+    },
+    "n_components": 121,
+    "n_interfaces": 75
+  },
+  "forecast_only": true,
+  "mode_c_ready": true,
+  "new_gate_records": [
+    "NV-TAUC-UNKNOWN",
+    "NV-T2STAR-FCAST",
+    "NV-T2ECHO-FCAST",
+    "NV-ODMR-VIS",
+    "DESIGN-GRAPH-VALID",
+    "EXPDESIGN-RANKING"
+  ],
+  "new_gate_states": [
+    "BLOCKED",
+    "CONDITIONAL",
+    "DERIVED_CHECK",
+    "UNKNOWN"
+  ],
+  "no_pass_gate_states": true,
+  "nv_spin_distinct_quantities": {
+    "T1_s": {
+      "kind": "longitudinal_relaxation",
+      "status": "ASSUMED",
+      "value": 0.01
+    },
+    "T2_pure_s": {
+      "kind": "markovian_pure_dephasing",
+      "status": "ASSUMED",
+      "value": 0.0005
+    },
+    "tau_c_s": {
+      "kind": "OU_bath_correlation_time",
+      "status": "UNKNOWN",
+      "value": 0.004
+    }
+  },
+  "nv_spin_observables": {
+    "T2_echo_s": {
+      "forecast_only": true,
+      "isotope_or_surface": "bare_diamond_forecast",
+      "model_approximation": "fixed-seed OU colored noise, phase-accumulation MC; filter-function cross-check",
+      "pulse_sequence": "hahn_echo",
+      "unit": "s",
+      "value": 0.000353951121649623
+    },
+    "T2_xy8_s": {
+      "forecast_only": true,
+      "isotope_or_surface": "bare_diamond_forecast",
+      "model_approximation": "fixed-seed OU colored noise, phase-accumulation MC; filter-function cross-check",
+      "pulse_sequence": "xy8",
+      "unit": "s",
+      "value": 0.0014835185071614349
+    },
+    "T2star_s": {
+      "forecast_only": true,
+      "isotope_or_surface": "bare_diamond_forecast",
+      "model_approximation": "fixed-seed OU colored noise, phase-accumulation MC; filter-function cross-check",
+      "pulse_sequence": "ramsey",
+      "unit": "s",
+      "value": 5.787726832811028e-05
+    }
+  },
+  "profile": "standard"
+}

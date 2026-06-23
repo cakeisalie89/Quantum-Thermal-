@@ -1,0 +1,2188 @@
+{
+  "_note": "Derived interface/thermal graph (forecast). Nodes are subsystems/anchors; edges are interfaces and warm->cold thermal paths.",
+  "edges": [
+    {
+      "edge_id": "I001",
+      "gates": [
+        "D6",
+        "D7"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A"
+      ],
+      "source": "Mode B optics",
+      "target": "diamond"
+    },
+    {
+      "edge_id": "I002",
+      "gates": [
+        "D12",
+        "D13"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Mode D optics",
+      "target": "NV"
+    },
+    {
+      "edge_id": "I003",
+      "gates": [
+        "D15",
+        "D16",
+        "D8"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "MW delivery",
+      "target": "NV"
+    },
+    {
+      "edge_id": "I004",
+      "gates": [
+        "D11",
+        "E07"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Gas delivery",
+      "target": "chamber"
+    },
+    {
+      "edge_id": "I006",
+      "gates": [
+        "D13"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Gas delivery",
+      "target": "chamber"
+    },
+    {
+      "edge_id": "I007",
+      "gates": [
+        "A4",
+        "D2"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A"
+      ],
+      "source": "Gas delivery",
+      "target": "Mode B"
+    },
+    {
+      "edge_id": "I008",
+      "gates": [
+        "B1",
+        "D2"
+      ],
+      "kind": "interface",
+      "modes": [
+        "C"
+      ],
+      "source": "Gas delivery",
+      "target": "Mode B"
+    },
+    {
+      "edge_id": "I013",
+      "gates": [
+        "D3",
+        "E06"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Support",
+      "target": "thermal"
+    },
+    {
+      "edge_id": "I019",
+      "gates": [
+        "D11",
+        "D13"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Diamond",
+      "target": "He-3 physics"
+    },
+    {
+      "edge_id": "I021",
+      "gates": [
+        "D7"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A"
+      ],
+      "source": "Mode B optics",
+      "target": "AOM"
+    },
+    {
+      "edge_id": "I022",
+      "gates": [
+        "C3",
+        "D4"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Diagnostics",
+      "target": "thermal"
+    },
+    {
+      "edge_id": "I023",
+      "gates": [
+        "D5",
+        "E05"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Diagnostics",
+      "target": "thermal"
+    },
+    {
+      "edge_id": "I024",
+      "gates": [
+        "D16"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "MW",
+      "target": "thermal"
+    },
+    {
+      "edge_id": "I025",
+      "gates": [
+        "D3",
+        "D4"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Electrical",
+      "target": "thermal"
+    },
+    {
+      "edge_id": "I026",
+      "gates": [
+        "B1",
+        "D2"
+      ],
+      "kind": "interface",
+      "modes": [
+        "B"
+      ],
+      "source": "Vacuum",
+      "target": "Mode B"
+    },
+    {
+      "edge_id": "I030",
+      "gates": [
+        "D11",
+        "D13"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Mode D",
+      "target": "gas"
+    },
+    {
+      "edge_id": "I032",
+      "gates": [
+        "D11"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Helium dosing",
+      "target": "model"
+    },
+    {
+      "edge_id": "I033",
+      "gates": [
+        "D3"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Thermal",
+      "target": "dosing"
+    },
+    {
+      "edge_id": "I034",
+      "gates": [
+        "D11",
+        "D13"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Diamond",
+      "target": "model"
+    },
+    {
+      "edge_id": "I035",
+      "gates": [
+        "D13"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Gas quality",
+      "target": "NV physics"
+    },
+    {
+      "edge_id": "I036",
+      "gates": [
+        "D3",
+        "E06"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Support architecture",
+      "target": "thermal intercepts"
+    },
+    {
+      "edge_id": "I037",
+      "gates": [
+        "D3",
+        "E06"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Support architecture",
+      "target": "sample stage"
+    },
+    {
+      "edge_id": "I038",
+      "gates": [
+        "D3",
+        "E06"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Support",
+      "target": "thermal management"
+    },
+    {
+      "edge_id": "I039",
+      "gates": [
+        "D3"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Support",
+      "target": "thermal management"
+    },
+    {
+      "edge_id": "I040",
+      "gates": [
+        "D4",
+        "D5"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Diamond",
+      "target": "sample stage"
+    },
+    {
+      "edge_id": "I041",
+      "gates": [
+        "D5"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Thermal management",
+      "target": "MC"
+    },
+    {
+      "edge_id": "I042",
+      "gates": [
+        "D3"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Gas delivery",
+      "target": "thermal management"
+    },
+    {
+      "edge_id": "I043",
+      "gates": [
+        "D3"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Electrical",
+      "target": "thermal management"
+    },
+    {
+      "edge_id": "I044",
+      "gates": [
+        "D16"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Microwave",
+      "target": "thermal management"
+    },
+    {
+      "edge_id": "I045",
+      "gates": [
+        "D14",
+        "D6",
+        "D7"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "D"
+      ],
+      "source": "Optics",
+      "target": "cryostat"
+    },
+    {
+      "edge_id": "I046",
+      "gates": [
+        "B5",
+        "D11"
+      ],
+      "kind": "interface",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Diagnostics",
+      "target": "chamber"
+    },
+    {
+      "edge_id": "I047",
+      "gates": [
+        "D11"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Helium dosing",
+      "target": "chamber"
+    },
+    {
+      "edge_id": "I048",
+      "gates": [
+        "D11"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "Helium dosing",
+      "target": "chamber"
+    },
+    {
+      "edge_id": "I049",
+      "gates": [
+        "D17"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Diagnostics",
+      "target": "vibration"
+    },
+    {
+      "edge_id": "I050",
+      "gates": [
+        "D4"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Diagnostics",
+      "target": "thermal"
+    },
+    {
+      "edge_id": "I051",
+      "gates": [
+        "A6",
+        "A8"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A"
+      ],
+      "source": "Mode B optics",
+      "target": "precursor delivery"
+    },
+    {
+      "edge_id": "I055",
+      "gates": [
+        "A10",
+        "A9"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A"
+      ],
+      "source": "Diagnostics",
+      "target": "sample"
+    },
+    {
+      "edge_id": "I056",
+      "gates": [
+        "A14"
+      ],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "D"
+      ],
+      "source": "Control system",
+      "target": "safety"
+    },
+    {
+      "edge_id": "I057",
+      "gates": [
+        "C4"
+      ],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-001",
+      "target": "002"
+    },
+    {
+      "edge_id": "I058",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-004",
+      "target": "SHIELD-005"
+    },
+    {
+      "edge_id": "I059",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-005",
+      "target": "cryogenic stages"
+    },
+    {
+      "edge_id": "I060",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-006",
+      "target": "SHIELD-007"
+    },
+    {
+      "edge_id": "I061",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "B",
+        "C"
+      ],
+      "source": "SHIELD-008",
+      "target": "SHIELD-009"
+    },
+    {
+      "edge_id": "I062",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-008 clean half",
+      "target": "Mode D volume"
+    },
+    {
+      "edge_id": "I063",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-010",
+      "target": "NV bias geometry"
+    },
+    {
+      "edge_id": "I064",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "SHIELD-011 (optional)",
+      "target": "cooldown sequence"
+    },
+    {
+      "edge_id": "I065",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "C"
+      ],
+      "source": "SHIELD-002",
+      "target": "Mode C sequence"
+    },
+    {
+      "edge_id": "I066",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "C"
+      ],
+      "source": "SHIELD-009 + PANEL-*",
+      "target": "instrumentation"
+    },
+    {
+      "edge_id": "I067",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "B",
+        "C"
+      ],
+      "source": "Mode B",
+      "target": "Mode C sequence"
+    },
+    {
+      "edge_id": "I068",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "C",
+        "D"
+      ],
+      "source": "Mode C readiness",
+      "target": "Mode D entry"
+    },
+    {
+      "edge_id": "I069",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "RTB",
+      "target": "JT cold head"
+    },
+    {
+      "edge_id": "I070",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "RTB",
+      "target": "JT cold head"
+    },
+    {
+      "edge_id": "I071",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "A"
+      ],
+      "source": "RTB",
+      "target": "JT cold head"
+    },
+    {
+      "edge_id": "I072",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "RTB",
+      "target": "JT controller"
+    },
+    {
+      "edge_id": "I073",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "D"
+      ],
+      "source": "RTB",
+      "target": "JT compressor mount"
+    },
+    {
+      "edge_id": "I074",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "A",
+        "D"
+      ],
+      "source": "RTB",
+      "target": "JT compressor"
+    },
+    {
+      "edge_id": "I075",
+      "gates": [],
+      "kind": "interface",
+      "modes": [
+        "C",
+        "D"
+      ],
+      "source": "RTB",
+      "target": "JT plant"
+    },
+    {
+      "component": "B001",
+      "edge_id": "TH-B001",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Building floor (vibration-isolated slab)",
+      "target": "Mixing chamber flange"
+    },
+    {
+      "component": "B002",
+      "edge_id": "TH-B002",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "MC flange (10 mK)",
+      "target": "Ag sinter interface (10 mK)"
+    },
+    {
+      "component": "B003",
+      "edge_id": "TH-B003",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "MC flange",
+      "target": "Sample-stage mounting plate"
+    },
+    {
+      "component": "B004",
+      "edge_id": "TH-B004",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Anchor interface (10 mK)",
+      "target": "Diamond sample mount"
+    },
+    {
+      "component": "B005",
+      "edge_id": "TH-B005",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "4K thermal intercept clamp",
+      "target": "10mK sample-stage plate"
+    },
+    {
+      "component": "B006",
+      "edge_id": "TH-B006",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "4K plate or anchor block",
+      "target": "10mK mounting plate"
+    },
+    {
+      "component": "B007",
+      "edge_id": "TH-B007",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Warm intercept plate",
+      "target": "Cold intercept plate"
+    },
+    {
+      "component": "B008",
+      "edge_id": "TH-B008",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Warm lateral anchor",
+      "target": "Cold lateral attachment"
+    },
+    {
+      "component": "B009",
+      "edge_id": "TH-B009",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Frame (warm side)",
+      "target": "Sample stage (cold side)"
+    },
+    {
+      "component": "B010",
+      "edge_id": "TH-B010",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Stage plate (warm side of intercept)",
+      "target": "Stage plate (cold side of intercept)"
+    },
+    {
+      "component": "B011",
+      "edge_id": "TH-B011",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "4K plate",
+      "target": "1K anchor"
+    },
+    {
+      "component": "B012",
+      "edge_id": "TH-B012",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "1K plate",
+      "target": "100mK anchor"
+    },
+    {
+      "component": "B013",
+      "edge_id": "TH-B013",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "100mK plate",
+      "target": "10mK anchor"
+    },
+    {
+      "component": "B014",
+      "edge_id": "TH-B014",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "MC flange",
+      "target": "Sample stage"
+    },
+    {
+      "component": "B015",
+      "edge_id": "TH-B015",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "MC flange",
+      "target": "Diamond sample mount"
+    },
+    {
+      "component": "B016",
+      "edge_id": "TH-B016",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "N/A (bench process)",
+      "target": "N/A"
+    },
+    {
+      "component": "B017",
+      "edge_id": "TH-B017",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "External heater controller",
+      "target": "Chamber walls"
+    },
+    {
+      "component": "B018",
+      "edge_id": "TH-B018",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "Chamber flange (warm)",
+      "target": "Interior chamber (cold during operation)"
+    },
+    {
+      "component": "B019",
+      "edge_id": "TH-B019",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "LN2 reservoir (77K)",
+      "target": "Interior chamber"
+    },
+    {
+      "component": "B020",
+      "edge_id": "TH-B020",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "Room T (external electronics)",
+      "target": "Sampling path in chamber"
+    },
+    {
+      "component": "B021",
+      "edge_id": "TH-B021",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "RGA flange (room T)",
+      "target": "Sensing volume (4K)"
+    },
+    {
+      "component": "B022",
+      "edge_id": "TH-B022",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Room-T electronics (external)",
+      "target": "Adjacent to sample (cryogenic)"
+    },
+    {
+      "component": "B023",
+      "edge_id": "TH-B023",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Chamber wall (4K or warmer)",
+      "target": "QCM crystal"
+    },
+    {
+      "component": "B024",
+      "edge_id": "TH-B024",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Room-T feedthrough",
+      "target": "QCM crystal"
+    },
+    {
+      "component": "B025",
+      "edge_id": "TH-B025",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Room-T gas line",
+      "target": "Line-of-sight to sample (cryogenic)"
+    },
+    {
+      "component": "B026",
+      "edge_id": "TH-B026",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Chamber flange",
+      "target": "Sample line-of-sight"
+    },
+    {
+      "component": "B027",
+      "edge_id": "TH-B027",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Baffle actuator (warm side)",
+      "target": "Shutter face (cryogenic)"
+    },
+    {
+      "component": "B028",
+      "edge_id": "TH-B028",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Chamber wall",
+      "target": "Baffle body"
+    },
+    {
+      "component": "B029",
+      "edge_id": "TH-B029",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "He-3 cylinder (room T)",
+      "target": "Sample chamber (4K section)"
+    },
+    {
+      "component": "B030",
+      "edge_id": "TH-B030",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "He-4 cylinder (room T)",
+      "target": "Sample chamber"
+    },
+    {
+      "component": "B031",
+      "edge_id": "TH-B031",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "CH4 cylinder (room T)",
+      "target": "Mode B delivery zone"
+    },
+    {
+      "component": "B032",
+      "edge_id": "TH-B032",
+      "kind": "thermal",
+      "modes": [
+        "C"
+      ],
+      "source": "Inert gas cylinder (room T)",
+      "target": "Chamber"
+    },
+    {
+      "component": "B033",
+      "edge_id": "TH-B033",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C"
+      ],
+      "source": "Scroll/turbo pump (room T)",
+      "target": "Chamber"
+    },
+    {
+      "component": "B034",
+      "edge_id": "TH-B034",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Warmer stage",
+      "target": "Colder stage"
+    },
+    {
+      "component": "B035",
+      "edge_id": "TH-B035",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Chamber wall",
+      "target": "Line body"
+    },
+    {
+      "component": "B036",
+      "edge_id": "TH-B036",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Room T (actuator)",
+      "target": "Line body"
+    },
+    {
+      "component": "B037",
+      "edge_id": "TH-B037",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Upstream of sample",
+      "target": "Downstream of sample"
+    },
+    {
+      "component": "B038",
+      "edge_id": "TH-B038",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Room-T electronics",
+      "target": "Sensing volume"
+    },
+    {
+      "component": "B039",
+      "edge_id": "TH-B039",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Gas cylinder (room T)",
+      "target": "RGA sampling point"
+    },
+    {
+      "component": "B040",
+      "edge_id": "TH-B040",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "Optical bench (room T)",
+      "target": "Diamond surface (10mK via optical window)"
+    },
+    {
+      "component": "B041",
+      "edge_id": "TH-B041",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "Laser output (room T)",
+      "target": "Diamond surface (via viewport)"
+    },
+    {
+      "component": "B042",
+      "edge_id": "TH-B042",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Laser bench (room T)",
+      "target": "NV layer (10mK via viewport)"
+    },
+    {
+      "component": "B043",
+      "edge_id": "TH-B043",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Optical bench (room T)",
+      "target": "N/A (inline)"
+    },
+    {
+      "component": "B044",
+      "edge_id": "TH-B044",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Optical bench",
+      "target": "N/A (inline)"
+    },
+    {
+      "component": "B045",
+      "edge_id": "TH-B045",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "D"
+      ],
+      "source": "Room-T flange",
+      "target": "Cryogenic interior"
+    },
+    {
+      "component": "B046",
+      "edge_id": "TH-B046",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Electronics rack (room T)",
+      "target": "N/A (external)"
+    },
+    {
+      "component": "B047",
+      "edge_id": "TH-B047",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Coax feed at 4K connector",
+      "target": "CPW traces at 10mK sample"
+    },
+    {
+      "component": "B048",
+      "edge_id": "TH-B048",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Sample stage plate",
+      "target": "CPW substrate"
+    },
+    {
+      "component": "B049",
+      "edge_id": "TH-B049",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "4K stage",
+      "target": "10mK stage"
+    },
+    {
+      "component": "B050",
+      "edge_id": "TH-B050",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Room-T feedthrough",
+      "target": "10mK CPW"
+    },
+    {
+      "component": "B051",
+      "edge_id": "TH-B051",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Room-T feedthrough",
+      "target": "10mK sensor/heater"
+    },
+    {
+      "component": "B052",
+      "edge_id": "TH-B052",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Warmer stage plate",
+      "target": "Colder stage plate"
+    },
+    {
+      "component": "B053",
+      "edge_id": "TH-B053",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "External bridge electronics (room T)",
+      "target": "Sample stage (10mK)"
+    },
+    {
+      "component": "B054",
+      "edge_id": "TH-B054",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Sample stage (10mK)",
+      "target": "Sensor body"
+    },
+    {
+      "component": "B055",
+      "edge_id": "TH-B055",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "External current source (room T)",
+      "target": "Sample stage (10mK)"
+    },
+    {
+      "component": "B056",
+      "edge_id": "TH-B056",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Sample stage",
+      "target": "Heater body"
+    },
+    {
+      "component": "B057",
+      "edge_id": "TH-B057",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Signal conditioning electronics (room T)",
+      "target": "Sample stage (cryogenic)"
+    },
+    {
+      "component": "B058",
+      "edge_id": "TH-B058",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Chamber wall or stage",
+      "target": "Sensor body"
+    },
+    {
+      "component": "B059",
+      "edge_id": "TH-B059",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Control rack (room T)",
+      "target": "Valve actuators; laser shutters; MW gate (room T)"
+    },
+    {
+      "component": "B060",
+      "edge_id": "TH-B060",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "Interlock controller",
+      "target": "Valve actuators"
+    },
+    {
+      "component": "B061",
+      "edge_id": "TH-B061",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Interlock controller",
+      "target": "Laser shutter"
+    },
+    {
+      "component": "B062",
+      "edge_id": "TH-B062",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "Interlock controller",
+      "target": "MW source gate"
+    },
+    {
+      "component": "B063",
+      "edge_id": "TH-B063",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "N/A (sample)",
+      "target": "Sample mount (10mK)"
+    },
+    {
+      "component": "B064",
+      "edge_id": "TH-B064",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Sample stage plate (10mK)",
+      "target": "Diamond (10mK)"
+    },
+    {
+      "component": "B065",
+      "edge_id": "TH-B065",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Process chamber (room T)",
+      "target": "Diamond surface"
+    },
+    {
+      "component": "B066",
+      "edge_id": "TH-B066",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "N/A",
+      "target": "N/A"
+    },
+    {
+      "component": "B067",
+      "edge_id": "TH-B067",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "N/A",
+      "target": "N/A"
+    },
+    {
+      "component": "B068",
+      "edge_id": "TH-B068",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "N/A",
+      "target": "N/A"
+    },
+    {
+      "component": "B069",
+      "edge_id": "TH-B069",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "Interlock controller",
+      "target": "Laser/valve actuators"
+    },
+    {
+      "component": "B070",
+      "edge_id": "TH-B070",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "Interlock controller",
+      "target": "Laser/MW/valve actuators"
+    },
+    {
+      "component": "B081",
+      "edge_id": "TH-B081",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B082",
+      "edge_id": "TH-B082",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B083",
+      "edge_id": "TH-B083",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B084",
+      "edge_id": "TH-B084",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B085",
+      "edge_id": "TH-B085",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B086",
+      "edge_id": "TH-B086",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B087",
+      "edge_id": "TH-B087",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B088",
+      "edge_id": "TH-B088",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B089",
+      "edge_id": "TH-B089",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B090",
+      "edge_id": "TH-B090",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B091",
+      "edge_id": "TH-B091",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B092",
+      "edge_id": "TH-B092",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B093",
+      "edge_id": "TH-B093",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B094",
+      "edge_id": "TH-B094",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B095",
+      "edge_id": "TH-B095",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B096",
+      "edge_id": "TH-B096",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B097",
+      "edge_id": "TH-B097",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B098",
+      "edge_id": "TH-B098",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B099",
+      "edge_id": "TH-B099",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B100",
+      "edge_id": "TH-B100",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B101",
+      "edge_id": "TH-B101",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B102",
+      "edge_id": "TH-B102",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B103",
+      "edge_id": "TH-B103",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B104",
+      "edge_id": "TH-B104",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B105",
+      "edge_id": "TH-B105",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B106",
+      "edge_id": "TH-B106",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B107",
+      "edge_id": "TH-B107",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B108",
+      "edge_id": "TH-B108",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B109",
+      "edge_id": "TH-B109",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B110",
+      "edge_id": "TH-B110",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B111",
+      "edge_id": "TH-B111",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B112",
+      "edge_id": "TH-B112",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B113",
+      "edge_id": "TH-B113",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B114",
+      "edge_id": "TH-B114",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B115",
+      "edge_id": "TH-B115",
+      "kind": "thermal",
+      "modes": [
+        "C"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B116",
+      "edge_id": "TH-B116",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B117",
+      "edge_id": "TH-B117",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B118",
+      "edge_id": "TH-B118",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B119",
+      "edge_id": "TH-B119",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B120",
+      "edge_id": "TH-B120",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B121",
+      "edge_id": "TH-B121",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B122",
+      "edge_id": "TH-B122",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B123",
+      "edge_id": "TH-B123",
+      "kind": "thermal",
+      "modes": [
+        "B"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B124",
+      "edge_id": "TH-B124",
+      "kind": "thermal",
+      "modes": [
+        "C"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B125",
+      "edge_id": "TH-B125",
+      "kind": "thermal",
+      "modes": [
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B126",
+      "edge_id": "TH-B126",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B127",
+      "edge_id": "TH-B127",
+      "kind": "thermal",
+      "modes": [
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B128",
+      "edge_id": "TH-B128",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B129",
+      "edge_id": "TH-B129",
+      "kind": "thermal",
+      "modes": [
+        "B",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B130",
+      "edge_id": "TH-B130",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    },
+    {
+      "component": "B131",
+      "edge_id": "TH-B131",
+      "kind": "thermal",
+      "modes": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "source": "TBD",
+      "target": "TBD"
+    }
+  ],
+  "nodes": [
+    "002",
+    "003",
+    "10 mK stage",
+    "4 K shield",
+    "AOM",
+    "Alignment",
+    "Alignment / optics",
+    "Alignment diagnostics",
+    "C_to_D readiness",
+    "Contamination validation",
+    "Control system",
+    "Controls / validation logging",
+    "Cryogenic platform",
+    "Diagnostics",
+    "Diagnostics / thermal validation",
+    "Diagnostics / thermometry",
+    "Diamond",
+    "EMI envelope",
+    "Electrical",
+    "Electrical / filtering",
+    "Gas delivery",
+    "Gas delivery / isolation",
+    "Gas delivery diagnostics",
+    "Gas diagnostics",
+    "Gas purity",
+    "Gas quality",
+    "Gas validation",
+    "He-3 physics",
+    "Helium dosing",
+    "Interlocks",
+    "JT cold head",
+    "JT compressor",
+    "JT compressor mount",
+    "JT controller",
+    "JT plant",
+    "MC",
+    "MW",
+    "MW delivery",
+    "Magnetic control",
+    "Magnetic diagnostics",
+    "Magnetic shielding",
+    "Mechanical",
+    "Mechanical isolation",
+    "Microwave",
+    "Mode B",
+    "Mode B diagnostics",
+    "Mode B growth heat-dump",
+    "Mode B optical safety / thermal isolation",
+    "Mode B optics",
+    "Mode B process laser",
+    "Mode B thermal dump",
+    "Mode B thermal protection",
+    "Mode B/D optics",
+    "Mode C readiness",
+    "Mode C sequence",
+    "Mode D",
+    "Mode D entry",
+    "Mode D optics",
+    "Mode D volume",
+    "Mode control",
+    "NV",
+    "NV bias geometry",
+    "NV physics",
+    "Optical diagnostics",
+    "Optical shielding",
+    "Optical validation",
+    "Optics",
+    "Optics (Mode B)",
+    "Optics (Mode D)",
+    "Optics / NV readout",
+    "Optics / vacuum boundary",
+    "RF / leakage validation",
+    "RF / microwave shielding",
+    "RF / microwave wiring",
+    "RTB",
+    "SHIELD-001",
+    "SHIELD-002",
+    "SHIELD-002 cryobaffle",
+    "SHIELD-004",
+    "SHIELD-005",
+    "SHIELD-006",
+    "SHIELD-007",
+    "SHIELD-008",
+    "SHIELD-008 clean half",
+    "SHIELD-009",
+    "SHIELD-009 + PANEL-*",
+    "SHIELD-010",
+    "SHIELD-011 (optional)",
+    "Shielding / sample enclosure",
+    "Support",
+    "Support architecture",
+    "Thermal",
+    "Thermal interface",
+    "Thermal management",
+    "Vacuum",
+    "Vacuum / bakeout diagnostics",
+    "Vacuum QA",
+    "Vacuum diagnostics",
+    "Vacuum system",
+    "Validation artifact",
+    "Vibration diagnostics",
+    "chamber",
+    "cooldown sequence",
+    "cryogenic stages",
+    "cryostat",
+    "diamond",
+    "dosing",
+    "facility",
+    "gas",
+    "instrumentation",
+    "model",
+    "precursor delivery",
+    "safety",
+    "sample",
+    "sample stage",
+    "thermal",
+    "thermal intercepts",
+    "thermal management",
+    "vibration",
+    "vibration isolation stack"
+  ]
+}

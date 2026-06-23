@@ -1,0 +1,86 @@
+{
+  "_note": "NV spin-layer parameter provenance. Forecast/model-only. tau_c is UNKNOWN and is never measured evidence.",
+  "assumed_or_unknown": {
+    "B_T": {
+      "measured_in_this_system": false,
+      "source": "Bias field (design-specified, not metrology-verified).",
+      "status": "DESIGN_SPECIFIED",
+      "unit": "T",
+      "value": 0.005
+    },
+    "E_strain_rad_s": {
+      "measured_in_this_system": false,
+      "source": "Transverse strain/E-field splitting (forecast).",
+      "status": "ASSUMED",
+      "unit": "rad/s",
+      "value": 628318.5307179586
+    },
+    "T1_s": {
+      "measured_in_this_system": false,
+      "source": "Longitudinal relaxation (forecast input).",
+      "status": "ASSUMED",
+      "unit": "s",
+      "value": 0.01
+    },
+    "T2_pure_s": {
+      "measured_in_this_system": false,
+      "source": "Markovian pure-dephasing time (forecast input).",
+      "status": "ASSUMED",
+      "unit": "s",
+      "value": 0.0005
+    },
+    "T_K": {
+      "measured_in_this_system": false,
+      "source": "Mode D sample temperature target (10 mK base).",
+      "status": "DESIGN_SPECIFIED",
+      "unit": "K",
+      "value": 0.01
+    },
+    "he_coverage_monolayers": {
+      "measured_in_this_system": false,
+      "source": "He-3/He-4 surface coverage forecast hypothesis. Isotope contrast is NOT measured; no fabricated contrast.",
+      "status": "ASSUMED",
+      "unit": "monolayer",
+      "value": 0.0
+    },
+    "sigma_rad_s": {
+      "measured_in_this_system": false,
+      "source": "Surface-noise amplitude (forecast).",
+      "status": "ASSUMED",
+      "unit": "rad/s",
+      "value": 31415.926535897932
+    },
+    "tau_c_s": {
+      "measured_in_this_system": false,
+      "source": "QTA forecast knob; OU bath correlation time; NOT measured on F-diamond. Distinct from T1, T2, T2*.",
+      "status": "UNKNOWN",
+      "sweepable": true,
+      "unit": "s",
+      "value": 0.004
+    }
+  },
+  "forecast_only": true,
+  "measured_or_literature": {
+    "D_ZFS_rad_s": {
+      "measured_in_this_system": false,
+      "source": "Doherty2013 (NV ground-state ZFS D/2pi = 2.87 GHz, literature)",
+      "status": "LITERATURE",
+      "unit": "rad/s",
+      "value": 18032741831.60541
+    },
+    "dD_dT_rad_s_K": {
+      "measured_in_this_system": false,
+      "source": "NV ZFS temperature dependence dD/dT \u2248 -74 kHz/K (literature, Acosta 2010)",
+      "status": "LITERATURE",
+      "unit": "rad/s/K",
+      "value": 464955.7127312894
+    },
+    "gamma_e_rad_s_T": {
+      "measured_in_this_system": false,
+      "source": "NV gyromagnetic ratio \u2014 NIST tabulated physical constant",
+      "status": "LITERATURE (exact)",
+      "unit": "rad/s/T",
+      "value": 176086268233.70792
+    }
+  }
+}

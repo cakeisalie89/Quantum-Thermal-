@@ -1,0 +1,7 @@
+rank,experiment_id,label,score,eig_component,criticality_component,falsification_component,dependency_component,cost_penalty,source
+1,EXP-A,NV ODMR contrast at 10 mK in the relevant diamond/NV configuration,6.0995168498e-01,3.0000000000e-01,3.0000000000e-01,3.0000000000e-01,1.0000000000e-01,1.6394741168e+00,direct_monte_carlo
+2,EXP-C,τ_c measurement or constraint relative to the 292 µs canonical requirement,5.7126691753e-01,2.8660000000e-01,3.0000000000e-01,3.0000000000e-01,5.0000000000e-02,1.6394741168e+00,direct_monte_carlo
+3,EXP-B,Helium-3 / helium-4 surface-induced decoherence contrast,5.1636214598e-01,2.4660000000e-01,3.0000000000e-01,3.0000000000e-01,0.0000000000e+00,1.6394741168e+00,direct_monte_carlo
+4,EXP-F,Dosing / purge isolation between growth and sensing modes,4.0613099653e-01,2.2310000000e-01,4.5000000000e-02,1.3800000000e-01,0.0000000000e+00,1.0000000000e+00,direct_monte_carlo
+5,EXP-D,"Residual H2 coverage after bakeout, cryotrap, and NEG conditioning",3.7282222716e-01,2.0930000000e-01,1.2870000000e-01,1.7130000000e-01,0.0000000000e+00,1.3660402568e+00,direct_monte_carlo
+6,EXP-E,Optical / femtosecond-pulse thermal recovery to sensing baseline,3.1429990699e-01,2.4930000000e-01,4.2900000000e-02,1.3710000000e-01,0.0000000000e+00,1.3660402568e+00,direct_monte_carlo

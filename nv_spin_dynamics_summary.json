@@ -1,0 +1,66 @@
+{
+  "_note": "NV spin-dynamics forecast summary. Model-only; no measured coherence, isotope contrast, or validated result.",
+  "distinct_quantities": {
+    "T1_s": {
+      "kind": "longitudinal_relaxation",
+      "status": "ASSUMED",
+      "value": 0.01
+    },
+    "T2_pure_s": {
+      "kind": "markovian_pure_dephasing",
+      "status": "ASSUMED",
+      "value": 0.0005
+    },
+    "tau_c_s": {
+      "kind": "OU_bath_correlation_time",
+      "status": "UNKNOWN",
+      "value": 0.004
+    }
+  },
+  "forecast_only": true,
+  "he_coverage_monolayers": 0.0,
+  "measured_parameters_used": [
+    "D_ZFS (literature)",
+    "gamma_e (NIST)",
+    "dD/dT (literature)"
+  ],
+  "numerical_convergence": {
+    "max_abs_W_mc_minus_W_ff": 0.48416520222171583,
+    "n_time_inner": 200,
+    "n_traj": 400,
+    "seed": 42
+  },
+  "observables": {
+    "T2_echo_s": {
+      "forecast_only": true,
+      "isotope_or_surface": "bare_diamond_forecast",
+      "model_approximation": "fixed-seed OU colored noise, phase-accumulation MC; filter-function cross-check",
+      "pulse_sequence": "hahn_echo",
+      "unit": "s",
+      "value": 0.000353951121649623
+    },
+    "T2_xy8_s": {
+      "forecast_only": true,
+      "isotope_or_surface": "bare_diamond_forecast",
+      "model_approximation": "fixed-seed OU colored noise, phase-accumulation MC; filter-function cross-check",
+      "pulse_sequence": "xy8",
+      "unit": "s",
+      "value": 0.0014835185071614349
+    },
+    "T2star_s": {
+      "forecast_only": true,
+      "isotope_or_surface": "bare_diamond_forecast",
+      "model_approximation": "fixed-seed OU colored noise, phase-accumulation MC; filter-function cross-check",
+      "pulse_sequence": "ramsey",
+      "unit": "s",
+      "value": 5.787726832811028e-05
+    }
+  },
+  "odmr_lines_Hz": [
+    280250071.364844,
+    2729874964.3175774,
+    3010125035.6824217
+  ],
+  "profile": "standard",
+  "surface_condition": "bare_diamond_forecast"
+}

@@ -1,0 +1,4 @@
+rule,severity,subject,detail
+gate_coverage,INFO,_summary,"41/83 gate ids referenced by design objects; 42 uncovered"
+gate_referenced_but_absent,WARN,D12,"gate referenced by a design object but not present in results_gate_table.csv"
+missing_units,INFO,_summary,"0 structured parameters examined for units"
