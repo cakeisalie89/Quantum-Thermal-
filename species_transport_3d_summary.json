@@ -1,0 +1,61 @@
+{
+  "formula": "lambda = k_B*T/(sqrt(2)*pi*d^2*P); Kn = lambda/L_char",
+  "L_char_m": 0.01,
+  "convention": "evaluated at the sensing-stage temperature T_fridge = 10 mK, exactly as the canonical D9 derived check",
+  "per_species": [
+    {
+      "species": "C13_CH4",
+      "role": "MODE_B_precursor",
+      "kinetic_diameter_m": 3.8e-10,
+      "diameter_provenance": "LITERATURE_BOUND (Bird 1994 class textbook value)",
+      "pressure_Pa": 0.0001,
+      "pressure_provenance": "Mode-B working pressure (existing canonical value)",
+      "T_eval_K": 0.01,
+      "mean_free_path_m": 0.0021520443587015104,
+      "Kn": 0.21520443587015103,
+      "regime": "TRANSITIONAL"
+    },
+    {
+      "species": "H2",
+      "role": "residual_background_only",
+      "kinetic_diameter_m": 2.9e-10,
+      "diameter_provenance": "LITERATURE_BOUND (Bird 1994 class textbook value)",
+      "pressure_Pa": 1e-10,
+      "pressure_provenance": "post-bakeout residual target (existing canonical value)",
+      "T_eval_K": 0.01,
+      "mean_free_path_m": 3695.0678406242346,
+      "Kn": 369506.78406242345,
+      "regime": "MOLECULAR_FLOW"
+    },
+    {
+      "species": "He3",
+      "role": "MODE_D_sensing",
+      "kinetic_diameter_m": 2.6e-10,
+      "diameter_provenance": "LITERATURE_BOUND (source_map SM053, Bird1994;Roth1990)",
+      "pressure_Pa": 1e-06,
+      "pressure_provenance": "He dose pressure (existing canonical value, D9)",
+      "T_eval_K": 0.01,
+      "mean_free_path_m": 0.45969704940310385,
+      "Kn": 45.969704940310386,
+      "regime": "MOLECULAR_FLOW"
+    },
+    {
+      "species": "He4",
+      "role": "MODE_D_sensing",
+      "kinetic_diameter_m": 2.6e-10,
+      "diameter_provenance": "LITERATURE_BOUND (source_map SM053, Bird1994;Roth1990)",
+      "pressure_Pa": 1e-06,
+      "pressure_provenance": "He dose pressure (existing canonical value, D9)",
+      "T_eval_K": 0.01,
+      "mean_free_path_m": 0.45969704940310385,
+      "Kn": 45.969704940310386,
+      "regime": "MOLECULAR_FLOW"
+    }
+  ],
+  "c13_methane_footprint_3d": {
+    "status": "NOT_IMPLEMENTED",
+    "reason": "inlet/nozzle geometry is not parameterized in this repository; no deposition-footprint numbers are invented"
+  },
+  "note": "He-3/He-4 (dose) and residual H2 are deep in the molecular-flow regime at the canonical conditions (quasi-ballistic line-of-sight transport). The C-13 methane precursor at the Mode-B working pressure is TRANSITIONAL (Kn~0.2), consistent with the repository's advective-diffusive Mode-B gas-transport treatment. Forecast, DERIVED numerical only.",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

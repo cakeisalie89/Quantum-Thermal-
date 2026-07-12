@@ -1,0 +1,163 @@
+{
+  "models": {
+    "thermal_3d_transient": {
+      "status": "IMPLEMENTED",
+      "parameters": "graded FV mesh; diamond k(T), cp(T); BDF; Kapitza back BC; bounded auxiliary channels (guarded kwargs)",
+      "limitations": "homogeneous diamond; reduced CI resolution; front/lateral insulated except the bounded radiative front channel",
+      "outputs": [
+        "thermal_3d_probe_timeseries.csv",
+        "thermal_3d_hotspots.csv",
+        "thermal_3d_energy_accounting.csv"
+      ],
+      "tests": [
+        "tests/test_thermal_3d.py",
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "laser_source_3d": {
+      "status": "IMPLEMENTED",
+      "parameters": "exactly-conservative cell-integrated Gaussian x Beer-Lambert",
+      "limitations": "time-averaged deposition approximation in averaged mode; no electron-phonon nonequilibrium model",
+      "outputs": [
+        "laser_3d_deposition_summary.json"
+      ],
+      "tests": [
+        "tests/test_thermal_3d.py"
+      ]
+    },
+    "state_machine_3d": {
+      "status": "IMPLEMENTED",
+      "parameters": "mode -> shutter/baffle/laser/MW/switch/species states",
+      "limitations": "DESIGN_SPECIFIED state logic; no timing dynamics",
+      "outputs": [
+        "coupling_ledger_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "sources_3d.microwave": {
+      "status": "REDUCED_ORDER",
+      "parameters": "canonical line-model NV-region dissipation, uniform over NV-layer cells",
+      "limitations": "3D field/SAR map NOT_IMPLEMENTED",
+      "outputs": [
+        "coupling_ledger_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "sources_3d.radiative_front": {
+      "status": "REDUCED_ORDER",
+      "parameters": "canonical stage-chain load at the mode's shutter/baffle state, uniform front-face flux",
+      "limitations": "3D view factors NOT_IMPLEMENTED",
+      "outputs": [
+        "coupling_ledger_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "sources_3d.vibration": {
+      "status": "BOUNDED_FORECAST",
+      "parameters": "canonical transfer-chain dissipated power (ledger scalar)",
+      "limitations": "no spatial map; 3D modal analysis NOT_IMPLEMENTED",
+      "outputs": [
+        "coupling_ledger_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "heat_switch_3d": {
+      "status": "REDUCED_ORDER",
+      "parameters": "DESIGN_SPECIFIED G_open/G_closed; lumped MC<->4K path",
+      "limitations": "stage-level only (not resolved in the 3D field); gas-gap switch NOT_IMPLEMENTED",
+      "outputs": [
+        "falsification_report_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "species_accounting_3d": {
+      "status": "REDUCED_ORDER",
+      "parameters": "canonical coverage ODE, purge and dose windows; worst-case theta0",
+      "limitations": "C-13 arrival footprint NOT_IMPLEMENTED; residual bound NOT_IMPLEMENTED",
+      "outputs": [
+        "species_accounting_3d.csv"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "falsification_3d": {
+      "status": "IMPLEMENTED",
+      "parameters": "existing canonical bounds only",
+      "limitations": "damage and residual-coverage bounds NOT_IMPLEMENTED",
+      "outputs": [
+        "falsification_report_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "convergence_3d": {
+      "status": "IMPLEMENTED",
+      "parameters": "one mesh refinement + tightened rtol",
+      "limitations": "lightweight verification only",
+      "outputs": [
+        "convergence_report_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "sensitivity_3d": {
+      "status": "IMPLEMENTED",
+      "parameters": "one-at-a-time +10% on four uncertain inputs (CI mesh)",
+      "limitations": "model sensitivity only; local, one-sided",
+      "outputs": [
+        "sensitivity_ranking_3d.csv"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "nv_eligibility_3d": {
+      "status": "IMPLEMENTED",
+      "parameters": "existing canonical thresholds; state machine",
+      "limitations": "forecast eligibility only; never measured NV performance",
+      "outputs": [
+        "nv_eligibility_3d.json"
+      ],
+      "tests": [
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "support_conduction": {
+      "status": "SCAFFOLD",
+      "parameters": "registry entries only",
+      "limitations": "no canonical conductance numbers; none invented",
+      "outputs": [
+        "cryo_stack_3d_budget.csv"
+      ],
+      "tests": []
+    },
+    "optical_collection_load": {
+      "status": "NOT_IMPLEMENTED",
+      "parameters": "-",
+      "limitations": "no repository parameterization",
+      "outputs": [],
+      "tests": []
+    }
+  },
+  "status_vocabulary": [
+    "IMPLEMENTED",
+    "REDUCED_ORDER",
+    "BOUNDED_FORECAST",
+    "SCAFFOLD",
+    "NOT_IMPLEMENTED"
+  ],
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

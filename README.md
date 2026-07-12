@@ -22,7 +22,7 @@ claim. Stated once and enforced everywhere:
 - Every output carries `measured_in_this_system = false`; nothing is tagged MEASURED.
 - LCVD during active 10 mK sensing is NOT VIABLE and NOT CLAIMED.
 - Same-chamber, mode-switched growth and sensing is PROPOSED, not demonstrated.
-- 3D is not implemented (see section 5).
+- The additive 3D transient layer is forecast-only numerical code (see section 5).
 
 No gate may reach PASS from ASSUMED, UNKNOWN, INDIRECT, MANUFACTURER_SPEC,
 DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or UNVERIFIED inputs.
@@ -76,10 +76,24 @@ the non-lumped models are the gate authority. Every multiphysics output is
 model-only / forecast-only and contributes only CONDITIONAL / BLOCKED /
 DERIVED_CHECK gates — none is PASS.
 
-## 5. 3D is not implemented
+## Machine finite-state architecture
 
-3D is **FUTURE_WORK / NOT_IMPLEMENTED**. It is neither claimed nor used by any
-gate in this package; the 3D entry points raise `NotImplementedError`.
+The hierarchical operational FSM (states, guarded transitions, interlocks,
+and the nominal lifecycle trace) is documented in `MACHINE_FSM.md`; its
+tables of record are the byte-gated `machine_fsm_*` canonical outputs.
+
+## 5. 3D transient layer: forecast-only numerical code
+
+The additive 3D transient validation layer is **FORECAST_ONLY_IMPLEMENTED**: an
+additive 3D transient coupled multiphysics forecast layer -- a
+reduced-resolution, deterministic, energy-conserving 3D transient solver with
+mode-state-driven bounded channels (microwave NV-region map, shutter-dependent
+radiative front load, DESIGN_SPECIFIED heat-switch path), species/energy
+accounting, falsification and convergence reports, and an explicit coupling
+ledger -- reduction-checked against the canonical 1D/2D backends. It is
+not hardware-validated, not COMSOL, not measured in-system, and introduces no
+PASS gates; a heavy/full-resolution pass exists only behind `--heavy-3d` and is
+never required by CI or the package consistency check.
 
 ## 6. Main forecast outputs and numerical verification
 
@@ -191,3 +205,16 @@ Current physical system: BLOCKED. Post-installation forecast: CONDITIONAL.
 Mode D 10 mK sensing requires measured tau_c and measured C_contr; Mode B LCVD
 requires measured deposition yield, precursor control, heat dumping, contamination
 recovery, and fatigue survival.
+
+## Deep Bayesian experimental design (optional, fail-closed)
+
+`qta_multiphysics/deep_expdesign/` adds an optional simulation-based-inference and
+expected-information-gain layer: a deterministic, CPU-only (pure NumPy) conditional
+mixture-density posterior plus a learned EIG estimator, trained on simulator-generated data and
+numerically validated against the direct nested-Monte-Carlo reference (calibration, EIG error,
+ranking agreement, OOD, repeated-seed stability) using conservative thresholds. It is fail-closed:
+it controls experiment ordering only as a `VALIDATED_SURROGATE`; otherwise it falls back to the
+direct estimator. Run with `python qta_full_sim.py --ci --deep`, or
+`from qta_multiphysics.deep_expdesign import run_deep_expdesign_full`.
+
+> QTA includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.

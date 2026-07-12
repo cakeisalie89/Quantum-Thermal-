@@ -1,0 +1,85 @@
+{
+  "layer": "thermal_3d_transient (reduced CI mesh)",
+  "mesh": {
+    "nx": 10,
+    "ny": 10,
+    "nz": 12
+  },
+  "checks": [
+    {
+      "check": "zero_source_stability",
+      "status": "DERIVED_CHECK",
+      "within_declared_tolerance": true,
+      "max_drift_K": 0.0,
+      "tolerance_K": 1e-09
+    },
+    {
+      "check": "deterministic_repeat",
+      "status": "DERIVED_CHECK",
+      "within_declared_tolerance": true,
+      "bitwise_identical": true
+    },
+    {
+      "check": "symmetry_preservation",
+      "status": "DERIVED_CHECK",
+      "within_declared_tolerance": true,
+      "rel_asymmetry": 1.372388748330326e-14,
+      "tolerance": 1e-06
+    },
+    {
+      "check": "source_integral_consistency",
+      "status": "DERIVED_CHECK",
+      "within_declared_tolerance": true,
+      "discrete_W": 0.0003,
+      "captured_analytic_W": 0.0003,
+      "rel_error": 0.0,
+      "tolerance": 1e-09
+    },
+    {
+      "check": "energy_accounting_closure",
+      "status": "DERIVED_CHECK",
+      "within_declared_tolerance": true,
+      "rel_residual": 8.85774157945317e-06,
+      "tolerance": 0.05,
+      "integrated_source_energy_J": 1.4999999999999996e-09,
+      "laser_and_volumetric_channels_J": 1.4999999999999996e-09,
+      "front_flux_channel_J": 0.0,
+      "boundary_sink_energy_J": 1.4908724272623489e-09,
+      "internal_energy_change_J": 9.114286125281506e-12,
+      "residual_J": 1.328661236917975e-14
+    },
+    {
+      "check": "reduction_3d_to_1d",
+      "method": "uniform_peak transverse mode (every 3D column sees the 1D areal intensity); lateral gradients vanish by construction",
+      "T_nv_3d_K": 29.27720547579236,
+      "T_nv_1d_K": 29.40590498434492,
+      "rel_error": -0.004376655254142933,
+      "tolerance": 0.1,
+      "within_tolerance": true,
+      "status": "DERIVED_CHECK",
+      "solver_status_3d": "ok",
+      "solver_status_1d": "ok",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "check": "reduction_3d_to_2d",
+      "method": "Gaussian-beam 3D (Cartesian box, adiabatic lateral) vs 2D axisymmetric disc at matched depth/half-extent and window; geometries differ by the box corner volume, hence the geometric-difference allowance in the declared tolerance",
+      "T_nv_3d_K": 13.73015219488708,
+      "T_nv_2d_K": 13.714009156403522,
+      "rel_error": 0.0011771202935225934,
+      "tolerance": 0.1,
+      "within_tolerance": true,
+      "status": "DERIVED_CHECK",
+      "solver_status_3d": "ok",
+      "solver_status_2d": "ok",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "all_within_declared_tolerances": true,
+  "meaning": "numerical self-consistency of the reduced 3D model only; NOT physical validation, NOT hardware, NOT measured",
+  "statuses_allowed": [
+    "DERIVED_CHECK",
+    "CONDITIONAL"
+  ],
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

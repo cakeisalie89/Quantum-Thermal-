@@ -51,7 +51,7 @@ SM049,T2*,10 µs literature range,T2_star,Sangtawesin2019,LITERATURE,INDIRECT,fa
 SM050,T2,UNKNOWN,T2,,TBD,REQUIRES_EXPERIMENT,false,UNKNOWN,Hahn echo in cryostat,
 SM051,Surface spin density,n_s=3.3e18 m^-2 from graphite analogy,surface_spin_density,GreywallPRB1990;MorhardPRB1996,LITERATURE,INDIRECT,false,ASSUMED,TPD or QCM on F-diamond,Graphite analogy; sticking on F-diamond UNKNOWN
 SM052,Surface termination,F-termination via XeF2 or CF4 plasma,surface_termination,,DESIGN,UNKNOWN,false,DESIGN_SPECIFIED,XPS + AFM post-termination,XPS verification required [directness normalized from REQUIRES_SOURCE: no source yet identified]
-SM053,Helium mean free path,lambda=kT/(√2πd²P),helium_mean_free_path,Bird1994;Roth1990,TEXTBOOK,DIRECT,false,DERIVED,Gas kinetics DERIVED_CHECK,"λ=0.46 m at T=4K, P=1µPa"
+SM053,Helium mean free path,lambda=kT/(√2πd²P),helium_mean_free_path,Bird1994;Roth1990,TEXTBOOK,DIRECT,false,DERIVED,Gas kinetics DERIVED_CHECK,"λ=0.46 m at T_fridge=10 mK, P=1µPa"
 SM054,Knudsen number,Kn=lambda/L_char,Kn,Bird1994,TEXTBOOK,DIRECT,false,DERIVED,Gas kinetics DERIVED_CHECK,Kn=46 (molecular flow regime)
 SM055,Molecular flux,UNKNOWN,molecular_flux,,TBD,REQUIRES_EXPERIMENT,false,UNKNOWN,PMB flux calibration,
 SM056,LCVD precursor delivery,CH4 + fs laser,LCVD_precursor,,DESIGN,UNKNOWN,false,DESIGN_SPECIFIED,Develop LCVD process,Mode B; LCVD not demonstrated at 10 mK [directness normalized from REQUIRES_SOURCE: no source yet identified]

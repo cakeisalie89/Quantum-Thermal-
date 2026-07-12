@@ -1,0 +1,32 @@
+{
+  "checks": [
+    {
+      "check": "reduction_3d_to_1d",
+      "method": "uniform_peak transverse mode (every 3D column sees the 1D areal intensity); lateral gradients vanish by construction",
+      "T_nv_3d_K": 29.27720547579236,
+      "T_nv_1d_K": 29.40590498434492,
+      "rel_error": -0.004376655254142933,
+      "tolerance": 0.1,
+      "within_tolerance": true,
+      "status": "DERIVED_CHECK",
+      "solver_status_3d": "ok",
+      "solver_status_1d": "ok",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "check": "reduction_3d_to_2d",
+      "method": "Gaussian-beam 3D (Cartesian box, adiabatic lateral) vs 2D axisymmetric disc at matched depth/half-extent and window; geometries differ by the box corner volume, hence the geometric-difference allowance in the declared tolerance",
+      "T_nv_3d_K": 13.73015219488708,
+      "T_nv_2d_K": 13.714009156403522,
+      "rel_error": 0.0011771202935225934,
+      "tolerance": 0.1,
+      "within_tolerance": true,
+      "status": "DERIVED_CHECK",
+      "solver_status_3d": "ok",
+      "solver_status_2d": "ok",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "meaning": "like-for-like reduced-geometry consistency of the 3D model against the canonical 1D and 2D backends; numerical only",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

@@ -31,7 +31,7 @@ Mode B and Mode D are mutually exclusive. They do not occur simultaneously.
 Hard interlocks enforced by assert(). See validate() in SystemState.
 Run:  python qta_full_sim.py
 """
-import math, json, csv, random, sys, builtins
+import math, json, csv, sys, builtins
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -520,7 +520,7 @@ class ChamberState:
         return 1e-5
 
     def P_CH4_at_sensing_Pa(self, t_purge_s=28800.):
-        m_CH4=16*m_p; T_room=300.; P_CH4_work=1e-4
+        P_CH4_work=1e-4
         S_cryo=0.795 if self.cryotrap_installed else 0.0
         S_NEG =0.005 if self.NEG_installed else 0.0
         S_tot =0.010+S_cryo+S_NEG+(0.010 if self.pump_train_installed else 0.)
@@ -1010,11 +1010,9 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
     """All gates read from the same ModeStateVector sv — no gate computes its own T or P."""
     assert s.mode in ("MODE_D_SENSE", "SENSE_HYPOTHETICAL")
     if sv is None:
-        sv = make_mode_D_state(CURRENT_CHAMBER, tau_c_s=4e-3, tau_c_tag="UNKNOWN")
+        sv = make_mode_D_state(tau_c_s=4e-3, tau_c_tag="UNKNOWN")  # documented default: post_bakeout
     gates = []
     Ts = sv.T_sample_K
-    gNV=2*pi*28.025e9; gHe=2*pi*32.434e6
-    Cc=(mu_0/(4*pi))**2*gNV**2*gHe**2*hbar**2
 
     gates.append(Gate("D1","LCVD Off / Mode D Status","MODE_D_SENSE",
         "LCVD_on=False AND Mode B validated",
@@ -1057,7 +1055,7 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
 
     alpha_K=2000.; A_sint=45e-4
     G_nom=alpha_K*A_sint*Ts**3; G_worst=alpha_K*0.5*A_sint*Ts**3*0.5
-    G_req=sv.P_total_W/(0.05*0.010); A_min=G_req/(alpha_K*Ts**3)
+    G_req=sv.P_total_W/(0.05*0.010)
     wc="FAILS" if G_worst<G_req else "passes"
     # FAILURE DOMINANCE: FAILS if G_eff < 8.6e-6 W/K at worst-case alpha_K. Sinter not fabricated. [ASSUMED].
     gates.append(Gate("D5","G_eff / Sinter (marginal at worst-case)","MODE_D_SENSE",
@@ -1104,7 +1102,10 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
         "Increase P_mw or use resonator.", "us"))
 
     # D9: Kn = lambda_He / L_char where L_char=10mm (chamber size)
-    # lambda_He at 4K, 1µPa ≈ 0.5 m; Kn = 0.5/0.010 = 46
+    # lambda_He = k_B*T_fridge/(sqrt(2)*pi*d_He^2*P_dose) evaluated at the
+    # sensing-stage temperature T_fridge=10 mK with P_dose=1 uPa -> 0.46 m;
+    # Kn = 0.46/0.010 = 46. (At T=4 K the same pressure gives ~184 m,
+    # Kn~1.8e4 -- molecular flow either way.)
     # This is the gas-flow Kn number; separate from phonon mean free path
     gates.append(Gate("D9","Molecular Flow (sv.Kn_He; gas Knudsen number)","MODE_D_SENSE",
         "sv.Kn_He = sv.lambda_He / L_char(10mm) >> 10",
@@ -1285,7 +1286,7 @@ def run_mode_D_MC(N=10000, seed=42):
     NC_ref=1e-6*0.5e-3*3510/(12*m_p)
     A_deb_ref=12*pi**4/5*NC_ref*k_B/2200.**3
     dZFS=74e3*2*pi
-    m_H2v=2*m_p; m_CH4v=16*m_p; T_room=300.; n_mono=1e19
+    m_H2v=2*m_p; T_room=300.; n_mono=1e19
 
     pass_total=0
     fail_reasons={"tau_c_detection":0,"G_eff_thermal":0,"eps_secondary_load":0,"theta_H2":0,"other":0}
@@ -1397,7 +1398,6 @@ def engineering_readiness_gates():
     """
     gates = []
     _ch = CURRENT_CHAMBER
-    _mb = CURRENT_MODE_B
 
     def _g(gid, name, mode, eq, comp, thresh, spec, inst, verif, reason_detail, fix, unit=""):
         status = gate_status_3layer(spec, inst, verif, physics_ok=(comp < thresh if isinstance(comp,(int,float)) and isinstance(thresh,(int,float)) else True), blocking_if_not_specified=(not spec))
@@ -1677,7 +1677,7 @@ def engineering_readiness_gates():
     ))
 
     # ============================================================
-    # RTB/JT OPTIONAL UPSTREAM COOLING PLANT (added by pass 10)
+    # RTB/JT OPTIONAL UPSTREAM COOLING PLANT
     # ============================================================
     # DESIGN_OPTION only. NOT a 10 mK cooler. NOT selected, installed, or
     # validated. Cannot unlock PASS without vendor data and measured
@@ -1788,13 +1788,12 @@ def main():
     sC = make_C(mode_b)     # inherits RGA flags from Mode B result
 
     # Mode D: attempt construction — will raise ValueError because Mode B did not pass
-    sD = None
     mode_D_blocked = False
     try:
-        sD = make_D(mode_b)
+        make_D(mode_b)  # expected to raise ValueError (Mode B did not pass)
     except ValueError as e:
         mode_D_blocked = True
-        print(f"\n  make_D() raised ValueError (correct behaviour):")
+        print("\n  make_D() raised ValueError (correct behaviour):")
         for line in str(e).split("\n")[:4]:
             print(f"    {line}")
 
@@ -1849,12 +1848,12 @@ def main():
                   ("SNR_4ms",f"{sv_D_post.SNR:.1f}"),
                   ("eps_thermo",f"{sv_D_post.eps_thermo*100:.3f}%")]:
         print(f"  {_k:<18} = {_v}")
-    print(f"\nD10 CURRENT vs HYPOTHETICAL:")
-    print(f"  CURRENT REALITY (bakeout not executed):")
+    print("\nD10 CURRENT vs HYPOTHETICAL:")
+    print("  CURRENT REALITY (bakeout not executed):")
     print(f"    P_H2 = {CURRENT_CHAMBER.P_H2_Pa():.0e} Pa")
     print(f"    theta_H2 = {sv_D_pre.theta_H2*100:.4f}%  ->  D10b: BLOCKED (D10a prerequisite not met)")
-    print(f"  HYPOTHETICAL FORECAST ONLY — NOT CURRENT STATE:")
-    print(f"    If bakeout+NEG+RGA executed: P_H2 -> 1e-12 Pa")
+    print("  HYPOTHETICAL FORECAST ONLY — NOT CURRENT STATE:")
+    print("    If bakeout+NEG+RGA executed: P_H2 -> 1e-12 Pa")
     print(f"    theta_H2 = {sv_D_post.theta_H2*100:.4f}%  ->  D10b threshold would be satisfied in forecast only; not a PASS")
     print("  D10a engineering prerequisites: bakeout_executed=False, NEG_installed=False,")
     print("    cryotrap_installed=False, RGA_verified=False -- ALL must be True for D10b to run.")
@@ -1970,7 +1969,6 @@ def main():
 
     print(f"\n{'='*72}")
     _block_statuses = {"BLOCKED", BLOCKING}
-    has_blocked = any(g.status in _block_statuses for g in all_gates)
     has_fail=any(g.status=="FAIL" for g in all_gates)
     has_unkn=any(g.status=="UNKNOWN" for g in all_gates)
     n_cond=sum(1 for g in all_gates if g.status=="CONDITIONAL")
@@ -2004,23 +2002,23 @@ def main():
     tb = sum(1 for g in all_gates if g.status in _block_statuses)
     print(f"GATE COUNTS: {tp}P | {tc}C | {tf}F | {tu}U | {tb}BLOCKED")
     print(f"FULL-CYCLE MC (post-bakeout Mode D): {mc_d['pass_rate']*100:.1f}% pass rate")
-    print(f"\nCURRENT SYSTEM STATE:")
-    print(f"  Mode D is BLOCKED — Mode B prerequisites not executed.")
+    print("\nCURRENT SYSTEM STATE:")
+    print("  Mode D is BLOCKED — Mode B prerequisites not executed.")
     print(f"  {tb} BLOCKED gate(s): IL-05/06 + D10a/D10b prevent sensing until Mode B+D10a executed.")
-    print(f"  Bakeout not done; NEG not installed; RGA not performed.")
-    print(f"\nPOST-BAKEOUT FORECAST (hypothetical; Mode B preconditions satisfied):")
+    print("  Bakeout not done; NEG not installed; RGA not performed.")
+    print("\nPOST-BAKEOUT FORECAST (hypothetical; Mode B preconditions satisfied):")
     print(f"  Gate counts post-installation forecast (Mode D only): PASS={tp} | CONDITIONAL={tc} | FAIL={tf} | UNKNOWN={tu}. NOTE: forecast is FORECAST_ONLY; can_PASS_now=NO holds for all 56 canonical gates.")
-    print(f"  NOTE: D9 = DERIVED_CHECK (Kn=46; first-principles gas-kinetic check). DERIVED_CHECK is not PASS. All other gates remain CONDITIONAL or BLOCKED. No gate is PASS at this time.")
-    print(f"        until hardware installed AND measurements verify performance.")
+    print("  NOTE: D9 = DERIVED_CHECK (Kn=46; first-principles gas-kinetic check). DERIVED_CHECK is not PASS. All other gates remain CONDITIONAL or BLOCKED. No gate is PASS at this time.")
+    print("        until hardware installed AND measurements verify performance.")
     print("  D10a (engineering readiness): BLOCKED — bakeout_executed=False")
     print("  D10b (physical theta_H2): BLOCKED — cannot evaluate until D10a=PASS")
     print("  HYPOTHETICAL FORECAST ONLY: if bakeout+NEG+RGA done,")
     print("    then D10b: theta=0.003% < 0.1% — inequality satisfied under assumptions; not a PASS")
-    print(f"  0 physics FAIL gates in post-bakeout forecast.")
-    print(f"  Mode D remains BLOCKED in current real state -- this is a forecast only.")
+    print("  0 physics FAIL gates in post-bakeout forecast.")
+    print("  Mode D remains BLOCKED in current real state -- this is a forecast only.")
     print(f"  {n_unkn} UNKNOWN gates require experiment (not engineering):")
-    print(f"    tau_c on F-diamond: EXPERIMENTAL VALIDATION REQUIRED")
-    print(f"    C_contr at 10mK:   EXPERIMENTAL VALIDATION REQUIRED")
+    print("    tau_c on F-diamond: EXPERIMENTAL VALIDATION REQUIRED")
+    print("    C_contr at 10mK:   EXPERIMENTAL VALIDATION REQUIRED")
     # ENG registry summary: SPECIFIED / INSTALLED / VERIFIED for all components
     print("\n" + "─"*72)
     print("COMPONENT ENGINEERING STATUS — SPECIFIED / INSTALLED / VERIFIED")
@@ -2117,7 +2115,6 @@ def main():
     # Includes all metric rows referenced by README, manuscript, and consistency checker.
     from collections import Counter as _Cnt
     _counts = _Cnt(g.status for g in all_gates)
-    _block_now = sum(1 for g in all_gates if g.status in ("BLOCKED","FAIL"))
     _verdict_str = ("CONDITIONALLY DEFINED. BLOCKED. "
                     "Physical feasibility is not established.")
     # Forecast-language remap: Monte Carlo "X_pass" / "X_frac" metrics describe
@@ -2187,8 +2184,6 @@ def main():
     with open(out/"best_forecast_operating_point.json","w") as f:
         json.dump(best_out, f, indent=2, default=str)
     # Do NOT write best_operating_point.json — it is superseded (would contain v3.0 27.7 µs)
-    ap={t:[(r[0],r[1],r[2],r[4],r[5]) for r in PARAM_REGISTRY if r[3]==t]
-        for t in [MEASURED,LITERATURE,ASSUMED,UNKNOWN,DESIGN]}
     # assumed_parameters.json is maintained separately with 75 entries in correct format.
     # Do NOT overwrite from sim — the manually-maintained version has full traceability.
     # with open(out/"assumed_parameters.json","w") as f: json.dump(...)  [DISABLED]
@@ -2219,7 +2214,9 @@ def main():
         sw.append({"tau_c_s":tc_v,"DeltaGamma_rads":GDC,"T2s_eff_us":T2e*1e6,
                    "deltaGamma_noise":dG,"SNR":snr,"Gate":gate_label,
                    "tau_c_canonical_threshold_us": 292.0,
-                   "note": "Gate uses canonical 292us threshold (v3.3). 27.728us=SUPERSEDED v3.0."})
+                   "note": "Gate uses canonical 292us threshold (v3.3). 27.728us=SUPERSEDED v3.0. "
+                           "SNR column: v3.0-era detection chain (no pulse-fidelity factor); the "
+                           "canonical Mode-D state (C_eff=C*pd^2) gives SNR=5.0 at tau_c=292us."})
     with open(out/"tau_c_sweep.csv","w",newline="") as f:
         dw=csv.DictWriter(f,sw[0].keys()); dw.writeheader(); dw.writerows(sw)
     with open(out/"interlock_table.csv","w",newline="") as f:
@@ -2357,7 +2354,7 @@ ENGINEERING_FIXES = [
      ["B5","D11"],
      "CONDITIONAL: QCM provides real-time adsorption measurement, replacing model estimates for B5/D11.",
      "AT-cut 5 MHz quartz crystal adjacent to diamond in sensing zone. "
-     "Sauerbrey sensitivity: 5.66e5 Hz/(g/m2) = 0.057 Hz/(ng/cm2). "
+     "Sauerbrey sensitivity: 5.66e6 Hz/(kg/m2) = 0.057 Hz/(ng/cm2). "
      "He-3 monolayer (1.65 ng/cm2) shifts frequency by approx 0.09 Hz. "
      "CH4 monolayer (est.) shifts by approx 0.15 Hz. Both exceed 1 mHz noise floor [DESIGN_SPECIFIED]. "
      "Cryogenic operation at 10mK: frequency stability improves at low T (athermal point). "
@@ -2682,3 +2679,25 @@ if __name__ == "__main__":
     _run_integrated(profile=_profile, output_dir=_outdir, seed=42)
     print("Saved: design_*, nv_*, Bayesian design outputs, nv_spin_gate_records.csv, "
           "integrated_layers_summary.json (forecast-only; no PASS gate states)")
+
+    # ---- additive 3D transient validation layer (reduced CI mesh; always) ----
+    # Forecast-only / benchmark-numerical / derived-check only. The reduced 3D
+    # outputs are canonical and byte-deterministic across runs and profiles.
+    # '--heavy-3d' additionally runs the OPT-IN full-resolution pass into
+    # outputs/heavy_3d (gitignored; never required by CI or the checker).
+    from qta_multiphysics.runner_3d import run_3d_all as _run_3d_all
+    _run_3d_all(_outdir, heavy=("--heavy-3d" in _sys.argv))
+
+    # ---- optional deep SBI experimental-design layer (off by default) ----
+    # The deep layer is an OPTIONAL accelerated inference/EIG backend. It is
+    # fail-closed: it influences ordering only as a VALIDATED_SURROGATE, otherwise
+    # it falls back to the direct nested-MC EIG. Enabled with '--deep'. Kept off by
+    # default so the canonical pipeline (and its regeneration) is unchanged.
+    if "--deep" in _sys.argv:
+        from qta_multiphysics.deep_expdesign.runner import run_deep_expdesign_full as _run_deep
+        _deep_dir = _outdir / "deep_expdesign"
+        print(f"\n[deep SBI layer: profile={_profile}, fail-closed; reference = direct nested-MC]")
+        _dr = _run_deep(profile=_profile, output_dir=_deep_dir)
+        print(f"Deep layer status: {_dr['readiness']['status']} "
+              f"(controls_ordering={_dr['readiness']['controls_experiment_ordering']}, "
+              f"fallback={_dr['readiness']['fallback']}); forecast-only, no PASS state.")

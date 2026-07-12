@@ -1,0 +1,69 @@
+{
+  "layer": "thermal_3d_transient + coupled forecast channels",
+  "status": "FORECAST_ONLY_IMPLEMENTED",
+  "resolution_tier": "REDUCED_CI",
+  "all_numerical_checks_within_declared_tolerances": true,
+  "mode_sequence_status": "MODE_D_STARTED_AFTER_RECOVERY",
+  "mode_c_recovery_time_s": 0.008333333333333333,
+  "mode_d_hold_probe_K": 0.02382101594207912,
+  "coupling_ledger_summary": {
+    "n_couplings": 17,
+    "status_counts": {
+      "IMPLEMENTED": 9,
+      "REDUCED_ORDER": 4,
+      "SCAFFOLD": 1,
+      "BOUNDED_FORECAST": 1,
+      "NOT_IMPLEMENTED": 2
+    },
+    "allowed_statuses": [
+      "IMPLEMENTED",
+      "REDUCED_ORDER",
+      "BOUNDED_FORECAST",
+      "SCAFFOLD",
+      "NOT_IMPLEMENTED"
+    ],
+    "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+  },
+  "nv_eligibility_forecast": "BLOCKED",
+  "nv_eligibility_blocking_reasons": [
+    "vibration_amplitude"
+  ],
+  "falsification": {
+    "n_conditions": 11,
+    "n_falsified_in_model": 0,
+    "n_not_implemented_bounds": 2
+  },
+  "convergence": {
+    "mesh_status": "DERIVED_CHECK",
+    "time_status": "DERIVED_CHECK"
+  },
+  "materials": {
+    "regions": [
+      "DIAMOND_BULK",
+      "NV_LAYER"
+    ],
+    "nv_layer_depth_m": 1e-08,
+    "nv_layer_cell_count": 100,
+    "bulk_cell_count": 1100,
+    "material_model": "homogeneous canonical diamond (diamond_k/diamond_cp), identical to the 1D/2D backends",
+    "per_region_property_sets": "NOT_IMPLEMENTED (no repository parameters)",
+    "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+  },
+  "not_implemented": [
+    "per-region material property sets (materials_3d)",
+    "C-13 methane 3D deposition footprint (species_transport_3d)",
+    "3D radiative view factors (radiation_paths_3d)",
+    "3D modal analysis (vibration_paths_3d)",
+    "3D microwave field/SAR map (microwave_heating_3d)",
+    "collection-path optical heat load (sources_3d)",
+    "support-conduction numerics (SCAFFOLD registry only)",
+    "residual-coverage and hotspot-damage falsification bounds",
+    "LN2 precooling / standalone JT / nuclear demagnetization / gas-gap heat switch (cryo_stack_3d registry entries)"
+  ],
+  "measured_in_this_system": false,
+  "can_PASS_now": "NO",
+  "hardware_validated": false,
+  "external_solver": "none (NumPy/SciPy only; no COMSOL)",
+  "claim_boundary": "additive forecast-only / benchmark-numerical / derived-check validation layer; not hardware validation; introduces no PASS gates",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

@@ -1,0 +1,5 @@
+parameter,perturbation,base_probe_rise_K,perturbed_probe_rise_K,normalized_sensitivity,abs_normalized_sensitivity,parameter_provenance,meaning,label,rank
+laser.absorbed_fraction,+10%,1.372015219e+01,1.405123682e+01,2.413126e-01,2.413126e-01,ASSUMED,model sensitivity of THIS forecast model; not experimental importance,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM,1
+laser.spot_radius_m,+10%,1.372015219e+01,1.346846650e+01,-1.834423e-01,1.834423e-01,DESIGN,model sensitivity of THIS forecast model; not experimental importance,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM,2
+laser.absorption_coeff_1_m,+10%,1.372015219e+01,1.380297001e+01,6.036217e-02,6.036217e-02,LITERATURE_BOUND/ASSUMED,model sensitivity of THIS forecast model; not experimental importance,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM,3
+fridge.kapitza_coeff_W_m2_K4,+10%,1.372015219e+01,1.371357172e+01,-4.796209e-03,4.796209e-03,ASSUMED,model sensitivity of THIS forecast model; not experimental importance,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM,4

@@ -1,0 +1,7 @@
+component,value,note,label
+integrated_source_energy_J,1.500000000e-09,time-integrated volumetric laser deposition,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+boundary_sink_energy_J,1.490872426e-09,time-integrated Kapitza-radiative back-face outflow,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+internal_energy_change_J,9.114286125e-12,sum over cells of rho*int(Cp dT)*V,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+residual_J,1.328755303e-14,source - sink - stored,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+rel_residual,8.858369e-06,"closure tolerance 0.05 (numerical self-consistency, not physical validation)",MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+closure_status,DERIVED_CHECK,DERIVED_CHECK if |rel_residual| < tol else CONDITIONAL (never PASS),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
