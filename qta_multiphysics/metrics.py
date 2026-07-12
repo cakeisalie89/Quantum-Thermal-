@@ -87,13 +87,16 @@ def build_gate_specs(cm, vs, mc, future3d_status):
         "non-lumped 1D/2D models are the gate authority (MODEL_ONLY).",
         "N/A (bookkeeping check)."))
     specs.append(_g(
-        "THREE_D_FUTURE_WORK_CHECK", "3D multiphysics deferred (not faked)",
-        "ALL (multiphysics)", "3D status == FUTURE_WORK/NOT_IMPLEMENTED; excluded from gates",
-        future3d_status, "FUTURE_WORK", "DERIVED_CHECK",
-        "3D solvers are explicitly NOT_IMPLEMENTED / FUTURE_WORK and are excluded "
-        "from all physical gates. 1D (canonical) and 2D axisymmetric are the "
-        "implemented non-lumped backends.",
-        "Implement real 3D solvers + verification + outputs before any 3D claim."))
+        "THREE_D_LAYER_STATUS_CHECK", "3D transient layer status (forecast-only, not faked)",
+        "ALL (multiphysics)", "3D status == FORECAST_ONLY_IMPLEMENTED; introduces no PASS gates",
+        future3d_status, "FORECAST_ONLY_IMPLEMENTED", "DERIVED_CHECK",
+        "The 3D transient layer is implemented only as an additive forecast-only / "
+        "benchmark-numerical validation layer (reduced CI mesh; reduction-checked "
+        "against the canonical 1D and 2D axisymmetric backends; energy-conserving "
+        "deposition; deterministic). It is not hardware-validated, not COMSOL, not "
+        "measured in-system, and introduces no PASS gates. 1D (canonical) and 2D "
+        "axisymmetric remain the gate authority.",
+        "In-system measurements would be required before any 3D physical claim."))
 
     # ----- model-forecast CONDITIONAL gates -----
     specs.append(_g(

@@ -1,39 +1,72 @@
-"""3D multiphysics: FUTURE_WORK / NOT_IMPLEMENTED.
+"""Status module for the 3D transient layer.
 
-This module is deliberately NOT a working solver. It exists to (a) document the
-intended 3D architecture and (b) make the deferral explicit and machine-checkable.
-Calling the solver raises NotImplementedError. The THREE_D_FUTURE_WORK_CHECK gate
-reads STATUS from here; it is a DERIVED_CHECK, never a PASS, and 3D is excluded
-from all physical gates in this pass.
+MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+
+The 3D transient layer is implemented only as an additive forecast-only /
+benchmark-numerical validation layer (``mesh_3d``, ``thermal_3d_transient``,
+``laser_source_3d``, ``boundaries_3d``, ``energy_accounting_3d``,
+``reduction_checks_3d``, ``verification_3d``, ``mode_sequence_3d`` and the
+forecast hooks). It is not hardware-validated, not COMSOL, not measured
+in-system, and introduces no PASS gates. The canonical 1D and 2D axisymmetric
+backends remain the gate authority; the 3D layer is reduction-checked against
+them at reduced CI resolution. The THREE_D_LAYER_STATUS_CHECK gate records this
+status as a DERIVED_CHECK (never PASS).
 """
 from __future__ import annotations
 
-STATUS = "FUTURE_WORK"          # one of the allowed evidence labels
-IMPLEMENTED = False
+STATUS = "FORECAST_ONLY_IMPLEMENTED"
+IMPLEMENTED = True
 
-PLANNED_ARCHITECTURE = {
-    "thermal_3d": "T(x,y,z,t) full anisotropic conduction; FV on a 3D grid; "
-                  "method-of-lines + sparse stiff integrator. NOT_IMPLEMENTED.",
-    "gas_transport_3d": "3D advection-diffusion in the process volume. NOT_IMPLEMENTED.",
-    "surface_coverage_3d": "Coverage on a 2D surface manifold with 3D flux. NOT_IMPLEMENTED.",
-    "grid_3d": "StructuredGrid3D (x,y,z) with face areas and cell volumes. NOT_IMPLEMENTED.",
-    "verification_3d": "3D mesh convergence, symmetry, 3D->2D reduction. NOT_IMPLEMENTED.",
-}
+CLAIM_BOUNDARY = (
+    "3D transient layer is implemented only as an additive forecast-only / "
+    "benchmark-numerical validation layer. It is not hardware-validated, not "
+    "COMSOL, not measured in-system, and introduces no PASS gates.")
+
+IMPLEMENTED_COMPONENTS = (
+    "structured graded 3D finite-volume mesh (mesh_3d)",
+    "transient 3D heat equation, BDF method-of-lines (thermal_3d_transient)",
+    "exactly-conservative volumetric fs-laser source (laser_source_3d)",
+    "insulated-front / adiabatic-lateral / Kapitza-radiative-back boundaries (boundaries_3d)",
+    "energy-accounting closure (energy_accounting_3d)",
+    "3D->1D and 3D->2D reduction checks (reduction_checks_3d)",
+    "numerical verification suite (verification_3d)",
+    "Mode B->C->D sequencing with species safety (mode_sequence_3d)",
+    "forecast-only hooks: cryo stack registry, species transport, surface "
+    "coverage, radiation/vibration/microwave budgets",
+)
+
+NOT_IMPLEMENTED_COMPONENTS = (
+    "per-region 3D material property sets",
+    "C-13 methane 3D deposition footprint (no inlet geometry parameterized)",
+    "3D radiative view factors",
+    "3D modal analysis",
+    "3D microwave field/SAR map",
+    "LN2 precooling / standalone Joule-Thomson / nuclear demagnetization / "
+    "gas-gap heat switch (architecture-registry entries only)",
+)
 
 
 def thermal_3d(*args, **kwargs):
-    raise NotImplementedError(
-        "3D thermal solver is FUTURE_WORK / NOT_IMPLEMENTED. The 1D (canonical) "
-        "and 2D axisymmetric backends are the implemented non-lumped models in "
-        "this pass. 3D will be added only with real code, verification, and "
-        "outputs.")
+    """Delegates to the implemented reduced 3D transient solver.
+
+    Forecast-only / benchmark-numerical; never a hardware claim.
+    """
+    from .thermal_3d_transient import solve_thermal_3d
+    from .config import default_config
+    if not args and "cfg" not in kwargs:
+        args = (default_config(),)
+    return solve_thermal_3d(*args, **kwargs)
 
 
-def status_report():
+def status_report() -> dict:
     return {
-        "module": "future_3d",
         "status": STATUS,
         "implemented": IMPLEMENTED,
-        "planned_architecture": PLANNED_ARCHITECTURE,
-        "note": "3D is not claimed and is excluded from all physical gates.",
+        "claim_boundary": CLAIM_BOUNDARY,
+        "implemented_components": list(IMPLEMENTED_COMPONENTS),
+        "not_implemented_components": list(NOT_IMPLEMENTED_COMPONENTS),
+        "measured_in_this_system": False,
+        "can_PASS_now": "NO",
+        "hardware_validated": False,
+        "external_solver": "none (NumPy/SciPy only; no COMSOL)",
     }

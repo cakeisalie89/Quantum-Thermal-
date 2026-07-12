@@ -18,8 +18,7 @@ import numpy as np
 
 from .config import default_config
 from .thermal_1d import solve_thermal_1d
-
-K_B = 1.380649e-23
+from .units import K_B
 
 
 def _pct(a, p):
