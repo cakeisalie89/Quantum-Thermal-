@@ -1,0 +1,36 @@
+{
+  "meaning": "numerical verification only (solution-change under mesh refinement and tightened time integration); never validation, never a hardware statement",
+  "mesh_check": {
+    "meshes": [
+      "10x10x12",
+      "14x14x18"
+    ],
+    "target": "NV-layer probe temperature at t_end (K); peak T (K)",
+    "probe_CI_K": 13.73015219488708,
+    "probe_refined_K": 13.807579799706557,
+    "probe_rel_change": 0.005607615957513691,
+    "hotspot_CI_K": 13.73015219488708,
+    "hotspot_refined_K": 13.807579799706557,
+    "hotspot_rel_change": 0.005607615957513691,
+    "tolerance": 0.1,
+    "status": "DERIVED_CHECK"
+  },
+  "time_integration_check": {
+    "method": "implicit BDF (adaptive); tightened rtol x0.1",
+    "base_rtol": 1e-06,
+    "tightened_rtol": 1e-07,
+    "max_step_note": "max_step = t_end/20 (solver-internal)",
+    "target": "NV-layer probe temperature at t_end (K)",
+    "probe_base_K": 13.73015219488708,
+    "probe_tightened_K": 13.73015219488708,
+    "rel_change": 0.0,
+    "tolerance": 0.001,
+    "status": "DERIVED_CHECK",
+    "stability_note": "implicit BDF; no CFL-limited explicit stepping"
+  },
+  "statuses_allowed": [
+    "DERIVED_CHECK",
+    "CONDITIONAL"
+  ],
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

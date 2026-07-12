@@ -1,0 +1,20 @@
+{
+  "channel": "laser_deposition",
+  "status": "IMPLEMENTED",
+  "active": true,
+  "temporal_mode": "averaged",
+  "temporal_note": "averaged mode = time-averaged deposition approximation of the fs pulse train (stated approximation); pulse-envelope mode available",
+  "captured_fraction_in_box": 1.0,
+  "captured_power_W_at_t0": 0.0003,
+  "fraction_in_nv_layer": 0.5504238243143564,
+  "fraction_in_bulk": 0.4495761756856436,
+  "conservation": "cell-integrated (erf x/y, Beer-Lambert z); discrete sum equals analytic captured fraction to machine precision",
+  "ultrafast_note": "no electron-phonon nonequilibrium model is implemented or claimed",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+  "optical_collection_path": {
+    "channel": "optical_collection_path_load",
+    "status": "NOT_IMPLEMENTED",
+    "reason": "no repository parameterization of collection-path absorption exists; the implemented optical channel is the exactly-conservative laser deposition in the thermal core",
+    "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+  }
+}

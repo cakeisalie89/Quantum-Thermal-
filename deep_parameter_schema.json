@@ -1,0 +1,222 @@
+{
+  "labels": {
+    "forecast_only": true,
+    "measured_in_this_system": false,
+    "not_measured_in_this_system": true,
+    "simulation_generated": true
+  },
+  "latent_parameters": [
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": true,
+      "name": "tau_c",
+      "prior_family": "uniform",
+      "prior_parameters": {
+        "high": -2.0,
+        "low": -6.0,
+        "space": "transformed"
+      },
+      "source": "qta_multiphysics.expdesign.model._PARAM_MODELS['tau_c']",
+      "source_required": false,
+      "transform": "log10",
+      "unit": "s",
+      "validity_range": [
+        1e-06,
+        0.01
+      ]
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": true,
+      "is_trainable": false,
+      "name": "B_rms",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": true,
+      "name": "he3_he4_contrast",
+      "prior_family": "uniform",
+      "prior_parameters": {
+        "high": 1.0,
+        "low": 0.0,
+        "space": "transformed"
+      },
+      "source": "qta_multiphysics.expdesign.model._PARAM_MODELS['he3_he4_contrast']",
+      "source_required": false,
+      "transform": "linear",
+      "unit": "fractional_decoherence_contrast",
+      "validity_range": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": false,
+      "name": "surface_spin_density",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": false,
+      "name": "he3_surface_coverage",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": false,
+      "name": "surface_diffusion_coefficient",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": false,
+      "name": "sticking_probability",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": true,
+      "is_trainable": false,
+      "name": "residence_time",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": false,
+      "name": "nv_depth",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": false,
+      "is_trainable": true,
+      "name": "nv_contrast_10mK",
+      "prior_family": "uniform",
+      "prior_parameters": {
+        "high": 0.3,
+        "low": 0.0,
+        "space": "transformed"
+      },
+      "source": "qta_multiphysics.expdesign.model._PARAM_MODELS['C_contr_10mK']",
+      "source_required": false,
+      "transform": "linear",
+      "unit": "dimensionless",
+      "validity_range": [
+        0.0,
+        0.3
+      ]
+    },
+    {
+      "evidence_status": "UNKNOWN",
+      "is_nuisance": true,
+      "is_trainable": false,
+      "name": "background_surface_spin_density",
+      "prior_family": "none",
+      "prior_parameters": {},
+      "source": "no defensible range in repository registries",
+      "source_required": true,
+      "transform": "linear",
+      "unit": "unknown",
+      "validity_range": null
+    },
+    {
+      "evidence_status": "ASSUMED",
+      "is_nuisance": false,
+      "is_trainable": true,
+      "name": "thermal_recovery_time",
+      "prior_family": "uniform",
+      "prior_parameters": {
+        "high": -5.0,
+        "low": -8.0,
+        "space": "transformed"
+      },
+      "source": "qta_multiphysics.expdesign.model._PARAM_MODELS['thermal_recovery_time']",
+      "source_required": false,
+      "transform": "log10",
+      "unit": "s",
+      "validity_range": [
+        1e-08,
+        9.999999999999999e-06
+      ]
+    },
+    {
+      "evidence_status": "ASSUMED",
+      "is_nuisance": false,
+      "is_trainable": true,
+      "name": "mode_isolation_leak",
+      "prior_family": "uniform",
+      "prior_parameters": {
+        "high": -1.0,
+        "low": -6.0,
+        "space": "transformed"
+      },
+      "source": "qta_multiphysics.expdesign.model._PARAM_MODELS['mode_isolation_leak']",
+      "source_required": false,
+      "transform": "log10",
+      "unit": "fraction",
+      "validity_range": [
+        1e-06,
+        0.1
+      ]
+    }
+  ],
+  "schema_version": "deep_expdesign/1.0.0",
+  "trainable": [
+    "tau_c",
+    "he3_he4_contrast",
+    "nv_contrast_10mK",
+    "thermal_recovery_time",
+    "mode_isolation_leak"
+  ]
+}

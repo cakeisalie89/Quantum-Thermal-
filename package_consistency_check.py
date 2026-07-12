@@ -10,7 +10,7 @@ Inspects PDF text via pdftotext.
 Exit code 0 only if every check passes. Any failure exits non-zero with
 a clear per-check report.
 """
-import os, sys, csv, json, re, hashlib, subprocess, shutil, builtins
+import sys, csv, json, re, hashlib, subprocess, shutil, builtins
 from collections import Counter
 from pathlib import Path
 
@@ -51,7 +51,7 @@ CANONICAL_EXPECTED = {
         "RESIDUAL_SPECIES_MODE_D_CHECK","SURFACE_COVERAGE_DECAY_CHECK",
         "MICROWAVE_HEATING_PROFILE_CHECK","RADIATION_VIEWFACTOR_CHECK",
         "VIBRATION_TRANSFER_CHECK","COUPLED_MODE_RECOVERY_CHECK",
-        "LUMPED_MODEL_RETIRED_CHECK","THREE_D_FUTURE_WORK_CHECK",
+        "LUMPED_MODEL_RETIRED_CHECK","THREE_D_LAYER_STATUS_CHECK",
     ],
     "all_can_PASS_now": "NO",
     "all_measured_in_this_system": "false",
@@ -198,6 +198,34 @@ else:
         fail("D9 = DERIVED_CHECK", f"got {d9[0]['status']}")
     else:
         ok("D9 = DERIVED_CHECK")
+
+# ---- Step 2b: stale-snapshot guard over the full deterministic output set ----
+# Every ROOT canonical output that the pipeline regenerates must be byte-identical
+# to the regeneration. The deep-layer readiness file is exempt by design: the ROOT
+# copy is the deep layer's authoritative record (e.g. TRAINED_NOT_TRUSTED), while
+# the direct expdesign engine emits a NOT_IMPLEMENTED stub in its own run directory.
+def regen_root_byte_drift(gen_dir, root_dir, exceptions=frozenset()):
+    """Names of regenerated files whose ROOT canonical copy exists but is not
+    byte-identical (stale committed snapshots)."""
+    drift = []
+    for p in sorted(gen_dir.iterdir()):
+        if not p.is_file() or p.name in exceptions:
+            continue
+        rootp = root_dir / p.name
+        if rootp.exists():
+            if hashlib.sha256(p.read_bytes()).hexdigest() != \
+               hashlib.sha256(rootp.read_bytes()).hexdigest():
+                drift.append(p.name)
+    return drift
+
+_REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
+_drift = regen_root_byte_drift(gen_outputs_dir, PKG, _REGEN_EXEMPT)
+if _drift:
+    fail("root canonical outputs byte-match the canonical regeneration",
+         f"stale root copies: {_drift[:8]}")
+else:
+    ok("root canonical outputs byte-match the canonical regeneration "
+       "(exempt by design: deep_surrogate_readiness.json)")
 
 # ===================== STEP 3: sim stdout stale audit ========================
 print()
@@ -350,7 +378,7 @@ else:
             if replacement not in ctx:
                 bad_refs.append(f"{deleted} at char {m.start()}: ...{ctx}...")
     if bad_refs:
-        fail(f"manuscript free of references to deleted files",
+        fail("manuscript free of references to deleted files",
              f"{len(bad_refs)} hits: {bad_refs[:2]}")
     else:
         ok("manuscript free of references to deleted source_audit.csv")
@@ -971,7 +999,7 @@ STALE_PATTERNS_8E = [
     (r"RTB\s+unlocks\s+PASS", "RTB unlocks PASS"),
     (r"JT\s+unlocks\s+PASS", "JT unlocks PASS"),
     (r"RTB[/ ]?JT\s+unlocks\s+PASS", "RTB/JT unlocks PASS"),
-    # Stale gate-count strings from pass 8 (now superseded by pass 10: 63/0/39/21)
+    # Stale legacy 62-gate-count strings guarded against (canonical gate count is 83)
     (r"\b62\s+explicit\s+decision\s+gates", "62 explicit decision gates"),
     (r"\b62\s+unique\s+gate_id\s+rows", "62 unique gate_id rows"),
     (r"All\s+62\s+gates", "All 62 gates"),
@@ -1589,21 +1617,127 @@ if mp_missing:
 else:
     ok(f"multiphysics: all {len(MP_REQUIRED_OUTPUTS)} declared outputs exist")
 
-# (a) package imports and 3D is FUTURE_WORK / NOT_IMPLEMENTED (not faked)
+# (a) package imports and the 3D layer is FORECAST_ONLY_IMPLEMENTED (not faked,
+#     not hardware): status module, canonical outputs, readiness claims,
+#     reduction/verification statuses, and a no-PASS token scan. Byte-level
+#     determinism of the 3D outputs is enforced by Step 2b like every other
+#     regenerated canonical output.
+THREE_D_OUTPUTS = [
+    "mesh_3d_summary.json", "thermal_3d_probe_timeseries.csv",
+    "thermal_3d_hotspots.csv", "thermal_3d_energy_accounting.csv",
+    "thermal_3d_reduction_check.json", "thermal_3d_verification_report.json",
+    "cryo_stack_3d_budget.csv", "species_transport_3d_summary.json",
+    "surface_coverage_3d_summary.csv", "mode_recovery_3d_timeline.csv",
+    "radiation_paths_3d_budget.csv", "vibration_paths_3d_budget.csv",
+    "microwave_heating_3d_budget.csv", "thermal_3d_readiness.json",
+    # coupled-layer outputs
+    "coupling_ledger_3d.json", "species_accounting_3d.csv",
+    "falsification_report_3d.json", "convergence_report_3d.json",
+    "sensitivity_ranking_3d.csv", "nv_eligibility_3d.json",
+    "assumptions_3d.json", "provenance_3d.json",
+    "laser_3d_deposition_summary.json",
+    # machine FSM (operational controller)
+    "machine_fsm_states.csv", "machine_fsm_transitions.csv",
+    "machine_fsm_interlocks.csv", "machine_fsm_lifecycle_trace.csv",
+    "machine_fsm_summary.json", "machine_fsm_diagram.mmd",
+]
 try:
     import importlib
     f3 = importlib.import_module("qta_multiphysics.future_3d")
-    if getattr(f3, "IMPLEMENTED", True) is not False or getattr(f3, "STATUS", "") != "FUTURE_WORK":
-        fail("multiphysics: 3D is FUTURE_WORK/NOT_IMPLEMENTED", f"status={getattr(f3,'STATUS',None)}")
+    if getattr(f3, "IMPLEMENTED", False) is not True or \
+            getattr(f3, "STATUS", "") != "FORECAST_ONLY_IMPLEMENTED":
+        fail("multiphysics: 3D layer status", f"status={getattr(f3,'STATUS',None)} "
+             f"implemented={getattr(f3,'IMPLEMENTED',None)}")
     else:
-        ok("multiphysics: 3D explicitly FUTURE_WORK / NOT_IMPLEMENTED (not faked)")
-    try:
-        f3.thermal_3d()
-        fail("multiphysics: 3D solver refuses to run", "thermal_3d() did not raise")
-    except NotImplementedError:
-        ok("multiphysics: 3D solver raises NotImplementedError (no fake 3D)")
-    except Exception as _e:
-        fail("multiphysics: 3D solver refuses to run", f"unexpected error {_e}")
+        ok("multiphysics: 3D layer FORECAST_ONLY_IMPLEMENTED (forecast-only, not faked)")
+    _m3 = [n for n in THREE_D_OUTPUTS if not (PKG / n).exists()]
+    if _m3:
+        fail("multiphysics: canonical 3D outputs exist", f"missing: {_m3}")
+    else:
+        ok(f"multiphysics: all {len(THREE_D_OUTPUTS)} canonical 3D outputs exist")
+        _rd = json.loads((PKG / "thermal_3d_readiness.json").read_text())
+        _claims_ok = (_rd.get("status") == "FORECAST_ONLY_IMPLEMENTED"
+                      and _rd.get("measured_in_this_system") is False
+                      and _rd.get("can_PASS_now") == "NO"
+                      and _rd.get("hardware_validated") is False
+                      and "no COMSOL" in _rd.get("external_solver", ""))
+        if _claims_ok:
+            ok("multiphysics: 3D readiness claims (forecast-only, measured=false, "
+               "can_PASS_now=NO, no hardware, no COMSOL)")
+        else:
+            fail("multiphysics: 3D readiness claims", f"got {_rd}")
+        _allowed = {"DERIVED_CHECK", "CONDITIONAL"}
+        _st = set()
+        for _n in ("thermal_3d_reduction_check.json",
+                   "thermal_3d_verification_report.json"):
+            for _c in json.loads((PKG / _n).read_text()).get("checks", []):
+                _st.add(_c.get("status"))
+        if _st and _st <= _allowed:
+            ok(f"multiphysics: 3D check statuses within {sorted(_allowed)} (never PASS)")
+        else:
+            fail("multiphysics: 3D check statuses", f"got {sorted(_st)}")
+        _tok = []
+        for _n in THREE_D_OUTPUTS:
+            _txt = (PKG / _n).read_text()
+            if '"PASS"' in _txt or ",PASS," in _txt:
+                _tok.append(_n)
+        if _tok:
+            fail("multiphysics: no PASS tokens in 3D outputs", f"found in {_tok}")
+        else:
+            ok("multiphysics: no PASS tokens in any 3D output")
+        # coupled-layer honesty assertions
+        _vocab = {"IMPLEMENTED", "REDUCED_ORDER", "BOUNDED_FORECAST",
+                  "SCAFFOLD", "NOT_IMPLEMENTED"}
+        _led = json.loads((PKG / "coupling_ledger_3d.json").read_text())
+        _bad = sorted({e["status"] for e in _led["couplings"]} - _vocab)
+        if _bad:
+            fail("multiphysics: coupling-ledger status vocabulary",
+                 f"disallowed: {_bad}")
+        else:
+            ok(f"multiphysics: coupling ledger ({len(_led['couplings'])} arrows) "
+               "uses only the honesty vocabulary")
+        _fal = json.loads((PKG / "falsification_report_3d.json").read_text())
+        _fst = {c["status"] for c in _fal["conditions"]}
+        _eli = json.loads((PKG / "nv_eligibility_3d.json").read_text())
+        _ok_f = _fst <= {"DERIVED_CHECK", "CONDITIONAL", "NOT_IMPLEMENTED"}
+        _ok_e = (_eli.get("eligibility_forecast") in ("CONDITIONAL", "BLOCKED",
+                                                      "UNKNOWN")
+                 and _eli.get("can_PASS_now") == "NO"
+                 and _eli.get("measured_in_this_system") is False)
+        if _ok_f and _ok_e:
+            ok("multiphysics: falsification statuses + NV eligibility remain "
+               "forecast-only (never PASS)")
+        else:
+            fail("multiphysics: falsification/eligibility honesty",
+                 f"falsification statuses {sorted(_fst)}, eligibility "
+                 f"{_eli.get('eligibility_forecast')}")
+        # machine-FSM structural + enforcement assertions
+        from qta_multiphysics import machine_fsm as _mf
+        _names = {st.name for st in _mf.STATES}
+        _al = {(t["from"], t["to"]) for t in _mf.TRANSITIONS}
+        _fb = {(a, b) for a, b, _, _ in _mf.FORBIDDEN}
+        _closed = all(a in _names and b in _names for a, b in (_al | _fb))
+        _msum = json.loads((PKG / "machine_fsm_summary.json").read_text())
+        _enf = True
+        for _src, _dst in (("MODE_B_PROCESS", "MODE_D_SENSE"),
+                           ("MODE_A_BASELINE", "MODE_D_SENSE")):
+            try:
+                _mf.MachineFSM(_src).request(_dst, {})
+                _enf = False
+            except _mf.TransitionRefused:
+                pass
+        if (_closed and not (_al & _fb) and _enf
+                and _msum.get("final_state") in _names
+                and _msum.get("can_PASS_now") == "NO"
+                and _msum.get("measured_in_this_system") is False):
+            ok(f"multiphysics: machine FSM ({_msum['n_states']} states, "
+               f"{_msum['n_transitions_allowed']}+{_msum['n_transitions_forbidden']} "
+               f"transitions, {_msum['n_interlocks']} interlocks) closed, "
+               "disjoint, enforcement live, forecast-only")
+        else:
+            fail("multiphysics: machine FSM structure/enforcement",
+                 f"closed={_closed} overlap={sorted(_al & _fb)} enforced={_enf} "
+                 f"summary={_msum.get('final_state')}")
 except Exception as e:
     fail("multiphysics: package import", str(e))
 
@@ -1701,7 +1835,7 @@ try:
               "RESIDUAL_SPECIES_MODE_D_CHECK", "SURFACE_COVERAGE_DECAY_CHECK",
               "MICROWAVE_HEATING_PROFILE_CHECK", "RADIATION_VIEWFACTOR_CHECK",
               "VIBRATION_TRANSFER_CHECK", "COUPLED_MODE_RECOVERY_CHECK",
-              "LUMPED_MODEL_RETIRED_CHECK", "THREE_D_FUTURE_WORK_CHECK"}
+              "LUMPED_MODEL_RETIRED_CHECK", "THREE_D_LAYER_STATUS_CHECK"}
     present = set(r["gate_id"] for r in gt)
     miss = mp_ids - present
     bad_status = [r["gate_id"] for r in gt if r["gate_id"] in mp_ids and r["status"] not in
@@ -1806,15 +1940,22 @@ if dv.exists():
     else:
         ok("design validation: zero ERROR findings on canonical design (validator live)")
 
-# (d) deep surrogate honestly NOT_IMPLEMENTED and not controlling ordering
+# (d) deep surrogate fail-closed: only a VALIDATED_SURROGATE may control ordering
 ds = PKG / "deep_surrogate_readiness.json"
 if ds.exists():
     d = json.load(open(ds, encoding="utf-8"))
-    if d.get("status") != "NOT_IMPLEMENTED" or d.get("controls_experiment_ordering") is not False:
-        fail("deep surrogate is NOT_IMPLEMENTED and does not control ordering",
-             f"status={d.get('status')} controls={d.get('controls_experiment_ordering')}")
+    _FAILCLOSED_DEEP = {"NOT_IMPLEMENTED", "DATASET_GENERATED", "TRAINED_NOT_VALIDATED",
+                        "TRAINED_NOT_TRUSTED", "OUT_OF_DISTRIBUTION", "FALLBACK_DIRECT_MC"}
+    _st = d.get("status"); _ctl = d.get("controls_experiment_ordering")
+    _trusted_ok = (_st == "VALIDATED_SURROGATE" and _ctl is True)
+    _failclosed_ok = (_st in _FAILCLOSED_DEEP and _ctl is False
+                      and d.get("fallback") == "direct_monte_carlo")
+    if not (_trusted_ok or _failclosed_ok):
+        fail("deep surrogate fail-closed (controls ordering only if VALIDATED_SURROGATE)",
+             f"status={_st} controls={_ctl} fallback={d.get('fallback')}")
     else:
-        ok("deep surrogate: NOT_IMPLEMENTED, fallback to direct MC, not controlling ordering")
+        ok(f"deep surrogate: status={_st}, controls_ordering={_ctl} "
+           f"(fail-closed unless validated; fallback direct MC)")
 
 # (e) Bayesian summary: direct-MC estimator, forecast-only, no PASS
 bs = PKG / "bayesian_design_summary.json"
@@ -1835,6 +1976,76 @@ if isum.exists():
              f"no_pass={s.get('no_pass_gate_states')} forecast_only={s.get('forecast_only')}")
     else:
         ok("integrated layers: forecast-only, no PASS gate states, Mode-C-gated Mode D")
+
+
+# ===================== Step 14: deep SBI experimental-design layer ============
+print()
+print("Step 14: deep SBI layer — outputs present, fail-closed trust gating, "
+      "direct-MC comparison, transparent policy, no PASS / no measured")
+
+_DEEP_OUTPUTS = [
+    "deep_parameter_schema.json", "deep_design_schema.json", "deep_training_config.json",
+    "deep_dataset_summary.json", "deep_dataset_hash.txt", "deep_training_history.csv",
+    "deep_model_manifest.json", "deep_posterior_summary.json", "deep_posterior_samples.csv",
+    "deep_posterior_calibration.csv", "deep_eig_validation.csv", "deep_ranking_comparison.csv",
+    "deep_ood_report.json", "deep_adaptive_policy.json", "deep_surrogate_readiness.json",
+    "deep_expdesign_summary.json",
+]
+_deep_present = [f for f in _DEEP_OUTPUTS if (PKG / f).exists()]
+if len(_deep_present) == len(_DEEP_OUTPUTS):
+    ok(f"deep layer: all {len(_DEEP_OUTPUTS)} canonical outputs present")
+elif _deep_present:
+    fail("deep layer: all canonical outputs present",
+         f"missing: {[f for f in _DEEP_OUTPUTS if f not in _deep_present]}")
+# only run the remaining deep checks if the layer's outputs exist
+if "deep_surrogate_readiness.json" in _deep_present:
+    _dr = json.load(open(PKG / "deep_surrogate_readiness.json", encoding="utf-8"))
+    # trust gating consistency
+    if _dr.get("status") == "VALIDATED_SURROGATE":
+        if _dr.get("controls_experiment_ordering") is not True:
+            fail("deep readiness trust gating consistent", "VALIDATED but not controlling")
+        else:
+            ok("deep readiness: VALIDATED_SURROGATE controls ordering")
+    else:
+        if _dr.get("controls_experiment_ordering") is not False or \
+           _dr.get("fallback") != "direct_monte_carlo":
+            fail("deep readiness fail-closed", f"status={_dr.get('status')}")
+        else:
+            ok(f"deep readiness: {_dr.get('status')} — not controlling, fallback direct MC")
+    if _dr.get("measured_in_this_system") is not False:
+        fail("deep readiness: measured_in_this_system false", "measured=true")
+    # EIG validation has the direct-MC reference column
+    _ev = PKG / "deep_eig_validation.csv"
+    if _ev.exists():
+        _hdr = _ev.read_text().splitlines()[0]
+        if "eig_direct_mc_nats" in _hdr and "eig_deep_nats" in _hdr:
+            ok("deep EIG validation: compared against direct nested-MC reference")
+        else:
+            fail("deep EIG validation has direct-MC reference column", _hdr)
+    # transparent policy + eig_source consistent with trust
+    _ap = PKG / "deep_adaptive_policy.json"
+    if _ap.exists():
+        _p = json.load(open(_ap, encoding="utf-8"))
+        _src_ok = (_p.get("eig_source") == "deep_surrogate") if _dr.get(
+            "controls_experiment_ordering") else (_p.get("eig_source") == "direct_monte_carlo")
+        _has_components = bool(_p.get("ranking")) and "weights" in _p
+        if _src_ok and _has_components:
+            ok("deep policy: transparent components; EIG source consistent with trust state")
+        else:
+            fail("deep policy transparent + EIG source consistent",
+                 f"eig_source={_p.get('eig_source')} has_components={_has_components}")
+    # no PASS / no measured across all deep JSON outputs
+    _deep_bad = []
+    for _f in _DEEP_OUTPUTS:
+        _p2 = PKG / _f
+        if _p2.exists() and _f.endswith(".json"):
+            _txt = _p2.read_text()
+            if '"PASS"' in _txt or '"measured_in_this_system": true' in _txt.lower():
+                _deep_bad.append(_f)
+    if _deep_bad:
+        fail("deep outputs: no PASS state / no measured_in_this_system=true", f"{_deep_bad}")
+    else:
+        ok("deep outputs: no PASS state, no measured_in_this_system=true")
 
 
 # ===================== FINAL VERDICT =========================================

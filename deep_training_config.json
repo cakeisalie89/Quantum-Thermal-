@@ -1,0 +1,40 @@
+{
+  "backend": "numpy_cpu",
+  "backend_reason": "CPU-only torch wheel index (download.pytorch.org) is blocked in this sandbox and the pypi torch wheel bundles CUDA; using the directive-allowed reproducible-CPU neural density estimator implemented in NumPy/SciPy.",
+  "deterministic": true,
+  "device": "cpu",
+  "dtype": "float64",
+  "eig_ref_batches": 3,
+  "eig_ref_inner": 200,
+  "eig_ref_outer": 200,
+  "hidden_units": 32,
+  "learning_rate": 0.005,
+  "master_seed": 20240601,
+  "n_benchmark_designs": 6,
+  "n_dataset": 256,
+  "n_mixture": 3,
+  "n_repeat_seeds": 2,
+  "ood_mahalanobis_factor": 1.5,
+  "ood_quantile": 0.99,
+  "profile": "ci",
+  "sampler": "lhs",
+  "schema_version": "deep_expdesign/1.0.0",
+  "split_fractions": [
+    0.6,
+    0.2,
+    0.2
+  ],
+  "thresholds": {
+    "max_calibration_error": 0.1,
+    "max_max_abs_eig_error_nats": 0.15,
+    "max_mean_abs_eig_error_nats": 0.05,
+    "max_normalized_eig_error": 1.0,
+    "max_repeat_seed_eig_std_nats": 0.02,
+    "min_posterior_coverage_90": 0.8,
+    "min_spearman_rank_corr": 0.95,
+    "min_top1_agreement": 1.0,
+    "min_top3_agreement": 0.66
+  },
+  "train_steps": 800,
+  "weight_decay": 0.0001
+}

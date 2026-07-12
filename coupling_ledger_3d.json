@@ -1,0 +1,326 @@
+{
+  "couplings": [
+    {
+      "source_domain": "laser (fs, Gaussian x Beer-Lambert)",
+      "target_domain": "thermal field",
+      "quantity": "volumetric deposited power",
+      "units": "W per cell",
+      "direction": "one-way",
+      "scheme": "explicit precomputed cell-integrated fractions x P(t)",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "source-integral consistency (exact, rel 0.0) + energy closure",
+      "active_modes": "MODE_B",
+      "note": "time-averaged deposition approximation in 'averaged' mode (stated); pulse-envelope mode available",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "temperature field",
+      "target_domain": "material properties k(T), cp(T)",
+      "quantity": "conductivity / heat capacity",
+      "units": "W/m/K ; J/kg/K",
+      "direction": "two-way within the thermal solve",
+      "scheme": "monolithic (inside BDF rhs)",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "analytic diffusion-decay check + energy closure",
+      "active_modes": "ALL",
+      "note": "homogeneous canonical diamond model, identical to 1D/2D",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "temperature field",
+      "target_domain": "Kapitza-radiative back boundary",
+      "quantity": "back-face sink flux",
+      "units": "W/m^2",
+      "direction": "two-way within the thermal solve (nonlinear BC)",
+      "scheme": "monolithic (inside BDF rhs)",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "Kapitza sign check + energy closure",
+      "active_modes": "ALL",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "Mode B final field",
+      "target_domain": "Mode C initial condition",
+      "quantity": "temperature field hand-off",
+      "units": "K",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "mode-sequence handoff test",
+      "active_modes": "MODE_B->MODE_C",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "Mode C final state",
+      "target_domain": "Mode D readiness",
+      "quantity": "NV probe vs recovery threshold",
+      "units": "K",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "blocked-before-recovery test",
+      "active_modes": "MODE_C->MODE_D",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "temperature (NV plane)",
+      "target_domain": "surface coverage rates",
+      "quantity": "desorption/adsorption rate modulation",
+      "units": "1/s",
+      "direction": "one-way",
+      "scheme": "staggered (per-point canonical isotherm ODE)",
+      "status": "REDUCED_ORDER",
+      "conservation_or_check": "coverage boundedness + closed-form purge-decay test",
+      "active_modes": "MODE_C,MODE_D",
+      "note": "per-point ODE on the NV plane; not a surface PDE",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "He-3/He-4 dose flux",
+      "target_domain": "surface coverage",
+      "quantity": "incident molecular flux",
+      "units": "1/m^2/s",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "coverage boundedness (0<=theta<=1)",
+      "active_modes": "MODE_D",
+      "note": "canonical kinetic-flux law at the canonical dose condition",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "shutter/baffle state",
+      "target_domain": "radiative front-face load",
+      "quantity": "attenuated stage-chain heat load",
+      "units": "W",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "REDUCED_ORDER",
+      "conservation_or_check": "state-ordering check (open > closed) + energy closure covers the applied flux",
+      "active_modes": "ALL",
+      "note": "uniform front-face distribution; 3D view factors NOT_IMPLEMENTED",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "shutter/baffle state",
+      "target_domain": "molecular-beam exposure gating",
+      "quantity": "exposure allowed flag",
+      "units": "bool",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "closed-shutter -> no exposure test",
+      "active_modes": "MODE_B,MODE_D",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "microwave/ESR drive",
+      "target_domain": "thermal field (NV region)",
+      "quantity": "dissipated drive power",
+      "units": "W",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "REDUCED_ORDER",
+      "conservation_or_check": "zero-outside-Mode-D test + energy closure covers the map",
+      "active_modes": "MODE_D",
+      "note": "canonical line-model NV-region dissipation, uniform over region; 3D field/SAR map NOT_IMPLEMENTED",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "heat-switch state",
+      "target_domain": "MC<->4K stage conductance path",
+      "quantity": "state-dependent lumped leak",
+      "units": "W (G in W/K)",
+      "direction": "one-way (ledger)",
+      "scheme": "staggered stage-level",
+      "status": "REDUCED_ORDER",
+      "conservation_or_check": "conductance ordering + A1 bound forecast (OPEN states)",
+      "active_modes": "ALL",
+      "note": "DESIGN_SPECIFIED G_open/G_closed; not resolved inside the 3D sample field; gas-gap switch NOT_IMPLEMENTED",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "support geometry",
+      "target_domain": "parasitic conductive load",
+      "quantity": "support leakage",
+      "units": "W",
+      "direction": "-",
+      "scheme": "-",
+      "status": "SCAFFOLD",
+      "conservation_or_check": "registry entry only (cryo_stack_3d)",
+      "active_modes": "ALL",
+      "note": "no canonical support-conductance numbers exist; none invented",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "vibration spectrum",
+      "target_domain": "heating",
+      "quantity": "transfer-chain dissipated power",
+      "units": "W",
+      "direction": "one-way (ledger scalar)",
+      "scheme": "staggered",
+      "status": "BOUNDED_FORECAST",
+      "conservation_or_check": "ledger presence; no spatial claim",
+      "active_modes": "ALL",
+      "note": "3D modal analysis NOT_IMPLEMENTED",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "vibration amplitude",
+      "target_domain": "NV eligibility penalty",
+      "quantity": "NV-region amplitude vs Mode-D threshold",
+      "units": "m",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "eligibility blocking test (threshold from canonical chain)",
+      "active_modes": "MODE_D",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "optical collection path",
+      "target_domain": "heat load",
+      "quantity": "absorbed optical power",
+      "units": "W",
+      "direction": "-",
+      "scheme": "-",
+      "status": "NOT_IMPLEMENTED",
+      "conservation_or_check": "honest stub in sources_3d",
+      "active_modes": "MODE_D",
+      "note": "no repository parameterization; laser deposition is the implemented optical channel",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "temperature/species/loads",
+      "target_domain": "NV sensing eligibility forecast",
+      "quantity": "eligibility flags + reasons",
+      "units": "-",
+      "direction": "one-way",
+      "scheme": "staggered",
+      "status": "IMPLEMENTED",
+      "conservation_or_check": "eligibility test (never PASS; blocked/conditional/unknown only)",
+      "active_modes": "MODE_D",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "source_domain": "surface coverage",
+      "target_domain": "optical/boundary feedback",
+      "quantity": "absorption or boundary-state modification",
+      "units": "-",
+      "direction": "-",
+      "scheme": "-",
+      "status": "NOT_IMPLEMENTED",
+      "conservation_or_check": "-",
+      "active_modes": "-",
+      "note": "no validated coverage-to-optics model exists; none invented",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "summary": {
+    "n_couplings": 17,
+    "status_counts": {
+      "IMPLEMENTED": 9,
+      "REDUCED_ORDER": 4,
+      "SCAFFOLD": 1,
+      "BOUNDED_FORECAST": 1,
+      "NOT_IMPLEMENTED": 2
+    },
+    "allowed_statuses": [
+      "IMPLEMENTED",
+      "REDUCED_ORDER",
+      "BOUNDED_FORECAST",
+      "SCAFFOLD",
+      "NOT_IMPLEMENTED"
+    ],
+    "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+  },
+  "mode_device_states": [
+    {
+      "mode": "MODE_A",
+      "shutter_state": "closed",
+      "baffle_state": "engaged",
+      "laser_active": "false",
+      "microwave_active": "false",
+      "heat_switch_state": "CLOSED",
+      "active_species": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "mode": "MODE_B",
+      "shutter_state": "open",
+      "baffle_state": "engaged",
+      "laser_active": "true",
+      "microwave_active": "false",
+      "heat_switch_state": "OPEN",
+      "active_species": "C13_CH4",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "mode": "MODE_C",
+      "shutter_state": "closed",
+      "baffle_state": "engaged",
+      "laser_active": "false",
+      "microwave_active": "false",
+      "heat_switch_state": "CLOSED",
+      "active_species": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "mode": "MODE_D",
+      "shutter_state": "closed",
+      "baffle_state": "engaged",
+      "laser_active": "false",
+      "microwave_active": "true",
+      "heat_switch_state": "OPEN",
+      "active_species": "He3;He4",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "channel_activations_this_run": [
+    {
+      "channel": "radiative_front_face_load",
+      "status": "REDUCED_ORDER",
+      "approximation": "canonical stage-chain P_rad_to_10mK for the mode's shutter/baffle state applied as a uniform front-face flux; 3D view factors NOT_IMPLEMENTED",
+      "shutter_state": "open",
+      "baffle_state": "engaged",
+      "total_W": 1.4174518453895256e-21,
+      "front_area_m2": 6.400000000000001e-09,
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "channel": "radiative_front_face_load",
+      "status": "REDUCED_ORDER",
+      "approximation": "canonical stage-chain P_rad_to_10mK for the mode's shutter/baffle state applied as a uniform front-face flux; 3D view factors NOT_IMPLEMENTED",
+      "shutter_state": "closed",
+      "baffle_state": "engaged",
+      "total_W": 1.417451845389526e-24,
+      "front_area_m2": 6.400000000000001e-09,
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "channel": "microwave_esr_drive",
+      "status": "REDUCED_ORDER",
+      "approximation": "canonical line-model NV-region dissipation distributed uniformly over NV-layer cells; 3D field/SAR map NOT_IMPLEMENTED",
+      "active": true,
+      "total_W": 2.5118864315095795e-12,
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "channel": "radiative_front_face_load",
+      "status": "REDUCED_ORDER",
+      "approximation": "canonical stage-chain P_rad_to_10mK for the mode's shutter/baffle state applied as a uniform front-face flux; 3D view factors NOT_IMPLEMENTED",
+      "shutter_state": "closed",
+      "baffle_state": "engaged",
+      "total_W": 1.417451845389526e-24,
+      "front_area_m2": 6.400000000000001e-09,
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

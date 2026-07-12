@@ -1,0 +1,402 @@
+{
+  "design_families": [
+    {
+      "bias_field": 0.005,
+      "dosing_duration": 0.0,
+      "estimated_cost": 3.0,
+      "estimated_duration": 3.0,
+      "estimated_risk": 3.0,
+      "experiment_id": "EXP-A",
+      "gates_affected": [
+        "D12_G23",
+        "D13",
+        "D14"
+      ],
+      "hardware_requirements": "10 mK ODMR: laser + MW + optical collection",
+      "he3_coverage_target": 0.0,
+      "he4_coverage_target": 0.0,
+      "measurement_time": 0.001,
+      "mode": "D",
+      "nv_depth_class": "shallow",
+      "predecessors": [],
+      "pulse_sequence": "odmr",
+      "pulse_spacing": 1e-06,
+      "recovery_duration": 0.0,
+      "sequence_order": 8,
+      "surface_temperature": 0.01
+    },
+    {
+      "bias_field": 0.005,
+      "dosing_duration": 0.0,
+      "estimated_cost": 3.0,
+      "estimated_duration": 3.0,
+      "estimated_risk": 3.0,
+      "experiment_id": "EXP-B",
+      "gates_affected": [
+        "D11",
+        "D13"
+      ],
+      "hardware_requirements": "He-3/He-4 dosing + NV decoherence readout",
+      "he3_coverage_target": 1.0,
+      "he4_coverage_target": 0.0,
+      "measurement_time": 0.001,
+      "mode": "D",
+      "nv_depth_class": "shallow",
+      "predecessors": [
+        "EXP-A",
+        "EXP-C"
+      ],
+      "pulse_sequence": "ramsey",
+      "pulse_spacing": 1e-06,
+      "recovery_duration": 0.0,
+      "sequence_order": 8,
+      "surface_temperature": 0.01
+    },
+    {
+      "bias_field": 0.005,
+      "dosing_duration": 0.0,
+      "estimated_cost": 3.0,
+      "estimated_duration": 3.0,
+      "estimated_risk": 3.0,
+      "experiment_id": "EXP-C",
+      "gates_affected": [
+        "D13"
+      ],
+      "hardware_requirements": "NV decoherence sequence on 3He/diamond at 10 mK",
+      "he3_coverage_target": 1.0,
+      "he4_coverage_target": 0.0,
+      "measurement_time": 0.001,
+      "mode": "D",
+      "nv_depth_class": "shallow",
+      "predecessors": [
+        "EXP-A"
+      ],
+      "pulse_sequence": "hahn",
+      "pulse_spacing": 1e-06,
+      "recovery_duration": 0.0,
+      "sequence_order": 8,
+      "surface_temperature": 0.01
+    },
+    {
+      "bias_field": 0.005,
+      "dosing_duration": 0.0,
+      "estimated_cost": 2.0,
+      "estimated_duration": 2.0,
+      "estimated_risk": 2.0,
+      "experiment_id": "EXP-D",
+      "gates_affected": [
+        "B3",
+        "D10a",
+        "D10b",
+        "E04",
+        "H2"
+      ],
+      "hardware_requirements": "calibrated RGA (Faraday-cup corrected) after conditioning",
+      "he3_coverage_target": 0.0,
+      "he4_coverage_target": 0.0,
+      "measurement_time": 0.001,
+      "mode": "C",
+      "nv_depth_class": "shallow",
+      "predecessors": [],
+      "pulse_sequence": "none",
+      "pulse_spacing": 1e-06,
+      "recovery_duration": 0.0,
+      "sequence_order": 8,
+      "surface_temperature": 0.01
+    },
+    {
+      "bias_field": 0.005,
+      "dosing_duration": 0.0,
+      "estimated_cost": 2.0,
+      "estimated_duration": 2.0,
+      "estimated_risk": 2.0,
+      "experiment_id": "EXP-E",
+      "gates_affected": [
+        "D6",
+        "D7"
+      ],
+      "hardware_requirements": "pump-probe / fast thermometry after fs pulse",
+      "he3_coverage_target": 0.0,
+      "he4_coverage_target": 0.0,
+      "measurement_time": 0.001,
+      "mode": "D",
+      "nv_depth_class": "shallow",
+      "predecessors": [],
+      "pulse_sequence": "none",
+      "pulse_spacing": 1e-06,
+      "recovery_duration": 0.0,
+      "sequence_order": 8,
+      "surface_temperature": 0.01
+    },
+    {
+      "bias_field": 0.005,
+      "dosing_duration": 0.0,
+      "estimated_cost": 1.0,
+      "estimated_duration": 1.0,
+      "estimated_risk": 1.0,
+      "experiment_id": "EXP-F",
+      "gates_affected": [
+        "A10",
+        "A11",
+        "A14",
+        "A6",
+        "A7",
+        "IL-02",
+        "IL-14"
+      ],
+      "hardware_requirements": "witness coupon AFM/Raman/XPS + RGA",
+      "he3_coverage_target": 0.0,
+      "he4_coverage_target": 0.0,
+      "measurement_time": 0.001,
+      "mode": "C",
+      "nv_depth_class": "shallow",
+      "predecessors": [],
+      "pulse_sequence": "none",
+      "pulse_spacing": 1e-06,
+      "recovery_duration": 0.0,
+      "sequence_order": 8,
+      "surface_temperature": 0.01
+    }
+  ],
+  "design_variables": [
+    {
+      "description": "design family / id",
+      "domain": null,
+      "kind": "meta",
+      "name": "experiment_id",
+      "unit": ""
+    },
+    {
+      "description": "control/readout sequence",
+      "domain": [
+        "ramsey",
+        "hahn",
+        "xy8",
+        "odmr",
+        "rabi",
+        "lcvd",
+        "none"
+      ],
+      "kind": "categorical",
+      "name": "pulse_sequence",
+      "unit": ""
+    },
+    {
+      "description": "inter-pulse spacing",
+      "domain": [
+        1e-09,
+        0.01
+      ],
+      "kind": "continuous",
+      "name": "pulse_spacing",
+      "unit": "s"
+    },
+    {
+      "description": "number of pulses/order",
+      "domain": [
+        1,
+        256
+      ],
+      "kind": "continuous",
+      "name": "sequence_order",
+      "unit": "count"
+    },
+    {
+      "description": "total measurement time",
+      "domain": [
+        1e-06,
+        0.1
+      ],
+      "kind": "continuous",
+      "name": "measurement_time",
+      "unit": "s"
+    },
+    {
+      "description": "bias magnetic field",
+      "domain": [
+        0.0,
+        0.1
+      ],
+      "kind": "continuous",
+      "name": "bias_field",
+      "unit": "T"
+    },
+    {
+      "description": "surface temperature",
+      "domain": [
+        0.001,
+        4.0
+      ],
+      "kind": "continuous",
+      "name": "surface_temperature",
+      "unit": "K"
+    },
+    {
+      "description": "He-3 coverage target",
+      "domain": [
+        0.0,
+        3.0
+      ],
+      "kind": "continuous",
+      "name": "he3_coverage_target",
+      "unit": "monolayer"
+    },
+    {
+      "description": "He-4 coverage target",
+      "domain": [
+        0.0,
+        3.0
+      ],
+      "kind": "continuous",
+      "name": "he4_coverage_target",
+      "unit": "monolayer"
+    },
+    {
+      "description": "precursor/dosing duration",
+      "domain": [
+        0.0,
+        1000.0
+      ],
+      "kind": "continuous",
+      "name": "dosing_duration",
+      "unit": "s"
+    },
+    {
+      "description": "thermal recovery duration",
+      "domain": [
+        0.0,
+        1000.0
+      ],
+      "kind": "continuous",
+      "name": "recovery_duration",
+      "unit": "s"
+    },
+    {
+      "description": "NV depth class",
+      "domain": [
+        "shallow",
+        "mid",
+        "deep"
+      ],
+      "kind": "categorical",
+      "name": "nv_depth_class",
+      "unit": ""
+    },
+    {
+      "description": "operating mode",
+      "domain": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "kind": "mode",
+      "name": "mode",
+      "unit": ""
+    },
+    {
+      "description": "required hardware",
+      "domain": null,
+      "kind": "meta",
+      "name": "hardware_requirements",
+      "unit": ""
+    },
+    {
+      "description": "forecast cost",
+      "domain": [
+        0.0,
+        10.0
+      ],
+      "kind": "continuous",
+      "name": "estimated_cost",
+      "unit": "rel"
+    },
+    {
+      "description": "forecast duration",
+      "domain": [
+        0.0,
+        10.0
+      ],
+      "kind": "continuous",
+      "name": "estimated_duration",
+      "unit": "rel"
+    },
+    {
+      "description": "forecast risk",
+      "domain": [
+        0.0,
+        10.0
+      ],
+      "kind": "continuous",
+      "name": "estimated_risk",
+      "unit": "rel"
+    }
+  ],
+  "forbidden_simultaneous_states": [
+    {
+      "interlock_id": "IL-01",
+      "reason": "thermal: 250x overload",
+      "signals": [
+        "LCVD_on",
+        "sensing_on"
+      ]
+    },
+    {
+      "interlock_id": "IL-02",
+      "reason": "chemical: He-3 film in 2.6s",
+      "signals": [
+        "precursor_on",
+        "He3_dosing_on"
+      ]
+    },
+    {
+      "interlock_id": "IL-03",
+      "reason": "thermal: heats MC",
+      "signals": [
+        "LCVD_on",
+        "heat_switch_closed"
+      ]
+    },
+    {
+      "interlock_id": "IL-04",
+      "reason": "thermal: sample not at 10mK",
+      "signals": [
+        "sensing_on",
+        "heat_switch_open"
+      ]
+    },
+    {
+      "interlock_id": "IL-09",
+      "reason": "thermal+chemical",
+      "signals": [
+        "He3_present",
+        "LCVD_on"
+      ]
+    },
+    {
+      "interlock_id": "IL-10",
+      "reason": "CH4 poisons He-3",
+      "signals": [
+        "He3_present",
+        "precursor_on"
+      ]
+    },
+    {
+      "interlock_id": "IL-13",
+      "reason": "modes mutually exclusive",
+      "signals": [
+        "growth_on",
+        "He3_dosing_on"
+      ]
+    },
+    {
+      "interlock_id": "IL-14",
+      "reason": "He film blocks LCVD; corrupts surface chemistry; alters thermal transport",
+      "signals": [
+        "LCVD_on",
+        "helium_film_present"
+      ]
+    }
+  ],
+  "schema_version": "deep_expdesign/1.0.0"
+}

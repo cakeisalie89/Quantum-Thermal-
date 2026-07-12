@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 outputs/
+deep_runtime_profile.json
+outputs/deep_expdesign/

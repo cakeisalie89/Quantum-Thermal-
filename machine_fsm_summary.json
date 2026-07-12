@@ -1,0 +1,16 @@
+{
+  "final_state": "MODE_A_BASELINE",
+  "steps": 26,
+  "n_refused": 1,
+  "campaign_status": "SENSING_HOLD_ENTRY_REFUSED [IL-08]",
+  "sensing_refusal_consistency": "the D_SENSING_HOLD refusal (vibration amplitude above the canonical Mode-D threshold, IL-08) is the same model condition that blocks the NV eligibility forecast and keeps the canonical vibration gate CONDITIONAL -- an honest forecast result, not an error",
+  "n_states": 32,
+  "n_top_level": 11,
+  "n_transitions_allowed": 38,
+  "n_transitions_forbidden": 8,
+  "n_interlocks": 18,
+  "measured_in_this_system": false,
+  "can_PASS_now": "NO",
+  "claim_boundary": "operational control logic for a THEORETICAL machine and its simulation framework; forecast-only; zero PASS; no hardware validation",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

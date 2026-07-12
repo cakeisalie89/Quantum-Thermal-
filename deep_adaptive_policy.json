@@ -1,0 +1,116 @@
+{
+  "controls_experiment_ordering": false,
+  "eig_source": "direct_monte_carlo",
+  "explanation": "Selected BENCH-4: highest combined utility (0.600). EIG source = direct_monte_carlo (direct Monte Carlo (deep layer untrusted)). Dominant terms: EIG 0.350, criticality 0.150, falsification 0.100.",
+  "labels": {
+    "forecast_only": true,
+    "measured_in_this_system": false,
+    "not_measured_in_this_system": true,
+    "simulation_generated": true
+  },
+  "measured_in_this_system": false,
+  "no_pass_states_created": true,
+  "ranking": [
+    {
+      "components": {
+        "cost_normalized": 0.5,
+        "criticality": 0.6,
+        "dependency": 0.5,
+        "duration_normalized": 0.5,
+        "eig_normalized": 1.0,
+        "eig_raw": 38.738171203921546,
+        "falsification": 0.5,
+        "risk_normalized": 0.5
+      },
+      "experiment_id": "BENCH-4",
+      "rank": 1,
+      "utility": 0.6
+    },
+    {
+      "components": {
+        "cost_normalized": 0.5,
+        "criticality": 0.6,
+        "dependency": 0.5,
+        "duration_normalized": 0.5,
+        "eig_normalized": 0.6416457835526725,
+        "eig_raw": 31.495091394508723,
+        "falsification": 0.5,
+        "risk_normalized": 0.5
+      },
+      "experiment_id": "BENCH-3",
+      "rank": 2,
+      "utility": 0.47457602424343537
+    },
+    {
+      "components": {
+        "cost_normalized": 0.5,
+        "criticality": 0.6,
+        "dependency": 0.5,
+        "duration_normalized": 0.5,
+        "eig_normalized": 0.6270545633833879,
+        "eig_raw": 31.200172659491198,
+        "falsification": 0.5,
+        "risk_normalized": 0.5
+      },
+      "experiment_id": "BENCH-2",
+      "rank": 3,
+      "utility": 0.4694690971841857
+    },
+    {
+      "components": {
+        "cost_normalized": 0.5,
+        "criticality": 0.6,
+        "dependency": 0.5,
+        "duration_normalized": 0.5,
+        "eig_normalized": 0.49504260759494345,
+        "eig_raw": 28.531938025469742,
+        "falsification": 0.5,
+        "risk_normalized": 0.5
+      },
+      "experiment_id": "BENCH-5",
+      "rank": 4,
+      "utility": 0.42326491265823013
+    },
+    {
+      "components": {
+        "cost_normalized": 0.5,
+        "criticality": 0.6,
+        "dependency": 0.5,
+        "duration_normalized": 0.5,
+        "eig_normalized": 0.008324934643901036,
+        "eig_raw": 18.69436729786465,
+        "falsification": 0.5,
+        "risk_normalized": 0.5
+      },
+      "experiment_id": "BENCH-1",
+      "rank": 5,
+      "utility": 0.2529137271253653
+    },
+    {
+      "components": {
+        "cost_normalized": 0.5,
+        "criticality": 0.6,
+        "dependency": 0.5,
+        "duration_normalized": 0.5,
+        "eig_normalized": 0.0,
+        "eig_raw": 18.52610315231696,
+        "falsification": 0.5,
+        "risk_normalized": 0.5
+      },
+      "experiment_id": "BENCH-6",
+      "rank": 6,
+      "utility": 0.24999999999999994
+    }
+  ],
+  "schema_version": "deep_expdesign/1.0.0",
+  "selected": "BENCH-4",
+  "weights": {
+    "cost": 0.05,
+    "criticality": 0.25,
+    "dependency": 0.1,
+    "duration": 0.03,
+    "eig": 0.35,
+    "falsification": 0.2,
+    "risk": 0.02
+  }
+}

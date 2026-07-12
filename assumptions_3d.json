@@ -1,0 +1,120 @@
+{
+  "parameters": {
+    "laser.absorbed_fraction": {
+      "value": 0.3,
+      "units": "-",
+      "provenance": "ASSUMED",
+      "note": ""
+    },
+    "laser.spot_radius_m": {
+      "value": 5e-06,
+      "units": "m",
+      "provenance": "DESIGN",
+      "note": ""
+    },
+    "laser.absorption_coeff_1_m": {
+      "value": 1000000.0,
+      "units": "1/m",
+      "provenance": "ASSUMED (Beer-Lambert)",
+      "note": ""
+    },
+    "fridge.T_fridge_K": {
+      "value": 0.01,
+      "units": "K",
+      "provenance": "DESIGN",
+      "note": ""
+    },
+    "fridge.kapitza_coeff_W_m2_K4": {
+      "value": 50.0,
+      "units": "W/m^2/K^4",
+      "provenance": "ASSUMED (radiative Kapitza form)",
+      "note": ""
+    },
+    "heat_switch.G_open_W_K": {
+      "value": 1e-08,
+      "units": "W/K",
+      "provenance": "DESIGN_SPECIFIED (gate A1)",
+      "note": "design target; not measured"
+    },
+    "heat_switch.G_closed_W_K": {
+      "value": 1e-05,
+      "units": "W/K",
+      "provenance": "DESIGN_SPECIFIED (validation plan)",
+      "note": ""
+    },
+    "heat_switch.T_4K_stage_K": {
+      "value": 4.0,
+      "units": "K",
+      "provenance": "DESIGN (canonical stage chain)",
+      "note": ""
+    },
+    "heat_switch.A1_leak_bound_W": {
+      "value": 2e-06,
+      "units": "W",
+      "provenance": "DERIVED (1% of P_cool_MC)",
+      "note": ""
+    },
+    "species.P_he_dose_Pa": {
+      "value": 1e-06,
+      "units": "Pa",
+      "provenance": "DESIGN (canonical dose, D9)",
+      "note": ""
+    },
+    "species.P_c13_work_Pa": {
+      "value": 0.0001,
+      "units": "Pa",
+      "provenance": "DESIGN (Mode-B working pressure)",
+      "note": ""
+    },
+    "species.purge_window_s": {
+      "value": 2.0,
+      "units": "s",
+      "provenance": "DESIGN (canonical 1D-layer window)",
+      "note": ""
+    },
+    "species.purge_rate_1_s": {
+      "value": 5.0,
+      "units": "1/s",
+      "provenance": "ASSUMED (canonical 1D-layer value)",
+      "note": ""
+    },
+    "species.dose_window_s": {
+      "value": 1.0,
+      "units": "s",
+      "provenance": "DESIGN (canonical 1D-layer window)",
+      "note": ""
+    },
+    "species.theta0_worst_case": {
+      "value": 1.0,
+      "units": "-",
+      "provenance": "PLACEHOLDER (stated worst case)",
+      "note": ""
+    },
+    "convergence.tol_mesh_rel": {
+      "value": 0.1,
+      "units": "-",
+      "provenance": "DECLARED numerical tolerance",
+      "note": ""
+    },
+    "convergence.tol_time_rel": {
+      "value": 0.001,
+      "units": "-",
+      "provenance": "DECLARED numerical tolerance",
+      "note": ""
+    },
+    "support_conductance": {
+      "value": "NOT_IMPLEMENTED",
+      "units": "W/K",
+      "provenance": "NOT_IMPLEMENTED",
+      "note": "no canonical numbers; none invented"
+    },
+    "optical_collection_load_W": {
+      "value": "NOT_IMPLEMENTED",
+      "units": "W",
+      "provenance": "NOT_IMPLEMENTED",
+      "note": ""
+    }
+  },
+  "rule": "assumed parameters are model inputs, never measurements",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

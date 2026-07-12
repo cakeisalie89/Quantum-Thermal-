@@ -1,0 +1,130 @@
+{
+  "conditions": [
+    {
+      "condition": "thermal_recovery_before_mode_D",
+      "bound": "NV probe <= 5.000e-02",
+      "bound_provenance": "SolverConfig.mode_d_temp_threshold_K (canonical)",
+      "model_value": "1.000000000e-02",
+      "units": "K",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "MODE_D_STARTED_AFTER_RECOVERY",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "energy_residual_MODE_B",
+      "bound": "|rel| <= 5.00e-02",
+      "bound_provenance": "shared ENERGY_CLOSURE_TOL (energy_accounting_3d)",
+      "model_value": "8.858e-06",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "energy_residual_MODE_C",
+      "bound": "|rel| <= 5.00e-02",
+      "bound_provenance": "shared ENERGY_CLOSURE_TOL (energy_accounting_3d)",
+      "model_value": "2.040e-02",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "reduction_3d_to_1d_mismatch",
+      "bound": "|rel| <= 1.00e-01",
+      "bound_provenance": "declared reduction tolerance (reduction_checks_3d)",
+      "model_value": "4.3767e-03",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "reduction_3d_to_2d_mismatch",
+      "bound": "|rel| <= 1.00e-01",
+      "bound_provenance": "declared reduction tolerance (reduction_checks_3d)",
+      "model_value": "1.1771e-03",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "forbidden_species_in_mode_D",
+      "bound": "no C13_CH4 live; H2 never active",
+      "bound_provenance": "canonical species policy (mode_sequence_3d validator)",
+      "model_value": "enforced (any violation raises ValueError)",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "software enforcement; hardware interlocks IL-01/02/14",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "residual_C13_coverage_before_mode_D",
+      "bound": "NOT_IMPLEMENTED",
+      "bound_provenance": "no canonical residual-coverage bound is parameterized",
+      "model_value": "2.062286603e-09",
+      "units": "theta (fraction)",
+      "falsified_in_model": "",
+      "status": "NOT_IMPLEMENTED",
+      "note": "worst-case purge forecast reported; bound requires a canonical spec",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "heat_switch_leak_MODE_B",
+      "bound": "P_leak < 2.0e-06 (1% of P_cool_MC)",
+      "bound_provenance": "gate A1 threshold; DESIGN_SPECIFIED conductances",
+      "model_value": "3.990e-08",
+      "units": "W",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "switch state OPEN (design values, not measured)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "heat_switch_leak_MODE_D",
+      "bound": "P_leak < 2.0e-06 (1% of P_cool_MC)",
+      "bound_provenance": "gate A1 threshold; DESIGN_SPECIFIED conductances",
+      "model_value": "3.990e-08",
+      "units": "W",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "switch state OPEN (design values, not measured)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "laser_hotspot_damage_bound",
+      "bound": "NOT_IMPLEMENTED",
+      "bound_provenance": "no canonical hotspot damage/graphitization threshold is parameterized in the repository",
+      "model_value": "1.373015219e+01",
+      "units": "K",
+      "falsified_in_model": "",
+      "status": "NOT_IMPLEMENTED",
+      "note": "peak Mode-B temperature reported; bound requires a canonical spec",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "solver_stability",
+      "bound": "solver_status == ok for all phases",
+      "bound_provenance": "BDF integrator status",
+      "model_value": "ok,ok",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "n_conditions": 11,
+  "n_falsified_in_model": 0,
+  "n_not_implemented_bounds": 2,
+  "meaning": "falsified_in_model=false means the deterministic model run stayed inside the stated canonical bound; this is a numerical forecast statement only -- never validation, never PASS, never a hardware claim",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

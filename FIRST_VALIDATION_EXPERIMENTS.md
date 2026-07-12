@@ -156,3 +156,13 @@ performed and reported.
   corresponding gate can carry anything other than a forecast status. The
   layer's mesh-convergence / energy-conservation / Kapitza-sign / 2D->1D checks
   are numerical self-consistency only and are not hardware validation.
+
+## Note on the deep experimental-design layer
+
+The deep simulation-based-inference layer can rank candidate experiments by expected information
+gain and is numerically validated against the direct nested-Monte-Carlo reference on
+simulator-generated data. This is a computational acceleration, not a measurement: the
+experiments listed here remain the first *physical* validations, and the deep layer does not
+change any gate status, which stays forecast-only and never PASS.
+
+> QTA includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.

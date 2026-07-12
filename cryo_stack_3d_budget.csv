@@ -1,0 +1,19 @@
+element,stage,status,source,forecast_load_W,note,label
+radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_total_to_10mK,10mK,ACTIVE_MODELED,radiation_paths,1.417451845e-24,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+dilution_refrigeration_base_stage,10mK,ACTIVE_MODELED,"FridgeConfig (T_fridge_K=0.01, Kapitza-radiative sink)",,base-temperature sink used by the 1D/2D/3D thermal backends,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+RTB_JT_class_upstream_cooling_plant,4K/shield,ACTIVE_MODELED,"qta_full_sim gate RTB_JT_OPTIONAL_COOLING_PLANT (optional plant, forecast-only)",,combined RTB/JT-class gate; no standalone JT stage is modeled,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+superconducting_heat_switch,MC/sample,DESIGN_SPECIFIED,"qta_full_sim gate A1 (MC protected, SC switch open in Mode B)",,state logic modeled via gates; no new numbers here,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiation_shutter_4K,4K,DESIGN_SPECIFIED,qta_full_sim gate A3 + radiation_paths shutter attenuation factor,,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+cryobaffles,4K/1K,DESIGN_SPECIFIED,radiation_paths baffle attenuation factor; gas_transport cryobaffle sink,,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+kevlar49_g10cr_support_suspension,stage intercepts,DESIGN_SPECIFIED,committed support architecture (manuscript Sec. 4); conduction not separately parameterized here,,no invented conduction numbers,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+ofhc_thermal_shielding_paths,all stages,DESIGN_SPECIFIED,"committed architecture; material paths, no separate numeric model",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+LN2_precooling_stage,,NOT_IMPLEMENTED,architecture registry only,,canonical upstream pre-cool; not a distinct modeled stage in this repo -- no performance numbers invented,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+standalone_joule_thomson_stage,,NOT_IMPLEMENTED,architecture registry only,,only the combined RTB/JT-class plant gate exists; standalone JT not modeled -- no performance numbers invented,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+nuclear_demagnetization_stage,,NOT_IMPLEMENTED,architecture registry only,,canonical ULT option; not modeled; no parameters exist -- no performance numbers invented,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+gas_gap_heat_switch,,NOT_IMPLEMENTED,architecture registry only,,canonical switch option; only the superconducting switch is represented -- no performance numbers invented,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM

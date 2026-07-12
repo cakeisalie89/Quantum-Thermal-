@@ -1,0 +1,53 @@
+{
+  "eligibility_forecast": "BLOCKED",
+  "eligible_in_model": "false",
+  "blocking_reasons": [
+    "vibration_amplitude"
+  ],
+  "checks": [
+    {
+      "check": "thermal_recovery",
+      "holds_in_model": "true",
+      "model_value": "1.000000000e-02",
+      "bound": "<= 5.000e-02 K",
+      "provenance": "SolverConfig.mode_d_temp_threshold_K",
+      "note": "MODE_D_STARTED_AFTER_RECOVERY"
+    },
+    {
+      "check": "vibration_amplitude",
+      "holds_in_model": "false",
+      "model_value": "4.651000000e-09",
+      "bound": "< 1.000e-10 m",
+      "provenance": "canonical vibration transfer chain",
+      "note": "forecast amplitude at the NV region; consistent with the canonical VIBRATION_TRANSFER_CHECK gate (CONDITIONAL, transfer factors ASSUMED)"
+    },
+    {
+      "check": "laser_off_in_mode_D",
+      "holds_in_model": "true",
+      "model_value": "false",
+      "bound": "false",
+      "provenance": "mode state machine (canonical mode map)",
+      "note": ""
+    },
+    {
+      "check": "microwave_drive_allowed",
+      "holds_in_model": "true",
+      "model_value": "true",
+      "bound": "true (Mode D ODMR drive)",
+      "provenance": "mode state machine",
+      "note": ""
+    },
+    {
+      "check": "c13_methane_not_live",
+      "holds_in_model": "true",
+      "model_value": "structurally forbidden",
+      "bound": "no live C-13 methane in Mode D",
+      "provenance": "canonical species policy (validator raises)",
+      "note": "residual-coverage bound NOT_IMPLEMENTED (value reported in species accounting)"
+    }
+  ],
+  "meaning": "forecast eligibility of the MODEL state for Mode-D sensing under the existing canonical bounds; CONDITIONAL means no modeled block was found -- it is not PASS, not measured NV performance, and requires in-system measurement to resolve",
+  "measured_in_this_system": false,
+  "can_PASS_now": "NO",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

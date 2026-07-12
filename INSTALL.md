@@ -53,3 +53,44 @@ Both should exit 0. The first regenerates all simulation outputs in
   is locale-dependent (e.g. `cp1252`).
 - `subprocess.run(..., text=True)` calls also pass `encoding="utf-8",
   errors="replace"` to avoid mojibake when stdout contains non-ASCII.
+
+## Deep experimental-design layer
+
+The deep simulation-based-inference layer (`qta_multiphysics/deep_expdesign/`) requires no extra
+dependencies: it is implemented in pure NumPy/SciPy and runs deterministically on CPU (no CUDA /
+GPU is required for the unit suite). The directive's preferred PyTorch/SBI path is unavailable in
+the sandboxed environment (the CPU-only PyTorch wheel index is blocked and the default wheel
+bundles CUDA), so a documented reproducible-CPU neural density estimator is used instead; the
+backends can be swapped for a pinned CPU PyTorch build behind their existing interfaces.
+
+Run: `python tests/test_deep_expdesign.py && python tests/test_deep_expdesign_stage2.py`, then
+`python qta_full_sim.py --ci --deep`.
+
+> QTA includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.
+
+## Canonical regeneration and profiles
+
+The canonical regeneration command — the one `package_consistency_check.py`
+runs and the one all committed root outputs must byte-match — is:
+
+    python3 qta_full_sim.py
+
+with no flags (the default profile). Two optional flags exist: `--ci` runs the
+integrated forecast layers (NV spin dynamics / design registry / Bayesian
+experimental design) at a reduced, faster sampling profile intended for tests,
+and `--deep` additionally runs the optional fail-closed deep SBI layer. Outputs
+produced under `--ci` are numerically legitimate but differ from the canonical
+default-profile outputs in the sampled layers; do not copy `--ci` outputs over
+the committed root files. The checker's stale-snapshot guard (Step 2b) enforces
+byte-agreement between the committed root outputs and a fresh default-profile
+regeneration, with `deep_surrogate_readiness.json` exempt by documented design.
+
+## Rebuilding the manuscript PDF reproducibly
+
+`qta_manuscript_v4.pdf` is byte-reproducible so it stays consistent with
+`final_manifest.json`. Rebuild with:
+
+    SOURCE_DATE_EPOCH=0 FORCE_SOURCE_DATE=1 pdflatex -interaction=nonstopmode qta_manuscript_v4.tex
+    SOURCE_DATE_EPOCH=0 FORCE_SOURCE_DATE=1 pdflatex -interaction=nonstopmode qta_manuscript_v4.tex
+
+(two passes; the environment variables pin the embedded timestamps).

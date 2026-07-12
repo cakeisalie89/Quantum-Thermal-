@@ -1,0 +1,30 @@
+{
+  "architecture": "conditional_mixture_density_network",
+  "backend": "numpy_cpu",
+  "backend_reason": "CPU-only torch wheel index (download.pytorch.org) is blocked in this sandbox and the pypi torch wheel bundles CUDA; using the directive-allowed reproducible-CPU neural density estimator implemented in NumPy/SciPy.",
+  "deterministic": true,
+  "device": "cpu",
+  "dtype": "float64",
+  "hidden_units": 32,
+  "input_dim": 9,
+  "labels": {
+    "forecast_only": true,
+    "measured_in_this_system": false,
+    "not_measured_in_this_system": true,
+    "simulation_generated": true
+  },
+  "learning_rate": 0.005,
+  "library_versions": {
+    "numpy": "2.4.4",
+    "scipy": "1.17.1"
+  },
+  "master_seed": 20240601,
+  "n_mixture": 3,
+  "n_parameters": 2465,
+  "note": "weights deterministic given seed; wall-clock timings are in deep_runtime_profile.json (non-canonical); not added to the package manifest.",
+  "output_dim": 5,
+  "schema_version": "deep_expdesign/1.0.0",
+  "train_steps": 800,
+  "weight_decay": 0.0001,
+  "weight_sha256": "b98208fbf6607712d42c1bae4ff607ac8c5e65250475ae468f51c84f974aaaf6"
+}

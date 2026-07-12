@@ -1,0 +1,29 @@
+{
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+  "kind": "structured_cartesian_3d_finite_volume",
+  "nx": 10,
+  "ny": 10,
+  "nz": 12,
+  "n_cells": 1200,
+  "half_extent_xy_m": 4e-05,
+  "depth_m": 4e-05,
+  "dx_min_m": 3.0209024568925624e-06,
+  "dx_max_m": 1.7699734297126387e-05,
+  "dy_min_m": 3.0209024568925624e-06,
+  "dy_max_m": 1.7699734297126387e-05,
+  "dz_min_m": 7.994499718297113e-07,
+  "dz_max_m": 4.7966998309777e-06,
+  "grading_ratio_x": 5.8590883187049805,
+  "grading_ratio_y": 5.8590883187049805,
+  "grading_ratio_z": 5.99999999999929,
+  "total_volume_m3": 2.56e-13,
+  "graded": true,
+  "note": "Reduced deterministic CI mesh; heavy/full-resolution meshes are opt-in only and never required by CI or the checker.",
+  "resolution_tier": "REDUCED_CI",
+  "heavy_mesh_available": {
+    "nx": 16,
+    "ny": 16,
+    "nz": 20,
+    "note": "opt-in via --heavy-3d; never required by CI or the package consistency check"
+  }
+}

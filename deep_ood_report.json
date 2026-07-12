@@ -1,0 +1,33 @@
+{
+  "checks": {
+    "synthetic_far_ood": {
+      "frac_in_box": 0.0,
+      "frac_ood": 1.0,
+      "mahalanobis_max": 111.7658468145555,
+      "mahalanobis_mean": 111.7658468145555,
+      "n": 16
+    },
+    "train": {
+      "frac_in_box": 1.0,
+      "frac_ood": 0.0,
+      "mahalanobis_max": 5.92693322882006,
+      "mahalanobis_mean": 2.9344044610142066,
+      "n": 154
+    },
+    "validation": {
+      "frac_in_box": 0.9019607843137255,
+      "frac_ood": 0.09803921568627451,
+      "mahalanobis_max": 6.0283539679401015,
+      "mahalanobis_mean": 3.0763775454798736,
+      "n": 51
+    }
+  },
+  "labels": {
+    "forecast_only": true,
+    "measured_in_this_system": false,
+    "not_measured_in_this_system": true,
+    "simulation_generated": true
+  },
+  "maha_threshold": 6.635980072826312,
+  "schema_version": "deep_expdesign/1.0.0"
+}

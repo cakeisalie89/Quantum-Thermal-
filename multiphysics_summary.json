@@ -4,7 +4,7 @@
   "implemented_backends": {
     "thermal_1d": "canonical/default non-lumped",
     "thermal_2d_axisymmetric": "serious spatial refinement",
-    "3d": "FUTURE_WORK"
+    "3d": "FORECAST_ONLY_IMPLEMENTED"
   },
   "thermal_metrics": {
     "NV_layer_T_1d_K": 29.405904455743986,
@@ -165,17 +165,32 @@
     }
   },
   "future_3d": {
-    "module": "future_3d",
-    "status": "FUTURE_WORK",
-    "implemented": false,
-    "planned_architecture": {
-      "thermal_3d": "T(x,y,z,t) full anisotropic conduction; FV on a 3D grid; method-of-lines + sparse stiff integrator. NOT_IMPLEMENTED.",
-      "gas_transport_3d": "3D advection-diffusion in the process volume. NOT_IMPLEMENTED.",
-      "surface_coverage_3d": "Coverage on a 2D surface manifold with 3D flux. NOT_IMPLEMENTED.",
-      "grid_3d": "StructuredGrid3D (x,y,z) with face areas and cell volumes. NOT_IMPLEMENTED.",
-      "verification_3d": "3D mesh convergence, symmetry, 3D->2D reduction. NOT_IMPLEMENTED."
-    },
-    "note": "3D is not claimed and is excluded from all physical gates."
+    "status": "FORECAST_ONLY_IMPLEMENTED",
+    "implemented": true,
+    "claim_boundary": "3D transient layer is implemented only as an additive forecast-only / benchmark-numerical validation layer. It is not hardware-validated, not COMSOL, not measured in-system, and introduces no PASS gates.",
+    "implemented_components": [
+      "structured graded 3D finite-volume mesh (mesh_3d)",
+      "transient 3D heat equation, BDF method-of-lines (thermal_3d_transient)",
+      "exactly-conservative volumetric fs-laser source (laser_source_3d)",
+      "insulated-front / adiabatic-lateral / Kapitza-radiative-back boundaries (boundaries_3d)",
+      "energy-accounting closure (energy_accounting_3d)",
+      "3D->1D and 3D->2D reduction checks (reduction_checks_3d)",
+      "numerical verification suite (verification_3d)",
+      "Mode B->C->D sequencing with species safety (mode_sequence_3d)",
+      "forecast-only hooks: cryo stack registry, species transport, surface coverage, radiation/vibration/microwave budgets"
+    ],
+    "not_implemented_components": [
+      "per-region 3D material property sets",
+      "C-13 methane 3D deposition footprint (no inlet geometry parameterized)",
+      "3D radiative view factors",
+      "3D modal analysis",
+      "3D microwave field/SAR map",
+      "LN2 precooling / standalone Joule-Thomson / nuclear demagnetization / gas-gap heat switch (architecture-registry entries only)"
+    ],
+    "measured_in_this_system": false,
+    "can_PASS_now": "NO",
+    "hardware_validated": false,
+    "external_solver": "none (NumPy/SciPy only; no COMSOL)"
   },
   "measured_in_this_system": false
 }

@@ -1,0 +1,19 @@
+id,type,description,provenance,label
+IL-01,IMPOSSIBLE,laser (LCVD) active while sensing active,canonical interlock table (thermal: 250x overload),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-02,IMPOSSIBLE,C-13 precursor feed while He dosing,canonical interlock table (He-3 film in 2.6 s),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-03,IMPOSSIBLE,laser (LCVD) active with SC heat switch CLOSED,canonical interlock table (heats mixing chamber; gate A1),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-04,IMPOSSIBLE,sensing with SC heat switch not OPEN,canonical interlock table (sample not isolated at 10 mK),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-05,BLOCKED,sensing without RGA CH4 clearance,canonical interlock table; RGA readiness gate E04,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-06,BLOCKED,sensing without RGA H2 clearance,canonical interlock table; RGA readiness gate E04,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-07,BLOCKED,sensing with T_sample above 12 mK,canonical interlock table (Ramsey bound),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-08,BLOCKED,sensing before vibration settled below the Mode-D amplitude threshold,canonical interlock table; vibration chain metrics,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-09,IMPOSSIBLE,He-3 present while laser (LCVD) active,canonical interlock table,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-10,IMPOSSIBLE,He-3 present while precursor feed on,canonical interlock table (CH4 poisons He-3),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-11,BLOCKED,Mode D entry without a completed Mode B->C cycle (purge required),canonical interlock table,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-12,BLOCKED,charcoal regeneration with IVC valve open,canonical interlock table (gas burst contaminates),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-13,IMPOSSIBLE,growth active while He dosing active,canonical interlock table (modes mutually exclusive),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+IL-14,IMPOSSIBLE,laser (LCVD) active with helium film present,canonical interlock table (He film blocks LCVD),MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+FSM-IL-15,IMPOSSIBLE,laser and microwave drive simultaneously,"mode map: laser is Mode-B-only, MW is Mode-D-only",MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+FSM-IL-16,IMPOSSIBLE,process port open during any sensing substate,gate A3 shielding logic; state machine,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+FSM-IL-17,IMPOSSIBLE,any operational mode (A/B/C/D) with the dilution stage off,stage chain: 10 mK base requires dilution,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+FSM-IL-18,IMPOSSIBLE,controlled warmup with any gas feed or dose line open,gas-handling safety; species policy,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM

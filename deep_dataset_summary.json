@@ -1,0 +1,39 @@
+{
+  "amortized_over_design": true,
+  "dataset_sha256": "cbfe75316dafd32f2c925e001ff00e4b6611c8ca82b83b5be34c9f1212e58269",
+  "design_feature_names": [
+    "measurement_time",
+    "surface_temperature",
+    "he3_coverage_target",
+    "recovery_duration"
+  ],
+  "labels": {
+    "forecast_only": true,
+    "measured_in_this_system": false,
+    "not_measured_in_this_system": true,
+    "simulation_generated": true
+  },
+  "latent_names": [
+    "tau_c",
+    "he3_he4_contrast",
+    "nv_contrast_10mK",
+    "thermal_recovery_time",
+    "mode_isolation_leak"
+  ],
+  "master_seed": 20240601,
+  "n_failure": 0,
+  "n_success": 256,
+  "n_test": 51,
+  "n_total": 256,
+  "n_train": 154,
+  "n_val": 51,
+  "observable_names": [
+    "coherence_at_tmeas",
+    "odmr_contrast",
+    "he_contrast",
+    "thermal_recovery_obs",
+    "isolation_leak_obs"
+  ],
+  "sampler": "lhs",
+  "schema_version": "deep_expdesign/1.0.0"
+}

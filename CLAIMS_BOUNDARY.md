@@ -6,9 +6,9 @@ modesty.
 
 ## The package does NOT claim
 
-- The non-lumped 1D/2D multiphysics layer (qta_multiphysics/) is model-only / forecast-only / pre-experimental. Its 1D and 2D thermal, optical, gas-transport, surface-coverage, microwave, radiation, vibration, and coupled Mode B->C->D backends produce forecasts only; 3D is FUTURE_WORK / NOT_IMPLEMENTED. No multiphysics output is measured in this system, none carries a MEASURED tag, and none of its 20 gates is PASS. The legacy lumped model is retained only as a comparator. Numerical convergence/verification is not hardware validation.
+- The non-lumped 1D/2D multiphysics layer (qta_multiphysics/) is model-only / forecast-only / pre-experimental. Its 1D and 2D thermal, optical, gas-transport, surface-coverage, microwave, radiation, vibration, and coupled Mode B->C->D backends produce forecasts only; the additive 3D transient layer is FORECAST_ONLY_IMPLEMENTED numerical code (reduced-resolution, reduction-checked against the 1D/2D backends, not hardware-validated, not COMSOL, introduces no PASS gates). No multiphysics output is measured in this system, none carries a MEASURED tag, and none of its 20 gates is PASS. The legacy lumped model is retained only as a comparator. Numerical convergence/verification is not hardware validation.
 - The 2D sim models laser thermal loading into the C13 methane / process zone as a transient Gaussian (radial) x Beer-Lambert (depth) volumetric heat field, and reports the resulting temperature field in Kelvin. Reported temperatures (e.g. NV-layer ~ a few K) are thermal-hotspot temperatures / rises above the 10 mK base, not deposition or growth rates. It does not validate C13 deposition rate. Deposition yield remains UNKNOWN/BLOCKED until measured or supported by a defensible LCVD surface-chemistry model (methane dissociation, surface sticking, carbon incorporation, yield per pulse, growth velocity, and witness-coupon/QCM/AFM/Raman/XPS evidence). The surface-coverage backend is a Langmuir adsorption/desorption coverage model only; it does not compute film growth. The thermal solver is defensible first/second-pass physics (2D transient heat equation, Gaussian spot, Beer-Lambert absorption, transient hotspot, radial spreading, recovery curve, explicit boundary conditions, mesh-convergence/energy-balance sanity checks) but is not COMSOL-class qualified and not validated LCVD chemistry.
-- No PASS gates. The current canonical state is 0 PASS out of 83 gates (including the 20 non-lumped multiphysics gates added in pass 15).
+- No PASS gates. The current canonical state is 0 PASS out of 83 gates (including the 20 non-lumped multiphysics gates).
 - No proof of feasibility.
 - No validated hardware. Every hardware item in BOM.csv is either
   DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or
@@ -107,8 +107,8 @@ sensitivity analysis only. Specifically:
   represented as conditional gates."
 - "Mode D requires measured readiness after Mode C recovery."
 - "Shielding reduces modeled risk only; it does not create PASS."
-- "The first iteration was cross-coupled simultaneous; the current
-  rewrite is mode-separated and interlocked."
+- "An earlier cross-coupled design was superseded; the architecture is
+  now mode-separated and interlocked."
 
 These are the canonical statements that bound what the package claims
 about shielding and about the relationship between Mode B and Mode D.
@@ -150,3 +150,30 @@ If a reviewer believes the package implicitly claims more than this file
 states, the package should be considered defective and the over-claiming
 language reported. The intent is that this file is the strongest
 statement of position in the entire package.
+
+## Deep Bayesian experimental design (claims boundary)
+
+QTA distinguishes four separate notions, which must not be conflated:
+
+- **Bayesian experimental design** — the direct nested-Monte-Carlo expected-information-gain
+  estimator and experiment ranking in `qta_multiphysics/expdesign/`. This is the canonical
+  reference estimator and the validation authority.
+- **Deep Bayesian experimental design** — the optional simulation-based-inference layer in
+  `qta_multiphysics/deep_expdesign/` (a conditional neural density estimator plus a learned
+  EIG estimator). It is an *accelerated backend*, not a replacement.
+- **Simulation-trained validation** — numerical agreement of the deep layer with the direct
+  reference estimator on simulator-generated data (calibration coverage, EIG error, ranking
+  agreement, out-of-distribution behaviour, repeated-seed stability). Neural-network accuracy
+  against the simulator is **not** physics validation.
+- **Experimental validation** — measurement of the physical architecture on hardware. **None
+  exists in this repository.** All deep-layer data is SIMULATION_GENERATED / FORECAST_ONLY /
+  NOT_MEASURED_IN_THIS_SYSTEM.
+
+The deep layer is fail-closed: it may influence experiment ordering only as a
+`VALIDATED_SURROGATE` that has passed every declared trust threshold; otherwise it reports
+`TRAINED_NOT_TRUSTED` (or `NOT_IMPLEMENTED`) and the engine falls back to the direct
+nested-Monte-Carlo EIG. No neural posterior, likelihood, ratio estimator, or EIG surrogate can
+create, unlock, or upgrade a physical gate; `PASS = 0`, `can_PASS_now = NO`, and
+`measured_in_this_system = false` are preserved for every physical gate.
+
+> QTA includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.
