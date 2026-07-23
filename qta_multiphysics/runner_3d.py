@@ -212,6 +212,23 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
                                "coverage residual", "device state",
                                "cryopanel loading", "cumulative energy"],
             "not_carried": [],
+            "validation_roadmap": (lambda _r, _g, _m, _c: {
+                "schema_version": _r["schema_version"],
+                "n_experiments": len(_r["experiments"]),
+                "playbook_ready": [e["experiment_id"] for e in
+                                   _r["experiments"]
+                                   if e["status"] == "PLAYBOOK_READY"],
+                "gates_covered": _g["n_gates"],
+                "matrix_items": _m["n_items"],
+                "matrix_unresolved": _m["n_unresolved"],
+                "campaign_1": _c["campaigns"][0]["status"],
+                "automatic_gate_effect": "NONE",
+            })(*[__import__("json").loads(
+                __import__("pathlib").Path(f).read_text())
+                for f in ("experiment_registry.json",
+                          "experiment_gate_coverage.json",
+                          "experiment_matrix_coverage.json",
+                          "campaign_registry.json")]),
             "hardware_governance": __import__(
                 "qta_multiphysics.hardware_governance_3d",
                 fromlist=["governance_summary"]).governance_summary(),

@@ -299,7 +299,9 @@ def build_quarantine_report(records, raw_base_dir=None) -> dict:
             "interpretation": INTERPRETATION, "label": LABEL}
 
 
-def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None):
+def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None,
+                          campaign_id=None, matrix_items=None,
+                          run_ids=None, manifest_refs=None):
     """Only complete HARDWARE_REVIEWED records with a valid
     ACCEPT_AS_EVIDENCE human review enter (correction #3). Completeness =
     zero deficiencies except the standing unresolved repetition
@@ -326,7 +328,20 @@ def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None):
             continue
         entries.append({"measurement_id": rid,
                         "experiment_id": rec["experiment_id"],
+                        "campaign_id": rec.get("campaign_id",
+                                               campaign_id or "-"),
+                        "run_id": rec.get("run_id", "-"),
                         "quantity": rec["quantity"],
+                        "raw_data_ref": (rec.get("raw_data") or {})
+                        .get("sha256", "-"),
+                        "processed_data_refs":
+                            rec.get("processed_data_refs", []),
+                        "calibration_ref": rec.get("calibration_id", "-"),
+                        "uncertainty_analysis_ref":
+                            rec.get("uncertainty_ref",
+                                    "(inline uncertainty block)"),
+                        "deviations": rec.get("deviations", []),
+                        "stop_events": rec.get("stop_events", []),
                         "review": {k: rev[k] for k in
                                    ("reviewer_id", "review_date",
                                     "decision", "record_sha256")},
@@ -338,6 +353,12 @@ def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None):
         ["no accepted reviewed evidence"]
     return {"schema_version": SCHEMA_VERSION,
             "report": "gate_evidence_dossier", "gate_id": gate_id,
+            "campaign_id": campaign_id, "run_ids": run_ids or [],
+            "matrix_items": matrix_items or [],
+            "manifest_refs": manifest_refs or [],
+            "permitted_claims": ["consistency/evidence context for human "
+                                 "review only"],
+            "forbidden_claims": FORBIDDEN_CLAIMS,
             "n_entries": len(entries), "entries": entries,
             "n_excluded": len(excluded), "excluded": excluded,
             "review_readiness": readiness,
@@ -380,6 +401,77 @@ def verify_audit_chain(path) -> tuple:
             return False, f"chain break at line {i}"
         prev = hashlib.sha256(line.encode()).hexdigest()
     return True, f"chain intact ({len(lines)} entries, head {prev[:16]}...)"
+
+
+# ------------- Stage-6 integration: registry + dossier binding -------------
+
+_REG_CACHE = None
+
+
+def load_experiment_registry():
+    """Stage-6 experiment registry (planning authority for experiment_id;
+    supplements the validation-matrix item registry)."""
+    global _REG_CACHE
+    if _REG_CACHE is None:
+        _REG_CACHE = json.loads(
+            Path("experiment_registry.json").read_text())
+    return {e["experiment_id"]: e for e in _REG_CACHE["experiments"]}
+
+
+def validate_matrix_update_request(doc) -> tuple:
+    """Validate + cross-check a HUMAN-authored matrix update request.
+    Tooling may archive it (append_audit); tooling never applies it,
+    never changes a gate, never mutates a parameter, never creates PASS,
+    and never treats the requester as the reviewer."""
+    req = ("request_id", "item", "current_status", "proposed_status",
+           "experiment_ids", "dossier_refs", "raw_data_refs",
+           "calibration_refs", "uncertainty_refs", "review_ids",
+           "requester", "request_date", "rationale",
+           "claim_boundary_confirmation", "automatic_application",
+           "schema_version")
+    reasons = []
+    if not isinstance(doc, dict):
+        return False, ["request is not an object"]
+    for f in req:
+        if f not in doc:
+            reasons.append(f"missing required field '{f}'")
+    if reasons:
+        return False, reasons
+    if doc["automatic_application"] is not False:
+        reasons.append("automatic_application must be false (requests "
+                       "configured for automatic application are "
+                       "invalid)")
+    if not doc["review_ids"]:
+        reasons.append("at least one review_id is required")
+    elif doc["requester"] in doc["review_ids"]:
+        reasons.append("requester may not be a reviewer")
+    if not doc["experiment_ids"]:
+        reasons.append("at least one experiment_id is required")
+    else:
+        known = load_experiment_registry()
+        for e in doc["experiment_ids"]:
+            if e not in known:
+                reasons.append(f"unknown experiment_id '{e}' (not in "
+                               "experiment_registry.json)")
+    if not (doc["dossier_refs"] or doc["raw_data_refs"]):
+        reasons.append("evidence references required (dossier and/or "
+                       "raw-data refs)")
+    if not _iso(doc["request_date"]):
+        reasons.append("request_date not ISO-8601")
+    if doc["item"] and Path("validation_matrix.csv").exists():
+        import csv as _csv
+        items = {r["item"] for r in
+                 _csv.DictReader(open("validation_matrix.csv"))}
+        if doc["item"] not in items:
+            reasons.append(f"item '{doc['item']}' not in "
+                           "validation_matrix.csv")
+    return (len(reasons) == 0), reasons
+
+
+FORBIDDEN_CLAIMS = [
+    "hardware-validated", "experimentally demonstrated isotope contrast",
+    "completed growth", "validated digital twin", "COMSOL-equivalent",
+    "any PASS-status vocabulary"]
 
 
 def governance_summary() -> dict:
