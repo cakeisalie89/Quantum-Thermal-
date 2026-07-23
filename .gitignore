@@ -10,3 +10,4 @@ outputs/deep_expdesign/
 .ruff_cache/
 verification/
 uv.lock.bak
+.sim_stage_checkpoints/

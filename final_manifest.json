@@ -175,8 +175,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 103500,
-      "sha256": "ff64f03ce154a33ececbaaa4256614f02b3b8da97c984fb76d6ffed792860d2d",
+      "size_bytes": 105689,
+      "sha256": "45df269aded2f082086c540b91bf8d15d78f4292438135a7aa5319719784ca9d",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -287,8 +287,8 @@
     },
     {
       "filename": ".gitignore",
-      "size_bytes": 164,
-      "sha256": "7b79040ae8b271b9c59bc741b6b298bd51363f42d9d74fe5e75c68f80b8a5c4b",
+      "size_bytes": 188,
+      "sha256": "9dc7d9eae4851ffa0c46d7fc8242999a7ee304655352e861298859221ea836e2",
       "generated_by": "manual",
       "purpose": "excludes generated outputs and Python cache files"
     },
@@ -2328,6 +2328,27 @@
       "sha256": "da5422fda176ff761ee55ebb83eacb5e0f0e68bcb494b15390d8b27cc13b66b7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "qta_sim_stages.py",
+      "size_bytes": 8008,
+      "sha256": "5e55b4b7741f787ab23260ca932a0b16d321e14c6b5dd225685fe0b8fec6c6f1",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "RUNTIME_RESILIENCE.md",
+      "size_bytes": 2563,
+      "sha256": "3f8bc5ce12e4653d8ef23ed4426268fe105271927945a897fefd73af30f69958",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_stage7_5_resilience.py",
+      "size_bytes": 5640,
+      "sha256": "bca7dcc90a526778fd7b54aa4b0d218ac4ed72268574d45dd91f70df5fbe7f0e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."
