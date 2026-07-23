@@ -2247,8 +2247,8 @@
     },
     {
       "filename": "pyproject.toml",
-      "size_bytes": 2434,
-      "sha256": "5c78cf1a28a593a1b3616982ba48a64d6ff7cadb658d6b8402afffffc08af0d6",
+      "size_bytes": 2524,
+      "sha256": "990581006afb0467b98c82eb6f71085242567223475cab514c7b69fc928bd7fd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2261,8 +2261,8 @@
     },
     {
       "filename": "stage6_preservation_check.py",
-      "size_bytes": 4991,
-      "sha256": "d1718f4f05bbd77a24b4681e8e8ae606cb630b5bc7397b7f3bc52de5dea13336",
+      "size_bytes": 5762,
+      "sha256": "c71e1da546ebefc12dafd10918f860dc632e7fd67b11d9a1b917395f7996494d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2275,15 +2275,15 @@
     },
     {
       "filename": "uv.lock",
-      "size_bytes": 116070,
-      "sha256": "5b2959f26580e6b152935dbf9b258e4810242de5be337fd0926bee2bb3f194ab",
+      "size_bytes": 119055,
+      "sha256": "3597730705e4f62d47e71e2eaa7c7f93df9f66c70645d68a2371b2d9c7ba5510",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "Snakefile",
-      "size_bytes": 8069,
-      "sha256": "8adf3941f2e753329b1523a862d2fb7b0007a12a54145adf390f493c401a1e5f",
+      "size_bytes": 11552,
+      "sha256": "b704d9552b9a0320b2abaa6c5efcba8c5ff157e0436dd14055ee1f8dc7a10de6",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2349,6 +2349,97 @@
       "sha256": "bca7dcc90a526778fd7b54aa4b0d218ac4ed72268574d45dd91f70df5fbe7f0e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "HDF5_DATA_MODEL.md",
+      "size_bytes": 2518,
+      "sha256": "0e2cea27aa12acc53ebf3c7af915508af61d1ac9885c21cd514523a863c673ab",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "RO_CRATE_PROFILE.md",
+      "size_bytes": 1439,
+      "sha256": "3bb26a2297a212df98b431ca02deb31b394bbfeca5daa800562548defb16b7cf",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "build_hdf5.py",
+      "size_bytes": 6439,
+      "sha256": "32df8502d80e6119a1344f5a84b817f3c218485a4d5d1962e26c434e88abbca9",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "build_hdf5_mapping.py",
+      "size_bytes": 8906,
+      "sha256": "2843bc19936418f028fb734b27398a2dc0602acbb9d23c7ebed0dad16e0b5c46",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "hdf5_output_mapping.json",
+      "size_bytes": 139106,
+      "sha256": "469365e384c2f2efa7cc9b38c6d92957566f1b3d0160cd028bf7014b6d0b9f49",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "hdf5_schema.json",
+      "size_bytes": 150368,
+      "sha256": "c1d2a230b70ab3906d0b391718ee3efa7075b59b68708f02ccead2eca9f4253f",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "qta_scientific_results.h5",
+      "size_bytes": 1974909,
+      "sha256": "68cd3eb0d2e715dd18e6355e150fca3cad78fbbbb589092545cd9f026697d150",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "ro-crate/ro-crate-metadata.json",
+      "size_bytes": 10637,
+      "sha256": "b27d400bb3d927954817d9286561839e66d1da41691b7e99614d786b7b2377cd",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "ro_crate_tools.py",
+      "size_bytes": 11343,
+      "sha256": "e0d6e21cf035b5dd0b2d788935a7bb7e504ab959a179de1bcc3ca66cbac035ca",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "stage8_reports/hdf5_equivalence_report.json",
+      "size_bytes": 503,
+      "sha256": "14681ec28053d078e8f3cbd7397ca7ee437991ae561f0f15318565b94307c5a3",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "stage8_reports/ro_crate_validation_report.json",
+      "size_bytes": 232,
+      "sha256": "6a24795d0d72e149a7abdd6fa75d8f0bf67ed961cab0867fdcbe657ca22b22cc",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_stage8_data_provenance.py",
+      "size_bytes": 7373,
+      "sha256": "a688e628d62f3c64fa74fc586ab7450106cb7cdb8974bc674e30eba277c8222e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "validate_hdf5_equivalence.py",
+      "size_bytes": 5968,
+      "sha256": "1b93fc65ef764b0c218d2a128f6829a0201422278f702ae03a2685316be9c0f1",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."

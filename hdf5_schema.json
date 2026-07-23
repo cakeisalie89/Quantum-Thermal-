@@ -1,0 +1,4617 @@
+{
+ "datasets": [
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/adaptive_experiment_policy",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "adaptive_experiment_policy.json",
+   "source_sha256": "8d94103c7cd0bfe4b0f1de6f6a288da8b8fcdb7ac3ea179f37f05e52f27aecdc",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/assumptions_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "assumptions_3d.json",
+   "source_sha256": "a3d713cda87df3083c5c30800b6bb41f1bc365b651787c29e13ea8dbdeb7485d",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/bayesian_design_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "bayesian_design_summary.json",
+   "source_sha256": "48f68080347e60a69e201849cf58ae37fa43a3aadf09982cacda7eb597e6848c",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/best_forecast_operating_point",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "best_forecast_operating_point.json",
+   "source_sha256": "72ed482fba8ffcd7eec39579be23dc7c1c803a603ba0fafbcf05aa0bf0a07097",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/campaign_state_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "campaign_state_3d.json",
+   "source_sha256": "b5ced2e137786c9cee4cbc09f2a2cba6359af52675576a643f9a1b83a7d42fe6",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/campaign_uncertainty_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "campaign_uncertainty_3d.json",
+   "source_sha256": "9cb6b8f6fe19c723e30ca34fda73c725a15491cbdfe728c985ce5f6303aac556",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cycle",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "quantity",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "p05",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "p50",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "p95",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "basis",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/campaign_uncertainty_quantiles",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "campaign_uncertainty_quantiles.csv",
+   "source_sha256": "ef1a438f6b3b6fce680d6fbab32bbc26b7aa6bef6cf6b24ee5f4e66282607b0f",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/convergence_report_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "convergence_report_3d.json",
+   "source_sha256": "6ec444785d9d4812be6c3a0ac3d6d959206c2bfc9aa09c570193495bff9fe74e",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/coupled_mode_recovery_metrics",
+   "kind": "table",
+   "n_rows": 15,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    15
+   ],
+   "source_output": "coupled_mode_recovery_metrics.csv",
+   "source_sha256": "88579de31df50b4aed70067ae4024e6abf5789e4e1d93c9381bb893ffb89b29f",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/coupled_mode_state_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "coupled_mode_state_summary.json",
+   "source_sha256": "045d22fb93bfb307ee24811335d0680f5ae4da2ac2b9bb65b45cfa68fdd69ce1",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/coupling_ledger_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "coupling_ledger_3d.json",
+   "source_sha256": "a7179ecbffa69645722851f4161cbff75653addc23cfb8d8bfe66dbbb254d5a0",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "element",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "forecast_load_W",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "note",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/cryo_stack_3d_budget",
+   "kind": "table",
+   "n_rows": 18,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    18
+   ],
+   "source_output": "cryo_stack_3d_budget.csv",
+   "source_sha256": "8bffdb5f4b4159e06253d728babd12228329cfce46ba295c939faecec7a25869",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cycle",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "panel_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "species",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "sticking",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sticking_provenance",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "N_per_m2",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "monolayer_fraction",
+     "unit": "dimensionless"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "capacity_basis",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "admitted_per_m2",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/cryopanel_loading_3d",
+   "kind": "table",
+   "n_rows": 27,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    27
+   ],
+   "source_output": "cryopanel_loading_3d.csv",
+   "source_sha256": "4c0eed949368be03c3a776a1cbc19f2447d47c162dea17163090bea0990646d1",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/design_component_registry",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "design_component_registry.json",
+   "source_sha256": "9ead2bbd030e2c7e68472beec7101dcc002cad0d87dc561f537b2795925d6e54",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/design_decision_ledger",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "design_decision_ledger.json",
+   "source_sha256": "8d909ad5a5f1cceda81cd1d36d6d9c5850d616f09653016399b14036c98f7a99",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/design_interface_graph",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "design_interface_graph.json",
+   "source_sha256": "0ba2818ef6fb1c45c47591bbd6d953ff940693a5017954ed9c7eee11ed41d1c4",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "rule",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "severity",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "subject",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "detail",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/design_validation_report",
+   "kind": "table",
+   "n_rows": 3,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    3
+   ],
+   "source_output": "design_validation_report.csv",
+   "source_sha256": "bb3bcad779520d06ee1c13095e766c8e4d68a2a5864e01d6faf760d371070d57",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "slice",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "coord_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Tpeak_K",
+     "unit": "K"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/distributed_thermal_2d_slices",
+   "kind": "table",
+   "n_rows": 88,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    88
+   ],
+   "source_output": "distributed_thermal_2d_slices.csv",
+   "source_sha256": "e0c76fb72e4c5851c4a978480ff9f7871c90675855ada3ad184472f52e24c2a2",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/distributed_thermal_metrics",
+   "kind": "table",
+   "n_rows": 26,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    26
+   ],
+   "source_output": "distributed_thermal_metrics.csv",
+   "source_sha256": "195507c6356cb52eb8446af2cf302083bd6a33287d62a11df31d5e324c8a81a7",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "z_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "z_left_face_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "z_right_face_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cell_width_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_initial_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_final_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_peak_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Q_laser_W_m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Q_mw_W_m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "gradient_K_per_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 10,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "heat_flux_W_m2",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/distributed_thermal_profile",
+   "kind": "table",
+   "n_rows": 200,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    200
+   ],
+   "source_output": "distributed_thermal_profile.csv",
+   "source_sha256": "a24c3ca9aa6c0449d582616d7db8a8ec8ef94e8f18257c2e668c36129a5e2d0e",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cycle",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "phase_source_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "phase_sink_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "phase_dU_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "phase_residual_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "phase_rel_residual",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cumulative_source_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cumulative_sink_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cumulative_dU_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 10,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cumulative_residual_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "float64",
+     "index": 11,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cumulative_rel_residual",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "basis",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 13,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/energy_ledger_cumulative_3d",
+   "kind": "table",
+   "n_rows": 9,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    9
+   ],
+   "source_output": "energy_ledger_cumulative_3d.csv",
+   "source_sha256": "9c38d248d64f83f591dd63ed3249fe701a1b414989a19e8a1a1216c49b4acac2",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "fix_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "priority",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gates",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gate_delta",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "description",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "new_failure_modes",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/engineering_fixes",
+   "kind": "table",
+   "n_rows": 35,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    35
+   ],
+   "source_output": "engineering_fixes.csv",
+   "source_sha256": "4a0ab24b8633548c61b4ef040550d4152accd9cb2dfd4da0bfcb42922ce33c66",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "experiment_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "eig_nats",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "eig_se",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "prior_entropy_nats",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "expected_posterior_entropy_nats",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_outer",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_inner",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_batches",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "method",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/expected_information_gain",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "expected_information_gain.csv",
+   "source_sha256": "53d008c70ed6e5be5199c1d7c06e4fac4de05e5bcf5cca67b0bbe71b1a657a3a",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "experiment_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "parameter",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "transform",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "falsification_value",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "falsify_threshold_transformed",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "kill_condition",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/experiment_falsification_map",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "experiment_falsification_map.csv",
+   "source_sha256": "3949b60dfbb571eb33cd4b1713c2098575748d195f2143148c509d7c8d27b1e2",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "experiment_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "parameter",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "prior",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "required_hardware",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "required_mode",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gates_affected",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "predecessors",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cost",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "duration",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 10,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "risk",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 11,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "criticality",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 12,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "falsification_value",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 13,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "safety_note",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/experimental_design_candidates",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "experimental_design_candidates.csv",
+   "source_sha256": "b01b6c8fb229850a92ff3cf6fd4adea8b2decf954b01e986948d0fb45fb9b860",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "tc_us",
+     "unit": "us"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Ge_WK",
+     "unit": "W/K"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Cc",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T2s_us",
+     "unit": "us"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "ea",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Ts_mK",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "SNR",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "eps_pct",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "dominant_failure",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "g_d10",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "g_d3",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "g_d13",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "g_d18",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/failed_gate_samples",
+   "kind": "table",
+   "n_rows": 200,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    200
+   ],
+   "source_output": "failed_gate_samples.csv",
+   "source_sha256": "aaac8128a4b4979db7b6506262e4059878e47af27c8a3247d7466bbf0185dfbb",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/falsification_report_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "falsification_report_3d.json",
+   "source_sha256": "d0a76cfc99b54943c018e17d36f7bc06a727dd64b77d9746ce9c3a7d7c7dab55",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "model_1d",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "model_2d",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "note",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/fidelity_comparison",
+   "kind": "table",
+   "n_rows": 2,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    2
+   ],
+   "source_output": "fidelity_comparison.csv",
+   "source_sha256": "b48df288402ab5dfee50f1a75851617edce36d3658c08bd5fb471d5b3524eb78",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "r_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dose_flux_open_m2_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dose_flux_closed_m2_s",
+     "unit": "s"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/gas_transport_2d_map",
+   "kind": "table",
+   "n_rows": 60,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    60
+   ],
+   "source_output": "gas_transport_2d_map.csv",
+   "source_sha256": "09f17a344099658913fd9f0f88029638369cd82d16fa8b5b95759afc57a8784b",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "species",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "max_density_m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "sample_region_density_modeB_m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "residual_mode_D_density_m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cryobaffle_capture",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gas_transport_stability_status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/gas_transport_metrics",
+   "kind": "table",
+   "n_rows": 4,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    4
+   ],
+   "source_output": "gas_transport_metrics.csv",
+   "source_sha256": "63343753a7e0ebe8ee1a312c4e8424b959d581991dab0fc7b50972c453e2a7f1",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "x_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_CH4_modeC_1m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_H2_modeC_1m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_He3_modeC_1m3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_He4_modeC_1m3",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/gas_transport_profile",
+   "kind": "table",
+   "n_rows": 120,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    120
+   ],
+   "source_output": "gas_transport_profile.csv",
+   "source_sha256": "b5af43ae8521141e4a76a1d88b79ddba7f8314788bfae79bb5776ab9062c4ada",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/integrated_layers_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "integrated_layers_summary.json",
+   "source_sha256": "dd590da9763467a11427e8348e8363946ea905e868193c70cd439975cae104d2",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "condition",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "type",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "reason",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/interlock_table",
+   "kind": "table",
+   "n_rows": 14,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    14
+   ],
+   "source_output": "interlock_table.csv",
+   "source_sha256": "6c5581f38d9d9939ba3c39e01045f6cfbc0476b4ddff206f24ec65e866c5de92",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/laser_3d_deposition_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "laser_3d_deposition_summary.json",
+   "source_sha256": "43402e734b832c2ef631c45f051efbf42888ccab8390cff3f7c5b417a4de2b5f",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "quantity",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "lumped_model",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "nonlumped_1d_model",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "nonlumped_2d_model",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "role",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/lumped_vs_nonlumped_comparison",
+   "kind": "table",
+   "n_rows": 2,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    2
+   ],
+   "source_output": "lumped_vs_nonlumped_comparison.csv",
+   "source_sha256": "609fe0f22dc4c531664b9475ce4c3ede151de272acfc054df055cc861a967f61",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "from",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "to",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "result",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "guards",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "interlock_refs",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "justification",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "step",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cycle",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/machine_fsm_campaign_trace",
+   "kind": "table",
+   "n_rows": 60,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    60
+   ],
+   "source_output": "machine_fsm_campaign_trace.csv",
+   "source_sha256": "5d37b236f43b17ccd7a82a8455a7e2476e5e086c7e1fb78cbdc550b818f7792f",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "diagram (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_text/machine_fsm_diagram",
+   "kind": "raw_text_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "machine_fsm_diagram.mmd",
+   "source_sha256": "6cfc41f7ceb67ae3c23dd27c6f0a51c7143f55a3b7470a46e13c6e857e87cdc1",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "type",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "description",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "provenance",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/machine_fsm_interlocks",
+   "kind": "table",
+   "n_rows": 18,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    18
+   ],
+   "source_output": "machine_fsm_interlocks.csv",
+   "source_sha256": "59a2d991ad998ce93a8842fcd46a7132b04062cdd21cbc194d09f3a42cfcf44c",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "from",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "to",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "result",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "guards",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "interlock_refs",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "justification",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "step",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "context_provenance",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/machine_fsm_lifecycle_trace",
+   "kind": "table",
+   "n_rows": 26,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    26
+   ],
+   "source_output": "machine_fsm_lifecycle_trace.csv",
+   "source_sha256": "1ee7095ba6984a9f5f1a917dda2319de323475a4103fc5477fc3c84b99acf68b",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "parent",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "purpose",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "entry_conditions",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "exit_conditions",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sensors_monitored",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "validation_conditions",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "interlocks",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "thermal_configuration",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gas_configuration",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "optical_configuration",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "microwave_configuration",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "cryogenic_configuration",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 13,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "outputs_produced",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 14,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "physics_modules",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 15,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "recovery_behavior",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 16,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "fault_behavior",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 17,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "hardware_enabled",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 18,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "hardware_disabled",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 19,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/machine_fsm_states",
+   "kind": "table",
+   "n_rows": 32,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    32
+   ],
+   "source_output": "machine_fsm_states.csv",
+   "source_sha256": "1aa571a853e5b224253c8e1f8bcda8193d4f45aa6dbf94286a9fe46c7c43922d",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/machine_fsm_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "machine_fsm_summary.json",
+   "source_sha256": "5c6b55c8c14e914d3a95ac1070429d88bae951af0805db1d17ef9646c56545db",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "from",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "to",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "kind",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "guards",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "interlock_refs",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "justification",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/machine_fsm_transitions",
+   "kind": "table",
+   "n_rows": 46,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    46
+   ],
+   "source_output": "machine_fsm_transitions.csv",
+   "source_sha256": "f69b14182631665e81d2e68f6bd38f2f9dd7d4ccc566fd21569fc15eeba812ea",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/measurement_comparison_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "measurement_comparison_3d.json",
+   "source_sha256": "2d65a4bf9544d697e893694cfa62d8f8f9e72c07f629128bb83b2af8045195a3",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measurement_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "quantity",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "kind",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "mode",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "cycle",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "measured",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "units",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "predicted",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "residual",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "normalized_residual",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "normalization",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "inside_band",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "band_position",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 13,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "band_scaled_residual",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 14,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "data_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 15,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "interpretation",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 16,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/measurement_comparison_rows",
+   "kind": "table",
+   "n_rows": 8,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    8
+   ],
+   "source_output": "measurement_comparison_rows.csv",
+   "source_sha256": "54455753c01f575d8201fd4d159740057e618cb44e375cf120b59fca6db7e722",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/mesh_3d_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "mesh_3d_summary.json",
+   "source_sha256": "e183c4e40d371d63c5ab1f14f76ad27263c0abd9900ff391eb61f4fdd705beda",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "model",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "mesh",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "value",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "solver_status",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/mesh_convergence_summary",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "mesh_convergence_summary.csv",
+   "source_sha256": "6b238c47822916030f7848c4b4e78e1c1680403418cc30351e61fa7a589ff604",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dissipated_W",
+     "unit": "W"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "three_d_field_map",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/microwave_heating_3d_budget",
+   "kind": "table",
+   "n_rows": 8,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    8
+   ],
+   "source_output": "microwave_heating_3d_budget.csv",
+   "source_sha256": "2ca1a22982a7861bf5d6a0a026032e0fc14aa3f5b5b4544e0ca3133755686286",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "value",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/microwave_heating_metrics",
+   "kind": "table",
+   "n_rows": 7,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    7
+   ],
+   "source_output": "microwave_heating_metrics.csv",
+   "source_sha256": "47c9c1ec191d7fc1d276f3c339c01b632c3f0119ad0fd7302bb4d62fc6784f8f",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dissipated_power_W",
+     "unit": "W"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/microwave_heating_profile",
+   "kind": "table",
+   "n_rows": 7,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    7
+   ],
+   "source_output": "microwave_heating_profile.csv",
+   "source_sha256": "bc2118e74e2b9ff0561bb9871b9c4acc2551dd365225a6d9bf103bff8bc4d05f",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "t_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_nv_probe_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "threshold_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "ready",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "live_species",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/mode_recovery_3d_timeline",
+   "kind": "table",
+   "n_rows": 48,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    48
+   ],
+   "source_output": "mode_recovery_3d_timeline.csv",
+   "source_sha256": "b8b98b4ee6a0bddf2b25d432bcf6bba65f8c9772d1ab8b7afc424f5d99e4d62d",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/monte_carlo_summary",
+   "kind": "table",
+   "n_rows": 32,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    32
+   ],
+   "source_output": "monte_carlo_summary.csv",
+   "source_sha256": "7e6f3cc58d460ea1fbc86df6a29c94a17f1ab40a63383c5adbf72a66f71e3f47",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/multiphysics_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "multiphysics_summary.json",
+   "source_sha256": "4ca6e16268d0c5eeac17b08aae05c7a68f43960754cab546da11431f79c87d52",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "check",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "detail",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status_if_measured",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/multiphysics_verification_summary",
+   "kind": "table",
+   "n_rows": 9,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    9
+   ],
+   "source_output": "multiphysics_verification_summary.csv",
+   "source_sha256": "58e36f952705ce86f119aa8a6f6a27ac93e001ccb3a52ff063c227c265629fc9",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "check",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "value",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "pass_if_measured",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/numerical_stability_summary",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "numerical_stability_summary.csv",
+   "source_sha256": "62ad2dcc68b58f50acd151fb9b9ee817625c14da254ed4beb6a3bf93961c0946",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sequence",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "total_time_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "coherence_mc",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "coherence_filter_fn",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/nv_coherence_curves",
+   "kind": "table",
+   "n_rows": 72,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    72
+   ],
+   "source_output": "nv_coherence_curves.csv",
+   "source_sha256": "1dfa6dc7acaa74277dff6ec268b5281c5c6d7a71a348a5d68a8763cee8df4b18",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/nv_eligibility_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "nv_eligibility_3d.json",
+   "source_sha256": "d8f5123d6eaa2a2c59063734b1a6c2cd6072fa8f7cb1267a742bd55e03b4e4b4",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "frequency_Hz",
+     "unit": "Hz"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "odmr_signal",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/nv_odmr_spectrum",
+   "kind": "table",
+   "n_rows": 401,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    401
+   ],
+   "source_output": "nv_odmr_spectrum.csv",
+   "source_sha256": "c146841d39f61f583b2cfed46ad84e4f8dc75f49f0c872b8fa90c5d52a1b4936",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sequence",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "observable",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "one_over_e_time_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "tau_c_s_input",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "isotope_or_surface",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/nv_sequence_contrast",
+   "kind": "table",
+   "n_rows": 3,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    3
+   ],
+   "source_output": "nv_sequence_contrast.csv",
+   "source_sha256": "60fb709e1dbeddca81b36501d2a0df17f90ffeb795dae96cf7937c8dbc217bf5",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/nv_spin_dynamics_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "nv_spin_dynamics_summary.json",
+   "source_sha256": "12a1da12ce31b16cf226f2c0c94f7411d4276bff2821b7d16180647917084c3e",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gate_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "mode",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "equation",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "computed",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "threshold",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "unit",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "reason",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "fix",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source_directness",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "can_PASS_now",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 13,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "required_measurement",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 14,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "blocked_by",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 15,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "notes",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/nv_spin_gate_records",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "nv_spin_gate_records.csv",
+   "source_sha256": "77e2fcc92886f4d0ae2505349fea5bce9b555059424abd54a0567f4bc0693550",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/nv_spin_parameter_provenance",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "nv_spin_parameter_provenance.json",
+   "source_sha256": "75bf8aa99ef7963d37b0e7c9365dfdbeae484e1110ad85b3b358cf83e4439d38",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "slice",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "coord_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Q_laser_W_m3",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/optical_absorption_2d_slices",
+   "kind": "table",
+   "n_rows": 88,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    88
+   ],
+   "source_output": "optical_absorption_2d_slices.csv",
+   "source_sha256": "a1dd5d0cb2c9ad41f9f37be68a94c74ed57c30fe3f147b4c295019b428c4ac79",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/optical_absorption_metrics",
+   "kind": "table",
+   "n_rows": 10,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    10
+   ],
+   "source_output": "optical_absorption_metrics.csv",
+   "source_sha256": "1fd3a367faa6bae014590705a3dfb337b21c511ad90b5925961448203b38ce82",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "z_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "Q_laser_W_m3",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/optical_absorption_profile",
+   "kind": "table",
+   "n_rows": 200,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    200
+   ],
+   "source_output": "optical_absorption_profile.csv",
+   "source_sha256": "68b0c54c1d18ecc217ad7b9244462d9d5afb4000b1a404300ab1614da74485d5",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "unit",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "tag",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "modes",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "uncertainty",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/parameter_registry",
+   "kind": "table",
+   "n_rows": 73,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    73
+   ],
+   "source_output": "parameter_registry.csv",
+   "source_sha256": "213963dcf8a63136c0585709c0135fdda4656b4e95142d3d21060202d130616e",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/provenance_3d",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "provenance_3d.json",
+   "source_sha256": "ea8e9b4fad9dbdda5a94942f0e52b6fcf67c2c503871cc22b98259b380029e8a",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/radiation_leakage_metrics",
+   "kind": "table",
+   "n_rows": 5,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    5
+   ],
+   "source_output": "radiation_leakage_metrics.csv",
+   "source_sha256": "0453be60f3d6da94149c1579fd1f8add3619a7bf5e1ab0e7da5242357767aaec",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "path_name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source_stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sink_stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "heat_load_W",
+     "unit": "W"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "attenuation_factor",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "shutter_state",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "baffle_state",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "reaches_10mK_region",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/radiation_leakage_paths",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "radiation_leakage_paths.csv",
+   "source_sha256": "7e744f5e56e3832aaf3c4bf3c22585bd58566a2e1141ebd2be81cdf8f26c79df",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "path_name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source_stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sink_stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "heat_load_W",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "attenuation_factor",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "shutter_state",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "baffle_state",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "reaches_10mK_region",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "three_d_view_factors",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/radiation_paths_3d_budget",
+   "kind": "table",
+   "n_rows": 7,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    7
+   ],
+   "source_output": "radiation_paths_3d_budget.csv",
+   "source_sha256": "1c03fec6716f6ce370d6e7ca4d724790882f2c98e759251d924f70845544edf0",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "gate_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "mode",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "name",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "equation",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "computed",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "threshold",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "unit",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "reason",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "fix",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source_directness",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "can_PASS_now",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 13,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "required_measurement",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 14,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "blocked_by",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 15,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "notes",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/results_gate_table",
+   "kind": "table",
+   "n_rows": 83,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    83
+   ],
+   "source_output": "results_gate_table.csv",
+   "source_sha256": "ce30c830df141278eee7d7ee5e59db7df4c7f307229c1015ca1a0f631fe949a8",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "parameter",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "perturbation",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "base_probe_rise_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "perturbed_probe_rise_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "normalized_sensitivity",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "abs_normalized_sensitivity",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "parameter_provenance",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "meaning",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "rank",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/sensitivity_ranking_3d",
+   "kind": "table",
+   "n_rows": 4,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    4
+   ],
+   "source_output": "sensitivity_ranking_3d.csv",
+   "source_sha256": "4fec6823d19178dbe1e942fab5ecda972dbccd55d94df5e835193968f2db59a7",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "species",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "canonical_role",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "allowed_active",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "flux_in_per_m2_s",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "flux_status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "coverage_start",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "coverage_end",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "window_s",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "coverage_bounded_0_1",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "note",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/species_accounting_3d",
+   "kind": "table",
+   "n_rows": 8,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    8
+   ],
+   "source_output": "species_accounting_3d.csv",
+   "source_sha256": "a4145e11f3eaaecf95c48dc3b712d05868ee9babbd23316cf358e0d93171eed5",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/species_transport_3d_summary",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "species_transport_3d_summary.json",
+   "source_sha256": "f022aef794d1ece7d552cfc5c2f452056da2db368b21a48dadef40ee05688b7e",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "r_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_CH4",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_H2",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He4",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/surface_coverage_2d_map",
+   "kind": "table",
+   "n_rows": 40,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    40
+   ],
+   "source_output": "surface_coverage_2d_map.csv",
+   "source_sha256": "9c076f4f01600f934b9435b6cf2959ab9ef711739c522a1485942f0cb72004cd",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "x_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "y_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "z_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_surface_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He3",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He4",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "theta_C13_CH4_live",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "H2_role",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dose_pressure_Pa",
+     "unit": "Pa"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "window_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/surface_coverage_3d_summary",
+   "kind": "table",
+   "n_rows": 17,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    17
+   ],
+   "source_output": "surface_coverage_3d_summary.csv",
+   "source_sha256": "93e329faf8141e8ac8c1c11b7cdb80e6ae8fa9acd877b80617e2b19a269aa272",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "species",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "max_theta_modeB",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "residual_theta_mode_D",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "contamination_risk_status",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/surface_coverage_metrics",
+   "kind": "table",
+   "n_rows": 4,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    4
+   ],
+   "source_output": "surface_coverage_metrics.csv",
+   "source_sha256": "bbc276193298754925ea45710810383932ba63ae19a8de2428dd983d5cf09c9e",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "t_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_CH4_modeC",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_H2_modeC",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He3_modeC",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He4_modeC",
+     "unit": "unresolved"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/surface_coverage_profile",
+   "kind": "table",
+   "n_rows": 40,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    40
+   ],
+   "source_output": "surface_coverage_profile.csv",
+   "source_sha256": "0f3ec49aa388dd6303d0be995f6052d15ab28a6943f17e65964f26ac217c94a9",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "tau_c_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "DeltaGamma_rads",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T2s_eff_us",
+     "unit": "us"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "deltaGamma_noise",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "SNR",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 5,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "Gate",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "tau_c_canonical_threshold_us",
+     "unit": "us"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "note",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/tau_c_sweep",
+   "kind": "table",
+   "n_rows": 9,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    9
+   ],
+   "source_output": "tau_c_sweep.csv",
+   "source_sha256": "3ba8c6a8b948535a313f82079ccb597a70d15763352fbfe60ece53cbf739cd4b",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "component",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "note",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/thermal_3d_energy_accounting",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "thermal_3d_energy_accounting.csv",
+   "source_sha256": "e65eba881cb34911821bf7979b2922fd7b161bd44dfcf30fc3c2cfcad3ba4596",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "rank",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "x_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "y_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "z_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_peak_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "t_at_peak_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_final_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/thermal_3d_hotspots",
+   "kind": "table",
+   "n_rows": 10,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    10
+   ],
+   "source_output": "thermal_3d_hotspots.csv",
+   "source_sha256": "0d6f0f20cc3866eb5d6b33e604fb4e9fbb3a9c959f56eac7fbf24032b4af9b6c",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "t_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_nv_probe_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "T_front_surface_max_K",
+     "unit": "K"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "probe_x_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "probe_y_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "probe_z_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/thermal_3d_probe_timeseries",
+   "kind": "table",
+   "n_rows": 13,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    13
+   ],
+   "source_output": "thermal_3d_probe_timeseries.csv",
+   "source_sha256": "eac828bb7ff32b3423edb2e542714751a702c69e43c345e44a66a22a7922e6c2",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/thermal_3d_readiness",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "thermal_3d_readiness.json",
+   "source_sha256": "dd1aa2d7393994423c46c8173ad681456b395339dac2541b56cd49ed526e24b5",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/thermal_3d_reduction_check",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "thermal_3d_reduction_check.json",
+   "source_sha256": "cbf771c4f304823c20821dfa16f7041b5c3c34c5d7263e44706642b861c65484",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "classification": "governance/summary record (native authority)",
+   "compression": "gzip level 4",
+   "dataset_group": "/native_json/thermal_3d_verification_report",
+   "kind": "raw_json_utf8",
+   "ordering_policy": "byte-exact source bytes",
+   "schema_version": "1.0.0",
+   "source_output": "thermal_3d_verification_report.json",
+   "source_sha256": "58613160b1964daee859e146ce06684af9096ed27080ad9760b2d20b3fb734f5",
+   "string_encoding": "UTF-8"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "float64",
+     "index": 0,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "rank",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "experiment_id",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "score",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "eig_component",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "criticality_component",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 6,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "falsification_component",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dependency_component",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cost_penalty",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "source",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/validation_experiment_ranking",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "validation_experiment_ranking.csv",
+   "source_sha256": "9fefa33e8b3a2b27dc61c6e6a9bfc58547eef1caf60e025e6f13fb6498a7e999",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "input_amplitude_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "output_amplitude_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "attenuation_factor",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dissipated_power_W",
+     "unit": "W"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "settling_time_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "three_d_modal_analysis",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "label",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/vibration_paths_3d_budget",
+   "kind": "table",
+   "n_rows": 4,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    4
+   ],
+   "source_output": "vibration_paths_3d_budget.csv",
+   "source_sha256": "c737e3204d8bd5797866e7492308393fcd95bc194611546c6cc524da3f21de72",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "metric",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 1,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "value",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 3,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/vibration_transfer_metrics",
+   "kind": "table",
+   "n_rows": 6,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    6
+   ],
+   "source_output": "vibration_transfer_metrics.csv",
+   "source_sha256": "d1d279c164d9e6a08dc357d373e32fd30266b88c574a1decf3072340cd063c55",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  },
+  {
+   "chunking": "single chunk per column (small tables)",
+   "classification": "scientific table",
+   "columns": [
+    {
+     "dtype": "utf8_string",
+     "index": 0,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "stage",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 1,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "input_amplitude_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 2,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "output_amplitude_m",
+     "unit": "m"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "attenuation_factor",
+     "unit": "unresolved"
+    },
+    {
+     "dtype": "float64",
+     "index": 4,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "dissipated_power_W",
+     "unit": "W"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "settling_time_s",
+     "unit": "s"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "evidence_class",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 7,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "measured_in_this_system",
+     "unit": "n/a (string)"
+    }
+   ],
+   "compression": "gzip level 4",
+   "dataset_group": "/tables/vibration_transfer_profile",
+   "kind": "table",
+   "n_rows": 4,
+   "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
+   "schema_version": "1.0.0",
+   "shape_per_column": [
+    4
+   ],
+   "source_output": "vibration_transfer_profile.csv",
+   "source_sha256": "d30c1aa883a2b85c5544eaf36b52a491aaad5600d7fb032c8e2c457a2cedb21c",
+   "string_encoding": "UTF-8",
+   "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
+   "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
+  }
+ ],
+ "determinism": [
+  "track_times disabled on every object",
+  "sorted stable creation order",
+  "fixed gzip level 4",
+  "UTF-8 strings",
+  "no wall-clock timestamps",
+  "no absolute paths"
+ ],
+ "hdf5_file": "qta_scientific_results.h5",
+ "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+ "root_groups": [
+  "/tables",
+  "/native_json",
+  "/native_text",
+  "/provenance"
+ ],
+ "schema_version": "1.0.0",
+ "unit_system": "SI with canonical project suffix conventions; 'unresolved' is preserved, never invented"
+}
