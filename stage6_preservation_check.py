@@ -127,6 +127,17 @@ _norm = " ".join(Path("HDF5_DATA_MODEL.md").read_text().split())
 check("HDF5 role stated as representation-not-evidence",
       "not new scientific evidence" in _norm.replace("NOT", "not"))
 
+# ---- Stage-9 preservation ----
+for f in ("SUPPLY_CHAIN_THREAT_MODEL.md", "RELEASE_POLICY.md",
+          ".github/workflows/release.yml", "build_release_artifacts.py",
+          "verify_release.py"):
+    check(f"stage9 artifact present: {f}", Path(f).exists())
+check("release policy forbids wildcards",
+      "wildcard" in Path("RELEASE_POLICY.md").read_text().lower())
+check("CI workflow least-privilege marker",
+      "permissions: {}" in
+      Path(".github/workflows/release.yml").read_text())
+
 n = len(FAILS)
 msg = ("PRESERVED (all Stage-6 protection checks green)" if n == 0
        else f"{n} PRESERVATION FAILURES")
