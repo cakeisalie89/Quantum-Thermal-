@@ -1,0 +1,14 @@
+{
+ "note": "every PENDING must be replaced by an exact value before any signature is trusted; an asterisk wildcard anywhere in this file is itself a verification failure",
+ "oidc_issuer": "PENDING: exact issuer at first signing",
+ "pinned_revision": "PENDING: set at first signed release",
+ "schema_version": "1.0.0",
+ "signer_identity": "PENDING: exact certificate identity at first Sigstore signing",
+ "source_repository": "https://github.com/cakeisalie89/Quantum-Thermal-",
+ "trusted_builders": [
+  "qta:local-sandbox (unsigned local provenance only; carries no trust)",
+  "PENDING: pinned hosted workflow id after first real run"
+ ],
+ "wildcards_forbidden": true,
+ "workflow_path": ".github/workflows/release.yml"
+}
