@@ -25,7 +25,8 @@ def _cond(name, bound, provenance, value, units, falsified, status, note=""):
             "status": status, "note": note, "label": LABEL}
 
 
-def falsification_report(cfg, seq, vrep, species_rows) -> dict:
+def falsification_report(cfg, seq, vrep, species_rows,
+                         campaign=None) -> dict:
     thr = float(seq.threshold_K)
     tsC = seq.tC.probe_timeseries_K()
     probe_end = float(tsC[-1])
@@ -106,6 +107,30 @@ def falsification_report(cfg, seq, vrep, species_rows) -> dict:
         "solver_stability", "solver_status == ok for all phases",
         "BDF integrator status", ";".join(unstable) or "ok,ok", "-",
         bool(unstable), "DERIVED_CHECK" if not unstable else "CONDITIONAL"))
+
+    # campaign-continuity conditions (additive; present when a campaign
+    # state is supplied by the runner)
+    if campaign is not None:
+        from .cryopanel_dynamics_3d import N_ML_CAP
+        worst = max((pp.monolayer_fraction for pp in campaign.panels),
+                    default=0.0)
+        conds.append(_cond(
+            "cryopanel_saturation", f"max monolayer fraction < {N_ML_CAP:g}",
+            "PLACEHOLDER worst-case 1-monolayer capacity on the canonical "
+            "site basis (capacity unmeasured; ASSUMED sticking)",
+            f"{worst:.3e}", "monolayer fraction", worst >= N_ML_CAP,
+            "DERIVED_CHECK" if worst < N_ML_CAP else "CONDITIONAL",
+            f"{campaign.n_cycles}-cycle campaign; accumulating cross-cycle "
+            "state"))
+        _cum = (abs(float(campaign.energy_rows[-1]
+                          ["cumulative_rel_residual"]))
+                if campaign.energy_rows else float("inf"))
+        conds.append(_cond(
+            "cumulative_energy_residual",
+            f"|cumulative rel| <= {ENERGY_CLOSURE_TOL:.2e}",
+            "shared ENERGY_CLOSURE_TOL over identical-cycle sums",
+            f"{_cum:.3e}", "-", _cum > ENERGY_CLOSURE_TOL,
+            "DERIVED_CHECK" if _cum <= ENERGY_CLOSURE_TOL else "CONDITIONAL"))
 
     n_fals = sum(1 for c in conds if c["falsified_in_model"] == "true")
     return {

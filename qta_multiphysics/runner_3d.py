@@ -119,7 +119,14 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
         "label": LABEL})
     sp_rows = species_accounting_rows(cfg)
     write_rows_csv(out("species_accounting_3d.csv"), sp_rows)
-    fals = falsification_report(cfg, seq, vrep, sp_rows)
+    from .campaign_state_3d import (build_campaign, attach_energy_ledger,
+                                    mass_bookkeeping_rows, SCHEMA_VERSION,
+                                    DEFAULT_CYCLES)
+    from .vibration_transfer import vibration_transfer as _vt0
+    _, _vm0 = _vt0()
+    campaign = build_campaign(cfg, seq, sp_rows, _vm0, DEFAULT_CYCLES)
+    attach_energy_ledger(campaign, seq)
+    fals = falsification_report(cfg, seq, vrep, sp_rows, campaign=campaign)
     write_json(out("falsification_report_3d.json"), fals)
     conv = convergence_report(cfg)
     write_json(out("convergence_report_3d.json"), conv)
@@ -146,6 +153,27 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
     write_json(out("machine_fsm_summary.json"), fsm_summary)
     (out("machine_fsm_diagram.mmd")).write_text(mermaid_diagram())
 
+    # ---- campaign continuity outputs (separate API; zero extra solves) ----
+    write_rows_csv(out("cryopanel_loading_3d.csv"), campaign.panel_rows)
+    write_rows_csv(out("energy_ledger_cumulative_3d.csv"),
+                   campaign.energy_rows)
+    write_rows_csv(out("machine_fsm_campaign_trace.csv"),
+                   campaign.trace_rows)
+    write_json(out("campaign_state_3d.json"), {
+        "schema_version": SCHEMA_VERSION,
+        "n_cycles": campaign.n_cycles,
+        "cycles": campaign.cycle_rows,
+        "cumulative_energy": {k: (f"{v:.9e}" if isinstance(v, float) else v)
+                              for k, v in campaign.cumulative.items()},
+        "mass_bookkeeping": mass_bookkeeping_rows(campaign),
+        "identical_cycle_approx_delta_K":
+            f"{campaign.approx_delta_K:.3e}",
+        "n_sensing_refusals": campaign.n_refused,
+        "final_state": campaign.final_state,
+        "measured_in_this_system": False,
+        "can_PASS_now": "NO",
+        "label": LABEL})
+
     # ---- readiness record (fail-closed, forecast-only, never PASS) ----
     mats = materials_3d.summary(cfg, grid)
     readiness = {
@@ -161,6 +189,20 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
         "coupling_ledger_summary": ledger_summary(led),
         "nv_eligibility_forecast": elig["eligibility_forecast"],
         "nv_eligibility_blocking_reasons": elig["blocking_reasons"],
+        "campaign_continuity": {
+            "schema_version": SCHEMA_VERSION,
+            "n_cycles": campaign.n_cycles,
+            "panel_CH4_final_ML": f"{max(pp.monolayer_fraction for pp in campaign.panels if pp.species=='C13_CH4'):.3e}",
+            "cumulative_energy_rel_residual":
+                campaign.energy_rows[-1]["cumulative_rel_residual"],
+            "sensing_refusals_per_campaign": campaign.n_refused,
+            "carried_states": ["temperature (identical-cycle, delta "
+                               f"{campaign.approx_delta_K:.1e} K)",
+                               "coverage residual", "device state",
+                               "cryopanel loading", "cumulative energy"],
+            "not_carried": ["per-run uncertainty propagation (recorded "
+                            "limitation)"],
+        },
         "falsification": {"n_conditions": fals["n_conditions"],
                           "n_falsified_in_model": fals["n_falsified_in_model"],
                           "n_not_implemented_bounds":
