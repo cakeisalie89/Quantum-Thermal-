@@ -174,6 +174,24 @@
         "tests/test_campaign_uncertainty.py"
       ],
       "note": "distributions restricted to authoritative declared ranges/spreads; exclusions machine-readable; marginal (not joint) thermal composition"
+    },
+    "measurement_ingestion": {
+      "authority": "qta_multiphysics/measurement_ingest_3d.py :: QUANTITY_REGISTRY, validate_record, ingest_and_compare (schema 1.0; SYNTHETIC-only; read-only; fail-closed)",
+      "owner": "measurement_ingest_3d",
+      "schema_version": "1.0",
+      "canonical_inputs": [
+        "synthetic_measurements_example.json"
+      ],
+      "canonical_outputs": [
+        "measurement_comparison_3d.json",
+        "measurement_comparison_rows.csv"
+      ],
+      "consumers": [
+        "runner_3d",
+        "package_consistency_check.py",
+        "tests/test_measurement_ingest.py"
+      ],
+      "note": "process quantities phase-locked; residual-gas diagnostics any-mode; HARDWARE refused pending validation-plan governance; band semantics band-relative, never sigma"
     }
   },
   "competing_sources_record": [
