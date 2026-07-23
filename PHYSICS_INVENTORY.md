@@ -182,9 +182,28 @@ Carried since Stage 2 (campaign-continuity layer):
    emits `energy_ledger_cumulative_3d.csv` (identical-cycle sums of the
    existing phase closures; shared tolerance).
 
-Not carried (the remaining recorded limitation):
-2. Uncertainty is evaluated per run; posterior state is not propagated
-   across phases or cycles (deep layer is fail-closed by design).
+Carried since Stage 3:
+2. Uncertainty propagation -- CLOSED: `campaign_uncertainty_3d.py`
+   propagates a fixed deterministic ensemble (M=120, dedicated seed
+   20260717) through the analytic campaign layer with within-member
+   parameter persistence across all phases and cycles (no resampling, no
+   new PDE solves). Successor limitations (recorded): parameters drawn
+   independently (no authoritative cross-parameter correlations exist);
+   thermal uncertainty composed as MARGINAL quantiles from the canonical
+   3-D MC (not joint); tau_c, C_contr, panel capacity, H2/He panel
+   sticking and vibration factors remain fixed/excluded for lack of
+   authoritative ranges. The deep layer stays fail-closed by design.
+
+There are no remaining non-carried campaign states.
+
+**Campaign uncertainty propagation (Stage 3)** -- IMPLEMENTED
+(forecast-only). Deterministic ensemble over the verified-source
+distributions only: s_CH4_panel ~ U(0.3,0.8) (CSV verbatim range);
+coverage sticking lognormal(center 0.5 canonical, sigma 0.2 declared in
+uncertainty.py); purge lognormal(center 5.0 canonical, sigma 0.3
+declared). Everything else fixed/excluded machine-readably. Outputs:
+`campaign_uncertainty_3d.json`, `campaign_uncertainty_quantiles.csv`;
+tests: `tests/test_campaign_uncertainty.py` (10).
 
 **Campaign continuity (Stage 2)** -- IMPLEMENTED (forecast-only).
 Three-cycle deterministic campaign (`campaign_state_3d.build_campaign`,

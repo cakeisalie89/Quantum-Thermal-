@@ -1643,6 +1643,8 @@ THREE_D_OUTPUTS = [
     # campaign continuity (Stage 2)
     "cryopanel_loading_3d.csv", "energy_ledger_cumulative_3d.csv",
     "machine_fsm_campaign_trace.csv", "campaign_state_3d.json",
+    # campaign uncertainty (Stage 3)
+    "campaign_uncertainty_3d.json", "campaign_uncertainty_quantiles.csv",
 ]
 try:
     import importlib
@@ -1756,6 +1758,23 @@ try:
             fail("multiphysics: campaign continuity",
                  f"got {_cs.get('n_cycles')} cycles, "
                  f"{_cs.get('n_sensing_refusals')} refusals")
+        # campaign-uncertainty assertions (Stage 3)
+        _cu = json.loads((PKG / "campaign_uncertainty_3d.json").read_text())
+        _cu_ok = (_cu.get("schema_version") == "1.0"
+                  and _cu.get("seed") == 20260717
+                  and _cu.get("n_members") == 120
+                  and _cu.get("can_PASS_now") == "NO"
+                  and _cu.get("measured_in_this_system") is False
+                  and len(_cu.get("exclusions", [])) >= 8
+                  and "MARGINAL" in _cu["marginal_composition"]["thermal"])
+        if _cu_ok:
+            ok("multiphysics: campaign uncertainty (deterministic ensemble, "
+               "within-member persistence, marginal composition, exclusions "
+               "recorded, forecast-only)")
+        else:
+            fail("multiphysics: campaign uncertainty",
+                 f"seed={_cu.get('seed')} M={_cu.get('n_members')} "
+                 f"exclusions={len(_cu.get('exclusions', []))}")
 except Exception as e:
     fail("multiphysics: package import", str(e))
 

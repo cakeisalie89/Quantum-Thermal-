@@ -41,9 +41,24 @@
       "cryopanel loading",
       "cumulative energy"
     ],
-    "not_carried": [
-      "per-run uncertainty propagation (recorded limitation)"
-    ]
+    "not_carried": [],
+    "uncertainty_propagation": {
+      "schema_version": "1.0",
+      "seed": 20260717,
+      "n_members": 120,
+      "varied": [
+        "s_CH4_panel",
+        "sticking_coverage_CH4",
+        "purge_1_s"
+      ],
+      "n_exclusions": 8,
+      "panel_CH4_ML_cycle3_band": {
+        "p05": "1.777831156e-06",
+        "p50": "3.289939837e-06",
+        "p95": "4.346646967e-06"
+      },
+      "composition": "thermal quantiles MARGINAL (not joint)"
+    }
   },
   "falsification": {
     "n_conditions": 13,
