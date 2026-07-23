@@ -192,6 +192,18 @@
         "tests/test_measurement_ingest.py"
       ],
       "note": "process quantities phase-locked; residual-gas diagnostics any-mode; HARDWARE refused pending validation-plan governance; band semantics band-relative, never sigma"
+    },
+    "hardware_governance": {
+      "authority": "qta_multiphysics/hardware_governance_3d.py :: DATA_CLASSES, schema_validate_hardware, build_quarantine_report, build_evidence_dossier, append_audit/verify_audit_chain (schema 1.0; read-only; automatic_gate_effect=NONE)",
+      "owner": "hardware_governance_3d",
+      "schema_version": "1.0",
+      "plan_authority": "validation_matrix.csv (experiment ids; repetition requirements UNKNOWN until specified)",
+      "consumers": [
+        "runner_3d (readiness summary only)",
+        "package_consistency_check.py",
+        "tests/test_hardware_governance.py"
+      ],
+      "note": "no hardware data exists; default execution deterministic; raw files outside the source (references + SHA-256 only); human-only review authoring"
     }
   },
   "competing_sources_record": [
