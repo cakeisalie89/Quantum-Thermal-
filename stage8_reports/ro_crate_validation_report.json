@@ -1,0 +1,8 @@
+{
+ "entities": 30,
+ "limitation": "structural in-repo validator; no external conformance tool was executable in this sandbox",
+ "problems": [],
+ "referenced_files": 24,
+ "result": "VALID",
+ "spec": "https://w3id.org/ro/crate/1.1"
+}

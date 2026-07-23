@@ -1,0 +1,14 @@
+{
+ "byte_exact_natives": 28,
+ "datasets_checked": 469,
+ "exact_numeric_matches": 157,
+ "exact_string_matches": 284,
+ "h5": "qta_scientific_results.h5",
+ "h5_sha256": "68cd3eb0d2e715dd18e6355e150fca3cad78fbbbb589092545cd9f026697d150",
+ "mismatches": [],
+ "note": "exact parsed-value equality (no tolerance); natives byte-exact; software verification only -- scientific gate PASS remains zero",
+ "result": "EQUIVALENT",
+ "schema_version": "1.0.0",
+ "sources_checked": 88,
+ "unresolved_unit_columns": 87
+}
