@@ -112,6 +112,21 @@ check("requester/reviewer separation enforced by governance",
       "requester may not be a reviewer" in
       Path("qta_multiphysics/hardware_governance_3d.py").read_text())
 
+# ---- Stage-7 / 7.5 / 8 preservation ----
+for f in ("pyproject.toml", "uv.lock", "Snakefile",
+          "qta_multiphysics/stage7_boundary_models.py",
+          "qta_sim_stages.py", "RUNTIME_RESILIENCE.md",
+          "hdf5_output_mapping.json", "hdf5_schema.json",
+          "qta_scientific_results.h5", "ro-crate/ro-crate-metadata.json",
+          "ro_crate_tools.py", "HDF5_DATA_MODEL.md"):
+    check(f"artifact present: {f}", Path(f).exists())
+check("checker --verify-existing mode present",
+      "--verify-existing" in
+      Path("package_consistency_check.py").read_text())
+_norm = " ".join(Path("HDF5_DATA_MODEL.md").read_text().split())
+check("HDF5 role stated as representation-not-evidence",
+      "not new scientific evidence" in _norm.replace("NOT", "not"))
+
 n = len(FAILS)
 msg = ("PRESERVED (all Stage-6 protection checks green)" if n == 0
        else f"{n} PRESERVATION FAILURES")

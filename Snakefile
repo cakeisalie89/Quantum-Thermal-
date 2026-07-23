@@ -188,3 +188,95 @@ rule manifest_verified:
 rule clean_workspace:
     # removes ONLY the generated workspace; never authoritative sources
     shell: "rm -rf verification/snakemake"
+
+
+# ===================== Stage-8 additive rules (HDF5 + RO-Crate) ==============
+W8 = "verification/stage8"
+
+rule s8_mapping_validate:
+    input: "hdf5_output_mapping.json", "hdf5_schema.json"
+    output: f"{W8}/mapping_validated.json"
+    run:
+        import json as _j
+        m = _j.loads(Path(input[0]).read_text())
+        sc = _j.loads(Path(input[1]).read_text())
+        assert m["schema_version"] == "1.0.0" and m["n_governed"] == 88
+        assert len(sc["datasets"]) == 88
+        Path(output[0]).write_text(_j.dumps(
+            {"mapping_sha": _sha(input[0]), "schema_sha": _sha(input[1]),
+             "n_governed": 88}, indent=1, sort_keys=True))
+
+rule s8_hdf5_build:
+    input: "hdf5_output_mapping.json", "build_hdf5.py"
+    output: f"{W8}/qta_scientific_results.h5"
+    shell: ".venv/bin/python build_hdf5.py {output}"
+
+rule s8_hdf5_equivalence:
+    input: f"{W8}/qta_scientific_results.h5"
+    output: f"{W8}/hdf5_equivalence.txt"
+    shell:
+        ".venv/bin/python validate_hdf5_equivalence.py {input} "
+        "verification/stage8/hdf5_equivalence_report.json > {output} "
+        "2>&1 && grep -q 'RESULT: EQUIVALENT' {output}"
+
+rule s8_hdf5_rebuild_compare:
+    input: f"{W8}/qta_scientific_results.h5"
+    output: f"{W8}/hdf5_determinism.json"
+    run:
+        import json as _j, subprocess as _sp, sys as _sy
+        _sp.run([".venv/bin/python", "build_hdf5.py",
+                 f"{W8}/rebuild.h5"], check=True)
+        a, b = _sha(input[0]), _sha(f"{W8}/rebuild.h5")
+        Path(output[0]).write_text(_j.dumps(
+            {"build_sha": a, "rebuild_sha": b,
+             "binary_identity": a == b}, indent=1))
+        assert a == b
+
+rule s8_crate_build:
+    # crate builds LAST: it references the equivalence report, so the
+    # report must exist/settle first (build-ordering discipline)
+    input: "ro_crate_tools.py", "qta_scientific_results.h5",
+           f"{W8}/hdf5_equivalence.txt"
+    output: f"{W8}/crate/ro-crate-metadata.json"
+    shell: "python3 ro_crate_tools.py {W8}/crate".replace("{W8}", W8)
+
+rule s8_crate_validate:
+    input: "ro-crate/ro-crate-metadata.json"
+    output: f"{W8}/crate_validated.txt"
+    shell:
+        "python3 ro_crate_tools.py validate > {output} 2>&1 && "
+        "grep -q 'RESULT: VALID' {output}"
+
+rule s8_crate_rebuild_compare:
+    input: f"{W8}/crate/ro-crate-metadata.json",
+           "ro-crate/ro-crate-metadata.json"
+    output: f"{W8}/crate_determinism.json"
+    run:
+        import json as _j
+        a, b = _sha(input[0]), _sha(input[1])
+        Path(output[0]).write_text(_j.dumps(
+            {"scratch_sha": a, "tree_sha": b, "identity": a == b},
+            indent=1))
+        assert a == b
+
+rule s8_preservation:
+    output: f"{W8}/preservation.txt"
+    shell:
+        "python3 stage6_preservation_check.py > {output} 2>&1 && "
+        "grep -q 'RESULT: PRESERVED' {output}"
+
+rule s8_report:
+    input:
+        f"{W8}/mapping_validated.json", f"{W8}/hdf5_equivalence.txt",
+        f"{W8}/hdf5_determinism.json", f"{W8}/crate_validated.txt",
+        f"{W8}/crate_determinism.json", f"{W8}/preservation.txt"
+    output: f"{W8}/stage8_workflow_report.json"
+    run:
+        import json as _j
+        Path(output[0]).write_text(_j.dumps(
+            {"inputs": {Path(f).name: _sha(f) for f in input},
+             "note": "software verification only; scientific gate PASS "
+                     "remains zero"}, indent=1, sort_keys=True))
+
+rule s8_full:
+    input: f"{W8}/stage8_workflow_report.json"
