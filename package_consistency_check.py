@@ -101,12 +101,54 @@ print("Step 1: regenerate qta_full_sim.py outputs in fresh directory")
 print("-"*70)
 
 gen_outputs_dir = PKG / "outputs"
-shutil.rmtree(gen_outputs_dir, ignore_errors=True)
 sim_path = PKG / "qta_full_sim.py"
 sim_stdout = ""
-if not sim_path.exists():
+
+# --verify-existing: verification-only mode over an EXISTING COMPLETE
+# output set (e.g. produced by the checkpointed stage driver when an
+# external per-command wall ceiling prevents the single-command run).
+# This mode is NOT the release gate: the default full-regeneration mode
+# above remains the authoritative release path. The mode fails closed
+# unless the output set is complete AND a captured simulation stdout log
+# is supplied for the Step-3 stale-language audit.
+VERIFY_EXISTING = "--verify-existing" in sys.argv
+_SIM_LOG = None
+if "--sim-log" in sys.argv:
+    _i = sys.argv.index("--sim-log")
+    _SIM_LOG = sys.argv[_i + 1] if _i + 1 < len(sys.argv) else None
+
+if VERIFY_EXISTING:
+    print("  MODE: --verify-existing (verification-only; NOT the "
+          "release gate — full regeneration remains authoritative)")
+    if not sim_path.exists():
+        fail("qta_full_sim.py present", f"missing {sim_path}")
+    if not gen_outputs_dir.exists():
+        fail("existing outputs/ directory present", "missing")
+    else:
+        _n = len([x for x in gen_outputs_dir.iterdir() if x.is_file()])
+        # the canonical complete-set size is exactly 89 files (88 governed
+        # + the by-design-exempt deep_surrogate_readiness.json); anything
+        # smaller is truncated, anything larger is foreign -- both refused
+        # (missing files would otherwise escape Step 2b, which iterates
+        # only files that exist).
+        if _n != 89:
+            fail("existing output set complete (exactly 89 files)",
+                 f"{_n} files present; partial/truncated or foreign sets "
+                 "are never accepted")
+        else:
+            ok("existing output set complete (exactly 89 files; "
+               "byte-identity further enforced file-by-file in Steps 2+)")
+    if _SIM_LOG and Path(_SIM_LOG).exists():
+        sim_stdout = Path(_SIM_LOG).read_text(encoding="utf-8",
+                                              errors="replace")
+        ok("simulation stdout log supplied for the stale-language audit")
+    else:
+        fail("simulation stdout log supplied (--sim-log PATH)",
+             "verify-existing refuses to skip the Step-3 audit")
+elif not sim_path.exists():
     fail("qta_full_sim.py present", f"missing {sim_path}")
 else:
+    shutil.rmtree(gen_outputs_dir, ignore_errors=True)
     proc = subprocess.run([sys.executable, str(sim_path)],
                           capture_output=True, text=True,
                           encoding="utf-8", errors="replace",
