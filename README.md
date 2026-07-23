@@ -76,6 +76,16 @@ the non-lumped models are the gate authority. Every multiphysics output is
 model-only / forecast-only and contributes only CONDITIONAL / BLOCKED /
 DERIVED_CHECK gates — none is PASS.
 
+## Repository map and authorities
+
+Single sources of truth are registered in `AUTHORITIES.md` /
+`authorities.json` (owners, schema versions v1.0, consumers). The physics
+status of every domain, with the B->C->D state-continuity audit, is in
+`PHYSICS_INVENTORY.md`; terms in `GLOSSARY.md`. Canonical outputs live at
+the repository root (indexed by `final_manifest.json`, byte-gated by the
+package checker); historical delivery artifacts are archived under
+`attic/delivery_artifacts/` and are not part of the governed project.
+
 ## Machine finite-state architecture
 
 The hierarchical operational FSM (states, guarded transitions, interlocks,

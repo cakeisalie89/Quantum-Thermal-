@@ -28,8 +28,25 @@
   "nv_eligibility_blocking_reasons": [
     "vibration_amplitude"
   ],
+  "campaign_continuity": {
+    "schema_version": "1.0",
+    "n_cycles": 3,
+    "panel_CH4_final_ML": "3.041e-06",
+    "cumulative_energy_rel_residual": "1.328216e-04",
+    "sensing_refusals_per_campaign": 3,
+    "carried_states": [
+      "temperature (identical-cycle, delta 1.1e-12 K)",
+      "coverage residual",
+      "device state",
+      "cryopanel loading",
+      "cumulative energy"
+    ],
+    "not_carried": [
+      "per-run uncertainty propagation (recorded limitation)"
+    ]
+  },
   "falsification": {
-    "n_conditions": 11,
+    "n_conditions": 13,
     "n_falsified_in_model": 0,
     "n_not_implemented_bounds": 2
   },

@@ -1640,6 +1640,9 @@ THREE_D_OUTPUTS = [
     "machine_fsm_states.csv", "machine_fsm_transitions.csv",
     "machine_fsm_interlocks.csv", "machine_fsm_lifecycle_trace.csv",
     "machine_fsm_summary.json", "machine_fsm_diagram.mmd",
+    # campaign continuity (Stage 2)
+    "cryopanel_loading_3d.csv", "energy_ledger_cumulative_3d.csv",
+    "machine_fsm_campaign_trace.csv", "campaign_state_3d.json",
 ]
 try:
     import importlib
@@ -1738,6 +1741,21 @@ try:
             fail("multiphysics: machine FSM structure/enforcement",
                  f"closed={_closed} overlap={sorted(_al & _fb)} enforced={_enf} "
                  f"summary={_msum.get('final_state')}")
+        # campaign-continuity assertions (Stage 2)
+        _cs = json.loads((PKG / "campaign_state_3d.json").read_text())
+        _camp_ok = (_cs.get("schema_version") == "1.0"
+                    and _cs.get("n_cycles") == 3
+                    and _cs.get("n_sensing_refusals") == 3
+                    and _cs.get("can_PASS_now") == "NO"
+                    and _cs.get("measured_in_this_system") is False
+                    and len(_cs.get("cycles", [])) == 3)
+        if _camp_ok:
+            ok("multiphysics: campaign continuity (3 cycles, carried state, "
+               "per-cycle IL-08 refusal, forecast-only)")
+        else:
+            fail("multiphysics: campaign continuity",
+                 f"got {_cs.get('n_cycles')} cycles, "
+                 f"{_cs.get('n_sensing_refusals')} refusals")
 except Exception as e:
     fail("multiphysics: package import", str(e))
 
