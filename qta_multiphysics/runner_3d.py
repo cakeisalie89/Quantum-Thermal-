@@ -212,6 +212,9 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
                                "coverage residual", "device state",
                                "cryopanel loading", "cumulative energy"],
             "not_carried": [],
+            "hardware_governance": __import__(
+                "qta_multiphysics.hardware_governance_3d",
+                fromlist=["governance_summary"]).governance_summary(),
             "measurement_ingestion": {
                 "schema_version": ing["schema_version"],
                 "status": ing["ingestion_status"],
