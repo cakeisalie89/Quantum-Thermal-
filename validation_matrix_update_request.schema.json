@@ -1,0 +1,44 @@
+{
+ "$schema": "validation_matrix_update_request.schema.json",
+ "schema_version": "1.0.0",
+ "title": "Human-authored validation-matrix update request",
+ "note": "tooling may validate, archive and cross-check a request; tooling must never apply the change, change a gate, mutate a parameter, create a PASS, or treat the requester as the reviewer",
+ "type": "object",
+ "required": [
+  "request_id",
+  "item",
+  "current_status",
+  "proposed_status",
+  "experiment_ids",
+  "dossier_refs",
+  "raw_data_refs",
+  "calibration_refs",
+  "uncertainty_refs",
+  "review_ids",
+  "requester",
+  "request_date",
+  "rationale",
+  "claim_boundary_confirmation",
+  "automatic_application",
+  "schema_version"
+ ],
+ "properties": {
+  "automatic_application": {
+   "const": false,
+   "note": "must be false; requests configured for automatic application are invalid"
+  },
+  "review_ids": {
+   "type": "array",
+   "minItems": 1,
+   "note": "reviewer(s) distinct from requester"
+  },
+  "experiment_ids": {
+   "type": "array",
+   "minItems": 1,
+   "note": "must exist in experiment_registry.json"
+  },
+  "claim_boundary_confirmation": {
+   "const": "no hardware-validation claim; PASS remains zero; measured_in_this_system remains false until a governed canonical release event"
+  }
+ }
+}

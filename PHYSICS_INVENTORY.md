@@ -196,6 +196,20 @@ Carried since Stage 3:
 
 There are no remaining non-carried campaign states.
 
+**Experimental validation roadmap (Stage 6)** -- DOCUMENTATION_ONLY /
+PROPOSED (planning infrastructure; no experiment performed). Eleven
+consolidated experiments with 30-section lab playbooks; EXP-A..F
+reconciliation (EXP-D decomposed into V1+P1, grounded verbatim); EIG
+ranking preserved separately from the dependency-real execution order
+(1..11); 25/25 BLOCKED+UNKNOWN gates mapped (21 direct, 3 composite,
+1 engineering-evidence); 43/43 open matrix items dispositioned (22
+direct, 12 indirect, 8 engineering-evidence, 1 honestly unresolved:
+nonlinear_threshold); repetition requirements derivation-ruled with
+precise unresolved statuses -- no counts invented; Campaign-1
+(V1+S1+N0) PROPOSED_NOT_PERFORMED; matrix updates only via human-
+authored requests (automatic_application=false enforced). Tests:
+tests/test_stage6_roadmap.py (14).
+
 **Hardware-validation governance (Stage 5)** -- IMPLEMENTED
 (read-only record-keeping; no hardware data exists). Three data classes
 with quarantine-with-recorded-deficiencies for HARDWARE_UNVERIFIED,

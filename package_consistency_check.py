@@ -1814,6 +1814,33 @@ try:
             fail("multiphysics: hardware governance",
                  f"auto_effect={_hg.get('automatic_gate_effect')} "
                  f"default={_hg.get('default_execution','')[:30]}")
+        # validation-roadmap assertions (Stage 6)
+        _vr = json.loads((PKG / "experiment_registry.json").read_text())
+        _vg = json.loads((PKG / "experiment_gate_coverage.json").read_text())
+        _vm = json.loads((PKG / "experiment_matrix_coverage.json").read_text())
+        _rr = _rd2.get("campaign_continuity", {}).get("validation_roadmap",
+                                                       {})
+        _ids6 = [e["experiment_id"] for e in _vr["experiments"]]
+        _vr_ok = (len(_ids6) == 11 and len(set(_ids6)) == 11
+                  and _vg.get("n_gates") == 25
+                  and _vm.get("n_items") == 43
+                  and all(e.get("automatic_gate_effect") == "NONE"
+                          for e in _vr["experiments"])
+                  and all(e.get("measured_in_this_system") is False
+                          for e in _vr["experiments"])
+                  and sum(1 for e in _vr["experiments"]
+                          if e.get("status") == "PLAYBOOK_READY") <= 1
+                  and _rr.get("gates_covered") == 25
+                  and _rr.get("automatic_gate_effect") == "NONE")
+        if _vr_ok:
+            ok("multiphysics: validation roadmap (11 experiments, 25/25 "
+               "gates mapped, 43 matrix items dispositioned, <=1 "
+               "PLAYBOOK_READY, automatic_gate_effect=NONE, "
+               "planning-only)")
+        else:
+            fail("multiphysics: validation roadmap",
+                 f"exps={len(_ids6)} gates={_vg.get('n_gates')} "
+                 f"items={_vm.get('n_items')}")
 except Exception as e:
     fail("multiphysics: package import", str(e))
 
