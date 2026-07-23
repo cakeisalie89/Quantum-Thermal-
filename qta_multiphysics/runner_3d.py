@@ -159,6 +159,17 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
                    campaign.energy_rows)
     write_rows_csv(out("machine_fsm_campaign_trace.csv"),
                    campaign.trace_rows)
+    from .measurement_ingest_3d import (ingest_and_compare as _ing,
+                                        comparison_rows as _ing_rows)
+    ing = _ing()
+    write_json(out("measurement_comparison_3d.json"), ing)
+    write_rows_csv(out("measurement_comparison_rows.csv"), _ing_rows(ing))
+    from .campaign_uncertainty_3d import (propagate as _unc_propagate,
+                                          quantile_rows as _unc_rows)
+    unc = _unc_propagate(cfg, n_cycles=DEFAULT_CYCLES)
+    write_json(out("campaign_uncertainty_3d.json"), unc)
+    write_rows_csv(out("campaign_uncertainty_quantiles.csv"),
+                   _unc_rows(unc))
     write_json(out("campaign_state_3d.json"), {
         "schema_version": SCHEMA_VERSION,
         "n_cycles": campaign.n_cycles,
@@ -200,8 +211,26 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
                                f"{campaign.approx_delta_K:.1e} K)",
                                "coverage residual", "device state",
                                "cryopanel loading", "cumulative energy"],
-            "not_carried": ["per-run uncertainty propagation (recorded "
-                            "limitation)"],
+            "not_carried": [],
+            "measurement_ingestion": {
+                "schema_version": ing["schema_version"],
+                "status": ing["ingestion_status"],
+                "n_accepted": ing["n_accepted"],
+                "n_rejected": ing["n_rejected"],
+                "band_coverage": ing["coverage"],
+                "synthetic_only": True,
+                "hardware_refused_by_design": True,
+                "read_only": "comparison context only; not validation; "
+                             "never a gate input",
+            },
+            "uncertainty_propagation": {
+                "schema_version": unc["schema_version"],
+                "seed": unc["seed"], "n_members": unc["n_members"],
+                "varied": [d["parameter"] for d in unc["distributions"]],
+                "n_exclusions": len(unc["exclusions"]),
+                "panel_CH4_ML_cycle3_band": unc["cycles"][-1]["panel_CH4_ML"],
+                "composition": "thermal quantiles MARGINAL (not joint)",
+            },
         },
         "falsification": {"n_conditions": fals["n_conditions"],
                           "n_falsified_in_model": fals["n_falsified_in_model"],
