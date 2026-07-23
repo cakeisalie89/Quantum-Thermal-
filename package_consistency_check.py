@@ -1645,6 +1645,8 @@ THREE_D_OUTPUTS = [
     "machine_fsm_campaign_trace.csv", "campaign_state_3d.json",
     # campaign uncertainty (Stage 3)
     "campaign_uncertainty_3d.json", "campaign_uncertainty_quantiles.csv",
+    # measurement ingestion (Stage 4)
+    "measurement_comparison_3d.json", "measurement_comparison_rows.csv",
 ]
 try:
     import importlib
@@ -1775,6 +1777,25 @@ try:
             fail("multiphysics: campaign uncertainty",
                  f"seed={_cu.get('seed')} M={_cu.get('n_members')} "
                  f"exclusions={len(_cu.get('exclusions', []))}")
+        # measurement-ingestion assertions (Stage 4)
+        _mi = json.loads((PKG / "measurement_comparison_3d.json").read_text())
+        _mi_ok = (_mi.get("schema_version") == "1.0"
+                  and _mi.get("ingestion_status") == "OK"
+                  and _mi.get("synthetic_only") is True
+                  and _mi.get("measured_in_this_system") is False
+                  and _mi.get("can_PASS_now") == "NO"
+                  and _mi.get("n_rejected", 0) >= 1
+                  and "hardware" in _mi.get("hardware_refused_by_design", "")
+                  and all(a.get("data_class") == "SYNTHETIC"
+                          for a in _mi.get("accepted", [])))
+        if _mi_ok:
+            ok("multiphysics: measurement ingestion (read-only, synthetic-"
+               "only, fail-closed rejects live, hardware refused by design, "
+               "never a gate input)")
+        else:
+            fail("multiphysics: measurement ingestion",
+                 f"status={_mi.get('ingestion_status')} "
+                 f"rejected={_mi.get('n_rejected')}")
 except Exception as e:
     fail("multiphysics: package import", str(e))
 

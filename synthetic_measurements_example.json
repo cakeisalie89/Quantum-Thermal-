@@ -1,0 +1,292 @@
+{
+  "schema_version": "1.0",
+  "file_label": "SYNTHETIC EXAMPLE MEASUREMENTS -- MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM; deterministic; not hardware evidence; two records deliberately invalid to demonstrate fail-closed rejection",
+  "measurements": [
+    {
+      "measurement_id": "SYN-001",
+      "quantity": "T_probe_recovery_end_K",
+      "value": 0.0102,
+      "units": "K",
+      "uncertainty": {
+        "type": "stddev",
+        "value": 0.0005
+      },
+      "timestamp": "2026-07-18T00:00:01Z",
+      "alignment": {
+        "mode": "MODE_C"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-RUOX-1",
+        "type": "RuOx thermometer (synthetic)",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "recovery-end probe temperature"
+      }
+    },
+    {
+      "measurement_id": "SYN-002",
+      "quantity": "P_H2_Pa",
+      "value": 1.3e-12,
+      "units": "Pa",
+      "uncertainty": {
+        "type": "none"
+      },
+      "timestamp": "2026-07-18T00:00:02Z",
+      "alignment": {
+        "mode": "MODE_A"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-RGA-1",
+        "type": "RGA (synthetic)",
+        "calibration": {
+          "status": "UNCALIBRATED",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "H2 residual diagnostic"
+      }
+    },
+    {
+      "measurement_id": "SYN-003",
+      "quantity": "P_CH4_partial_Pa",
+      "value": 2e-13,
+      "units": "Pa",
+      "uncertainty": {
+        "type": "none"
+      },
+      "timestamp": "2026-07-18T00:00:03Z",
+      "alignment": {
+        "mode": "MODE_A"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-RGA-1",
+        "type": "RGA (synthetic)",
+        "calibration": {
+          "status": "UNCALIBRATED",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "CH4 contamination diagnostic OUTSIDE Mode B -- accepted as diagnostic; no species activation; no canonical prediction for this mode"
+      }
+    },
+    {
+      "measurement_id": "SYN-004",
+      "quantity": "panel_CH4_ML",
+      "value": 2.1e-06,
+      "units": "monolayer_fraction",
+      "uncertainty": {
+        "type": "none"
+      },
+      "timestamp": "2026-07-18T00:00:04Z",
+      "alignment": {
+        "mode": "MODE_C",
+        "cycle": 2
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-QCM-1",
+        "type": "microbalance (synthetic)",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "cycle-2 panel loading; inside the Stage-3 band"
+      }
+    },
+    {
+      "measurement_id": "SYN-005",
+      "quantity": "theta_c13_residual",
+      "value": 5e-07,
+      "units": "monolayer_fraction",
+      "uncertainty": {
+        "type": "none"
+      },
+      "timestamp": "2026-07-18T00:00:05Z",
+      "alignment": {
+        "mode": "MODE_D",
+        "cycle": 1
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-RGA-1",
+        "type": "RGA proxy (synthetic)",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "deliberately OUTSIDE the Stage-3 band (above p95) to demonstrate honest outside-band reporting"
+      }
+    },
+    {
+      "measurement_id": "SYN-006",
+      "quantity": "nv_vibration_amplitude_m",
+      "value": 4.9e-09,
+      "units": "m",
+      "uncertainty": {
+        "type": "stddev",
+        "value": 4e-10
+      },
+      "timestamp": "2026-07-18T00:00:06Z",
+      "alignment": {
+        "mode": "MODE_A"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-GEO-1",
+        "type": "geophone (synthetic)",
+        "calibration": {
+          "status": "CALIBRATED",
+          "reference": "synthetic-cal-0",
+          "date": "2026-07-01"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "any-mode vibration diagnostic with stddev -> true normalized residual"
+      }
+    },
+    {
+      "measurement_id": "SYN-007",
+      "quantity": "T2_star_s",
+      "value": 5.5e-05,
+      "units": "s",
+      "uncertainty": {
+        "type": "stddev",
+        "value": 6e-06
+      },
+      "timestamp": "2026-07-18T00:00:07Z",
+      "alignment": {
+        "mode": "MODE_D"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-ODMR-1",
+        "type": "ODMR/Ramsey (synthetic)",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "Ramsey T2* vs the canonical sequence-table row; tau_c gate remains UNKNOWN; no gate effect"
+      }
+    },
+    {
+      "measurement_id": "SYN-008",
+      "quantity": "mode_D_SNR",
+      "value": 4.6,
+      "units": "dimensionless",
+      "uncertainty": {
+        "type": "stddev",
+        "value": 0.5
+      },
+      "timestamp": "2026-07-18T00:00:08Z",
+      "alignment": {
+        "mode": "MODE_D"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-ODMR-1",
+        "type": "ODMR chain (synthetic)",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "SNR vs canonical definition value; conditional-on-canonical tau_c"
+      }
+    },
+    {
+      "measurement_id": "SYN-BAD-001",
+      "quantity": "T_probe_recovery_end_K",
+      "value": 10.2,
+      "units": "mK",
+      "uncertainty": {
+        "type": "none"
+      },
+      "timestamp": "2026-07-18T00:00:09Z",
+      "alignment": {
+        "mode": "MODE_C"
+      },
+      "data_class": "SYNTHETIC",
+      "instrument": {
+        "id": "SYN-RUOX-1",
+        "type": "RuOx (synthetic)",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "deliberate unit mismatch (mK) -> must be rejected"
+      }
+    },
+    {
+      "measurement_id": "SYN-BAD-002",
+      "quantity": "mode_D_SNR",
+      "value": 5.1,
+      "units": "dimensionless",
+      "uncertainty": {
+        "type": "none"
+      },
+      "timestamp": "2026-07-18T00:00:10Z",
+      "alignment": {
+        "mode": "MODE_B"
+      },
+      "data_class": "HARDWARE",
+      "instrument": {
+        "id": "X",
+        "type": "X",
+        "calibration": {
+          "status": "UNKNOWN",
+          "reference": "n/a",
+          "date": "n/a"
+        }
+      },
+      "provenance": {
+        "origin": "synthetic example",
+        "generator": "hand-authored deterministic record",
+        "note": "deliberate HARDWARE class (and off-policy mode) -> must be refused with the governance reason"
+      }
+    }
+  ]
+}

@@ -196,6 +196,20 @@ Carried since Stage 3:
 
 There are no remaining non-carried campaign states.
 
+**Measurement ingestion & comparison (Stage 4)** -- IMPLEMENTED
+(read-only, SYNTHETIC-only, forecast context). Fail-closed registry-driven
+ingestion (13 quantities; process quantities phase-locked, residual-gas/
+vibration/timing diagnostics any-mode -- measuring never activates a
+species or touches machine state); corrected residual semantics
+(normalized residual only from supplied stddev; p05-p95 bands reported as
+band_position / inside_band / band_scaled_residual, never as sigma);
+HARDWARE records refused by design pending the validation-plan governance
+step. Outputs: `measurement_comparison_3d.json`,
+`measurement_comparison_rows.csv`; canonical input
+`synthetic_measurements_example.json`; tests:
+`tests/test_measurement_ingest.py` (13). No gate, parameter, or canonical-
+physics effect exists by construction.
+
 **Campaign uncertainty propagation (Stage 3)** -- IMPLEMENTED
 (forecast-only). Deterministic ensemble over the verified-source
 distributions only: s_CH4_panel ~ U(0.3,0.8) (CSV verbatim range);

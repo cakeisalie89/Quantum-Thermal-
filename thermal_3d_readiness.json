@@ -42,6 +42,20 @@
       "cumulative energy"
     ],
     "not_carried": [],
+    "measurement_ingestion": {
+      "schema_version": "1.0",
+      "status": "OK",
+      "n_accepted": 8,
+      "n_rejected": 2,
+      "band_coverage": {
+        "n_banded": 2,
+        "n_inside": 1,
+        "fraction": "0.500000"
+      },
+      "synthetic_only": true,
+      "hardware_refused_by_design": true,
+      "read_only": "comparison context only; not validation; never a gate input"
+    },
     "uncertainty_propagation": {
       "schema_version": "1.0",
       "seed": 20260717,
