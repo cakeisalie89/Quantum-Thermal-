@@ -42,6 +42,23 @@
       "cumulative energy"
     ],
     "not_carried": [],
+    "hardware_governance": {
+      "schema_version": "1.0",
+      "data_classes": [
+        "SYNTHETIC",
+        "HARDWARE_UNVERIFIED",
+        "HARDWARE_REVIEWED"
+      ],
+      "default_execution": "NO_HARDWARE_DATA (deterministic; hardware paths are operator-invoked only)",
+      "repetition_requirements": "UNKNOWN (not plan-specified)",
+      "review_authoring": "human-only; tools may verify, never author or promote",
+      "custody_caveat": "documented chain is ordered and stage-complete; this does not prove the absence of undocumented custody gaps",
+      "raw_data_policy": "references + sizes + SHA-256 only; raw acquisition files stay outside the source",
+      "automatic_gate_effect": "NONE",
+      "measured_in_this_system": false,
+      "can_PASS_now": "NO",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
     "measurement_ingestion": {
       "schema_version": "1.0",
       "status": "OK",

@@ -1796,6 +1796,24 @@ try:
             fail("multiphysics: measurement ingestion",
                  f"status={_mi.get('ingestion_status')} "
                  f"rejected={_mi.get('n_rejected')}")
+        # hardware-governance assertions (Stage 5)
+        _rd2 = json.loads((PKG / "thermal_3d_readiness.json").read_text())
+        _hg = _rd2.get("campaign_continuity", {}).get("hardware_governance",
+                                                       {})
+        _hg_ok = (_hg.get("schema_version") == "1.0"
+                  and _hg.get("automatic_gate_effect") == "NONE"
+                  and "NO_HARDWARE_DATA" in _hg.get("default_execution", "")
+                  and _hg.get("measured_in_this_system") is False
+                  and _hg.get("can_PASS_now") == "NO"
+                  and "UNKNOWN" in _hg.get("repetition_requirements", ""))
+        if _hg_ok:
+            ok("multiphysics: hardware governance (read-only, no hardware "
+               "data, human-only review, automatic_gate_effect=NONE, "
+               "plan-sourced repetition requirements UNKNOWN)")
+        else:
+            fail("multiphysics: hardware governance",
+                 f"auto_effect={_hg.get('automatic_gate_effect')} "
+                 f"default={_hg.get('default_execution','')[:30]}")
 except Exception as e:
     fail("multiphysics: package import", str(e))
 

@@ -196,6 +196,15 @@ Carried since Stage 3:
 
 There are no remaining non-carried campaign states.
 
+**Hardware-validation governance (Stage 5)** -- IMPLEMENTED
+(read-only record-keeping; no hardware data exists). Three data classes
+with quarantine-with-recorded-deficiencies for HARDWARE_UNVERIFIED,
+human-only review promotion to dossiers, plan-sourced (currently UNKNOWN)
+repetition requirements, custody/calibration/raw-hash validation with the
+documented-chain caveat, hash-chained audit logging, and the constant
+automatic_gate_effect=NONE. Docs: HARDWARE_GOVERNANCE.md; tests:
+tests/test_hardware_governance.py (14).
+
 **Measurement ingestion & comparison (Stage 4)** -- IMPLEMENTED
 (read-only, SYNTHETIC-only, forecast context). Fail-closed registry-driven
 ingestion (13 quantities; process quantities phase-locked, residual-gas/
