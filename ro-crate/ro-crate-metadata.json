@@ -1,0 +1,343 @@
+{
+ "@context": "https://w3id.org/ro/crate/1.1/context",
+ "@graph": [
+  {
+   "@id": "#environment",
+   "@type": "SoftwareApplication",
+   "name": "locked execution environment (uv --frozen)",
+   "softwareRequirements": "python 3.12.3; numpy 2.4.4; scipy 1.17.1; qutip 5.2.1; h5py 3.16.0 (libhdf5 2.0.0); snakemake 9.23.1; pydantic 2.13.4; pytest 9.1.1; hypothesis 6.158.1; ruff 0.15.22; mypy 2.3.0; uv 0.11.7"
+  },
+  {
+   "@id": "#license-unspecified",
+   "@type": "CreativeWork",
+   "name": "license: no authoritative project license record exists; none invented"
+  },
+  {
+   "@id": "#simulation-action",
+   "@type": "CreateAction",
+   "description": "monolithic release verification: exit 0, complete 89-file set, 88/88 governed outputs byte-identical; staged checkpointed path proven equivalent (Stage 7.5)",
+   "instrument": {
+    "@id": "qta_full_sim.py"
+   },
+   "name": "canonical simulation regeneration (forecast-only)",
+   "object": {
+    "@id": "pyproject.toml"
+   },
+   "result": [
+    {
+     "@id": "qta_scientific_results.h5"
+    },
+    {
+     "@id": "results_gate_table.csv"
+    }
+   ]
+  },
+  {
+   "@id": "#stage7-input-zip",
+   "@type": "Dataset",
+   "contentSize": "20380753",
+   "identifier": "QTA_stage7_5_runtime_resilience_source.zip",
+   "name": "authoritative Stage-7.5 input archive",
+   "sha256": "c29cbc84c6155c2204ce7fb8c72d4499246cb4fdaeecd987d9cf29448c10ac82"
+  },
+  {
+   "@id": "./",
+   "@type": "Dataset",
+   "description": "Theoretical, forecast-only, pre-hardware, validation-gated multiphysics model. No experiment has been performed; no hardware validation, isotope-contrast demonstration, completed growth, digital-twin validation, or COMSOL equivalence is claimed. Scientific gate PASS count is zero; can_PASS_now=NO; measured_in_this_system=false; automatic_gate_effect=NONE; automatic_application=false. Campaign-1 is PROPOSED_NOT_PERFORMED; experiments are DESIGNED (EXP-V1 PLAYBOOK_READY). Outputs are simulation/forecast artifacts; the HDF5 file is a structured representation of existing outputs, not new evidence.",
+   "hasPart": [
+    {
+     "@id": "qta_full_sim.py"
+    },
+    {
+     "@id": "qta_sim_stages.py"
+    },
+    {
+     "@id": "qta_multiphysics/runner_3d.py"
+    },
+    {
+     "@id": "Snakefile"
+    },
+    {
+     "@id": "pyproject.toml"
+    },
+    {
+     "@id": "uv.lock"
+    },
+    {
+     "@id": "stage7_reports/environment_provenance.json"
+    },
+    {
+     "@id": "hdf5_output_mapping.json"
+    },
+    {
+     "@id": "hdf5_schema.json"
+    },
+    {
+     "@id": "qta_scientific_results.h5"
+    },
+    {
+     "@id": "results_gate_table.csv"
+    },
+    {
+     "@id": "validation_matrix.csv"
+    },
+    {
+     "@id": "experiment_registry.json"
+    },
+    {
+     "@id": "experiment_gate_coverage.json"
+    },
+    {
+     "@id": "experiment_matrix_coverage.json"
+    },
+    {
+     "@id": "campaign_registry.json"
+    },
+    {
+     "@id": "package_consistency_check.py"
+    },
+    {
+     "@id": "manuscript_consistency_check.py"
+    },
+    {
+     "@id": "stage6_preservation_check.py"
+    },
+    {
+     "@id": "stage8_reports/hdf5_equivalence_report.json"
+    },
+    {
+     "@id": "final_manifest.json"
+    },
+    {
+     "@id": "manifest_hash.txt"
+    },
+    {
+     "@id": "RUNTIME_RESILIENCE.md"
+    },
+    {
+     "@id": "HDF5_DATA_MODEL.md"
+    }
+   ],
+   "license": {
+    "@id": "#license-unspecified"
+   },
+   "mainEntity": {
+    "@id": "qta_full_sim.py"
+   },
+   "mentions": [
+    {
+     "@id": "#stage7-input-zip"
+    },
+    {
+     "@id": "#simulation-action"
+    },
+    {
+     "@id": "#environment"
+    }
+   ],
+   "name": "Quantum Thermal Architecture -- Stage 8 scientific package (forecast-only, pre-hardware)"
+  },
+  {
+   "@id": "HDF5_DATA_MODEL.md",
+   "@type": "File",
+   "contentSize": "2518",
+   "description": "HDF5 data-model documentation",
+   "name": "HDF5_DATA_MODEL.md",
+   "sha256": "0e2cea27aa12acc53ebf3c7af915508af61d1ac9885c21cd514523a863c673ab"
+  },
+  {
+   "@id": "RUNTIME_RESILIENCE.md",
+   "@type": "File",
+   "contentSize": "2563",
+   "description": "Stage-7.5 documentation",
+   "name": "RUNTIME_RESILIENCE.md",
+   "sha256": "3f8bc5ce12e4653d8ef23ed4426268fe105271927945a897fefd73af30f69958"
+  },
+  {
+   "@id": "Snakefile",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "11552",
+   "description": "Snakemake workflow wrapping authoritative commands",
+   "name": "Snakefile",
+   "sha256": "b704d9552b9a0320b2abaa6c5efcba8c5ff157e0436dd14055ee1f8dc7a10de6"
+  },
+  {
+   "@id": "campaign_registry.json",
+   "@type": "File",
+   "contentSize": "1250",
+   "description": "campaign registry (Campaign-1 PROPOSED_NOT_PERFORMED)",
+   "name": "campaign_registry.json",
+   "sha256": "cf8c002b9f4b52baa86a34136641fb77fcde9e28d8d7589371bb3d20af7ab8bf"
+  },
+  {
+   "@id": "experiment_gate_coverage.json",
+   "@type": "File",
+   "contentSize": "10940",
+   "description": "25/25 gate coverage",
+   "name": "experiment_gate_coverage.json",
+   "sha256": "c1eb7b857d3dd0befbe08267f70699e5153e0518cce73e92437708b334824e62"
+  },
+  {
+   "@id": "experiment_matrix_coverage.json",
+   "@type": "File",
+   "contentSize": "21457",
+   "description": "43/43 matrix dispositions",
+   "name": "experiment_matrix_coverage.json",
+   "sha256": "33b6ef1ec5a5b6ab1ffd276e7cca9a6ede8b81d3a9d894297698c0c60878d505"
+  },
+  {
+   "@id": "experiment_registry.json",
+   "@type": "File",
+   "contentSize": "37737",
+   "description": "Stage-6 experiment registry (11 designed experiments; EXP-V1 PLAYBOOK_READY; Campaign-1 PROPOSED_NOT_PERFORMED)",
+   "name": "experiment_registry.json",
+   "sha256": "19445d8bad700df33b478d034207e23b821cf2337215e532b1a954b314401c74"
+  },
+  {
+   "@id": "final_manifest.json",
+   "@type": "File",
+   "contentSize": "105314",
+   "description": "deterministic manifest",
+   "name": "final_manifest.json",
+   "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
+  },
+  {
+   "@id": "hdf5_output_mapping.json",
+   "@type": "File",
+   "contentSize": "139106",
+   "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
+   "name": "hdf5_output_mapping.json",
+   "sha256": "469365e384c2f2efa7cc9b38c6d92957566f1b3d0160cd028bf7014b6d0b9f49"
+  },
+  {
+   "@id": "hdf5_schema.json",
+   "@type": "File",
+   "contentSize": "150368",
+   "description": "HDF5 dataset schema (1.0.0)",
+   "name": "hdf5_schema.json",
+   "sha256": "c1d2a230b70ab3906d0b391718ee3efa7075b59b68708f02ccead2eca9f4253f"
+  },
+  {
+   "@id": "manifest_hash.txt",
+   "@type": "File",
+   "contentSize": "180",
+   "description": "detached manifest hash",
+   "name": "manifest_hash.txt",
+   "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
+  },
+  {
+   "@id": "manuscript_consistency_check.py",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "9469",
+   "description": "manuscript checker",
+   "name": "manuscript_consistency_check.py",
+   "sha256": "803a0b780c43a0181465d4b1853958ee7aa5d69ace39eedff834558c8fac8e85"
+  },
+  {
+   "@id": "package_consistency_check.py",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "105689",
+   "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
+   "name": "package_consistency_check.py",
+   "sha256": "45df269aded2f082086c540b91bf8d15d78f4292438135a7aa5319719784ca9d"
+  },
+  {
+   "@id": "pyproject.toml",
+   "@type": "File",
+   "contentSize": "2524",
+   "description": "project/tooling authority",
+   "name": "pyproject.toml",
+   "sha256": "990581006afb0467b98c82eb6f71085242567223475cab514c7b69fc928bd7fd"
+  },
+  {
+   "@id": "qta_full_sim.py",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "164104",
+   "description": "canonical simulation runner (authoritative release path)",
+   "name": "qta_full_sim.py",
+   "sha256": "5db77d0be61d1510216eb3dbbcc496d5a742ad06470dbfcd9239501f4b31899d"
+  },
+  {
+   "@id": "qta_multiphysics/runner_3d.py",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "15974",
+   "description": "3-D reduced-CI layer runner",
+   "name": "runner_3d.py",
+   "sha256": "ec76c664e97bb8ba774e55832d64d5587359916de1231ae52f58e9047a851542"
+  },
+  {
+   "@id": "qta_scientific_results.h5",
+   "@type": "File",
+   "contentSize": "1974909",
+   "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
+   "name": "qta_scientific_results.h5",
+   "sha256": "68cd3eb0d2e715dd18e6355e150fca3cad78fbbbb589092545cd9f026697d150"
+  },
+  {
+   "@id": "qta_sim_stages.py",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "8008",
+   "description": "checkpointed staged driver (Stage 7.5; identical calls)",
+   "name": "qta_sim_stages.py",
+   "sha256": "5e55b4b7741f787ab23260ca932a0b16d321e14c6b5dd225685fe0b8fec6c6f1"
+  },
+  {
+   "@id": "results_gate_table.csv",
+   "@type": "File",
+   "contentSize": "46327",
+   "description": "canonical gate table (83 gates; scientific PASS count = 0)",
+   "name": "results_gate_table.csv",
+   "sha256": "ce30c830df141278eee7d7ee5e59db7df4c7f307229c1015ca1a0f631fe949a8"
+  },
+  {
+   "@id": "ro-crate-metadata.json",
+   "@type": "CreativeWork",
+   "about": {
+    "@id": "./"
+   },
+   "conformsTo": {
+    "@id": "https://w3id.org/ro/crate/1.1"
+   }
+  },
+  {
+   "@id": "stage6_preservation_check.py",
+   "@type": "SoftwareSourceCode",
+   "contentSize": "5762",
+   "description": "Stage-6 preservation checker",
+   "name": "stage6_preservation_check.py",
+   "sha256": "c71e1da546ebefc12dafd10918f860dc632e7fd67b11d9a1b917395f7996494d"
+  },
+  {
+   "@id": "stage7_reports/environment_provenance.json",
+   "@type": "File",
+   "contentSize": "1568",
+   "description": "environment provenance record",
+   "name": "environment_provenance.json",
+   "sha256": "3a3dc8563256025b45489ca3d09912b834248347d48f4eb84236e59f7ecd6389"
+  },
+  {
+   "@id": "stage8_reports/hdf5_equivalence_report.json",
+   "@type": "File",
+   "contentSize": "503",
+   "description": "HDF5<->source exact-equivalence report",
+   "name": "hdf5_equivalence_report.json",
+   "sha256": "14681ec28053d078e8f3cbd7397ca7ee437991ae561f0f15318565b94307c5a3"
+  },
+  {
+   "@id": "uv.lock",
+   "@type": "File",
+   "contentSize": "119055",
+   "description": "locked dependency resolution (71+ pkgs)",
+   "name": "uv.lock",
+   "sha256": "3597730705e4f62d47e71e2eaa7c7f93df9f66c70645d68a2371b2d9c7ba5510"
+  },
+  {
+   "@id": "validation_matrix.csv",
+   "@type": "File",
+   "contentSize": "39141",
+   "description": "validation matrix (43 open items dispositioned; nonlinear_threshold unresolved)",
+   "name": "validation_matrix.csv",
+   "sha256": "74e0d367f9474922fa26cb38a4dee10fab36d59a099ce4c11456b17b22eac01c"
+  }
+ ]
+}
