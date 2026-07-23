@@ -2261,8 +2261,8 @@
     },
     {
       "filename": "stage6_preservation_check.py",
-      "size_bytes": 5762,
-      "sha256": "c71e1da546ebefc12dafd10918f860dc632e7fd67b11d9a1b917395f7996494d",
+      "size_bytes": 6262,
+      "sha256": "5a7973932c866c5182dee08f4adb5240e3fff19a409ca48f3f230a113a2bffe5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2438,6 +2438,48 @@
       "filename": "validate_hdf5_equivalence.py",
       "size_bytes": 5968,
       "sha256": "1b93fc65ef764b0c218d2a128f6829a0201422278f702ae03a2685316be9c0f1",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": ".github/workflows/release.yml",
+      "size_bytes": 1418,
+      "sha256": "cff0647ffcef3df31d1cd95aba9b11ed825f0c7d2f5944d10ad5e94d556fb512",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "RELEASE_POLICY.md",
+      "size_bytes": 1757,
+      "sha256": "ed109d5895b9e051381bd7b0fd028a9586b4e1652c0ebd9a3c30116cf815fbec",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "SUPPLY_CHAIN_THREAT_MODEL.md",
+      "size_bytes": 2039,
+      "sha256": "7300adc10e7ce332991d61574bc12928aace42b62f53f321ae2b0ac81b17abde",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "build_release_artifacts.py",
+      "size_bytes": 10644,
+      "sha256": "06669421c3fb489bfaff55e4525cf0a10db973a28f28e862fa43d0ac3777e104",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_stage9_release.py",
+      "size_bytes": 8400,
+      "sha256": "42bfd866b2b9e2b18001671d65e913870a49c678a4774fba51d16a89d367e3bd",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "verify_release.py",
+      "size_bytes": 9144,
+      "sha256": "98ea044aa2cd0e53f129b1469c40df793b4f8cbba9e12b4667af9a3d0a36be35",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
