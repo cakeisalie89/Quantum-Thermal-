@@ -1,0 +1,62 @@
+# QTA Stage-7 project foundation. Single tooling authority (dependencies,
+# pytest, Ruff, mypy). Scientific pins mirror requirements.txt verbatim
+# (the discovered Stage-6 authority); uv.lock is the resolution authority.
+# MODEL-ONLY / FORECAST-ONLY project: this file changes no scientific
+# behavior and no governance state.
+[project]
+name = "qta-multiphysics"
+version = "0.7.0"
+description = "Quantum Thermal Architecture — forecast-only multiphysics model (pre-hardware; scientific gate PASS count is zero by design)"
+requires-python = "==3.12.*"
+dependencies = [
+  "numpy==2.4.4",   # pre-existing QTA runtime dependency (requirements.txt)
+  "scipy==1.17.1",  # pre-existing QTA runtime dependency (requirements.txt)
+  "qutip==5.2.1",   # NV S=1 spin layer (requirements.txt; behavior-sensitive)
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",      # unified test execution (wraps existing suites)
+  "hypothesis>=6.112", # bounded property tests (deterministic profile)
+  "ruff>=0.6",        # staged lint enforcement
+  "mypy>=1.11",       # staged type enforcement
+  "pydantic>=2.9",    # trusted-boundary validation models
+]
+workflow = [
+  "snakemake>=8.20",  # dependency-aware wrapper over authoritative commands
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q -p no:cacheprovider"
+# NOTE (sandbox): the full 176-test set exceeds this environment's
+# per-command wall ceiling in one invocation; CI should run `pytest tests/`
+# whole; here it is executed in documented batches with identical scope.
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ["attic", "EXPERIMENT_PLAYBOOKS", "outputs"]
+
+[tool.ruff.lint]
+# conservative default set; stronger standard applies to Stage-7 modules
+select = ["E", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# legacy scientific tree: catalogued, not rewritten (no behavior-risk edits)
+"qta_multiphysics/**" = ["E501"]
+"tests/**" = ["E501"]
+"*.py" = []
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_ignores = true
+# staged enforcement: strict-ish on Stage-7 modules; legacy numerical tree
+# excluded from this stage (documented typing debt, not silenced errors)
+[[tool.mypy.overrides]]
+module = "qta_multiphysics.stage7_boundary_models"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+[[tool.mypy.overrides]]
+module = ["qutip.*", "scipy.*", "snakemake.*"]
+ignore_missing_imports = true   # third-party packages without type info
