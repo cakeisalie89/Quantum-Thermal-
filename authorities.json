@@ -159,6 +159,21 @@
         "runner_3d",
         "package_consistency_check.py"
       ]
+    },
+    "campaign_uncertainty": {
+      "authority": "qta_multiphysics/campaign_uncertainty_3d.py :: propagate, DISTRIBUTIONS, EXCLUSIONS (schema 1.0; seed CAMPAIGN_UNC_SEED=20260717; M=120 per the existing 3-D MC convention)",
+      "owner": "campaign_uncertainty_3d",
+      "schema_version": "1.0",
+      "canonical_outputs": [
+        "campaign_uncertainty_3d.json",
+        "campaign_uncertainty_quantiles.csv"
+      ],
+      "consumers": [
+        "runner_3d",
+        "package_consistency_check.py",
+        "tests/test_campaign_uncertainty.py"
+      ],
+      "note": "distributions restricted to authoritative declared ranges/spreads; exclusions machine-readable; marginal (not joint) thermal composition"
     }
   },
   "competing_sources_record": [

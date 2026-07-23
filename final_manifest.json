@@ -175,8 +175,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 98608,
-      "sha256": "d9b92a1e0165c8616130faad66702efa5ecf33e1e5ac63395067e75fcf520e17",
+      "size_bytes": 99676,
+      "sha256": "7c9585363fe64770e4924492c8f0579cb80535d807461808cde50765636c2d65",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -1421,8 +1421,8 @@
     },
     {
       "filename": "qta_multiphysics/runner_3d.py",
-      "size_bytes": 13302,
-      "sha256": "60168cef6afc32a9e67cc25f5d40e093eae2c2dfc6aeb6e91c26582275bcbb65",
+      "size_bytes": 14029,
+      "sha256": "d9168cef0c913707de06e89b163a4599c9214372806f0aff3695d4e867755635",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1519,8 +1519,8 @@
     },
     {
       "filename": "thermal_3d_readiness.json",
-      "size_bytes": 3003,
-      "sha256": "f1248cf6e57c6233766dec17e2a2330fb1fbe674dc99dfe05995279feb3c97c8",
+      "size_bytes": 3391,
+      "sha256": "b04248fc1587e799cf240b44ad758c8e353dfa9ad7bf1123ceac1b977f14dd24",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1750,8 +1750,8 @@
     },
     {
       "filename": "AUTHORITIES.md",
-      "size_bytes": 2315,
-      "sha256": "8bbceeea5d89844faffddc699d237f048b12113d57bf875f25d993842d77d9d7",
+      "size_bytes": 2466,
+      "sha256": "d0c7befbe69de24f4fe9bbdec4e203b91e3448b1bc3a6900c57ab478411b49f6",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1764,8 +1764,8 @@
     },
     {
       "filename": "PHYSICS_INVENTORY.md",
-      "size_bytes": 11202,
-      "sha256": "1d2ac756d8ebd2aa09afeb775cc5a333a426b22b2b6ab64a4aef62bb05fa165f",
+      "size_bytes": 12309,
+      "sha256": "59db74c87c6b05ea2b6d2ad5df17961617eda2ec36e43aca3249faaaa4c58eb5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1904,8 +1904,8 @@
     },
     {
       "filename": "authorities.json",
-      "size_bytes": 8447,
-      "sha256": "42297b53dedfeed37c921c99ebbd66a697fe5db5127dd030b9e6d14420cde149",
+      "size_bytes": 9163,
+      "sha256": "7da7584ea23356bb7fa144f145549d5e865910e2079760158ffb7abc2e2ba800",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1955,6 +1955,34 @@
       "filename": "tests/test_campaign_3d.py",
       "size_bytes": 6667,
       "sha256": "26e8f0e9f0c67dd432df2f5e15aff4a70989a60881af4dc48d52086a88c89a27",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "campaign_uncertainty_3d.json",
+      "size_bytes": 4755,
+      "sha256": "9cb6b8f6fe19c723e30ca34fda73c725a15491cbdfe728c985ce5f6303aac556",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "campaign_uncertainty_quantiles.csv",
+      "size_bytes": 1075,
+      "sha256": "ef1a438f6b3b6fce680d6fbab32bbc26b7aa6bef6cf6b24ee5f4e66282607b0f",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "qta_multiphysics/campaign_uncertainty_3d.py",
+      "size_bytes": 10603,
+      "sha256": "77f2a09c1fcf1d1c3c0fbd10076f8031249743145354c7e3d0e5c44b9a24fe53",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_campaign_uncertainty.py",
+      "size_bytes": 5664,
+      "sha256": "9600765297be4e400f046a1822661292ce797eb7b353418a6566c283516ab32d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }

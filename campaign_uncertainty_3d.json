@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0",
+  "seed": 20260717,
+  "n_members": 120,
+  "n_cycles": 3,
+  "distributions": [
+    {
+      "parameter": "s_CH4_panel",
+      "distribution": "uniform",
+      "params": {
+        "low": 0.3,
+        "high": 0.8
+      },
+      "center_source": "cryopanel_memory_model.csv PANEL-CH4 ('ASSUMED s ~ 0.3-0.8 at 4 K', verbatim range)",
+      "classification": "ASSUMED/PLACEHOLDER (unmeasured)"
+    },
+    {
+      "parameter": "sticking_coverage_CH4",
+      "distribution": "lognormal_multiplicative",
+      "params": {
+        "center": 0.5,
+        "sigma": 0.2,
+        "clip": [
+          0.001,
+          1.0
+        ]
+      },
+      "center_source": "surface_coverage.default_coverage_specs CH4 sticking=0.5",
+      "spread_source": "uncertainty.py gas-surrogate stick=lf(0.5,0.2)",
+      "classification": "ASSUMED (unmeasured)"
+    },
+    {
+      "parameter": "purge_1_s",
+      "distribution": "lognormal_multiplicative",
+      "params": {
+        "center": 5.0,
+        "sigma": 0.3,
+        "min": 0.1
+      },
+      "center_source": "species_accounting_3d canonical purge_1_s=5.0",
+      "spread_source": "uncertainty.py purge=lf(.,0.3) spread for the purge-rate class",
+      "classification": "ASSUMED (unmeasured)"
+    }
+  ],
+  "exclusions": [
+    {
+      "parameter": "s_H2_panel",
+      "reason": "CSV declares a point value ('~ 0.01'), no range",
+      "class": "UNKNOWN_RANGE_FIXED"
+    },
+    {
+      "parameter": "s_He_panel",
+      "reason": "structural zero (no 4 K He cryopumping; sorb NOT INSTALLED)",
+      "class": "STRUCTURAL_FIXED"
+    },
+    {
+      "parameter": "N_ML_cap",
+      "reason": "PLACEHOLDER point; no declared range",
+      "class": "PLACEHOLDER_FIXED"
+    },
+    {
+      "parameter": "tau_c",
+      "reason": "UNKNOWN gate; no authoritative range; forecasts conditional on canonical value",
+      "class": "UNKNOWN_EXCLUDED"
+    },
+    {
+      "parameter": "C_contr",
+      "reason": "UNKNOWN gate; no authoritative range",
+      "class": "UNKNOWN_EXCLUDED"
+    },
+    {
+      "parameter": "vibration_transfer_factors",
+      "reason": "ASSUMED points, no declared ranges",
+      "class": "UNKNOWN_RANGE_FIXED"
+    },
+    {
+      "parameter": "cumulative_energy_terms",
+      "reason": "derived from fixed deterministic solves; no campaign-level variation source",
+      "class": "DERIVED_FIXED"
+    },
+    {
+      "parameter": "sensitivity_STEP_10pct",
+      "reason": "a perturbation convention, not a distribution; deliberately not used",
+      "class": "CONVENTION_NOT_A_DISTRIBUTION"
+    }
+  ],
+  "correlation_structure": "each apparatus parameter drawn once per member and held fixed for the member's entire campaign (perfect within-member persistence); parameters mutually independent -- no authoritative cross-parameter correlations exist and none were invented",
+  "persistence_witness": {
+    "per_member_cycle3_over_cycle1_ML": {
+      "p05": "2.999995653e+00",
+      "p50": "2.999996710e+00",
+      "p95": "2.999998222e+00"
+    },
+    "note": "== n_cycles exactly in the linear regime because the member's sticking persists; independent per-cycle resampling would destroy this"
+  },
+  "marginal_composition": {
+    "thermal": "quantiles quoted from the canonical 3-D Monte Carlo summary (n=120, seed 12345); MARGINAL, not joint -- sample-level draws are not matched across families"
+  },
+  "cycles": [
+    {
+      "cycle": "1",
+      "panel_CH4_ML": {
+        "p05": "5.926107366e-07",
+        "p50": "1.096647815e-06",
+        "p95": "1.448884422e-06"
+      },
+      "theta_c13_residual_before_D": {
+        "p05": "5.825893859e-12",
+        "p50": "2.607607672e-09",
+        "p95": "6.512233531e-08"
+      },
+      "clearance_context": "IL-05/06 FORECAST-basis derived context under uncertainty; never PASS"
+    },
+    {
+      "cycle": "2",
+      "panel_CH4_ML": {
+        "p05": "1.185221122e-06",
+        "p50": "2.193294428e-06",
+        "p95": "2.897766744e-06"
+      },
+      "theta_c13_residual_before_D": {
+        "p05": "5.825893859e-12",
+        "p50": "2.607607672e-09",
+        "p95": "6.512233531e-08"
+      },
+      "clearance_context": "IL-05/06 FORECAST-basis derived context under uncertainty; never PASS"
+    },
+    {
+      "cycle": "3",
+      "panel_CH4_ML": {
+        "p05": "1.777831156e-06",
+        "p50": "3.289939837e-06",
+        "p95": "4.346646967e-06"
+      },
+      "theta_c13_residual_before_D": {
+        "p05": "5.825893859e-12",
+        "p50": "2.607607672e-09",
+        "p95": "6.512233531e-08"
+      },
+      "clearance_context": "IL-05/06 FORECAST-basis derived context under uncertainty; never PASS"
+    }
+  ],
+  "measured_in_this_system": false,
+  "can_PASS_now": "NO",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}

@@ -24,6 +24,7 @@ are byte-gated against regeneration by the package consistency checker.
 | Provenance | `final_manifest.json` + `manifest_hash.txt` (generator `generate_manifest.py`) |
 | Cryopanel dynamics (Stage 2) | `qta_multiphysics/cryopanel_dynamics_3d.py` (ASSUMED sticking; PLACEHOLDER capacity) |
 | Campaign continuity (Stage 2) | `qta_multiphysics/campaign_state_3d.py` (schema 1.0; separate API) |
+| Campaign uncertainty (Stage 3) | `qta_multiphysics/campaign_uncertainty_3d.py` (seed 20260717; verified-source distributions; exclusions recorded) |
 
 Competing sources are never resolved silently: see
 `authorities.json → competing_sources_record` (two historical entries, both
