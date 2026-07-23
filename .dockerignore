@@ -1,0 +1,10 @@
+.git
+.venv
+.snakemake
+.pytest_cache
+.mypy_cache
+.ruff_cache
+verification/
+attic/delivery_artifacts/
+__pycache__
+*.pyc

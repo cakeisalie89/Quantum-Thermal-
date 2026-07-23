@@ -561,18 +561,22 @@ n_unres = 0
 rep_status = {e["experiment_id"]: e["repetition_resolution_status"]
               for e in EXPS}
 for r in OPEN:
-    key = r["item"]; req = (r["required_measurement"] or "").lower()
+    key = r["item"]
+    req = (r["required_measurement"] or "").lower()
     exps = OVR.get(key)
     cls = "direct" if exps else None
     if not exps:
         for kw, ee in KW:
             if kw in req or kw in key.lower():
-                exps = ee; cls = "indirect"; break
+                exps = ee
+                cls = "indirect"
+                break
     if not exps and (key in ENG_ITEMS or
                      any(t in req or t in key.lower() for t in ENG)):
         exps, cls = [], "engineering-evidence"
     if exps is None:
-        exps, cls = [], "unresolved"; n_unres += 1
+        exps, cls = [], "unresolved"
+        n_unres += 1
     items.append({"matrix_key": key, "current_status": r["status"],
                   "experiment_ids": exps,
                   "measured_quantity": r["required_measurement"] or

@@ -3,3 +3,10 @@ __pycache__/
 outputs/
 deep_runtime_profile.json
 outputs/deep_expdesign/
+.venv/
+.snakemake/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+verification/
+uv.lock.bak
