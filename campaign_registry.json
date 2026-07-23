@@ -1,0 +1,38 @@
+{
+ "schema_version": "1.0.0",
+ "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+ "note": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+ "campaigns": [
+  {
+   "campaign_id": "Campaign-1",
+   "status": "PROPOSED_NOT_PERFORMED",
+   "experiments": [
+    "EXP-V1",
+    "EXP-S1",
+    "EXP-N0"
+   ],
+   "rationale": [
+    "avoids NV cryostat operation",
+    "avoids growth operation",
+    "minimizes diamond-sample risk",
+    "produces independently useful results",
+    "measures the instrument noise floors and calibration inputs needed to resolve later repetition counts (self-de-risking)"
+   ],
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false
+  }
+ ],
+ "proposed_execution_sequence": [
+  "1. EXP-V1",
+  "2. EXP-S1 + EXP-N0 + EXP-P1 (parallel where practical)",
+  "3. EXP-V2",
+  "4. EXP-T1",
+  "5. EXP-N1",
+  "6. EXP-N2",
+  "7. EXP-N3",
+  "8. EXP-N4",
+  "9. EXP-T2"
+ ],
+ "dependency_note": "EXP-P1 depends on EXP-V1's clean baseline, so its parallel slot begins after V1 completes -- a genuine dependency correction relative to a naive fully-parallel reading; EIG order is preserved separately in experiment_registry.json",
+ "automatic_gate_effect": "NONE"
+}

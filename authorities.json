@@ -204,6 +204,24 @@
         "tests/test_hardware_governance.py"
       ],
       "note": "no hardware data exists; default execution deterministic; raw files outside the source (references + SHA-256 only); human-only review authoring"
+    },
+    "validation_roadmap": {
+      "authority": "experiment_registry.json + experiment_gate_coverage.json + experiment_matrix_coverage.json + campaign_registry.json (built deterministically by build_stage6_registries.py; playbooks rendered by build_stage6_playbooks.py) :: schema 1.0.0",
+      "owner": "stage6_roadmap",
+      "schema_version": "1.0.0",
+      "documents": [
+        "EXPERIMENT_PLAYBOOKS/ (11 x 30 sections)",
+        "raw_data_standard.md",
+        "validation_matrix_update_request.schema.json",
+        "matrix_update_examples/ (1 valid + 4 invalid)"
+      ],
+      "consumers": [
+        "hardware_governance_3d (registry loader + request validator)",
+        "runner_3d (readiness summary)",
+        "package_consistency_check.py",
+        "tests/test_stage6_roadmap.py"
+      ],
+      "note": "planning infrastructure only; not experimental evidence; automatic_gate_effect=NONE; schema 1.0.0 is a compatible extension of the project's MAJOR.MINOR convention for the new Stage-6 record types"
     }
   },
   "competing_sources_record": [

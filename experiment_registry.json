@@ -1,0 +1,1099 @@
+{
+ "schema_version": "1.0.0",
+ "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+ "note": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+ "experiments": [
+  {
+   "experiment_id": "EXP-V1",
+   "title": "Bakeout + RGA all-species baseline",
+   "version": "1.0",
+   "status": "PLAYBOOK_READY",
+   "purpose": "establish the post-bakeout residual-gas baseline with the FC-corrected all-species RGA protocol",
+   "experiment_family": "vacuum",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 1,
+   "campaign": "Campaign-1",
+   "difficulty": "MED",
+   "resource_burden": "MED",
+   "required_modes": [
+    "MODE_A"
+   ],
+   "required_device_states": [
+    "PREP_VACUUM.POST_BAKEOUT_VERIFY",
+    "MODE_A_BASELINE.READY_IDLE"
+   ],
+   "forbidden_modes": [
+    "MODE_B",
+    "MODE_D"
+   ],
+   "required_species": [],
+   "forbidden_species": [
+    "C13_CH4 (live)",
+    "He3 (live)",
+    "He4 (live)"
+   ],
+   "measurement_summary": "250C/48h bakeout record then species-resolved partial pressures with FC correction, backgrounds subtracted",
+   "measured_quantities": [
+    "P_H2",
+    "P_CH4",
+    "P_He",
+    "P_H2O",
+    "P_CO",
+    "P_CO2",
+    "P_hydrocarbons"
+   ],
+   "units": "Pa",
+   "sample_requirements": "none (no diamond required)",
+   "instruments": [
+    "quadrupole RGA",
+    "bakeout thermocouples",
+    "certified leak"
+   ],
+   "calibration_requirements": "RGA mass+FC gain calibration against certified leak, in-window; thermocouple traceable calibration",
+   "controls": [
+    "pre-bake baseline scan",
+    "filament-off background",
+    "empty-chamber blank"
+   ],
+   "repetition_derivation": "average scans until SE(P_i) <= 1/3 of the margin to each canonical pressure threshold; n and dwell follow from the RGA minimum-detectable-partial-pressure and noise density",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_INSTRUMENT_NOISE",
+   "missing_repetition_inputs": "RGA model noise density / MDPP spec (a Campaign-1 output)",
+   "raw_data_formats": [
+    "vendor RGA spectra",
+    "CSV export"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "background-subtracted species fits; drift monitoring",
+   "uncertainty_method": "scan-ensemble statistics + calibration systematics stated separately",
+   "acceptance_criteria": "stable post-bake spectra, backgrounds subtracted, calibration in-window, uncertainties stated",
+   "rejection_criteria": "FC calibration drift beyond vendor spec; non-stationary background",
+   "stop_criteria": "pressure excursion beyond interlock limits",
+   "dependencies": [],
+   "gates_served": [
+    "E01",
+    "E04",
+    "B3",
+    "D10a",
+    "D10b(enables)",
+    "A11(instrumented)",
+    "D2(instrumented)",
+    "RESIDUAL_SPECIES_MODE_D_CHECK(instrumented)",
+    "Shield-CHEM(partial)"
+   ],
+   "matrix_items_served": [
+    "P_H2-class residual items (per matrix routing)"
+   ],
+   "dossier_requirements": "hardware records + calibration records + backgrounds; dossier per gate",
+   "risk_notes": "first mover; no sample risk",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-V2",
+   "title": "Purge/dosing isolation dynamics",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "time-resolved purge/valve isolation between growth and sensing modes (no NV sensing)",
+   "experiment_family": "vacuum",
+   "legacy_aliases": [],
+   "plan_aliases": [
+    "EXP-F"
+   ],
+   "eig_rank": 4,
+   "eig_source": "validation_experiment_ranking.csv via plan alias EXP-F",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 5,
+   "campaign": "Campaign-2",
+   "difficulty": "MED",
+   "resource_burden": "LOW-additional",
+   "required_modes": [
+    "MODE_A",
+    "MODE_B",
+    "MODE_C",
+    "MODE_D"
+   ],
+   "required_device_states": [
+    "MODE_B_PROCESS.B_SOURCE_OFF",
+    "MODE_C_RECOVERY.C_PURGE",
+    "MODE_D_SENSE.D_PRECONFIG"
+   ],
+   "forbidden_modes": [],
+   "required_species": [
+    "surrogate/calibrated leak injection only"
+   ],
+   "forbidden_species": [
+    "C13_CH4 (live at full process rates)",
+    "He3 (live)",
+    "He4 (live)"
+   ],
+   "measurement_summary": "P_i(t) through simulated B->C->D valve/purge sequences; purge time-constants and cross-mode isolation ratios",
+   "measured_quantities": [
+    "P_i(t)",
+    "tau_purge",
+    "isolation_ratio"
+   ],
+   "units": "Pa; 1/s; dimensionless",
+   "sample_requirements": "none",
+   "instruments": [
+    "EXP-V1 RGA",
+    "calibrated leak"
+   ],
+   "calibration_requirements": "as EXP-V1 + leak certificate in-window",
+   "controls": [
+    "no-injection sequence",
+    "valve-closed leak-through scan"
+   ],
+   "repetition_derivation": "fit tau_purge per sequence; n_sequences from target sigma_tau/tau via fit-residual scatter",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_REPEATABILITY",
+   "missing_repetition_inputs": "per-scan RGA repeatability (from EXP-V1)",
+   "raw_data_formats": [
+    "RGA time-series CSV"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "exponential decay fits per species",
+   "uncertainty_method": "fit-residual statistics; systematic leak-rate uncertainty",
+   "acceptance_criteria": "tau_purge and isolation ratios with stated uncertainty",
+   "rejection_criteria": "unexplained non-exponential contamination signatures",
+   "stop_criteria": "interlock-limit pressures",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "gates_served": [
+    "A11",
+    "D1",
+    "D2",
+    "RESIDUAL_SPECIES_MODE_D_CHECK",
+    "Shield-CHEM(partial)",
+    "COUPLED_MODE_RECOVERY_CHECK(constituent)",
+    "C_to_D_Readiness(constituent)"
+   ],
+   "matrix_items_served": [
+    "molecular_flux",
+    "purge-class items"
+   ],
+   "dossier_requirements": "sequence dossiers binding V1 baseline",
+   "risk_notes": "valve-actuation wear",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-P1",
+   "title": "Cryopanel sticking and capacity",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "measure sticking coefficients and areal capacity on panel coupon and F-diamond witness (closes Stage-2/3 ASSUMED/PLACEHOLDER parameters)",
+   "experiment_family": "surface",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 4,
+   "campaign": "Campaign-1-parallel",
+   "difficulty": "MED",
+   "resource_burden": "MED",
+   "required_modes": [
+    "MODE_A"
+   ],
+   "required_device_states": [
+    "MODE_A_BASELINE.READY_IDLE"
+   ],
+   "forbidden_modes": [
+    "MODE_B",
+    "MODE_D"
+   ],
+   "required_species": [
+    "controlled dosing via calibrated line"
+   ],
+   "forbidden_species": [
+    "live process flows"
+   ],
+   "measurement_summary": "cryo-QCM uptake + TPD on coupon and F-diamond witness vs coverage",
+   "measured_quantities": [
+    "s_H2",
+    "s_CH4",
+    "areal_capacity"
+   ],
+   "units": "dimensionless; molecules/m^2 (monolayers)",
+   "sample_requirements": "panel-material coupon + F-terminated diamond witness",
+   "instruments": [
+    "cryo-QCM at 4 K",
+    "TPD stage with mass spec",
+    "dosing manometer"
+   ],
+   "calibration_requirements": "QCM frequency calibration; manometer calibration; TPD mass-scale calibration",
+   "controls": [
+    "blank-crystal dose",
+    "temperature-ramp blank",
+    "isotope-free background"
+   ],
+   "repetition_derivation": "n = (sigma_shot/sigma_target)^2 with sigma_target sized to resolve the CSV's declared 0.3-0.8 sticking range to +-0.05",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_INSTRUMENT_NOISE",
+   "missing_repetition_inputs": "cryo-QCM frequency-noise floor at 4 K",
+   "raw_data_formats": [
+    "QCM frequency time-series",
+    "TPD spectra"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "Langmuir-uptake fits vs coverage; TPD integration",
+   "uncertainty_method": "frequency-noise statistics + dose systematics",
+   "acceptance_criteria": "s and capacity with uncertainty and coverage-dependence curve",
+   "rejection_criteria": "crystal-mount thermal artifacts",
+   "stop_criteria": "panel contamination beyond regeneration capability",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "gates_served": [
+    "Shield-CHEM(partial)",
+    "A11(context)",
+    "RESIDUAL_SPECIES_MODE_D_CHECK(context)"
+   ],
+   "matrix_items_served": [
+    "H2_sticking",
+    "n_s",
+    "surface_coverage_proxy",
+    "surface_spin_density(indirect)"
+   ],
+   "dossier_requirements": "uptake-curve dossiers per species",
+   "risk_notes": "witness-sample handling",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-T1",
+   "title": "Thermal conductance and recovery",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "step-response G_eff and support load after Ag-sinter fabrication; pulsed recovery-to-baseline",
+   "experiment_family": "thermal",
+   "legacy_aliases": [],
+   "plan_aliases": [
+    "EXP-E"
+   ],
+   "eig_rank": 6,
+   "eig_source": "validation_experiment_ranking.csv via plan alias EXP-E",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 6,
+   "campaign": "Campaign-2",
+   "difficulty": "MED-HIGH",
+   "resource_burden": "HIGH",
+   "required_modes": [
+    "MODE_A",
+    "MODE_B"
+   ],
+   "required_device_states": [
+    "MODE_A_BASELINE.READY_IDLE",
+    "MODE_B_PROCESS.B_GROWTH_ACTIVE(attenuated)"
+   ],
+   "forbidden_modes": [
+    "MODE_D"
+   ],
+   "required_species": [
+    "attenuated 532 nm only"
+   ],
+   "forbidden_species": [
+    "He3",
+    "He4",
+    "C13_CH4"
+   ],
+   "measurement_summary": "calibrated-heater step response + attenuated-pulse recovery at the probe",
+   "measured_quantities": [
+    "G_eff",
+    "support_load",
+    "t_recovery"
+   ],
+   "units": "W/K; W; s",
+   "sample_requirements": "instrumented stage (no diamond growth)",
+   "instruments": [
+    "RuOx thermometer chain",
+    "calibrated heater",
+    "photodiode-monitored laser"
+   ],
+   "calibration_requirements": "RuOx calibration against reference at base; heater power calibration",
+   "controls": [
+    "heater-off drift record",
+    "zero-power baseline",
+    "closed-shutter laser control"
+   ],
+   "repetition_derivation": "sigma_G/G from thermometer noise and Delta-T by standard propagation; repeat until SE <= target margin vs the ASSUMED G=1e-5 W/K comparison",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_INSTRUMENT_NOISE",
+   "missing_repetition_inputs": "RuOx thermometer noise at the 10 mK operating point",
+   "raw_data_formats": [
+    "thermometry time-series CSV"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "step-response fits; recovery-curve comparison to the forecast band",
+   "uncertainty_method": "thermometer-noise propagation to sigma_G/G",
+   "acceptance_criteria": "G_eff with uncertainty; recovery curve honestly matching or failing the forecast",
+   "rejection_criteria": "unexplained drift exceeding controls",
+   "stop_criteria": "base-temperature loss",
+   "dependencies": [
+    "fridge commissioning"
+   ],
+   "gates_served": [
+    "COUPLED_MODE_RECOVERY_CHECK(constituent)",
+    "C_to_D_Readiness(constituent)"
+   ],
+   "matrix_items_served": [
+    "G_eff",
+    "support_thermal_load"
+   ],
+   "dossier_requirements": "step-response dossiers",
+   "risk_notes": "fridge-time contention",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-T2",
+   "title": "In-situ surface T and per-pulse yield",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "surface temperature during Mode-B pulses + deposition yield per pulse",
+   "experiment_family": "thermal",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 11,
+   "campaign": "Campaign-3",
+   "difficulty": "HIGH",
+   "resource_burden": "HIGH",
+   "required_modes": [
+    "MODE_B"
+   ],
+   "required_device_states": [
+    "MODE_B_PROCESS.B_GROWTH_ACTIVE"
+   ],
+   "forbidden_modes": [
+    "MODE_D"
+   ],
+   "required_species": [
+    "C13_CH4 (Mode-B only)"
+   ],
+   "forbidden_species": [
+    "He3",
+    "He4"
+   ],
+   "measurement_summary": "thermoreflectance/pyrometry during pulses; QCM-witness or post-growth ellipsometry/AFM yield",
+   "measured_quantities": [
+    "T_surface(t)",
+    "yield_per_pulse"
+   ],
+   "units": "K; nm/pulse",
+   "sample_requirements": "growth witness + diamond substrate",
+   "instruments": [
+    "thermoreflectance or pyrometer",
+    "QCM witness",
+    "ellipsometer/AFM (post)"
+   ],
+   "calibration_requirements": "detector radiometric calibration; QCM calibration",
+   "controls": [
+    "no-precursor pulses (pure heating)",
+    "no-pulse dosing"
+   ],
+   "repetition_derivation": "pulse-ensemble averaging vs detector shot noise; n from (sigma_shot/sigma_target)^2",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_INSTRUMENT_NOISE",
+   "missing_repetition_inputs": "thermoreflectance/pyrometer detector noise floor",
+   "raw_data_formats": [
+    "detector time-series",
+    "post-growth metrology files"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "pulse-ensemble averaging; yield regression vs pulse count",
+   "uncertainty_method": "detector-shot statistics + radiometric systematics",
+   "acceptance_criteria": "T_surface and yield with uncertainty",
+   "rejection_criteria": "window fouling artifacts",
+   "stop_criteria": "sample damage signatures",
+   "dependencies": [
+    "EXP-V1",
+    "EXP-V2",
+    "laser line"
+   ],
+   "gates_served": [
+    "A8",
+    "A9"
+   ],
+   "matrix_items_served": [
+    "A8/A9-class items"
+   ],
+   "dossier_requirements": "per-pulse-set dossiers",
+   "risk_notes": "highest sample risk of the set",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-N0",
+   "title": "Bench optical pre-characterization",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "532 nm transmission/reflection, PL depth / SIMS, sample screening (dependency reducer)",
+   "experiment_family": "nv",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 3,
+   "campaign": "Campaign-1",
+   "difficulty": "LOW",
+   "resource_burden": "LOW",
+   "required_modes": [
+    "MODE_A(bench analog)"
+   ],
+   "required_device_states": [
+    "bench (outside machine)"
+   ],
+   "forbidden_modes": [],
+   "required_species": [],
+   "forbidden_species": [],
+   "measurement_summary": "eta_abs and d_NV on candidate samples at 300 K / 4 K bench",
+   "measured_quantities": [
+    "eta_abs",
+    "d_NV"
+   ],
+   "units": "dimensionless; m",
+   "sample_requirements": "candidate diamond samples",
+   "instruments": [
+    "bench 532 nm source",
+    "NIST-traceable power meter",
+    "PL microscope / SIMS access"
+   ],
+   "calibration_requirements": "power-meter traceable calibration; SIMS standard",
+   "controls": [
+    "substrate-only blank",
+    "meter dark reading"
+   ],
+   "repetition_derivation": "power-meter-limited averaging per vendor spec",
+   "repetition_resolution_status": "CONDITIONALLY_RESOLVABLE_DURING_RUN",
+   "missing_repetition_inputs": "vendor spec sheet confirmation at run time",
+   "raw_data_formats": [
+    "power-meter CSV",
+    "PL maps",
+    "SIMS profiles"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "transmission/reflection arithmetic; depth-profile fits",
+   "uncertainty_method": "vendor-spec meter uncertainty + repeat statistics",
+   "acceptance_criteria": "eta_abs and d_NV with uncertainty per sample",
+   "rejection_criteria": "surface-contamination artifacts",
+   "stop_criteria": "sample damage",
+   "dependencies": [],
+   "gates_served": [],
+   "matrix_items_served": [
+    "eta_abs",
+    "d_NV"
+   ],
+   "dossier_requirements": "per-sample screening dossiers",
+   "risk_notes": "lowest-risk starter",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-N1",
+   "title": "In-cryostat optical collection calibration",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "eta_col via calibrated emitter / reference ensemble in the Mode-D optical path",
+   "experiment_family": "nv",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 7,
+   "campaign": "Campaign-2",
+   "difficulty": "MED",
+   "resource_burden": "HIGH",
+   "required_modes": [
+    "MODE_D"
+   ],
+   "required_device_states": [
+    "MODE_D_SENSE.D_PRECONFIG"
+   ],
+   "forbidden_modes": [
+    "MODE_B"
+   ],
+   "required_species": [],
+   "forbidden_species": [
+    "C13_CH4",
+    "He3 (dose off)",
+    "He4 (dose off)"
+   ],
+   "measurement_summary": "counts/s vs known emission through the real collection path",
+   "measured_quantities": [
+    "eta_col"
+   ],
+   "units": "dimensionless",
+   "sample_requirements": "calibrated emitter or reference NV ensemble",
+   "instruments": [
+    "calibrated emitter",
+    "SPAD/PMT chain"
+   ],
+   "calibration_requirements": "emitter calibration certificate; detector dead-time characterization",
+   "controls": [
+    "dark counts",
+    "misaligned-reference"
+   ],
+   "repetition_derivation": "photon-shot rule n = (sigma_shot/sigma_target)^2; per-shot sigma from the measured count rate (adaptive-n, pre-registered target)",
+   "repetition_resolution_status": "CONDITIONALLY_RESOLVABLE_DURING_RUN",
+   "missing_repetition_inputs": "measured count rate during the run itself",
+   "raw_data_formats": [
+    "count-rate time-series"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "ratio to known emission with dead-time correction",
+   "uncertainty_method": "photon-shot statistics (adaptive-n to pre-registered target)",
+   "acceptance_criteria": "eta_col with uncertainty",
+   "rejection_criteria": "alignment drift beyond controls",
+   "stop_criteria": "cryostat window damage",
+   "dependencies": [
+    "EXP-N0",
+    "fridge+optics"
+   ],
+   "gates_served": [
+    "E11"
+   ],
+   "matrix_items_served": [
+    "eta_col"
+   ],
+   "dossier_requirements": "calibration dossier",
+   "risk_notes": "optical-access complexity",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-N2",
+   "title": "ODMR contrast and charge state at 10 mK",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "C_contr and NV-/NV0 charge stability vs optical power at base temperature",
+   "experiment_family": "nv",
+   "legacy_aliases": [],
+   "plan_aliases": [
+    "EXP-A"
+   ],
+   "eig_rank": 1,
+   "eig_source": "validation_experiment_ranking.csv via plan alias EXP-A",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 8,
+   "campaign": "Campaign-2",
+   "difficulty": "HIGH",
+   "resource_burden": "HIGH",
+   "required_modes": [
+    "MODE_D"
+   ],
+   "required_device_states": [
+    "MODE_D_SENSE.D_PRECONFIG (dose off)"
+   ],
+   "forbidden_modes": [
+    "MODE_B"
+   ],
+   "required_species": [],
+   "forbidden_species": [
+    "C13_CH4",
+    "He3 (dose off)",
+    "He4 (dose off)"
+   ],
+   "measurement_summary": "ODMR contrast + power-sweep charge-state plateau at 10 mK",
+   "measured_quantities": [
+    "C_contr",
+    "NV_charge_ratio"
+   ],
+   "units": "dimensionless",
+   "sample_requirements": "screened sample from EXP-N0",
+   "instruments": [
+    "ODMR chain (MW + optics)",
+    "SPAD/PMT"
+   ],
+   "calibration_requirements": "EXP-N1 collection calibration in-window; MW chain via directional coupler",
+   "controls": [
+    "off-resonance MW",
+    "power-sweep hysteresis check",
+    "room-T reference on the same sample"
+   ],
+   "repetition_derivation": "photon-shot-limited: sigma_C per readout ~ sqrt(2/N_ph); n_avg = (sigma_C,shot/sigma_target)^2 with sigma_target = 1/10 of the contrast threshold margin",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_COUNT_RATE",
+   "missing_repetition_inputs": "in-cryostat count rate N_ph per readout (from EXP-N1)",
+   "raw_data_formats": [
+    "photon-count records",
+    "sweep tables"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "contrast fits; plateau identification",
+   "uncertainty_method": "photon-shot per-readout sigma_C ~ sqrt(2/N_ph)",
+   "acceptance_criteria": "C_contr with uncertainty + stable charge plateau",
+   "rejection_criteria": "unbounded photo-ionization drift",
+   "stop_criteria": "sample damage signatures",
+   "dependencies": [
+    "EXP-N1",
+    "EXP-N0"
+   ],
+   "gates_served": [
+    "E12",
+    "D12_G23"
+   ],
+   "matrix_items_served": [
+    "C_contr_10mK",
+    "charge_stability"
+   ],
+   "dossier_requirements": "contrast + charge dossiers",
+   "risk_notes": "cryostat-time heavy",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-N3",
+   "title": "Rabi calibration in cryostat",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "Omega_R vs MW power with directional-coupler P_mw",
+   "experiment_family": "nv",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 9,
+   "campaign": "Campaign-2",
+   "difficulty": "HIGH",
+   "resource_burden": "LOW-additional",
+   "required_modes": [
+    "MODE_D"
+   ],
+   "required_device_states": [
+    "MODE_D_SENSE.D_PRECONFIG (dose off)"
+   ],
+   "forbidden_modes": [
+    "MODE_B"
+   ],
+   "required_species": [],
+   "forbidden_species": [
+    "C13_CH4",
+    "He3 (dose off)",
+    "He4 (dose off)"
+   ],
+   "measurement_summary": "Rabi fringes vs P_mw",
+   "measured_quantities": [
+    "Omega_R",
+    "P_mw"
+   ],
+   "units": "rad/s; W",
+   "sample_requirements": "as EXP-N2",
+   "instruments": [
+    "EXP-N2 chain",
+    "directional coupler"
+   ],
+   "calibration_requirements": "coupler calibration; EXP-N2 chain in-window",
+   "controls": [
+    "detuned drive",
+    "power-off"
+   ],
+   "repetition_derivation": "CRLB on Rabi-fringe fit; repeats from per-point sigma",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_COUNT_RATE",
+   "missing_repetition_inputs": "per-point contrast sigma (from EXP-N2)",
+   "raw_data_formats": [
+    "fringe records"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "Rabi-fringe fits",
+   "uncertainty_method": "CRLB on fringe fit",
+   "acceptance_criteria": "Omega_R(P_mw) with uncertainty",
+   "rejection_criteria": "chirp/heating artifacts",
+   "stop_criteria": "MW-heating interlock trip",
+   "dependencies": [
+    "EXP-N2"
+   ],
+   "gates_served": [
+    "E13"
+   ],
+   "matrix_items_served": [
+    "P_mw",
+    "Omega_R-class items"
+   ],
+   "dossier_requirements": "Rabi dossier",
+   "risk_notes": "incremental once N2 runs",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-N4",
+   "title": "Ramsey/Hahn T2*, T2, tau_c (He-3 vs He-4)",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "decay constants and bath correlation time with the decisive helium-isotope surface-dose comparison; A14 film-absence monitored",
+   "experiment_family": "nv",
+   "legacy_aliases": [],
+   "plan_aliases": [
+    "EXP-B",
+    "EXP-C"
+   ],
+   "eig_rank": 3,
+   "eig_source": "validation_experiment_ranking.csv via plan alias EXP-B",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 10,
+   "campaign": "Campaign-2",
+   "difficulty": "HIGH",
+   "resource_burden": "HIGH",
+   "required_modes": [
+    "MODE_D"
+   ],
+   "required_device_states": [
+    "MODE_D_SENSE.D_HE_DOSE",
+    "MODE_D_SENSE.D_PRECONFIG"
+   ],
+   "forbidden_modes": [
+    "MODE_B"
+   ],
+   "required_species": [
+    "He3 (Mode-D dose)",
+    "He4 (Mode-D dose)"
+   ],
+   "forbidden_species": [
+    "C13_CH4"
+   ],
+   "measurement_summary": "Ramsey/Hahn/XY8 decays with no-dose, He-4-only and He-3 conditions",
+   "measured_quantities": [
+    "T2_star",
+    "T2",
+    "tau_c",
+    "isotope_contrast"
+   ],
+   "units": "s; s; s; dimensionless",
+   "sample_requirements": "as EXP-N2",
+   "instruments": [
+    "EXP-N2/N3 chain",
+    "He dosing line"
+   ],
+   "calibration_requirements": "chains in-window; dosing manometer calibration",
+   "controls": [
+    "no-dose baseline",
+    "He-4-only",
+    "sequence-order randomization"
+   ],
+   "repetition_derivation": "CRLB on the decay-constant fit: >=5 delay points/decade over >=2 decades; repeat until sigma_tauc/tau_c <= 25% (enough to place tau_c against the 292 us canonical definition and the 27.7 us SUPERSEDED value)",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_COUNT_RATE",
+   "missing_repetition_inputs": "per-point sigma from EXP-N2's measured contrast noise",
+   "raw_data_formats": [
+    "decay records per sequence"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "filter-function analysis across sequences; exponential/stretched fits",
+   "uncertainty_method": "CRLB on decay-constant fits; >=5 delay points/decade over >=2 decades",
+   "acceptance_criteria": "tau_c bound or value with uncertainty + isotope-contrast result either sign, reported honestly",
+   "rejection_criteria": "charge instability per EXP-N2 criteria",
+   "stop_criteria": "EXP-N2 stop conditions",
+   "dependencies": [
+    "EXP-N3"
+   ],
+   "gates_served": [
+    "E14",
+    "A14(monitored)"
+   ],
+   "matrix_items_served": [
+    "tau_c",
+    "T2_star",
+    "T2",
+    "surface_spin_density(indirect)"
+   ],
+   "dossier_requirements": "sequence-family dossiers incl. isotope comparison",
+   "risk_notes": "the scientific centerpiece; longest fridge occupancy",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  },
+  {
+   "experiment_id": "EXP-S1",
+   "title": "Environment survey: vibration at NV + shield quartet",
+   "version": "1.0",
+   "status": "DESIGNED",
+   "purpose": "vibration spectrum at the sensing location (IL-08 path) plus radiative, RF, optical-scatter and magnetic surveys",
+   "experiment_family": "environment",
+   "legacy_aliases": [],
+   "plan_aliases": [],
+   "eig_rank": null,
+   "eig_source": "no EXP-A..F alias; not EIG-ranked (consolidated infrastructure experiment)",
+   "information_value_order": "see eig_preservation block (EIG ranking, kept separate)",
+   "execution_order": 2,
+   "campaign": "Campaign-1",
+   "difficulty": "MED",
+   "resource_burden": "MED",
+   "required_modes": [
+    "MODE_D(device states, sources off)"
+   ],
+   "required_device_states": [
+    "MODE_D_SENSE.D_PRECONFIG (all sources off)"
+   ],
+   "forbidden_modes": [
+    "MODE_B"
+   ],
+   "required_species": [],
+   "forbidden_species": [
+    "C13_CH4",
+    "He3",
+    "He4"
+   ],
+   "measurement_summary": "sensor self-noise floors first, then in-band spectra with pumps-on/off and shutter open/closed pairs",
+   "measured_quantities": [
+    "a_vib(f)",
+    "P_rad",
+    "P_RF(f)",
+    "P_opt_scatter",
+    "B_noise(f)",
+    "B_bias_stability"
+   ],
+   "units": "m/sqrt(Hz), m in-band; W; dBm; W; T/sqrt(Hz); T",
+   "sample_requirements": "none",
+   "instruments": [
+    "geophone/interferometer",
+    "bolometric radiometer",
+    "RF spectrum analyzer",
+    "calibrated photodiode",
+    "magnetometer"
+   ],
+   "calibration_requirements": "each sensor's calibration certificate in-window; self-noise measured first",
+   "controls": [
+    "sensor self-noise floors (mandatory first)",
+    "pumps-off/on pairs",
+    "shutter open/closed pairs"
+   ],
+   "repetition_derivation": "Welch spectral averaging: n_avg segments until in-band amplitude SE <= 1/3 of the margin to the canonical 1e-10 m threshold (sensor self-noise measured first)",
+   "repetition_resolution_status": "UNRESOLVED_MISSING_INSTRUMENT_NOISE",
+   "missing_repetition_inputs": "each environment sensor's self-noise floor (measured as the first sub-step of this experiment)",
+   "raw_data_formats": [
+    "spectra + time-series per sensor"
+   ],
+   "metadata_requirements": "Stage-5 sidecar metadata per raw_data_standard.md",
+   "analysis_method": "Welch spectral estimation; in-band integration",
+   "uncertainty_method": "segment-averaging SE; calibration systematics",
+   "acceptance_criteria": "in-band vibration amplitude with uncertainty vs the 1e-10 m threshold WHATEVER the outcome (forecast 4.65e-9 m is ABOVE threshold; honest confirmation keeps IL-08 refusing) + the four shield surveys with uncertainty",
+   "rejection_criteria": "sensor overload/clipping",
+   "stop_criteria": "none beyond instrument safety",
+   "dependencies": [],
+   "gates_served": [
+    "Shield-RAD",
+    "Shield-RF",
+    "Shield-OPT",
+    "Shield-MAG"
+   ],
+   "matrix_items_served": [
+    "vibration/shield-class items"
+   ],
+   "dossier_requirements": "per-survey dossiers",
+   "risk_notes": "portable instruments; low machine risk",
+   "claim_limitations": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+   "automatic_gate_effect": "NONE",
+   "measured_in_this_system": false,
+   "provenance_refs": [
+    "Stage-6 assessment",
+    "validation_matrix.csv",
+    "FIRST_VALIDATION_EXPERIMENTS.md",
+    "results_gate_table.csv"
+   ]
+  }
+ ],
+ "exp_af_reconciliation": [
+  {
+   "plan_id": "EXP-A",
+   "relationship": "renamed",
+   "maps_to": [
+    "EXP-N2"
+   ],
+   "note": "identical scope (ODMR contrast at 10 mK); consolidated id"
+  },
+  {
+   "plan_id": "EXP-B",
+   "relationship": "merged",
+   "maps_to": [
+    "EXP-N4"
+   ],
+   "note": "He-3/He-4 decoherence contrast merged into the sequence-family experiment"
+  },
+  {
+   "plan_id": "EXP-C",
+   "relationship": "merged",
+   "maps_to": [
+    "EXP-N4"
+   ],
+   "note": "tau_c constraint merged with EXP-B into EXP-N4"
+  },
+  {
+   "plan_id": "EXP-D",
+   "relationship": "decomposed",
+   "maps_to": [
+    "EXP-V1",
+    "EXP-P1"
+   ],
+   "note": "grounded in FIRST_VALIDATION_EXPERIMENTS.md: 'H2 partial pressure AND equivalent surface coverage after bakeout+NEG+cryotrap' -> pressure side EXP-V1, surface-coverage side EXP-P1"
+  },
+  {
+   "plan_id": "EXP-E",
+   "relationship": "renamed",
+   "maps_to": [
+    "EXP-T1"
+   ],
+   "note": "thermal recovery to sensing baseline"
+  },
+  {
+   "plan_id": "EXP-F",
+   "relationship": "renamed",
+   "maps_to": [
+    "EXP-V2"
+   ],
+   "note": "dosing/purge isolation"
+  }
+ ],
+ "eig_preservation": {
+  "source": "validation_experiment_ranking.csv (deep layer; authoritative; NOT recomputed)",
+  "ranking": [
+   {
+    "rank": "1",
+    "experiment_id": "EXP-A",
+    "label": "NV ODMR contrast at 10 mK in the relevant diamond/NV configuration",
+    "score": "6.0995168498e-01",
+    "eig_component": "3.0000000000e-01",
+    "criticality_component": "3.0000000000e-01",
+    "falsification_component": "3.0000000000e-01",
+    "dependency_component": "1.0000000000e-01",
+    "cost_penalty": "1.6394741168e+00",
+    "source": "direct_monte_carlo"
+   },
+   {
+    "rank": "2",
+    "experiment_id": "EXP-C",
+    "label": "\u03c4_c measurement or constraint relative to the 292 \u00b5s canonical requirement",
+    "score": "5.7126691753e-01",
+    "eig_component": "2.8660000000e-01",
+    "criticality_component": "3.0000000000e-01",
+    "falsification_component": "3.0000000000e-01",
+    "dependency_component": "5.0000000000e-02",
+    "cost_penalty": "1.6394741168e+00",
+    "source": "direct_monte_carlo"
+   },
+   {
+    "rank": "3",
+    "experiment_id": "EXP-B",
+    "label": "Helium-3 / helium-4 surface-induced decoherence contrast",
+    "score": "5.1636214598e-01",
+    "eig_component": "2.4660000000e-01",
+    "criticality_component": "3.0000000000e-01",
+    "falsification_component": "3.0000000000e-01",
+    "dependency_component": "0.0000000000e+00",
+    "cost_penalty": "1.6394741168e+00",
+    "source": "direct_monte_carlo"
+   },
+   {
+    "rank": "4",
+    "experiment_id": "EXP-F",
+    "label": "Dosing / purge isolation between growth and sensing modes",
+    "score": "4.0613099653e-01",
+    "eig_component": "2.2310000000e-01",
+    "criticality_component": "4.5000000000e-02",
+    "falsification_component": "1.3800000000e-01",
+    "dependency_component": "0.0000000000e+00",
+    "cost_penalty": "1.0000000000e+00",
+    "source": "direct_monte_carlo"
+   },
+   {
+    "rank": "5",
+    "experiment_id": "EXP-D",
+    "label": "Residual H2 coverage after bakeout, cryotrap, and NEG conditioning",
+    "score": "3.7282222716e-01",
+    "eig_component": "2.0930000000e-01",
+    "criticality_component": "1.2870000000e-01",
+    "falsification_component": "1.7130000000e-01",
+    "dependency_component": "0.0000000000e+00",
+    "cost_penalty": "1.3660402568e+00",
+    "source": "direct_monte_carlo"
+   },
+   {
+    "rank": "6",
+    "experiment_id": "EXP-E",
+    "label": "Optical / femtosecond-pulse thermal recovery to sensing baseline",
+    "score": "3.1429990699e-01",
+    "eig_component": "2.4930000000e-01",
+    "criticality_component": "4.2900000000e-02",
+    "falsification_component": "1.3710000000e-01",
+    "dependency_component": "0.0000000000e+00",
+    "cost_penalty": "1.3660402568e+00",
+    "source": "direct_monte_carlo"
+   }
+  ],
+  "distinct_from_execution_order": "EIG order (A > C > B > F > D > E) is information value; execution order (V1 -> {S1,N0,P1} -> V2 -> T1 -> N1 -> N2 -> N3 -> N4 -> T2) is dependency reality: the high-EIG NV experiments cannot run first because vacuum, optics, calibration and noise-floor prerequisites are missing"
+ },
+ "automatic_gate_effect": "NONE",
+ "measured_in_this_system": false
+}

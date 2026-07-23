@@ -1,0 +1,447 @@
+{
+ "schema_version": "1.0.0",
+ "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+ "note": "planning infrastructure only; not experimental evidence; no experiment performed; no hardware claim",
+ "n_gates": 25,
+ "gates": [
+  {
+   "gate_id": "A8",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-T2"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-T2"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "A9",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-T2"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-T2"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "A11",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V2",
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V2",
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "A14",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-N4"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-N4"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "B3",
+   "current_status": "UNKNOWN",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "D1",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V2"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V2"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "D2",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V2",
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V2",
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "D10a",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "D10b",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "D12_G23",
+   "current_status": "UNKNOWN",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-N2"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-N2"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "E01",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "E04",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "E11",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-N1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-N1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "E12",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-N2"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-N2"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "E13",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-N3"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-N3"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "E14",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-N4"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-N4"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "Shield-RAD",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-S1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-S1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "Shield-RF",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-S1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-S1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "Shield-OPT",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-S1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-S1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "Shield-MAG",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-S1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-S1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "Shield-CHEM",
+   "current_status": "BLOCKED",
+   "classification": "direct",
+   "experiment_ids": [
+    "EXP-V2",
+    "EXP-P1"
+   ],
+   "evidence_required": "reviewed measurement dossier(s) per the playbook(s)",
+   "constituents": [],
+   "dossier_class": "measurement dossier",
+   "dependencies": [
+    "EXP-V2",
+    "EXP-P1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "C_to_D_Readiness",
+   "current_status": "BLOCKED",
+   "classification": "composite",
+   "experiment_ids": [
+    "EXP-V1",
+    "EXP-V2",
+    "EXP-P1",
+    "EXP-S1",
+    "EXP-T1"
+   ],
+   "evidence_required": "closure ONLY through every constituent's reviewed evidence; no shortcut experiment",
+   "constituents": [
+    "E01",
+    "E04",
+    "B3",
+    "A11",
+    "D1",
+    "D2",
+    "D10a",
+    "D10b",
+    "RESIDUAL_SPECIES_MODE_D_CHECK",
+    "Shield-RAD",
+    "Shield-RF",
+    "Shield-OPT",
+    "Shield-MAG",
+    "Shield-CHEM"
+   ],
+   "dossier_class": "composite cross-reference dossier",
+   "dependencies": [
+    "EXP-V1",
+    "EXP-V2",
+    "EXP-P1",
+    "EXP-S1",
+    "EXP-T1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "RTB_JT_OPTIONAL_COOLING_PLANT",
+   "current_status": "BLOCKED",
+   "classification": "engineering-evidence",
+   "experiment_ids": [],
+   "evidence_required": "procurement/engineering documentation of the optional upstream cooling plant; not a measurement experiment",
+   "constituents": [],
+   "dossier_class": "engineering-evidence (optional)",
+   "dependencies": [],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "RESIDUAL_SPECIES_MODE_D_CHECK",
+   "current_status": "BLOCKED",
+   "classification": "composite",
+   "experiment_ids": [
+    "EXP-V1",
+    "EXP-V2"
+   ],
+   "evidence_required": "closure ONLY through every constituent's reviewed evidence; no shortcut experiment",
+   "constituents": [
+    "B3",
+    "A11",
+    "D2"
+   ],
+   "dossier_class": "composite cross-reference dossier",
+   "dependencies": [
+    "EXP-V1",
+    "EXP-V2"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  },
+  {
+   "gate_id": "COUPLED_MODE_RECOVERY_CHECK",
+   "current_status": "BLOCKED",
+   "classification": "composite",
+   "experiment_ids": [
+    "EXP-V2",
+    "EXP-T1"
+   ],
+   "evidence_required": "closure ONLY through every constituent's reviewed evidence; no shortcut experiment",
+   "constituents": [
+    "D1",
+    "D2",
+    "A11",
+    "RESIDUAL_SPECIES_MODE_D_CHECK"
+   ],
+   "dossier_class": "composite cross-reference dossier",
+   "dependencies": [
+    "EXP-V2",
+    "EXP-T1"
+   ],
+   "human_review_required": true,
+   "automatic_status_effect": "NONE"
+  }
+ ],
+ "automatic_status_effect": "NONE"
+}
