@@ -1,0 +1,52 @@
+{
+ "archive_identity": {
+  "filename": "QTA_stage6_roadmap_source.zip",
+  "sha256": "3b727bc5cf9aaeb7607380ab91d7d2ced8fc021b90f01eeeb8ab8812f3e2eb95",
+  "size_bytes": 20305963
+ },
+ "container": {
+  "base": "python:3.12.11-slim-bookworm",
+  "digest": "UNRESOLVED (no registry route in sandbox)"
+ },
+ "execution_commands": [
+  "python3 qta_full_sim.py",
+  "python3 package_consistency_check.py",
+  "python3 manuscript_consistency_check.py",
+  "python3 stage6_preservation_check.py",
+  "snakemake --cores 1 full_verification",
+  "pytest tests/"
+ ],
+ "locale": "('C', 'UTF-8')",
+ "locked_dependencies": {
+  "hypothesis": "6.158.1",
+  "mypy": "2.3.0",
+  "numpy": "2.4.4",
+  "pydantic": "2.13.4",
+  "pytest": "9.1.1",
+  "qutip": "5.2.1",
+  "ruff": "0.15.22",
+  "scipy": "1.17.1",
+  "snakemake": "9.23.1"
+ },
+ "os": {
+  "machine": "x86_64",
+  "system": "Linux"
+ },
+ "python": {
+  "implementation": "CPython",
+  "version": "3.12.3"
+ },
+ "seeds": {
+  "campaign_uncertainty": 20260717,
+  "canonical": [
+   42,
+   12345
+  ],
+  "note": "module-level constants; unchanged by Stage 7"
+ },
+ "source_tree_identity": "Stage-7 git lineage CP0 32a4161..; Stage-6 final checkpoint a74eea3 in its own lineage",
+ "thread_controls": "container pins OMP/OPENBLAS/MKL_NUM_THREADS=1 and PYTHONHASHSEED=0; host runs used ambient settings with byte-identical results",
+ "timestamp_policy": "no timestamps in governed outputs (project policy preserved); this file is deterministic given the environment",
+ "timezone": "unset in sandbox (C/UTC semantics); container sets TZ=UTC",
+ "uv": "0.11.7"
+}

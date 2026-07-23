@@ -1,0 +1,38 @@
+{
+ "stage6_baseline": "root canonicals of the verified Stage-6 tree",
+ "paths": [
+  {
+   "path_name": "direct",
+   "command": "python3 qta_full_sim.py",
+   "workspace": "/home/claude/qta7_direct (pristine git-archive copy)",
+   "exit_status": 0,
+   "output_count": 89,
+   "matches": 88,
+   "mismatches": 0,
+   "mismatch_names": [],
+   "note": "regeneration #2 in a clean copy; compared against the Stage-6 root canonicals"
+  },
+  {
+   "path_name": "snakemake",
+   "command": "snakemake --cores 1 full_verification (staged groups; documented sandbox wall-ceiling)",
+   "workspace": "verification/snakemake/",
+   "exit_status": 0,
+   "output_count": 89,
+   "matches": 88,
+   "mismatches": 0,
+   "mismatch_names": [],
+   "note": "workspace-directed generation via snakemake_sim_entry.py"
+  },
+  {
+   "path_name": "container",
+   "command": "bash container_verify.sh",
+   "workspace": "n/a",
+   "exit_status": null,
+   "output_count": null,
+   "matches": null,
+   "mismatches": null,
+   "note": "NOT RUN - no docker/podman/buildah and no registry route (container_verification.md); definition complete, build not claimed"
+  }
+ ],
+ "cross_path": "direct and snakemake each independently 88/88 byte-identical to Stage-6; no missing/extra governed files; no size or hash mismatches; container blocked as documented"
+}

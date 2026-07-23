@@ -1,0 +1,86 @@
+{
+ "direct_dependencies": [
+  {
+   "package": "numpy",
+   "version": "2.4.4",
+   "dependency_class": "runtime",
+   "reason": "array/linalg core of every solver",
+   "use": "qta_multiphysics/* throughout",
+   "behavior_sensitive": true,
+   "version_authority": "requirements.txt (Stage-6)"
+  },
+  {
+   "package": "scipy",
+   "version": "1.17.1",
+   "dependency_class": "runtime",
+   "reason": "sparse solvers/integration for PDE + spin layers",
+   "use": "thermal/coupled/nv layers",
+   "behavior_sensitive": true,
+   "version_authority": "requirements.txt (Stage-6)"
+  },
+  {
+   "package": "qutip",
+   "version": "5.2.1",
+   "dependency_class": "runtime",
+   "reason": "NV S=1 spin dynamics/decoherence",
+   "use": "qta_multiphysics/nv_spin",
+   "behavior_sensitive": true,
+   "version_authority": "requirements.txt (Stage-6)"
+  },
+  {
+   "package": "pytest",
+   "version": "9.1.1",
+   "dependency_class": "dev",
+   "reason": "unified test execution",
+   "use": "tests/",
+   "behavior_sensitive": false,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "hypothesis",
+   "version": "6.158.1",
+   "dependency_class": "dev",
+   "reason": "bounded property tests (deterministic profile)",
+   "use": "tests/test_stage7_boundary.py",
+   "behavior_sensitive": false,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "ruff",
+   "version": "0.15.22",
+   "dependency_class": "dev",
+   "reason": "staged lint",
+   "use": "pyproject [tool.ruff]",
+   "behavior_sensitive": false,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "mypy",
+   "version": "2.3.0",
+   "dependency_class": "dev",
+   "reason": "staged typing",
+   "use": "pyproject [tool.mypy]",
+   "behavior_sensitive": false,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "pydantic",
+   "version": "2.13.4",
+   "dependency_class": "dev",
+   "reason": "trusted-boundary validation models",
+   "use": "qta_multiphysics/stage7_boundary_models.py",
+   "behavior_sensitive": false,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "snakemake",
+   "version": "9.23.1",
+   "dependency_class": "workflow",
+   "reason": "dependency-aware wrapper over authoritative commands",
+   "use": "Snakefile",
+   "behavior_sensitive": false,
+   "version_authority": "uv.lock"
+  }
+ ],
+ "transitive": "see uv.lock (71 packages; lockfile is the resolution authority)"
+}
