@@ -120,9 +120,31 @@
       "status": "DERIVED_CHECK",
       "note": "",
       "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "cryopanel_saturation",
+      "bound": "max monolayer fraction < 1",
+      "bound_provenance": "PLACEHOLDER worst-case 1-monolayer capacity on the canonical site basis (capacity unmeasured; ASSUMED sticking)",
+      "model_value": "3.041e-06",
+      "units": "monolayer fraction",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "3-cycle campaign; accumulating cross-cycle state",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "condition": "cumulative_energy_residual",
+      "bound": "|cumulative rel| <= 5.00e-02",
+      "bound_provenance": "shared ENERGY_CLOSURE_TOL over identical-cycle sums",
+      "model_value": "1.328e-04",
+      "units": "-",
+      "falsified_in_model": "false",
+      "status": "DERIVED_CHECK",
+      "note": "",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
     }
   ],
-  "n_conditions": 11,
+  "n_conditions": 13,
   "n_falsified_in_model": 0,
   "n_not_implemented_bounds": 2,
   "meaning": "falsified_in_model=false means the deterministic model run stayed inside the stated canonical bound; this is a numerical forecast statement only -- never validation, never PASS, never a hardware claim",

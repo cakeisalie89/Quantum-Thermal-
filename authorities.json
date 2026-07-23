@@ -1,0 +1,188 @@
+{
+  "registry": "QTA single-source-of-truth authority map",
+  "schema_version": "1.0",
+  "rule": "each concept has exactly one executable authority; every other file is a consumer; documentation mirrors code and never overrides it",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+  "authorities": {
+    "modes_and_species": {
+      "authority": "qta_multiphysics/mode_sequence_3d.py :: MODES, CANONICAL_ACTIVE, RESIDUAL_ONLY, LEGACY_ALIASES, validate_live_species, assert_no_overlap",
+      "owner": "mode_sequence_3d",
+      "schema_version": "1.0",
+      "semantics": "A=Baseline, B=Carbon-13 Methane Processing (C13_CH4 only), C=Isolation/Recovery, D=He-3/He-4 NV Sensing (He3,He4 only); H2 residual/background only; B and D never overlap",
+      "consumers": [
+        "state_machine_3d",
+        "machine_fsm",
+        "species_accounting_3d",
+        "coupled_mode_solver",
+        "tests/test_mode_species_3d.py",
+        "tests/test_machine_fsm.py"
+      ]
+    },
+    "legal_transitions_states_interlocks": {
+      "authority": "qta_multiphysics/machine_fsm.py :: STATES(32), TRANSITIONS(38), FORBIDDEN(8), INTERLOCKS(18: IL-01..14 canonical + FSM-IL-15..18), MachineFSM",
+      "owner": "machine_fsm",
+      "schema_version": "1.0",
+      "hardware_axes": [
+        "laser",
+        "microwave",
+        "c13_feed",
+        "he_dose",
+        "sense_shutter",
+        "process_port",
+        "cryobaffle",
+        "sc_heat_switch",
+        "upstream_plant",
+        "dilution",
+        "vacuum_pumping",
+        "ivc_valve",
+        "charcoal_regen"
+      ],
+      "canonical_outputs": [
+        "machine_fsm_states.csv",
+        "machine_fsm_transitions.csv",
+        "machine_fsm_interlocks.csv",
+        "machine_fsm_lifecycle_trace.csv",
+        "machine_fsm_summary.json",
+        "machine_fsm_diagram.mmd"
+      ],
+      "consumers": [
+        "runner_3d",
+        "package_consistency_check.py",
+        "MACHINE_FSM.md",
+        "tests/test_machine_fsm.py"
+      ],
+      "note": "design/registry.py + interlock_table.csv carry the engineering-ledger view of IL-01..14; machine_fsm.py holds the executable predicates; wording cross-referenced, values identical"
+    },
+    "device_states_per_mode": {
+      "authority": "qta_multiphysics/state_machine_3d.py :: device_state, DeviceState3D",
+      "owner": "state_machine_3d",
+      "schema_version": "1.0",
+      "consumers": [
+        "mode_sequence_3d",
+        "sources_3d",
+        "machine_fsm (state configs mirror it)",
+        "tests/test_coupled_3d.py"
+      ]
+    },
+    "units_and_physical_parameters": {
+      "authority": "qta_multiphysics/config.py :: MultiphysicsConfig (+ default_config); SI units with per-field comments and validators; qta_multiphysics/units.py for conversions",
+      "owner": "config",
+      "schema_version": "1.0",
+      "parameter_provenance_records": [
+        "assumed_parameters.json",
+        "measured_parameters.json",
+        "assumptions_3d.json",
+        "provenance_3d.json"
+      ],
+      "consumers": [
+        "every solver and runner"
+      ]
+    },
+    "solver_profiles_and_tolerances": {
+      "authority": "qta_multiphysics/config.py :: SolverConfig (rtol=1e-6, atol=1e-9, windows, mode_d_temp_threshold_K=0.050) + qta_full_sim.py profile flags (default | --ci | --deep | --heavy-3d)",
+      "owner": "config + qta_full_sim",
+      "schema_version": "1.0",
+      "profile_semantics": "default = canonical regeneration; --ci = fast test profile (non-canonical outputs); --deep optional; --heavy-3d opt-in (gitignored outputs/heavy_3d)",
+      "consumers": [
+        "INSTALL.md",
+        "package_consistency_check.py"
+      ]
+    },
+    "meshes": {
+      "authority": "qta_multiphysics/runner_3d.py :: CI_MESH(10x10x12), HEAVY_MESH(16x16x20); qta_multiphysics/convergence_3d.py :: REFINED(14x14x18)",
+      "owner": "runner_3d / convergence_3d",
+      "schema_version": "1.0"
+    },
+    "seeds": {
+      "authority": "qta_full_sim.py :: seed=42 (Mode-D MC N=10000; staged MC N=5000; integrated pipeline), qta_multiphysics mc_samples=30; 3D MC seed=12345 (n_samples=120) in qta_multiphysics/uncertainty.py",
+      "owner": "qta_full_sim / uncertainty",
+      "schema_version": "1.0"
+    },
+    "gates": {
+      "authority": "qta_multiphysics/metrics.py + qta_full_sim.py gate assembly -> results_gate_table.csv (83 gates; statuses CONDITIONAL/BLOCKED/UNKNOWN/DERIVED_CHECK; PASS permanently 0; can_PASS_now=NO; measured_in_this_system=false)",
+      "owner": "metrics + qta_full_sim",
+      "schema_version": "1.0",
+      "consumers": [
+        "manuscript_consistency_check.py",
+        "package_consistency_check.py",
+        "GATE_TABLE_README.md",
+        "qta_manuscript_v4.tex"
+      ]
+    },
+    "schemas": {
+      "authority": "deep_design_schema.json, deep_parameter_schema.json (deep layer); coupling ledger vocabulary in qta_multiphysics/coupling_ledger_3d.py :: ALLOWED_STATUSES",
+      "owner": "deep_expdesign / coupling_ledger_3d",
+      "schema_version": "1.0",
+      "migrations": "none required; all records at v1.0"
+    },
+    "canonical_output_paths": {
+      "authority": "repository root = canonical location for every governed output; regeneration target outputs/ is byte-compared to root by package_consistency_check.py Step 2b (exempt: deep_surrogate_readiness.json); final_manifest.json enumerates the governed set",
+      "owner": "package_consistency_check + generate_manifest",
+      "schema_version": "1.0"
+    },
+    "claim_boundary_wording": {
+      "authority": "CLAIMS_BOUNDARY.md (prose) + the machine label constant 'MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM' + per-record fields measured_in_this_system=false / can_PASS_now=NO / hardware_validated=false",
+      "owner": "CLAIMS_BOUNDARY.md + generating modules",
+      "schema_version": "1.0",
+      "enforced_by": [
+        "manuscript_consistency_check.py forbidden-pattern scan",
+        "package_consistency_check.py readiness/eligibility/FSM claim assertions and PASS-token scans"
+      ]
+    },
+    "provenance_records": {
+      "authority": "final_manifest.json (238 governed files, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index)",
+      "owner": "generate_manifest",
+      "schema_version": "1.0"
+    },
+    "cryopanel_dynamics": {
+      "authority": "qta_multiphysics/cryopanel_dynamics_3d.py :: PanelInventory, advance_phase (exact Langmuir capture; ASSUMED sticking; PLACEHOLDER 1-ML capacity)",
+      "owner": "cryopanel_dynamics_3d",
+      "schema_version": "1.0",
+      "consumers": [
+        "campaign_state_3d",
+        "falsification_3d",
+        "runner_3d",
+        "tests/test_campaign_3d.py"
+      ]
+    },
+    "campaign_continuity": {
+      "authority": "qta_multiphysics/campaign_state_3d.py :: build_campaign, attach_energy_ledger (schema 1.0; separate API; single-cycle canon untouched)",
+      "owner": "campaign_state_3d",
+      "schema_version": "1.0",
+      "canonical_outputs": [
+        "cryopanel_loading_3d.csv",
+        "energy_ledger_cumulative_3d.csv",
+        "machine_fsm_campaign_trace.csv",
+        "campaign_state_3d.json"
+      ],
+      "consumers": [
+        "runner_3d",
+        "package_consistency_check.py"
+      ]
+    }
+  },
+  "competing_sources_record": [
+    {
+      "concept": "root-level module copies",
+      "competitors": [
+        "units.py",
+        "verification.py",
+        "vibration_transfer.py (root, hand-uploaded)"
+      ],
+      "execution_authority": "qta_multiphysics/ package versions (all imports are package-qualified; 63 package imports, 0 root imports)",
+      "evidence": "identical git blobs at removal time; grep consumer scan",
+      "resolution": "root copies removed in Stage1-CP1 (commit 9525e24); numerical consequences: none (byte-identical, unimported)"
+    },
+    {
+      "concept": "coherence time tau_c",
+      "competitors": [
+        "27.728 us (detection-chain derivation without pulse-fidelity factor)",
+        "292 us (canonical, Mode-D SNR=5.00 definition)"
+      ],
+      "execution_authority": "292 us canonical; 27.728 us marked SUPERSEDED in the gate/manuscript record",
+      "evidence": "cross-check closed in the hardening pass; manuscript checker enforces",
+      "resolution": "historical; resolved before this stage; numerical consequences documented in the gate table reasoning"
+    }
+  ],
+  "unresolved_conflicts": []
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "n_cycles": 3,
+  "cycles": [
+    {
+      "cycle": "1",
+      "theta_c13_residual_before_D": "2.062286603e-09",
+      "theta_basis": "worst-case theta0=1 re-declared each Mode B; canonical purge each Mode C (identical-cycle)",
+      "panel_CH4_monolayer_fraction": "1.013548775e-06",
+      "panel_H2_monolayer_fraction": "1.285646336e-10",
+      "T_probe_recovery_end_K": "1.000000000e-02",
+      "T_base_K": "1.000000000e-02",
+      "identical_cycle_approx_delta_K": "1.107e-12",
+      "il05_il06_derived_context": "FORECAST-basis clearance; derived context: theta_residual=2.062e-09, panel_CH4_ML=1.014e-06, panel_H2_ML=1.286e-10; measured RGA clearance NOT AVAILABLE (E04); no automatic upgrade, never PASS",
+      "sensing_hold": "REFUSED [IL-08] (identical every cycle)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "cycle": "2",
+      "theta_c13_residual_before_D": "2.062286603e-09",
+      "theta_basis": "worst-case theta0=1 re-declared each Mode B; canonical purge each Mode C (identical-cycle)",
+      "panel_CH4_monolayer_fraction": "2.027096523e-06",
+      "panel_H2_monolayer_fraction": "2.571292672e-10",
+      "T_probe_recovery_end_K": "1.000000000e-02",
+      "T_base_K": "1.000000000e-02",
+      "identical_cycle_approx_delta_K": "1.107e-12",
+      "il05_il06_derived_context": "FORECAST-basis clearance; derived context: theta_residual=2.062e-09, panel_CH4_ML=2.027e-06, panel_H2_ML=2.571e-10; measured RGA clearance NOT AVAILABLE (E04); no automatic upgrade, never PASS",
+      "sensing_hold": "REFUSED [IL-08] (identical every cycle)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "cycle": "3",
+      "theta_c13_residual_before_D": "2.062286603e-09",
+      "theta_basis": "worst-case theta0=1 re-declared each Mode B; canonical purge each Mode C (identical-cycle)",
+      "panel_CH4_monolayer_fraction": "3.040643244e-06",
+      "panel_H2_monolayer_fraction": "3.856939008e-10",
+      "T_probe_recovery_end_K": "1.000000000e-02",
+      "T_base_K": "1.000000000e-02",
+      "identical_cycle_approx_delta_K": "1.107e-12",
+      "il05_il06_derived_context": "FORECAST-basis clearance; derived context: theta_residual=2.062e-09, panel_CH4_ML=3.041e-06, panel_H2_ML=3.857e-10; measured RGA clearance NOT AVAILABLE (E04); no automatic upgrade, never PASS",
+      "sensing_hold": "REFUSED [IL-08] (identical every cycle)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "cumulative_energy": {
+    "source_J": "4.500000038e-09",
+    "sink_J": "4.499402303e-09",
+    "dU_J": "3.719739546e-17",
+    "residual_J": "5.976970472e-13",
+    "closure_tol": "5.000000000e-02"
+  },
+  "mass_bookkeeping": [
+    {
+      "panel_id": "PANEL-H2",
+      "species": "H2",
+      "admitted_per_m2": "3.856934778e+11",
+      "captured_per_m2": "3.856939008e+09",
+      "not_captured_per_m2": "3.818365388e+11",
+      "identity_holds": "true",
+      "note": "not-captured = pumped/reflected (chain-level; no spatial claim)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "panel_id": "PANEL-CH4",
+      "species": "C13_CH4",
+      "admitted_per_m2": "5.528450667e+13",
+      "captured_per_m2": "3.040643244e+13",
+      "not_captured_per_m2": "2.487807423e+13",
+      "identity_holds": "true",
+      "note": "not-captured = pumped/reflected (chain-level; no spatial claim)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
+    {
+      "panel_id": "PANEL-He(no-capture)",
+      "species": "He",
+      "admitted_per_m2": "2.627778981e+17",
+      "captured_per_m2": "0.000000000e+00",
+      "not_captured_per_m2": "2.627778981e+17",
+      "identity_holds": "true",
+      "note": "not-captured = pumped/reflected (chain-level; no spatial claim)",
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    }
+  ],
+  "identical_cycle_approx_delta_K": "1.107e-12",
+  "n_sensing_refusals": 3,
+  "final_state": "MODE_A_BASELINE.READY_IDLE",
+  "measured_in_this_system": false,
+  "can_PASS_now": "NO",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+}
