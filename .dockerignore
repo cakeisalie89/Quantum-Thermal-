@@ -8,3 +8,4 @@ verification/
 attic/delivery_artifacts/
 __pycache__
 *.pyc
+rust/**/target/

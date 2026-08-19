@@ -280,3 +280,203 @@ rule s8_report:
 
 rule s8_full:
     input: f"{W8}/stage8_workflow_report.json"
+
+
+# ============ Stage-10 additive rules (scientific-stack adapters) ===========
+# Visualization interchange (ParaView/VTK, OpenUSD), a read-only retrieval
+# index, the staged FEniCSx acceptance harness, selective-Rust parity, and the
+# deferred FMI contract. Every rule writes ONLY under verification/stage10 and
+# the closing rule proves the canonical tree was not touched. Software
+# verification only; the scientific gate PASS count remains zero.
+W10 = "verification/stage10"
+
+
+def _stage10_result():
+    """One small deterministic 3D solve shared by the visualization rules."""
+    from qta_multiphysics.config import default_config
+    from qta_multiphysics.mesh_3d import Grid3DConfig
+    from qta_multiphysics.thermal_3d_transient import solve_thermal_3d
+    return solve_thermal_3d(default_config(), Grid3DConfig(nx=6, ny=6, nz=8),
+                            n_eval=4)
+
+
+rule s10_viz_vtk:
+    # each exporter owns its own directory: the determinism rule digests a
+    # whole directory, so sharing one with another writer would make the
+    # comparison depend on job scheduling
+    output: f"{W10}/viz/vtk/thermal_3d_vtk_manifest.json"
+    run:
+        from qta_multiphysics.stack import vtk_export as V
+        m = V.export_thermal_3d(_stage10_result(), f"{W10}/viz/vtk")
+        assert m["automatic_gate_effect"] == "NONE"
+        assert m["n_timesteps_exported"] >= 1
+
+rule s10_viz_vtk_determinism:
+    # a re-export must reproduce every byte: the .vtr/.pvd payload is the
+    # visualization counterpart of the project's byte-gated CSV outputs
+    input: f"{W10}/viz/vtk/thermal_3d_vtk_manifest.json"
+    output: f"{W10}/viz_determinism.json"
+    run:
+        from qta_multiphysics.stack import vtk_export as V
+        before = V.export_dir_digest(f"{W10}/viz/vtk")
+        V.export_thermal_3d(_stage10_result(), f"{W10}/viz/vtk")
+        after = V.export_dir_digest(f"{W10}/viz/vtk")
+        Path(output[0]).write_text(json.dumps(
+            {"n_files": len(before), "byte_identical_on_reexport":
+             before == after, "digests": after}, indent=1, sort_keys=True))
+        assert before == after
+
+rule s10_viz_usd:
+    output: f"{W10}/viz/usd/qta_domain_usd_manifest.json"
+    run:
+        from qta_multiphysics.stack import usd_export as U
+        m = U.export_usd_scene(_stage10_result(), f"{W10}/viz/usd")
+        # usd-core is optional: an absent validator reports UNAVAILABLE and
+        # must never be recorded as a pass
+        assert m["validation"]["availability"] in ("AVAILABLE", "UNAVAILABLE")
+        if m["validation"]["availability"] == "AVAILABLE":
+            assert m["validation"]["result"] == "VALID", m["validation"]
+
+rule s10_rag_index:
+    output: f"{W10}/rag/rag_index.json"
+    run:
+        from qta_multiphysics.stack import rag_index as R
+        info = R.write_index(f"{W10}/rag")
+        idx = R.load_index(output[0])
+        assert idx.stale_files() == [], idx.stale_files()
+        assert info["n_chunks"] > 0
+
+rule s10_fenicsx_acceptance:
+    # FEniCSx stays STAGED; what CI proves today is that the acceptance
+    # harness measures zero error for an exact solver and detects second-order
+    # convergence for a real discretisation
+    output: f"{W10}/fem/fenicsx_acceptance.json"
+    run:
+        from qta_multiphysics.stack import fem_fenicsx as F
+        exact = F.run_acceptance(F.analytic_reference_solver,
+                                 n_cells_sequence=(10, 20))
+        conv = F.run_acceptance(F.fv_reference_solver,
+                                n_cells_sequence=(20, 40, 80))
+        status = F.status_report(f"{W10}/fem")
+        assert exact["verdict"] == "EXACT_RECOVERED", exact
+        assert conv["verdict"] == "PASS", conv
+        assert conv["observed_order_L2"] >= \
+            F.ACCEPTANCE_CRITERIA["mms_observed_order_min"]
+        assert status["adoption_status"] == "STAGED"
+        Path(output[0]).parent.mkdir(parents=True, exist_ok=True)
+        Path(output[0]).write_text(json.dumps(
+            {"harness_self_check": exact, "order_detection": conv,
+             "adoption_status": status["adoption_status"],
+             "dolfinx_available": status["availability"] == "AVAILABLE"},
+            indent=1, sort_keys=True))
+
+rule s10_rust_parity:
+    output: f"{W10}/rust/rust_kernel_status.json"
+    run:
+        from qta_multiphysics.stack import rust_kernel as R
+        rep = R.status_report(f"{W10}/rust")
+        assert rep["default_backend"] == "numpy"
+        # adoption requires bit identity; anything less stays on NumPy
+        for k in rep["kernels"]:
+            if k.get("adopted"):
+                assert k["bit_identical"] and k["max_ulp_difference"] == 0, k
+            else:
+                assert k["backend_in_force"] == "numpy", k
+
+rule s10_fmi_contract:
+    output: f"{W10}/fmi/fmi_readiness.json"
+    run:
+        from qta_multiphysics.stack import fmi_contract as F
+        rep = F.write_contract(f"{W10}/fmi")
+        assert rep["adoption_status"] == "DEFERRED"
+        assert rep["fmu_produced"] is False and rep["ready_to_export"] is False
+        names = {p.name for p in Path(f"{W10}/fmi").iterdir()}
+        assert "modelDescription.xml" not in names
+        assert not any(n.endswith(".fmu") for n in names)
+
+rule s10_tests:
+    # runs under sys.executable, not a hard-coded .venv path, so the
+    # fail-closed leg (no optional extras installed) is exercised in the
+    # environment it is actually meant to prove
+    output: f"{W10}/tests_stage10.json"
+    run:
+        import hashlib as _h, subprocess as _sp, sys as _sy
+        log = Path(f"{output[0]}.log")
+        log.parent.mkdir(parents=True, exist_ok=True)
+        r = _sp.run([_sy.executable, "-m", "pytest",
+                     "tests/test_stage10_stack.py", "-q", "-rs"],
+                    capture_output=True, text=True)
+        log.write_text(r.stdout + r.stderr)
+        assert r.returncode == 0, r.stdout[-2000:]
+        Path(output[0]).write_text(json.dumps(
+            {"suite": "stage10_stack", "interpreter": _sy.executable,
+             "log_sha256": _h.sha256(log.read_bytes()).hexdigest()},
+            indent=1, sort_keys=True))
+
+rule s10_canonical_untouched:
+    # The governance check for this stage: after every Stage-10 rule has run,
+    # every canonical file must still match final_manifest.json byte for byte.
+    input:
+        f"{W10}/viz_determinism.json",
+        f"{W10}/viz/usd/qta_domain_usd_manifest.json",
+        f"{W10}/rag/rag_index.json", f"{W10}/fem/fenicsx_acceptance.json",
+        f"{W10}/rust/rust_kernel_status.json", f"{W10}/fmi/fmi_readiness.json",
+        f"{W10}/tests_stage10.json",
+    output: f"{W10}/canonical_untouched.json"
+    run:
+        man = json.loads(Path("final_manifest.json").read_text())
+        bad = [e["filename"] for e in man["files"]
+               if not Path(e["filename"]).exists()
+               or _sha(e["filename"]) != e["sha256"]]
+        stored = Path("manifest_hash.txt").read_text().split(
+            "sha256:")[1].split()[0].strip()
+        rep = {"entries": len(man["files"]), "mismatches": len(bad),
+               "mismatch_names": bad,
+               "detached_hash_ok": stored == _sha("final_manifest.json"),
+               "note": "Stage-10 adapters wrote only under verification/"}
+        Path(output[0]).write_text(json.dumps(rep, indent=1, sort_keys=True))
+        assert not bad and rep["detached_hash_ok"], rep
+
+rule s10_report:
+    input:
+        f"{W10}/canonical_untouched.json", f"{W10}/viz_determinism.json",
+        f"{W10}/viz/usd/qta_domain_usd_manifest.json",
+        f"{W10}/rag/rag_index.json", f"{W10}/fem/fenicsx_acceptance.json",
+        f"{W10}/rust/rust_kernel_status.json", f"{W10}/fmi/fmi_readiness.json",
+        f"{W10}/tests_stage10.json",
+    output: f"{W10}/stage10_stack_report.json"
+    run:
+        import csv as _csv
+        from collections import Counter as _C
+        dist = _C(r["status"] for r in
+                  _csv.DictReader(open("results_gate_table.csv")))
+        Path(output[0]).write_text(json.dumps(
+            {"inputs": {Path(f).name: _sha(f) for f in input},
+             "scientific_PASS_count": dist.get("PASS", 0),
+             "gate_distribution": dict(dist),
+             "note": "software verification only; the Stage-10 scientific "
+                     "stack is additive and the gate PASS count remains "
+                     "zero"}, indent=1, sort_keys=True))
+        assert dist.get("PASS", 0) == 0
+
+rule s10_full:
+    input: f"{W10}/stage10_stack_report.json"
+
+
+# ---- opt-in Stage-10 rules (each evaluation is a full 3D solve) ------------
+# Not part of s10_full: a Sobol cross-check is ~96 solves and a DOE sweep is
+# one solve per sample. Run them deliberately, as with --heavy-3d.
+
+rule s10_uq_sobol:
+    output: f"{W10}/uq/salib_sobol_cross_check.json"
+    run:
+        from qta_multiphysics.stack import sensitivity_salib as S
+        rep = S.run_cross_check(f"{W10}/uq", method="sobol", n_base=16)
+        assert rep["role"] == "CROSS_CHECK_ONLY"
+
+rule s10_mdao_doe:
+    output: f"{W10}/mdao/openmdao_doe.json"
+    run:
+        from qta_multiphysics.stack import mdao_openmdao as M
+        rep = M.run_doe(f"{W10}/mdao", n_samples=8)
+        assert rep["status"] == "NOT_A_RECOMMENDATION"

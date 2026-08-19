@@ -222,6 +222,17 @@
         "tests/test_stage6_roadmap.py"
       ],
       "note": "planning infrastructure only; not experimental evidence; automatic_gate_effect=NONE; schema 1.0.0 is a compatible extension of the project's MAJOR.MINOR convention for the new Stage-6 record types"
+    },
+    "scientific_stack_adoption": {
+      "authority": "STACK.md (narrative) + stack.json (machine-readable, schema 1.0.0) :: adoption ladder for every non-core stack element (ADOPTED / STAGED / DEFERRED); code is the authority and both mirror it",
+      "owner": "stage10_stack",
+      "schema_version": "1.0.0",
+      "implementation": "qta_multiphysics/stack/ (viz, UQ/MDAO, read-only retrieval, staged FEM, selective Rust, deferred FMI) + rust/qta_kernels (built on demand)",
+      "consumers": [
+        "Snakefile (s10_* rules; s10_full)",
+        "tests/test_stage10_stack.py (asserts the registry matches the code)"
+      ],
+      "note": "additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, and the s10_canonical_untouched rule re-verifies final_manifest.json after the stage runs"
     }
   },
   "competing_sources_record": [

@@ -1,0 +1,251 @@
+{
+  "schema_version": "1.0.0",
+  "stage": "stage10",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+  "automatic_gate_effect": "NONE",
+  "owner": "STACK.md (narrative) + this file (machine-readable); code is the authority and both mirror it",
+  "adoption_levels": {
+    "ADOPTED": "in use, exercised by CI or the workflow, and its behaviour is verified in this repository",
+    "STAGED": "interface and acceptance criteria are written and executable, but the tool is not installed, not exercised, and produces nothing authoritative",
+    "DEFERRED": "deliberately not built; the contract is recorded so later work is implementation rather than redesign"
+  },
+  "invariants": [
+    "additive: no Stage-10 module is imported by the solvers, the gate logic, or qta_full_sim.py",
+    "workspace-only: Stage-10 writers refuse to write into the repository root or any governed directory",
+    "no gate effect: automatic_gate_effect = NONE for every element; none may create or promote a gate",
+    "fail-closed optionality: an absent optional dependency reports UNAVAILABLE and defers to the in-repo authority",
+    "deterministic bytes: every Stage-10 artifact is reproducible byte-for-byte from the same inputs"
+  ],
+  "elements": [
+    {
+      "id": "python-scientific-core",
+      "name": "Python scientific core (NumPy / SciPy / QuTiP)",
+      "doc_key": "Python scientific core (NumPy/SciPy/QuTiP)",
+      "status": "ADOPTED",
+      "since_stage": "pre-stage7",
+      "authority": "qta_multiphysics/ solvers + qta_full_sim.py",
+      "owner_module": "qta_multiphysics",
+      "boundary": "the numerical authority of the project; every other stack element is additive to it",
+      "verification": "python qta_full_sim.py && python package_consistency_check.py",
+      "open_items": []
+    },
+    {
+      "id": "snakemake",
+      "name": "Snakemake workflow",
+      "doc_key": "Snakemake",
+      "status": "ADOPTED",
+      "since_stage": "stage7",
+      "authority": "Snakefile",
+      "owner_module": "Snakefile",
+      "boundary": "wraps the authoritative commands; rewrites no solver and never writes the canonical tree",
+      "verification": "snakemake --cores 1 full_verification",
+      "open_items": []
+    },
+    {
+      "id": "uv",
+      "name": "uv (resolution and environment)",
+      "doc_key": "uv",
+      "status": "ADOPTED",
+      "since_stage": "stage7",
+      "authority": "uv.lock (resolution) + pyproject.toml (declaration)",
+      "owner_module": "pyproject.toml",
+      "boundary": "Stage-10 optional packages are project extras, not dependency groups, so `uv sync --all-groups` stays lean",
+      "verification": "uv sync --frozen --all-groups",
+      "open_items": []
+    },
+    {
+      "id": "containers",
+      "name": "Reproducible container",
+      "doc_key": "Reproducible container",
+      "status": "ADOPTED",
+      "since_stage": "stage7",
+      "authority": "Dockerfile + container_verify.sh",
+      "owner_module": "Dockerfile",
+      "boundary": "deterministic environment (fixed locale, TZ, PYTHONHASHSEED, single-threaded BLAS); the Rust extension is not built into it",
+      "verification": "bash container_verify.sh (inside the image)",
+      "open_items": [
+        "base-image digest still UNRESOLVED — recorded as a known gap in container_verification.md, to be pinned at first pull"
+      ]
+    },
+    {
+      "id": "pytest-hypothesis",
+      "name": "pytest + Hypothesis",
+      "doc_key": "pytest + Hypothesis",
+      "status": "ADOPTED",
+      "since_stage": "stage7",
+      "authority": "tests/",
+      "owner_module": "tests",
+      "boundary": "software verification only; a passing suite never converts a forecast into a measurement",
+      "verification": "pytest tests/ -q",
+      "open_items": []
+    },
+    {
+      "id": "ruff-mypy-pydantic",
+      "name": "Ruff + mypy + Pydantic",
+      "doc_key": "Ruff + mypy + Pydantic",
+      "status": "ADOPTED",
+      "since_stage": "stage7",
+      "authority": "pyproject.toml [tool.ruff]/[tool.mypy] + qta_multiphysics/stage7_boundary_models.py + qta_multiphysics/stack/registry.py",
+      "owner_module": "qta_multiphysics.stage7_boundary_models",
+      "boundary": "trusted-boundary validation only; the Pydantic models validate hand-editable documents (matrix update requests, this registry) and never become a competing vocabulary authority",
+      "verification": "ruff check . && mypy qta_multiphysics/stack qta_multiphysics/stage7_boundary_models.py",
+      "open_items": []
+    },
+    {
+      "id": "hdf5",
+      "name": "HDF5 data layer",
+      "doc_key": "HDF5",
+      "status": "ADOPTED",
+      "since_stage": "stage8",
+      "authority": "hdf5_output_mapping.json + hdf5_schema.json + build_hdf5.py",
+      "owner_module": "build_hdf5.py",
+      "boundary": "representation only; equivalence with the canonical CSV/JSON outputs is checked, not assumed",
+      "verification": "snakemake --cores 1 s8_full",
+      "open_items": []
+    },
+    {
+      "id": "ro-crate",
+      "name": "RO-Crate packaging",
+      "doc_key": "RO-Crate",
+      "status": "ADOPTED",
+      "since_stage": "stage8",
+      "authority": "ro_crate_tools.py + ro-crate/ro-crate-metadata.json",
+      "owner_module": "ro_crate_tools.py",
+      "boundary": "metadata packaging only; the crate restates the claim boundary and adds no evidence",
+      "verification": "python3 ro_crate_tools.py validate",
+      "open_items": []
+    },
+    {
+      "id": "slsa-sigstore",
+      "name": "SLSA provenance + Sigstore signing",
+      "doc_key": "SLSA + Sigstore",
+      "status": "STAGED",
+      "since_stage": "stage9",
+      "authority": "RELEASE_POLICY.md + .github/workflows/release.yml + verify_release.py",
+      "owner_module": "verify_release.py",
+      "boundary": "a signature attests origin and integrity only, never scientific validity; no SLSA level is claimed until a qualifying hosted build runs and verifies",
+      "verification": "python verify_release.py --zip <release zip> --bundle <bundle>",
+      "open_items": [
+        "the release workflow has never run on a hosted runner",
+        "actions in release.yml and stack-verify.yml are still tag-pinned; policy #3 requires pinning by commit SHA before the first real run"
+      ]
+    },
+    {
+      "id": "rag-read-only",
+      "name": "Read-only retrieval over governed documents",
+      "doc_key": "Read-only RAG",
+      "status": "ADOPTED",
+      "since_stage": "stage10",
+      "authority": "qta_multiphysics/stack/rag_index.py",
+      "owner_module": "qta_multiphysics.stack.rag_index",
+      "optional_dependency": null,
+      "boundary": "retrieval only — verbatim cited spans, no generation, no network, no model client; retrieved text is never evidence",
+      "verification": "snakemake --cores 1 verification/stage10/rag/rag_index.json",
+      "open_items": []
+    },
+    {
+      "id": "paraview-vtk",
+      "name": "ParaView / VTK field export",
+      "doc_key": "ParaView / VTK",
+      "status": "ADOPTED",
+      "since_stage": "stage10",
+      "authority": "qta_multiphysics/stack/vtk_export.py",
+      "owner_module": "qta_multiphysics.stack.vtk_export",
+      "optional_dependency": null,
+      "boundary": "serializes solved cell-centred fields unchanged; no resampling, no smoothing, no added physics",
+      "verification": "snakemake --cores 1 verification/stage10/viz_determinism.json",
+      "open_items": []
+    },
+    {
+      "id": "openusd",
+      "name": "OpenUSD scene export",
+      "doc_key": "OpenUSD",
+      "status": "ADOPTED",
+      "since_stage": "stage10",
+      "authority": "qta_multiphysics/stack/usd_export.py",
+      "owner_module": "qta_multiphysics.stack.usd_export",
+      "optional_dependency": "usd-core (extra: viz) — validation only; the .usda text is written directly",
+      "boundary": "geometric representation of the solved domain; no prim is a solver input",
+      "verification": "snakemake --cores 1 verification/stage10/viz/usd/qta_domain_usd_manifest.json",
+      "open_items": []
+    },
+    {
+      "id": "salib",
+      "name": "SALib global sensitivity cross-check",
+      "doc_key": "SALib",
+      "status": "ADOPTED",
+      "since_stage": "stage10",
+      "authority": "qta_multiphysics/sensitivity_3d.py remains the sensitivity authority; qta_multiphysics/stack/sensitivity_salib.py is a cross-check",
+      "owner_module": "qta_multiphysics.stack.sensitivity_salib",
+      "optional_dependency": "SALib (extra: uq)",
+      "boundary": "disagreement with the canonical OAT ranking is reported, never resolved automatically",
+      "verification": "snakemake --cores 1 s10_uq_sobol   # opt-in, ~96 solves",
+      "open_items": [
+        "first cross-check disagrees with the canonical ranking on the top parameter (Kendall tau-b 0.667) — an open finding for human review, recorded in STACK.md"
+      ]
+    },
+    {
+      "id": "openmdao",
+      "name": "OpenMDAO design-space exploration",
+      "doc_key": "OpenMDAO",
+      "status": "ADOPTED",
+      "since_stage": "stage10",
+      "authority": "qta_full_sim.py remains the operating-point authority; qta_multiphysics/stack/mdao_openmdao.py explores only",
+      "owner_module": "qta_multiphysics.stack.mdao_openmdao",
+      "optional_dependency": "openmdao (extra: uq)",
+      "boundary": "only DESIGN-provenance parameters may be design variables; ASSUMED and LITERATURE_BOUND quantities are uncertainty and are rejected as knobs. Every result is NOT_A_RECOMMENDATION",
+      "verification": "snakemake --cores 1 s10_mdao_doe   # opt-in, one solve per sample",
+      "open_items": []
+    },
+    {
+      "id": "fenicsx",
+      "name": "FEniCSx (dolfinx) FEM backend",
+      "doc_key": "FEniCSx",
+      "status": "STAGED",
+      "since_stage": "stage10",
+      "authority": "the finite-volume backends (thermal_1d / thermal_2d_axisymmetric / thermal_3d_transient) remain authoritative",
+      "owner_module": "qta_multiphysics.stack.fem_fenicsx",
+      "optional_dependency": "dolfinx — environment-provided (conda-forge, spack, or the dolfinx container); deliberately not a wheel dependency",
+      "boundary": "no FEM result is canonical, comparable, or gate-relevant until every acceptance criterion passes on a real build",
+      "verification": "snakemake --cores 1 verification/stage10/fem/fenicsx_acceptance.json",
+      "open_items": [
+        "dolfinx not installable as a wheel and not present in any project environment",
+        "acceptance criteria 2-4 (reduction to thermal_1d, energy residual, determinism) cannot run until a build exists"
+      ]
+    },
+    {
+      "id": "rust-selective",
+      "name": "Selective Rust kernels (PyO3)",
+      "doc_key": "Selective Rust",
+      "status": "ADOPTED",
+      "since_stage": "stage10",
+      "authority": "the NumPy references in qta_multiphysics/stack/rust_kernel.py; a Rust kernel is an accelerator, never a second source of truth",
+      "owner_module": "qta_multiphysics.stack.rust_kernel",
+      "optional_dependency": "qta_kernels — built on demand from rust/qta_kernels, never installed by default",
+      "boundary": "a kernel is admitted only if it is bit-for-bit identical to the NumPy reference; the Rust path is off unless QTA_RUST_KERNELS=1 and parity passes at process start",
+      "verification": "snakemake --cores 1 verification/stage10/rust/rust_kernel_status.json",
+      "open_items": [
+        "conductivity_power_law is REJECTED: Rust powf and NumPy ** differ by up to 2 ulp, so the NumPy path stays in force"
+      ]
+    },
+    {
+      "id": "fmi",
+      "name": "FMI 3.0 co-simulation export",
+      "doc_key": "FMI 3.0",
+      "status": "DEFERRED",
+      "since_stage": "stage10",
+      "authority": "none — no FMU exists",
+      "owner_module": "qta_multiphysics.stack.fmi_contract",
+      "optional_dependency": null,
+      "boundary": "an interface contract only; no binary is built, no FMI compliance is claimed, and the artifact is deliberately not named modelDescription.xml",
+      "verification": "snakemake --cores 1 verification/stage10/fmi/fmi_readiness.json",
+      "open_items": [
+        "FMI-P1 serialisable solver state (fmi3GetFMUState / fmi3SetFMUState)",
+        "FMI-P2 mode-boundary step semantics (a step may not straddle a Mode B/C/D transition)",
+        "FMI-P3 step-size independence evidence",
+        "FMI-P4 claim-boundary survival across FMU import",
+        "FMI-P5 unit round-trip verification"
+      ]
+    }
+  ]
+}

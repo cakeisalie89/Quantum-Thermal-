@@ -28,6 +28,7 @@ are byte-gated against regeneration by the package consistency checker.
 | Measurement ingestion (Stage 4) | `qta_multiphysics/measurement_ingest_3d.py` (SYNTHETIC-only; read-only; fail-closed; never a gate input) |
 | Hardware governance (Stage 5) | `qta_multiphysics/hardware_governance_3d.py` (quarantine/dossier/audit-chain; human-only review; automatic_gate_effect=NONE) |
 | Validation roadmap (Stage 6) | registries + playbooks + schemas (planning only; 25/25 gates; automatic_gate_effect=NONE) |
+| Scientific-stack adoption (Stage 10) | `STACK.md` + `stack.json` (schema 1.0.0) — ADOPTED / STAGED / DEFERRED per element; implemented in `qta_multiphysics/stack/` (additive, workspace-only, automatic_gate_effect=NONE) |
 
 Competing sources are never resolved silently: see
 `authorities.json → competing_sources_record` (two historical entries, both

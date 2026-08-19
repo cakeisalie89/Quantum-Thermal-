@@ -1,0 +1,27 @@
+# Selective Rust kernel for QTA. MODEL-ONLY / FORECAST-ONLY.
+#
+# Scope policy (see STACK.md): Rust is admitted for kernels that are hot,
+# numerically simple, and *bit-for-bit* reproducible against the NumPy
+# reference. A kernel that cannot demonstrate bit parity is not adopted.
+[package]
+name = "qta_kernels"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "qta_kernels"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+numpy = "0.22"
+
+[profile.release]
+# No fast-math, no reassociation: bit parity with the NumPy reference is the
+# adoption criterion, so the compiler may not reorder floating-point work.
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

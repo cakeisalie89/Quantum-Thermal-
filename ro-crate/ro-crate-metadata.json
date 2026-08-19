@@ -156,10 +156,10 @@
   {
    "@id": "Snakefile",
    "@type": "SoftwareSourceCode",
-   "contentSize": "11552",
+   "contentSize": "20786",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "b704d9552b9a0320b2abaa6c5efcba8c5ff157e0436dd14055ee1f8dc7a10de6"
+   "sha256": "e137251326694a908fb3a6a73b2378655c9584e3815c29f8a8e0c1f5a89a29ca"
   },
   {
    "@id": "campaign_registry.json",
@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "105314",
+   "contentSize": "125450",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -244,10 +244,10 @@
   {
    "@id": "pyproject.toml",
    "@type": "File",
-   "contentSize": "2524",
+   "contentSize": "4118",
    "description": "project/tooling authority",
    "name": "pyproject.toml",
-   "sha256": "990581006afb0467b98c82eb6f71085242567223475cab514c7b69fc928bd7fd"
+   "sha256": "6f46361aa3bc6faedfd111bda69cd938bf5f044af5c89f1dc714e86d72032805"
   },
   {
    "@id": "qta_full_sim.py",
@@ -302,10 +302,10 @@
   {
    "@id": "stage6_preservation_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "5762",
+   "contentSize": "6262",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",
-   "sha256": "c71e1da546ebefc12dafd10918f860dc632e7fd67b11d9a1b917395f7996494d"
+   "sha256": "5a7973932c866c5182dee08f4adb5240e3fff19a409ca48f3f230a113a2bffe5"
   },
   {
    "@id": "stage7_reports/environment_provenance.json",
@@ -326,10 +326,10 @@
   {
    "@id": "uv.lock",
    "@type": "File",
-   "contentSize": "119055",
+   "contentSize": "153054",
    "description": "locked dependency resolution (71+ pkgs)",
    "name": "uv.lock",
-   "sha256": "3597730705e4f62d47e71e2eaa7c7f93df9f66c70645d68a2371b2d9c7ba5510"
+   "sha256": "fc319fc32d27d82e1f0ee213288e9c6567da980881c93c27501b6a9ce9ef4dfc"
   },
   {
    "@id": "validation_matrix.csv",

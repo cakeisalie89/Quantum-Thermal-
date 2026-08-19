@@ -1,0 +1,74 @@
+# Stage-10 scientific-stack verification.
+# STATUS: PENDING FIRST HOSTED RUN -- this sandbox has no Actions runner;
+# nothing below has executed.
+# PIN-BY-DIGEST REQUIRED: replace every @vN tag with the action's full commit
+# SHA before the first real run (RELEASE_POLICY.md #3), exactly as for
+# release.yml.
+#
+# What this proves: the Stage-10 adapters are deterministic, fail closed
+# without their optional packages, and leave the canonical tree untouched.
+# It proves nothing scientific -- the gate PASS count is zero and the final
+# rule asserts it.
+name: qta-stack-verify
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "qta_multiphysics/stack/**"
+      - "tests/test_stage10_stack.py"
+      - "rust/**"
+      - "STACK.md"
+      - "stack.json"
+      - "Snakefile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/stack-verify.yml"
+  pull_request:
+  workflow_dispatch:
+permissions: {}            # default-deny
+jobs:
+  stack-verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read       # checkout only
+    strategy:
+      fail-fast: false
+      matrix:
+        # The fail-closed paths are as load-bearing as the happy path: the
+        # 'core' leg has none of the optional packages installed and must
+        # still pass, with every adapter reporting UNAVAILABLE rather than
+        # substituting a result.
+        extras: ["core", "full"]
+    steps:
+      - uses: actions/checkout@v4          # TODO pin by SHA
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@v5        # TODO pin by SHA
+      - name: sync environment
+        run: |
+          if [ "${{ matrix.extras }}" = "full" ]; then
+            uv sync --frozen --all-groups --extra viz --extra uq
+          else
+            uv sync --frozen --all-groups
+          fi
+      - name: lint and type-check the Stage-10 modules
+        run: |
+          uv run ruff check qta_multiphysics/stack tests/test_stage10_stack.py
+          uv run mypy qta_multiphysics/stack
+      - name: Stage-10 test suite
+        run: uv run python -m pytest tests/test_stage10_stack.py -q
+      - name: Stage-10 workflow (writes only under verification/stage10)
+        run: uv run snakemake --cores 1 s10_full
+      - name: canonical tree untouched
+        run: |
+          uv run python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          report = json.loads(
+              Path("verification/stage10/canonical_untouched.json").read_text())
+          assert report["mismatches"] == 0, report
+          assert report["detached_hash_ok"], report
+          summary = json.loads(
+              Path("verification/stage10/stage10_stack_report.json").read_text())
+          assert summary["scientific_PASS_count"] == 0, summary
+          print("canonical tree untouched; scientific PASS count = 0")
+          PY
