@@ -81,6 +81,21 @@
       "changes": "Added qta_multiphysics/ package: serious 1D (canonical/default) and 2D axisymmetric (serious refinement) non-lumped reduced-order multiphysics forecast backends for thermal transport (moving-boundary FV heat equation with Kapitza backside sink, BDF method-of-lines), laser absorption, gas transport (advection-diffusion-sink + 2D footprint map), surface coverage (Langmuir 1D + 2D radial), microwave path attenuation, radiation view-factor cascade, vibration banded transfer, and a coupled Mode B->Mode C->Mode D recovery solver. 3D is FUTURE_WORK / NOT_IMPLEMENTED (raises NotImplementedError; excluded from all gates). Numerically self-checked (mesh convergence, source-energy conservation, Kapitza sign, axis non-singularity, 2D->1D reduction ~1.4%, coupling) via mesh_convergence_summary.csv, numerical_stability_summary.csv, multiphysics_verification_summary.csv. Monte Carlo extended over reduced-model parameters with PDE-stability and mesh-convergence failure counts. Added 20 gates (10 DERIVED_CHECK, 8 CONDITIONAL, 2 BLOCKED), all model-only/forecast-only; PASS count remains 0; measured_in_this_system=false for all 83 gates and all multiphysics outputs. Gate counts 63->83 (CONDITIONAL 39->47, BLOCKED 21->23, DERIVED_CHECK 1->11). Legacy lumped model retained ONLY as comparator (lumped_vs_nonlumped_comparison.csv); non-lumped models are the gate authority. Registered 24 mp_* parameters in parameter_registry.csv, 24 in monte_carlo_parameter_registry.csv (151->175), 24 in assumed_parameters.json (111->135), 19 source gaps in source_gap_register.csv (100->119). Added consistency-checker Step 12 (output existence, columns, finite, zero-PASS, model-only, lumped comparator-only, 3D-not-faked). README, CLAIMS_BOUNDARY, REVIEWER_COVER_NOTE, FIRST_VALIDATION_EXPERIMENTS, output_sync_report, and qta_manuscript_v4.tex (+PDF) updated. 26 new model-only output files added to manifest with 28 package source modules."
     }
   ],
+  "coverage_policy": {
+    "schema_version": "1.0.0",
+    "scope": "every git-tracked file in this repository",
+    "record_type": "PROVENANCE",
+    "means": "these bytes were present at this SHA-256",
+    "does_not_mean": "that the file is a governed scientific authority, a release artifact, or an execution input",
+    "authority_register": "AUTHORITIES.md / authorities.json answer 'what is governed'; this manifest answers 'what bytes exist'",
+    "exclusions": [
+      "final_manifest.json",
+      "manifest_hash.txt"
+    ],
+    "exclusion_reason": "final_manifest.json cannot hash itself; manifest_hash.txt is its detached hash, written after the manifest is finalized",
+    "non_exclusions": "attic/delivery_artifacts/ is documented as outside the governed project yet is fully hashed here \u2014 preservation and authority are separate concepts",
+    "drift_check": "python3 generate_manifest.py --check"
+  },
   "files": [
     {
       "filename": "qta_manuscript_v4.tex",
@@ -812,8 +827,8 @@
     },
     {
       "filename": "generate_manifest.py",
-      "size_bytes": 6576,
-      "sha256": "bd3cc5d05077a6139a14072aca88d9ad05d17bdcb8d62d42afa1ada90fdcad83",
+      "size_bytes": 11272,
+      "sha256": "7088efc78bc5bacc0d0f68693947c1d6ee7c9a5ff05e361dc533b311d62bc9ce",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "deterministic manifest regenerator"
     },
@@ -1750,8 +1765,8 @@
     },
     {
       "filename": "AUTHORITIES.md",
-      "size_bytes": 3120,
-      "sha256": "fe81f3c08ece22192bd9e2cbb551784487ec4b4769c66954fa7e7b03f53ff0b8",
+      "size_bytes": 3306,
+      "sha256": "915c94fda39cda46c0aec73375e0ca8a09168dee77542ce94165231a17d4db85",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2402,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "8c9f51129696066c634ebca7121d65b1c5570929f138c4586e40807ef7ffd955",
+      "sha256": "ea9f6b62b711342d35f4b315f103796e1e27c1085b77e7ca8bfe5bb37a4f9d4b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2832,6 +2847,20 @@
       "sha256": "58f1449f40a4b62fdce53c1ae0ba1240b1fce870d951948bb31f902cf4c81cb8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "MANIFEST_BOUNDARY.md",
+      "size_bytes": 6817,
+      "sha256": "9a2e35d21260dd7b7dac036af10886efa490516bdd572e59c92fae53d4a56225",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_manifest_policy.py",
+      "size_bytes": 10807,
+      "sha256": "599ae927123d202a723ec89e117bdd9f61b35ae611a03cbb830511a7f4d5c4bf",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."

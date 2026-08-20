@@ -1,0 +1,116 @@
+# Manifest Coverage Boundary — provenance is not authority
+
+MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+
+This document exists because a manifest regeneration produced a surprising
+diff, and a future reader should not have to reverse-engineer the boundary
+from that diff. The machine-readable form of what follows is
+`final_manifest.json → coverage_policy`; the generator is
+`generate_manifest.py`, which is the authority.
+
+## 1. The distinction
+
+The project answers two different questions in two different places, and
+conflating them is the error this document is meant to prevent:
+
+| Question | Answered by | Inclusion means |
+|---|---|---|
+| **What bytes exist, and what were their hashes?** | `final_manifest.json` (+ detached `manifest_hash.txt`) | these bytes were present at this SHA-256 — nothing more |
+| **What is governed, and what owns it?** | `AUTHORITIES.md` / `authorities.json` | this module or file is the single source of truth for a concept |
+
+A file can be preserved and hashed without being authoritative. The clearest
+existing proof is `attic/delivery_artifacts/`: `README.md` states it is "not
+part of the governed project", and all 19 of its files are nonetheless fully
+hashed in the manifest — and were in the 343-entry manifest too. That is not
+an inconsistency; it is the boundary working as designed. **Preservation and
+authority are separate concepts.**
+
+## 2. The policy
+
+`final_manifest.json` covers **every git-tracked file**, with exactly two
+exclusions:
+
+- `final_manifest.json` — cannot hash itself;
+- `manifest_hash.txt` — its detached hash, written after the manifest is
+  finalized.
+
+No other exclusion exists, and none should be added to make a diff smaller.
+An unhashed tracked file is an unrecorded byte, which is the failure mode the
+manifest exists to prevent.
+
+Verify with `python3 generate_manifest.py --check` — it compares membership in
+**both** directions plus every hash and size, and exits non-zero on drift.
+
+## 3. What the audit found
+
+Regenerating with the repository's own generator moved the manifest from 343
+to 393 entries. Of the 50 additions, 20 are files this branch created. The
+other **30 were already tracked and had simply never been recorded.**
+
+### 3.1 The old manifest was generated outside git
+
+This is provable rather than inferred. At commit `eea2dac` — the last commit
+to touch `final_manifest.json` before this branch — the committed manifest
+listed three files that **did not yet exist in the repository**:
+`RELEASE_POLICY.md`, `SUPPLY_CHAIN_THREAT_MODEL.md`, and `verify_release.py`.
+All three arrived in the *next* commit, `8512d0b`. A manifest produced by
+`generate_manifest.py` against `git ls-files` cannot list a file git does not
+have. It was therefore authored in the delivery working tree and uploaded,
+which is also why the 30 files that only ever existed in git — every one of
+them added by a GitHub web-UI "Add files via upload" or "Create J" commit —
+were never picked up.
+
+At the current `main` tip the manifest's 343 entries all hash correctly
+against committed bytes. It was accurate about what it listed and silently
+incomplete about what it did not. Nothing existed to detect that.
+
+### 3.2 Classification of the 30
+
+| Class | Count | Files | Assessment |
+|---|---|---|---|
+| Historical/archive material (duplicate) | 18 | root `QTA_*.bundle`, `*.tar.gz`, `*.patch`, `QTA_repaired_complete_1D_2D_repo.zip`, `QTA_full_history-6.bundle.txt` | **byte-identical to `attic/delivery_artifacts/` copies (18/18 verified)** — the attic copies were already hashed; these are root-level duplicates from web-UI uploads |
+| Provenance / security artifact | 7 | `QTA_stage9_release_verification/{RELEASE_POLICY.md, SHA256SUMS, VERIFY_INSTRUCTIONS.md, provenance.intoto.json, release_index.json, release_trust_policy.json, sbom.cdx.json}` | genuine Stage-9 release evidence — exactly the artifact set `build_release_artifacts.py` emits. **Belongs in the provenance record.** Its `RELEASE_POLICY.md` duplicates the root copy |
+| Non-authoritative repository material | 2 | `stage7_reports/J`, `stage8_reports/J` | 1-byte files containing a single newline (both SHA `01ba4719…`), created by the "Create J" web-UI commits. Accidental |
+| Authoritative source (duplicate) | 3 | `units.py`, `verification.py`, `vibration_transfer.py` | byte-identical copies of `qta_multiphysics/` modules. **Dead at the root**: `verification.py` and `vibration_transfer.py` open with `from .units import …` and raise `ImportError: attempted relative import with no known parent package`. Nothing imports any of them |
+
+### 3.3 Effect of inclusion
+
+Provenance metadata only. Verified, not assumed:
+
+- No consumer enforces an upper bound on the manifest. `package_consistency_check.py`
+  requires only that the release ZIP is a **subset** of the manifest (step e) and
+  that a fixed required-file list is a subset (step 11).
+- `build_release_artifacts.py` builds the release from a fixed 10-entry
+  `key_files` list and an externally supplied ZIP — never from the manifest —
+  so release contents, `SHA256SUMS`, and provenance subjects are unchanged.
+- `ro_crate_tools.py` enumerates a fixed file tuple; crate validation is
+  unaffected (30 entities, 24 referenced files, 0 problems).
+- No solver, gate, threshold, or canonical output is touched. The gate table
+  remains 83 gates, PASS = 0.
+
+## 4. Decision
+
+**The regenerated manifest is correct and is kept.** The generator's stated
+contract — every tracked file minus the two detached — is the operative
+semantic, is what `AUTHORITIES.md` registers, and is already what the manifest
+does for `attic/`. The old manifest was stale, not narrower by design; there
+is no repository evidence of an intended narrower boundary, and the one
+document that describes a narrower *conceptual* scope (README on `attic/`) is
+contradicted by that same manifest's own long-standing contents.
+
+This is recorded as a **provenance correction**, not a scope expansion. None
+of the 30 files gains scientific standing by being hashed.
+
+## 5. Deliberately not done here
+
+The audit surfaced 23 files that look like repository-hygiene defects: 18
+root-level duplicates of attic archives, 3 unimportable duplicate modules, and
+2 accidental 1-byte files. **They are left in place.**
+
+Deleting tracked files is an owner-level decision about the repository, not a
+side effect of a manifest fix, and this project's own rule is that historical
+evidence is not removed to tidy a record. The recommendation — remove the 18
+root duplicates in favour of the attic copies, remove the 3 dead root module
+copies in favour of `qta_multiphysics/`, and remove the two `J` files — is
+offered for a separate, deliberate change. Until then they stay tracked and,
+correctly, hashed.
