@@ -520,7 +520,8 @@
     {
       "edge_id": "I057",
       "gates": [
-        "C4"
+        "C4",
+        "Shield-RAD"
       ],
       "kind": "interface",
       "modes": [
@@ -531,7 +532,9 @@
     },
     {
       "edge_id": "I058",
-      "gates": [],
+      "gates": [
+        "Shield-RF"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -541,7 +544,9 @@
     },
     {
       "edge_id": "I059",
-      "gates": [],
+      "gates": [
+        "Shield-RF"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -551,7 +556,9 @@
     },
     {
       "edge_id": "I060",
-      "gates": [],
+      "gates": [
+        "Shield-OPT"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -561,7 +568,9 @@
     },
     {
       "edge_id": "I061",
-      "gates": [],
+      "gates": [
+        "Shield-CHEM"
+      ],
       "kind": "interface",
       "modes": [
         "B",
@@ -572,7 +581,10 @@
     },
     {
       "edge_id": "I062",
-      "gates": [],
+      "gates": [
+        "C_to_D_Readiness",
+        "Shield-CHEM"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -582,7 +594,9 @@
     },
     {
       "edge_id": "I063",
-      "gates": [],
+      "gates": [
+        "Shield-MAG"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -592,7 +606,9 @@
     },
     {
       "edge_id": "I064",
-      "gates": [],
+      "gates": [
+        "Shield-MAG"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -602,7 +618,10 @@
     },
     {
       "edge_id": "I065",
-      "gates": [],
+      "gates": [
+        "C_to_D_Readiness",
+        "Shield-CHEM"
+      ],
       "kind": "interface",
       "modes": [
         "C"
@@ -612,7 +631,9 @@
     },
     {
       "edge_id": "I066",
-      "gates": [],
+      "gates": [
+        "Shield-CHEM"
+      ],
       "kind": "interface",
       "modes": [
         "C"
@@ -622,7 +643,9 @@
     },
     {
       "edge_id": "I067",
-      "gates": [],
+      "gates": [
+        "C_to_D_Readiness"
+      ],
       "kind": "interface",
       "modes": [
         "B",
@@ -633,7 +656,9 @@
     },
     {
       "edge_id": "I068",
-      "gates": [],
+      "gates": [
+        "C_to_D_Readiness"
+      ],
       "kind": "interface",
       "modes": [
         "C",
@@ -644,7 +669,10 @@
     },
     {
       "edge_id": "I069",
-      "gates": [],
+      "gates": [
+        "RTB_JT_OPTIONAL_COOLING_PLANT",
+        "Shield-RAD"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -654,7 +682,10 @@
     },
     {
       "edge_id": "I070",
-      "gates": [],
+      "gates": [
+        "RTB_JT_OPTIONAL_COOLING_PLANT",
+        "Shield-RAD"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -664,7 +695,9 @@
     },
     {
       "edge_id": "I071",
-      "gates": [],
+      "gates": [
+        "RTB_JT_OPTIONAL_COOLING_PLANT"
+      ],
       "kind": "interface",
       "modes": [
         "A"
@@ -674,7 +707,10 @@
     },
     {
       "edge_id": "I072",
-      "gates": [],
+      "gates": [
+        "RTB_JT_OPTIONAL_COOLING_PLANT",
+        "Shield-RF"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -684,7 +720,9 @@
     },
     {
       "edge_id": "I073",
-      "gates": [],
+      "gates": [
+        "RTB_JT_OPTIONAL_COOLING_PLANT"
+      ],
       "kind": "interface",
       "modes": [
         "D"
@@ -694,7 +732,9 @@
     },
     {
       "edge_id": "I074",
-      "gates": [],
+      "gates": [
+        "RTB_JT_OPTIONAL_COOLING_PLANT"
+      ],
       "kind": "interface",
       "modes": [
         "A",
@@ -705,7 +745,10 @@
     },
     {
       "edge_id": "I075",
-      "gates": [],
+      "gates": [
+        "C_to_D_Readiness",
+        "RTB_JT_OPTIONAL_COOLING_PLANT"
+      ],
       "kind": "interface",
       "modes": [
         "C",

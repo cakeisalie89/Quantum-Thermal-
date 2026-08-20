@@ -16,6 +16,7 @@ import csv
 import json
 import re
 from dataclasses import dataclass, field, asdict
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -27,20 +28,103 @@ STAGE_ORDER = ["300K", "50K", "4K", "1K", "100mK", "10mK"]
 
 # --- parsing helpers ----------------------------------------------------------
 
-def parse_modes(cell: str) -> list:
+class ModeSyntaxError(ValueError):
+    """A mode cell used syntax this parser does not recognise.
+
+    Raised rather than returning an empty list: silently mapping an unknown
+    non-empty mode string to "no modes" is how a record loses its mode
+    restriction without anyone noticing.
+    """
+
+
+_EMPTY_CELLS = {"N/A", "NONE", "-", ""}
+# Compact runs (AB, BCD, ABCD), separated forms (A/B, "B, D"), and transition
+# forms (A->B, "A\u2192B") all occur in the governed CSVs; all are legitimate.
+_MODE_TOKEN = re.compile(r"[ABCD]")
+_MODE_SEPARATORS = re.compile(
+    r"[\s,/|+&]+|\bAND\b|\bOR\b|\bTO\b|->|\u2192|-")
+# Annotation words that appear alongside a mode in governed cells and carry no
+# mode meaning ("D (optional)", "D / shield", "A/D (both)"). Listed explicitly
+# so an unrecognised word still fails closed instead of being ignored.
+_MODE_ANNOTATIONS = ("BOTH", "OPTIONAL", "SHIELD")
+_PARENTHETICAL = re.compile(r"\([^)]*\)")
+
+
+def parse_modes(cell: str, strict: bool = True) -> list:
+    """Canonical modes named by a governed mode cell.
+
+    Accepts the compact run notation the repository actually uses (``AB``,
+    ``BCD``, ``ABCD``) as well as separated forms (``A/B``, ``B, D``) and
+    ``ALL``. Fails closed on unrecognised syntax when ``strict``.
+    """
     c = (cell or "").strip().upper()
-    if not c or c in {"N/A", "NONE", "-"}:
+    if c in _EMPTY_CELLS:
         return []
     if "ALL" in c:
         return list(MODES)
-    return sorted(set(re.findall(r"\b([ABCD])\b", c)))
+    c = _PARENTHETICAL.sub(" ", c)          # "D (optional)" -> "D"
+    for word in _MODE_ANNOTATIONS:          # "D / shield"   -> "D"
+        c = c.replace(word, " ")
+    residue = _MODE_SEPARATORS.sub("", c)
+    found = sorted(set(_MODE_TOKEN.findall(residue)))
+    # every character had to be a mode letter or a separator; anything else is
+    # syntax this parser does not understand
+    if strict and (not found or _MODE_TOKEN.sub("", residue)):
+        raise ModeSyntaxError(
+            f"unrecognised mode syntax {cell!r}; canonical modes are "
+            f"{MODES}, compact runs (AB, BCD) and ALL are accepted")
+    return found
+
+
+@lru_cache(maxsize=1)
+def canonical_gate_ids() -> frozenset:
+    """Gate IDs from the gate table, which is their registered authority.
+
+    Matching against the authoritative set rather than guessing a regex
+    grammar is what makes this both complete and incapable of overmatching:
+    the canonical IDs include ``D10a``, ``D12_G23``, ``Shield-RAD`` and
+    ``THERMAL_1D_STABILITY_CHECK``, which no single simple pattern covers
+    without also swallowing arbitrary prose.
+    """
+    path = _REPO_ROOT / "results_gate_table.csv"
+    with open(path, encoding="utf-8", newline="") as fh:
+        return frozenset(r["gate_id"] for r in csv.DictReader(fh)
+                         if r.get("gate_id"))
+
+
+# Tokens that look like a gate reference. Used only on the text left over
+# after canonical IDs are matched, so a reference to a gate the table does not
+# contain still surfaces instead of vanishing.
+_GATE_LIKE = re.compile(r"\b[A-Z]\d+[a-z]?\b|\b[A-Z][A-Za-z0-9_]*-[A-Z]+\b")
 
 
 def parse_gate_refs(cell: str) -> list:
+    r"""Gate IDs referenced by a cell.
+
+    Canonical IDs are matched longest-first against the gate table, which is
+    their registered authority -- that is what makes ``D10a``, ``D12_G23`` and
+    ``THERMAL_1D_STABILITY_CHECK`` resolve where a simple ``[A-Z]\d+`` pattern
+    silently dropped them.
+
+    Gate-like tokens in the *remaining* text are returned too, even though
+    they match no canonical ID. They are real references to something, and the
+    design validator's ``gate_referenced_but_absent`` rule needs to see them:
+    the governed records reference a bare ``D12`` while the gate table calls it
+    ``D12_G23``, and that mismatch must stay visible rather than be silently
+    resolved away.
+    """
     c = (cell or "").strip()
-    if not c or c.upper() in {"N/A", "NONE", "-"}:
+    if not c or c.upper() in _EMPTY_CELLS:
         return []
-    return sorted(set(re.findall(r"\b([A-Z]\d+)\b", c)))
+    found = set()
+    residue = c
+    for gid in sorted(canonical_gate_ids(), key=len, reverse=True):
+        pattern = rf"(?<![A-Za-z0-9_-]){re.escape(gid)}(?![A-Za-z0-9_-])"
+        if re.search(pattern, residue):
+            found.add(gid)
+            residue = re.sub(pattern, " ", residue)
+    found.update(_GATE_LIKE.findall(residue))
+    return sorted(found)
 
 
 def parse_signals(condition: str) -> list:

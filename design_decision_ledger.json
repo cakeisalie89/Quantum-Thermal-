@@ -27,10 +27,10 @@
     },
     {
       "interlock_id": "IL-04",
-      "reason": "thermal: sample not at 10mK",
+      "reason": "thermal: 4K stage leaks into 10mK sensing path",
       "signals": [
         "sensing_on",
-        "heat_switch_open"
+        "heat_switch_closed"
       ]
     },
     {
@@ -129,9 +129,11 @@
       "E05"
     ],
     "B017": [
+      "D10a",
       "E01"
     ],
     "B018": [
+      "D10a",
       "E02"
     ],
     "B019": [
