@@ -619,7 +619,7 @@ class SystemState:
         assert not(self.LCVD_on and self.sensing_on),             "IL-01 LCVD+sensing: 250x thermal overload — categorically impossible"
         assert not(self.precursor_on and self.He3_dosing_on),             "IL-02 precursor+He3 dosing: CH4 destroys He-3 film in 2.6s"
         assert not(self.LCVD_on and self.heat_switch_closed),             "IL-03 LCVD+switch_closed: sample heats MC"
-        assert not(self.sensing_on and not self.heat_switch_closed),             "IL-04 sensing+switch_open: sample not at 10mK"
+        assert not(self.sensing_on and self.heat_switch_closed),             "IL-04 sensing+switch_closed: 4K stage leaks into the 10mK sensing path"
         assert not(self.sensing_on and not self.RGA_pass_CH4),             "IL-05 sensing without RGA_CH4 pass — BLOCKS Mode D until Mode B validated"
         assert not(self.sensing_on and not self.RGA_pass_H2),             "IL-06 sensing without RGA_H2 pass — BLOCKS Mode D until Mode B validated"
         assert not(self.sensing_on and not self.T_sample_ok),             "IL-07 sensing with T_sample > T_max"
@@ -683,7 +683,11 @@ def make_D(mode_b_result: ModeBResult):
         He3_dosing_on      = True,
         He3_present        = True,
         sensing_on         = True,
-        heat_switch_closed = True,
+        # Mode D isolates: the SC heat switch is OPEN so the 4 K stage does not
+        # leak into the 10 mK sensing path. Authority: machine_fsm.py IL-04 and
+        # state_machine_3d.py MODE_D. The sample was thermalised earlier, with
+        # the switch CLOSED, during Mode A baseline and Mode C recovery.
+        heat_switch_closed = False,
         shutter_closed     = True,
         cryotrap_active    = True,
         RGA_pass_CH4       = mode_b_result.RGA_CH4_pass,  # from B — not hard-coded
@@ -1718,7 +1722,7 @@ INTERLOCKS=[
     ("IL-01","LCVD_on AND sensing_on","IMPOSSIBLE","thermal: 250x overload"),
     ("IL-02","precursor_on AND He3_dosing_on","IMPOSSIBLE","chemical: He-3 film in 2.6s"),
     ("IL-03","LCVD_on AND heat_switch_closed","IMPOSSIBLE","thermal: heats MC"),
-    ("IL-04","sensing_on AND heat_switch_open","IMPOSSIBLE","thermal: sample not at 10mK"),
+    ("IL-04","sensing_on AND heat_switch_closed","IMPOSSIBLE","thermal: 4K stage leaks into 10mK sensing path"),
     ("IL-05","sensing_on AND NOT RGA_pass_CH4","BLOCKED","CH4 contamination"),
     ("IL-06","sensing_on AND NOT RGA_pass_H2","BLOCKED","H2 coverage"),
     ("IL-07","sensing_on AND T_sample>12mK","BLOCKED","too warm for Ramsey"),

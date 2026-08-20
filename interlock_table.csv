@@ -2,7 +2,7 @@ id,condition,type,reason
 IL-01,LCVD_on AND sensing_on,IMPOSSIBLE,thermal: 250x overload
 IL-02,precursor_on AND He3_dosing_on,IMPOSSIBLE,chemical: He-3 film in 2.6s
 IL-03,LCVD_on AND heat_switch_closed,IMPOSSIBLE,thermal: heats MC
-IL-04,sensing_on AND heat_switch_open,IMPOSSIBLE,thermal: sample not at 10mK
+IL-04,sensing_on AND heat_switch_closed,IMPOSSIBLE,thermal: 4K stage leaks into 10mK sensing path
 IL-05,sensing_on AND NOT RGA_pass_CH4,BLOCKED,CH4 contamination
 IL-06,sensing_on AND NOT RGA_pass_H2,BLOCKED,H2 coverage
 IL-07,sensing_on AND T_sample>12mK,BLOCKED,too warm for Ramsey

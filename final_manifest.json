@@ -113,8 +113,8 @@
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 164104,
-      "sha256": "5db77d0be61d1510216eb3dbbcc496d5a742ad06470dbfcd9239501f4b31899d",
+      "size_bytes": 164459,
+      "sha256": "baa4bce96fdf4645fe21ecc32b63c8604175b89cb88361462f04727a5d8b6179",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
@@ -169,8 +169,8 @@
     },
     {
       "filename": "interlock_table.csv",
-      "size_bytes": 1022,
-      "sha256": "6c5581f38d9d9939ba3c39e01045f6cfbc0476b4ddff206f24ec65e866c5de92",
+      "size_bytes": 1043,
+      "sha256": "ba3547a587898e280e272fd7ca1b8962007040b493eaca6f5852fb07b0f578ef",
       "generated_by": "qta_full_sim.py",
       "purpose": "hardware interlocks including IL-14"
     },
@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "ea9f6b62b711342d35f4b315f103796e1e27c1085b77e7ca8bfe5bb37a4f9d4b",
+      "sha256": "0d96a369e6764473708aa353a3762c7f9b67a28925f4034e3761117b76574cce",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2859,6 +2859,13 @@
       "filename": "tests/test_manifest_policy.py",
       "size_bytes": 10807,
       "sha256": "599ae927123d202a723ec89e117bdd9f61b35ae611a03cbb830511a7f4d5c4bf",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_authority_invariants.py",
+      "size_bytes": 4538,
+      "sha256": "dd6aa41f51544451b030b1dfaebc9d1eab6cfb9ced4651f1b0a0a53e4a3b3988",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }

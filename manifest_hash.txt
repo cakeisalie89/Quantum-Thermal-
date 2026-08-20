@@ -1,4 +1,4 @@
-sha256: 2ab566180f52e52fae08524cbfc4d9fc15a490fd635b86e9b7b35b75d9c6717f
+sha256: 88847e84510c19d013c804edea9dfe69c137d5a35f888e1c91662fcf3bda9cfd
 file:   final_manifest.json
-size:   127250 bytes
+size:   127554 bytes
 policy: detached (manifest does not contain its own hash)
