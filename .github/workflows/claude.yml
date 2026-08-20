@@ -7,6 +7,13 @@
 # SHA before the first real run (RELEASE_POLICY.md #3), as for release.yml
 # and stack-verify.yml.
 #
+# TRIGGER AUTHORISATION. This repository is public, so anyone can open an
+# issue or comment. The gate is in the action, not in this file: it refuses to
+# run for users without write access, and refuses bots entirely, unless
+# `allowed_non_write_users` / `allowed_bots` are set. Neither is set here, and
+# neither should be set without deciding, deliberately, that untrusted input
+# may reach a job that holds ANTHROPIC_API_KEY.
+#
 # GOVERNANCE NOTE. This job holds `contents: write`, so Claude can push
 # commits and open PRs here. That is the action's normal mode and is what
 # makes it useful, but this repository's whole design is that no automated
@@ -28,6 +35,11 @@ on:
   pull_request_review:
     types: [submitted]
 permissions: {}            # default-deny; the job grants its own
+# One run per issue/PR at a time: two @claude mentions racing each other can
+# push to the same branch and interleave commits.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
 jobs:
   claude:
     if: |
@@ -36,6 +48,7 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
+    timeout-minutes: 30      # bound a runaway loop's Actions and API spend
     permissions:
       contents: write        # push branches / commits
       pull-requests: write   # open PRs, comment
@@ -44,6 +57,12 @@ jobs:
       actions: read          # read CI results on PRs
     steps:
       - name: Checkout repository
+        # DO NOT add `ref:` here. This job can be triggered by a comment on a
+        # pull request from a fork, and it holds secrets. Checking the PR head
+        # out at the workspace root would run untrusted code with
+        # ANTHROPIC_API_KEY in the environment -- the action's own security
+        # guidance is explicit that the base branch belongs at the root, and
+        # that a PR head belongs in a subdirectory passed via --add-dir.
         uses: actions/checkout@v6          # TODO pin by SHA
         with:
           fetch-depth: 1
@@ -54,6 +73,12 @@ jobs:
         uses: anthropics/claude-code-action@v1   # TODO pin by SHA
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # A project this concerned with provenance should not accept
+          # unsigned automated commits: sign them so authorship is verifiable
+          # the same way the repository's own commits are. This also removes
+          # rebase/cherry-pick from Claude's reach, which is the behaviour we
+          # want on a byte-gated tree.
+          use_commit_signing: true
           claude_args: |
             --model claude-opus-5
             --system-prompt "QTA is a forecast-only, pre-experimental package. Hold these invariants in every change you make or propose: the scientific gate PASS count is zero and stays zero; can_PASS_now is NO; measured_in_this_system is false everywhere; automatic_gate_effect is NONE. Canonical outputs live at the repository root and are byte-gated by final_manifest.json -- regenerate them only with qta_full_sim.py, and regenerate final_manifest.json only with generate_manifest.py. Never edit a canonical output, a gate status, or a manifest hash by hand. STACK.md and AUTHORITIES.md record which module owns which concept; code is the authority and docs mirror it. Before pushing, run package_consistency_check.py and stage6_preservation_check.py and report their RESULT lines."

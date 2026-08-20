@@ -2843,8 +2843,8 @@
     },
     {
       "filename": ".github/workflows/claude.yml",
-      "size_bytes": 3462,
-      "sha256": "58f1449f40a4b62fdce53c1ae0ba1240b1fce870d951948bb31f902cf4c81cb8",
+      "size_bytes": 5066,
+      "sha256": "89574e2b43770444991e42d3e05ae26827552f3dae9d9ab93afe1e40a7239461",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
