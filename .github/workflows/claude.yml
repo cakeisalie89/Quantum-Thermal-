@@ -1,0 +1,59 @@
+# Claude Code Action — responds to @claude on issues, PRs, and reviews.
+# STATUS: PENDING FIRST HOSTED RUN -- nothing below has executed. Two things
+# are required before it can: the Claude GitHub App installed on this
+# repository, and an ANTHROPIC_API_KEY repository secret. A workflow only
+# takes effect once it is on the default branch.
+# PIN-BY-DIGEST REQUIRED: replace every @vN tag with the action's full commit
+# SHA before the first real run (RELEASE_POLICY.md #3), as for release.yml
+# and stack-verify.yml.
+#
+# GOVERNANCE NOTE. This job holds `contents: write`, so Claude can push
+# commits and open PRs here. That is the action's normal mode and is what
+# makes it useful, but this repository's whole design is that no automated
+# actor may move scientific state: PASS=0, can_PASS_now=NO,
+# measured_in_this_system=false, automatic_gate_effect=NONE, and canonical
+# outputs byte-gated against regeneration. Permissions do not enforce that --
+# CI does. Any branch Claude pushes is still subject to
+# package_consistency_check.py and stack-verify.yml, which fail on a changed
+# canonical output or a non-zero PASS count. The system prompt below states
+# the boundary; the checkers are what hold it.
+name: Claude Code
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+permissions: {}            # default-deny; the job grants its own
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # push branches / commits
+      pull-requests: write   # open PRs, comment
+      issues: write          # comment on issues
+      id-token: write        # OIDC
+      actions: read          # read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6          # TODO pin by SHA
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1   # TODO pin by SHA
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-opus-5
+            --system-prompt "QTA is a forecast-only, pre-experimental package. Hold these invariants in every change you make or propose: the scientific gate PASS count is zero and stays zero; can_PASS_now is NO; measured_in_this_system is false everywhere; automatic_gate_effect is NONE. Canonical outputs live at the repository root and are byte-gated by final_manifest.json -- regenerate them only with qta_full_sim.py, and regenerate final_manifest.json only with generate_manifest.py. Never edit a canonical output, a gate status, or a manifest hash by hand. STACK.md and AUTHORITIES.md record which module owns which concept; code is the authority and docs mirror it. Before pushing, run package_consistency_check.py and stage6_preservation_check.py and report their RESULT lines."

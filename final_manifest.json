@@ -2402,7 +2402,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "a6f3d39af2302446060154d91a253f6a318c77039ad7152cd0d64882092600fa",
+      "sha256": "8c9f51129696066c634ebca7121d65b1c5570929f138c4586e40807ef7ffd955",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2823,6 +2823,13 @@
       "filename": "qta_multiphysics/stack/registry.py",
       "size_bytes": 5326,
       "sha256": "ddee457131bcb96a234d320ed2636323cf9f7f7155680a4e7b84925e5d02020b",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": ".github/workflows/claude.yml",
+      "size_bytes": 3462,
+      "sha256": "58f1449f40a4b62fdce53c1ae0ba1240b1fce870d951948bb31f902cf4c81cb8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
