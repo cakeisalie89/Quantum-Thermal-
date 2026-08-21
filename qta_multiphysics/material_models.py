@@ -26,6 +26,135 @@ from .units import (K_B, N_A, DEBYE_TEMP_DIAMOND_K, DIAMOND_DENSITY_KG_M3,
 
 R_GAS = K_B * N_A  # universal gas constant [J/mol/K]
 
+# ---------------------------------------------------------------------------
+# Numerical floors, and where they stop being numerical.
+#
+# Both floors were documented as "small ... for numerical safety", preventing a
+# divide-by-zero in the heat equation at ultra-low T. Measured against the raw
+# models they guard, that description holds only above a crossover temperature
+# that is far ABOVE this machine's operating point:
+#
+#   Cp floor 1e-6 J/kg/K  exceeds the Debye model below      T = 0.407 K
+#   k  floor 1e-3 W/m/K   exceeds the boundary-limited model below  T = 0.794 K
+#
+# The canonical stages sit at 10 mK (Mode A baseline, Mode D sensing) and the
+# Mode-C readiness threshold is 50 mK. At 10 mK the floors exceed the physical
+# models by 6.8e4x (Cp) and 5.0e5x (k). Across the whole sub-kelvin regime the
+# floors ARE the material model; they are not regularization there.
+#
+# Consequence for diffusivity, which is what the recovery forecast depends on:
+# both raw models scale as T^3, so raw alpha = k/(rho Cp) is temperature
+# independent at 0.0385 m^2/s. The floors bite at DIFFERENT temperatures, so
+# the floored ratio is 0.2846 m^2/s -- a 7.4x overestimate of diffusivity
+# throughout the floor-dominated regime, including at the 50 mK Mode-C
+# readiness threshold.
+#
+# This repository has no authority for better cryogenic diamond properties, so
+# no replacement values are invented. The floors are UNCHANGED. What changes is
+# that they are declared: floor_report() states the crossovers and ratios, and
+# any consumer of a sub-crossover prediction can see that it rests on an
+# effective material-property assumption rather than on the Debye and
+# boundary-limited models the docstrings cite.
+CP_FLOOR_J_KG_K = 1.0e-6
+K_FLOOR_W_M_K = 1.0e-3
+
+FLOOR_CLASS_REGULARIZATION = "NUMERICAL_REGULARIZATION"
+FLOOR_CLASS_EFFECTIVE_PROPERTY = "EFFECTIVE_MATERIAL_PROPERTY_ASSUMPTION"
+
+#: Temperatures spanned by the canonical modes, for the ratio table below.
+#: 10 mK is the Mode-A/D stage, 50 mK the Mode-C readiness threshold, and
+#: ~29 K the Mode-B peak the thermal model forecasts.
+MODE_TEMPERATURE_PROBES_K = (0.010, 0.050, 0.100, 0.407, 0.794, 1.0, 4.0, 29.4)
+
+
+def _cp_raw(T):
+    """Debye low-T limit with NO floor applied [J/kg/K]."""
+    T = np.asarray(T, dtype=float)
+    return ((12.0 / 5.0) * np.pi**4 * R_GAS
+            * (T / DEBYE_TEMP_DIAMOND_K) ** 3 / DIAMOND_MOLAR_MASS_KG_MOL)
+
+
+def _k_raw(T, k_ref=2000.0, T_ref=100.0, exponent=3.0, k_plateau=3000.0):
+    """Boundary-limited k(T) with NO floor applied [W/m/K]."""
+    T = np.asarray(T, dtype=float)
+    return np.minimum(k_ref * (np.maximum(T, 0.0) / T_ref) ** exponent, k_plateau)
+
+
+def cp_floor_crossover_K() -> float:
+    """T at which the Cp floor equals the raw Debye model."""
+    return float(DEBYE_TEMP_DIAMOND_K * (
+        CP_FLOOR_J_KG_K * DIAMOND_MOLAR_MASS_KG_MOL
+        / ((12.0 / 5.0) * np.pi**4 * R_GAS)) ** (1.0 / 3.0))
+
+
+def k_floor_crossover_K(k_ref=2000.0, T_ref=100.0, exponent=3.0) -> float:
+    """T at which the k floor equals the raw boundary-limited model."""
+    return float(T_ref * (K_FLOOR_W_M_K / k_ref) ** (1.0 / exponent))
+
+
+def floor_report(probes=None) -> dict:
+    """Declare each floor's crossover, dominance ratio and true class.
+
+    A floor that exceeds the model it guards is not a guard. This makes that
+    visible per temperature instead of leaving it implicit in a docstring.
+    """
+    probes = tuple(probes or MODE_TEMPERATURE_PROBES_K)
+    t_cp, t_k = cp_floor_crossover_K(), k_floor_crossover_K()
+    rows = []
+    for T in probes:
+        cp_r, k_r = float(_cp_raw(T)), float(_k_raw(T))
+        rows.append({
+            "T_K": float(T),
+            "cp_raw_J_kg_K": cp_r,
+            "cp_floor_over_raw": CP_FLOOR_J_KG_K / cp_r if cp_r > 0 else float("inf"),
+            "cp_floor_dominates": bool(CP_FLOOR_J_KG_K > cp_r),
+            "k_raw_W_m_K": k_r,
+            "k_floor_over_raw": K_FLOOR_W_M_K / k_r if k_r > 0 else float("inf"),
+            "k_floor_dominates": bool(K_FLOOR_W_M_K > k_r),
+            "alpha_raw_m2_s": k_r / (DIAMOND_DENSITY_KG_M3 * cp_r) if cp_r > 0 else float("inf"),
+            "alpha_floored_m2_s": float(
+                diamond_k(T) / (DIAMOND_DENSITY_KG_M3 * diamond_cp(T))),
+        })
+    return {
+        "meaning": "declaration of where each numerical floor stops being "
+                   "numerical; no floor value is changed by this report and "
+                   "no replacement cryogenic property is invented",
+        "floors": {
+            "diamond_cp": {
+                "value": CP_FLOOR_J_KG_K, "unit": "J/kg/K",
+                "guards": "division by rho*Cp in the heat equation",
+                "crossover_K": t_cp,
+                "class_below_crossover": FLOOR_CLASS_EFFECTIVE_PROPERTY,
+                "class_above_crossover": FLOOR_CLASS_REGULARIZATION,
+            },
+            "diamond_k": {
+                "value": K_FLOOR_W_M_K, "unit": "W/m/K",
+                "guards": "vanishing face conductance at ultra-low T",
+                "crossover_K": t_k,
+                "class_below_crossover": FLOOR_CLASS_EFFECTIVE_PROPERTY,
+                "class_above_crossover": FLOOR_CLASS_REGULARIZATION,
+            },
+        },
+        "dominant_in_canonical_regime": True,
+        "affected_predictions": [
+            "Mode-C recool time and the 50 mK readiness threshold: the "
+            "threshold sits ~8x below the k crossover and ~8x below the Cp "
+            "crossover, so recovery near it is governed by the floors",
+            "thermal diffusivity at base temperature: raw alpha is 0.0385 "
+            "m^2/s (k and Cp both scale as T^3, so the ratio is flat); the "
+            "floors bite at different temperatures and give 0.2846 m^2/s, a "
+            "7.4x overestimate",
+            "Mode-A/Mode-D 10 mK stage temperatures",
+        ],
+        "authority_status": "NO_AUTHORITATIVE_REPLACEMENT_IN_REPOSITORY -- "
+                            "measured or literature-bound cryogenic diamond "
+                            "Cp/k below ~1 K are not registered here; the "
+                            "floors stand and the affected predictions remain "
+                            "MODEL_ONLY / FORECAST_ONLY",
+        "table": rows,
+        "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+    }
+
 
 def diamond_cp(T):
     """Specific heat of diamond [J/kg/K], Debye low-T limit (T << Theta_D).
@@ -38,10 +167,11 @@ def diamond_cp(T):
     T = np.asarray(T, dtype=float)
     cp_molar = (12.0 / 5.0) * np.pi**4 * R_GAS * (T / DEBYE_TEMP_DIAMOND_K) ** 3
     cp_mass = cp_molar / DIAMOND_MOLAR_MASS_KG_MOL
-    return np.maximum(cp_mass, 1.0e-6)
+    return np.maximum(cp_mass, CP_FLOOR_J_KG_K)
 
 
-def diamond_k(T, k_ref=2000.0, T_ref=100.0, exponent=3.0, k_plateau=3000.0, k_floor=1.0e-3):
+def diamond_k(T, k_ref=2000.0, T_ref=100.0, exponent=3.0, k_plateau=3000.0,
+              k_floor=K_FLOOR_W_M_K):
     """Thermal conductivity of diamond [W/m/K], reduced boundary-limited model.
 
     k(T) = min( k_ref * (T/T_ref)^exponent , k_plateau ), floored at k_floor.

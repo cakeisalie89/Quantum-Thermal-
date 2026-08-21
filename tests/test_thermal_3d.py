@@ -6,12 +6,15 @@ reduced 3D model; they are not physical validation and introduce no PASS gates.
 from __future__ import annotations
 
 import os
+import pathlib
 import sys
 import time
 
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 from qta_multiphysics.config import default_config
 
@@ -96,13 +99,69 @@ def test_reduction_3d_to_1d():
                                    f"tol={TOL_3D_TO_1D}")
 
 
-def test_reduction_3d_to_2d():
-    """Gaussian-beam 3D agrees with the 2D axisymmetric backend on-axis."""
+def test_reduction_3d_to_2d_is_boundary_matched_and_reported_honestly():
+    """The 3D->2D reduction check must compare the SAME boundary-value problem.
+
+    This test used to assert the two backends agree. That assertion held only
+    because the check ran the 2D backend with its production lateral boundary
+    -- a cold radial contact to bulk at T_fridge -- against the 3D box's
+    adiabatic lateral faces. The 2D lateral heat sink dominated the comparison
+    and produced rel = +1.18e-03, which read as excellent agreement between
+    two different boundary-value problems.
+
+    Asked the same question (both sides adiabatic), the backends disagree by
+    53%. So this test no longer asserts agreement OR disagreement: it asserts
+    that the comparison is matched and that whatever comes out is reported
+    correctly. It will pass unchanged if the underlying model inconsistency is
+    later resolved.
+    """
     from qta_multiphysics.reduction_checks_3d import reduction_3d_to_2d, TOL_3D_TO_2D
     c = reduction_3d_to_2d(CFG)
     assert c["solver_status_3d"] == "ok" and c["solver_status_2d"] == "ok"
-    assert c["within_tolerance"], (f"3D->2D rel={c['rel_error']:+.4f} "
-                                   f"tol={TOL_3D_TO_2D}")
+
+    # the fixture condition is actually applied on both sides
+    assert c["boundary_conditions_matched"] is True
+    assert "adiabatic" in c["lateral_bc_3d"]
+    assert "adiabatic" in c["lateral_bc_2d_in_this_check"]
+
+    # status follows the measurement, in whichever direction
+    within = abs(c["rel_error"]) < TOL_3D_TO_2D
+    assert c["within_tolerance"] is within
+    assert c["status"] == ("DERIVED_CHECK" if within else "CONDITIONAL")
+
+    # the mismatched comparison is retained for contrast but never as status
+    ref = c["mismatched_boundary_reference"]
+    assert "NOT a reduction result" in ref["meaning"]
+    assert "cold radial contact" in ref["lateral_bc_2d"]
+    assert c["status"] != "PASS"
+
+
+def test_reduction_3d_to_2d_disagreement_is_a_declared_open_item():
+    """Pin the currently measured inconsistency so it cannot be forgotten.
+
+    The matched-boundary comparison disagrees by ~53%, and the repository's own
+    falsification report flags it. This is a model-consistency finding that
+    requires owner authority to resolve; it must not quietly disappear, and it
+    must never be resolved by reverting to the mismatched comparison.
+    """
+    import json
+    from qta_multiphysics.reduction_checks_3d import reduction_3d_to_2d
+    c = reduction_3d_to_2d(CFG)
+    if abs(c["rel_error"]) < 0.10:
+        return          # resolved upstream; nothing left to pin
+    assert c["status"] == "CONDITIONAL"
+    assert abs(c["mismatched_boundary_reference"]["rel_error"]) < 0.10, (
+        "the mismatched comparison should still look like agreement -- that "
+        "contrast is the evidence that the old number measured boundary "
+        "physics rather than dimensional consistency")
+    report = json.loads((ROOT / "falsification_report_3d.json").read_text())
+    cond = next(x for x in report["conditions"]
+                if x["condition"] == "reduction_3d_to_2d_mismatch")
+    # the report serializes this flag as a JSON string in some writers
+    flagged = cond["falsified_in_model"]
+    assert flagged in (True, "true"), (
+        f"the falsification report must surface the disagreement; got {flagged!r}")
+    assert cond["status"] == "CONDITIONAL"
 
 
 def test_3d_outputs_carry_forecast_labels_and_no_pass():
@@ -126,7 +185,8 @@ ALL_TESTS = [
     test_3d_energy_accounting_closes,
     test_3d_reduced_run_is_ci_safe,
     test_reduction_3d_to_1d,
-    test_reduction_3d_to_2d,
+    test_reduction_3d_to_2d_is_boundary_matched_and_reported_honestly,
+    test_reduction_3d_to_2d_disagreement_is_a_declared_open_item,
     test_3d_outputs_carry_forecast_labels_and_no_pass,
 ]
 

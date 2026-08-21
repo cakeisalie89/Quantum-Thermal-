@@ -23,7 +23,7 @@ eta_abs,0.05,,ASSUMED,NV absorption; NOT MEASURED,D,factor 3x
 E_pulse,5e-11,J,ASSUMED,Design,D,+-20%
 f_rep,200.0,Hz,ASSUMED,Design,D,+-factor2
 r_spot,3.61e-07,m,ASSUMED,SRIM/NA estimate,D,+-50%
-P_LCVD,0.05,W,ASSUMED,Typical LCVD spot,A,factor 3x
+P_LCVD,0.05,W,ASSUMED,Typical LCVD spot,B,factor 3x
 P_mw,1e-09,W,ASSUMED,Design; not measured in cryo,D,+-factor2
 Z0_CPW,50.0,Ohm,DESIGN,Design,D,+-1Ohm
 w_CPW,5e-06,m,DESIGN,Design,D,+-1um
@@ -39,14 +39,14 @@ RGA_P_H2,,Pa,UNKNOWN,RGA not performed,B,blocks Mode B
 s_He,1.0,,ASSUMED,UNKNOWN for F-diamond; assume 1,D,blocks PASS
 E_b_He_kB,30.0,K,ASSUMED,He/graphite proxy; diamond unknown,D,factor 2x
 n_s_target,3.3e+18,m-2,ASSUMED,Design,D,+-50%
-P_CH4_work,0.0001,Pa,ASSUMED,Typical LCVD working pressure,A,factor 10x
-P_CH4_purge_tgt,5e-12,Pa,DESIGN,Required before He-3 dosing,B,criterion
+P_CH4_work,0.0001,Pa,ASSUMED,Typical LCVD working pressure,B,factor 10x
+P_CH4_purge_tgt,5e-12,Pa,DESIGN,Required before He-3 dosing,C,criterion
 bakeout_done,0,,ASSUMED,Not yet executed,B,bool
 cryotrap_4K,0,,ASSUMED,Not yet installed,B,bool
 NEG_pump,0,,ASSUMED,Not yet installed,B,bool
 S_vib,1e-10,m2/Hz,ASSUMED,Oxford Triton spec; NOT measured here,CD,factor 10x
-t_growth,30.0,s,ASSUMED,Design growth pulse,A,+-factor3
-t_purge_min,7200.0,s,ASSUMED,Min pumpout; outgassing dominated,B,+0/-50%
+t_growth,30.0,s,ASSUMED,Design growth pulse,B,+-factor3
+t_purge_min,7200.0,s,ASSUMED,Min pumpout; outgassing dominated,C,+0/-50%
 t_vib_settle,100.0,s,ASSUMED,Vib settling after shutter,C,+-factor3
 mp_k_ref,2000.0,W/m/K,ASSUMED,Reduced diamond k(T) anchor (boundary-limited),B,factor 2x
 mp_k_exponent,3.0,,ASSUMED,Reduced k(T) low-T power law exponent,B,+-0.5

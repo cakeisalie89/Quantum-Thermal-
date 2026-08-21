@@ -16,6 +16,7 @@ import numpy as np
 
 from .config import MultiphysicsConfig
 from .mesh_3d import StructuredGrid3D
+from .material_models import floor_report
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
@@ -41,5 +42,11 @@ def summary(cfg: MultiphysicsConfig, grid: StructuredGrid3D) -> dict:
         "material_model": "homogeneous canonical diamond (diamond_k/diamond_cp), "
                           "identical to the 1D/2D backends",
         "per_region_property_sets": "NOT_IMPLEMENTED (no repository parameters)",
+        # The numerical floors inside diamond_k/diamond_cp exceed the models
+        # they guard throughout the sub-kelvin regime this machine operates in,
+        # so below their crossover they are an effective material-property
+        # assumption rather than regularization. Declared here so a consumer of
+        # any sub-kelvin prediction sees it without reading material_models.py.
+        "property_floor_declaration": floor_report(),
         "label": LABEL,
     }

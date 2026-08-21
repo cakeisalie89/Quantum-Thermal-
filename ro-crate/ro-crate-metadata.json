@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "128150",
+   "contentSize": "130272",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -207,7 +207,7 @@
    "contentSize": "139219",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "7c016fd820be678ce311a0c6fad0326d27e8f54a960ddf50a0eadd21be224218"
+   "sha256": "ed75650cbecfa9aee42e2f49e8b278829618465e14b2bccc136f1de7c50dbf11"
   },
   {
    "@id": "hdf5_schema.json",
@@ -215,7 +215,7 @@
    "contentSize": "150481",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "04c480aecdf78d6243c9d229cc981802dd19c7707b0a8c95d13a5afe38240f14"
+   "sha256": "164dbf7da3436c9c389c86f059e6e0c2054b0107ba0597b2ba04be15377b6355"
   },
   {
    "@id": "manifest_hash.txt",
@@ -252,10 +252,10 @@
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "164459",
+   "contentSize": "165195",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "baa4bce96fdf4645fe21ecc32b63c8604175b89cb88361462f04727a5d8b6179"
+   "sha256": "4c0107f7183d06d85c2104c0c7354a2b1be0f5f80884c8f2c31269b7b42e9da9"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "1980500",
+   "contentSize": "1992730",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "ae22cfdb15ff7ef28699227c7e95c6d41c3f8d0617bb7167d11c36201ee4f6f0"
+   "sha256": "74bbe36f9cb78a91d78329d24f811de646612823ab07bfadbe943d7911965df2"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -302,10 +302,10 @@
   {
    "@id": "stage6_preservation_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "6262",
+   "contentSize": "7503",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",
-   "sha256": "5a7973932c866c5182dee08f4adb5240e3fff19a409ca48f3f230a113a2bffe5"
+   "sha256": "42fe3e4ebc2543475be09b3511042b583f96f525e5511c442bd8d6c874f39493"
   },
   {
    "@id": "stage7_reports/environment_provenance.json",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "14681ec28053d078e8f3cbd7397ca7ee437991ae561f0f15318565b94307c5a3"
+   "sha256": "1890f3a12b851921fd792bb4be9bb29a428972901c02e169fc8c40187b02faf0"
   },
   {
    "@id": "uv.lock",

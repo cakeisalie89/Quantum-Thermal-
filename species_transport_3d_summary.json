@@ -1,7 +1,45 @@
 {
   "formula": "lambda = k_B*T/(sqrt(2)*pi*d^2*P); Kn = lambda/L_char",
   "L_char_m": 0.01,
-  "convention": "evaluated at the sensing-stage temperature T_fridge = 10 mK, exactly as the canonical D9 derived check",
+  "convention": "per-species gas temperature, not one global value. Mode-D helium is evaluated at the sensing-stage temperature T_fridge = 10 mK (the canonical D9 derived check). Species whose gas temperature is not registered anywhere in this repository are NOT assigned one: their regime is reported parameterized over the declared stage temperatures and marked UNRESOLVED_REQUIRES_OWNER_AUTHORITY.",
+  "gas_temperature_semantics": {
+    "He3": {
+      "mode": "MODE_D",
+      "basis": "dosed into and thermalised to the 10 mK sensing stage (config.FridgeConfig.T_fridge_K); this is the stage being sensed",
+      "status": "RESOLVED",
+      "T_K": 0.01
+    },
+    "He4": {
+      "mode": "MODE_D",
+      "basis": "dosed into and thermalised to the 10 mK sensing stage (config.FridgeConfig.T_fridge_K); this is the stage being sensed",
+      "status": "RESOLVED",
+      "T_K": 0.01
+    },
+    "C13_CH4": {
+      "mode": "MODE_B",
+      "basis": "process precursor delivered at the Mode-B working pressure to a surface the thermal model takes to ~29 K peak; no inlet, line or reservoir temperature is registered anywhere in this repository",
+      "status": "UNRESOLVED_REQUIRES_OWNER_AUTHORITY",
+      "T_K": null
+    },
+    "H2": {
+      "mode": "ALL_MODES",
+      "basis": "residual background, never a live species; it is outgassed from surfaces spanning 300 K feedthroughs to the 10 mK stage and no single population temperature is registered",
+      "status": "UNRESOLVED_REQUIRES_OWNER_AUTHORITY",
+      "T_K": null
+    }
+  },
+  "parameterization_span_K": [
+    0.01,
+    0.1,
+    1.0,
+    4.0,
+    77.0,
+    300.0
+  ],
+  "unresolved_gas_temperatures": [
+    "C13_CH4",
+    "H2"
+  ],
   "per_species": [
     {
       "species": "C13_CH4",
@@ -10,10 +48,56 @@
       "diameter_provenance": "LITERATURE_BOUND (Bird 1994 class textbook value)",
       "pressure_Pa": 0.0001,
       "pressure_provenance": "Mode-B working pressure (existing canonical value)",
-      "T_eval_K": 0.01,
-      "mean_free_path_m": 0.0021520443587015104,
-      "Kn": 0.21520443587015103,
-      "regime": "TRANSITIONAL"
+      "gas_temperature_mode": "MODE_B",
+      "gas_temperature_basis": "process precursor delivered at the Mode-B working pressure to a surface the thermal model takes to ~29 K peak; no inlet, line or reservoir temperature is registered anywhere in this repository",
+      "gas_temperature_status": "UNRESOLVED_REQUIRES_OWNER_AUTHORITY",
+      "T_eval_K": null,
+      "mean_free_path_m": null,
+      "Kn": null,
+      "regime": "PARAMETERIZED_UNRESOLVED",
+      "regime_parameterized_over": [
+        {
+          "T_K": 0.01,
+          "mean_free_path_m": 0.0021520443587015104,
+          "Kn": 0.21520443587015103,
+          "regime": "TRANSITIONAL"
+        },
+        {
+          "T_K": 0.1,
+          "mean_free_path_m": 0.021520443587015107,
+          "Kn": 2.152044358701511,
+          "regime": "TRANSITIONAL"
+        },
+        {
+          "T_K": 1.0,
+          "mean_free_path_m": 0.21520443587015106,
+          "Kn": 21.520443587015105,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 4.0,
+          "mean_free_path_m": 0.8608177434806042,
+          "Kn": 86.08177434806042,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 77.0,
+          "mean_free_path_m": 16.57074156200163,
+          "Kn": 1657.0741562001629,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 300.0,
+          "mean_free_path_m": 64.56133076104531,
+          "Kn": 6456.133076104531,
+          "regime": "MOLECULAR_FLOW"
+        }
+      ],
+      "regime_is_temperature_sensitive": true,
+      "regimes_spanned": [
+        "MOLECULAR_FLOW",
+        "TRANSITIONAL"
+      ]
     },
     {
       "species": "H2",
@@ -22,10 +106,55 @@
       "diameter_provenance": "LITERATURE_BOUND (Bird 1994 class textbook value)",
       "pressure_Pa": 1e-10,
       "pressure_provenance": "post-bakeout residual target (existing canonical value)",
-      "T_eval_K": 0.01,
-      "mean_free_path_m": 3695.0678406242346,
-      "Kn": 369506.78406242345,
-      "regime": "MOLECULAR_FLOW"
+      "gas_temperature_mode": "ALL_MODES",
+      "gas_temperature_basis": "residual background, never a live species; it is outgassed from surfaces spanning 300 K feedthroughs to the 10 mK stage and no single population temperature is registered",
+      "gas_temperature_status": "UNRESOLVED_REQUIRES_OWNER_AUTHORITY",
+      "T_eval_K": null,
+      "mean_free_path_m": null,
+      "Kn": null,
+      "regime": "MOLECULAR_FLOW",
+      "regime_parameterized_over": [
+        {
+          "T_K": 0.01,
+          "mean_free_path_m": 3695.0678406242346,
+          "Kn": 369506.78406242345,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 0.1,
+          "mean_free_path_m": 36950.67840624235,
+          "Kn": 3695067.8406242346,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 1.0,
+          "mean_free_path_m": 369506.78406242345,
+          "Kn": 36950678.40624234,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 4.0,
+          "mean_free_path_m": 1478027.1362496938,
+          "Kn": 147802713.62496936,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 77.0,
+          "mean_free_path_m": 28452022.372806605,
+          "Kn": 2845202237.2806606,
+          "regime": "MOLECULAR_FLOW"
+        },
+        {
+          "T_K": 300.0,
+          "mean_free_path_m": 110852035.21872704,
+          "Kn": 11085203521.872704,
+          "regime": "MOLECULAR_FLOW"
+        }
+      ],
+      "regime_is_temperature_sensitive": false,
+      "regimes_spanned": [
+        "MOLECULAR_FLOW"
+      ]
     },
     {
       "species": "He3",
@@ -34,6 +163,9 @@
       "diameter_provenance": "LITERATURE_BOUND (source_map SM053, Bird1994;Roth1990)",
       "pressure_Pa": 1e-06,
       "pressure_provenance": "He dose pressure (existing canonical value, D9)",
+      "gas_temperature_mode": "MODE_D",
+      "gas_temperature_basis": "dosed into and thermalised to the 10 mK sensing stage (config.FridgeConfig.T_fridge_K); this is the stage being sensed",
+      "gas_temperature_status": "RESOLVED",
       "T_eval_K": 0.01,
       "mean_free_path_m": 0.45969704940310385,
       "Kn": 45.969704940310386,
@@ -46,6 +178,9 @@
       "diameter_provenance": "LITERATURE_BOUND (source_map SM053, Bird1994;Roth1990)",
       "pressure_Pa": 1e-06,
       "pressure_provenance": "He dose pressure (existing canonical value, D9)",
+      "gas_temperature_mode": "MODE_D",
+      "gas_temperature_basis": "dosed into and thermalised to the 10 mK sensing stage (config.FridgeConfig.T_fridge_K); this is the stage being sensed",
+      "gas_temperature_status": "RESOLVED",
       "T_eval_K": 0.01,
       "mean_free_path_m": 0.45969704940310385,
       "Kn": 45.969704940310386,
@@ -56,6 +191,6 @@
     "status": "NOT_IMPLEMENTED",
     "reason": "inlet/nozzle geometry is not parameterized in this repository; no deposition-footprint numbers are invented"
   },
-  "note": "He-3/He-4 (dose) and residual H2 are deep in the molecular-flow regime at the canonical conditions (quasi-ballistic line-of-sight transport). The C-13 methane precursor at the Mode-B working pressure is TRANSITIONAL (Kn~0.2), consistent with the repository's advective-diffusive Mode-B gas-transport treatment. Forecast, DERIVED numerical only.",
+  "note": "He-3/He-4 (dose) are deep in the molecular-flow regime at the sensing-stage temperature (quasi-ballistic line-of-sight transport); that classification is resolved. Residual H2 classifies MOLECULAR_FLOW at every temperature in the declared span, so its classification is robust even though its population temperature is unresolved. The C-13 methane precursor is NOT robust: it classifies TRANSITIONAL at 10 mK and MOLECULAR_FLOW at every other declared stage temperature, so the regime follows entirely from the temperature assumption. This previously read as a settled TRANSITIONAL (Kn~0.2) result because the Mode-D sensing-stage temperature was applied to a Mode-B process gas. No Mode-B gas temperature is registered in this repository and none is invented here. Forecast, DERIVED numerical only.",
   "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 }

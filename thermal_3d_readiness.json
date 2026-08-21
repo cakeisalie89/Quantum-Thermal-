@@ -2,7 +2,7 @@
   "layer": "thermal_3d_transient + coupled forecast channels",
   "status": "FORECAST_ONLY_IMPLEMENTED",
   "resolution_tier": "REDUCED_CI",
-  "all_numerical_checks_within_declared_tolerances": true,
+  "all_numerical_checks_within_declared_tolerances": false,
   "mode_sequence_status": "MODE_D_STARTED_AFTER_RECOVERY",
   "mode_c_recovery_time_s": 0.008333333333333333,
   "mode_d_hold_probe_K": 0.02382101594207912,
@@ -105,7 +105,7 @@
   },
   "falsification": {
     "n_conditions": 13,
-    "n_falsified_in_model": 0,
+    "n_falsified_in_model": 1,
     "n_not_implemented_bounds": 2
   },
   "convergence": {
@@ -122,6 +122,125 @@
     "bulk_cell_count": 1100,
     "material_model": "homogeneous canonical diamond (diamond_k/diamond_cp), identical to the 1D/2D backends",
     "per_region_property_sets": "NOT_IMPLEMENTED (no repository parameters)",
+    "property_floor_declaration": {
+      "meaning": "declaration of where each numerical floor stops being numerical; no floor value is changed by this report and no replacement cryogenic property is invented",
+      "floors": {
+        "diamond_cp": {
+          "value": 1e-06,
+          "unit": "J/kg/K",
+          "guards": "division by rho*Cp in the heat equation",
+          "crossover_K": 0.40737814309947046,
+          "class_below_crossover": "EFFECTIVE_MATERIAL_PROPERTY_ASSUMPTION",
+          "class_above_crossover": "NUMERICAL_REGULARIZATION"
+        },
+        "diamond_k": {
+          "value": 0.001,
+          "unit": "W/m/K",
+          "guards": "vanishing face conductance at ultra-low T",
+          "crossover_K": 0.7937005259841,
+          "class_below_crossover": "EFFECTIVE_MATERIAL_PROPERTY_ASSUMPTION",
+          "class_above_crossover": "NUMERICAL_REGULARIZATION"
+        }
+      },
+      "dominant_in_canonical_regime": true,
+      "affected_predictions": [
+        "Mode-C recool time and the 50 mK readiness threshold: the threshold sits ~8x below the k crossover and ~8x below the Cp crossover, so recovery near it is governed by the floors",
+        "thermal diffusivity at base temperature: raw alpha is 0.0385 m^2/s (k and Cp both scale as T^3, so the ratio is flat); the floors bite at different temperatures and give 0.2846 m^2/s, a 7.4x overestimate",
+        "Mode-A/Mode-D 10 mK stage temperatures"
+      ],
+      "authority_status": "NO_AUTHORITATIVE_REPLACEMENT_IN_REPOSITORY -- measured or literature-bound cryogenic diamond Cp/k below ~1 K are not registered here; the floors stand and the affected predictions remain MODEL_ONLY / FORECAST_ONLY",
+      "table": [
+        {
+          "T_K": 0.01,
+          "cp_raw_J_kg_K": 1.4791316403441668e-11,
+          "cp_floor_over_raw": 67607.23472640463,
+          "cp_floor_dominates": true,
+          "k_raw_W_m_K": 2.0000000000000005e-09,
+          "k_floor_over_raw": 499999.9999999999,
+          "k_floor_dominates": true,
+          "alpha_raw_m2_s": 0.038522640869746244,
+          "alpha_floored_m2_s": 0.2849002849002849
+        },
+        {
+          "T_K": 0.05,
+          "cp_raw_J_kg_K": 1.8489145504302086e-09,
+          "cp_floor_over_raw": 540.857877811237,
+          "cp_floor_dominates": true,
+          "k_raw_W_m_K": 2.5000000000000004e-07,
+          "k_floor_over_raw": 3999.9999999999995,
+          "k_floor_dominates": true,
+          "alpha_raw_m2_s": 0.03852264086974624,
+          "alpha_floored_m2_s": 0.2849002849002849
+        },
+        {
+          "T_K": 0.1,
+          "cp_raw_J_kg_K": 1.4791316403441668e-08,
+          "cp_floor_over_raw": 67.60723472640463,
+          "cp_floor_dominates": true,
+          "k_raw_W_m_K": 2.0000000000000003e-06,
+          "k_floor_over_raw": 499.99999999999994,
+          "k_floor_dominates": true,
+          "alpha_raw_m2_s": 0.03852264086974624,
+          "alpha_floored_m2_s": 0.2849002849002849
+        },
+        {
+          "T_K": 0.407,
+          "cp_raw_J_kg_K": 9.972178757618791e-07,
+          "cp_floor_over_raw": 1.0027898860477158,
+          "cp_floor_dominates": true,
+          "k_raw_W_m_K": 0.000134838286,
+          "k_floor_over_raw": 7.416291245351488,
+          "k_floor_dominates": true,
+          "alpha_raw_m2_s": 0.038522640869746244,
+          "alpha_floored_m2_s": 0.2849002849002849
+        },
+        {
+          "T_K": 0.794,
+          "cp_raw_J_kg_K": 7.404032808407399e-06,
+          "cp_floor_over_raw": 0.13506153009809516,
+          "cp_floor_dominates": false,
+          "k_raw_W_m_K": 0.0010011323680000003,
+          "k_floor_over_raw": 0.9988689128069423,
+          "k_floor_dominates": false,
+          "alpha_raw_m2_s": 0.038522640869746244,
+          "alpha_floored_m2_s": 0.038522640869746244
+        },
+        {
+          "T_K": 1.0,
+          "cp_raw_J_kg_K": 1.4791316403441666e-05,
+          "cp_floor_over_raw": 0.06760723472640463,
+          "cp_floor_dominates": false,
+          "k_raw_W_m_K": 0.0020000000000000005,
+          "k_floor_over_raw": 0.4999999999999999,
+          "k_floor_dominates": false,
+          "alpha_raw_m2_s": 0.038522640869746244,
+          "alpha_floored_m2_s": 0.038522640869746244
+        },
+        {
+          "T_K": 4.0,
+          "cp_raw_J_kg_K": 0.0009466442498202666,
+          "cp_floor_over_raw": 0.0010563630426000724,
+          "cp_floor_dominates": false,
+          "k_raw_W_m_K": 0.12800000000000003,
+          "k_floor_over_raw": 0.007812499999999998,
+          "k_floor_dominates": false,
+          "alpha_raw_m2_s": 0.038522640869746244,
+          "alpha_floored_m2_s": 0.038522640869746244
+        },
+        {
+          "T_K": 29.4,
+          "cp_raw_J_kg_K": 0.3758796540464779,
+          "cp_floor_over_raw": 2.6604259880380464e-06,
+          "cp_floor_dominates": false,
+          "k_raw_W_m_K": 50.82436799999999,
+          "k_floor_over_raw": 1.9675601278504834e-05,
+          "k_floor_dominates": false,
+          "alpha_raw_m2_s": 0.03852264086974622,
+          "alpha_floored_m2_s": 0.03852264086974622
+        }
+      ],
+      "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
+    },
     "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
   },
   "not_implemented": [

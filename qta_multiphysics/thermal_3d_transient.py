@@ -122,7 +122,8 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
                      T_init=None, beam_center_xy=(0.0, 0.0),
                      source_scale: float = 1.0,
                      extra_volumetric_W=None,
-                     extra_front_flux_W_m2: float = 0.0) -> Thermal3DResult:
+                     extra_front_flux_W_m2: float = 0.0,
+                     max_step_divisor: float = 20.0) -> Thermal3DResult:
     """Solve the reduced 3D transient heat equation (deterministic, CPU-only).
 
     ``source_scale=0.0`` gives the zero-source stability case. ``transverse``
@@ -223,7 +224,8 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
 
     t_eval = np.linspace(0.0, t_end, int(n_eval))
     sol_obj = solve_ivp(rhs, (0.0, t_end), T0, method=sol.method, t_eval=t_eval,
-                        rtol=sol.rtol, atol=sol.atol, max_step=t_end / 20.0,
+                        rtol=sol.rtol, atol=sol.atol,
+                        max_step=t_end / float(max_step_divisor),
                         jac_sparsity=jacobian_sparsity_7pt(*shape),
                         dense_output=True)
     T = sol_obj.y

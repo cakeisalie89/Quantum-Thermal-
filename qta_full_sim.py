@@ -201,6 +201,17 @@ def eng_note(key: str, physics_value: str = "") -> str:
     return s
 
 
+# Mode column semantics (authorities.json :: modes_and_species):
+#   A = Baseline, B = Carbon-13 Methane Processing, C = Isolation/Recovery,
+#   D = He-3/He-4 NV Sensing.
+# Five rows disagreed with those semantics and are corrected:
+#   P_LCVD, P_CH4_work, t_growth   A -> B  (LCVD spot power, LCVD working
+#     pressure and the growth pulse are material processing, which is Mode B;
+#     they predate the move of processing out of the baseline mode)
+#   P_CH4_purge_tgt, t_purge_min   B -> C  (a purge target and a minimum
+#     pumpout time describe isolation/purge/recovery, which is Mode C)
+# This column is metadata: it is written to parameter_registry.csv and grouped
+# by tag for the summary, and no numerical result reads it.
 PARAM_REGISTRY=[
     ("T_fridge",0.010,"K",MANUFACTURER_SPEC,"Oxford Triton 200 (NOT installed in QTA)","ABCD","+-0.5mK"),
     ("P_cool_MC",200e-6,"W",MANUFACTURER_SPEC,"Oxford Triton 200 (NOT installed in QTA)","ABCD","+-20%"),
@@ -226,7 +237,7 @@ PARAM_REGISTRY=[
     ("E_pulse",50e-12,"J",ASSUMED,"Design","D","+-20%"),
     ("f_rep",200.,"Hz",ASSUMED,"Design","D","+-factor2"),
     ("r_spot",361e-9,"m",ASSUMED,"SRIM/NA estimate","D","+-50%"),
-    ("P_LCVD",50e-3,"W",ASSUMED,"Typical LCVD spot","A","factor 3x"),
+    ("P_LCVD",50e-3,"W",ASSUMED,"Typical LCVD spot","B","factor 3x"),
     ("P_mw",1e-9,"W",ASSUMED,"Design; not measured in cryo","D","+-factor2"),
     ("Z0_CPW",50.,"Ohm",DESIGN,"Design","D","+-1Ohm"),
     ("w_CPW",5e-6,"m",DESIGN,"Design","D","+-1um"),
@@ -242,14 +253,14 @@ PARAM_REGISTRY=[
     ("s_He",1.0,"",ASSUMED,"UNKNOWN for F-diamond; assume 1","D","blocks PASS"),
     ("E_b_He_kB",30.,"K",ASSUMED,"He/graphite proxy; diamond unknown","D","factor 2x"),
     ("n_s_target",3.3e18,"m-2",ASSUMED,"Design","D","+-50%"),
-    ("P_CH4_work",1e-4,"Pa",ASSUMED,"Typical LCVD working pressure","A","factor 10x"),
-    ("P_CH4_purge_tgt",5e-12,"Pa",DESIGN,"Required before He-3 dosing","B","criterion"),
+    ("P_CH4_work",1e-4,"Pa",ASSUMED,"Typical LCVD working pressure","B","factor 10x"),
+    ("P_CH4_purge_tgt",5e-12,"Pa",DESIGN,"Required before He-3 dosing","C","criterion"),
     ("bakeout_done",0,"",ASSUMED,"Not yet executed","B","bool"),
     ("cryotrap_4K",0,"",ASSUMED,"Not yet installed","B","bool"),
     ("NEG_pump",0,"",ASSUMED,"Not yet installed","B","bool"),
     ("S_vib",1e-10,"m2/Hz",ASSUMED,"Oxford Triton spec; NOT measured here","CD","factor 10x"),
-    ("t_growth",30.,"s",ASSUMED,"Design growth pulse","A","+-factor3"),
-    ("t_purge_min",7200.,"s",ASSUMED,"Min pumpout; outgassing dominated","B","+0/-50%"),
+    ("t_growth",30.,"s",ASSUMED,"Design growth pulse","B","+-factor3"),
+    ("t_purge_min",7200.,"s",ASSUMED,"Min pumpout; outgassing dominated","C","+0/-50%"),
     ("t_vib_settle",100.,"s",ASSUMED,"Vib settling after shutter","C","+-factor3"),
     # ── Pass 15: non-lumped 1D/2D multiphysics parameters (forecast/model-only) ──
     ("mp_k_ref",2000.,"W/m/K",ASSUMED,"Reduced diamond k(T) anchor (boundary-limited)","B","factor 2x"),
