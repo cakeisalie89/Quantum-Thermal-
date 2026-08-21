@@ -14,6 +14,8 @@ Chains the distributed sub-models with real state hand-off:
 MODEL-ONLY / FORECAST-ONLY. Mode B and Mode D never run simultaneously.
 """
 from __future__ import annotations
+import dataclasses
+
 import numpy as np
 
 from .config import MultiphysicsConfig
@@ -25,12 +27,40 @@ from .radiation_paths import radiation_paths
 from .vibration_transfer import vibration_transfer
 
 
+#: A solve that did not converge carries no scientific authority. Any consumer
+#: below -- Mode-C readiness, Mode-D start, eligibility forecasts, derived
+#: metrics -- must deny authority rather than read the numbers anyway.
+SOLVER_OK = "ok"
+
+
+class SolverFailure(RuntimeError):
+    """A numerical solve did not converge; downstream authority is denied."""
+
+
+def require_converged(result, what: str):
+    """Fail closed on a non-converged solve.
+
+    solver_status used to be reported alongside the metrics as a passive
+    string while ready_terms was computed from the same result regardless, so
+    a failed BDF integration could still produce FORECAST_READY_IF_MEASURED.
+    Readiness is now unreachable without convergence.
+    """
+    status = getattr(result, "solver_status", None)
+    if status != SOLVER_OK:
+        raise SolverFailure(
+            f"{what}: solver_status={status!r} (expected {SOLVER_OK!r}); "
+            "readiness, eligibility and derived metrics are denied")
+    return result
+
+
 def run_coupled(cfg: MultiphysicsConfig):
     cfg.validate()
     th = cfg.solver.mode_d_temp_threshold_K
 
     # ---- Mode B: process (source ON) ----
-    tB = solve_thermal_1d(cfg, source_mode="averaged", n_eval=60)
+    tB = require_converged(
+        solve_thermal_1d(cfg, source_mode="averaged", n_eval=60),
+        "Mode B thermal solve")
     B_peak_T = tB.hotspot_temperature_K()
     B_peak_NV = tB.nv_layer_temperature_K()
     B_surf_T = float(tB.T[0, :].max())  # front-surface peak
@@ -45,14 +75,21 @@ def run_coupled(cfg: MultiphysicsConfig):
     thetaB = {k: float(v[-1]) for k, v in covB.items()}
 
     # ---- Mode C: recovery (source OFF, init from Mode B) ----
-    tC = solve_thermal_1d(cfg, source_mode="averaged", n_eval=80,
-                          T_init=tB.T[:, -1], t_end=cfg.solver.recovery_window_s)
-    # With source still in 'averaged', recool needs source OFF. Re-solve with a
-    # zeroed laser by setting absorbed power to zero via a cold-config clone.
-    import dataclasses
-    cfg_off = dataclasses.replace(cfg, laser=dataclasses.replace(cfg.laser, absorbed_fraction=0.0))
-    tC = solve_thermal_1d(cfg_off, source_mode="averaged", n_eval=120,
-                          T_init=tB.T[:, -1], t_end=cfg.solver.recovery_window_s)
+    # Mode C is the isolation/recovery mode: the processing source is OFF by
+    # definition, which is expressed by zeroing the absorbed laser fraction on a
+    # config clone. A first solve with the laser still absorbing used to run
+    # here and have its result immediately overwritten; it was dead (it mutated
+    # neither cfg nor T_init and consumed no RNG) but it also computed a Mode C
+    # that violates the mode definition, which is not a state this path should
+    # ever construct. Removed.
+    cfg_off = dataclasses.replace(
+        cfg, laser=dataclasses.replace(cfg.laser, absorbed_fraction=0.0))
+    assert cfg_off.laser.absorbed_fraction == 0.0, \
+        "Mode C must run with the processing source OFF"
+    tC = require_converged(
+        solve_thermal_1d(cfg_off, source_mode="averaged", n_eval=120,
+                         T_init=tB.T[:, -1], t_end=cfg.solver.recovery_window_s),
+        "Mode C recovery solve")
     C_recool = tC.recool_time_s(th)
     C_drift = tC.post_pulse_drift_K()
 
@@ -78,7 +115,9 @@ def run_coupled(cfg: MultiphysicsConfig):
     D_res_H2 = gasC_sample.get("H2", 0.0)
     D_res_theta = max(thetaC.values()) if thetaC else 0.0
 
-    # readiness is a model-only forecast; never a PASS.
+    # readiness is a model-only forecast; never a PASS. Both thermal solves
+    # are known converged here -- require_converged() raised otherwise -- so
+    # readiness cannot be derived from a failed integration.
     ready_terms = {
         "nv_temperature_ok": D_T_NV <= th,
         "drift_ok": C_drift <= 0.5 * th,

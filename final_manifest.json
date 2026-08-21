@@ -575,8 +575,8 @@
     },
     {
       "filename": "qta_multiphysics/coupled_mode_solver.py",
-      "size_bytes": 5591,
-      "sha256": "85b490fb379127ae7f1be8c9d983bd86005d320412af0f353e3dae60d7b76012",
+      "size_bytes": 7194,
+      "sha256": "8eee31196099c589a3cfd6d02fb7d425755f0b2ae7c028328c5ae00483f7ecf0",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -2894,6 +2894,13 @@
       "filename": "tests/test_authority_consistency.py",
       "size_bytes": 8053,
       "sha256": "5e08f5b64adc8e486c8d48f22301273643edcc757c13ba49d65c11c3dbbbe1db",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_solver_failclosed.py",
+      "size_bytes": 4961,
+      "sha256": "eac7d533046ec2675b53b270cd754284e0d7b5402a0b39facd4924ae0de2086c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }
