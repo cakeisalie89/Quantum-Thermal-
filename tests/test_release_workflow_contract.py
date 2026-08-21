@@ -105,16 +105,31 @@ def test_least_privilege_is_retained():
     assert checkout["with"]["persist-credentials"] is False
 
 
-def test_unpinned_actions_are_declared_not_silently_accepted():
-    """Tag-pinned actions are a known policy gap; it must stay visible."""
-    text = WORKFLOW.read_text(encoding="utf-8")
-    for step in _job()["steps"]:
-        uses = step.get("uses")
-        if uses and "@" in uses and not re.search(r"@[0-9a-f]{40}$", uses):
-            assert "TODO pin by SHA" in text, \
-                f"{uses} is tag-pinned with no recorded blocker"
-    assert "could NOT be resolved" in text, \
-        "the pinning blocker must state why, not just that"
+def test_every_action_is_pinned_to_an_immutable_commit_sha():
+    """Policy #3: no tag-pinned action anywhere in the workflows.
+
+    A tag is mutable -- an upstream force-push retargets it -- so a supply-chain
+    policy that stops at tags is not a pin. Every `uses:` across ALL workflows
+    must carry a 40-hex commit SHA.
+    """
+    bad = []
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        doc = yaml.safe_load(wf.read_text(encoding="utf-8"))
+        for job in (doc.get("jobs") or {}).values():
+            for step in job.get("steps", []):
+                uses = step.get("uses")
+                if uses and not re.search(r"@[0-9a-f]{40}$", uses):
+                    bad.append(f"{wf.name}: {uses}")
+    assert not bad, f"tag-pinned (mutable) action references remain: {bad}"
+
+
+def test_pinned_actions_keep_their_human_readable_tag():
+    """A bare SHA is unreviewable; the tag must survive as a comment."""
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for line in wf.read_text(encoding="utf-8").splitlines():
+            if re.search(r"uses:\s*\S+@[0-9a-f]{40}", line):
+                assert "#" in line.split("@", 1)[1], \
+                    f"{wf.name}: pinned action has no tag comment: {line.strip()}"
 
 
 # ------------------------------------- the chain actually runs end to end --

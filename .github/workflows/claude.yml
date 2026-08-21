@@ -63,14 +63,14 @@ jobs:
         # ANTHROPIC_API_KEY in the environment -- the action's own security
         # guidance is explicit that the base branch belongs at the root, and
         # that a PR head belongs in a subdirectory passed via --add-dir.
-        uses: actions/checkout@v6          # TODO pin by SHA
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803   # v6
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1   # TODO pin by SHA
+        uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f   # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # A project this concerned with provenance should not accept

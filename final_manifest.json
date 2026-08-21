@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "14bcd16c9db6e7fa459ec1b92f6f21bfc7bb54c82801245e217cb99523931850",
+      "sha256": "d523ff267aa5a30d25798c623cdf813dc03ed450c6f92d258fc8c09e45d74a03",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2458,8 +2458,8 @@
     },
     {
       "filename": ".github/workflows/release.yml",
-      "size_bytes": 3928,
-      "sha256": "0126d2b0c80f1f60b5b847703e2c429cd988c59c0a0a46acc4155713707c65b1",
+      "size_bytes": 3693,
+      "sha256": "d089fffc38df2c3290ad713a48c644ae33e1c3a6c9df1f817dbf721d32be60a1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2500,8 +2500,8 @@
     },
     {
       "filename": ".github/workflows/stack-verify.yml",
-      "size_bytes": 2847,
-      "sha256": "672eb783c0d83761310529cae9fda6bc14a56995a9f10463692f162b2366b615",
+      "size_bytes": 2885,
+      "sha256": "c720b255d807117fa5d3fa8f6ef63b9cad9ac6da5e3655d22f96a9f44ef448cd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2689,8 +2689,8 @@
     },
     {
       "filename": ".github/workflows/claude.yml",
-      "size_bytes": 5066,
-      "sha256": "89574e2b43770444991e42d3e05ae26827552f3dae9d9ab93afe1e40a7239461",
+      "size_bytes": 5109,
+      "sha256": "9e82447e2e3ace256ff39ee23bb8c84187c38967ac7809633555ac9880ae512f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2752,8 +2752,8 @@
     },
     {
       "filename": "tests/test_release_workflow_contract.py",
-      "size_bytes": 9985,
-      "sha256": "9bc3e8a2fb729993bfba1b701832bd1e51177aaeddd607d5b782230bec1034ca",
+      "size_bytes": 10717,
+      "sha256": "faae7d2c531f51192175349a944fbcfc592009dcc38508e731ec5fa7e182383c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },

@@ -3,16 +3,13 @@
 # STATUS: PENDING FIRST HOSTED RUN -- no Actions runner has executed this
 # workflow; no SLSA level is claimed by it or by anything it produces.
 #
-# PIN-BY-DIGEST STILL REQUIRED (policy #3): the `uses:` entries below are tag
-# -pinned, not commit-pinned. The commit SHAs could NOT be resolved in the
-# environment that last edited this file: api.github.com is reachable only for
-# this repository (every other repo returns HTTP 403 "GitHub access to this
-# repository is not enabled for this session"), so actions/checkout and
-# astral-sh/setup-uv could not be looked up. Pinning to an invented or
-# remembered SHA would be worse than an honest tag, so the tags stand and the
-# blocker is recorded here. Resolve with, from an environment with API access:
-#   gh api repos/actions/checkout/git/ref/tags/v4   --jq .object.sha
-#   gh api repos/astral-sh/setup-uv/git/ref/tags/v5 --jq .object.sha
+# PINNED BY COMMIT SHA (policy #3). Every `uses:` below is an immutable commit
+# SHA with its human-readable tag in a trailing comment. The SHAs were resolved
+# from the upstream repositories with `git ls-remote`, peeling annotated tags to
+# their commit (`refs/tags/<tag>^{}`) -- astral-sh/setup-uv@v5 and
+# anthropics/claude-code-action@v1 are annotated, so their ref SHA is a tag
+# object, not the commit. Re-resolve with:
+#   git ls-remote https://github.com/<owner>/<repo> 'refs/tags/<tag>*'
 name: qta-release
 on:
   push:
@@ -34,9 +31,9 @@ jobs:
       contents: read       # checkout only
       id-token: write      # keyless Sigstore OIDC
     steps:
-      - uses: actions/checkout@v4          # TODO pin by SHA (blocker above)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
         with: {persist-credentials: false}
-      - uses: astral-sh/setup-uv@v5        # TODO pin by SHA (blocker above)
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - run: uv sync --frozen --all-groups
 
       # ---- regenerate and verify the canonical package ----
@@ -78,7 +75,7 @@ jobs:
           uv run python verify_release.py \
             --zip "$REL_ZIP" --bundle "$REL_BUNDLE" --online
 
-      - uses: actions/upload-artifact@v4    # TODO pin by SHA (blocker above)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         with:
           name: qta-release-bundle
           path: ${{ env.REL_DIR }}
