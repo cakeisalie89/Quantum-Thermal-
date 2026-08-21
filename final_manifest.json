@@ -2241,22 +2241,22 @@
     },
     {
       "filename": "Dockerfile",
-      "size_bytes": 1160,
-      "sha256": "728dfdcfebdfb0ba91f36ba8cfe9423c18a704fda6089018b3f1831e7a745722",
+      "size_bytes": 1488,
+      "sha256": "fb1d86660a4e540e442582e7f0051afe18616c2002ee9acb71f9f976ef389d6e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "container_verification.md",
-      "size_bytes": 1349,
-      "sha256": "4235ba18339be46ee958e7e2a0d5bdbe8f8728249b17b692c58c8eac3aeaa48c",
+      "size_bytes": 3197,
+      "sha256": "2332a0fe00f2ff2103f74cca2a16880bdb873c0bc5abc8f86a56258b59eac47b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "container_verify.sh",
-      "size_bytes": 473,
-      "sha256": "2ed1bb0ae5f2e39580492a8397c061b4839a75a7566657c677f66c1870362b16",
+      "size_bytes": 1502,
+      "sha256": "0e21d0e9bdaf12b9be38bbebe339884b2f9f3edcb11d197b85d41fa60ef6a965",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2276,8 +2276,8 @@
     },
     {
       "filename": "stage6_preservation_check.py",
-      "size_bytes": 6262,
-      "sha256": "5a7973932c866c5182dee08f4adb5240e3fff19a409ca48f3f230a113a2bffe5",
+      "size_bytes": 7503,
+      "sha256": "42fe3e4ebc2543475be09b3511042b583f96f525e5511c442bd8d6c874f39493",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2458,8 +2458,8 @@
     },
     {
       "filename": ".github/workflows/release.yml",
-      "size_bytes": 1418,
-      "sha256": "cff0647ffcef3df31d1cd95aba9b11ed825f0c7d2f5944d10ad5e94d556fb512",
+      "size_bytes": 3928,
+      "sha256": "0126d2b0c80f1f60b5b847703e2c429cd988c59c0a0a46acc4155713707c65b1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2479,8 +2479,8 @@
     },
     {
       "filename": "build_release_artifacts.py",
-      "size_bytes": 10644,
-      "sha256": "06669421c3fb489bfaff55e4525cf0a10db973a28f28e862fa43d0ac3777e104",
+      "size_bytes": 13322,
+      "sha256": "6eae0f1b5f5b962ec1a46cd084e74aa7c8810184829af0d32b4df21281360416",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2493,8 +2493,8 @@
     },
     {
       "filename": "verify_release.py",
-      "size_bytes": 9144,
-      "sha256": "98ea044aa2cd0e53f129b1469c40df793b4f8cbba9e12b4667af9a3d0a36be35",
+      "size_bytes": 12173,
+      "sha256": "7dac1be047a50551ad25f8fda50d5ea1454d23218560818f5b38d1c78b8694f2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
