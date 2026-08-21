@@ -28,7 +28,10 @@ from .validation import (direct_mc_eig, validate_against_direct_mc, benchmark_de
                          ValidationResult)
 from .calibration import run_sbc, CalibrationResult
 from .ood import fit_ood, ood_report, OODModel
-from .inference import posterior_query, posterior_predictive
+from .inference import (posterior_query, posterior_predictive,
+                        trusted_posterior_query, trust_state,
+                        SurrogateAuthorityDenied, TRUST_REQUIREMENTS,
+                        TRUSTED, DENIED_OOD, DENIED_NOT_READY)
 from .policy import rank_candidates, update_after_observation, Candidate
 from .runner import run_deep_expdesign, run_deep_expdesign_full
 
@@ -45,6 +48,8 @@ __all__ = [
     "AmortizedDataset", "learned_eig", "learned_eig_batch", "direct_mc_eig",
     "validate_against_direct_mc", "benchmark_designs", "ValidationResult", "run_sbc",
     "CalibrationResult", "fit_ood", "ood_report", "OODModel", "posterior_query",
+    "trusted_posterior_query", "trust_state", "SurrogateAuthorityDenied",
+    "TRUST_REQUIREMENTS", "TRUSTED", "DENIED_OOD", "DENIED_NOT_READY",
     "posterior_predictive", "rank_candidates", "update_after_observation", "Candidate",
     "run_deep_expdesign", "run_deep_expdesign_full",
 ]

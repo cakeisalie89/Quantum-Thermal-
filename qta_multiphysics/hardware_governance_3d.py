@@ -247,7 +247,37 @@ def full_deficiencies(rec, raw_base_dir=None) -> list:
     return d
 
 
-def validate_review_record(rev) -> tuple:
+#: Keys excluded from the canonical form of a hardware record. The review's
+#: own hash cannot be part of what it hashes, and transport/bookkeeping fields
+#: must not make an otherwise-identical record hash differently.
+RECORD_HASH_EXCLUDED_KEYS = ("record_sha256", "review", "review_record")
+
+
+def canonical_record_bytes(rec) -> bytes:
+    """Deterministic canonical form of a hardware/measurement record.
+
+    Sorted keys, no insignificant whitespace, UTF-8, NFC-stable via
+    ensure_ascii. Two records that differ in any governed field produce
+    different bytes; the same record loaded twice produces identical bytes.
+    """
+    body = {k: v for k, v in rec.items() if k not in RECORD_HASH_EXCLUDED_KEYS}
+    return json.dumps(body, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True).encode("utf-8")
+
+
+def compute_record_sha256(rec) -> str:
+    return hashlib.sha256(canonical_record_bytes(rec)).hexdigest()
+
+
+def validate_review_record(rev, record=None) -> tuple:
+    """Validate a human review, and BIND it to the exact record reviewed.
+
+    record_sha256 used to be checked only for being non-empty, so a review
+    could be paired with a modified record carrying the same measurement_id
+    and the dossier would accept it and copy the stale hash straight through.
+    When ``record`` is supplied the hash is now recomputed from the record's
+    canonical form and must match exactly.
+    """
     reasons = []
     if not isinstance(rev, dict):
         return False, ["review_record is not an object"]
@@ -262,6 +292,23 @@ def validate_review_record(rev) -> tuple:
     if rev.get("authored_by_tool"):
         reasons.append("review records authored by tools are invalid by "
                        "governance rule")
+
+    claimed = rev.get("record_sha256") or ""
+    if claimed:
+        if len(claimed) != 64 or any(c not in "0123456789abcdef"
+                                     for c in claimed.lower()):
+            reasons.append("review record_sha256 malformed (expected 64 hex "
+                           "characters)")
+        elif record is not None:
+            actual = compute_record_sha256(record)
+            if actual.lower() != claimed.lower():
+                reasons.append(
+                    "review record_sha256 does not bind to this record "
+                    f"(review claims {claimed[:16]}..., record canonicalizes "
+                    f"to {actual[:16]}...); the reviewed record was modified "
+                    "or replaced")
+    elif record is not None:
+        reasons.append("review has no record_sha256 to bind against")
     return (len(reasons) == 0), reasons
 
 
@@ -315,7 +362,8 @@ def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None,
                              reasons or ["not HARDWARE_REVIEWED"]})
             continue
         rev = reviews.get(rid)
-        rok, rwhy = validate_review_record(rev) if rev else \
+        # Bind the review to THIS record, not merely to its measurement_id.
+        rok, rwhy = validate_review_record(rev, record=rec) if rev else \
             (False, ["no review record"])
         if not rok or rev.get("decision") != "ACCEPT_AS_EVIDENCE":
             excluded.append({"measurement_id": rid,

@@ -62,10 +62,16 @@ tree was untouched.
 | SALib | ADOPTED | `sensitivity_3d.py` stays authoritative | cross-check only; disagreement is reported, not resolved |
 | OpenMDAO | ADOPTED | `qta_full_sim.py` stays the operating-point authority | exploration only; every result is `NOT_A_RECOMMENDATION` |
 | FEniCSx | **STAGED** | finite-volume backends | no FEM result is comparable until the acceptance criteria pass |
-| Selective Rust | ADOPTED | the NumPy references | bit-for-bit parity or no adoption |
+| Selective Rust | **ADMISSION RULE ONLY**² | the NumPy references | bit-for-bit parity or no adoption; **no scientific path consumes Rust** |
 | FMI 3.0 | **DEFERRED** | none — no FMU exists | interface contract only; no binary, no compliance claim |
 
 ¹ has open items — see §4.
+
+² The bit-parity admission rule is adopted, exercised and verified. The
+Rust *backend* is not in force: no solver, gate or canonical output imports
+`qta_kernels`, the default backend is NumPy, the extension is off unless
+`QTA_RUST_KERNELS=1`, and the crate is in neither the container nor
+`uv.lock`. There is no active Rust scientific backend in this repository.
 
 ## 3. What Stage 10 added, and what it found
 

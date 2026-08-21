@@ -7,7 +7,8 @@
   "adoption_levels": {
     "ADOPTED": "in use, exercised by CI or the workflow, and its behaviour is verified in this repository",
     "STAGED": "interface and acceptance criteria are written and executable, but the tool is not installed, not exercised, and produces nothing authoritative",
-    "DEFERRED": "deliberately not built; the contract is recorded so later work is implementation rather than redesign"
+    "DEFERRED": "deliberately not built; the contract is recorded so later work is implementation rather than redesign",
+    "ADOPTED_ADMISSION_MECHANISM_ONLY": "the governing rule or gate is in use and verified, but the tool it governs is not consumed by any scientific path"
   },
   "invariants": [
     "additive: no Stage-10 module is imported by the solvers, the gate logic, or qta_full_sim.py",
@@ -64,7 +65,7 @@
       "boundary": "deterministic environment (fixed locale, TZ, PYTHONHASHSEED, single-threaded BLAS); the Rust extension is not built into it",
       "verification": "bash container_verify.sh (inside the image)",
       "open_items": [
-        "base-image digest still UNRESOLVED — recorded as a known gap in container_verification.md, to be pinned at first pull"
+        "base-image digest still UNRESOLVED \u2014 recorded as a known gap in container_verification.md, to be pinned at first pull"
       ]
     },
     {
@@ -139,7 +140,7 @@
       "authority": "qta_multiphysics/stack/rag_index.py",
       "owner_module": "qta_multiphysics.stack.rag_index",
       "optional_dependency": null,
-      "boundary": "retrieval only — verbatim cited spans, no generation, no network, no model client; retrieved text is never evidence",
+      "boundary": "retrieval only \u2014 verbatim cited spans, no generation, no network, no model client; retrieved text is never evidence",
       "verification": "snakemake --cores 1 verification/stage10/rag/rag_index.json",
       "open_items": []
     },
@@ -164,7 +165,7 @@
       "since_stage": "stage10",
       "authority": "qta_multiphysics/stack/usd_export.py",
       "owner_module": "qta_multiphysics.stack.usd_export",
-      "optional_dependency": "usd-core (extra: viz) — validation only; the .usda text is written directly",
+      "optional_dependency": "usd-core (extra: viz) \u2014 validation only; the .usda text is written directly",
       "boundary": "geometric representation of the solved domain; no prim is a solver input",
       "verification": "snakemake --cores 1 verification/stage10/viz/usd/qta_domain_usd_manifest.json",
       "open_items": []
@@ -181,7 +182,7 @@
       "boundary": "disagreement with the canonical OAT ranking is reported, never resolved automatically",
       "verification": "snakemake --cores 1 s10_uq_sobol   # opt-in, ~96 solves",
       "open_items": [
-        "first cross-check disagrees with the canonical ranking on the top parameter (Kendall tau-b 0.667) — an open finding for human review, recorded in STACK.md"
+        "first cross-check disagrees with the canonical ranking on the top parameter (Kendall tau-b 0.667) \u2014 an open finding for human review, recorded in STACK.md"
       ]
     },
     {
@@ -205,8 +206,8 @@
       "since_stage": "stage10",
       "authority": "the finite-volume backends (thermal_1d / thermal_2d_axisymmetric / thermal_3d_transient) remain authoritative",
       "owner_module": "qta_multiphysics.stack.fem_fenicsx",
-      "optional_dependency": "dolfinx — environment-provided (conda-forge, spack, or the dolfinx container); deliberately not a wheel dependency",
-      "boundary": "no FEM result is canonical, comparable, or gate-relevant until every acceptance criterion passes on a real build",
+      "optional_dependency": "dolfinx \u2014 environment-provided (conda-forge, spack, or the dolfinx container); deliberately not a wheel dependency",
+      "boundary": "STAGED: dolfinx is not installed in any project environment and is not executed in canonical CI, so it certifies nothing. It is not an independent benchmark of any current result.",
       "verification": "snakemake --cores 1 verification/stage10/fem/fenicsx_acceptance.json",
       "open_items": [
         "dolfinx not installable as a wheel and not present in any project environment",
@@ -217,15 +218,16 @@
       "id": "rust-selective",
       "name": "Selective Rust kernels (PyO3)",
       "doc_key": "Selective Rust",
-      "status": "ADOPTED",
+      "status": "ADOPTED_ADMISSION_MECHANISM_ONLY",
       "since_stage": "stage10",
       "authority": "the NumPy references in qta_multiphysics/stack/rust_kernel.py; a Rust kernel is an accelerator, never a second source of truth",
       "owner_module": "qta_multiphysics.stack.rust_kernel",
-      "optional_dependency": "qta_kernels — built on demand from rust/qta_kernels, never installed by default",
-      "boundary": "a kernel is admitted only if it is bit-for-bit identical to the NumPy reference; the Rust path is off unless QTA_RUST_KERNELS=1 and parity passes at process start",
+      "optional_dependency": "qta_kernels \u2014 built on demand from rust/qta_kernels, never installed by default",
+      "boundary": "the bit-parity ADMISSION RULE is adopted, exercised and verified; the Rust BACKEND is not in force anywhere. No solver, gate or canonical output imports qta_kernels: default_backend is numpy, the extension is off unless QTA_RUST_KERNELS=1, and the crate is neither built into the container nor present in uv.lock. There is no active Rust scientific backend in this repository.",
       "verification": "snakemake --cores 1 verification/stage10/rust/rust_kernel_status.json",
       "open_items": [
-        "conductivity_power_law is REJECTED: Rust powf and NumPy ** differ by up to 2 ulp, so the NumPy path stays in force"
+        "conductivity_power_law is REJECTED: Rust powf and NumPy ** differ by up to 2 ulp, so the NumPy path stays in force",
+        "no scientific path consumes the Rust kernels; adoption refers to the admission mechanism, not to an accelerated backend in use"
       ]
     },
     {
@@ -234,7 +236,7 @@
       "doc_key": "FMI 3.0",
       "status": "DEFERRED",
       "since_stage": "stage10",
-      "authority": "none — no FMU exists",
+      "authority": "none \u2014 no FMU exists",
       "owner_module": "qta_multiphysics.stack.fmi_contract",
       "optional_dependency": null,
       "boundary": "an interface contract only; no binary is built, no FMI compliance is claimed, and the artifact is deliberately not named modelDescription.xml",

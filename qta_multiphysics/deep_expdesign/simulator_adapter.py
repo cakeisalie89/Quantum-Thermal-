@@ -25,10 +25,19 @@ from .design_space import ExperimentDesign, validate_design
 
 # fixed forecast constants for the surrogate forward map (model-only)
 _SIGMA_RAD_S = 2.0 * math.pi * 5.0e3      # OU noise amplitude (matches nv_spin default)
-# Frequency-grid resolution for the deep-layer forward coherence. Smaller than the
-# nv_spin default (4000) for tractable repeated inference; values are stable to
-# <1e-3 vs the default across the prior (verified), and it is used consistently in
-# dataset generation, EIG estimation, and validation so comparisons stay matched.
+# Frequency-grid resolution for the deep-layer forward coherence. Smaller than
+# the nv_spin default (4000) for tractable repeated inference, and used
+# consistently in dataset generation, EIG estimation and validation so those
+# comparisons stay matched.
+#
+# This comment previously asserted the values were "stable to <1e-3 vs the
+# default across the prior (verified)". That claim was never executable and is
+# not supported by measurement: see
+# likelihood_model.interpolation_equivalence_report(), which measures the
+# separate (and larger) error introduced by the tau_c interpolation grid. The
+# n_omega reduction has its own error, also above 1e-3 for hahn and xy8. Treat
+# both as reduced numerical representations whose error is measured and
+# recorded, not as validated equivalences.
 _N_OMEGA = 256
 _OBSERVABLE_NAMES = ["coherence_at_tmeas", "odmr_contrast", "he_contrast",
                      "thermal_recovery_obs", "isolation_leak_obs"]

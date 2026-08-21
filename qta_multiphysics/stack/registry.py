@@ -40,7 +40,14 @@ from .workspace import StrPath, repo_root
 
 REGISTRY_FILENAME = "stack.json"
 REGISTRY_SCHEMA_VERSION = "1.0.0"
-AdoptionStatus = Literal["ADOPTED", "STAGED", "DEFERRED"]
+#: ADOPTED_ADMISSION_MECHANISM_ONLY exists because "ADOPTED" was doing two
+#: jobs. Selective Rust was listed ADOPTED on the strength of its bit-parity
+#: admission rule being exercised and verified, which reads as an active Rust
+#: backend -- while rust_kernel.py's own status record says no solver imports
+#: the kernels. The governing rule and the tool it governs now have distinct
+#: adoption states.
+AdoptionStatus = Literal["ADOPTED", "ADOPTED_ADMISSION_MECHANISM_ONLY",
+                         "STAGED", "DEFERRED"]
 
 
 class _Strict(BaseModel):

@@ -114,3 +114,35 @@ root duplicates in favour of the attic copies, remove the 3 dead root module
 copies in favour of `qta_multiphysics/`, and remove the two `J` files — is
 offered for a separate, deliberate change. Until then they stay tracked and,
 correctly, hashed.
+
+## Repository-hygiene classification and recommended migration (§30)
+
+This section is a **recommendation**, not an action. Nothing listed here is
+deleted by the remediation that added this section: removal of tracked
+historical material is an owner decision, and the one record that claimed such
+a removal had already happened turned out to be false (see
+`authorities.json :: competing_sources_record`, field `withdrawn_claim`).
+Scientific and governance correctness came first; hygiene is deferred to
+authority.
+
+Every item below is byte-preserved in `final_manifest.json` today and would
+remain preserved under the recommendation, because each duplicate has an
+identical copy that stays.
+
+| Class | Items | Evidence | Recommendation |
+|---|---|---|---|
+| **Accidental root duplicate** | `units.py`, `verification.py`, `vibration_transfer.py` | SHA-256 identical to `qta_multiphysics/<same name>`; a repository-wide import scan finds **0** importers of the root copies; all imports are package-qualified | Delete the three root copies. Execution authority is already unambiguous, so this changes no behaviour. Requires owner authorization. |
+| **Duplicate historical archive** | 18 root-level `*.bundle`, `*.zip`, `*.tar.gz`, `*.patch` files (**18,101,197 bytes**) | Each is byte-identical to its counterpart under `attic/delivery_artifacts/`, verified by `cmp` for all 18 | Delete the **root** copies only; keep `attic/delivery_artifacts/`. The historical evidence survives intact at one canonical location. Requires owner authorization. |
+| **Intentional historical evidence** | everything under `attic/delivery_artifacts/` | `README.md` describes `attic/` as "not part of the governed project"; it is nonetheless fully hashed, by design | **Keep.** Do not delete. This is the preservation copy the row above depends on. |
+| **Accidental one-byte file** | `stage7_reports/J`, `stage8_reports/J` | each file is exactly one byte, a lone newline; no reader, no producer, no reference anywhere in the tree — consistent with a stray shell redirect | Delete. Requires owner authorization, but carries no evidentiary content. |
+| **Active source** | the remaining 15 root `*.py` entry points (`qta_full_sim.py`, `generate_manifest.py`, `package_consistency_check.py`, …) | imported or executed by the canonical pipeline, CI, or `container_verify.sh` | **Keep.** |
+
+Applying the first, second and fourth rows would remove 23 tracked files and
+about 18 MB, with **no** loss of preserved bytes and **no** change to execution
+authority or to any scientific result. It is not applied here.
+
+Note that `outputs/` is a regeneration target, not a mirror: a blind
+`cp outputs/* .` would overwrite the tracked `deep_surrogate_readiness.json`
+(status `TRAINED_NOT_TRUSTED`, produced by an opt-in `--deep` run) with the
+`NOT_IMPLEMENTED` stub written by an ordinary run, destroying a governed
+evidence record. Promote individual regenerated artifacts, never the directory.

@@ -662,7 +662,11 @@ def test_registry_statuses_match_what_the_code_reports():
     assert REGISTRY.by_id("fenicsx").status == FEM.ADOPTION_STATUS == "STAGED"
     assert REGISTRY.by_id("fmi").status == FMI.ADOPTION_STATUS == "DEFERRED"
     unadopted = {e.id for e in REGISTRY.elements if e.status != "ADOPTED"}
-    assert unadopted == {"slsa-sigstore", "fenicsx", "fmi"}
+    # rust-selective is ADOPTED_ADMISSION_MECHANISM_ONLY: the bit-parity rule
+    # is in force and verified, but no scientific path consumes the kernels.
+    assert unadopted == {"slsa-sigstore", "fenicsx", "fmi", "rust-selective"}
+    assert REGISTRY.by_id("rust-selective").status == \
+        "ADOPTED_ADMISSION_MECHANISM_ONLY"
 
 
 def test_stage10_owner_modules_are_importable():
@@ -696,3 +700,76 @@ def test_rust_open_item_matches_the_measured_verdict():
                 for k in RUST.status_report()["kernels"]}
     assert documented_rejection == (verdicts["conductivity_power_law"]
                                     is False)
+
+
+# ------------------- §27: adoption truthfulness + RAG completeness ----------
+#
+# STACK.md and stack.json both listed "Selective Rust | ADOPTED", which reads
+# as an active Rust backend, while rust_kernel.py's own status record says "no
+# solver imports these kernels yet". And the RAG corpus check asserted only
+# that two named files were present and that no excluded directory leaked in --
+# it verified neither direction of completeness, so governed evidence could
+# silently drop out of the index and unapproved material could silently gain
+# retrieval authority.
+
+def test_rust_is_not_presented_as_an_active_scientific_backend():
+    import json as _json
+    stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
+    rust = next(e for e in stack["elements"] if e["id"] == "rust-selective")
+    assert rust["status"] != "ADOPTED", \
+        "bare ADOPTED reads as an active Rust backend"
+    assert "admission" in rust["boundary"].lower()
+    assert "no active rust scientific backend" in rust["boundary"].lower()
+    md = (ROOT / "STACK.md").read_text(encoding="utf-8")
+    assert "no scientific path consumes Rust" in md
+
+
+def test_no_scientific_module_imports_the_rust_kernels():
+    """The claim above must stay true, not just be written down."""
+    import subprocess
+    r = subprocess.run(
+        ["git", "-C", str(ROOT), "grep", "-lE", r"^\s*import\s+qta_kernels",
+         "--", "*.py"],
+        capture_output=True, text=True)
+    importers = [f for f in r.stdout.split() if f]
+    assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
+        f"unexpected qta_kernels importers: {importers}"
+
+
+def test_fenicsx_is_not_presented_as_certifying_anything():
+    import json as _json
+    stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
+    fx = next(e for e in stack["elements"] if e["id"] == "fenicsx")
+    assert fx["status"] == "STAGED"
+    assert "certifies nothing" in fx["boundary"] or \
+        "not an independent benchmark" in fx["boundary"]
+
+
+def _governed_text_files():
+    import subprocess
+    out = subprocess.run(["git", "-C", str(ROOT), "ls-files"],
+                         capture_output=True, text=True, check=True).stdout
+    tracked = [f for f in out.split() if f.endswith((".md", ".txt"))]
+    return {f for f in tracked
+            if not any(part in RAG.EXCLUDED_DIRS
+                       for part in pathlib.Path(f).parts)}
+
+
+def test_rag_indexes_every_governed_document():
+    """expected governed evidence  subset-of  RAG index."""
+    missing = sorted(_governed_text_files() - set(RAG.corpus_files()))
+    assert not missing, f"governed documents absent from the RAG index: {missing}"
+
+
+def test_rag_indexes_nothing_beyond_governed_documents():
+    """RAG indexed entries  subset-of  allowed governed evidence.
+
+    corpus_files() walks the filesystem, so an untracked or unapproved
+    document would silently gain retrieval authority.
+    """
+    extra = sorted(set(RAG.corpus_files()) - _governed_text_files())
+    assert not extra, f"unapproved material in the RAG index: {extra}"
+
+
+def test_rag_corpus_completeness_is_exact_in_both_directions():
+    assert set(RAG.corpus_files()) == _governed_text_files()

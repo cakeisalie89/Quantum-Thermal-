@@ -23,6 +23,104 @@ def _context(trained, x_obs: np.ndarray, design: ExperimentDesign) -> np.ndarray
     return np.hstack([trained.std_x.transform(x_obs), dn])
 
 
+#: A surrogate may control experiment ordering or provide trusted posterior
+#: inference only when ALL of these hold. OOD detection existed but was only
+#: ever used to write a report; an ordinary posterior_query() consulted none of
+#: it, so an out-of-distribution query was answered by silent extrapolation and
+#: the answer looked exactly like an in-distribution one.
+TRUST_REQUIREMENTS = ("trained", "validation_ran", "thresholds_passed",
+                      "calibration_passed", "in_distribution")
+
+TRUSTED = "TRUSTED_SURROGATE"
+DENIED_OOD = "DENIED_OUT_OF_DISTRIBUTION"
+DENIED_NOT_READY = "DENIED_SURROGATE_NOT_READY"
+
+
+class SurrogateAuthorityDenied(RuntimeError):
+    """Trusted-surrogate authority was requested and refused."""
+
+
+def trust_state(trained, readiness: dict | None = None, *,
+                ood=None, context=None) -> dict:
+    """Evaluate every trust requirement for one inference context.
+
+    Returns a record rather than a bool so a denial says which requirement
+    failed. ``readiness`` is the deep-layer readiness record
+    (deep_surrogate_readiness.json); when it is absent nothing is assumed to
+    have passed -- absence is denial, not a default grant.
+    """
+    r = readiness or {}
+    checks = {
+        "trained": bool(r.get("trained", False)),
+        "validation_ran": bool(r.get("compared_against_direct_mc", False)),
+        "thresholds_passed": bool(r.get("thresholds_passed", False)),
+        "calibration_passed": bool((r.get("calibration") or {}).get("passed", False))
+        if isinstance(r.get("calibration"), dict) else False,
+        # Denied until an OOD model actually scores this context. Defaulting
+        # this to True would let a caller obtain trusted authority simply by
+        # not passing an OOD model, which is the bypass this gate exists to
+        # close: the check must RUN, not merely exist.
+        "in_distribution": False,
+    }
+    ood_detail = {"is_ood": None,
+                  "reason": "no OOD model was supplied, so distribution "
+                            "membership was never evaluated; trusted authority "
+                            "requires the check to run"}
+    if ood is not None and context is not None:
+        score = ood.score(context)
+        is_ood = bool(np.any(score["is_ood"]))
+        checks["in_distribution"] = not is_ood
+        ood_detail = {
+            "is_ood": is_ood,
+            "mahalanobis": [float(v) for v in np.atleast_1d(score["mahalanobis"])],
+            "maha_threshold": float(score["maha_threshold"]),
+            "in_box": [bool(v) for v in np.atleast_1d(score["in_box"])],
+        }
+    elif ood is not None or context is not None:
+        # Half a check is no check.
+        ood_detail = {"is_ood": None,
+                      "reason": "OOD model and query context must be supplied "
+                                "together; one without the other cannot decide "
+                                "distribution membership"}
+    failed = [k for k in TRUST_REQUIREMENTS if not checks[k]]
+    if not failed:
+        state = TRUSTED
+    elif failed == ["in_distribution"]:
+        state = DENIED_OOD
+    else:
+        state = DENIED_NOT_READY
+    return {"state": state, "trusted": not failed, "checks": checks,
+            "failed_requirements": failed, "ood": ood_detail,
+            "requirements": list(TRUST_REQUIREMENTS)}
+
+
+def trusted_posterior_query(trained, x_obs, design, *, readiness=None,
+                            ood=None, n_samples: int = 2000, seed: int = 0,
+                            fallback=None) -> dict:
+    """Posterior inference that may only be trusted when authority is granted.
+
+    On denial this does NOT extrapolate silently. It returns an explicit
+    denial state, and uses ``fallback`` (the direct Monte-Carlo estimator) when
+    one is supplied; otherwise it raises.
+    """
+    ctx = _context(trained, x_obs, design)
+    trust = trust_state(trained, readiness, ood=ood, context=ctx)
+    if trust["trusted"]:
+        out = posterior_query(trained, x_obs, design,
+                              n_samples=n_samples, seed=seed)
+        out["surrogate_authority"] = trust
+        return out
+    if fallback is not None:
+        out = dict(fallback(x_obs, design))
+        out["surrogate_authority"] = trust
+        out["estimator"] = "direct_monte_carlo_fallback"
+        return out
+    raise SurrogateAuthorityDenied(
+        f"{trust['state']}: failed {trust['failed_requirements']}; "
+        "no trusted posterior is available and no direct-MC fallback was "
+        "supplied")
+
+
 def posterior_query(trained, x_obs: np.ndarray, design: ExperimentDesign, *,
                     n_samples: int = 2000, seed: int = 0) -> dict:
     """Return posterior summary in natural units for one observation."""
@@ -51,6 +149,12 @@ def posterior_query(trained, x_obs: np.ndarray, design: ExperimentDesign, *,
         "n_samples": int(n_samples),
         "forecast_only": True,
         "measured_in_this_system": False,
+        "surrogate_authority": {
+            "state": "NOT_EVALUATED",
+            "note": "posterior_query is the raw sampling primitive and asserts "
+                    "no trust; call trusted_posterior_query() for an answer "
+                    "that is gated on readiness and distribution membership",
+        },
     }
 
 
