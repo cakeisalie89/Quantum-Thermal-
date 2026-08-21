@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "130272",
+   "contentSize": "131182",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -252,10 +252,10 @@
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "165195",
+   "contentSize": "168881",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "4c0107f7183d06d85c2104c0c7354a2b1be0f5f80884c8f2c31269b7b42e9da9"
+   "sha256": "c522b113cdbf23c0590d01746886b7c310a9fd2cc49da48e23d51da97ffd21cb"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
@@ -271,7 +271,7 @@
    "contentSize": "1992730",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "74bbe36f9cb78a91d78329d24f811de646612823ab07bfadbe943d7911965df2"
+   "sha256": "ec70ea7442834d790482c165daecee51396a45216e7bdb60f322c477703ab587"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "1890f3a12b851921fd792bb4be9bb29a428972901c02e169fc8c40187b02faf0"
+   "sha256": "2ea131ca10863f9825967fd48f238ce89ceae17a6005b4c0ceef134edc7cee59"
   },
   {
    "@id": "uv.lock",

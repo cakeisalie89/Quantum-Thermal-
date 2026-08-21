@@ -146,3 +146,38 @@ Note that `outputs/` is a regeneration target, not a mirror: a blind
 (status `TRAINED_NOT_TRUSTED`, produced by an opt-in `--deep` run) with the
 `NOT_IMPLEMENTED` stub written by an ordinary run, destroying a governed
 evidence record. Promote individual regenerated artifacts, never the directory.
+
+## Regeneration order (the derived chain is order-dependent)
+
+Several generators hash artifacts that earlier generators rewrite, so running
+them out of order produces a tree that is internally inconsistent even though
+every individual step reported success. Two orderings were got wrong during
+this remediation and both were caught by the checkers rather than by review:
+`generate_manifest.py` run before `validate_hdf5_equivalence.py` (which
+rewrites its own report), and `ro_crate_tools.py` run before a later source
+edit (leaving a stale `qta_full_sim.py` checksum in the crate).
+
+The correct order, after any change that affects a governed output or a
+hashed source file:
+
+```
+python qta_full_sim.py              # canonical outputs -> outputs/
+#   promote the changed artifacts from outputs/ to the repository root
+#   (individually — see the note above about outputs/ not being a mirror)
+python build_hdf5_mapping.py        # inventory + schema over the outputs
+python build_hdf5.py                # HDF5 artifact from the mapping
+python validate_hdf5_equivalence.py # rewrites stage8_reports/…report.json
+python ro_crate_tools.py            # crate hashes outputs AND sources
+python generate_manifest.py         # hashes everything above, so it is last
+```
+
+Then verify, in any order:
+
+```
+python generate_manifest.py --check
+python validate_hdf5_equivalence.py
+python ro_crate_tools.py validate
+```
+
+`container_verify.sh` runs all three verifiers, so a mis-ordered regeneration
+fails the container rather than shipping.

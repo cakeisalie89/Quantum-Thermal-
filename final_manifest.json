@@ -113,8 +113,8 @@
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 165195,
-      "sha256": "4c0107f7183d06d85c2104c0c7354a2b1be0f5f80884c8f2c31269b7b42e9da9",
+      "size_bytes": 168881,
+      "sha256": "c522b113cdbf23c0590d01746886b7c310a9fd2cc49da48e23d51da97ffd21cb",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
@@ -2410,14 +2410,14 @@
     {
       "filename": "qta_scientific_results.h5",
       "size_bytes": 1992730,
-      "sha256": "74bbe36f9cb78a91d78329d24f811de646612823ab07bfadbe943d7911965df2",
+      "sha256": "ec70ea7442834d790482c165daecee51396a45216e7bdb60f322c477703ab587",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "6b612c35e98d0538c587a14ecf7f156ebf527f7bbb36b2b5a5a0624590ff2b81",
+      "sha256": "5407305bacf45e6a66909cea9f831e332cd300f5689d72e866112bba3aab50cf",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2431,7 +2431,7 @@
     {
       "filename": "stage8_reports/hdf5_equivalence_report.json",
       "size_bytes": 503,
-      "sha256": "1890f3a12b851921fd792bb4be9bb29a428972901c02e169fc8c40187b02faf0",
+      "sha256": "2ea131ca10863f9825967fd48f238ce89ceae17a6005b4c0ceef134edc7cee59",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2850,8 +2850,8 @@
     },
     {
       "filename": "MANIFEST_BOUNDARY.md",
-      "size_bytes": 9780,
-      "sha256": "b12f8a16556eec975764ca27a554c1c9e9d35bf6dd54689a84ff5f37ad4f02e1",
+      "size_bytes": 11313,
+      "sha256": "10d2f88b627a2c25cf17245eeade612f74a74b1ec9252f317a8f42eb379a1587",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2943,6 +2943,13 @@
       "filename": "tests/test_parameter_semantics.py",
       "size_bytes": 6070,
       "sha256": "3756cc2c6e843298b0b5e8a9cd3dc4761b938f3b7946c6b51ceb8bd303dea993",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_h2_pressure_authority.py",
+      "size_bytes": 4658,
+      "sha256": "4e1283dddae72c4762ffb9adfe0e4f766b33258192fa6a0b997230bea4afbd41",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }
