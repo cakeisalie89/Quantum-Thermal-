@@ -45,3 +45,46 @@ In ceiling-bound sandboxes: staged complete regeneration + 88/88
 comparison + `--verify-existing` = the operational baseline. The
 monolithic command is mandatory release verification whenever an
 adequate uninterrupted window or unrestricted environment is available.
+
+## package_consistency_check.py's 300 s subprocess budget — UNRESOLVED ENVIRONMENTAL VERIFICATION
+
+`package_consistency_check.py:155` runs `qta_full_sim.py` as a subprocess with
+`timeout=300`. On the machine used for this remediation that subprocess does
+not finish, so the checker raises `subprocess.TimeoutExpired` and exits
+non-zero.
+
+**Measured evidence.**
+
+| Quantity | Value |
+|---|---|
+| `qta_full_sim.py` wall time, this machine | **323 s** |
+| Checker budget | 300 s |
+| Overrun | 23 s (7.7%) |
+| Machine | 4 × Intel Xeon @ 2.80 GHz, container |
+| Runtime recovered by removing the dead Mode-C solve (§7) | **0.037 s** |
+
+**Classification: UNRESOLVED ENVIRONMENTAL VERIFICATION. Not a PASS, and not
+a branch regression.**
+
+- It is **not** caused by this branch. The same timeout occurs on a pristine
+  `origin/main` worktree, checked directly.
+- It is **not** meaningfully attributable to the dead Mode-C solve removed in
+  §7. That solve cost 0.037 s — 0.01% of the run, and 0.16% of the overrun.
+  §7 said the budget could be reconsidered only after obvious waste was
+  removed; the waste was removed and it was negligible, so the budget question
+  is untouched by it.
+- The budget has **not** been raised. A 7.7% overrun on one slower machine is
+  evidence that this container is below the budget's assumed speed, not
+  evidence that the budget is wrong. Raising a timeout so a check goes green in
+  the environment that happens to be running it is exactly the change this
+  project's rules forbid without owner authority.
+
+**What would resolve it:** either a run on hardware where the canonical
+generator completes inside 300 s (which would confirm the budget is adequate
+and this environment is simply slow), or an owner decision to widen the budget
+with a stated target machine. Neither is available here.
+
+Every other governed checker passes in this environment: `pytest tests/`
+(449/449), `manuscript_consistency_check.py`, `stage6_preservation_check.py`,
+`generate_manifest.py --check`, `validate_hdf5_equivalence.py`, and
+`ro_crate_tools.py validate`.
