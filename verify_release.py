@@ -55,6 +55,73 @@ def ok(msg: str) -> None:
     print(f"  [ok] {msg}")
 
 
+
+def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
+                     sig: list) -> None:
+    """Real Sigstore verification against the pinned identity and issuer.
+
+    This used to be an unconditional failure: a genuinely signed release could
+    never pass --online, because the SIGNED branch called fail_list() with
+    "tooling unavailable" regardless of whether the tooling was there. That
+    made the online gate untestable and meaningless.
+
+    Fail-closed order matters here. The policy is checked BEFORE the signature,
+    so a bundle signed by anyone at all cannot pass while the identity pins are
+    still PENDING; and a missing sigstore library is reported as a blocker, not
+    silently treated as success.
+    """
+    policy = json.loads((bundle / "release_trust_policy.json").read_text())
+    identity = str(policy.get("signer_identity", ""))
+    issuer = str(policy.get("oidc_issuer", ""))
+    for field, value in (("signer_identity", identity), ("oidc_issuer", issuer)):
+        if not value or value.startswith("PENDING") or "*" in value:
+            fail_list(problems,
+                      f"trust policy {field}={value!r} is not an exact pin; "
+                      "no signature can be trusted until it is")
+    if problems:
+        return
+
+    try:
+        from sigstore.verify import Verifier
+        from sigstore.verify.policy import Identity
+        from sigstore.models import Bundle
+    except ImportError as e:
+        fail_list(problems,
+                  f"sigstore verification requested but the library is not "
+                  f"importable ({e.name}); absence of tooling is never "
+                  "success -- install 'sigstore' in the verifying environment")
+        return
+
+    verifier = Verifier.production()
+    pol = Identity(identity=identity, issuer=issuer)
+    checked = 0
+    for entry in sig:
+        name = entry.get("name") if isinstance(entry, dict) else str(entry)
+        bundle_path = bundle / str(entry.get("bundle", name)) \
+            if isinstance(entry, dict) else bundle / name
+        if not bundle_path.exists():
+            fail_list(problems, f"signature bundle missing: {bundle_path.name}")
+            continue
+        target = zip_path if (name or "").endswith(zip_path.name) else bundle / name
+        if not target.exists():
+            fail_list(problems, f"signed subject missing: {name}")
+            continue
+        try:
+            b = Bundle.from_json(bundle_path.read_bytes())
+            with open(target, "rb") as fh:
+                verifier.verify_artifact(fh.read(), b, pol)
+            checked += 1
+        except Exception as e:                        # noqa: BLE001
+            fail_list(problems,
+                      f"Sigstore verification FAILED for {name}: "
+                      f"{type(e).__name__}: {e}")
+    if checked and not problems:
+        ok(f"Sigstore: {checked} signature(s) verified against pinned "
+           f"identity {identity!r} / issuer {issuer!r}")
+    elif not checked and not problems:
+        fail_list(problems, "no signature bundle could be verified")
+
+
 def verify(zip_path: Path, bundle: Path, online: bool) -> int:
     problems: list = []
     idx = json.loads((bundle / "release_index.json").read_text())
@@ -191,8 +258,7 @@ def verify(zip_path: Path, bundle: Path, online: bool) -> int:
                                  "real signature exists (status="
                                  f"{status}); absence is never success")
         else:
-            fail_list(problems, "online signature verification tooling "
-                                 "unavailable in this environment")
+            _verify_sigstore(problems, zip_path, bundle, idx, sig)
     else:
         if status == "PENDING":
             ok("signing status honestly PENDING (blockers recorded; no "
