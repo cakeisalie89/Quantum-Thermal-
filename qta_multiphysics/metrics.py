@@ -10,6 +10,7 @@ gated behind an already-blocked prerequisite (Mode D sensing / full cycle) are
 BLOCKED.
 """
 from __future__ import annotations
+from .config import default_config
 
 
 def _g(gid, name, mode, eq, computed, thresh, status, reason, fix, unit=""):
@@ -17,9 +18,17 @@ def _g(gid, name, mode, eq, computed, thresh, status, reason, fix, unit=""):
                 thresh=thresh, status=status, reason=reason, fix=fix, unit=unit)
 
 
+#: Mode-D NV-layer readiness threshold [K]. DERIVED, not redefined:
+#: authorities.json registers config.SolverConfig as the authority for solver
+#: profiles and tolerances. This module previously carried its own literal
+#: 0.050, so a change to the registered authority would have left the gate
+#: table silently disagreeing with the solver.
+MODE_D_TEMP_THRESHOLD_K = default_config().solver.mode_d_temp_threshold_K
+
+
 def build_gate_specs(cm, vs, mc, future3d_status):
     """cm: coupled metrics; vs: verification summary; mc: MC summary."""
-    th = 0.050  # Mode D NV-layer temperature threshold [K]
+    th = MODE_D_TEMP_THRESHOLD_K
     specs = []
 
     # ----- numerical / structural DERIVED_CHECK gates -----

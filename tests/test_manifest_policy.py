@@ -270,3 +270,78 @@ def test_manifest_change_did_not_touch_scientific_state():
     state = json.loads(MANIFEST.read_text())["canonical_state"]
     assert state["PASS"] == 0
     assert state["total_gates"] == 83
+
+
+# ------------- §12: semantic verification, distinct from byte coverage -------
+#
+# --check used to verify only that the listed bytes were the actual bytes. The
+# manifest's narrative fields (gate counts, PASS count) were preserved verbatim
+# with a stderr warning on mismatch, so a stale count could survive every
+# regeneration and every check. A warning is not verification.
+
+def _seed_gate_table(repo, statuses):
+    """Write a results_gate_table.csv the generator can derive counts from."""
+    lines = ["gid,status"]
+    lines += [f"G{i},{s}" for i, s in enumerate(statuses)]
+    (repo / "results_gate_table.csv").write_text("\n".join(lines) + "\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "gates")
+
+
+def test_generator_derives_gate_counts_from_the_gate_table(fixture_repo):
+    _seed_gate_table(fixture_repo, ["CONDITIONAL"] * 3 + ["BLOCKED"] * 2)
+    assert _run_generator(fixture_repo).returncode == 0
+    state = json.loads((fixture_repo / "final_manifest.json").read_text())["canonical_state"]
+    assert state["total_gates"] == 5
+    assert state["CONDITIONAL"] == 3
+    assert state["BLOCKED"] == 2
+    assert state["PASS"] == 0
+
+
+def test_check_fails_on_semantic_drift_not_just_bytes(fixture_repo):
+    """The exact hole: bytes all correct, narrative silently stale."""
+    _seed_gate_table(fixture_repo, ["CONDITIONAL"] * 3 + ["BLOCKED"] * 2)
+    _run_generator(fixture_repo)
+    doc = json.loads((fixture_repo / "final_manifest.json").read_text())
+    doc["canonical_state"]["BLOCKED"] = 99
+    (fixture_repo / "final_manifest.json").write_text(
+        json.dumps(doc, indent=2, ensure_ascii=True))
+    digest = hashlib.sha256(
+        (fixture_repo / "final_manifest.json").read_bytes()).hexdigest()
+    (fixture_repo / "manifest_hash.txt").write_text(f"sha256: {digest}\n")
+    result = _run_generator(fixture_repo, "--check")
+    assert result.returncode == 1, "semantic drift passed --check"
+    assert "canonical_state.BLOCKED" in result.stderr
+
+
+def test_check_rejects_a_pass_row(fixture_repo):
+    """PASS is 0 by design; a PASS row must fail the manifest check outright."""
+    _seed_gate_table(fixture_repo, ["CONDITIONAL", "PASS"])
+    _run_generator(fixture_repo)
+    result = _run_generator(fixture_repo, "--check")
+    assert result.returncode == 1
+    assert "PASS" in result.stderr
+
+
+def test_documented_ordering_policy_matches_the_generator(fixture_repo):
+    """Existing order preserved, new tracked files appended sorted."""
+    _run_generator(fixture_repo)
+    first = _listed(fixture_repo)
+    (fixture_repo / "aaa_new.py").write_text("new\n")
+    (fixture_repo / "zzz_new.py").write_text("new\n")
+    _git(fixture_repo, "add", "-A")
+    _git(fixture_repo, "commit", "-qm", "add two")
+    _run_generator(fixture_repo)
+    second = _listed(fixture_repo)
+    assert second[:len(first)] == first, "existing entries were reordered"
+    assert second[len(first):] == ["aaa_new.py", "zzz_new.py"], \
+        "new entries were not appended in sorted order"
+    assert second != sorted(second), \
+        "the list is not globally sorted; the docstring must not claim it is"
+
+
+def test_generator_docstring_does_not_claim_a_sorted_file_list():
+    src = GENERATOR.read_text(encoding="utf-8")
+    head = src.split('"""')[1]
+    assert "the file list is sorted" not in head, \
+        "module docstring restates the withdrawn sorted-list claim"

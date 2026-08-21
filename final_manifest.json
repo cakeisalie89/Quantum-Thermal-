@@ -638,8 +638,8 @@
     },
     {
       "filename": "qta_multiphysics/metrics.py",
-      "size_bytes": 11275,
-      "sha256": "c6914cb3af327c509b617f45e5ef898607ac9bc6976f304ed6c3132a780de4ae",
+      "size_bytes": 11702,
+      "sha256": "67a17beddcda2d297446d587d299b627d5ad6a077c414639ada5347259e7e1b2",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -827,8 +827,8 @@
     },
     {
       "filename": "generate_manifest.py",
-      "size_bytes": 11272,
-      "sha256": "7088efc78bc5bacc0d0f68693947c1d6ee7c9a5ff05e361dc533b311d62bc9ce",
+      "size_bytes": 13887,
+      "sha256": "ddc4a28dc2896552ca220c0bb9a0fb8528750615ebfecc8ea691164cb22faf92",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "deterministic manifest regenerator"
     },
@@ -1919,8 +1919,8 @@
     },
     {
       "filename": "authorities.json",
-      "size_bytes": 12676,
-      "sha256": "f398675dc4c8e219eb60cb189ebee66e438b1b8fc2037e016a14311f157d0b8b",
+      "size_bytes": 14067,
+      "sha256": "6ac006fc9b796f8cd7483a97b94c33b24d451b937b0fa8a43458a7e362237bc8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2857,8 +2857,8 @@
     },
     {
       "filename": "tests/test_manifest_policy.py",
-      "size_bytes": 10807,
-      "sha256": "599ae927123d202a723ec89e117bdd9f61b35ae611a03cbb830511a7f4d5c4bf",
+      "size_bytes": 14201,
+      "sha256": "8c8ad18a290951788633c381d4bf5107ffb35c34ba0d9dec1c7dfd4b249170ac",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2887,6 +2887,13 @@
       "filename": "tests/test_radiation_contract.py",
       "size_bytes": 6880,
       "sha256": "5921929f47ec5b5e20a0cf7d0487a1dae1fffdfea78bd93c4d48c799b2308349",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_authority_consistency.py",
+      "size_bytes": 8053,
+      "sha256": "5e08f5b64adc8e486c8d48f22301273643edcc757c13ba49d65c11c3dbbbe1db",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }
