@@ -220,15 +220,11 @@ def eng_note(key: str, physics_value: str = "") -> str:
 # information. They are named here instead, and every consumer references a
 # name rather than a literal. No value changes.
 #
-# UNRESOLVED, REQUIRES OWNER AUTHORITY: the surface-coverage forecast (gate B4)
-# uses the literature ASSUMED nominal 5e-12 Pa, while the chamber-state path
-# (gate E-series narrative) uses the modelled bakeout+NEG value 1e-12 Pa, for
-# the same physical quantity feeding two governed forecasts. The Monte-Carlo
-# sampling range 5e-13..2e-12 Pa also EXCLUDES the registry's own 5e-12
-# nominal. Which of these is authoritative for the coverage forecast is a
-# scientific decision this repository has no basis to make; it is recorded as
-# unresolved and nothing here silently picks one. See
-# H2_PRESSURE_AUTHORITY_UNRESOLVED below.
+# AUTHORITY: RESOLVED BY OWNER DECISION. Gate B4's surface-coverage forecast
+# uses the literature/design assumption (5e-12 Pa) and the chamber-state model
+# uses its own modelled pressures. These are DIFFERENT QUANTITIES, not rival
+# estimates of one quantity, so both stand and neither is collapsed into the
+# other. See H2_PRESSURE_AUTHORITY below.
 
 #: Chamber state BEFORE bakeout. Modelled state, not a target.
 P_H2_PRE_BAKEOUT_PA = 1e-10
@@ -236,8 +232,10 @@ P_H2_PRE_BAKEOUT_PA = 1e-10
 P_H2_POST_BAKEOUT_NEG_PA = 1e-12
 #: Chamber state after bakeout only (no NEG). Modelled state.
 P_H2_POST_BAKEOUT_ONLY_PA = 2e-12
-#: Literature-anchored ASSUMED nominal for post-bakeout H2
-#: (CERN Outgassing 2020). An assumption, not a modelled chamber state.
+#: Literature-anchored design assumption used SPECIFICALLY for the gate-B4
+#: surface-coverage forecast (CERN Outgassing 2020). An assumption, not a
+#: modelled chamber state, and deliberately not the same quantity as
+#: P_H2_POST_BAKEOUT_NEG_PA.
 P_H2_POST_BAKEOUT_ASSUMED_PA = 5e-12
 #: Acceptance criterion for the bakeout procedure. A design TARGET.
 P_H2_ACCEPTANCE_TARGET_PA = 2e-12
@@ -245,59 +243,74 @@ P_H2_ACCEPTANCE_TARGET_PA = 2e-12
 #: (sensing-surface P ~100x pump-port P). A measurement threshold, and the
 #: only one of these that a real instrument would ever be compared against.
 P_H2_RGA_VALIDATION_THRESHOLD_PA = 2e-14
-#: Monte-Carlo sampling range for post-bake+NEG H2 pressure.
-P_H2_MC_RANGE_PA = (5e-13, 2e-12)
 
-def _h2_nominal_in_mc_range() -> bool:
-    """Is the registered ASSUMED nominal inside the Monte-Carlo range?
+#: Monte-Carlo sampling range for the MODELLED BAKEOUT+NEG chamber pressure.
+#:
+#: This belongs to P_H2_POST_BAKEOUT_NEG_PA, not to the gate-B4 assumption.
+#: The repository establishes that by three independent means: the sampler's
+#: own comment ("P_H2 post-bake+NEG (range)"), the enclosing run_mode_D_MC
+#: docstring ("post-bakeout chamber state"), and the bounds themselves --
+#: sqrt(5e-13 * 2e-12) = 1.000000e-12 Pa exactly, i.e. a geometric factor-of-2
+#: band centred on P_H2_POST_BAKEOUT_NEG_PA (lo = nominal/2, hi = nominal*2).
+#: Bounds are unchanged; only the name now says which nominal they surround.
+#: It was previously called P_H2_MC_RANGE_PA, which invited exactly the
+#: mistake of reading it as uncertainty around the B4 assumption.
+P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA = (5e-13, 2e-12)
 
-    Structural check only. It does NOT choose an authority and does NOT widen
-    the range: it reports whether the sampler explores the nominal it is
-    nominally sampling around. Today it does not (5e-12 Pa lies above the
-    5e-13..2e-12 Pa range), and that condition is surfaced rather than hidden.
+
+def _mc_range_brackets_its_nominal() -> bool:
+    """Does the MC range actually bracket the nominal it describes?
+
+    An uncertainty interval that excludes its own nominal is not an
+    uncertainty interval. This checks the CORRECT pairing (the modelled
+    bakeout+NEG pressure). It deliberately does not compare against the B4
+    assumption: that is a different quantity, and comparing them was the
+    error this naming fixes.
     """
-    lo, hi = P_H2_MC_RANGE_PA
-    return lo <= P_H2_POST_BAKEOUT_ASSUMED_PA <= hi
+    lo, hi = P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA
+    return lo <= P_H2_POST_BAKEOUT_NEG_PA <= hi
 
 
-H2_PRESSURE_AUTHORITY_UNRESOLVED = {
-    "concept": "post-bakeout residual H2 partial pressure",
-    "status": "UNRESOLVED_REQUIRES_OWNER_AUTHORITY",
-    "competing_values_Pa": {
-        "modelled bakeout+NEG chamber state": P_H2_POST_BAKEOUT_NEG_PA,
-        "modelled bakeout-only chamber state": P_H2_POST_BAKEOUT_ONLY_PA,
-        "literature ASSUMED nominal (CERN Outgassing 2020)":
+H2_PRESSURE_AUTHORITY = {
+    "concept": "residual H2 partial pressure -- several distinct quantities",
+    "status": "RESOLVED_BY_OWNER_DECISION",
+    "decision": "Gate B4's coverage forecast uses the literature/design "
+                "assumption P_H2_POST_BAKEOUT_ASSUMED_PA = 5e-12 Pa. The "
+                "modelled chamber states keep their own values. These are "
+                "distinct quantities with distinct semantic roles; they are "
+                "NOT rival estimates of one number and must not be collapsed.",
+    "quantities_Pa": {
+        "pre-bakeout modelled chamber state": P_H2_PRE_BAKEOUT_PA,
+        "post-bakeout+NEG modelled chamber state": P_H2_POST_BAKEOUT_NEG_PA,
+        "post-bakeout-only modelled chamber state": P_H2_POST_BAKEOUT_ONLY_PA,
+        "B4 literature/design assumption (CERN Outgassing 2020)":
             P_H2_POST_BAKEOUT_ASSUMED_PA,
+        "bakeout acceptance target": P_H2_ACCEPTANCE_TARGET_PA,
+        "RGA validation threshold (pump port, FC-corrected)":
+            P_H2_RGA_VALIDATION_THRESHOLD_PA,
     },
-    "conflict": "gate B4 (H2 residual coverage) forecasts from the literature "
-                "ASSUMED 5e-12 Pa while the chamber-state narrative uses the "
-                "modelled 1e-12 Pa for the same quantity; the Monte-Carlo "
-                "range 5e-13..2e-12 Pa excludes the 5e-12 nominal entirely",
-    "what_would_resolve_it": "an owner decision on which quantity is "
-                             "authoritative for the surface-coverage "
-                             "forecast, "
-                             "or a measured P_H2 (gate E04 / RGA), which does "
-                             "not exist -- RGA has not been performed",
-    "not_resolved_by": "picking the most frequent literal, the smallest "
-                       "value, "
-                       "or the most conservative one",
-    "mc_range_Pa": list(P_H2_MC_RANGE_PA),
-    "assumed_nominal_Pa": P_H2_POST_BAKEOUT_ASSUMED_PA,
-    # filled in below by _h2_nominal_in_mc_range()
-    "nominal_inside_mc_range": None,
+    "shared_values_are_not_shared_meanings":
+        "P_H2_POST_BAKEOUT_ONLY_PA and P_H2_ACCEPTANCE_TARGET_PA are both "
+        "2e-12 Pa. They remain separate names because one is a modelled state "
+        "and the other is a procedure acceptance criterion; a change to either "
+        "must not silently move the other.",
+    "mc_range_Pa": list(P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA),
+    "mc_range_describes": "P_H2_POST_BAKEOUT_NEG_PA",
+    "mc_range_brackets_its_nominal": None,   # filled in below
+    "still_unmeasured": "no measured P_H2 exists; RGA has not been performed "
+                        "(gate E04 UNKNOWN, Mode D hard-interlocked via "
+                        "IL-05). Every value here remains MODEL_ONLY / "
+                        "FORECAST_ONLY and none is a measurement.",
     "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
 }
-H2_PRESSURE_AUTHORITY_UNRESOLVED["nominal_inside_mc_range"] = \
-    _h2_nominal_in_mc_range()
-if not H2_PRESSURE_AUTHORITY_UNRESOLVED["nominal_inside_mc_range"]:
-    H2_PRESSURE_AUTHORITY_UNRESOLVED["structural_inconsistency"] = (
-        f"the Monte-Carlo range {P_H2_MC_RANGE_PA[0]:.0e}..."
-        f"{P_H2_MC_RANGE_PA[1]:.0e} Pa does not contain the registered "
-        f"ASSUMED "
-        f"nominal {P_H2_POST_BAKEOUT_ASSUMED_PA:.0e} Pa, so the sampler never "
-        "explores the value the parameter registry records. Surfaced, not "
-        "resolved: widening the range or moving the nominal is a scientific "
-        "decision requiring owner authority.")
+H2_PRESSURE_AUTHORITY["mc_range_brackets_its_nominal"] = \
+    _mc_range_brackets_its_nominal()
+if not H2_PRESSURE_AUTHORITY["mc_range_brackets_its_nominal"]:
+    raise AssertionError(
+        "P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA does not bracket "
+        f"P_H2_POST_BAKEOUT_NEG_PA ({P_H2_POST_BAKEOUT_NEG_PA:.0e} Pa); an "
+        "uncertainty range that excludes its own nominal is not an "
+        "uncertainty range")
 
 
 PARAM_REGISTRY=[
@@ -1404,7 +1417,8 @@ def run_mode_D_MC(N=10000, seed=42):
 
     for _ in range(N):
         # Sample parameters (post-bakeout state)
-        P_H2_s= rng.uniform(*P_H2_MC_RANGE_PA)  # P_H2 post-bake+NEG (range)
+        # modelled bakeout+NEG chamber pressure, not the B4 assumption
+        P_H2_s= rng.uniform(*P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA)
         Ge    = rng.uniform(5e-6,  3e-5)       # G_eff (Kapitza ±50%)
         Cc_   = rng.uniform(0.05,  0.20)       # C_contr (UNKNOWN at 10mK; sampled)
         T2s_  = rng.uniform(5e-6,  20e-6)      # T2* (ASSUMED range)

@@ -113,8 +113,8 @@
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 170270,
-      "sha256": "4c1a17c53edf297dcd6eb2c3fa52648bbdf3d609fb14d6f53851eb19984a1970",
+      "size_bytes": 171091,
+      "sha256": "85bc700500415757f39609aab942afec8467340df0b967a5a921890d2da14a67",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
@@ -2410,14 +2410,14 @@
     {
       "filename": "qta_scientific_results.h5",
       "size_bytes": 1993036,
-      "sha256": "59bfdb1d9df1838baf1260a7338179756e72e9f70d95a2d3dee6ccb558fd101d",
+      "sha256": "b9579670ed33a2e8f389c50e2c72c98fb0131e1bcf251430230358e96f0a39c2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "b3629963126916258afd5717bd0c1a3dd19f777c68bd0ecd918523d4dfef15cc",
+      "sha256": "6a28bd9635e12bf9163ef6651cdc95d2e22b472c95e7fcdf5c0bb86a7501707f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2431,7 +2431,7 @@
     {
       "filename": "stage8_reports/hdf5_equivalence_report.json",
       "size_bytes": 503,
-      "sha256": "da8cbfa97fc9ef2161c83435eaad5a3a3a48f072ff1798d55d67dfcd59e83f7d",
+      "sha256": "fba153fbee70e53df526a33fd7af72d7da322737d7d1c498c6eea01594a29c96",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2794,8 +2794,8 @@
     },
     {
       "filename": "tests/test_h2_pressure_authority.py",
-      "size_bytes": 4658,
-      "sha256": "4e1283dddae72c4762ffb9adfe0e4f766b33258192fa6a0b997230bea4afbd41",
+      "size_bytes": 8780,
+      "sha256": "6da6d9f78305d6ac753c48fbef1a27627a95cf58badce58d9b5983fd4c6b64a9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
