@@ -18,22 +18,27 @@ These compare like-for-like reduced geometries only:
   attribution was wrong: the two runs were different boundary-value problems,
   and the 2D lateral heat sink dominated the comparison.
 
-  Measured, at the CI resolution and the pulse window:
-      2D cold radial contact (as previously run): T2 = 13.714009 K,
-          rel vs 3D = +1.18e-03  -- reads as excellent agreement
-      2D adiabatic lateral (matched to 3D):       T2 = 29.201137 K,
-          rel vs 3D = -5.30e-01  -- 53% disagreement
-  The small number came from mismatched boundary physics, not from dimensional
-  consistency. Geometry does not explain the matched-case gap either: with
-  Cp ~ T^3 the internal energy goes as T^4, so the box/disc volume ratio 4/pi
-  predicts only ~6% in temperature, not 113%.
+  A first attempt to match them used ``disable_radial=True``, which was wrong:
+  that flag removes radial transport THROUGHOUT the 2D domain, turning it into
+  a stack of independent 1D columns (it reproduces the 1D solver to 0.7%). It
+  is a 1D-reduction fixture, not an adiabatic wall, and comparing a full 3D
+  solve against it produced a spurious 53% "disagreement" that was recorded as
+  a falsified model condition. That was an artifact of the fixture.
 
-  So the matched-boundary comparison is now the reduction check, and it reports
-  CONDITIONAL. The mismatched comparison is still computed and reported
-  alongside it, explicitly labelled as comparing different boundary physics and
-  therefore NOT an equivalence statement. Nothing is tuned to force agreement;
-  the honest result is that the 3D and 2D backends do not currently agree
-  within tolerance once they are asked the same question.
+  The 2D backend now has a real ``lateral_adiabatic`` option that keeps
+  interior radial conduction active and applies zero normal flux at r=R only.
+  With it, the two backends are asked the same question and they agree:
+
+      2D cold radial contact (production BC):  rel vs 3D = +1.18e-03
+        -- small, but a comparison between DIFFERENT boundary-value problems
+      2D lateral_adiabatic (matched to 3D):    rel vs 3D = -1.6e-02 at CI
+        meshes, -8.0e-03 at refined meshes
+
+  The matched residual HALVES under refinement, which is the signature of
+  agreement limited by discretization rather than a model inconsistency. The
+  mismatched comparison is still reported alongside, explicitly labelled as not
+  an equivalence statement; it must not be presented as the stronger evidence
+  merely because its number is smaller.
 
 A failed tolerance is a numerical-consistency statement about reduced models,
 not a physical result; statuses are DERIVED_CHECK / CONDITIONAL only.
@@ -93,10 +98,11 @@ def reduction_3d_to_2d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     # the like-for-like counterpart of the 3D beam-axis probe.
 
     # PRIMARY: same boundary-value problem on both sides. The 3D box has
-    # adiabatic lateral faces, so the 2D disc must too; disable_radial=True is
-    # a REDUCTION-FIXTURE condition and is used nowhere else.
+    # adiabatic lateral faces, so the 2D disc uses lateral_adiabatic -- zero
+    # normal flux at r=R with interior radial conduction retained. NOT
+    # disable_radial, which would remove radial transport everywhere.
     r2m = solve_thermal_2d(cfg, source_mode="averaged", t_end=t_end,
-                           n_r=24, n_z=32, n_eval=n_eval, disable_radial=True)
+                           n_r=24, n_z=32, n_eval=n_eval, lateral_adiabatic=True)
     T2m = float(r2m.nv_layer_max_K())
     rel_m = (T3 - T2m) / max(abs(T2m), 1e-30)
 
@@ -119,8 +125,9 @@ def reduction_3d_to_2d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
                   "is reported separately below, never as equivalence.",
         "boundary_conditions_matched": True,
         "lateral_bc_3d": "adiabatic (BoundarySpec3D, enforced)",
-        "lateral_bc_2d_in_this_check": "adiabatic (disable_radial=True, "
-                                       "reduction fixture only)",
+        "lateral_bc_2d_in_this_check": "adiabatic at r=R (lateral_adiabatic="
+                                       "True; interior radial conduction "
+                                       "retained; reduction fixture only)",
         "T_nv_3d_K": float(T3), "T_nv_2d_K": T2m,
         "rel_error": float(rel_m), "tolerance": TOL_3D_TO_2D,
         "within_tolerance": bool(abs(rel_m) < TOL_3D_TO_2D),
@@ -136,10 +143,12 @@ def reduction_3d_to_2d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
             "rel_error": float(rel_p),
             "solver_status_2d": r2p.solver_status,
         },
-        "geometry_note": "the box/disc volume ratio is 4/pi; with Cp ~ T^3 the "
-                         "internal energy goes as T^4, so geometry alone "
-                         "accounts for ~6% in temperature and does not explain "
-                         "the matched-boundary gap",
+        "geometry_note": "box/disc volume ratio is 4/pi; with Cp ~ T^3 the "
+                         "internal energy goes as T^4, so full lateral "
+                         "equilibration would give ~6% in temperature. The "
+                         "beam is well inside the domain (R/w0 = 8), so the "
+                         "peak stays beam-local and the observed matched "
+                         "residual is far smaller than that bound.",
         "solver_status_3d": r3.solver_status, "solver_status_2d": r2m.solver_status,
         "label": LABEL,
     }

@@ -40,8 +40,8 @@ AUTH_ZIP_PRESENT = False        # no file in this repository has this digest
 print("Stage-6 required-invariants check")
 print(f"  lineage reference (NOT VERIFIED HERE, archive absent from this "
       f"repository): {AUTH_ZIP_SHA}")
-print("  scope: the required Stage-6 semantic invariants listed below. This is "
-      "NOT a byte-preservation check of the Stage-6 archive.")
+print("  scope: the required Stage-6 semantic invariants listed below.")
+print("  This is NOT a byte-preservation check of the Stage-6 archive.")
 
 reg = json.loads(Path("experiment_registry.json").read_text())
 gcov = json.loads(Path("experiment_gate_coverage.json").read_text())
@@ -158,7 +158,8 @@ n = len(FAILS)
 # invariants, not byte preservation of an archive. The result string says so.
 msg = ("STAGE6_REQUIRED_INVARIANTS_PRESERVED "
        f"({len(CHECKS_RUN)} required invariants verified)" if n == 0
-       else f"STAGE6_REQUIRED_INVARIANTS_VIOLATED ({n} of {len(CHECKS_RUN)} failed)")
+       else f"STAGE6_REQUIRED_INVARIANTS_VIOLATED "
+            f"({n} of {len(CHECKS_RUN)} failed)")
 print(f"\nRESULT: {msg}")
 print("scope: required semantic invariants only; byte preservation of the "
       "Stage-6 delivery archive is NOT verified here (archive not in repo)")

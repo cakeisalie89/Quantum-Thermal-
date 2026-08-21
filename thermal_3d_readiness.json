@@ -2,7 +2,7 @@
   "layer": "thermal_3d_transient + coupled forecast channels",
   "status": "FORECAST_ONLY_IMPLEMENTED",
   "resolution_tier": "REDUCED_CI",
-  "all_numerical_checks_within_declared_tolerances": false,
+  "all_numerical_checks_within_declared_tolerances": true,
   "mode_sequence_status": "MODE_D_STARTED_AFTER_RECOVERY",
   "mode_c_recovery_time_s": 0.008333333333333333,
   "mode_d_hold_probe_K": 0.02382101594207912,
@@ -105,7 +105,7 @@
   },
   "falsification": {
     "n_conditions": 13,
-    "n_falsified_in_model": 1,
+    "n_falsified_in_model": 0,
     "n_not_implemented_bounds": 2
   },
   "convergence": {

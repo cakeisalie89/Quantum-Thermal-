@@ -19,7 +19,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from qta_multiphysics.hardware_governance_3d import (       # noqa: E402
     schema_validate_hardware, full_deficiencies, validate_review_record,
-    compute_record_sha256, canonical_record_bytes,
+    compute_record_sha256,
     build_quarantine_report, build_evidence_dossier, append_audit,
     verify_audit_chain, governance_summary, plan_registry,
     AUTOMATIC_GATE_EFFECT, REPS_UNKNOWN, CUSTODY_CAVEAT)

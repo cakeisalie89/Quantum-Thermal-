@@ -34,7 +34,8 @@ READY = {"trained": True, "compared_against_direct_mc": True,
 
 def _ood():
     rng = np.random.default_rng(0)
-    return fit_ood(rng.normal(size=(200, 3))), rng.normal(size=(1, 3))
+    trained_ctx = rng.normal(size=(200, 3))
+    return fit_ood(trained_ctx), rng.normal(size=(1, 3))
 
 
 # ------------------------------------------------------- §22 trust gating --
@@ -45,7 +46,8 @@ def test_every_requirement_is_enforced_individually():
     for req, key in (("trained", "trained"),
                      ("validation_ran", "compared_against_direct_mc"),
                      ("thresholds_passed", "thresholds_passed")):
-        bad = dict(READY); bad[key] = False
+        bad = dict(READY)
+        bad[key] = False
         st = trust_state(None, bad, ood=ood, context=ctx)
         assert not st["trusted"], req
         assert req in st["failed_requirements"], st

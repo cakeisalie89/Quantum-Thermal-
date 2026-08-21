@@ -173,3 +173,69 @@ if __name__ == "__main__":
                 fails += 1
                 print(f"FAIL {name}: {e}")
     raise SystemExit(1 if fails else 0)
+
+
+# ------------------- §5 diagnostic sensitivity (non-authoritative) ----------
+
+def test_floor_sensitivity_is_marked_non_authoritative():
+    r = MM.floor_sensitivity()
+    assert "DIAGNOSTIC_NON_AUTHORITATIVE" in r["label"]
+    assert r["authority_status"] == "NO_AUTHORITATIVE_REPLACEMENT_IN_REPOSITORY"
+
+
+def test_floor_sensitivity_probes_the_governed_threshold():
+    r = MM.floor_sensitivity()
+    assert r["probe_T_K"] == default_config().solver.mode_d_temp_threshold_K
+
+
+def test_diffusivity_is_strongly_sensitive_to_the_floors():
+    """Surfaces the limitation rather than asserting a comfortable answer."""
+    r = MM.floor_sensitivity()
+    assert r["alpha_spread_factor"] > 100.0, (
+        "a decade of floor uncertainty should move diffusivity by orders of "
+        f"magnitude while both floors dominate; got {r['alpha_spread_factor']}")
+    assert r["baseline_alpha_m2_s"] > r["raw_physical_alpha_m2_s"]
+
+
+def test_sensitivity_sweep_changes_no_floor_and_no_output():
+    """The sweep must be inert with respect to the module's own constants."""
+    before = (MM.CP_FLOOR_J_KG_K, MM.K_FLOOR_W_M_K)
+    MM.floor_sensitivity()
+    assert (MM.CP_FLOOR_J_KG_K, MM.K_FLOOR_W_M_K) == before
+
+
+# ----------------------- §15 end-to-end species temperature semantics -------
+
+def test_every_species_declares_mode_temperature_and_regime_basis():
+    from qta_multiphysics import species_transport_3d as ST
+    rows = {r["species"]: r for r in ST.summary()["per_species"]}
+    assert set(rows) == set(ST.GAS_TEMPERATURE_SEMANTICS)
+    for name, row in rows.items():
+        assert row["gas_temperature_mode"]
+        assert row["gas_temperature_basis"]
+        assert row["pressure_Pa"] > 0
+        assert row["kinetic_diameter_m"] > 0
+        assert row["diameter_provenance"]
+        assert row["pressure_provenance"]
+        if row["gas_temperature_status"] == ST.RESOLVED:
+            assert row["T_eval_K"] is not None and row["Kn"] is not None
+        else:
+            assert row["T_eval_K"] is None and row["Kn"] is None
+
+
+def test_no_mode_b_species_is_evaluated_at_the_sensing_temperature():
+    """The exact §15 defect: 10 mK applied to a Mode-B process gas."""
+    from qta_multiphysics import species_transport_3d as ST
+    fridge = default_config().fridge.T_fridge_K
+    for row in ST.summary()["per_species"]:
+        if row["gas_temperature_mode"] == "MODE_B":
+            assert row["T_eval_K"] != fridge, (
+                f"{row['species']} is a Mode-B species evaluated at the "
+                "Mode-D sensing-stage temperature")
+
+
+def test_characteristic_length_and_formula_are_declared():
+    from qta_multiphysics import species_transport_3d as ST
+    d = ST.summary()
+    assert d["L_char_m"] == ST.L_CHAR_M
+    assert "lambda = k_B*T" in d["formula"] and "Kn = lambda/L_char" in d["formula"]

@@ -148,10 +148,10 @@
   {
    "@id": "RUNTIME_RESILIENCE.md",
    "@type": "File",
-   "contentSize": "4643",
+   "contentSize": "5333",
    "description": "Stage-7.5 documentation",
    "name": "RUNTIME_RESILIENCE.md",
-   "sha256": "b7f518e97ea933e3ceee7e3d9c9b4a368a36cc90c252827c66e33fee4a832dcb"
+   "sha256": "629970d50f85e26671e5d877b9cca18e6759217f9f5fe508fb7b6b21020dfdf9"
   },
   {
    "@id": "Snakefile",
@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "131182",
+   "contentSize": "125070",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -207,7 +207,7 @@
    "contentSize": "139219",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "ed75650cbecfa9aee42e2f49e8b278829618465e14b2bccc136f1de7c50dbf11"
+   "sha256": "48fc51d3eb36831868f58991d9e4dc74acd012a3b90c91b9889260047310d0d5"
   },
   {
    "@id": "hdf5_schema.json",
@@ -215,7 +215,7 @@
    "contentSize": "150481",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "164dbf7da3436c9c389c86f059e6e0c2054b0107ba0597b2ba04be15377b6355"
+   "sha256": "a9950d479948ec011ca2aa79adeaedab2784aae117955aaa5e6ac01f8345fdf1"
   },
   {
    "@id": "manifest_hash.txt",
@@ -252,10 +252,10 @@
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "168881",
+   "contentSize": "170270",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "c522b113cdbf23c0590d01746886b7c310a9fd2cc49da48e23d51da97ffd21cb"
+   "sha256": "4c1a17c53edf297dcd6eb2c3fa52648bbdf3d609fb14d6f53851eb19984a1970"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "1992730",
+   "contentSize": "1993036",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "ec70ea7442834d790482c165daecee51396a45216e7bdb60f322c477703ab587"
+   "sha256": "45e6eaee03ec5a87eda6cd20b8bc18a1d79dde9d09b2ad58148521883613467a"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -302,10 +302,10 @@
   {
    "@id": "stage6_preservation_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "7503",
+   "contentSize": "7521",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",
-   "sha256": "42fe3e4ebc2543475be09b3511042b583f96f525e5511c442bd8d6c874f39493"
+   "sha256": "821830665d09a64b074b81db371776b6c1c5319a2689ec52f372add8a4ca249e"
   },
   {
    "@id": "stage7_reports/environment_provenance.json",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "2ea131ca10863f9825967fd48f238ce89ceae17a6005b4c0ceef134edc7cee59"
+   "sha256": "855d9a72d6e52e8290d362682e8ec4ff3a877af888baca771dd77b33b91b32ec"
   },
   {
    "@id": "uv.lock",

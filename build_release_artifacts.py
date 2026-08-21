@@ -186,7 +186,8 @@ def make_source_zip(dest: Path, prefix: str | None = None) -> Path:
     members = [f for f in tracked if f
                and not f.startswith(ZIP_EXCLUDE_PREFIXES)
                and not f.endswith(ZIP_EXCLUDE_SUFFIXES)]
-    root = prefix or dest.name[:-4] if dest.name.endswith(".zip") else dest.name
+    root = (prefix or dest.name[:-4]
+            if dest.name.endswith(".zip") else dest.name)
     dest.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED,
                          compresslevel=9) as z:
@@ -213,7 +214,8 @@ def main() -> int:
     zp = Path(a.zip)
     if a.make_zip:
         make_source_zip(zp)
-        print(f"[zip] {zp} ({zp.stat().st_size} bytes, sha256 {sha(zp)[:16]}...)")
+        print(f"[zip] {zp} ({zp.stat().st_size} bytes, "
+              f"sha256 {sha(zp)[:16]}...)")
     if not zp.exists():
         print(f"[FAIL-CLOSED] release zip missing: {zp} "
               "(pass --make-zip to build it)")

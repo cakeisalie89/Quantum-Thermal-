@@ -117,13 +117,13 @@ correctly, hashed.
 
 ## Repository-hygiene classification and recommended migration (§30)
 
-This section is a **recommendation**, not an action. Nothing listed here is
-deleted by the remediation that added this section: removal of tracked
-historical material is an owner decision, and the one record that claimed such
-a removal had already happened turned out to be false (see
-`authorities.json :: competing_sources_record`, field `withdrawn_claim`).
-Scientific and governance correctness came first; hygiene is deferred to
-authority.
+**STATUS: EXECUTED under owner authorization.** This section was originally a
+recommendation. The 22 paths below were deleted after re-confirming every
+piece of evidence at the commit that removed them. Removal of tracked
+historical material is an owner decision, and the one earlier record that
+claimed such a removal had already happened turned out to be false (see
+`authorities.json :: competing_sources_record`, field `withdrawn_claim`) —
+so this one was re-verified rather than trusted.
 
 Every item below is byte-preserved in `final_manifest.json` today and would
 remain preserved under the recommendation, because each duplicate has an
@@ -137,9 +137,20 @@ identical copy that stays.
 | **Accidental one-byte file** | `stage7_reports/J`, `stage8_reports/J` | each file is exactly one byte, a lone newline; no reader, no producer, no reference anywhere in the tree — consistent with a stray shell redirect | Delete. Requires owner authorization, but carries no evidentiary content. |
 | **Active source** | the remaining 15 root `*.py` entry points (`qta_full_sim.py`, `generate_manifest.py`, `package_consistency_check.py`, …) | imported or executed by the canonical pipeline, CI, or `container_verify.sh` | **Keep.** |
 
-Applying the first, second and fourth rows would remove 23 tracked files and
-about 18 MB, with **no** loss of preserved bytes and **no** change to execution
-authority or to any scientific result. It is not applied here.
+Applied: the first, second and fourth rows, **22 tracked files and
+18,119,230 bytes**, with **no** loss of preserved bytes (every archive is
+retained byte-identical under `attic/delivery_artifacts/`, and every deleted
+module has its authoritative copy under `qta_multiphysics/`) and **no** change
+to execution authority or to any scientific result. Tracked file count
+410 → 388.
+
+Pre-deletion re-confirmation, all passing at the deletion commit:
+three root modules byte-identical to their package counterparts with **zero**
+importers; **17** root archives each byte-identical to its
+`attic/delivery_artifacts/` copy; both `J` files exactly one `\n` byte. No
+RO-Crate entity referenced any deleted path, and `package_consistency_check.py`
+reads only `QTA_submission.zip`, which does not exist and is guarded by an
+existence check.
 
 Note that `outputs/` is a regeneration target, not a mirror: a blind
 `cp outputs/* .` would overwrite the tracked `deep_surrogate_readiness.json`

@@ -1190,7 +1190,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "498c139125a50834aa45cf67ff4a9ee733db1b65597aeb52b03539c5859a707c"
+   "sha256": "47d9a84a7d1d248daac76f890fcd5daa78d2796854721027596c3c690e5ad52b"
   },
   {
    "byte_preservation": true,
@@ -4061,7 +4061,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "a55c63b98eaa0922ec68463c01ab72f1ebbaa61cc637c5affd59a44545e88b53"
+   "sha256": "42ccba47e70f561f7ef22b6ae23f4457d1f5d0650caad2738629c62a0e484a4e"
   },
   {
    "byte_preservation": true,
@@ -4074,7 +4074,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "2e9eccdebd5993a11f43f1fbb8f112647acd89f67388fb8e122fd102881b7b54"
+   "sha256": "c27dd1400e1d1cdf5df9327e2c85714d197dce3e70cc3d0e0da9382931813fea"
   },
   {
    "byte_preservation": true,
@@ -4087,7 +4087,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "02cf678d2a81dd80007c5f204ee7c66470bdff6745b5379206aeda498f23cb91"
+   "sha256": "c482faf54329a660529dcf15e0ff55ad952f35c4314c56de26be8c31fd484fcb"
   },
   {
    "byte_preservation": true,

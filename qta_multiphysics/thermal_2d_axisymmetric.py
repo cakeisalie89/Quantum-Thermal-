@@ -15,7 +15,9 @@ symmetry boundary is enforced exactly with no special-casing of 1/r.
 Boundaries:
   r=0   : symmetry (zero-area axis face -> no radial flux)
   r=R   : cold radial contact to surrounding bulk at T_fridge (half-cell
-          resistance through the outer face)
+          resistance through the outer face); zero normal flux instead when
+          lateral_adiabatic=True (reduction fixture; interior radial
+          conduction is retained either way)
   z=0   : insulated (volumetric laser deposition; surface/source side)
   z=L   : Kapitza-radiative sink, q = alpha_K (T^4 - T_fridge^4) per annulus
 
@@ -134,16 +136,33 @@ def _jac_sparsity(nr, nz):
 def solve_thermal_2d(cfg: MultiphysicsConfig, source_mode="averaged", t_end=None,
                      q_mw_volumetric=0.0, n_r=None, n_z=None, n_eval=40,
                      disable_radial=False, spot_radius_override=None, T_init=None,
-                     max_ratio=6.0):
+                     max_ratio=6.0, lateral_adiabatic=False):
     """Solve the 2D axisymmetric heat equation by conservative finite volume on
     a graded r-z mesh. Returns Thermal2DResult.
 
     The radial mesh is refined near the beam axis, the beam waist, and the cold
     radial contact; the depth mesh is refined identically to the 1D solver
-    (surface, absorption depth, NV layer, front, cold contact). disable_radial /
-    spot_radius_override are verification hooks: with radial transport disabled
-    each column is an independent 1D depth problem, so the hottest 2D column
-    (near r=0) reproduces the 1D NV result."""
+    (surface, absorption depth, NV layer, front, cold contact).
+
+    Two DISTINCT radial verification hooks exist; they are not interchangeable:
+
+    * ``disable_radial=True`` removes radial transport THROUGHOUT the domain, so
+      each column becomes an independent 1D depth problem and the hottest column
+      (near r=0) reproduces the 1D NV result. This is a 1D-reduction fixture. It
+      is NOT an adiabatic lateral boundary, and using it as one compares a 3D
+      solve against a stack of 1D columns.
+    * ``lateral_adiabatic=True`` keeps interior radial conduction fully active
+      and applies zero normal heat flux at the OUTER radial face only (r=R). The
+      r=0 symmetry face is untouched in both cases (its area is exactly zero).
+      This is the like-for-like counterpart of the 3D layer's adiabatic lateral
+      walls (``boundaries_3d.BoundarySpec3D.lateral``), and is what a 3D->2D
+      reduction check must use.
+
+    ``disable_radial`` takes precedence if both are set, since there is then no
+    radial flux for a boundary condition to apply to.
+
+    Production default is neither: r=R is a cold radial contact to surrounding
+    bulk at T_fridge."""
     cfg.validate()
     geo, mat, fr, sol = cfg.geometry, cfg.material, cfg.fridge, cfg.solver
     nr = int(n_r or sol.n_r_2d)
@@ -206,9 +225,13 @@ def solve_thermal_2d(cfg: MultiphysicsConfig, source_mode="averaged", t_end=None
             Pr = np.zeros_like(T)
             Pr[1:, :] += cross_r
             Pr[:-1, :] -= cross_r
-            # outer radial cold contact at T_fridge (half-cell resistance)
-            Rout = dor[-1] / k[-1, :]
-            Pr[-1, :] += Acr_out * (Tf - T[-1, :]) / Rout
+            # Outer radial face. Production: cold contact to surrounding bulk at
+            # T_fridge through the half-cell resistance. lateral_adiabatic
+            # applies zero normal flux here INSTEAD, leaving the interior
+            # conductances above untouched.
+            if not lateral_adiabatic:
+                Rout = dor[-1] / k[-1, :]
+                Pr[-1, :] += Acr_out * (Tf - T[-1, :]) / Rout
         else:
             Pr = np.zeros_like(T)
 
@@ -247,7 +270,7 @@ def solve_thermal_2d(cfg: MultiphysicsConfig, source_mode="averaged", t_end=None
         Qk = laser_field(tk) + q_mw_field + q_bg
         P_dep[kk] = float(np.sum(Qk * V))
         P_sink[kk] = float(np.sum(ring * alpha_K * (Tk[:, -1] ** 4 - Tf ** 4)))
-        if not disable_radial:
+        if not disable_radial and not lateral_adiabatic:
             k_out = diamond_k(np.clip(Tk[-1, :], 1e-6, None), **kkw)
             Rout = dor[-1] / k_out
             P_rout[kk] = float(np.sum(Acr_out * (Tk[-1, :] - Tf) / Rout))

@@ -136,7 +136,7 @@ def interpolation_equivalence_report(sequences=("ramsey", "hahn", "xy8"),
     it can be read directly as a fraction of full scale.
     """
     from qta_multiphysics.nv_spin.noise import filter_function_coherence
-    from .simulator_adapter import _SIGMA_RAD_S, _N_OMEGA
+    from .simulator_adapter import _N_OMEGA   # _SIGMA_RAD_S: module-level
     probe = np.linspace(prior_lo, prior_hi, int(n_probe))
     per_case, worst = [], 0.0
     for seq in sequences:

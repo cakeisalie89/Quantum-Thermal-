@@ -57,7 +57,7 @@ UNRESOLVED = "UNRESOLVED_REQUIRES_OWNER_AUTHORITY"
 PARAMETERIZATION_SPAN_K = (0.010, 0.1, 1.0, 4.0, 77.0, 300.0)
 
 #: species -> (mode, temperature basis, status, temperature or None)
-GAS_TEMPERATURE_SEMANTICS = {
+GAS_TEMPERATURE_SEMANTICS: dict[str, tuple[str, str, str, float | None]] = {
     "He3": ("MODE_D", "dosed into and thermalised to the 10 mK sensing stage "
             "(config.FridgeConfig.T_fridge_K); this is the stage being sensed",
             RESOLVED, T_EVAL_K),
@@ -118,19 +118,25 @@ def summary() -> dict:
             "gas_temperature_status": status,
         }
         if status == RESOLVED:
+            # RESOLVED entries always carry a temperature; the tuple element is
+            # Optional because UNRESOLVED entries deliberately carry None.
+            assert T is not None, f"{name}: RESOLVED status with no temperature"
             lam = mean_free_path_m(T, d, P)
             kn = lam / L_CHAR_M
             row.update({"T_eval_K": T, "mean_free_path_m": lam, "Kn": kn,
                         "regime": regime(kn)})
         else:
             # No authoritative temperature: report the span, never a value.
-            span = []
+            span: list[dict] = []
+            regime_names: set[str] = set()
             for Tk in PARAMETERIZATION_SPAN_K:
                 lam = mean_free_path_m(Tk, d, P)
                 kn = lam / L_CHAR_M
+                reg = regime(kn)
+                regime_names.add(reg)
                 span.append({"T_K": Tk, "mean_free_path_m": lam, "Kn": kn,
-                             "regime": regime(kn)})
-            regimes = sorted({e["regime"] for e in span})
+                             "regime": reg})
+            regimes = sorted(regime_names)
             row.update({
                 "T_eval_K": None,
                 "mean_free_path_m": None,

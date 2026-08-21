@@ -106,29 +106,36 @@ ROOT_DUPLICATES = ("units.py", "verification.py", "vibration_transfer.py")
 
 
 def test_root_duplicate_record_matches_the_tree():
+    """The registry's claim about the root copies must match the actual tree."""
     rec = next(r for r in AUTHORITIES["competing_sources_record"]
                if r["concept"] == "root-level module copies")
     present = [f for f in ROOT_DUPLICATES if (ROOT / f).exists()]
-    claims_removed = "removed in" in rec["resolution"].lower()  # live text only
-    if present and claims_removed:
-        raise AssertionError(
-            f"registry claims the root copies were removed but {present} exist")
     if present:
-        assert rec.get("status") == "PRESENT_UNIMPORTED_DUPLICATE", rec.get("status")
+        assert rec.get("status") == "PRESENT_UNIMPORTED_DUPLICATE", (
+            f"{present} exist but the registry says {rec.get('status')!r}")
+    else:
+        assert rec.get("status") == "RESOLVED_ROOT_COPIES_DELETED", (
+            "the root copies are gone but the registry does not say so: "
+            f"{rec.get('status')!r}")
 
 
-def test_root_duplicates_stay_byte_identical_and_unimported():
-    """The record's numerical-consequence claim ('none') must stay true."""
-    import hashlib
+def test_the_authoritative_package_copies_survive():
+    """Deleting the duplicates must never have removed the retained copy."""
+    for f in ROOT_DUPLICATES:
+        pp = ROOT / "qta_multiphysics" / f
+        assert pp.exists(), f"authoritative qta_multiphysics/{f} is missing"
+        assert pp.stat().st_size > 0
+
+
+def test_no_module_imports_a_root_level_copy():
+    """Holds whether or not the root copies exist."""
+    import hashlib                                          # noqa: F401
     for f in ROOT_DUPLICATES:
         rp, pp = ROOT / f, ROOT / "qta_multiphysics" / f
-        if not rp.exists():
-            continue
-        assert pp.exists(), f"root {f} has no package counterpart"
-        assert hashlib.sha256(rp.read_bytes()).hexdigest() == \
-               hashlib.sha256(pp.read_bytes()).hexdigest(), \
-               f"root {f} has diverged from the package copy -- the registry's " \
-               "'numerical consequence: none' claim no longer holds"
+        if rp.exists():
+            assert hashlib.sha256(rp.read_bytes()).hexdigest() == \
+                   hashlib.sha256(pp.read_bytes()).hexdigest(), \
+                   f"root {f} has diverged from the package copy"
     stems = "|".join(f[:-3] for f in ROOT_DUPLICATES)
     r = subprocess.run(
         ["git", "-C", str(ROOT), "grep", "-nE",

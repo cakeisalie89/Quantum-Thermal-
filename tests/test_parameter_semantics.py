@@ -15,7 +15,6 @@ MODEL-ONLY / FORECAST-ONLY. Software verification; not a hardware statement.
 import csv
 import json
 import math
-import os
 import pathlib
 import re
 import sys

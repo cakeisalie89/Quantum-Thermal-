@@ -62,10 +62,13 @@ def trust_state(trained, readiness: dict | None = None, *,
         # close: the check must RUN, not merely exist.
         "in_distribution": False,
     }
-    ood_detail = {"is_ood": None,
-                  "reason": "no OOD model was supplied, so distribution "
-                            "membership was never evaluated; trusted authority "
-                            "requires the check to run"}
+    # Heterogeneous by design: the "not evaluated" form carries a reason
+    # string, the evaluated form carries scores. Annotated so the initial
+    # literal does not fix the value type to `str | None`.
+    ood_detail: dict[str, object] = {
+        "is_ood": None,
+        "reason": "no OOD model was supplied, so distribution membership was "
+                  "never evaluated; trusted authority requires the check to run"}
     if ood is not None and context is not None:
         score = ood.score(context)
         is_ood = bool(np.any(score["is_ood"]))

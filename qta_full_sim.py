@@ -212,7 +212,7 @@ def eng_note(key: str, physics_value: str = "") -> str:
 #     pumpout time describe isolation/purge/recovery, which is Mode C)
 # This column is metadata: it is written to parameter_registry.csv and grouped
 # by tag for the summary, and no numerical result reads it.
-# ── Residual H2 partial pressure: named quantities (§14) ───────────────────
+# ── Residual H2 partial pressure: named quantities (§14) ──
 # Five different H2 pressures were spread across this file as bare literals,
 # and "post-bakeout H2 pressure" alone had THREE values (1e-12, 2e-12, 5e-12)
 # depending on which line you read. They are not one number that drifted --
@@ -248,6 +248,18 @@ P_H2_RGA_VALIDATION_THRESHOLD_PA = 2e-14
 #: Monte-Carlo sampling range for post-bake+NEG H2 pressure.
 P_H2_MC_RANGE_PA = (5e-13, 2e-12)
 
+def _h2_nominal_in_mc_range() -> bool:
+    """Is the registered ASSUMED nominal inside the Monte-Carlo range?
+
+    Structural check only. It does NOT choose an authority and does NOT widen
+    the range: it reports whether the sampler explores the nominal it is
+    nominally sampling around. Today it does not (5e-12 Pa lies above the
+    5e-13..2e-12 Pa range), and that condition is surfaced rather than hidden.
+    """
+    lo, hi = P_H2_MC_RANGE_PA
+    return lo <= P_H2_POST_BAKEOUT_ASSUMED_PA <= hi
+
+
 H2_PRESSURE_AUTHORITY_UNRESOLVED = {
     "concept": "post-bakeout residual H2 partial pressure",
     "status": "UNRESOLVED_REQUIRES_OWNER_AUTHORITY",
@@ -262,13 +274,30 @@ H2_PRESSURE_AUTHORITY_UNRESOLVED = {
                 "modelled 1e-12 Pa for the same quantity; the Monte-Carlo "
                 "range 5e-13..2e-12 Pa excludes the 5e-12 nominal entirely",
     "what_would_resolve_it": "an owner decision on which quantity is "
-                             "authoritative for the surface-coverage forecast, "
+                             "authoritative for the surface-coverage "
+                             "forecast, "
                              "or a measured P_H2 (gate E04 / RGA), which does "
                              "not exist -- RGA has not been performed",
-    "not_resolved_by": "picking the most frequent literal, the smallest value, "
+    "not_resolved_by": "picking the most frequent literal, the smallest "
+                       "value, "
                        "or the most conservative one",
+    "mc_range_Pa": list(P_H2_MC_RANGE_PA),
+    "assumed_nominal_Pa": P_H2_POST_BAKEOUT_ASSUMED_PA,
+    # filled in below by _h2_nominal_in_mc_range()
+    "nominal_inside_mc_range": None,
     "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
 }
+H2_PRESSURE_AUTHORITY_UNRESOLVED["nominal_inside_mc_range"] = \
+    _h2_nominal_in_mc_range()
+if not H2_PRESSURE_AUTHORITY_UNRESOLVED["nominal_inside_mc_range"]:
+    H2_PRESSURE_AUTHORITY_UNRESOLVED["structural_inconsistency"] = (
+        f"the Monte-Carlo range {P_H2_MC_RANGE_PA[0]:.0e}..."
+        f"{P_H2_MC_RANGE_PA[1]:.0e} Pa does not contain the registered "
+        f"ASSUMED "
+        f"nominal {P_H2_POST_BAKEOUT_ASSUMED_PA:.0e} Pa, so the sampler never "
+        "explores the value the parameter registry records. Surfaced, not "
+        "resolved: widening the range or moving the nominal is a scientific "
+        "decision requiring owner authority.")
 
 
 PARAM_REGISTRY=[
@@ -287,7 +316,8 @@ PARAM_REGISTRY=[
     ("s_H2_Cu_4K",0.3,"",LITERATURE,"Benvenuti 1999","B","+-50%"),
     ("G_sw_open",1e-8,"W/K",LITERATURE,"Al SC switch SC state; Pobell 2007","AB","factor 10x"),
     ("B_c_Al",10e-3,"T",LITERATURE,"Al critical field 10mK","ACD","+-1mT"),
-    ("P_H2_postbake",P_H2_POST_BAKEOUT_ASSUMED_PA,"Pa",ASSUMED,"CERN Outgassing 2020","B","order mag"),
+    ("P_H2_postbake",P_H2_POST_BAKEOUT_ASSUMED_PA,"Pa",ASSUMED,
+     "CERN Outgassing 2020","B","order mag"),
     ("G_eff",1e-5,"W/K",ASSUMED,"Design; Kapitza; NOT MEASURED","D","factor 10x"),
     ("G_eff_meas",None,"W/K",UNKNOWN,"Step-response not done","D","blocks PASS"),
     ("A_sinter",None,"m2",UNKNOWN,"45cm2 design; NOT FABRICATED","D","blocks PASS"),
@@ -979,12 +1009,14 @@ def mode_B_gates(s):
         "RGA after each purge cycle. Calibrate FC factor from conductance model.", "Pa"))
     # UNRESOLVED (§14): the literature ASSUMED nominal, not the modelled
     # bakeout+NEG chamber state (1e-12 Pa) the narrative elsewhere uses.
-    P_H2=P_H2_POST_BAKEOUT_ASSUMED_PA; Phi=s_H2*P_H2/math.sqrt(2*pi*m_H2*k_B*T_room)
+    P_H2=P_H2_POST_BAKEOUT_ASSUMED_PA
+    Phi=s_H2*P_H2/math.sqrt(2*pi*m_H2*k_B*T_room)
     th_H2=Phi*1e4/n_mono
     gates.append(Gate("B4","H2 Residual Coverage","MODE_C_PURGE",
         "theta_H2=s_H2*P_H2*t/(sqrt(2pi*m*kT)*n_mono)<0.1%",
         th_H2*100,0.1,"CONDITIONAL" if th_H2<1e-3 else "FAIL",
-        f"theta_H2={th_H2*100:.4f}% (post-bake P_H2={P_H2_POST_BAKEOUT_ASSUMED_PA:.0e}Pa ASSUMED). "
+        f"theta_H2={th_H2*100:.4f}% (post-bake "
+        f"P_H2={P_H2_POST_BAKEOUT_ASSUMED_PA:.0e}Pa ASSUMED). "
         f"Bakeout NOT executed. NEG NOT installed. RGA NOT measured.",
         "Execute 250C/48h bakeout; install SAES St707 NEG; measure P_H2.","%"))
     tau_pump=1e-3/10e-3; intCH4=1e-4*tau_pump*(1-math.exp(-30./tau_pump))

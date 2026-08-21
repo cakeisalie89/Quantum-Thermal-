@@ -92,6 +92,75 @@ def k_floor_crossover_K(k_ref=2000.0, T_ref=100.0, exponent=3.0) -> float:
     return float(T_ref * (K_FLOOR_W_M_K / k_ref) ** (1.0 / exponent))
 
 
+#: Diagnostic multipliers for the floor sensitivity sweep. These are NOT
+#: alternative material properties and are never used by any canonical run --
+#: they exist only to answer "how much does the forecast depend on a value the
+#: repository has no authority for?". A decade either side brackets the
+#: plausible ignorance without asserting any of it is right.
+FLOOR_SENSITIVITY_FACTORS = (0.1, 1.0, 10.0)
+
+
+def floor_sensitivity(T_probe: float = 0.050,
+                      factors=FLOOR_SENSITIVITY_FACTORS) -> dict:
+    """DIAGNOSTIC ONLY: response of derived quantities to the floor values.
+
+    Distinguishes three things the single word "floor" was hiding:
+
+      * numerical stability mechanism -- what stops a divide-by-zero;
+      * constitutive assumption -- what the material is taken to be below the
+        crossover, because the floor exceeds the model it guards there;
+      * output sensitivity -- how much a governed forecast moves if that
+        assumption moves.
+
+    Nothing here is written to a canonical artifact and no floor is changed.
+    ``T_probe`` defaults to the Mode-C readiness threshold, the governed
+    temperature most exposed to the floors.
+    """
+    rows = []
+    for fc in factors:
+        for fk in factors:
+            cp = CP_FLOOR_J_KG_K * fc
+            kk = K_FLOOR_W_M_K * fk
+            cp_eff = max(float(_cp_raw(T_probe)), cp)
+            k_eff = max(min(float(_k_raw(T_probe)), 3000.0), kk)
+            t_cp = float(DEBYE_TEMP_DIAMOND_K * (
+                cp * DIAMOND_MOLAR_MASS_KG_MOL
+                / ((12.0 / 5.0) * np.pi**4 * R_GAS)) ** (1.0 / 3.0))
+            t_k = float(100.0 * (kk / 2000.0) ** (1.0 / 3.0))
+            rows.append({
+                "cp_floor_factor": fc, "k_floor_factor": fk,
+                "cp_floor_J_kg_K": cp, "k_floor_W_m_K": kk,
+                "cp_crossover_K": t_cp, "k_crossover_K": t_k,
+                "alpha_at_probe_m2_s": k_eff / (DIAMOND_DENSITY_KG_M3 * cp_eff),
+            })
+    base = next(r for r in rows
+                if r["cp_floor_factor"] == 1.0 and r["k_floor_factor"] == 1.0)
+    alphas = [r["alpha_at_probe_m2_s"] for r in rows]
+    return {
+        "meaning": "DIAGNOSTIC, NON-AUTHORITATIVE sensitivity of the derived "
+                   "thermal diffusivity to the numerical floors; no floor is "
+                   "changed and no canonical output is produced from this",
+        "probe_T_K": T_probe,
+        "probe_rationale": "Mode-C readiness threshold "
+                           "(config.SolverConfig.mode_d_temp_threshold_K)",
+        "baseline_alpha_m2_s": base["alpha_at_probe_m2_s"],
+        "alpha_min_m2_s": min(alphas), "alpha_max_m2_s": max(alphas),
+        "alpha_spread_factor": max(alphas) / min(alphas),
+        "raw_physical_alpha_m2_s": float(_k_raw(T_probe)) / (
+            DIAMOND_DENSITY_KG_M3 * float(_cp_raw(T_probe))),
+        "interpretation": "alpha at the probe scales as k_floor / cp_floor "
+                          "while both floors dominate, so a decade of "
+                          "uncertainty in either moves the diffusivity by a "
+                          "decade. This is a CONSTITUTIVE sensitivity, not a "
+                          "numerical one: the floors are the material model in "
+                          "this regime.",
+        "authority_status": "NO_AUTHORITATIVE_REPLACEMENT_IN_REPOSITORY",
+        "table": rows,
+        "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM "
+                 "DIAGNOSTIC_NON_AUTHORITATIVE",
+    }
+
+
 def floor_report(probes=None) -> dict:
     """Declare each floor's crossover, dominance ratio and true class.
 

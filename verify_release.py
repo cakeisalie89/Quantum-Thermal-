@@ -73,7 +73,8 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
     policy = json.loads((bundle / "release_trust_policy.json").read_text())
     identity = str(policy.get("signer_identity", ""))
     issuer = str(policy.get("oidc_issuer", ""))
-    for field, value in (("signer_identity", identity), ("oidc_issuer", issuer)):
+    for field, value in (("signer_identity", identity),
+                         ("oidc_issuer", issuer)):
         if not value or value.startswith("PENDING") or "*" in value:
             fail_list(problems,
                       f"trust policy {field}={value!r} is not an exact pin; "
@@ -100,9 +101,11 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
         bundle_path = bundle / str(entry.get("bundle", name)) \
             if isinstance(entry, dict) else bundle / name
         if not bundle_path.exists():
-            fail_list(problems, f"signature bundle missing: {bundle_path.name}")
+            fail_list(problems,
+                      f"signature bundle missing: {bundle_path.name}")
             continue
-        target = zip_path if (name or "").endswith(zip_path.name) else bundle / name
+        target = (zip_path if (name or "").endswith(zip_path.name)
+                  else bundle / name)
         if not target.exists():
             fail_list(problems, f"signed subject missing: {name}")
             continue

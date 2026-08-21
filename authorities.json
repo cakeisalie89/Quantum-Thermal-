@@ -248,8 +248,8 @@
       ],
       "execution_authority": "qta_multiphysics/ package versions; every import in the repository is package-qualified and no module imports the root copies",
       "evidence": "root and package copies are byte-identical (sha256 equal for all three); a repository-wide import scan finds zero importers of the root copies",
-      "resolution": "UNRESOLVED HYGIENE ITEM. The root copies units.py, verification.py and vibration_transfer.py are PRESENT in the working tree and tracked. Numerical consequence: none -- each is byte-identical to its package counterpart and no module imports the root copy, so execution authority is unambiguous. Deleting them is a hygiene decision that requires owner authority and has not been taken; MANIFEST_BOUNDARY.md carries the recommended migration plan.",
-      "status": "PRESENT_UNIMPORTED_DUPLICATE",
+      "resolution": "RESOLVED. The root copies units.py, verification.py and vibration_transfer.py were deleted under owner authorization after re-confirming, at the commit that removed them, that each was byte-identical to its qta_multiphysics/ counterpart and that a repository-wide scan found zero importers of the root copies. The package versions are the sole remaining copies and are unchanged; execution authority is unaffected because nothing ever imported the root ones.",
+      "status": "RESOLVED_ROOT_COPIES_DELETED",
       "withdrawn_claim": "A previous version of this record stated: 'root copies removed in Stage1-CP1 (commit 9525e24); numerical consequences: none (byte-identical, unimported)'. The removal never happened -- the files were added by 5586cf1 and are still tracked -- and the cited commit 9525e24 does not exist in this repository. The claim is withdrawn. Retained here so the correction is auditable; this field is historical text, not a citation."
     },
     {

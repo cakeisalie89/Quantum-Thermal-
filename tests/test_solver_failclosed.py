@@ -11,7 +11,6 @@ integration could still yield FORECAST_READY_IF_MEASURED.
 
 MODEL-ONLY / FORECAST-ONLY. Software verification; not a hardware statement.
 """
-import dataclasses
 import os
 import sys
 

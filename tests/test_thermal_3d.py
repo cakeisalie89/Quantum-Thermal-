@@ -14,9 +14,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-
 from qta_multiphysics.config import default_config
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 CFG = default_config()
 CI_RUNTIME_LIMIT_S = 60.0
