@@ -3366,6 +3366,20 @@
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "label",
      "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "path",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "load_W",
+     "unit": "n/a (string)"
     }
    ],
    "compression": "gzip level 4",
@@ -3378,7 +3392,7 @@
     7
    ],
    "source_output": "radiation_paths_3d_budget.csv",
-   "source_sha256": "1c03fec6716f6ce370d6e7ca4d724790882f2c98e759251d924f70845544edf0",
+   "source_sha256": "35b49f54a395d7e252328bd52f234d115c0f70c7db1bcee5c4f1d740ad46d785",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"

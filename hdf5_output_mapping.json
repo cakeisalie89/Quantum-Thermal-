@@ -3202,17 +3202,31 @@
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "label",
      "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "path",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 12,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "load_W",
+     "unit": "n/a (string)"
     }
    ],
    "format": "csv",
    "hdf5_group": "/tables/radiation_paths_3d_budget",
    "in_hdf5": true,
-   "n_columns": 11,
+   "n_columns": 13,
    "n_rows": 7,
    "path": "radiation_paths_3d_budget.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "1c03fec6716f6ce370d6e7ca4d724790882f2c98e759251d924f70845544edf0"
+   "sha256": "35b49f54a395d7e252328bd52f234d115c0f70c7db1bcee5c4f1d740ad46d785"
   },
   {
    "byte_preservation": true,
