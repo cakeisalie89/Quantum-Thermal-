@@ -280,7 +280,7 @@
     18
    ],
    "source_output": "cryo_stack_3d_budget.csv",
-   "source_sha256": "8bffdb5f4b4159e06253d728babd12228329cfce46ba295c939faecec7a25869",
+   "source_sha256": "60e1cb4b1524c01391ff4c6eafa2e76fb8970ad14104f004642cdfe0c48ec873",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -3312,18 +3312,18 @@
      "unit": "n/a (string)"
     },
     {
-     "dtype": "utf8_string",
+     "dtype": "float64",
      "index": 3,
-     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "heat_load_W",
-     "unit": "n/a (string)"
+     "unit": "W"
     },
     {
-     "dtype": "utf8_string",
+     "dtype": "float64",
      "index": 4,
-     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "n/a (string)"
+     "unit": "unresolved"
     },
     {
      "dtype": "utf8_string",
@@ -3350,35 +3350,28 @@
      "dtype": "utf8_string",
      "index": 8,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "resolution",
+     "name": "row_kind",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
      "index": 9,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "three_d_view_factors",
+     "name": "resolution",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
      "index": 10,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "label",
+     "name": "three_d_view_factors",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
      "index": 11,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "path",
-     "unit": "n/a (string)"
-    },
-    {
-     "dtype": "utf8_string",
-     "index": 12,
-     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "load_W",
+     "name": "label",
      "unit": "n/a (string)"
     }
    ],
@@ -3392,7 +3385,7 @@
     7
    ],
    "source_output": "radiation_paths_3d_budget.csv",
-   "source_sha256": "35b49f54a395d7e252328bd52f234d115c0f70c7db1bcee5c4f1d740ad46d785",
+   "source_sha256": "5fa5ea7949d74517ebd18c6692501ac7f9998e47825292750be187a6c63927b1",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"

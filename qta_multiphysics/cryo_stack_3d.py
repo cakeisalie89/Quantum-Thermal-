@@ -21,7 +21,8 @@ Deterministic: no randomness anywhere in this module.
 from __future__ import annotations
 
 from .config import default_config
-from .radiation_paths import radiation_paths
+from .radiation_paths import (radiation_paths,
+                              validate_radiation_paths)
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
@@ -38,12 +39,20 @@ def budget_rows(shutter_state: str = "closed", baffle_state: str = "engaged"):
                      "note": note, "label": LABEL})
 
     # -- ACTIVE_MODELED: intercept chain radiative loads (reused verbatim) --
+    # Index the producer's declared contract directly. The previous
+    # ``p.get("path", p.get("hop", "stage_hop"))`` / ``p.get("load_W",
+    # p.get("P_W", ""))`` aliases matched nothing the producer emits, so every
+    # row in this governed output was written as "stage_hop" with an empty
+    # heat load. Validation first, then direct indexing -- the same fail-loud
+    # discipline the total below already used.
+    validate_radiation_paths(paths, rmet)
     for p in paths:
-        name = p.get("path", p.get("hop", "stage_hop"))
-        load = p.get("load_W", p.get("P_W", ""))
-        add(f"radiative_intercept:{name}", str(name), "ACTIVE_MODELED",
+        name = p["path_name"]
+        load = float(p["heat_load_W"])
+        add(f"radiative_intercept:{name}", str(p["sink_stage"]),
+            "ACTIVE_MODELED",
             "radiation_paths (canonical chain, shutter/baffle attenuation)",
-            f"{load:.9e}" if isinstance(load, float) else str(load))
+            f"{load:.9e}")
     p10 = rmet["total_heat_load_to_10mK_W"]  # fail loud on schema drift
     add("radiative_total_to_10mK", "10mK", "ACTIVE_MODELED", "radiation_paths",
         f"{p10:.9e}" if isinstance(p10, float) else "")
