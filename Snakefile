@@ -13,8 +13,16 @@
 # the canonical manifest. --cores 1 is the supported invocation: canonical
 # generation is single-writer by design (no parallel writes to one file).
 
-import hashlib, json, os
+import hashlib, json, os, sys
 from pathlib import Path
+
+# One interpreter for every rule. The rules previously mixed bare "python3"
+# with ".venv/bin/python": outside a "uv run" shell, "python3" is the system
+# interpreter, which has no numpy, so every rule using it failed at import
+# while the rules using the venv passed. sys.executable is whatever
+# interpreter is running Snakemake, which is by construction the project
+# environment.
+PY = sys.executable
 
 WS = "verification/snakemake"
 SRC_OUTPUTS = [l.split()[1] for l in []]  # populated at rule level
@@ -81,9 +89,9 @@ rule registries_validated:
 rule invariants_validated:
     output: f"{WS}/invariants_validated.json"
     shell:
-        "python3 tests/test_mode_species_3d.py > {output}.log 2>&1 && "
-        "python3 tests/test_machine_fsm.py >> {output}.log 2>&1 && "
-        "python3 -c \"import json,hashlib;"
+        "{PY} tests/test_mode_species_3d.py > {output}.log 2>&1 && "
+        "{PY} tests/test_machine_fsm.py >> {output}.log 2>&1 && "
+        "{PY} -c \"import json,hashlib;"
         "json.dump({{'invariant_suites': ['mode_species_3d','machine_fsm'],"
         "'log_sha256': hashlib.sha256(open('{output}.log','rb').read())"
         ".hexdigest()}}, open('{output}','w'), indent=1)\""
@@ -91,13 +99,13 @@ rule invariants_validated:
 rule tests_fast:
     output: f"{WS}/tests_fast.json"
     shell:
-        "python3 tests/test_stage6_roadmap.py > {output}.log 2>&1 && "
-        "python3 tests/test_hardware_governance.py >> {output}.log 2>&1 && "
-        "python3 tests/test_measurement_ingest.py >> {output}.log 2>&1 && "
-        "python3 tests/test_campaign_uncertainty.py >> {output}.log 2>&1 && "
-        ".venv/bin/python -m pytest "
+        "{PY} tests/test_stage6_roadmap.py > {output}.log 2>&1 && "
+        "{PY} tests/test_hardware_governance.py >> {output}.log 2>&1 && "
+        "{PY} tests/test_measurement_ingest.py >> {output}.log 2>&1 && "
+        "{PY} tests/test_campaign_uncertainty.py >> {output}.log 2>&1 && "
+        "{PY} -m pytest "
         "tests/test_stage7_boundary.py -q >> {output}.log 2>&1 && "
-        "python3 -c \"import json,hashlib;"
+        "{PY} -c \"import json,hashlib;"
         "json.dump({{'suites': ['stage6_roadmap','hardware_governance',"
         "'measurement_ingest','campaign_uncertainty','stage7_boundary'],"
         "'log_sha256': hashlib.sha256(open('{output}.log','rb').read())"
@@ -106,13 +114,13 @@ rule tests_fast:
 rule package_checker:
     output: f"{WS}/package_checker.txt"
     shell:
-        "python3 package_consistency_check.py > {output} 2>&1 && "
+        "{PY} package_consistency_check.py > {output} 2>&1 && "
         "grep -q 'RESULT: PASS' {output}"
 
 rule manuscript_checker:
     output: f"{WS}/manuscript_checker.txt"
     shell:
-        "python3 manuscript_consistency_check.py > {output} 2>&1 && "
+        "{PY} manuscript_consistency_check.py > {output} 2>&1 && "
         "grep -q 'RESULT: PASS' {output}"
 
 rule canonical_outputs:
@@ -166,8 +174,8 @@ rule gate_table_validated:
 rule roadmap_validated:
     output: f"{WS}/roadmap_validated.txt"
     shell:
-        "python3 stage6_preservation_check.py > {output} 2>&1 && "
-        "grep -q 'RESULT: PRESERVED' {output}"
+        "{PY} stage6_preservation_check.py > {output} 2>&1 && "
+        "grep -q 'RESULT: STAGE6_REQUIRED_INVARIANTS_PRESERVED' {output}"
 
 rule manifest_verified:
     input: "final_manifest.json", "manifest_hash.txt"
@@ -209,13 +217,13 @@ rule s8_mapping_validate:
 rule s8_hdf5_build:
     input: "hdf5_output_mapping.json", "build_hdf5.py"
     output: f"{W8}/qta_scientific_results.h5"
-    shell: ".venv/bin/python build_hdf5.py {output}"
+    shell: "{PY} build_hdf5.py {output}"
 
 rule s8_hdf5_equivalence:
     input: f"{W8}/qta_scientific_results.h5"
     output: f"{W8}/hdf5_equivalence.txt"
     shell:
-        ".venv/bin/python validate_hdf5_equivalence.py {input} "
+        "{PY} validate_hdf5_equivalence.py {input} "
         "verification/stage8/hdf5_equivalence_report.json > {output} "
         "2>&1 && grep -q 'RESULT: EQUIVALENT' {output}"
 
@@ -224,7 +232,7 @@ rule s8_hdf5_rebuild_compare:
     output: f"{W8}/hdf5_determinism.json"
     run:
         import json as _j, subprocess as _sp, sys as _sy
-        _sp.run([".venv/bin/python", "build_hdf5.py",
+        _sp.run([PY, "build_hdf5.py",
                  f"{W8}/rebuild.h5"], check=True)
         a, b = _sha(input[0]), _sha(f"{W8}/rebuild.h5")
         Path(output[0]).write_text(_j.dumps(
@@ -238,13 +246,13 @@ rule s8_crate_build:
     input: "ro_crate_tools.py", "qta_scientific_results.h5",
            f"{W8}/hdf5_equivalence.txt"
     output: f"{W8}/crate/ro-crate-metadata.json"
-    shell: "python3 ro_crate_tools.py {W8}/crate".replace("{W8}", W8)
+    shell: "{PY} ro_crate_tools.py {W8}/crate".replace("{W8}", W8)
 
 rule s8_crate_validate:
     input: "ro-crate/ro-crate-metadata.json"
     output: f"{W8}/crate_validated.txt"
     shell:
-        "python3 ro_crate_tools.py validate > {output} 2>&1 && "
+        "{PY} ro_crate_tools.py validate > {output} 2>&1 && "
         "grep -q 'RESULT: VALID' {output}"
 
 rule s8_crate_rebuild_compare:
@@ -262,8 +270,8 @@ rule s8_crate_rebuild_compare:
 rule s8_preservation:
     output: f"{W8}/preservation.txt"
     shell:
-        "python3 stage6_preservation_check.py > {output} 2>&1 && "
-        "grep -q 'RESULT: PRESERVED' {output}"
+        "{PY} stage6_preservation_check.py > {output} 2>&1 && "
+        "grep -q 'RESULT: STAGE6_REQUIRED_INVARIANTS_PRESERVED' {output}"
 
 rule s8_report:
     input:

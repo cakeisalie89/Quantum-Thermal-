@@ -4,7 +4,7 @@
  "exact_numeric_matches": 159,
  "exact_string_matches": 283,
  "h5": "qta_scientific_results.h5",
- "h5_sha256": "45e6eaee03ec5a87eda6cd20b8bc18a1d79dde9d09b2ad58148521883613467a",
+ "h5_sha256": "59bfdb1d9df1838baf1260a7338179756e72e9f70d95a2d3dee6ccb558fd101d",
  "mismatches": [],
  "note": "exact parsed-value equality (no tolerance); natives byte-exact; software verification only -- scientific gate PASS remains zero",
  "result": "EQUIVALENT",

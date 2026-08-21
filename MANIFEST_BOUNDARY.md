@@ -172,22 +172,35 @@ The correct order, after any change that affects a governed output or a
 hashed source file:
 
 ```
-python qta_full_sim.py              # canonical outputs -> outputs/
+python qta_full_sim.py               # canonical outputs -> outputs/
 #   promote the changed artifacts from outputs/ to the repository root
 #   (individually — see the note above about outputs/ not being a mirror)
-python build_hdf5_mapping.py        # inventory + schema over the outputs
-python build_hdf5.py                # HDF5 artifact from the mapping
-python validate_hdf5_equivalence.py # rewrites stage8_reports/…report.json
-python ro_crate_tools.py            # crate hashes outputs AND sources
-python generate_manifest.py         # hashes everything above, so it is last
+python build_hdf5_mapping.py         # inventory + schema over the outputs
+python build_hdf5.py                 # HDF5 artifact from the mapping
+python validate_hdf5_equivalence.py  # WRITES stage8_reports/hdf5_equivalence_report.json
+python ro_crate_tools.py             # crate hashes outputs, sources AND that report
+python ro_crate_tools.py validate    # WRITES stage8_reports/ro_crate_validation_report.json
+python generate_manifest.py          # hashes everything above, so it is last
 ```
 
-Then verify, in any order:
+Both `validate_hdf5_equivalence.py` and `ro_crate_tools.py validate` are
+verifiers that also **emit a tracked report**, so they belong in the build
+order, not after the manifest. Running either one after
+`generate_manifest.py` leaves the manifest hashing a report that no longer
+exists in that form — which is exactly how `package_consistency_check.py`
+caught `stage8_reports/ro_crate_validation_report.json: hash mismatch`.
+
+There is no circularity: the crate references the HDF5 equivalence report (so
+that report must exist first) but does **not** reference its own validation
+report.
+
+Then verify, in any order — these are read-only:
 
 ```
 python generate_manifest.py --check
-python validate_hdf5_equivalence.py
-python ro_crate_tools.py validate
+python package_consistency_check.py
+python stage6_preservation_check.py
+python manuscript_consistency_check.py
 ```
 
 `container_verify.sh` runs all three verifiers, so a mis-ordered regeneration
