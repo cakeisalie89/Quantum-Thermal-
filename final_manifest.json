@@ -2815,8 +2815,8 @@
     },
     {
       "filename": "tests/test_authority_promotion_barrier.py",
-      "size_bytes": 12187,
-      "sha256": "097bfad62cb3ab2020c85e821a57f93073867a1fd587cef6d08b868e7feb318d",
+      "size_bytes": 14451,
+      "sha256": "96bb2825b931c95a320deb7384de57c79309bb555e27b03ba47a43693bb19c5b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2847,6 +2847,20 @@
       "sha256": "3fbb118a07274f0ed91af4a25926cc3b54d276abba1339bacc237c440ecd5319",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "EVIDENCE_CLOSURE.md",
+      "size_bytes": 16208,
+      "sha256": "cdde1e85ba393d1e8dbd28969d84a1eb6c52657ec10e29efd3cc04248e2aa95f",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "THERMAL_3D_L3.md",
+      "size_bytes": 4461,
+      "sha256": "fff873133116e6d5f321cc4aeb4ac819afd4013592e25bc104a7efd6057de4fa",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."
