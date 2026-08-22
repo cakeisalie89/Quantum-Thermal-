@@ -620,7 +620,7 @@ class ChamberState:
             return P_H2_POST_BAKEOUT_NEG_PA
         elif self.bakeout_done:
             return P_H2_POST_BAKEOUT_ONLY_PA
-        return 1e-10
+        return P_H2_PRE_BAKEOUT_PA
 
     def theta_H2(self, t_meas=1e4):
         m_H2=2*m_p; s_H2=0.3; n_mono=1e19; T_room=300.
@@ -1268,7 +1268,11 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
         "bool"))
 
     # D10b: physical theta_H2 from ACTUAL chamber state (not hypothetical post-bakeout)
-    # Uses CURRENT_CHAMBER.P_H2_Pa() — returns 1e-10 Pa (pre-bakeout) right now
+    # Uses CURRENT_CHAMBER.P_H2_Pa(), which resolves to the named semantic
+    # quantity for the current hardware state -- P_H2_PRE_BAKEOUT_PA today,
+    # because bakeout has not been executed. Do not restate its value here:
+    # a comment carrying the number is the same single-source defect as a
+    # bare literal, just one that no checker can see.
     _P_H2_actual = _ch.P_H2_Pa()  # actual pressure from hardware state
     _m_H2=2*m_p; _s_H2=0.3; _n_mono=1e19; _T_room=300.
     _theta_actual = _s_H2*_P_H2_actual/math.sqrt(2*pi*_m_H2*k_B*_T_room)*1e4/_n_mono
