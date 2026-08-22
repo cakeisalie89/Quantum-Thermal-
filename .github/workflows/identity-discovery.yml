@@ -1,0 +1,102 @@
+# Sigstore identity DISCOVERY -- explicitly untrusted, manually dispatched.
+#
+# WHY THIS EXISTS. release.yml cannot bootstrap its own trust. It signs, then
+# verifies against release_trust_policy.json, and that policy fails closed on
+# any PENDING pin -- correctly, because a signature proves possession of a key,
+# not that the owner intended to trust that identity. So the first signing run
+# must fail verification, and because verification precedes upload-artifact,
+# the Sigstore bundle that carries the real certificate is destroyed with the
+# job. That is a bootstrap problem, not a cryptographic one.
+#
+# This workflow breaks the loop WITHOUT collapsing observation of an identity
+# into authorization of it. It obtains the real hosted certificate, preserves
+# it as an artifact, prints the observed claims, and stops. It does not write
+# the trust policy, does not sign a release artifact, and does not assert that
+# anything is trusted. A human compares the observed claims against the
+# prediction in SIGNING_BOOTSTRAP.md and, if they match, pins them in a
+# separate reviewed commit. Trust is conferred by that review, not by this run.
+#
+# It signs a throwaway bootstrap file rather than the release zip, so nothing
+# this produces can be mistaken for -- or promoted to -- a release signature.
+name: qta-identity-discovery
+on:
+  workflow_dispatch:        # manual only; never a tag, never a push
+permissions: {}             # default-deny
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read        # checkout only
+      id-token: write       # the whole point: a real GitHub OIDC token
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+
+      - name: banner
+        run: |
+          echo "=================================================="
+          echo "IDENTITY_DISCOVERY_ONLY -- NOT A TRUSTED RELEASE"
+          echo "=================================================="
+          echo "This job establishes WHAT identity signs here."
+          echo "It does not establish that the identity may be trusted."
+
+      # A throwaway subject. Deliberately not the release zip: nothing produced
+      # here may be mistaken for a release signature or promoted into one.
+      - name: create bootstrap subject
+        run: |
+          mkdir -p bootstrap
+          printf 'QTA identity discovery\nrepo=%s\nsha=%s\nrun=%s\n' \
+            "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$GITHUB_RUN_ID" \
+            > bootstrap/IDENTITY_DISCOVERY_SUBJECT.txt
+          sha256sum bootstrap/IDENTITY_DISCOVERY_SUBJECT.txt
+
+      - name: sign the bootstrap subject (keyless)
+        run: |
+          uv tool install sigstore
+          uv tool run sigstore sign \
+            --bundle bootstrap/identity-discovery.sigstore.json \
+            bootstrap/IDENTITY_DISCOVERY_SUBJECT.txt
+
+      # Print the claims a human must compare against SIGNING_BOOTSTRAP.md.
+      # No comparison is enforced here on purpose: a job that decided its own
+      # identity was acceptable would be exactly the circularity being avoided.
+      - name: report observed certificate claims
+        run: |
+          python - <<'PY'
+          import base64, json, pathlib
+          b = json.loads(pathlib.Path(
+              "bootstrap/identity-discovery.sigstore.json").read_text())
+          chain = (b.get("verificationMaterial", {})
+                    .get("certificate", {}).get("rawBytes"))
+          print("bundle keys:", sorted(b))
+          if chain:
+              der = base64.b64decode(chain)
+              pathlib.Path("bootstrap/observed-cert.der").write_bytes(der)
+              print("certificate written: bootstrap/observed-cert.der",
+                    len(der), "bytes")
+          print(json.dumps(b, indent=2)[:4000])
+          PY
+          if command -v openssl >/dev/null && [ -f bootstrap/observed-cert.der ]; then
+            openssl x509 -inform DER -in bootstrap/observed-cert.der -noout -text \
+              | sed -n '/X509v3 Subject Alternative Name/,+2p;/Issuer:/p' \
+              | tee bootstrap/observed-identity.txt
+          fi
+
+      # Named so the untrusted status is structural, not a matter of reading
+      # the description. if: always() so a failure upstream still preserves
+      # whatever evidence exists -- this artifact is never a release artifact.
+      - name: preserve UNTRUSTED bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE
+          path: bootstrap/
+          if-no-files-found: warn
+
+      - name: closing banner
+        if: always()
+        run: |
+          echo "IDENTITY_DISCOVERY_ONLY -- NOT A TRUSTED RELEASE"
+          echo "signing status remains PENDING; no pin was written by this job"
