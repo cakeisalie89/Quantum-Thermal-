@@ -27,7 +27,9 @@ import json
 import re
 import sys
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+
+import release_trust
 
 SECRET_PATTERNS = [
     r"AKIA[0-9A-Z]{16}", r"-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----",
@@ -57,7 +59,7 @@ def ok(msg: str) -> None:
 
 
 def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
-                     sig: list) -> None:
+                     sig: list, prov: dict) -> None:
     """Real Sigstore verification against the pinned identity and issuer.
 
     This used to be an unconditional failure: a genuinely signed release could
@@ -73,12 +75,12 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
     policy = json.loads((bundle / "release_trust_policy.json").read_text())
     identity = str(policy.get("signer_identity", ""))
     issuer = str(policy.get("oidc_issuer", ""))
-    for field, value in (("signer_identity", identity),
-                         ("oidc_issuer", issuer)):
-        if not value or value.startswith("PENDING") or "*" in value:
-            fail_list(problems,
-                      f"trust policy {field}={value!r} is not an exact pin; "
-                      "no signature can be trusted until it is")
+
+    # Full policy enforcement, not two named fields. This covers repository,
+    # workflow, ref, builder, issuer, source revision and the structural
+    # "no unresolved value anywhere" rule -- previously an unresolved entry
+    # inside trusted_builders passed silently.
+    enforce_resolved_policy(problems, policy, prov, identity, issuer)
     if problems:
         return
 
@@ -96,16 +98,36 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
     verifier = Verifier.production()
     pol = Identity(identity=identity, issuer=issuer)
     checked = 0
+    seen_records: set = set()
     for entry in sig:
-        name = entry.get("name") if isinstance(entry, dict) else str(entry)
-        bundle_path = bundle / str(entry.get("bundle", name)) \
-            if isinstance(entry, dict) else bundle / name
+        if not isinstance(entry, dict) or set(entry) != {"name", "bundle"}:
+            fail_list(problems,
+                      f"malformed signature_bundles record: {entry!r}; "
+                      "expected exactly {'name', 'bundle'}")
+            continue
+        key = (str(entry["name"]), str(entry["bundle"]))
+        if key in seen_records:
+            fail_list(problems, f"duplicate signature_bundles record: {key}")
+            continue
+        seen_records.add(key)
+        name = entry["name"]
+        # signature_bundles is mutable routing metadata; it must never make the
+        # verifier read a path outside the bundle directory.
+        bundle_path, why = _bundle_relative(bundle, str(entry["bundle"]))
+        if bundle_path is None:
+            fail_list(problems, f"refusing signature bundle path: {why}")
+            continue
         if not bundle_path.exists():
             fail_list(problems,
                       f"signature bundle missing: {bundle_path.name}")
             continue
-        target = (zip_path if (name or "").endswith(zip_path.name)
-                  else bundle / name)
+        if (name or "").endswith(zip_path.name):
+            target = zip_path
+        else:
+            target, why = _bundle_relative(bundle, str(name))
+            if target is None:
+                fail_list(problems, f"refusing signed-subject path: {why}")
+                continue
         if not target.exists():
             fail_list(problems, f"signed subject missing: {name}")
             continue
@@ -123,6 +145,221 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
            f"identity {identity!r} / issuer {issuer!r}")
     elif not checked and not problems:
         fail_list(problems, "no signature bundle could be verified")
+
+
+# ---------------------------------------------------------------------------
+# release-trust enforcement
+# ---------------------------------------------------------------------------
+#
+# Four policy fields used to be pure documentation: source_repository,
+# workflow_path, pinned_revision and trusted_builders appeared in the policy
+# and were never read here. The functions below make each one an exact
+# comparison against independently observed evidence, and cross-check the
+# three places an identity appears -- policy, provenance and certificate SAN --
+# rather than trusting whichever one is convenient.
+
+
+def _bundle_relative(bundle: Path, name: str):
+    """Resolve a bundle-relative name, refusing anything that escapes.
+
+    signature_bundles is routing metadata and is mutable after signing, so it
+    must never be able to make the verifier read an arbitrary path. Absolute
+    paths, parent traversal and symlink escapes are all refused.
+    """
+    if not isinstance(name, str) or not name.strip():
+        return None, "empty or non-string bundle name"
+    if name != name.strip():
+        return None, f"bundle name has surrounding whitespace: {name!r}"
+    if PurePosixPath(name).is_absolute() or Path(name).is_absolute():
+        return None, f"absolute path in signature_bundles: {name!r}"
+    if ".." in PurePosixPath(name).parts:
+        return None, f"parent traversal in signature_bundles: {name!r}"
+    if "\\" in name or "\x00" in name:
+        return None, f"illegal characters in signature_bundles: {name!r}"
+    base = bundle.resolve()
+    target = (base / name)
+    try:
+        resolved = target.resolve()
+    except OSError as e:
+        return None, f"unresolvable bundle path {name!r}: {e}"
+    if resolved != base and base not in resolved.parents:
+        return None, (f"signature bundle escapes the bundle directory: "
+                      f"{name!r} -> {resolved}")
+    return resolved, None
+
+
+def _observed_repo_and_workflow(identity: str):
+    """Split a GitHub Actions SAN into (repo_url, workflow_path, ref).
+
+    Exact structural parsing, not substring matching: a SAN merely *containing*
+    'github.com' or the workflow's basename proves nothing about which
+    repository, workflow or ref actually signed.
+    """
+    m = re.match(
+        r"\Ahttps://github\.com/([^/]+)/([^/]+)/"
+        r"(\.github/workflows/[^@]+)@(.+)\Z", identity or "")
+    if not m:
+        return None
+    owner, repo, wf, ref = m.groups()
+    return (f"https://github.com/{owner}/{repo}", wf, ref)
+
+
+def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
+                         *, canonical: Path | None = None) -> dict | None:
+    """Full policy enforcement. Returns the validated policy, or None.
+
+    Runs for offline verification too: a bundle whose policy is malformed or
+    whose bundled copy diverges from the canonical one is defective regardless
+    of whether a signature exists.
+    """
+    bundled_path = bundle / "release_trust_policy.json"
+    if not bundled_path.exists():
+        fail_list(problems, "bundle has no release_trust_policy.json")
+        return None
+    bundled_raw = bundled_path.read_bytes()
+    try:
+        pol = json.loads(bundled_raw.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        fail_list(problems, f"bundled trust policy is not valid JSON: {e}")
+        return None
+
+    # 1. Shape. Unknown fields, missing fields, wildcards, bad types all fail
+    #    here -- including for an unresolved policy, which must still be
+    #    structurally correct.
+    try:
+        release_trust.validate_policy(pol)
+    except release_trust.PolicyError as e:
+        fail_list(problems, f"bundled trust policy is invalid: {e}")
+        return None
+    ok("bundled trust policy passes the strict schema")
+
+    # 2. The bundled policy must be the canonical policy, byte for byte.
+    #    This is what makes a single source of truth enforceable rather than
+    #    merely intended.
+    canon = canonical if canonical is not None else \
+        release_trust.CANONICAL_POLICY_PATH
+    if Path(canon).exists():
+        want = release_trust.canonical_bytes(
+            json.loads(Path(canon).read_text(encoding="utf-8")))
+        if bundled_raw != want:
+            fail_list(problems,
+                      "bundled trust policy differs from the canonical "
+                      f"policy at {canon}; a release may only ship the "
+                      "reviewed policy")
+        else:
+            ok("bundled trust policy is byte-identical to the canonical policy")
+    return pol
+
+
+def enforce_resolved_policy(problems, pol: dict, prov: dict,
+                            identity: str, issuer: str) -> None:
+    """Everything that must hold before a signature may be trusted.
+
+    Called only on the online path, after the policy has been validated for
+    shape. Each check compares an authorized value against an independently
+    observed one; none of them accepts a substring or a prefix.
+    """
+    # --- every trust-critical value must be an exact authorized value ------
+    try:
+        release_trust.validate_policy(pol, require_resolved=True)
+    except release_trust.PolicyError as e:
+        fail_list(problems, f"trust policy is not authorized for a signed "
+                            f"release: {e}")
+        return
+    ok("trust policy is fully resolved and self-consistent")
+
+    pol_repo = pol["source_repository"]
+    pol_wf = pol["workflow_path"]
+    pol_ref = pol["authorized_ref"]
+
+    # --- the certificate SAN, parsed structurally --------------------------
+    observed = _observed_repo_and_workflow(identity)
+    if observed is None:
+        fail_list(problems,
+                  f"signer identity is not a GitHub Actions workflow SAN: "
+                  f"{identity!r}")
+        return
+    san_repo, san_wf, san_ref = observed
+
+    # --- repository: policy vs provenance vs certificate -------------------
+    ext = prov["predicate"]["buildDefinition"].get("externalParameters", {})
+    prov_repo = str(ext.get("source_repository", ""))
+    for label, value in (("provenance", prov_repo), ("certificate", san_repo)):
+        if value != pol_repo:
+            fail_list(problems,
+                      f"repository mismatch: policy {pol_repo!r} != "
+                      f"{label} {value!r}")
+    if prov_repo == san_repo == pol_repo:
+        ok(f"repository agrees three ways: {pol_repo}")
+
+    # --- workflow: policy vs provenance vs certificate ---------------------
+    prov_wf = str(ext.get("workflow_path", ""))
+    for label, value in (("provenance", prov_wf), ("certificate", san_wf)):
+        if value != pol_wf:
+            fail_list(problems,
+                      f"workflow mismatch: policy {pol_wf!r} != "
+                      f"{label} {value!r}")
+    if prov_wf == san_wf == pol_wf:
+        ok(f"workflow agrees three ways: {pol_wf}")
+
+    # --- ref/tag -----------------------------------------------------------
+    prov_ref = str(ext.get("authorized_ref", ""))
+    if san_ref != pol_ref:
+        fail_list(problems,
+                  f"ref mismatch: policy authorizes {pol_ref!r}, certificate "
+                  f"carries {san_ref!r}. A signature from a different tag is "
+                  "not the signature that was authorized.")
+    if prov_ref != pol_ref:
+        fail_list(problems,
+                  f"ref mismatch: policy {pol_ref!r} != provenance "
+                  f"{prov_ref!r}")
+    if san_ref == prov_ref == pol_ref:
+        ok(f"ref agrees three ways: {pol_ref}")
+
+    # --- issuer ------------------------------------------------------------
+    if issuer != pol["oidc_issuer"]:
+        fail_list(problems, f"issuer mismatch: policy {pol['oidc_issuer']!r} "
+                            f"!= observed {issuer!r}")
+
+    # --- builder: exact membership, never substring ------------------------
+    builder = str(prov["predicate"]["runDetails"]["builder"]["id"])
+    authorized = list(pol["trusted_builders"])
+    if builder not in authorized:
+        fail_list(problems,
+                  f"builder {builder!r} is not in trusted_builders "
+                  f"{authorized}. Exact equality only: a lookalike, a prefix "
+                  "or a suffix is a different builder.")
+    elif builder == release_trust.LOCAL_BUILDER_ID:
+        fail_list(problems,
+                  f"{builder!r} is the local unsigned builder and can never "
+                  "satisfy a hosted signed release")
+    else:
+        ok(f"builder is exactly authorized: {builder}")
+
+    # --- source revision ---------------------------------------------------
+    dep_rev = ""
+    for dep in prov["predicate"]["buildDefinition"].get(
+            "resolvedDependencies", []):
+        d = dep.get("digest", {})
+        if "gitCommit" in d:
+            dep_rev = str(d["gitCommit"])
+            break
+    if not re.fullmatch(r"[0-9a-f]{40}", dep_rev):
+        fail_list(problems,
+                  f"provenance records no usable source revision "
+                  f"(gitCommit={dep_rev!r})")
+    else:
+        # pinned_revision is the REVIEWED revision C; the released commit A is
+        # its descendant carrying this authorization record. They are
+        # deliberately different objects -- see PINNED_REVISION_SEMANTICS.
+        # Equality is therefore NOT the check; ancestry is, and it can only be
+        # decided where the object store is available.
+        ok(f"provenance records a concrete source revision: {dep_rev[:12]}")
+        if dep_rev == pol["pinned_revision"]:
+            fail_list(problems,
+                      "released revision equals pinned_revision; the released "
+                      "commit must be the descendant that carries the "
+                      "authorization record, not the reviewed revision itself")
 
 
 def verify(zip_path: Path, bundle: Path, online: bool) -> int:
@@ -208,28 +445,29 @@ def verify(zip_path: Path, bundle: Path, online: bool) -> int:
         ok("provenance subject binds the release zip digest")
     if subj != sums_set:
         fail_list(problems, "provenance subjects != SHA256SUMS set")
+    # SLSA. The old guard was `"hosted" not in builder`, a substring test --
+    # and the CI builder id was the literal placeholder
+    # "PENDING-hosted-runner", which contains "hosted" and therefore SATISFIED
+    # it. An unresolved value passed a trust check. Any non-NONE claim now
+    # requires the exact authorized builder and a fully resolved policy, so no
+    # mutable string can promote the level.
     lvl = idx["provenance"].get("slsa_level_claimed")
-    builder = prov["predicate"]["runDetails"]["builder"]["id"]
-    if lvl not in (None, "NONE") and "hosted" not in builder:
-        fail_list(problems, f"SLSA level '{lvl}' claimed without a "
-                             "hosted verified build")
-    pol = json.loads((bundle / "release_trust_policy.json").read_text())
-
-    def _leaves(x):                     # structural wildcard scan
-        if isinstance(x, dict):
-            for v in x.values():
-                yield from _leaves(v)
-        elif isinstance(x, list):
-            for v in x:
-                yield from _leaves(v)
-        else:
-            yield x
-    if any(isinstance(v, str) and "*" in v for v in _leaves(pol)):
-        fail_list(problems, "wildcard in trust policy (forbidden)")
+    prov_lvl = prov["predicate"].get("slsa_level_claimed", lvl)
+    if lvl not in (None, "NONE") or prov_lvl not in (None, "NONE"):
+        fail_list(problems,
+                  f"SLSA level claimed ({lvl!r}/{prov_lvl!r}) but no SLSA "
+                  "level is authorized in this repository; admission criteria "
+                  "for a level do not exist yet")
     else:
+        ok("SLSA level claimed = NONE")
+
+    pol = enforce_trust_policy(problems, bundle, idx, prov)
+    if pol is None:
+        pol = {}
+    else:
+        # The structural wildcard scan lives in release_trust.validate_policy
+        # and covers every leaf, including nested list entries.
         ok("trust policy contains no wildcards")
-    if not pol.get("wildcards_forbidden"):
-        fail_list(problems, "policy must declare wildcards_forbidden")
     blob = "".join((bundle / f).read_text()
                    for f in ("release_index.json", "sbom.cdx.json",
                              "provenance.intoto.json",
@@ -244,8 +482,10 @@ def verify(zip_path: Path, bundle: Path, online: bool) -> int:
     for pat in CLAIM_VIOLATIONS:
         if pat in blob:
             fail_list(problems, f"claim-boundary violation: '{pat}'")
-    if idx["claims"]["scientific_gate_PASS_count"] != 0:
-        fail_list(problems, "scientific PASS count nonzero in release")
+    # claims[] is index text and therefore mutable; the gate table inside the
+    # signed zip is the authority. Recompute from it, and additionally require
+    # the index to AGREE -- an index that understates the PASS count is a
+    # lying envelope, not merely a redundant one.
     gate_csv = zf.read(f"{root}/results_gate_table.csv").decode()
     n_pass = sum(1 for line in gate_csv.splitlines()[1:]
                  if re.search(r",PASS(,|$)", line))
@@ -253,21 +493,56 @@ def verify(zip_path: Path, bundle: Path, online: bool) -> int:
         fail_list(problems, f"gate table inside zip has {n_pass} PASS")
     else:
         ok("gate table inside zip: scientific PASS count = 0")
+    claimed = idx.get("claims", {}).get("scientific_gate_PASS_count")
+    if claimed != n_pass:
+        fail_list(problems,
+                  f"release_index claims scientific_gate_PASS_count="
+                  f"{claimed!r} but the gate table inside the zip has "
+                  f"{n_pass}; the zip is authoritative")
+    if claimed != 0:
+        fail_list(problems, "scientific PASS count nonzero in release")
+    # release_index.json is UNTRUSTED_ENVELOPE_METADATA: it is mutated after
+    # signing by finalize_release_signing.py, so nothing here may confer
+    # authority merely because the index says it. signing_status is treated as
+    # consistency metadata -- the signed state is derived from facts (a
+    # declared bundle that exists, parses and cryptographically verifies
+    # against an authorized identity), and the string must AGREE with those
+    # facts or the bundle is internally inconsistent.
     sig = idx.get("signature_bundles", [])
     status = idx.get("signing_status")
+    declared = bool(sig)
+    present = False
+    if isinstance(sig, list):
+        for entry in sig:
+            if isinstance(entry, dict) and isinstance(entry.get("bundle"), str):
+                bp, _why = _bundle_relative(bundle, entry["bundle"])
+                if bp is not None and bp.exists() and bp.stat().st_size > 0:
+                    present = True
+    if status == "PENDING" and present:
+        fail_list(problems,
+                  "inconsistent bundle: signing_status is PENDING but a "
+                  "signature bundle exists on disk")
+    if status == "SIGNED" and not declared:
+        fail_list(problems, "claims SIGNED with no bundles")
+    if status == "SIGNED" and declared and not present:
+        fail_list(problems,
+                  "claims SIGNED and declares a bundle, but no declared "
+                  "bundle exists on disk")
+    if status not in ("PENDING", "SIGNED"):
+        fail_list(problems, f"unknown signing_status {status!r}")
+
     if online:
-        if status != "SIGNED" or not sig:
+        if not (status == "SIGNED" and declared and present):
             fail_list(problems, "online verification requested but no "
                                  "real signature exists (status="
-                                 f"{status}); absence is never success")
+                                 f"{status}, declared={declared}, "
+                                 f"present={present}); absence is never "
+                                 "success")
         else:
-            _verify_sigstore(problems, zip_path, bundle, idx, sig)
-    else:
-        if status == "PENDING":
-            ok("signing status honestly PENDING (blockers recorded; no "
-               "simulated signatures)")
-        elif status == "SIGNED" and not sig:
-            fail_list(problems, "claims SIGNED with no bundles")
+            _verify_sigstore(problems, zip_path, bundle, idx, sig, prov)
+    elif status == "PENDING" and not problems:
+        ok("signing status honestly PENDING (blockers recorded; no "
+           "simulated signatures)")
     res = ("VERIFIED (offline)" if not problems
            else f"{len(problems)} FAILURES")
     print(f"\nRESULT: {res}")

@@ -36,6 +36,30 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - run: uv sync --frozen --all-groups
 
+      # ---- establish WHICH revision is being released, independently ----
+      # Not one environment variable copied into four files: the checkout SHA
+      # is recomputed from the object store with `git rev-parse`, the tag's
+      # target is resolved separately, and both are compared against the
+      # Actions context. Any disagreement means the thing being signed is not
+      # the thing the trigger named.
+      - name: verify the released revision against the authorized policy
+        run: |
+          set -euo pipefail
+          CHECKOUT=$(git rev-parse HEAD)
+          echo "context GITHUB_SHA : ${GITHUB_SHA}"
+          echo "git rev-parse HEAD : ${CHECKOUT}"
+          echo "context GITHUB_REF : ${GITHUB_REF}"
+          [ "$CHECKOUT" = "$GITHUB_SHA" ] || {
+            echo "REVISION MISMATCH: checkout $CHECKOUT != context $GITHUB_SHA"
+            exit 1; }
+          TAG_TARGET=$(git rev-list -n 1 "${GITHUB_REF}")
+          echo "tag target         : ${TAG_TARGET}"
+          [ "$CHECKOUT" = "$TAG_TARGET" ] || {
+            echo "TAG MISMATCH: checkout $CHECKOUT != ${GITHUB_REF} -> $TAG_TARGET"
+            exit 1; }
+          uv run python release_revision_gate.py \
+            --checkout "$CHECKOUT" --ref "$GITHUB_REF"
+
       # ---- regenerate and verify the canonical package ----
       - run: uv run python qta_full_sim.py
       - run: uv run python package_consistency_check.py
