@@ -1891,6 +1891,17 @@ def _read_csv_rows(name):
     with open(PKG / name, newline="") as fh:
         return list(csv.DictReader(fh))
 
+
+def _read_csv_header(name):
+    """Declared columns of a CSV, independent of how many rows it carries.
+
+    Reading the schema from ``rows[0]`` makes a legitimately empty table look
+    schemaless, and makes a header change invisible whenever the first row
+    happens to carry every field. The header IS the contract, so read it.
+    """
+    with open(PKG / name, newline="") as fh:
+        return set(csv.DictReader(fh).fieldnames or ())
+
 MP_EXPECTED_COLS = {
     "distributed_thermal_metrics.csv": {"metric", "value", "evidence_class", "measured_in_this_system"},
     "gas_transport_metrics.csv": {"species", "residual_mode_D_density_m3", "evidence_class", "measured_in_this_system"},
@@ -1898,12 +1909,17 @@ MP_EXPECTED_COLS = {
     "coupled_mode_recovery_metrics.csv": {"metric", "value", "evidence_class", "measured_in_this_system"},
     "mesh_convergence_summary.csv": {"model", "mesh", "metric", "value"},
     "lumped_vs_nonlumped_comparison.csv": {"quantity", "lumped_model", "nonlumped_1d_model", "role"},
+    # Was uncovered here, which is why a header that changed shape between the
+    # zero-row and non-zero-row branches went unnoticed. Checked by header, so
+    # a header-only file (no failing samples) is valid and still verified.
+    "failed_gate_samples.csv": {
+        "tc_us", "Ge_WK", "Cc", "T2s_us", "ea", "Ts_mK", "SNR", "eps_pct",
+        "dominant_failure", "g_d10", "g_d3", "g_d13", "g_d18"},
 }
 col_problems = []
 for name, need in MP_EXPECTED_COLS.items():
     try:
-        rows = _read_csv_rows(name)
-        have = set(rows[0].keys()) if rows else set()
+        have = _read_csv_header(name)
         if not need.issubset(have):
             col_problems.append(f"{name}: missing {need - have}")
     except Exception as e:

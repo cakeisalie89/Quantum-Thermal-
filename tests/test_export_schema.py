@@ -81,14 +81,23 @@ def test_nested_container_fails_closed():
             raise AssertionError(f"nested container silently stringified: {bad}")
 
 
-def test_empty_rows_behaviour_unchanged():
-    """Pre-existing governed behaviour; not widened by this fix."""
+def test_empty_rows_require_a_declared_schema():
+    """An empty table has a schema; the writer must not invent one.
+
+    This used to emit a single placeholder column named "empty", which gave the
+    artifact a schema that was not its own. That is the same defect class as
+    failed_gate_samples.csv writing a six-column header when the Monte-Carlo
+    run produced no failures, so it fails closed here too.
+    """
     fd, path = tempfile.mkstemp(suffix=".csv")
     os.close(fd)
     try:
-        write_rows_csv(path, [])
-        with open(path) as f:
-            assert f.read().strip() == "empty"
+        try:
+            write_rows_csv(path, [])
+        except CsvSchemaError as e:
+            assert "no schema" in str(e)
+        else:
+            raise AssertionError("empty rows without fieldnames did not fail closed")
         write_rows_csv(path, [], fieldnames=["x", "y"])
         with open(path) as f:
             assert f.read().strip() == "x,y"

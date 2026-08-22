@@ -38,8 +38,17 @@ def write_rows_csv(path, rows, fieldnames=None):
     """
     rows = list(rows)
     if not rows:
+        # An empty table still has a schema; the writer just cannot infer one.
+        # Emitting a placeholder column named "empty" gave the artifact a
+        # schema that was not its own -- the same defect as
+        # failed_gate_samples.csv writing a different header when the
+        # Monte-Carlo run produced no failures. Declare the contract or fail.
+        if not fieldnames:
+            raise CsvSchemaError(
+                f"{path}: no rows and no declared fieldnames, so the artifact "
+                "has no schema; pass fieldnames= to declare it")
         with open(path, "w", newline="") as f:
-            csv.writer(f).writerow(fieldnames or ["empty"])
+            csv.writer(f).writerow(list(fieldnames))
         return
     union = _union_fieldnames(rows)
     if fieldnames is None:

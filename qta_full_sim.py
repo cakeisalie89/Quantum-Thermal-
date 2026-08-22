@@ -1396,6 +1396,31 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
 
 
 
+#: Declared column contract for failed_gate_samples.csv. The generator used to
+#: derive the header from ``rows[0]`` when there were failures and to write a
+#: DIFFERENT six-column header ("A,B,C,D,SNR,Ts_mK") when there were none, so a
+#: governed artifact's schema depended on whether the Monte-Carlo run happened
+#: to produce a failure. One declaration now serves both branches: the header is
+#: always these fields in this order, and a zero-row run emits header-only.
+FAILED_GATE_SAMPLE_FIELDS = (
+    "tc_us", "Ge_WK", "Cc", "T2s_us", "ea", "Ts_mK", "SNR", "eps_pct",
+    "dominant_failure", "g_d10", "g_d3", "g_d13", "g_d18")
+
+
+def write_failed_gate_samples(path, rows):
+    """Write failed_gate_samples.csv against its declared schema.
+
+    Header always; rows appended if any. A row carrying a key outside the
+    contract raises rather than being silently dropped, and a zero-row run
+    produces a header-only file rather than a differently-shaped one.
+    """
+    rows = list(rows)
+    with open(path, "w", newline="") as f:
+        dw = csv.DictWriter(f, FAILED_GATE_SAMPLE_FIELDS)
+        dw.writeheader()
+        dw.writerows(rows)
+
+
 def run_mode_D_MC(N=10000, seed=42):
     """
     Full Mode D Monte Carlo (post-bakeout chamber state, N=10,000 samples).
@@ -1479,6 +1504,10 @@ def run_mode_D_MC(N=10000, seed=42):
             elif not g_d10: dom="theta_H2"; fail_reasons["theta_H2"]+=1
             else: fail_reasons["other"]+=1
             if len(failed_samples)<200:
+                # Keys are written out, not zipped against the field tuple:
+                # positional pairing would silently mis-map every value if the
+                # declared order were ever edited. The declared order is
+                # enforced by the writer and by test_failed_gate_schema.
                 failed_samples.append(dict(tc_us=tc*1e6,Ge_WK=Ge,Cc=Cc_,
                     T2s_us=T2s_*1e6,ea=ea,Ts_mK=Ts*1e3,SNR=SNR,eps_pct=eps*100,
                     dominant_failure=dom,g_d10=g_d10,g_d3=g_d3,g_d13=g_d13,g_d18=g_d18))
@@ -2315,11 +2344,7 @@ def main():
     # assumed_parameters.json is maintained separately with 75 entries in correct format.
     # Do NOT overwrite from sim — the manually-maintained version has full traceability.
     # with open(out/"assumed_parameters.json","w") as f: json.dump(...)  [DISABLED]
-    if failed_s:
-        with open(out/"failed_gate_samples.csv","w",newline="") as f:
-            dw=csv.DictWriter(f,failed_s[0].keys()); dw.writeheader(); dw.writerows(failed_s)
-    else:
-        with open(out/"failed_gate_samples.csv","w") as f: f.write("A,B,C,D,SNR,Ts_mK\n")
+    write_failed_gate_samples(out/"failed_gate_samples.csv", failed_s)
     # tau_c sweep — gated against CANONICAL threshold 292 µs (v3.3).
     # 27.7 µs (v3.0) is SUPERSEDED and is NOT used as a live gate.
     TAU_C_CANONICAL_S = 292e-6
