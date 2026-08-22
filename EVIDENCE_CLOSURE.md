@@ -27,10 +27,15 @@ sync at 393 files with 2 detached; 128 focused authority tests pass.
 ## 1. §6 L3 refinement level
 
 **Status: COMPLETED — see `THERMAL_3D_L3.md`.** Executed as declared: rel_error
--6.1831e-03 at 26x26x32 / 72x96, monotone decreasing, within tolerance, 2 624 s
-and 1 448 MB. The extrapolated limit is -5.68e-03, a small non-zero residual
-attributable to the box/disc geometry difference the artifact already bounds at
-~6 %; it is not claimed to converge to zero.
+**-6.1831e-03 (0.618 %)** at 26×26×32 / 72×96, monotone decreasing across three
+levels, all inside the unchanged 0.10 tolerance, 2 624 s and a traced-allocation
+peak of 1 448 MB (tracemalloc, not RSS).
+
+A three-point Aitken transform gives ≈ **-0.568 %**. That is a **diagnostic
+extrapolation, not an established continuum limit** — the reduction factor moves
+0.487 → 0.773, so the sequence has not demonstrated an asymptotic law over these
+points. The box/disc geometry difference is **consistent with** a persistent
+non-zero residual and is not shown to be its unique cause.
 
 What follows — this section records only what the
 profiling established, because the profiling is what changed.
@@ -38,20 +43,27 @@ profiling established, because the profiling is what changed.
 The blocker was never convergence, memory or a defect. It is asymptotic solver
 cost. Measured on this runner, holding the scientific definition fixed:
 
-| level | 3D cells | 3D solve | peak RSS |
+| level | 3D cells | 3D solve | traced Python peak |
 |---|---|---|---|
 | L1 (10×10×12) | 1 200 | 7.6 s | 62 MB |
 | L2 (18×18×22) | 7 128 | 128.1 s | 432 MB |
 | interpolated (22×22×26) | 12 584 | 658.8 s | 800 MB |
 
-Time exponent 1.59 (L1→L2) steepening to **2.88** (L2→mid) — the fill-in
-behaviour expected of a sparse LU factorisation on a 3D 7-point stencil inside
-BDF. Memory scales linearly (exponent 1.08), and at 16 GB available it is not
-the constraint. Extrapolated L3 (26×26×32, 21 632 cells): **1 800–3 100 s** for
-the 3D solve, peak ≈ 1.4 GB.
+Time exponent 1.59 (L1→L2) steepening to **2.88** (L2→mid). Profiling one L2 3D
+solve isolates the cause directly: **72.3 % of it is `_superlu.gstrf`**, the
+sparse-direct factorisation, 443 calls at 0.217 s each, with the right-hand side
+at 1.7 %. The extension of that attribution to L3 is an extrapolation of a
+measured mechanism, not a second measurement — L3 was not profiled.
 
-The earlier "still running after ~22 minutes" observation is fully explained by
-that curve. L3 is tractable; it is simply expensive.
+The memory column is `tracemalloc` (traced Python allocations), not OS RSS; it
+does not see SuperLU's native allocations. Calibrated at L2: traced 432.5 MB vs
+`ru_maxrss` 551.8 MB, a ratio of 1.28×. No OS-level RSS was captured for L3 and
+none is reconstructed. What holds: no memory exhaustion at any level, every
+solve `ok`, and every measured indicator far below the 16 GB available.
+
+Extrapolated L3 (26×26×32, 21 632 cells): **1 800–3 100 s**; actual 2 624 s. The
+earlier "still running after ~22 minutes" observation is fully explained by that
+curve. L3 is tractable; it is simply expensive.
 
 **No optimisation was applied to reach it.** Coarsening the grid, loosening a
 tolerance, changing the boundary condition or substituting L2 are all forbidden
@@ -59,7 +71,16 @@ and none was done.
 
 ## 2. Container runtime
 
-**Status: RUNTIME AVAILABLE — BUILD BLOCKED BY REGISTRY EGRESS POLICY.**
+**Status: `STATIC_VERIFIED`.** Three states are tracked separately and must not
+be collapsed into a boolean:
+
+| state | meaning | current |
+|---|---|---|
+| `STATIC_VERIFIED` | Dockerfile, dependency and security review only | **yes** |
+| `RUNTIME_BUILT` | the exact declared image built and launched | no |
+| `RUNTIME_SCIENTIFICALLY_REPRODUCED` | governed verification executed inside it and outputs compared | no |
+
+Locally: **runtime available, build blocked by registry egress policy.**
 
 This is a change from the previous review's "no usable runtime". The daemon
 binaries were present all along and simply were not started. Started here:
@@ -93,9 +114,31 @@ test a different artifact than the Dockerfile declares, and reporting that as
 container verification would be false. Static review stands; runtime execution
 does not.
 
-**What closes it:** allow `production.cloudfront.docker.com` (or any Docker Hub
-blob CDN) through the egress policy, or run the build where Docker Hub is
-reachable. No repository change is required — the Dockerfile is not the blocker.
+**A second route exists, and it is now wired.** The local egress policy is not
+the only possible execution environment. `.github/workflows/container-verify.yml`
+(added in this pass, `workflow_dispatch` only, `contents: read` and nothing
+else — no `id-token`, no write of any kind) attempts the declared build on a
+GitHub-hosted runner, which is a different network. It changes nothing about the
+container: same Dockerfile, same digest-pinned base read from the Dockerfile
+rather than restated, same `USER qta`, same entrypoint. It checks in order that
+a Docker daemon exists, the pinned base pulls, the image builds, it runs as
+`qta`, `sys.prefix` is `/opt/venv` so no host virtualenv is involved, and then
+runs the governed in-container verification.
+
+**Its availability claim is not verified.** GitHub documents a Docker daemon on
+`ubuntu-latest`, but this repository has not observed one; the workflow's first
+step fails loudly if none is present. The workflow is the *means* of settling
+the question, not an assertion of the answer, and it cannot run until it reaches
+the default branch because it is `workflow_dispatch`.
+
+If it succeeds through the build and run steps, container evidence moves to
+`RUNTIME_BUILT`; if the governed verification inside the container also passes
+and its outputs match, `RUNTIME_SCIENTIFICALLY_REPRODUCED`. Until then the state
+stays `STATIC_VERIFIED`.
+
+**What else closes it:** allowing `production.cloudfront.docker.com` (or any
+Docker Hub blob CDN) through the local egress policy. No repository change is
+required for that route — the Dockerfile is not the blocker.
 
 ## 3. Signing / SLSA
 
@@ -122,12 +165,23 @@ filled in advance — the certificate identity and issuer are only knowable from
 the certificate of a real signing run — and the policy fails closed on any
 `PENDING` or wildcard, so no signature is trusted until they are exact.
 
-**What closes it:** the workflow fires only on `push: tags: ["qta-stage*"]`.
-There is no `workflow_dispatch`. A genuine hosted signing run therefore requires
-cutting a release tag, which is an owner decision and is not taken here. After
-that run, the four pins are set from the observed certificate and verification
-must be independent: a cryptographically valid signature over the wrong
-artifact, commit, workflow or repository is a failure, not a pass.
+**There is a bootstrap circularity, and the earlier claim that "cutting one tag
+fills all four pins" was wrong.** Because the policy fails closed on `PENDING`
+and online verification runs *before* `upload-artifact`, the first signing run
+must fail verification **and** discards the Sigstore bundle that carries the
+only copy of the real certificate. See `SIGNING_BOOTSTRAP.md` for the full
+statement and the two-stage fix.
+
+**What closes it,** in order: dispatch
+`.github/workflows/identity-discovery.yml` (added in this pass — untrusted,
+`workflow_dispatch` only, signs a throwaway file rather than the release zip,
+preserves the certificate as `UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE`, writes no
+pin, reports `IDENTITY_DISCOVERY_ONLY — NOT A TRUSTED RELEASE`); compare the
+observed claims against the prediction recorded in `SIGNING_BOOTSTRAP.md`; pin
+the exact values in a separate reviewed commit; then cut the release tag and let
+`release.yml` verify against a policy the owner pre-authorized. Verification must
+be independent: a cryptographically valid signature over the wrong artifact,
+commit, workflow or repository is a failure, not a pass.
 
 ## 4. Material-property floors
 
@@ -171,9 +225,51 @@ upgrade, and a plausible external number is not:
 | Manufacturer data | controlled, traceable, with stated measurement conditions | manufacturer-controlled documentation |
 | Owner design input | an explicitly ASSUMED replacement, declared as such | owner design decision |
 
-Whichever arrives, the floors are conservative in one direction only: they
-*raise* diffusivity, so recovery times are optimistic and hotspot persistence is
-understated. Any replacement must be checked for that sign.
+### The directional claim was tested, and it failed
+
+An earlier version of this document asserted that the floors are "conservative
+in one direction only: they raise diffusivity, so recovery times are optimistic
+and hotspot persistence understated". That inference was from α alone. It was
+checked against the coupled solver and **it does not hold.**
+
+Diagnostic run — production floors versus the raw `_cp_raw`/`_k_raw`
+extrapolation the repository already ships, floors lowered only inside the
+diagnostic process, production values untouched and restored afterwards.
+**NON-AUTHORITATIVE: the raw law carries no authority and was not promoted.**
+
+| configuration | α at the 50 mK probe | NV-layer peak over the recovery window | solver |
+|---|---|---|---|
+| floored (production) | 0.2849 m²/s | **0.013057 K** | ok |
+| raw law (diagnostic) | 0.0385 m²/s | **0.010000 K** | ok |
+
+α is 7.396× higher with the floors, exactly as the constitutive comparison says.
+But the coupled NV-layer response moves the **opposite** way: floored − raw =
+**+3.06e-03 K**, i.e. the floored (production) configuration ends *hotter*, not
+cooler. The naive "faster diffusion ⇒ optimistic recovery" chain is therefore
+not supported by the full nonlinear boundary-coupled solve.
+
+The mechanism is visible in the numbers: the floors raise Cp by 6.8e4× at 10 mK
+as well as k by 5.0e5×, and α is only their ratio. In the raw-law run Cp
+underflows to ~1.5e-11 J/kg/K, the material has essentially no heat capacity,
+and the NV layer is pinned to T_fridge at 0.010000 K exactly. That is a
+degenerate numerical limit — which is why the Cp floor exists as a guard in the
+first place — so the raw-law run is not a physically better alternative either.
+
+**What is established:** relative to the current raw T³ extrapolation, the
+paired floors increase thermal diffusivity by 7.396× in the floor-dominated
+regime, and the sign of at least one coupled recovery observable is opposite to
+what that alone would predict.
+
+**What is not established:** the sign or magnitude of the full-system response
+of Mode-C recool time, 50 mK crossing time, hotspot maximum or hotspot
+persistence to a *physically meaningful* replacement constitutive law. The
+raw-law limit is degenerate and does not stand in for one. Any replacement must
+be re-tested against the coupled observables directly, not argued from α.
+
+"Conservative" is not asserted of these floors anywhere in this document. The
+word appears above only in the quotation of the claim being withdrawn: no
+direction has been demonstrated to be conserved, so there is nothing to call
+conservative.
 
 ## 5. CH₄ / H₂ gas temperature
 
@@ -196,9 +292,9 @@ its classification is robust despite the unresolved population temperature.
 CH₄ is not: it crosses a transport-regime boundary between 0.1 K and 1 K, so its
 classification would follow entirely from the assumption.
 
-**The prior question is whether a scalar gas temperature is meaningful here at
-all.** A temperature describes a Maxwellian, and a Maxwellian needs
-intermolecular collisions to establish. Counting them, at the modelled
+**The prior question is what a scalar gas temperature would mean here.** A
+temperature in the equilibrium sense describes a Maxwellian, and a Maxwellian is
+established by intermolecular collisions. Counting them, at the modelled
 pressures and L_char = 0.01 m:
 
 | species | T | λ (m) | Kn | collisions per wall transit |
@@ -210,20 +306,40 @@ pressures and L_char = 0.01 m:
 | H2 | 1 K | 3.695e+05 | 3.695e+07 | 2.7e-08 |
 | H2 | 300 K | 1.109e+08 | 1.109e+10 | 9.0e-11 |
 
-For H₂ a molecule crosses the chamber between a million and a hundred billion
-times before meeting another molecule. There is no gas-phase equilibration at
-any temperature in the span, so there is no population for a temperature to
-describe: what a molecule carries is the accommodation history of the last
-surface it struck, and those surfaces run from 300 K feedthroughs to the 10 mK
-stage. `None` is not a missing value here — it is the physically correct answer,
-and assigning a scalar would be inventing an equilibrium that does not exist.
+**H₂.** Between a million and a hundred billion wall transits per intermolecular
+collision across the whole span. The evidence strongly argues against assuming a
+single collisionally equilibrated Maxwellian: there is no gas-phase mechanism to
+establish one, and the population's velocity/energy distribution may depend on
+wall temperatures, source apportionment and accommodation history.
 
-CH₄ is the one case where the question is real. At 10 mK it manages ~4.6
-collisions per wall transit — marginally collisional, which is precisely why it
-sits at the TRANSITIONAL boundary — and by 1 K it is down to 0.046, collisionless
-like everything else. So a gas temperature is arguably definable for CH₄ only at
-the very bottom of the declared span, and the physically honest object over the
-rest of it is a **distribution over source populations**, not one T.
+That is **not** a claim that no temperature-like quantity can be defined. A
+kinetic temperature can be defined from moments of a non-equilibrium velocity
+distribution even when that distribution is not Maxwellian; whether such a
+scalar would be useful or authoritative here is a separate question this
+repository has not answered. What `T_eval_K: None` records is therefore:
+
+> **no authoritative scalar gas temperature is assigned by this model.**
+
+It does not record that temperature is mathematically undefinable, that no
+kinetic-temperature moment exists, that the gas carries no energy distribution,
+or that every molecule necessarily retains exactly its last wall temperature.
+
+The robust result stands independently of any of that: H₂ classifies
+MOLECULAR_FLOW at **every** temperature in the evaluated span, so its regime
+conclusion does not depend on resolving the population temperature at all.
+
+**CH₄.** At 10 mK it reaches ~4.6 intermolecular collisions per characteristic
+wall transit — substantially more collisional than H₂ and capable of more
+gas-phase redistribution — but 4.6 collisions per transit does not by itself
+demonstrate an established Maxwellian equilibrium. It is transitional, and that
+is the point: CH₄ is far more sensitive to the unresolved population model than
+H₂, and it is the one species that crosses a transport-regime boundary within
+the declared span (between 0.1 K and 1 K). Its classification would follow from
+whatever population model is assumed, which is why no scalar is chosen.
+
+A source-population or distribution-based treatment is the plausible future
+architecture, but that is a modelling requirement to be implemented and
+evidenced, not a conclusion this pass reaches.
 
 | Quantity required | Physical definition | Evidence / model required | Consumers | Authority consequence |
 |---|---|---|---|---|
@@ -232,12 +348,12 @@ rest of it is a **distribution over source populations**, not one T.
 | Source apportionment | fraction of flux from each wall population | conductance/geometry model | the weighting of the distribution | required before any average is meaningful |
 | Collision frequency | intermolecular collision rate at the modelled pressure | already derivable from P, d, T | confirms whether equilibration can occur at all | at Kn ≫ 1 it cannot |
 
-**Recommended disposition:** for H₂ the regime conclusion stands without a
-temperature and the `None` should remain. For CH₄ the correct output is not a
-chosen temperature but an explicit statement that no single equilibrium gas
-temperature is claimed, with the regime reported parameterised — which is what
-the artifact already does. Assigning a scalar T would be a modelling decision
-requiring owner authority, not a defect fix.
+**Recommended disposition:** for H₂ the regime conclusion holds without a
+temperature, so `None` should remain. For CH₄ the output should continue to be
+an explicit statement that no single equilibrium gas temperature is claimed,
+with the regime reported parameterised — which is what the artifact already
+does. Assigning a scalar T is a modelling decision requiring owner authority,
+not a defect fix.
 
 ## 6. Deep experimental-design layer
 
@@ -276,8 +392,8 @@ isolation tests is evidence of containment, never of correctness.
 | Quantity | State | Current evidence | Missing evidence | Consumer | Affected | Software-closable? |
 |---|---|---|---|---|---|---|
 | §6 L3 refinement | **CLOSED** | L1, L2, L3 executed | none | reduction check | §6 convergence claim | done |
-| Container runtime | build blocked | daemon 29.3.1 running | Docker Hub blob egress | release/reproducibility | container claim | no — infrastructure |
-| Signing | PENDING | offline bundle verified | hosted Sigstore run + identity match | release | provenance claim | no — infrastructure |
+| Container runtime | `STATIC_VERIFIED` | daemon 29.3.1 running locally | a runner that can pull the pinned base | release/reproducibility | container claim | partly — hosted workflow added, unproven |
+| Signing | PENDING | offline bundle verified; bootstrap designed | identity-discovery run, then owner pin, then tag | release | provenance claim | no — owner + infrastructure |
 | Cp(T) below 0.407 K | floored | none | measurement or validated law | all thermal solvers | Mode-C recool, 50 mK readiness | no — measurement |
 | k(T) below 0.794 K | floored | none | measurement or validated law | all thermal solvers | same | no — measurement |
 | CH₄ gas temperature | unresolved | span parameterisation | accommodation + wall map, or a decision not to claim one | diagnostic only | none (quarantined) | no — owner decision |
