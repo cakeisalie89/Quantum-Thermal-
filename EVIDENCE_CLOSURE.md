@@ -172,30 +172,81 @@ then re-verifies the same file against the same bundle directory with
 `verify_release.py --online`. The three-directory bug that once meant the signed
 artifact was never the verified one is fixed.
 
-**The four blockers are the four PENDING pins in
-`release_trust_policy.json`:** `oidc_issuer`, `signer_identity`,
-`pinned_revision`, and the hosted entry of `trusted_builders`. They cannot be
-filled in advance — the certificate identity and issuer are only knowable from
-the certificate of a real signing run — and the policy fails closed on any
-`PENDING` or wildcard, so no signature is trusted until they are exact.
+**There are two independent blockers, not one.**
+
+*Blocker A — the four PENDING pins* in `release_trust_policy.json`:
+`oidc_issuer`, `signer_identity`, `pinned_revision`, and the hosted entry of
+`trusted_builders`. They cannot be filled in advance — the certificate identity
+and issuer are only knowable from the certificate of a real signing run — and
+the policy fails closed on any `PENDING` or wildcard, so no signature is trusted
+until they are exact.
+
+*Blocker B — signing metadata was never written.* Found in review, and it is the
+reason filling the pins would not have been enough on its own.
+`build_release_artifacts.py` hardcodes `"signing_status": "PENDING"` and
+`"signature_bundles": []`; the signing step writes `source.sigstore.json` and
+updates neither; and `verify_release.py` rejects on
+`status != "SIGNED" or not sig` *before* reaching `_verify_sigstore`. Online
+verification therefore failed **regardless of the pins**.
+
+Blocker B is now closed, under owner authorization, by
+`finalize_release_signing.py`, invoked between signing and online verification.
+It makes exactly one transition — `signing_status` `PENDING → SIGNED` and one
+`signature_bundles` record — and refuses on any precondition failure: missing,
+empty, unparseable or non-Sigstore-shaped bundle; wrong or missing zip;
+non-PENDING start; a non-empty signature list; or a zip digest that disagrees
+with the index, `files[]` or `SHA256SUMS`. Its mutation boundary is checked
+structurally, so an added or removed key is caught, and its write is atomic.
+
+**It confers no trust.** `PENDING → SIGNED` asserts only that a signature bundle
+physically exists. `verify_release.py` still independently requires exact
+`signer_identity` and `oidc_issuer` pins, so a cryptographically valid signature
+from an unauthorized signer remains a failure. The finalizer never reads or
+writes a trust-policy field; an AST test asserts its only write target is the
+release index. Blocker A is untouched — signing stays PENDING.
 
 **There is a bootstrap circularity, and the earlier claim that "cutting one tag
 fills all four pins" was wrong.** Because the policy fails closed on `PENDING`
 and online verification runs *before* `upload-artifact`, the first signing run
 must fail verification **and** discards the Sigstore bundle that carries the
 only copy of the real certificate. See `SIGNING_BOOTSTRAP.md` for the full
-statement and the two-stage fix.
+statement and the staged fix.
 
-**What closes it,** in order: dispatch
-`.github/workflows/identity-discovery.yml` (added in this pass — untrusted,
-`workflow_dispatch` only, signs a throwaway file rather than the release zip,
-preserves the certificate as `UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE`, writes no
-pin, reports `IDENTITY_DISCOVERY_ONLY — NOT A TRUSTED RELEASE`); compare the
-observed claims against the prediction recorded in `SIGNING_BOOTSTRAP.md`; pin
-the exact values in a separate reviewed commit; then cut the release tag and let
-`release.yml` verify against a policy the owner pre-authorized. Verification must
-be independent: a cryptographically valid signature over the wrong artifact,
-commit, workflow or repository is a failure, not a pass.
+**A second review finding corrected the bootstrap itself.** The Fulcio SAN names
+the workflow file *and* the ref that ran, so a `workflow_dispatch` run of
+`identity-discovery.yml` on a branch certifies
+`.../identity-discovery.yml@refs/heads/<BRANCH>` — differing from
+`.../release.yml@refs/tags/<TAG>` in **both** components. Discovery can
+therefore *never* produce the `signer_identity` string to pin, and the earlier
+instruction to "pin the exact observed strings" from it was asking for something
+the mechanism cannot deliver.
+
+**What closes it,** in order:
+
+1. **Discovery** — dispatch `.github/workflows/identity-discovery.yml`
+   (untrusted, `workflow_dispatch` only, signs a throwaway file rather than the
+   release zip, preserves the certificate as
+   `UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE`, writes no pin, reports
+   `IDENTITY_DISCOVERY_ONLY — NOT A TRUSTED RELEASE`). This fixes the
+   `oidc_issuer`, the SAN URI structure, the repository component and the
+   Fulcio extension layout — **not** the exact identity.
+2. **Evidence capture** — cut a bootstrap tag. `release.yml` builds, verifies
+   offline, signs, finalizes the signing metadata, and then **fails** online
+   verification on the PENDING pins exactly as designed. Its
+   `preserve UNTRUSTED bundle when verification fails` step (`if: failure()`)
+   keeps the certificate as `UNTRUSTED-RELEASE-IDENTITY-EVIDENCE`. This is the
+   only step that can yield the exact `signer_identity`, because it is the only
+   one signing under `release.yml` at a tag ref. The job still exits non-zero
+   and writes no pin.
+3. **Authorization** — a human compares both against the prediction recorded in
+   `SIGNING_BOOTSTRAP.md` and pins the exact values in a separate reviewed
+   commit. A contradiction is a finding, not something to paper over.
+4. **Trusted release** — cut a *new* tag (a signed tag is never re-pointed) and
+   let `release.yml` verify against a policy the owner pre-authorized.
+
+Verification must be independent: a cryptographically valid signature over the
+wrong artifact, commit, workflow or repository is a failure, not a pass. No
+automated path runs from observation to authorization at any step.
 
 ## 4. Material-property floors
 
@@ -407,7 +458,7 @@ isolation tests is evidence of containment, never of correctness.
 |---|---|---|---|---|---|---|
 | §6 L3 refinement | **CLOSED** | L1, L2, L3 executed | none | reduction check | §6 convergence claim | done |
 | Container runtime | `STATIC_VERIFIED` | daemon 29.3.1 running locally | a runner that can pull the pinned base | release/reproducibility | container claim | partly — hosted workflow added, unproven |
-| Signing | PENDING | offline bundle verified; bootstrap designed | identity-discovery run, then owner pin, then tag | release | provenance claim | no — owner + infrastructure |
+| Signing | PENDING | offline bundle verified; metadata blocker closed by finalize_release_signing.py; bootstrap corrected after review | discovery dispatch, then bootstrap tag for the real SAN, then owner pin, then a new tag | release | provenance claim | no — owner + infrastructure |
 | Cp(T) below 0.407 K | floored | none | measurement or validated law | all thermal solvers | Mode-C recool, 50 mK readiness | no — measurement |
 | k(T) below 0.794 K | floored | none | measurement or validated law | all thermal solvers | same | no — measurement |
 | CH₄ gas temperature | unresolved | span parameterisation | accommodation + wall map, or a decision not to claim one | diagnostic only | none (quarantined) | no — owner decision |
