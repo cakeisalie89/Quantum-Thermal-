@@ -67,6 +67,28 @@ def test_any_governed_field_change_changes_the_digest():
         assert compute_record_sha256({**RECORD, field: new}) != base, field
 
 
+def test_a_change_nested_inside_a_structure_changes_the_digest():
+    """Canonicalization recurses; a nested edit must not hash the same."""
+    a = copy.deepcopy(RECORD)
+    a["_probe"] = {"outer": {"inner": [1, 2, {"deep": "before"}]}}
+    b = copy.deepcopy(a)
+    b["_probe"]["outer"]["inner"][2]["deep"] = "after"
+    assert compute_record_sha256(a) != compute_record_sha256(b)
+
+
+def test_reordering_a_list_changes_the_digest():
+    """Sequence order is meaningful, so it must be part of the digest.
+
+    Key order is not (see test_canonical_form_is_deterministic); list order is.
+    Collapsing the two would let a reordered measurement series reuse a review.
+    """
+    a = copy.deepcopy(RECORD)
+    a["_probe"] = [1, 2, 3]
+    b = copy.deepcopy(RECORD)
+    b["_probe"] = [3, 2, 1]
+    assert compute_record_sha256(a) != compute_record_sha256(b)
+
+
 # ------------------------------------- the four adversarial cases from §18 --
 
 def test_review_A_with_record_A_is_allowed():
