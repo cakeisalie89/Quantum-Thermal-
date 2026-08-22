@@ -148,10 +148,10 @@
   {
    "@id": "RUNTIME_RESILIENCE.md",
    "@type": "File",
-   "contentSize": "5333",
+   "contentSize": "6132",
    "description": "Stage-7.5 documentation",
    "name": "RUNTIME_RESILIENCE.md",
-   "sha256": "629970d50f85e26671e5d877b9cca18e6759217f9f5fe508fb7b6b21020dfdf9"
+   "sha256": "076e9d56ab4034b382d34d4b7f05ec579ebb2fee5a7a06274c2ef9b1a1707d33"
   },
   {
    "@id": "Snakefile",
@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "125374",
+   "contentSize": "125375",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

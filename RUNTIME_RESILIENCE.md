@@ -65,10 +65,22 @@ canonical generator on this machine (4 x Intel Xeon @ 2.80 GHz, container):
 | under heavy concurrent load | 323 s | TimeoutExpired at 300 s |
 | instrumented, moderate load | 262 s | completed |
 | inside the checker, quiet | 229 s | **PASS, exit 0** |
+| quiet, final review pass (2026-08-22) | 296 s | **PASS, exit 0** — 4 s margin |
 
-The spread straddles the 300 s budget, so the checker fails **intermittently
-under contention** rather than persistently. Progress continues throughout —
-there is no hang, no deadlock, and no stage that stops making progress.
+The spread straddles the 300 s budget. The 296 s sample is the one to read
+first: it was taken on an otherwise-idle runner with nothing else executing,
+and it left **four seconds** of headroom. Contention is therefore not the only
+way this fails — a slower runner, or the same runner on a slower day, crosses
+the budget on its own. Progress continues throughout: there is no hang, no
+deadlock, and no stage that stops making progress, so what a failure means is
+"this machine was too slow today", never "the package is broken".
+
+Two whole-checker wall times were recorded alongside it — 298 s standalone and
+297 s inside the Snakemake DAG — but those are not the guarded quantity. The
+`timeout=300` at package_consistency_check.py:155 wraps the
+`qta_full_sim.py` subprocess only; the rest of the checker's fourteen steps run
+outside it. The 296 s above is that subprocess measured alone, which is the
+number the budget actually governs.
 
 **Stage breakdown** (from the 262 s instrumented run):
 
