@@ -65,22 +65,46 @@ canonical generator on this machine (4 x Intel Xeon @ 2.80 GHz, container):
 | under heavy concurrent load | 323 s | TimeoutExpired at 300 s |
 | instrumented, moderate load | 262 s | completed |
 | inside the checker, quiet | 229 s | **PASS, exit 0** |
-| quiet, final review pass (2026-08-22) | 296 s | **PASS, exit 0** — 4 s margin |
+| quiet, review pass (2026-08-22, pre-optimisation) | 296 s | **PASS, exit 0** — 4 s margin |
+| quiet, after the filter-function blocking | 195 s | **PASS, exit 0** — ~105 s margin |
 
-The spread straddles the 300 s budget. The 296 s sample is the one to read
-first: it was taken on an otherwise-idle runner with nothing else executing,
-and it left **four seconds** of headroom. Contention is therefore not the only
-way this fails — a slower runner, or the same runner on a slower day, crosses
-the budget on its own. Progress continues throughout: there is no hang, no
-deadlock, and no stage that stops making progress, so what a failure means is
-"this machine was too slow today", never "the package is broken".
+The 296 s sample is what forced the work below. It was taken on an
+otherwise-idle runner with nothing else executing and left **four seconds** of
+headroom, so contention was no longer required to breach the budget: a slower
+runner, or the same runner on a slower day, would cross it unaided.
 
-Two whole-checker wall times were recorded alongside it — 298 s standalone and
-297 s inside the Snakemake DAG — but those are not the guarded quantity. The
-`timeout=300` at package_consistency_check.py:155 wraps the
-`qta_full_sim.py` subprocess only; the rest of the checker's fourteen steps run
-outside it. The 296 s above is that subprocess measured alone, which is the
-number the budget actually governs.
+**What the margin was spent on, and how it was recovered.** Profiling the
+canonical generator put 27% of the whole run — 79 s of tottime across 407
+calls — inside `numpy.trapezoid`, almost all of it in the NV filter function.
+That routine materialised `exp(1j*outer(omega, t))` as a 4000x4000 complex128
+array, 256 MB, then a second array of the same size for the product, on each of
+69 calls per run. Evaluating `omega` in cache-sized blocks removed both
+allocations. The rows of that array are independent — `trapezoid` along axis=1
+touches one omega at a time — so the quadrature, the grid, the summation order
+within a row and every returned bit are unchanged;
+`tests/test_checker_runtime_contract.py` asserts bit-equality against the
+whole-array form rather than arguing it. One call went 7.91 s to 0.74 s and the
+full regeneration went 296 s to 195 s.
+
+**The budget was not raised.** It is still 300 s. No mesh was coarsened, no
+sample count reduced, no tolerance loosened and no verification step skipped to
+buy the margin; the work removed was allocation and memory traffic, not
+computation. All 88 governed outputs remain byte-identical and the HDF5 has 470
+datasets element-wise identical across the change.
+
+Progress continues throughout: there is no hang, no deadlock, and no stage that
+stops making progress, so what a breach means is "this machine was too slow
+today", never "the package is broken". That is why the guard stays a hang
+detector at 300 s rather than being widened to fit the slowest observed run.
+
+Whole-checker wall times are recorded alongside — 298 s standalone and 297 s
+inside the Snakemake DAG before the optimisation, ~200 s after — but those are
+not the guarded quantity. `SIM_TIMEOUT_S` wraps the `qta_full_sim.py`
+subprocess only; the rest of the checker's fourteen steps run outside it. The
+figures in the table are that subprocess measured alone, which is what the
+budget governs. The checker now prints its own elapsed time and remaining
+margin on success, so this table can be extended from a run rather than from
+memory.
 
 **Stage breakdown** (from the 262 s instrumented run):
 
