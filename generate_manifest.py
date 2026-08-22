@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
 """Deterministically regenerate final_manifest.json and manifest_hash.txt.
 
+COVERAGE BOUNDARY (the thing this file is the authority for).
+
+The manifest answers "what bytes are in this repository, and what were their
+hashes" — it is a PROVENANCE record, not an AUTHORITY record. Those are
+different questions and the project answers them in different places:
+
+  * provenance  — final_manifest.json: every git-tracked file except the two
+    intentionally-detached ones. Inclusion here says only "these bytes were
+    present and this was their SHA-256". It confers no scientific standing.
+  * authority   — AUTHORITIES.md / authorities.json: which module owns which
+    concept. That is where "is this governed?" is answered.
+
+The two are deliberately not the same set. `attic/delivery_artifacts/` is
+described in README.md as "not part of the governed project" and yet is fully
+hashed here, and always has been — precisely because a file can be preserved
+and recorded without being authoritative. Do not add exclusions to make a
+manifest diff smaller: an unhashed tracked file is an unrecorded byte, which
+is the failure mode this file exists to prevent.
+
 The manifest lists every git-tracked file EXCEPT the two intentionally-detached
 files (final_manifest.json, manifest_hash.txt), each with its byte size and
 SHA-256. Per-file generated_by/purpose and the canonical narrative fields
@@ -10,14 +29,18 @@ results_gate_table.csv so they cannot drift. The detached hash policy is the one
 verified by package_consistency_check.py Step 11.
 
 Run from the repository root:  python3 generate_manifest.py
-Determinism: the file list is sorted; JSON uses indent=2, ensure_ascii=True, and
+Verify without writing:        python3 generate_manifest.py --check
+Determinism: JSON uses indent=2, ensure_ascii=True, and
 the same key order and (no-trailing-newline) format as the canonical manifest.
+Ordering: existing entries keep their position, new tracked files are appended
+in sorted order (_manifest_order). The list as a whole is NOT sorted.
 """
 from __future__ import annotations
 
 import csv
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from collections import Counter
@@ -27,6 +50,28 @@ ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "final_manifest.json"
 HASHFILE = ROOT / "manifest_hash.txt"
 DETACHED = {"final_manifest.json", "manifest_hash.txt"}
+
+# Machine-readable statement of the boundary above, emitted into the manifest
+# so a reader of the artifact does not have to come here to learn its scope.
+COVERAGE_POLICY = {
+    "schema_version": "1.0.0",
+    "scope": "every git-tracked file in this repository",
+    "record_type": "PROVENANCE",
+    "means": "these bytes were present at this SHA-256",
+    "does_not_mean": "that the file is a governed scientific authority, a "
+                     "release artifact, or an execution input",
+    "authority_register": "AUTHORITIES.md / authorities.json answer 'what "
+                          "is governed'; this manifest answers 'what bytes "
+                          "exist'",
+    "exclusions": sorted(DETACHED),
+    "exclusion_reason": "final_manifest.json cannot hash itself; "
+                        "manifest_hash.txt is its detached hash, written "
+                        "after the manifest is finalized",
+    "non_exclusions": "attic/delivery_artifacts/ is documented as outside "
+                      "the governed project yet is fully hashed here — "
+                      "preservation and authority are separate concepts",
+    "drift_check": "python3 generate_manifest.py --check",
+}
 
 # purpose strings for files added by the forecast-layer work (when not already
 # present in the previous manifest).
@@ -69,26 +114,145 @@ def _sha256(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def _recompute_canonical_state(prev: dict) -> dict:
-    """Preserve the curated canonical_state verbatim; verify gate counts against
-    results_gate_table.csv and warn (do NOT silently alter) on any mismatch."""
-    cs = dict(prev)
+def _manifest_order(prev_order, tracked_set) -> list:
+    """The documented ordering policy, in one place.
+
+    Existing entries keep their position (so a regeneration produces a
+    reviewable diff rather than a reshuffle), then genuinely new tracked files
+    are appended in sorted order. Both halves are deterministic. This is NOT a
+    globally sorted list, and the module docstring used to claim it was.
+    """
+    prev_set = set(prev_order)
+    ordered = [f for f in prev_order if f in tracked_set]
+    ordered += sorted(f for f in tracked_set if f not in prev_set)
+    return ordered
+
+
+#: canonical_state fields that are DERIVED from results_gate_table.csv and are
+#: therefore recomputed on every write and re-verified by --check. Everything
+#: else in canonical_state is curated narrative with no generator, and is
+#: preserved verbatim.
+DERIVED_STATE_FIELDS = ("total_gates", "PASS", "CONDITIONAL", "BLOCKED",
+                        "UNKNOWN", "DERIVED_CHECK")
+
+
+def _gate_state() -> dict | None:
+    """Recompute the derived canonical_state fields from the gate table.
+
+    Returns None when results_gate_table.csv is absent (a fixture repository),
+    so callers can skip semantic verification rather than invent counts.
+    """
     gate_csv = ROOT / "results_gate_table.csv"
-    if gate_csv.exists():
-        with open(gate_csv, encoding="utf-8", newline="") as fh:
-            rows = list(csv.DictReader(fh))
-        counts = Counter((r.get("status") or "").strip() for r in rows)
-        if prev.get("total_gates") not in (None, len(rows)):
-            print(f"WARN: canonical_state.total_gates={prev.get('total_gates')} but "
-                  f"results_gate_table.csv has {len(rows)} rows (preserving manifest value)",
-                  file=sys.stderr)
-        if counts.get("PASS", 0) != 0:
-            print(f"WARN: results_gate_table.csv has {counts.get('PASS')} PASS rows",
-                  file=sys.stderr)
+    if not gate_csv.exists():
+        return None
+    with open(gate_csv, encoding="utf-8", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    counts = Counter((r.get("status") or "").strip() for r in rows)
+    state = {"total_gates": len(rows)}
+    for f in DERIVED_STATE_FIELDS[1:]:
+        state[f] = counts.get(f, 0)
+    return state
+
+
+def _recompute_canonical_state(prev: dict) -> dict:
+    """Recompute the derived gate counts from results_gate_table.csv.
+
+    These fields used to be preserved verbatim with a warning on mismatch,
+    which meant a stale count could survive every regeneration and every
+    --check. A warning is not verification: the counts are derived data and
+    are now actually derived. Curated narrative fields are untouched.
+    """
+    cs = dict(prev)
+    derived = _gate_state()
+    if derived is None:
+        return cs
+    for field, value in derived.items():
+        if prev.get(field) not in (None, value):
+            print(f"NOTE: canonical_state.{field} {prev.get(field)} -> {value} "
+                  f"(recomputed from results_gate_table.csv)", file=sys.stderr)
+        cs[field] = value
     return cs
 
 
+def check() -> int:
+    """Verify the committed manifest against the working tree; write nothing.
+
+    This is the guard whose absence let the manifest drift: the committed
+    manifest can be internally consistent (every hash it lists is correct) and
+    still be wrong, because it silently omits tracked files that were added
+    after it was last written. Membership is checked in BOTH directions.
+    """
+    if not MANIFEST.exists() or not HASHFILE.exists():
+        print("MANIFEST DRIFT: final_manifest.json or manifest_hash.txt "
+              "missing", file=sys.stderr)
+        return 1
+    manifest = json.load(open(MANIFEST, encoding="utf-8"))
+    listed = {e["filename"] for e in manifest.get("files", [])}
+    tracked = set(_tracked_files())
+
+    problems = []
+    for f in sorted(tracked - listed):
+        problems.append(f"tracked but not listed: {f}")
+    for f in sorted(listed - tracked):
+        problems.append(f"listed but not tracked: {f}")
+    for f in sorted(listed & DETACHED):
+        problems.append(f"detached file must not be listed: {f}")
+
+    for entry in manifest.get("files", []):
+        path = ROOT / entry["filename"]
+        if not path.exists():
+            problems.append("listed but absent from the tree: "
+                            f"{entry['filename']}")
+            continue
+        if _sha256(path) != entry["sha256"]:
+            problems.append(f"sha256 mismatch: {entry['filename']}")
+        if path.stat().st_size != entry["size_bytes"]:
+            problems.append(f"size mismatch: {entry['filename']}")
+
+    stored = re.search(r"sha256:\s*([0-9a-fA-F]{64})", HASHFILE.read_text())
+    if not stored:
+        problems.append("manifest_hash.txt has no sha256 line")
+    elif stored.group(1) != _sha256(MANIFEST):
+        problems.append("manifest_hash.txt does not match final_manifest.json")
+
+    # ---- semantic verification (distinct from byte coverage above) ----
+    # Byte coverage answers "are these the bytes"; this answers "does the
+    # manifest's narrative still describe them". A derived count that drifts
+    # from its source is a defect, not a warning.
+    semantic = []
+    derived = _gate_state()
+    if derived is not None:
+        cs = manifest.get("canonical_state", {})
+        for field, value in derived.items():
+            if cs.get(field) != value:
+                semantic.append(
+                    f"canonical_state.{field}={cs.get(field)!r} but "
+                    f"results_gate_table.csv gives {value!r}")
+        if derived.get("PASS", 0) != 0:
+            semantic.append(
+                f"results_gate_table.csv contains {derived['PASS']} PASS rows; "
+                "the package is forecast-only and PASS must be 0")
+    listed_order = [e["filename"] for e in manifest.get("files", [])]
+    if listed_order != _manifest_order(listed_order, tracked):
+        semantic.append("file ordering does not match the documented policy "
+                        "(existing order preserved, then new tracked files "
+                        "appended in sorted order)")
+    problems.extend(semantic)
+
+    if problems:
+        print(f"MANIFEST DRIFT ({len(problems)} problem(s)):", file=sys.stderr)
+        for p in problems:
+            print(f"  - {p}", file=sys.stderr)
+        print("run: python3 generate_manifest.py", file=sys.stderr)
+        return 1
+    print(f"manifest in sync ({len(listed)} files; "
+          f"{len(DETACHED)} detached by policy)")
+    return 0
+
+
 def main() -> int:
+    if "--check" in sys.argv[1:]:
+        return check()
     if not MANIFEST.exists():
         print("ERROR: final_manifest.json missing; cannot preserve canonical narrative.",
               file=sys.stderr)
@@ -98,11 +262,7 @@ def main() -> int:
     prev_order = [e["filename"] for e in prev.get("files", [])]
 
     tracked = _tracked_files()
-    tracked_set = set(tracked)
-    # preserve existing entries' order (re-hashing each), then append any genuinely
-    # new tracked files in sorted order. Both parts are deterministic.
-    ordered = [f for f in prev_order if f in tracked_set]
-    ordered += sorted(f for f in tracked if f not in set(prev_order))
+    ordered = _manifest_order(prev_order, set(tracked))
 
     files = []
     missing = []
@@ -129,6 +289,7 @@ def main() -> int:
         "canonical_state": _recompute_canonical_state(prev.get("canonical_state", {})),
         "mode_separation": prev.get("mode_separation"),
         "pass_history": prev.get("pass_history"),
+        "coverage_policy": COVERAGE_POLICY,
         "files": files,
         "self_hash_policy": prev.get("self_hash_policy"),
     }

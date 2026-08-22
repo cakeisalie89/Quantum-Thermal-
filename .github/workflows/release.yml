@@ -1,13 +1,29 @@
 # Least-privilege release workflow (Stage 9).
-# STATUS: PENDING FIRST HOSTED RUN -- this sandbox has no Actions runner;
-# nothing below has executed; no SLSA level is claimed.
-# PIN-BY-DIGEST REQUIRED: replace every @vN tag with the action's full
-# commit SHA before the first real run (policy #3).
+#
+# STATUS: PENDING FIRST HOSTED RUN -- no Actions runner has executed this
+# workflow; no SLSA level is claimed by it or by anything it produces.
+#
+# PINNED BY COMMIT SHA (policy #3). Every `uses:` below is an immutable commit
+# SHA with its human-readable tag in a trailing comment. The SHAs were resolved
+# from the upstream repositories with `git ls-remote`, peeling annotated tags to
+# their commit (`refs/tags/<tag>^{}`) -- astral-sh/setup-uv@v5 and
+# anthropics/claude-code-action@v1 are annotated, so their ref SHA is a tag
+# object, not the commit. Re-resolve with:
+#   git ls-remote https://github.com/<owner>/<repo> 'refs/tags/<tag>*'
 name: qta-release
 on:
   push:
     tags: ["qta-stage*"]
 permissions: {}            # default-deny
+env:
+  # One bundle directory for the whole job. The previous version wrote the
+  # signature to release/, built the bundle into the builder's default
+  # release_bundle/, and asked the verifier to read release/bundle/ -- three
+  # directories, so the artifact that was signed was never the artifact that
+  # was verified.
+  REL_DIR: release
+  REL_ZIP: release/QTA_source.zip
+  REL_BUNDLE: release/bundle
 jobs:
   verify-and-release:
     runs-on: ubuntu-latest
@@ -15,20 +31,51 @@ jobs:
       contents: read       # checkout only
       id-token: write      # keyless Sigstore OIDC
     steps:
-      - uses: actions/checkout@v4          # TODO pin by SHA
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
         with: {persist-credentials: false}
-      - uses: astral-sh/setup-uv@v5        # TODO pin by SHA
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - run: uv sync --frozen --all-groups
+
+      # ---- regenerate and verify the canonical package ----
       - run: uv run python qta_full_sim.py
       - run: uv run python package_consistency_check.py
       - run: uv run python stage6_preservation_check.py
+      - run: uv run python generate_manifest.py --check
       - run: uv run python -m pytest tests/ -q
-      - run: uv run python build_release_artifacts.py --ci
+
+      # ---- build the exact artifact that will be signed ----
+      # --make-zip builds release/QTA_source.zip deterministically from the git
+      # index (sorted entries, fixed timestamps) and then assembles the bundle
+      # around that exact file. Nothing previously created this zip, so the old
+      # sign step signed a path no earlier step produced.
+      - name: build release artifacts
+        run: |
+          uv run python build_release_artifacts.py \
+            --zip "$REL_ZIP" --make-zip --out "$REL_BUNDLE" --ci
+
+      # ---- offline verification of what we just built ----
+      - name: verify (offline)
+        run: uv run python verify_release.py --zip "$REL_ZIP" --bundle "$REL_BUNDLE"
+
+      # ---- keyless signing of that same file ----
       - name: keyless sign (Sigstore)
         run: |
           uv run python -m pip install sigstore
-          uv run python -m sigstore sign --bundle release/source.sigstore.json \
-            release/QTA_source.zip
-      - name: verify what we signed
-        run: uv run python verify_release.py --zip release/QTA_source.zip \
-              --bundle release/bundle --online
+          uv run python -m sigstore sign \
+            --bundle "$REL_BUNDLE/source.sigstore.json" "$REL_ZIP"
+
+      # ---- online verification of the same file and the same bundle dir ----
+      # verify_release.py --online now performs real Sigstore verification
+      # against the exact signer_identity and oidc_issuer pinned in
+      # release_trust_policy.json. It fails closed three ways: no signature,
+      # a policy pin still PENDING or containing a wildcard, or the sigstore
+      # library being absent. None of those is reported as success.
+      - name: verify what we signed (online)
+        run: |
+          uv run python verify_release.py \
+            --zip "$REL_ZIP" --bundle "$REL_BUNDLE" --online
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: qta-release-bundle
+          path: ${{ env.REL_DIR }}

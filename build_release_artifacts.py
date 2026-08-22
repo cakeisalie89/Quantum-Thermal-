@@ -25,6 +25,7 @@ import sys
 import uuid
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent
 LBL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 STAGE8 = {"name": "QTA_stage8_hdf5_provenance_source.zip",
           "size": 20680532,
@@ -153,15 +154,71 @@ def trust_policy() -> dict:
                     "verification failure"}
 
 
+#: Fixed timestamp for every zip entry. A release zip whose digest changes
+#: because it was built a second later is not a reproducible artifact, and the
+#: whole point of SHA256SUMS/provenance is that the digest is stable.
+ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
+
+#: Trees excluded from the source zip: historical delivery archives and the
+#: regeneration target. Everything else git tracks is source.
+ZIP_EXCLUDE_PREFIXES = ("attic/", "outputs/", "release/", "release_bundle/")
+ZIP_EXCLUDE_SUFFIXES = (".bundle", ".zip", ".tar.gz", ".patch")
+
+
+def make_source_zip(dest: Path, prefix: str | None = None) -> Path:
+    """Build the release zip deterministically from the git index.
+
+    Nothing in the repository built this file, so the release workflow signed a
+    path that no earlier step produced. Entries are sorted, timestamps fixed
+    and external attributes normalised, so two builds of the same commit
+    produce byte-identical archives.
+
+    Every entry sits under a single top-level directory, which is the layout
+    verify_release.py reads (it takes names[0]'s first path component as the
+    archive root and resolves ``<root>/uv.lock`` and
+    ``<root>/results_gate_table.csv`` inside it).
+    """
+    import subprocess
+    import zipfile
+    tracked = sorted(subprocess.run(
+        ["git", "ls-files"], cwd=str(ROOT), capture_output=True, text=True,
+        check=True).stdout.split("\n"))
+    members = [f for f in tracked if f
+               and not f.startswith(ZIP_EXCLUDE_PREFIXES)
+               and not f.endswith(ZIP_EXCLUDE_SUFFIXES)]
+    root = (prefix or dest.name[:-4]
+            if dest.name.endswith(".zip") else dest.name)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED,
+                         compresslevel=9) as z:
+        for rel in members:
+            info = zipfile.ZipInfo(f"{root}/{rel}", date_time=ZIP_EPOCH)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            info.create_system = 3
+            z.writestr(info, (ROOT / rel).read_bytes())
+    return dest
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--zip", required=True)
+    ap.add_argument("--zip", required=True,
+                    help="path to the release zip; with --make-zip it is "
+                         "built here, otherwise it must already exist")
+    ap.add_argument("--make-zip", action="store_true",
+                    help="build the release zip deterministically from the "
+                         "git index before assembling the bundle")
     ap.add_argument("--out", default="release_bundle")
     ap.add_argument("--ci", action="store_true")
     a = ap.parse_args()
     zp = Path(a.zip)
+    if a.make_zip:
+        make_source_zip(zp)
+        print(f"[zip] {zp} ({zp.stat().st_size} bytes, "
+              f"sha256 {sha(zp)[:16]}...)")
     if not zp.exists():
-        print(f"[FAIL-CLOSED] release zip missing: {zp}")
+        print(f"[FAIL-CLOSED] release zip missing: {zp} "
+              "(pass --make-zip to build it)")
         return 1
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)

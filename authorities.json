@@ -130,9 +130,12 @@
       ]
     },
     "provenance_records": {
-      "authority": "final_manifest.json (238 governed files, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index)",
+      "authority": "final_manifest.json (every git-tracked file except the two detached ones, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index). The file count is not restated here: it is whatever the git index holds, and generate_manifest.py --check is the authority on membership.",
       "owner": "generate_manifest",
-      "schema_version": "1.0"
+      "schema_version": "1.0",
+      "record_type": "PROVENANCE",
+      "means": "these bytes were present at this SHA-256",
+      "does_not_mean": "that the file is a governed scientific authority; semantic authority is registered in this file and in AUTHORITIES.md, never conferred by manifest membership"
     },
     "cryopanel_dynamics": {
       "authority": "qta_multiphysics/cryopanel_dynamics_3d.py :: PanelInventory, advance_phase (exact Langmuir capture; ASSUMED sticking; PLACEHOLDER 1-ML capacity)",
@@ -222,6 +225,17 @@
         "tests/test_stage6_roadmap.py"
       ],
       "note": "planning infrastructure only; not experimental evidence; automatic_gate_effect=NONE; schema 1.0.0 is a compatible extension of the project's MAJOR.MINOR convention for the new Stage-6 record types"
+    },
+    "scientific_stack_adoption": {
+      "authority": "STACK.md (narrative) + stack.json (machine-readable, schema 1.0.0) :: adoption ladder for every non-core stack element (ADOPTED / STAGED / DEFERRED); code is the authority and both mirror it",
+      "owner": "stage10_stack",
+      "schema_version": "1.0.0",
+      "implementation": "qta_multiphysics/stack/ (viz, UQ/MDAO, read-only retrieval, staged FEM, selective Rust, deferred FMI) + rust/qta_kernels (built on demand)",
+      "consumers": [
+        "Snakefile (s10_* rules; s10_full)",
+        "tests/test_stage10_stack.py (asserts the registry matches the code)"
+      ],
+      "note": "additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, and the s10_canonical_untouched rule re-verifies final_manifest.json after the stage runs"
     }
   },
   "competing_sources_record": [
@@ -232,9 +246,11 @@
         "verification.py",
         "vibration_transfer.py (root, hand-uploaded)"
       ],
-      "execution_authority": "qta_multiphysics/ package versions (all imports are package-qualified; 63 package imports, 0 root imports)",
-      "evidence": "identical git blobs at removal time; grep consumer scan",
-      "resolution": "root copies removed in Stage1-CP1 (commit 9525e24); numerical consequences: none (byte-identical, unimported)"
+      "execution_authority": "qta_multiphysics/ package versions; every import in the repository is package-qualified and no module imports the root copies",
+      "evidence": "root and package copies are byte-identical (sha256 equal for all three); a repository-wide import scan finds zero importers of the root copies",
+      "resolution": "RESOLVED. The root copies units.py, verification.py and vibration_transfer.py were deleted under owner authorization after re-confirming, at the commit that removed them, that each was byte-identical to its qta_multiphysics/ counterpart and that a repository-wide scan found zero importers of the root copies. The package versions are the sole remaining copies and are unchanged; execution authority is unaffected because nothing ever imported the root ones.",
+      "status": "RESOLVED_ROOT_COPIES_DELETED",
+      "withdrawn_claim": "A previous version of this record stated: 'root copies removed in Stage1-CP1 (commit 9525e24); numerical consequences: none (byte-identical, unimported)'. The removal never happened -- the files were added by 5586cf1 and are still tracked -- and the cited commit 9525e24 does not exist in this repository. The claim is withdrawn. Retained here so the correction is auditable; this field is historical text, not a citation."
     },
     {
       "concept": "coherence time tau_c",

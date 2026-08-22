@@ -119,6 +119,12 @@ def coherence_from_trajectories(
     return float(w)
 
 
+#: Working-set target for the filter-function omega blocking, in bytes. Sized
+#: to stay in cache rather than to bound total memory; it changes runtime only,
+#: never a returned value.
+_FF_BLOCK_BYTES = 8 << 20
+
+
 def _filter_function(sequence: str, omega: np.ndarray, total_time_s: float) -> np.ndarray:
     """Pulse-sequence filter function F(omega) for total evolution time T.
 
@@ -134,8 +140,25 @@ def _filter_function(sequence: str, omega: np.ndarray, total_time_s: float) -> n
     s = sequence_modulation(sequence, t, T)
     # y(omega) = int_0^T s(t) e^{i omega t} dt
     # F(omega)/omega^2 = |y(omega)|^2  (so chi = (1/pi) int S(omega) |y|^2 domega)
-    phase = np.exp(1j * np.outer(omega, t))
-    y = np.trapezoid(phase * s[None, :], t, axis=1)
+    #
+    # Evaluated in blocks of omega. The whole-array form materialised
+    # exp(1j*outer(omega, t)) -- 4000 x 4000 complex128, 256 MB -- and then a
+    # second array of the same size for the product, per call, 69 calls per
+    # run. It was the single largest cost in the canonical regeneration.
+    #
+    # The rows of that array are INDEPENDENT: trapezoid along axis=1 touches
+    # one omega at a time, so blocking changes nothing about the arithmetic
+    # any row sees, only how much of it is resident at once. The quadrature,
+    # the grid, the summation order within a row and therefore every output
+    # bit are unchanged -- test_filter_function_blocking asserts that against
+    # the whole-array form.
+    y = np.empty(omega.shape[0], dtype=complex)
+    block = max(1, _FF_BLOCK_BYTES // (n * 16))
+    for i in range(0, omega.shape[0], block):
+        chunk = omega[i:i + block]
+        phase = np.exp(1j * np.outer(chunk, t))
+        phase *= s[None, :]              # in place: no second full temporary
+        y[i:i + block] = np.trapezoid(phase, t, axis=1)
     return np.abs(y) ** 2  # this is |y(omega)|^2 == F/omega^2
 
 

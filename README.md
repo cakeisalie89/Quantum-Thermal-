@@ -228,3 +228,34 @@ direct estimator. Run with `python qta_full_sim.py --ci --deep`, or
 `from qta_multiphysics.deep_expdesign import run_deep_expdesign_full`.
 
 > QTA includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.
+
+## Scientific stack and adoption ladder (Stage 10)
+
+The tooling around the numerical core is governed like everything else here.
+`STACK.md` (with its machine-readable mirror `stack.json`) places every stack
+element on one of three rungs — **ADOPTED** (in use and verified in this
+repository), **STAGED** (interface and acceptance criteria written and
+executable, tool not installed and producing nothing authoritative), or
+**DEFERRED** (deliberately not built; contract recorded) — and lists the open
+items for each.
+
+Stage 10 adds the adapters in `qta_multiphysics/stack/`: deterministic
+ParaView/VTK and OpenUSD export of the solved 3D fields and geometry, a SALib
+global-sensitivity cross-check against the canonical one-at-a-time ranking, an
+OpenMDAO design-space exploration that refuses to optimise over ASSUMED
+parameters, an offline read-only retrieval index over this repository's own
+documents (verbatim cited spans, no generation, no network), a staged FEniCSx
+acceptance harness, a selective Rust kernel path admitted only on bit-for-bit
+parity with its NumPy reference, and a deferred FMI 3.0 interface contract.
+
+All of it is additive: no stack module is imported by the solvers or by
+`qta_full_sim.py`, every writer refuses to write into the canonical tree,
+`automatic_gate_effect = NONE` throughout, and the scientific gate PASS count
+remains zero. Run it with:
+
+    snakemake --cores 1 s10_full
+
+whose final rule re-verifies every entry in `final_manifest.json` and asserts
+the canonical tree was untouched. Optional packages are project *extras*
+(`uv sync --extra viz --extra uq`); without them the adapters report
+`UNAVAILABLE` and defer to the in-repo authority.

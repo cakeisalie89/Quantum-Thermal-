@@ -19,6 +19,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from qta_multiphysics.hardware_governance_3d import (       # noqa: E402
     schema_validate_hardware, full_deficiencies, validate_review_record,
+    compute_record_sha256,
     build_quarantine_report, build_evidence_dossier, append_audit,
     verify_audit_chain, governance_summary, plan_registry,
     AUTOMATIC_GATE_EFFECT, REPS_UNKNOWN, CUSTODY_CAVEAT)
@@ -62,6 +63,20 @@ REVIEW = {"reviewer_id": "TEST_FIXTURE_NOT_DATA-REV-1",
           "checklist_version": "1.0",
           "decision": "ACCEPT_AS_EVIDENCE",
           "record_sha256": "b" * 64}
+
+
+def review_for(record, **over):
+    """A review correctly BOUND to ``record`` (§18).
+
+    The bare REVIEW fixture carries a placeholder record_sha256 that binds to
+    nothing. It stays as-is so the negative tests keep exercising an unbound
+    review; anything that should be accepted must compute the real hash, which
+    is what a genuine review record carries.
+    """
+    r = dict(REVIEW)
+    r["record_sha256"] = compute_record_sha256(record)
+    r.update(over)
+    return r
 
 
 def _m(**kw):
@@ -150,7 +165,7 @@ def test_unresolved_repetition_requirement():
                            "sha256":
                            hashlib.sha256(p.read_bytes()).hexdigest()}
         d = build_evidence_dossier("B3", [rev],
-                                   {rev["measurement_id"]: REVIEW}, td)
+                                   {rev["measurement_id"]: review_for(rev)}, td)
         assert d["n_entries"] == 1
         assert d["review_readiness"] == "INCOMPLETE"
         assert any(REPS_UNKNOWN in r for r in d["readiness_reasons"])

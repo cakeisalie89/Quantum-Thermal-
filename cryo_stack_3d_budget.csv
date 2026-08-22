@@ -1,10 +1,10 @@
 element,stage,status,source,forecast_load_W,note,label
-radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
-radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
-radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
-radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
-radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
-radiative_intercept:stage_hop,stage_hop,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:300K->77K,77K,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",1.143267547e-10,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:77K->4K,4K,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",4.983236321e-13,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:4K->1K,1K,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",3.614863692e-18,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:1K->100mK,100mK,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",1.417451845e-20,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:100mK->10mK,10mK,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",1.417451845e-24,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
+radiative_intercept:10mK->sample,sample,ACTIVE_MODELED,"radiation_paths (canonical chain, shutter/baffle attenuation)",0.000000000e+00,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
 radiative_total_to_10mK,10mK,ACTIVE_MODELED,radiation_paths,1.417451845e-24,,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
 dilution_refrigeration_base_stage,10mK,ACTIVE_MODELED,"FridgeConfig (T_fridge_K=0.01, Kapitza-radiative sink)",,base-temperature sink used by the 1D/2D/3D thermal backends,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM
 RTB_JT_class_upstream_cooling_plant,4K/shield,ACTIVE_MODELED,"qta_full_sim gate RTB_JT_OPTIONAL_COOLING_PLANT (optional plant, forecast-only)",,combined RTB/JT-class gate; no standalone JT stage is modeled,MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM

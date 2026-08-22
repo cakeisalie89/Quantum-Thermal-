@@ -161,7 +161,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "6ec444785d9d4812be6c3a0ac3d6d959206c2bfc9aa09c570193495bff9fe74e"
+   "sha256": "df51975a7d4f4bb6aa9ea043accadc75d1ece4ff80de8e8e935145d727b26710"
   },
   {
    "byte_preservation": true,
@@ -294,7 +294,7 @@
    "path": "cryo_stack_3d_budget.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "8bffdb5f4b4159e06253d728babd12228329cfce46ba295c939faecec7a25869"
+   "sha256": "60e1cb4b1524c01391ff4c6eafa2e76fb8970ad14104f004642cdfe0c48ec873"
   },
   {
    "byte_preservation": true,
@@ -399,7 +399,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "9ead2bbd030e2c7e68472beec7101dcc002cad0d87dc561f537b2795925d6e54"
+   "sha256": "f034036ede1c16addba0adbff0f19bad1920ee1e8cde0800a7d30e3f9ac1f16d"
   },
   {
    "byte_preservation": true,
@@ -412,7 +412,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "8d909ad5a5f1cceda81cd1d36d6d9c5850d616f09653016399b14036c98f7a99"
+   "sha256": "6d214ab1df2cfe92489eeb905aed5d063c48fce8dd42c10429a1c079c987b805"
   },
   {
    "byte_preservation": true,
@@ -425,7 +425,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "0ba2818ef6fb1c45c47591bbd6d953ff940693a5017954ed9c7eee11ed41d1c4"
+   "sha256": "d80f54f72d9f0a120e2013d83f6ec37c1348ae6e605f3c86a6656115033babe6"
   },
   {
    "byte_preservation": true,
@@ -468,7 +468,7 @@
    "path": "design_validation_report.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "bb3bcad779520d06ee1c13095e766c8e4d68a2a5864e01d6faf760d371070d57"
+   "sha256": "9059aa09f24eb2916e7996f3054466b99112284675861fe6081e464cb67f2836"
   },
   {
    "byte_preservation": true,
@@ -1190,7 +1190,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "d0a76cfc99b54943c018e17d36f7bc06a727dd64b77d9746ce9c3a7d7c7dab55"
+   "sha256": "47d9a84a7d1d248daac76f890fcd5daa78d2796854721027596c3c690e5ad52b"
   },
   {
    "byte_preservation": true,
@@ -1453,7 +1453,7 @@
    "path": "interlock_table.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "6c5581f38d9d9939ba3c39e01045f6cfbc0476b4ddff206f24ec65e866c5de92"
+   "sha256": "ba3547a587898e280e272fd7ca1b8962007040b493eaca6f5852fb07b0f578ef"
   },
   {
    "byte_preservation": true,
@@ -2807,7 +2807,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "75bf8aa99ef7963d37b0e7c9365dfdbeae484e1110ad85b3b358cf83e4439d38"
+   "sha256": "613008913dc50f1599f01d6fd7b576b2f5530ccdeec920c7932a82986166414e"
   },
   {
    "byte_preservation": true,
@@ -2979,7 +2979,7 @@
    "path": "parameter_registry.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "213963dcf8a63136c0585709c0135fdda4656b4e95142d3d21060202d130616e"
+   "sha256": "1162fedcace6555d391960a7348be2f2db5ee33a68f7a77eed0f8a6e32ea1d23"
   },
   {
    "byte_preservation": true,
@@ -3148,18 +3148,18 @@
      "unit": "n/a (string)"
     },
     {
-     "dtype": "utf8_string",
+     "dtype": "float64",
      "index": 3,
-     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "heat_load_W",
-     "unit": "n/a (string)"
+     "unit": "W"
     },
     {
-     "dtype": "utf8_string",
+     "dtype": "float64",
      "index": 4,
-     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "n/a (string)"
+     "unit": "unresolved"
     },
     {
      "dtype": "utf8_string",
@@ -3186,19 +3186,26 @@
      "dtype": "utf8_string",
      "index": 8,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "resolution",
+     "name": "row_kind",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
      "index": 9,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "three_d_view_factors",
+     "name": "resolution",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
      "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "three_d_view_factors",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 11,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "label",
      "unit": "n/a (string)"
@@ -3207,12 +3214,12 @@
    "format": "csv",
    "hdf5_group": "/tables/radiation_paths_3d_budget",
    "in_hdf5": true,
-   "n_columns": 11,
+   "n_columns": 12,
    "n_rows": 7,
    "path": "radiation_paths_3d_budget.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "1c03fec6716f6ce370d6e7ca4d724790882f2c98e759251d924f70845544edf0"
+   "sha256": "5fa5ea7949d74517ebd18c6692501ac7f9998e47825292750be187a6c63927b1"
   },
   {
    "byte_preservation": true,
@@ -3543,7 +3550,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "f022aef794d1ece7d552cfc5c2f452056da2db368b21a48dadef40ee05688b7e"
+   "sha256": "f97391992a1e8b6a808e26b5e32b201cac24f3d3f1a171c78aec030defa263a1"
   },
   {
    "byte_preservation": true,
@@ -4054,7 +4061,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "dd1aa2d7393994423c46c8173ad681456b395339dac2541b56cd49ed526e24b5"
+   "sha256": "42ccba47e70f561f7ef22b6ae23f4457d1f5d0650caad2738629c62a0e484a4e"
   },
   {
    "byte_preservation": true,
@@ -4067,7 +4074,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "cbf771c4f304823c20821dfa16f7041b5c3c34c5d7263e44706642b861c65484"
+   "sha256": "c27dd1400e1d1cdf5df9327e2c85714d197dce3e70cc3d0e0da9382931813fea"
   },
   {
    "byte_preservation": true,
@@ -4080,7 +4087,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "58613160b1964daee859e146ce06684af9096ed27080ad9760b2d20b3fb734f5"
+   "sha256": "c482faf54329a660529dcf15e0ff55ad952f35c4314c56de26be8c31fd484fcb"
   },
   {
    "byte_preservation": true,

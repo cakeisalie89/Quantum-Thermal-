@@ -31,10 +31,36 @@ class OODModel:
                 "maha_threshold": self.maha_threshold}
 
 
+#: Fewest training contexts from which a covariance is meaningful.
+MIN_OOD_ROWS = 8
+
+
 def fit_ood(context_train: np.ndarray, *, quantile: float = 0.99,
             maha_factor: float = 1.5) -> OODModel:
-    """Fit the OOD detector on the training context matrix."""
-    A = np.atleast_2d(context_train)
+    """Fit the OOD detector on the training context matrix.
+
+    Fails closed on degenerate input. An all-identical context matrix used to
+    yield an OODModel built on a point mass, which would then score every query
+    against a distribution with no extent; empty and non-finite inputs escaped
+    only as raw numpy LinAlgError/ValueError with warnings.
+    """
+    from .likelihood_model import DegenerateInputError
+    A = np.atleast_2d(np.asarray(context_train, dtype=float))
+    if A.size == 0 or A.shape[0] == 0:
+        raise DegenerateInputError("OOD fit on an empty context matrix")
+    if A.shape[0] < MIN_OOD_ROWS:
+        raise DegenerateInputError(
+            f"OOD fit needs >= {MIN_OOD_ROWS} training contexts to estimate a "
+            f"covariance; got {A.shape[0]}")
+    if not np.all(np.isfinite(A)):
+        bad = int((~np.isfinite(A)).sum())
+        raise DegenerateInputError(
+            f"OOD fit on non-finite contexts ({bad} NaN/inf entries)")
+    spread = A.max(0) - A.min(0)
+    if np.all(spread < 1e-12):
+        raise DegenerateInputError(
+            "OOD fit on a degenerate context matrix (every row identical); "
+            "a point-mass reference distribution cannot decide membership")
     lo = A.min(0); hi = A.max(0)
     mean = A.mean(0)
     cov = np.cov(A, rowvar=False)

@@ -15,6 +15,25 @@ dependencies = [
   "h5py>=3.11",     # Stage-8 HDF5 data layer (representation only; no physics)
 ]
 
+[project.optional-dependencies]
+# Stage-10 scientific-stack extras. These are OPTIONAL by policy: every
+# adapter in `qta_multiphysics/stack/` fails closed when its extra is absent
+# (reports availability = UNAVAILABLE and defers to the in-repo authority),
+# so neither the container, the release workflow, nor the canonical outputs
+# depend on anything listed here. `uv sync --all-groups` deliberately does
+# NOT pull these in; ask for them with `--extra <name>`.
+viz = [
+  "usd-core>=25.2",   # OpenUSD stage validation (.usda is written directly)
+]
+uq = [
+  "SALib>=1.5",       # global (Sobol/Morris) sensitivity cross-check
+  "openmdao>=3.35",   # design-space exploration over the thermal ROM
+]
+# FEniCSx (dolfinx) is intentionally NOT listed: it is not installable as a
+# plain wheel and must come from the environment (conda-forge, spack, or the
+# dolfinx container). `qta_multiphysics.stack.fem_fenicsx` detects it at
+# runtime and stays STAGED until an environment provides it.
+
 [dependency-groups]
 dev = [
   "pytest>=8.3",      # unified test execution (wraps existing suites)
@@ -59,5 +78,18 @@ module = "qta_multiphysics.stage7_boundary_models"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
-module = ["qutip.*", "scipy.*", "snakemake.*", "h5py.*"]
+# Legacy numerical tree: followed for types but not reported on. This is the
+# same staged position as above — documented typing debt, not silenced errors:
+# modules named explicitly on the command line are still fully checked.
+module = "qta_multiphysics.*"
+follow_imports = "silent"
+[[tool.mypy.overrides]]
+# Stage-10 stack adapters are new code and are held to the Stage-7 standard
+module = "qta_multiphysics.stack.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_unreachable = true
+[[tool.mypy.overrides]]
+module = ["qutip.*", "scipy.*", "snakemake.*", "h5py.*",
+          "SALib.*", "openmdao.*", "pxr.*", "dolfinx.*", "qta_kernels.*"]
 ignore_missing_imports = true   # third-party packages without type info

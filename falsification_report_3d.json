@@ -48,7 +48,7 @@
       "condition": "reduction_3d_to_2d_mismatch",
       "bound": "|rel| <= 1.00e-01",
       "bound_provenance": "declared reduction tolerance (reduction_checks_3d)",
-      "model_value": "1.1771e-03",
+      "model_value": "1.6419e-02",
       "units": "-",
       "falsified_in_model": "false",
       "status": "DERIVED_CHECK",

@@ -94,3 +94,42 @@ regeneration, with `deep_surrogate_readiness.json` exempt by documented design.
     SOURCE_DATE_EPOCH=0 FORCE_SOURCE_DATE=1 pdflatex -interaction=nonstopmode qta_manuscript_v4.tex
 
 (two passes; the environment variables pin the embedded timestamps).
+
+## Stage-10 scientific-stack extras (all optional)
+
+The Stage-10 adapters in `qta_multiphysics/stack/` are additive and fail
+closed: without their optional packages each one reports
+`availability = UNAVAILABLE`, names the in-repo authority that stays in force,
+and produces no substitute result. Nothing in the canonical pipeline, the
+container, or the release workflow depends on any of them, and
+`uv sync --all-groups` deliberately does *not* install them (they are project
+*extras*, not dependency groups).
+
+    uv sync --frozen --all-groups                       # core: everything works, adapters report UNAVAILABLE
+    uv sync --frozen --all-groups --extra viz --extra uq # + usd-core, SALib, OpenMDAO
+
+- `viz` — `usd-core`, used only to *validate* an exported `.usda`; the file
+  itself is written directly, so export works without it.
+- `uq` — `SALib` (global-sensitivity cross-check) and `openmdao`
+  (design-space exploration).
+
+**FEniCSx** is intentionally not an extra: `dolfinx` is not installable as a
+plain wheel and must come from the environment (conda-forge, spack, or the
+dolfinx container). `qta_multiphysics/stack/fem_fenicsx.py` detects it at
+runtime and stays STAGED until an environment provides it.
+
+**The Rust kernels are built on demand** and are not part of any environment:
+
+    maturin build --release --manifest-path rust/qta_kernels/Cargo.toml -i python3.12
+    uv pip install rust/qta_kernels/target/wheels/qta_kernels-*.whl
+    QTA_RUST_KERNELS=1 python -c "from qta_multiphysics.stack import rust_kernel; \
+        print(rust_kernel.status_report()['adopted_kernels'])"
+
+Even when installed, the Rust path stays off unless `QTA_RUST_KERNELS=1` is
+set *and* the kernel re-proves bit-for-bit parity with its NumPy reference at
+process start. See `STACK.md` for the adoption ladder and the current
+per-kernel verdicts.
+
+Run the whole stage with `snakemake --cores 1 s10_full`; the two heavier
+studies are opt-in (`s10_uq_sobol`, `s10_mdao_doe`) because each model
+evaluation is a full 3D transient solve.

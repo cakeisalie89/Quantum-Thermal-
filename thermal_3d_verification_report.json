@@ -63,13 +63,24 @@
     },
     {
       "check": "reduction_3d_to_2d",
-      "method": "Gaussian-beam 3D (Cartesian box, adiabatic lateral) vs 2D axisymmetric disc at matched depth/half-extent and window; geometries differ by the box corner volume, hence the geometric-difference allowance in the declared tolerance",
+      "method": "Gaussian-beam 3D (Cartesian box) vs 2D axisymmetric disc at matched depth/half-extent and window, with the SAME lateral boundary condition on both sides (adiabatic). The 2D production boundary is a cold radial contact; comparing against it compares different boundary-value problems and is reported separately below, never as equivalence.",
+      "boundary_conditions_matched": true,
+      "lateral_bc_3d": "adiabatic (BoundarySpec3D, enforced)",
+      "lateral_bc_2d_in_this_check": "adiabatic at r=R (lateral_adiabatic=True; interior radial conduction retained; reduction fixture only)",
       "T_nv_3d_K": 13.73015219488708,
-      "T_nv_2d_K": 13.714009156403522,
-      "rel_error": 0.0011771202935225934,
+      "T_nv_2d_K": 13.95934784695046,
+      "rel_error": -0.016418793669752258,
       "tolerance": 0.1,
       "within_tolerance": true,
       "status": "DERIVED_CHECK",
+      "mismatched_boundary_reference": {
+        "meaning": "NOT a reduction result: 3D adiabatic lateral vs 2D cold radial contact. Reported because this is the comparison the check previously made, and its small rel_error came from the 2D lateral heat sink, not from dimensional consistency.",
+        "lateral_bc_2d": "cold radial contact to bulk at T_fridge",
+        "T_nv_2d_K": 13.714009156403522,
+        "rel_error": 0.0011771202935225934,
+        "solver_status_2d": "ok"
+      },
+      "geometry_note": "box/disc volume ratio is 4/pi; with Cp ~ T^3 the internal energy goes as T^4, so full lateral equilibration would give ~6% in temperature. The beam is well inside the domain (R/w0 = 8), so the peak stays beam-local and the observed matched residual is far smaller than that bound.",
       "solver_status_3d": "ok",
       "solver_status_2d": "ok",
       "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"

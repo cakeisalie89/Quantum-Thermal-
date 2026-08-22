@@ -10,7 +10,7 @@ Inspects PDF text via pdftotext.
 Exit code 0 only if every check passes. Any failure exits non-zero with
 a clear per-check report.
 """
-import sys, csv, json, re, hashlib, subprocess, shutil, builtins
+import sys, csv, json, re, hashlib, subprocess, shutil, builtins, time
 from collections import Counter
 from pathlib import Path
 
@@ -86,6 +86,28 @@ DELETED_FILE_REFERENCES = [
 ]
 
 # ===================== FAILURE TRACKING ======================================
+#: Budget for the optional pdftotext extraction. Same reasoning as
+#: SIM_TIMEOUT_S: a hang detector, and a failed extraction must not read as a
+#: clean PDF audit.
+PDFTOTEXT_TIMEOUT_S = 60
+
+#: Wall-clock budget for the one guarded subprocess this checker spawns
+#: (the canonical regeneration). It is a HANG DETECTOR, not a performance
+#: target: the generator makes continuous progress, so a breach means "this
+#: machine was too slow today", never "the package is broken". Raising it is a
+#: governed decision -- see RUNTIME_RESILIENCE.md for the measured runtime
+#: distribution and the remaining margin.
+SIM_TIMEOUT_S = 300
+
+
+def _as_text(v):
+    """TimeoutExpired carries bytes or str depending on how run() was
+    called; either way the partial output is evidence."""
+    if v is None:
+        return ""
+    return v if isinstance(v, str) else v.decode("utf-8", "replace")
+
+
 FAILURES = []
 def fail(check, detail):
     FAILURES.append((check, detail))
@@ -149,16 +171,48 @@ elif not sim_path.exists():
     fail("qta_full_sim.py present", f"missing {sim_path}")
 else:
     shutil.rmtree(gen_outputs_dir, ignore_errors=True)
-    proc = subprocess.run([sys.executable, str(sim_path)],
-                          capture_output=True, text=True,
-                          encoding="utf-8", errors="replace",
-                          cwd=str(PKG), timeout=300)
-    sim_stdout = proc.stdout
-    if proc.returncode != 0:
-        fail("qta_full_sim.py exit 0",
-             f"got {proc.returncode}; stderr: {proc.stderr[:500]}")
+    sim_stdout = ""
+    sim_elapsed = None
+    _t0 = time.monotonic()
+    try:
+        proc = subprocess.run([sys.executable, str(sim_path)],
+                              capture_output=True, text=True,
+                              encoding="utf-8", errors="replace",
+                              cwd=str(PKG), timeout=SIM_TIMEOUT_S)
+    except subprocess.TimeoutExpired as e:
+        # subprocess.run kills the child before re-raising, so there is no
+        # orphan; what is easy to lose is the evidence. Keep whatever the run
+        # produced: a timeout with 40 lines of output is a slow machine, a
+        # timeout with none is a process that never started work.
+        sim_elapsed = time.monotonic() - _t0
+        partial = _as_text(e.stdout)
+        fail("qta_full_sim.py completes within its budget",
+             f"TIMEOUT after {SIM_TIMEOUT_S} s (elapsed {sim_elapsed:.1f} s); "
+             f"child killed; {len(partial.splitlines())} stdout lines "
+             "captured; "
+             f"last output: {partial[-300:]!r}")
+    except FileNotFoundError as e:
+        fail("python interpreter available to run qta_full_sim.py",
+             f"cannot execute {sys.executable!r}: {e}")
+    except OSError as e:
+        fail("qta_full_sim.py can be spawned", f"OSError: {e}")
     else:
-        ok("qta_full_sim.py executes (exit 0)")
+        sim_elapsed = time.monotonic() - _t0
+        sim_stdout = proc.stdout
+        if proc.returncode != 0:
+            fail("qta_full_sim.py exit 0",
+                 f"got {proc.returncode} after {sim_elapsed:.1f} s; "
+                 f"stderr: {proc.stderr[:500]}")
+        elif not sim_stdout.strip():
+            # Exit 0 with no output is not success: every later step reads this
+            # stream, and an empty one would make the stale-language audit
+            # vacuous rather than failing.
+            fail("qta_full_sim.py produced output",
+                 f"exit 0 after {sim_elapsed:.1f} s but stdout was empty")
+        else:
+            ok("qta_full_sim.py executes (exit 0)",
+               f"{sim_elapsed:.1f} s of a {SIM_TIMEOUT_S} s budget "
+               f"({SIM_TIMEOUT_S - sim_elapsed:.1f} s margin)")
 
 # ===================== STEP 2: gate table checks =============================
 print()
@@ -462,16 +516,40 @@ print("-"*70)
 
 pdftotext_ok = shutil.which("pdftotext") is not None
 pdf_path = PKG / "qta_manuscript_v4.pdf"
+pdf_text = ""
+_extracted = False          # the PDF audit runs only on real extracted text
 if not pdftotext_ok:
     ok("pdftotext not installed; PDF text validation skipped "
        "(install Poppler/Xpdf pdftotext for this optional check)")
 elif not pdf_path.exists():
     fail("qta_manuscript_v4.pdf present", "missing")
 else:
-    r = subprocess.run(["pdftotext", str(pdf_path), "-"],
-                       capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", timeout=60)
-    pdf_text = r.stdout
+    try:
+        r = subprocess.run(["pdftotext", str(pdf_path), "-"],
+                           capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
+                           timeout=PDFTOTEXT_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        fail("pdftotext completes within its budget",
+             f"TIMEOUT after {PDFTOTEXT_TIMEOUT_S} s; child killed")
+    except OSError as e:
+        fail("pdftotext can be spawned", f"OSError: {e}")
+    else:
+        if r.returncode != 0:
+            fail("pdftotext exit 0",
+                 f"got {r.returncode}; stderr: {r.stderr[:300]}")
+        elif not r.stdout.strip():
+            # An empty extraction would make every stale-string count below
+            # zero, so the whole PDF audit would report PASS on no evidence.
+            # Absence of text is absence of the check, not absence of defects.
+            fail("pdftotext produced text",
+                 "exit 0 but no text extracted; the PDF audit would otherwise "
+                 "pass vacuously")
+        else:
+            pdf_text = r.stdout
+            _extracted = True
+
+if pdftotext_ok and pdf_path.exists() and _extracted:
 
     # Stale strings in PDF (extracted text)
     stale_in_pdf = []
@@ -1891,6 +1969,17 @@ def _read_csv_rows(name):
     with open(PKG / name, newline="") as fh:
         return list(csv.DictReader(fh))
 
+
+def _read_csv_header(name):
+    """Declared columns of a CSV, independent of how many rows it carries.
+
+    Reading the schema from ``rows[0]`` makes a legitimately empty table look
+    schemaless, and makes a header change invisible whenever the first row
+    happens to carry every field. The header IS the contract, so read it.
+    """
+    with open(PKG / name, newline="") as fh:
+        return set(csv.DictReader(fh).fieldnames or ())
+
 MP_EXPECTED_COLS = {
     "distributed_thermal_metrics.csv": {"metric", "value", "evidence_class", "measured_in_this_system"},
     "gas_transport_metrics.csv": {"species", "residual_mode_D_density_m3", "evidence_class", "measured_in_this_system"},
@@ -1898,12 +1987,17 @@ MP_EXPECTED_COLS = {
     "coupled_mode_recovery_metrics.csv": {"metric", "value", "evidence_class", "measured_in_this_system"},
     "mesh_convergence_summary.csv": {"model", "mesh", "metric", "value"},
     "lumped_vs_nonlumped_comparison.csv": {"quantity", "lumped_model", "nonlumped_1d_model", "role"},
+    # Was uncovered here, which is why a header that changed shape between the
+    # zero-row and non-zero-row branches went unnoticed. Checked by header, so
+    # a header-only file (no failing samples) is valid and still verified.
+    "failed_gate_samples.csv": {
+        "tc_us", "Ge_WK", "Cc", "T2s_us", "ea", "Ts_mK", "SNR", "eps_pct",
+        "dominant_failure", "g_d10", "g_d3", "g_d13", "g_d18"},
 }
 col_problems = []
 for name, need in MP_EXPECTED_COLS.items():
     try:
-        rows = _read_csv_rows(name)
-        have = set(rows[0].keys()) if rows else set()
+        have = _read_csv_header(name)
         if not need.issubset(have):
             col_problems.append(f"{name}: missing {need - have}")
     except Exception as e:

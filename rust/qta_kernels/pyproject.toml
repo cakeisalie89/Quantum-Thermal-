@@ -1,0 +1,18 @@
+# Build config for the optional Rust extension. It is NOT part of the QTA
+# project's dependency set: `qta_multiphysics.stack.rust_kernel` falls back to
+# NumPy whenever this extension is absent, which is the default everywhere
+# including CI and the container.
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "qta-kernels"
+version = "0.1.0"
+description = "Optional bit-parity Rust kernels for QTA (forecast-only project)"
+requires-python = ">=3.12"
+classifiers = ["Private :: Do Not Upload"]
+
+[tool.maturin]
+manifest-path = "Cargo.toml"
+module-name = "qta_kernels"

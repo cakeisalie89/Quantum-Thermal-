@@ -26,6 +26,55 @@ K_B = 1.380649e-23
 L_CHAR_M = 0.010          # canonical chamber characteristic length (D9)
 T_EVAL_K = 0.010          # sensing-stage temperature (implementation convention, D9)
 
+# ---------------------------------------------------------------------------
+# Per-mode / per-species gas-temperature semantics.
+#
+# Every species used to be evaluated at T_EVAL_K = 10 mK, the Mode-D
+# sensing-stage temperature. For the dosed helium that is the right number --
+# it is thermalised to the stage being sensed. For the C-13 methane PRECURSOR
+# at the Mode-B working pressure it is not: Mode B is material processing, the
+# methane is a working gas delivered to a surface that the thermal model takes
+# to ~29 K peak, and methane has no meaningful vapour pressure at 10 mK, so a
+# 10 mK methane population is not a state the rest of the repository models.
+#
+# lambda scales linearly with T, so the assumption is not a detail: at 10 mK
+# the methane classifies TRANSITIONAL (Kn ~ 0.2); at any of the repository's
+# other declared stage temperatures it is MOLECULAR_FLOW (Kn ~ 1e3). The
+# regime classification is decided by the temperature assumption alone.
+#
+# The repository registers NO authoritative Mode-B gas temperature. Rather than
+# choose one, the affected species are marked UNRESOLVED and their regime is
+# reported as PARAMETERIZED across the temperatures the repository does
+# declare -- the radiation_paths STAGE_CHAIN stages, which are cited values,
+# not invented ones.
+RESOLVED = "RESOLVED"
+UNRESOLVED = "UNRESOLVED_REQUIRES_OWNER_AUTHORITY"
+
+#: Declared stage temperatures already canonical in this repository
+#: (radiation_paths.STAGE_CHAIN). Used only as a parameterization span for
+#: species whose gas temperature is unresolved; none of these is asserted to BE
+#: the Mode-B gas temperature.
+PARAMETERIZATION_SPAN_K = (0.010, 0.1, 1.0, 4.0, 77.0, 300.0)
+
+#: species -> (mode, temperature basis, status, temperature or None)
+GAS_TEMPERATURE_SEMANTICS: dict[str, tuple[str, str, str, float | None]] = {
+    "He3": ("MODE_D", "dosed into and thermalised to the 10 mK sensing stage "
+            "(config.FridgeConfig.T_fridge_K); this is the stage being sensed",
+            RESOLVED, T_EVAL_K),
+    "He4": ("MODE_D", "dosed into and thermalised to the 10 mK sensing stage "
+            "(config.FridgeConfig.T_fridge_K); this is the stage being sensed",
+            RESOLVED, T_EVAL_K),
+    "C13_CH4": ("MODE_B", "process precursor delivered at the Mode-B working "
+                "pressure to a surface the thermal model takes to ~29 K peak; "
+                "no inlet, line or reservoir temperature is registered "
+                "anywhere in this repository",
+                UNRESOLVED, None),
+    "H2": ("ALL_MODES", "residual background, never a live species; it is "
+           "outgassed from surfaces spanning 300 K feedthroughs to the 10 mK "
+           "stage and no single population temperature is registered",
+           UNRESOLVED, None),
+}
+
 #: species table: (canonical label, role, kinetic diameter [m], provenance,
 #:                 pressure [Pa], pressure provenance)
 SPECIES = (
@@ -56,35 +105,123 @@ def regime(kn: float) -> str:
     return "CONTINUUM"
 
 
+def _regime_span_sentence(row) -> str:
+    """State a parameterized species' regime span FROM ITS OWN COMPUTED SPAN.
+
+    An earlier version of this note asserted the boundary in prose and got it
+    wrong: it said C-13 methane was TRANSITIONAL only at 10 mK when the same
+    artifact's ``regime_parameterized_over`` shows it TRANSITIONAL at 0.1 K
+    too. Prose that restates computed data is prose that can contradict it, so
+    this sentence is derived instead of written.
+    """
+    span = row.get("regime_parameterized_over") or []
+    if not span:
+        return ""
+    by_regime: dict[str, list[float]] = {}
+    for s in span:
+        by_regime.setdefault(s["regime"], []).append(s["T_K"])
+    parts = ", ".join(
+        f"{reg} at {'/'.join(_fmt_T(t) for t in sorted(ts))} K"
+        for reg, ts in sorted(by_regime.items()))
+    if len(by_regime) == 1:
+        return (f"{row['species']} classifies {parts} -- one regime across the "
+                "whole declared span, so the classification is robust even "
+                "though its population temperature is unresolved.")
+    ordered = sorted(span, key=lambda s: s["T_K"])
+    crossings = [(ordered[i]["T_K"], ordered[i + 1]["T_K"])
+                 for i in range(len(ordered) - 1)
+                 if ordered[i]["regime"] != ordered[i + 1]["regime"]]
+    where = "; ".join(f"between {_fmt_T(a)} K and {_fmt_T(b)} K" for a, b in crossings)
+    return (f"{row['species']} is NOT robust: {parts}. The declared span crosses "
+            f"a transport-regime boundary ({where}), so no single regime can be "
+            "claimed for it and none is; the classification would follow entirely "
+            "from a temperature assumption that this repository does not make.")
+
+
+def _fmt_T(t: float) -> str:
+    return f"{t:g}"
+
+
 def summary() -> dict:
     per_species = []
     for name, role, d, dprov, P, pprov in SPECIES:
-        lam = mean_free_path_m(T_EVAL_K, d, P)
-        kn = lam / L_CHAR_M
-        per_species.append({
+        mode, basis, status, T = GAS_TEMPERATURE_SEMANTICS[name]
+        row = {
             "species": name, "role": role,
             "kinetic_diameter_m": d, "diameter_provenance": dprov,
             "pressure_Pa": P, "pressure_provenance": pprov,
-            "T_eval_K": T_EVAL_K,
-            "mean_free_path_m": lam, "Kn": kn, "regime": regime(kn),
-        })
+            "gas_temperature_mode": mode,
+            "gas_temperature_basis": basis,
+            "gas_temperature_status": status,
+        }
+        if status == RESOLVED:
+            # RESOLVED entries always carry a temperature; the tuple element is
+            # Optional because UNRESOLVED entries deliberately carry None.
+            assert T is not None, f"{name}: RESOLVED status with no temperature"
+            lam = mean_free_path_m(T, d, P)
+            kn = lam / L_CHAR_M
+            row.update({"T_eval_K": T, "mean_free_path_m": lam, "Kn": kn,
+                        "regime": regime(kn)})
+        else:
+            # No authoritative temperature: report the span, never a value.
+            span: list[dict] = []
+            regime_names: set[str] = set()
+            for Tk in PARAMETERIZATION_SPAN_K:
+                lam = mean_free_path_m(Tk, d, P)
+                kn = lam / L_CHAR_M
+                reg = regime(kn)
+                regime_names.add(reg)
+                span.append({"T_K": Tk, "mean_free_path_m": lam, "Kn": kn,
+                             "regime": reg})
+            regimes = sorted(regime_names)
+            row.update({
+                "T_eval_K": None,
+                "mean_free_path_m": None,
+                "Kn": None,
+                "regime": ("PARAMETERIZED_UNRESOLVED" if len(regimes) > 1
+                           else regimes[0]),
+                "regime_parameterized_over": span,
+                "regime_is_temperature_sensitive": len(regimes) > 1,
+                "regimes_spanned": regimes,
+            })
+        per_species.append(row)
     return {
         "formula": "lambda = k_B*T/(sqrt(2)*pi*d^2*P); Kn = lambda/L_char",
         "L_char_m": L_CHAR_M,
-        "convention": "evaluated at the sensing-stage temperature T_fridge "
-                      "= 10 mK, exactly as the canonical D9 derived check",
+        "convention": "per-species gas temperature, not one global value. "
+                      "Mode-D helium is evaluated at the sensing-stage "
+                      "temperature T_fridge = 10 mK (the canonical D9 derived "
+                      "check). Species whose gas temperature is not registered "
+                      "anywhere in this repository are NOT assigned one: their "
+                      "regime is reported parameterized over the declared "
+                      "stage temperatures and marked "
+                      "UNRESOLVED_REQUIRES_OWNER_AUTHORITY.",
+        "gas_temperature_semantics": {
+            k: {"mode": v[0], "basis": v[1], "status": v[2], "T_K": v[3]}
+            for k, v in GAS_TEMPERATURE_SEMANTICS.items()},
+        "parameterization_span_K": list(PARAMETERIZATION_SPAN_K),
+        "unresolved_gas_temperatures": sorted(
+            k for k, v in GAS_TEMPERATURE_SEMANTICS.items()
+            if v[2] == UNRESOLVED),
         "per_species": per_species,
         "c13_methane_footprint_3d": {
             "status": "NOT_IMPLEMENTED",
             "reason": "inlet/nozzle geometry is not parameterized in this "
                       "repository; no deposition-footprint numbers are invented",
         },
-        "note": "He-3/He-4 (dose) and residual H2 are deep in the "
-                "molecular-flow regime at the canonical conditions "
-                "(quasi-ballistic line-of-sight transport). The C-13 methane "
-                "precursor at the Mode-B working pressure is TRANSITIONAL "
-                "(Kn~0.2), consistent with the repository's advective-"
-                "diffusive Mode-B gas-transport treatment. Forecast, DERIVED "
-                "numerical only.",
+        "note": (
+            "He-3/He-4 (dose) are deep in the molecular-flow regime at the "
+            "sensing-stage temperature (quasi-ballistic line-of-sight "
+            "transport); that classification is RESOLVED because the dosed gas "
+            "thermalises to the stage being sensed. "
+            + " ".join(_regime_span_sentence(r) for r in per_species
+                       if r["gas_temperature_status"] == UNRESOLVED)
+            + " The C-13 methane precursor previously read as a settled "
+            "TRANSITIONAL (Kn~0.2) result because the Mode-D sensing-stage "
+            "temperature was applied to a Mode-B process gas. No Mode-B gas "
+            "temperature is registered in this repository and none is invented "
+            "here. This whole record is a terminal DIAGNOSTIC artifact: no gate, "
+            "readiness metric or canonical forecast consumes it, and it confers "
+            "no authority. Forecast, DERIVED numerical only."),
         "label": LABEL,
     }

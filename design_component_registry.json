@@ -594,6 +594,7 @@
         "B"
       ],
       "associated_gates": [
+        "D10a",
         "E01"
       ],
       "can_PASS_now": "NO",
@@ -625,6 +626,7 @@
         "B"
       ],
       "associated_gates": [
+        "D10a",
         "E02"
       ],
       "can_PASS_now": "NO",

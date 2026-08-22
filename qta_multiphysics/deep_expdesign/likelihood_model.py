@@ -113,6 +113,82 @@ def _coherence_grid(seq_for: str, measurement_time: float, n_omega: int):
     return _COH_CACHE[key]
 
 
+#: Grid used by _coherence_grid for the tau_c interpolation.
+COHERENCE_GRID_LO, COHERENCE_GRID_HI, COHERENCE_GRID_N = -6.5, -1.5, 80
+
+
+def interpolation_equivalence_report(sequences=("ramsey", "hahn", "xy8"),
+                                     measurement_times=(1e-5, 1e-4, 1e-3, 1e-2),
+                                     n_probe: int = 201,
+                                     prior_lo: float = -6.0,
+                                     prior_hi: float = -2.0) -> dict:
+    """Measure forward_matrix's interpolation error against clean_forward.
+
+    forward_matrix() evaluates coherence on an 80-point log10(tau_c) grid and
+    np.interp's between the nodes, while clean_forward() calls
+    filter_function_coherence exactly. The repository asserted the two agree to
+    "<1e-3 ... (verified)" in a source comment, with no executable check and no
+    recorded measurement. This function is that measurement: a deterministic
+    sweep over the declared tau_c prior and the design's measurement-time range,
+    reporting worst-case and percentile error per sequence.
+
+    The reported error is in coherence units, which are bounded in [0, 1], so
+    it can be read directly as a fraction of full scale.
+    """
+    from qta_multiphysics.nv_spin.noise import filter_function_coherence
+    from .simulator_adapter import _N_OMEGA   # _SIGMA_RAD_S: module-level
+    probe = np.linspace(prior_lo, prior_hi, int(n_probe))
+    per_case, worst = [], 0.0
+    for seq in sequences:
+        for tmeas in measurement_times:
+            grid, cg = _coherence_grid(seq, float(tmeas), _N_OMEGA)
+            exact = np.array([filter_function_coherence(
+                sequence=seq, tau_c_s=float(10.0 ** lt),
+                sigma_rad_s=_SIGMA_RAD_S, total_time_s=float(tmeas),
+                n_omega=_N_OMEGA) for lt in probe])
+            err = np.abs(np.interp(probe, grid, cg) - exact)
+            i = int(err.argmax())
+            worst = max(worst, float(err.max()))
+            per_case.append({
+                "sequence": seq, "measurement_time_s": float(tmeas),
+                "max_abs_error": float(err.max()),
+                "p99_abs_error": float(np.percentile(err, 99)),
+                "p50_abs_error": float(np.percentile(err, 50)),
+                "worst_at_log10_tau_c": float(probe[i]),
+                "coherence_at_worst": float(exact[i]),
+            })
+    claimed = 1.0e-3
+    validated = worst < claimed
+    return {
+        "meaning": "numerical equivalence of the interpolated forward map "
+                   "against the exact filter-function evaluation, over the "
+                   "declared tau_c prior and the design measurement-time "
+                   "range; deterministic, model-only",
+        "reference": "qta_multiphysics.nv_spin.noise.filter_function_coherence "
+                     "(the same function clean_forward calls)",
+        "interpolated_path": "likelihood_model.forward_matrix via "
+                             f"_coherence_grid ({COHERENCE_GRID_N} nodes over "
+                             f"log10(tau_c) in [{COHERENCE_GRID_LO}, "
+                             f"{COHERENCE_GRID_HI}])",
+        "prior_range_log10_tau_c": [prior_lo, prior_hi],
+        "claimed_tolerance": claimed,
+        "measured_worst_abs_error": worst,
+        "meets_claimed_tolerance": bool(validated),
+        "classification": ("VALIDATED_REDUCED_NUMERICAL_REPRESENTATION"
+                           if validated else
+                           "NOT_VALIDATED_AT_CURRENT_GRID_RESOLUTION"),
+        "note": ("Coherence is bounded in [0, 1], so the max error is a "
+                 "fraction of full scale. Ramsey is exact to ~1e-27 because "
+                 "its coherence is flat over this range at these measurement "
+                 "times; hahn and xy8 carry the error, which concentrates "
+                 "where the coherence curve turns over and the 80-node grid "
+                 "cannot resolve it. This is a numerical-representation "
+                 "statement only and never a physics or hardware claim."),
+        "per_case": per_case,
+        "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+    }
+
+
 def forward_matrix(theta_t: np.ndarray, design: ExperimentDesign,
                    names: list, transforms: list) -> np.ndarray:
     """Clean forward observable for a batch of transformed-space thetas (n,k_obs).
@@ -156,17 +232,52 @@ def gaussian_conditional_entropy(sigma: np.ndarray) -> float:
     return float(np.sum(0.5 * np.log(2 * np.pi * np.e * sigma ** 2)))
 
 
+class DegenerateInputError(ValueError):
+    """Training/validation input from which no honest fit can be made.
+
+    §23: an impossible or inadequate condition must fail closed rather than
+    produce a fit that later reads as a working surrogate.
+    """
+
+
 @dataclass
 class Standardizer:
     mean: np.ndarray
     std: np.ndarray
 
+    #: Fewest rows from which a standard deviation is meaningful.
+    MIN_ROWS = 2
+
     @classmethod
     def fit(cls, A: np.ndarray) -> "Standardizer":
-        A = np.atleast_2d(A)
+        """Fit, failing closed on inputs no standardizer can represent.
+
+        This used to accept anything. A NaN-bearing matrix produced a
+        Standardizer with NaN mean and std, and those NaNs then propagated
+        silently through training, inference and every downstream metric. A
+        single row, or a column of constant values, produced a standardizer
+        whose scale was invented (sd forced to 1.0) rather than estimated.
+        """
+        A = np.atleast_2d(np.asarray(A, dtype=float))
+        if A.size == 0 or A.shape[0] == 0:
+            raise DegenerateInputError("standardizer fit on an empty matrix")
+        if A.shape[0] < cls.MIN_ROWS:
+            raise DegenerateInputError(
+                f"standardizer needs >= {cls.MIN_ROWS} rows to estimate a "
+                f"scale; got {A.shape[0]}")
+        if not np.all(np.isfinite(A)):
+            bad = int((~np.isfinite(A)).sum())
+            raise DegenerateInputError(
+                f"standardizer fit on non-finite data ({bad} NaN/inf entries); "
+                "refusing to produce NaN scaling parameters")
         mu = A.mean(0)
         sd = A.std(0)
-        sd = np.where(sd < 1e-12, 1.0, sd)
+        degenerate = np.flatnonzero(sd < 1e-12)
+        if degenerate.size:
+            raise DegenerateInputError(
+                f"standardizer columns {degenerate.tolist()} have zero "
+                "variance; their scale cannot be estimated and must not be "
+                "silently set to 1.0")
         return cls(mu, sd)
 
     def transform(self, A: np.ndarray) -> np.ndarray:

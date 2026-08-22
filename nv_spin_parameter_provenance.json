@@ -70,10 +70,10 @@
     },
     "dD_dT_rad_s_K": {
       "measured_in_this_system": false,
-      "source": "NV ZFS temperature dependence dD/dT \u2248 -74 kHz/K (literature, Acosta 2010)",
+      "source": "NV ZFS temperature dependence dD/dT \u2248 -74 kHz/K (literature, Acosta 2010); sign corrected 2026-08 -- the record stored +|dD/dT|, contradicting its own citation, so D(T) = D0 + (dD/dT)(T - T_ref) predicted the splitting RISING with temperature",
       "status": "LITERATURE",
       "unit": "rad/s/K",
-      "value": 464955.7127312894
+      "value": -464955.7127312894
     },
     "gamma_e_rad_s_T": {
       "measured_in_this_system": false,

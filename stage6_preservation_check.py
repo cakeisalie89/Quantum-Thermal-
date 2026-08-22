@@ -13,20 +13,35 @@ from collections import Counter
 from pathlib import Path
 
 FAILS: list[str] = []
+CHECKS_RUN: list[str] = []
 
 
 def check(name: str, cond: bool, detail: str = "") -> None:
     if cond:
+        CHECKS_RUN.append(name)
         print(f"  [OK]   {name}")
     else:
+        CHECKS_RUN.append(name)
         print(f"  [FAIL] {name} {detail}")
         FAILS.append(name)
 
 
+# Lineage reference for the Stage-6 delivery archive. This digest is NOT
+# verified by this script and cannot be: the archive it names is not present in
+# this repository. The archive that IS present
+# (QTA_repaired_complete_1D_2D_repo.zip) hashes to fec4dfb6..., a different
+# artifact. The value is retained as a provenance breadcrumb, and is printed as
+# such -- it used to be printed as "authoritative Stage-6 archive sha256",
+# which reads as though the archive had been checked.
 AUTH_ZIP_SHA = ("3b727bc5cf9aaeb7607380ab91d7d2ced8fc021b90f01eeeb8ab8"
                 "812f3e2eb95")
-print("Stage-6 preservation check")
-print(f"  lineage: authoritative Stage-6 archive sha256 {AUTH_ZIP_SHA}")
+AUTH_ZIP_PRESENT = False        # no file in this repository has this digest
+
+print("Stage-6 required-invariants check")
+print(f"  lineage reference (NOT VERIFIED HERE, archive absent from this "
+      f"repository): {AUTH_ZIP_SHA}")
+print("  scope: the required Stage-6 semantic invariants listed below.")
+print("  This is NOT a byte-preservation check of the Stage-6 archive.")
 
 reg = json.loads(Path("experiment_registry.json").read_text())
 gcov = json.loads(Path("experiment_gate_coverage.json").read_text())
@@ -139,9 +154,15 @@ check("CI workflow least-privilege marker",
       Path(".github/workflows/release.yml").read_text())
 
 n = len(FAILS)
-msg = ("PRESERVED (all Stage-6 protection checks green)" if n == 0
-       else f"{n} PRESERVATION FAILURES")
+# The contract this script actually verifies is a named set of semantic
+# invariants, not byte preservation of an archive. The result string says so.
+msg = ("STAGE6_REQUIRED_INVARIANTS_PRESERVED "
+       f"({len(CHECKS_RUN)} required invariants verified)" if n == 0
+       else f"STAGE6_REQUIRED_INVARIANTS_VIOLATED "
+            f"({n} of {len(CHECKS_RUN)} failed)")
 print(f"\nRESULT: {msg}")
+print("scope: required semantic invariants only; byte preservation of the "
+      "Stage-6 delivery archive is NOT verified here (archive not in repo)")
 print("note: software verification only; scientific gate PASS count is "
       "zero by design and unchanged")
 sys.exit(1 if n else 0)

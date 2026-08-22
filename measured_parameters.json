@@ -41,9 +41,9 @@
     "note": "lambda = k_B*T/(sqrt(2)*pi*d_He^2*P) evaluated as implemented in qta_full_sim.py (sv.T_fridge_K = 10 mK, sv.P_He_dose_Pa = 1e-6 Pa, d_He = 2.6e-10 m) gives lambda = 0.46 m and Kn = lambda/L = 46. The molecular-flow conclusion is robust across the operating envelope (e.g. T = 4 K at the same 1 uPa gives lambda ~ 184 m, Kn ~ 1.8e4); Kn >> 10 in all cases."
   },
   "dZFS_dT_rad_s_K": {
-    "value": 464955.7127312894,
+    "value": -464955.7127312894,
     "unit": "rad/s/K",
-    "source": "NV ZFS temperature dependence dD/dT \u2248 -74 kHz/K (literature, Acosta 2010)",
+    "source": "NV ZFS temperature dependence dD/dT \u2248 -74 kHz/K (literature, Acosta 2010); sign corrected 2026-08 -- the record stored +|dD/dT|, contradicting its own citation, so D(T) = D0 + (dD/dT)(T - T_ref) predicted the splitting RISING with temperature",
     "status": "LITERATURE",
     "uncertainty": "\u00b15%"
   }

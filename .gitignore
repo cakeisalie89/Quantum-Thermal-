@@ -11,3 +11,6 @@ outputs/deep_expdesign/
 verification/
 uv.lock.bak
 .sim_stage_checkpoints/
+
+# Rust extension build artifacts (the optional kernel is built on demand)
+rust/**/target/

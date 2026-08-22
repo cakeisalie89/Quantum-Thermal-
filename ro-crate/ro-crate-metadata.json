@@ -148,18 +148,18 @@
   {
    "@id": "RUNTIME_RESILIENCE.md",
    "@type": "File",
-   "contentSize": "2563",
+   "contentSize": "7662",
    "description": "Stage-7.5 documentation",
    "name": "RUNTIME_RESILIENCE.md",
-   "sha256": "3f8bc5ce12e4653d8ef23ed4426268fe105271927945a897fefd73af30f69958"
+   "sha256": "f583cd809061fd983c9cb92118b12be2aea25f05b7c718ffa19e421fbe7906ab"
   },
   {
    "@id": "Snakefile",
    "@type": "SoftwareSourceCode",
-   "contentSize": "11552",
+   "contentSize": "21156",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "b704d9552b9a0320b2abaa6c5efcba8c5ff157e0436dd14055ee1f8dc7a10de6"
+   "sha256": "e36ee82c0bd289daaa6d2fed5cd5e94c7f08b70ab411cca29daa0cc66693a705"
   },
   {
    "@id": "campaign_registry.json",
@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "105314",
+   "contentSize": "126920",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -204,18 +204,18 @@
   {
    "@id": "hdf5_output_mapping.json",
    "@type": "File",
-   "contentSize": "139106",
+   "contentSize": "139219",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "469365e384c2f2efa7cc9b38c6d92957566f1b3d0160cd028bf7014b6d0b9f49"
+   "sha256": "a12bc0a5b97f8a704ddd62d4920d06a8c4a87978a82abd0b0a460eb7bfcd8846"
   },
   {
    "@id": "hdf5_schema.json",
    "@type": "File",
-   "contentSize": "150368",
+   "contentSize": "150481",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "c1d2a230b70ab3906d0b391718ee3efa7075b59b68708f02ccead2eca9f4253f"
+   "sha256": "a4dae6b82144281fb04b6ebe1239f1540fab65d72285745314a2a9170157ff25"
   },
   {
    "@id": "manifest_hash.txt",
@@ -236,26 +236,26 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "105689",
+   "contentSize": "110129",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "45df269aded2f082086c540b91bf8d15d78f4292438135a7aa5319719784ca9d"
+   "sha256": "90e23c24a0b376e0b372e13921bc19ce24303e0e47c05dca3b2d18529c00b461"
   },
   {
    "@id": "pyproject.toml",
    "@type": "File",
-   "contentSize": "2524",
+   "contentSize": "4118",
    "description": "project/tooling authority",
    "name": "pyproject.toml",
-   "sha256": "990581006afb0467b98c82eb6f71085242567223475cab514c7b69fc928bd7fd"
+   "sha256": "6f46361aa3bc6faedfd111bda69cd938bf5f044af5c89f1dc714e86d72032805"
   },
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "164104",
+   "contentSize": "173641",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "5db77d0be61d1510216eb3dbbcc496d5a742ad06470dbfcd9239501f4b31899d"
+   "sha256": "a42d00bddff1a9b8b7533f876b29a632b69fe5631e9b9452215ad53f966b461f"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "1974909",
+   "contentSize": "1993400",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "68cd3eb0d2e715dd18e6355e150fca3cad78fbbbb589092545cd9f026697d150"
+   "sha256": "86c852610ceba5a6d1b82ef9642e158495b8178a7f616b664af346a808c75219"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -302,10 +302,10 @@
   {
    "@id": "stage6_preservation_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "5762",
+   "contentSize": "7521",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",
-   "sha256": "c71e1da546ebefc12dafd10918f860dc632e7fd67b11d9a1b917395f7996494d"
+   "sha256": "821830665d09a64b074b81db371776b6c1c5319a2689ec52f372add8a4ca249e"
   },
   {
    "@id": "stage7_reports/environment_provenance.json",
@@ -321,15 +321,15 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "14681ec28053d078e8f3cbd7397ca7ee437991ae561f0f15318565b94307c5a3"
+   "sha256": "ce176d737d7b2793a07bd4e2de7c198d88902faea9484d0258b6045b0549c1d4"
   },
   {
    "@id": "uv.lock",
    "@type": "File",
-   "contentSize": "119055",
+   "contentSize": "153054",
    "description": "locked dependency resolution (71+ pkgs)",
    "name": "uv.lock",
-   "sha256": "3597730705e4f62d47e71e2eaa7c7f93df9f66c70645d68a2371b2d9c7ba5510"
+   "sha256": "fc319fc32d27d82e1f0ee213288e9c6567da980881c93c27501b6a9ce9ef4dfc"
   },
   {
    "@id": "validation_matrix.csv",

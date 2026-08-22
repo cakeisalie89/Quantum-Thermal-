@@ -21,13 +21,14 @@ are byte-gated against regeneration by the package consistency checker.
 | Schemas | `deep_design_schema.json`, `deep_parameter_schema.json`, ledger vocabulary in `coupling_ledger_3d.py` |
 | Canonical output paths | repo root, enumerated by `final_manifest.json`, byte-gated by checker Step 2b |
 | Claim-boundary wording | `CLAIMS_BOUNDARY.md` + the MODEL_ONLY/FORECAST_ONLY label + per-record claim fields (checker-enforced) |
-| Provenance | `final_manifest.json` + `manifest_hash.txt` (generator `generate_manifest.py`) |
+| Provenance | `final_manifest.json` + `manifest_hash.txt` (generator `generate_manifest.py`; coverage = every git-tracked file minus the two detached, see `MANIFEST_BOUNDARY.md`. Hashing a file records its bytes, it does not make the file authoritative — this table does that) |
 | Cryopanel dynamics (Stage 2) | `qta_multiphysics/cryopanel_dynamics_3d.py` (ASSUMED sticking; PLACEHOLDER capacity) |
 | Campaign continuity (Stage 2) | `qta_multiphysics/campaign_state_3d.py` (schema 1.0; separate API) |
 | Campaign uncertainty (Stage 3) | `qta_multiphysics/campaign_uncertainty_3d.py` (seed 20260717; verified-source distributions; exclusions recorded) |
 | Measurement ingestion (Stage 4) | `qta_multiphysics/measurement_ingest_3d.py` (SYNTHETIC-only; read-only; fail-closed; never a gate input) |
 | Hardware governance (Stage 5) | `qta_multiphysics/hardware_governance_3d.py` (quarantine/dossier/audit-chain; human-only review; automatic_gate_effect=NONE) |
 | Validation roadmap (Stage 6) | registries + playbooks + schemas (planning only; 25/25 gates; automatic_gate_effect=NONE) |
+| Scientific-stack adoption (Stage 10) | `STACK.md` + `stack.json` (schema 1.0.0) — ADOPTED / STAGED / DEFERRED per element; implemented in `qta_multiphysics/stack/` (additive, workspace-only, automatic_gate_effect=NONE) |
 
 Competing sources are never resolved silently: see
 `authorities.json → competing_sources_record` (two historical entries, both

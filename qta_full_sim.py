@@ -201,6 +201,130 @@ def eng_note(key: str, physics_value: str = "") -> str:
     return s
 
 
+# Mode column semantics (authorities.json :: modes_and_species):
+#   A = Baseline, B = Carbon-13 Methane Processing, C = Isolation/Recovery,
+#   D = He-3/He-4 NV Sensing.
+# Five rows disagreed with those semantics and are corrected:
+#   P_LCVD, P_CH4_work, t_growth   A -> B  (LCVD spot power, LCVD working
+#     pressure and the growth pulse are material processing, which is Mode B;
+#     they predate the move of processing out of the baseline mode)
+#   P_CH4_purge_tgt, t_purge_min   B -> C  (a purge target and a minimum
+#     pumpout time describe isolation/purge/recovery, which is Mode C)
+# This column is metadata: it is written to parameter_registry.csv and grouped
+# by tag for the summary, and no numerical result reads it.
+# ── Residual H2 partial pressure: named quantities (§14) ──
+# Five different H2 pressures were spread across this file as bare literals,
+# and "post-bakeout H2 pressure" alone had THREE values (1e-12, 2e-12, 5e-12)
+# depending on which line you read. They are not one number that drifted --
+# they are genuinely distinct concepts, and collapsing them would destroy
+# information. They are named here instead, and every consumer references a
+# name rather than a literal. No value changes.
+#
+#: Inputs of the governed H2 surface-coverage equation
+#:     theta = s * P * t / (sqrt(2 pi m k T) * n_mono)
+#: which gates B4 and D10b both evaluate. Each was restated as a bare local at
+#: five separate call sites; editing one would have left the others behind,
+#: exactly as the pre-bakeout pressure literal did. They are model parameters,
+#: not universal constants: the sticking coefficient and the monolayer site
+#: density are ASSUMED, and the impingement temperature is the warm-wall value
+#: the outgassing model uses, not a stage temperature. No value changes here.
+S_H2_STICKING = 0.3                  # dimensionless, ASSUMED
+N_MONOLAYER_SITES_PER_M2 = 1e19      # 1/m^2, ASSUMED monolayer basis
+T_WALL_IMPINGEMENT_K = 300.0         # K, warm-wall outgassing source
+
+# AUTHORITY: RESOLVED BY OWNER DECISION. Gate B4's surface-coverage forecast
+# uses the literature/design assumption (5e-12 Pa) and the chamber-state model
+# uses its own modelled pressures. These are DIFFERENT QUANTITIES, not rival
+# estimates of one quantity, so both stand and neither is collapsed into the
+# other. See H2_PRESSURE_AUTHORITY below.
+
+#: Chamber state BEFORE bakeout. Modelled state, not a target.
+P_H2_PRE_BAKEOUT_PA = 1e-10
+#: Chamber state after bakeout AND NEG. Modelled state.
+P_H2_POST_BAKEOUT_NEG_PA = 1e-12
+#: Chamber state after bakeout only (no NEG). Modelled state.
+P_H2_POST_BAKEOUT_ONLY_PA = 2e-12
+#: Literature-anchored design assumption used SPECIFICALLY for the gate-B4
+#: surface-coverage forecast (CERN Outgassing 2020). An assumption, not a
+#: modelled chamber state, and deliberately not the same quantity as
+#: P_H2_POST_BAKEOUT_NEG_PA.
+P_H2_POST_BAKEOUT_ASSUMED_PA = 5e-12
+#: Acceptance criterion for the bakeout procedure. A design TARGET.
+P_H2_ACCEPTANCE_TARGET_PA = 2e-12
+#: RGA validation threshold at the PUMP PORT, field-corrected
+#: (sensing-surface P ~100x pump-port P). A measurement threshold, and the
+#: only one of these that a real instrument would ever be compared against.
+P_H2_RGA_VALIDATION_THRESHOLD_PA = 2e-14
+
+#: Monte-Carlo sampling range for the MODELLED BAKEOUT+NEG chamber pressure.
+#:
+#: This belongs to P_H2_POST_BAKEOUT_NEG_PA, not to the gate-B4 assumption.
+#: The repository establishes that by three independent means: the sampler's
+#: own comment ("P_H2 post-bake+NEG (range)"), the enclosing run_mode_D_MC
+#: docstring ("post-bakeout chamber state"), and the bounds themselves --
+#: sqrt(5e-13 * 2e-12) = 1.000000e-12 Pa exactly, i.e. a geometric factor-of-2
+#: band centred on P_H2_POST_BAKEOUT_NEG_PA (lo = nominal/2, hi = nominal*2).
+#: Bounds are unchanged; only the name now says which nominal they surround.
+#: It was previously called P_H2_MC_RANGE_PA, which invited exactly the
+#: mistake of reading it as uncertainty around the B4 assumption.
+P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA = (5e-13, 2e-12)
+
+
+def _mc_range_brackets_its_nominal() -> bool:
+    """Does the MC range actually bracket the nominal it describes?
+
+    An uncertainty interval that excludes its own nominal is not an
+    uncertainty interval. This checks the CORRECT pairing (the modelled
+    bakeout+NEG pressure). It deliberately does not compare against the B4
+    assumption: that is a different quantity, and comparing them was the
+    error this naming fixes.
+    """
+    lo, hi = P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA
+    return lo <= P_H2_POST_BAKEOUT_NEG_PA <= hi
+
+
+H2_PRESSURE_AUTHORITY = {
+    "concept": "residual H2 partial pressure -- several distinct quantities",
+    "status": "RESOLVED_BY_OWNER_DECISION",
+    "decision": "Gate B4's coverage forecast uses the literature/design "
+                "assumption P_H2_POST_BAKEOUT_ASSUMED_PA = 5e-12 Pa. The "
+                "modelled chamber states keep their own values. These are "
+                "distinct quantities with distinct semantic roles; they are "
+                "NOT rival estimates of one number and must not be collapsed.",
+    "quantities_Pa": {
+        "pre-bakeout modelled chamber state": P_H2_PRE_BAKEOUT_PA,
+        "post-bakeout+NEG modelled chamber state": P_H2_POST_BAKEOUT_NEG_PA,
+        "post-bakeout-only modelled chamber state": P_H2_POST_BAKEOUT_ONLY_PA,
+        "B4 literature/design assumption (CERN Outgassing 2020)":
+            P_H2_POST_BAKEOUT_ASSUMED_PA,
+        "bakeout acceptance target": P_H2_ACCEPTANCE_TARGET_PA,
+        "RGA validation threshold (pump port, FC-corrected)":
+            P_H2_RGA_VALIDATION_THRESHOLD_PA,
+    },
+    "shared_values_are_not_shared_meanings":
+        "P_H2_POST_BAKEOUT_ONLY_PA and P_H2_ACCEPTANCE_TARGET_PA are both "
+        "2e-12 Pa. They remain separate names because one is a modelled state "
+        "and the other is a procedure acceptance criterion; a change to either "
+        "must not silently move the other.",
+    "mc_range_Pa": list(P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA),
+    "mc_range_describes": "P_H2_POST_BAKEOUT_NEG_PA",
+    "mc_range_brackets_its_nominal": None,   # filled in below
+    "still_unmeasured": "no measured P_H2 exists; RGA has not been performed "
+                        "(gate E04 UNKNOWN, Mode D hard-interlocked via "
+                        "IL-05). Every value here remains MODEL_ONLY / "
+                        "FORECAST_ONLY and none is a measurement.",
+    "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+}
+H2_PRESSURE_AUTHORITY["mc_range_brackets_its_nominal"] = \
+    _mc_range_brackets_its_nominal()
+if not H2_PRESSURE_AUTHORITY["mc_range_brackets_its_nominal"]:
+    raise AssertionError(
+        "P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA does not bracket "
+        f"P_H2_POST_BAKEOUT_NEG_PA ({P_H2_POST_BAKEOUT_NEG_PA:.0e} Pa); an "
+        "uncertainty range that excludes its own nominal is not an "
+        "uncertainty range")
+
+
 PARAM_REGISTRY=[
     ("T_fridge",0.010,"K",MANUFACTURER_SPEC,"Oxford Triton 200 (NOT installed in QTA)","ABCD","+-0.5mK"),
     ("P_cool_MC",200e-6,"W",MANUFACTURER_SPEC,"Oxford Triton 200 (NOT installed in QTA)","ABCD","+-20%"),
@@ -217,7 +341,8 @@ PARAM_REGISTRY=[
     ("s_H2_Cu_4K",0.3,"",LITERATURE,"Benvenuti 1999","B","+-50%"),
     ("G_sw_open",1e-8,"W/K",LITERATURE,"Al SC switch SC state; Pobell 2007","AB","factor 10x"),
     ("B_c_Al",10e-3,"T",LITERATURE,"Al critical field 10mK","ACD","+-1mT"),
-    ("P_H2_postbake",5e-12,"Pa",ASSUMED,"CERN Outgassing 2020","B","order mag"),
+    ("P_H2_postbake",P_H2_POST_BAKEOUT_ASSUMED_PA,"Pa",ASSUMED,
+     "CERN Outgassing 2020","B","order mag"),
     ("G_eff",1e-5,"W/K",ASSUMED,"Design; Kapitza; NOT MEASURED","D","factor 10x"),
     ("G_eff_meas",None,"W/K",UNKNOWN,"Step-response not done","D","blocks PASS"),
     ("A_sinter",None,"m2",UNKNOWN,"45cm2 design; NOT FABRICATED","D","blocks PASS"),
@@ -226,7 +351,7 @@ PARAM_REGISTRY=[
     ("E_pulse",50e-12,"J",ASSUMED,"Design","D","+-20%"),
     ("f_rep",200.,"Hz",ASSUMED,"Design","D","+-factor2"),
     ("r_spot",361e-9,"m",ASSUMED,"SRIM/NA estimate","D","+-50%"),
-    ("P_LCVD",50e-3,"W",ASSUMED,"Typical LCVD spot","A","factor 3x"),
+    ("P_LCVD",50e-3,"W",ASSUMED,"Typical LCVD spot","B","factor 3x"),
     ("P_mw",1e-9,"W",ASSUMED,"Design; not measured in cryo","D","+-factor2"),
     ("Z0_CPW",50.,"Ohm",DESIGN,"Design","D","+-1Ohm"),
     ("w_CPW",5e-6,"m",DESIGN,"Design","D","+-1um"),
@@ -242,14 +367,14 @@ PARAM_REGISTRY=[
     ("s_He",1.0,"",ASSUMED,"UNKNOWN for F-diamond; assume 1","D","blocks PASS"),
     ("E_b_He_kB",30.,"K",ASSUMED,"He/graphite proxy; diamond unknown","D","factor 2x"),
     ("n_s_target",3.3e18,"m-2",ASSUMED,"Design","D","+-50%"),
-    ("P_CH4_work",1e-4,"Pa",ASSUMED,"Typical LCVD working pressure","A","factor 10x"),
-    ("P_CH4_purge_tgt",5e-12,"Pa",DESIGN,"Required before He-3 dosing","B","criterion"),
+    ("P_CH4_work",1e-4,"Pa",ASSUMED,"Typical LCVD working pressure","B","factor 10x"),
+    ("P_CH4_purge_tgt",5e-12,"Pa",DESIGN,"Required before He-3 dosing","C","criterion"),
     ("bakeout_done",0,"",ASSUMED,"Not yet executed","B","bool"),
     ("cryotrap_4K",0,"",ASSUMED,"Not yet installed","B","bool"),
     ("NEG_pump",0,"",ASSUMED,"Not yet installed","B","bool"),
     ("S_vib",1e-10,"m2/Hz",ASSUMED,"Oxford Triton spec; NOT measured here","CD","factor 10x"),
-    ("t_growth",30.,"s",ASSUMED,"Design growth pulse","A","+-factor3"),
-    ("t_purge_min",7200.,"s",ASSUMED,"Min pumpout; outgassing dominated","B","+0/-50%"),
+    ("t_growth",30.,"s",ASSUMED,"Design growth pulse","B","+-factor3"),
+    ("t_purge_min",7200.,"s",ASSUMED,"Min pumpout; outgassing dominated","C","+0/-50%"),
     ("t_vib_settle",100.,"s",ASSUMED,"Vib settling after shutter","C","+-factor3"),
     # ── Pass 15: non-lumped 1D/2D multiphysics parameters (forecast/model-only) ──
     ("mp_k_ref",2000.,"W/m/K",ASSUMED,"Reduced diamond k(T) anchor (boundary-limited)","B","factor 2x"),
@@ -423,8 +548,9 @@ class ModeStateVector:
     P_CH4_valve_leak_Pa: float = 0.
 
     def solve(self):
-        m3=3*m_p; m_H2=2*m_p; m_CH4_mass=16*m_p; T_room=300.; n_mono=1e19
-        s_H2=0.3; s_CH4=1.0; t_meas=1e4
+        m3=3*m_p; m_H2=2*m_p; m_CH4_mass=16*m_p
+        T_room=T_WALL_IMPINGEMENT_K; n_mono=N_MONOLAYER_SITES_PER_M2
+        s_H2=S_H2_STICKING; s_CH4=1.0; t_meas=1e4
         self.theta_H2  = s_H2*self.P_H2_Pa/math.sqrt(2*pi*m_H2*k_B*T_room)*t_meas/n_mono
         self.theta_CH4 = s_CH4*self.P_CH4_Pa/math.sqrt(2*pi*m_CH4_mass*k_B*T_room)*t_meas/n_mono
         d_He=2.6e-10
@@ -503,12 +629,15 @@ class ChamberState:
     def bakeout_executed(self): return self.bakeout_done
 
     def P_H2_Pa(self):
-        if self.bakeout_done and self.NEG_installed: return 1e-12
-        elif self.bakeout_done: return 2e-12
-        return 1e-10
+        if self.bakeout_done and self.NEG_installed:
+            return P_H2_POST_BAKEOUT_NEG_PA
+        elif self.bakeout_done:
+            return P_H2_POST_BAKEOUT_ONLY_PA
+        return P_H2_PRE_BAKEOUT_PA
 
     def theta_H2(self, t_meas=1e4):
-        m_H2=2*m_p; s_H2=0.3; n_mono=1e19; T_room=300.
+        m_H2=2*m_p; s_H2=S_H2_STICKING
+        n_mono=N_MONOLAYER_SITES_PER_M2; T_room=T_WALL_IMPINGEMENT_K
         return s_H2*self.P_H2_Pa()/math.sqrt(2*pi*m_H2*k_B*T_room)*t_meas/n_mono
 
     def G_eff_WK(self):
@@ -559,12 +688,12 @@ TOTAL_GAS_THERMAL_LOAD_pW = 0.0   # 0 when lines properly anchored at 100mK
 # ── Chamber configuration states (Mode B is a PRECONDITION, not a physics mode) ──
 CHAMBER_STATE = {
     "pre_bakeout": {
-        "P_H2_Pa":  1e-10,
+        "P_H2_Pa":  P_H2_PRE_BAKEOUT_PA,
         "P_CH4_Pa": 1.2e-9,
         "label":    "pre-bakeout (bakeout NOT executed; current physical state)",
     },
     "post_bakeout": {
-        "P_H2_Pa":  1e-12,
+        "P_H2_Pa":  P_H2_POST_BAKEOUT_NEG_PA,
         "P_CH4_Pa": 1.2e-13,
         "label":    "post-bakeout+NEG+cryotrap (required precondition for Mode D)",
     },
@@ -619,7 +748,7 @@ class SystemState:
         assert not(self.LCVD_on and self.sensing_on),             "IL-01 LCVD+sensing: 250x thermal overload — categorically impossible"
         assert not(self.precursor_on and self.He3_dosing_on),             "IL-02 precursor+He3 dosing: CH4 destroys He-3 film in 2.6s"
         assert not(self.LCVD_on and self.heat_switch_closed),             "IL-03 LCVD+switch_closed: sample heats MC"
-        assert not(self.sensing_on and not self.heat_switch_closed),             "IL-04 sensing+switch_open: sample not at 10mK"
+        assert not(self.sensing_on and self.heat_switch_closed),             "IL-04 sensing+switch_closed: 4K stage leaks into the 10mK sensing path"
         assert not(self.sensing_on and not self.RGA_pass_CH4),             "IL-05 sensing without RGA_CH4 pass — BLOCKS Mode D until Mode B validated"
         assert not(self.sensing_on and not self.RGA_pass_H2),             "IL-06 sensing without RGA_H2 pass — BLOCKS Mode D until Mode B validated"
         assert not(self.sensing_on and not self.T_sample_ok),             "IL-07 sensing with T_sample > T_max"
@@ -683,7 +812,11 @@ def make_D(mode_b_result: ModeBResult):
         He3_dosing_on      = True,
         He3_present        = True,
         sensing_on         = True,
-        heat_switch_closed = True,
+        # Mode D isolates: the SC heat switch is OPEN so the 4 K stage does not
+        # leak into the 10 mK sensing path. Authority: machine_fsm.py IL-04 and
+        # state_machine_3d.py MODE_D. The sample was thermalised earlier, with
+        # the switch CLOSED, during Mode A baseline and Mode C recovery.
+        heat_switch_closed = False,
         shutter_closed     = True,
         cryotrap_active    = True,
         RGA_pass_CH4       = mode_b_result.RGA_CH4_pass,  # from B — not hard-coded
@@ -874,7 +1007,8 @@ def mode_B_processing_gates(s):
 
 def mode_B_gates(s):
     assert s.mode=="MODE_C_PURGE"
-    gates=[]; m_H2=2*m_p; s_H2=0.3; T_room=300.; n_mono=1e19
+    gates=[]; m_H2=2*m_p; s_H2=S_H2_STICKING
+    T_room=T_WALL_IMPINGEMENT_K; n_mono=N_MONOLAYER_SITES_PER_M2
     gates.append(Gate("B1","CH4 Pumpout Sufficient","MODE_C_PURGE",
         "t_purge >= 2h; P_CH4 -> below threshold",
         7200./3600.,2.0,"CONDITIONAL",
@@ -901,12 +1035,16 @@ def mode_B_gates(s):
         "FC correction: sensing-surface P ~100x pump-port P — thresholds 100x stricter. "
         "Mode D hard-interlocked (IL-05) on this gate. Without RGA: Mode D blocked.",
         "RGA after each purge cycle. Calibrate FC factor from conductance model.", "Pa"))
-    P_H2=5e-12; Phi=s_H2*P_H2/math.sqrt(2*pi*m_H2*k_B*T_room)
+    # UNRESOLVED (§14): the literature ASSUMED nominal, not the modelled
+    # bakeout+NEG chamber state (1e-12 Pa) the narrative elsewhere uses.
+    P_H2=P_H2_POST_BAKEOUT_ASSUMED_PA
+    Phi=s_H2*P_H2/math.sqrt(2*pi*m_H2*k_B*T_room)
     th_H2=Phi*1e4/n_mono
     gates.append(Gate("B4","H2 Residual Coverage","MODE_C_PURGE",
         "theta_H2=s_H2*P_H2*t/(sqrt(2pi*m*kT)*n_mono)<0.1%",
         th_H2*100,0.1,"CONDITIONAL" if th_H2<1e-3 else "FAIL",
-        f"theta_H2={th_H2*100:.4f}% (post-bake P_H2=5e-12Pa ASSUMED). "
+        f"theta_H2={th_H2*100:.4f}% (post-bake "
+        f"P_H2={P_H2_POST_BAKEOUT_ASSUMED_PA:.0e}Pa ASSUMED). "
         f"Bakeout NOT executed. NEG NOT installed. RGA NOT measured.",
         "Execute 250C/48h bakeout; install SAES St707 NEG; measure P_H2.","%"))
     tau_pump=1e-3/10e-3; intCH4=1e-4*tau_pump*(1-math.exp(-30./tau_pump))
@@ -1145,9 +1283,14 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
         "bool"))
 
     # D10b: physical theta_H2 from ACTUAL chamber state (not hypothetical post-bakeout)
-    # Uses CURRENT_CHAMBER.P_H2_Pa() — returns 1e-10 Pa (pre-bakeout) right now
+    # Uses CURRENT_CHAMBER.P_H2_Pa(), which resolves to the named semantic
+    # quantity for the current hardware state -- P_H2_PRE_BAKEOUT_PA today,
+    # because bakeout has not been executed. Do not restate its value here:
+    # a comment carrying the number is the same single-source defect as a
+    # bare literal, just one that no checker can see.
     _P_H2_actual = _ch.P_H2_Pa()  # actual pressure from hardware state
-    _m_H2=2*m_p; _s_H2=0.3; _n_mono=1e19; _T_room=300.
+    _m_H2=2*m_p; _s_H2=S_H2_STICKING
+    _n_mono=N_MONOLAYER_SITES_PER_M2; _T_room=T_WALL_IMPINGEMENT_K
     _theta_actual = _s_H2*_P_H2_actual/math.sqrt(2*pi*_m_H2*k_B*_T_room)*1e4/_n_mono
     # Only evaluate D10b as PASS/FAIL if D10a is satisfied; otherwise BLOCKED
     if not _d10a_prereqs:
@@ -1167,7 +1310,7 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
     _P_H2_post = CHAMBER_STATE["post_bakeout"]["P_H2_Pa"]
     _theta_forecast = _s_H2*_P_H2_post/math.sqrt(2*pi*_m_H2*k_B*_T_room)*1e4/_n_mono
     _d10b_note += (f" || HYPOTHETICAL FORECAST ONLY — NOT CURRENT STATE: "
-                   f"post-bakeout P_H2=1e-12Pa -> theta={_theta_forecast*100:.4f}% (threshold would be satisfied in forecast only; not a PASS).")
+                   f"post-bakeout P_H2={P_H2_POST_BAKEOUT_NEG_PA:.0e}Pa -> theta={_theta_forecast*100:.4f}% (threshold would be satisfied in forecast only; not a PASS).")
 
     gates.append(Gate("D10b","H2 Physical Result (from actual P_H2; blocked if D10a not done)","MODE_D_SENSE",
         "theta_H2=s_H2*P_H2_actual*t/(sqrt(2pi*m*kT)*n_mono)<0.1%; D10a prerequisite",
@@ -1269,6 +1412,31 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
 
 
 
+#: Declared column contract for failed_gate_samples.csv. The generator used to
+#: derive the header from ``rows[0]`` when there were failures and to write a
+#: DIFFERENT six-column header ("A,B,C,D,SNR,Ts_mK") when there were none, so a
+#: governed artifact's schema depended on whether the Monte-Carlo run happened
+#: to produce a failure. One declaration now serves both branches: the header is
+#: always these fields in this order, and a zero-row run emits header-only.
+FAILED_GATE_SAMPLE_FIELDS = (
+    "tc_us", "Ge_WK", "Cc", "T2s_us", "ea", "Ts_mK", "SNR", "eps_pct",
+    "dominant_failure", "g_d10", "g_d3", "g_d13", "g_d18")
+
+
+def write_failed_gate_samples(path, rows):
+    """Write failed_gate_samples.csv against its declared schema.
+
+    Header always; rows appended if any. A row carrying a key outside the
+    contract raises rather than being silently dropped, and a zero-row run
+    produces a header-only file rather than a differently-shaped one.
+    """
+    rows = list(rows)
+    with open(path, "w", newline="") as f:
+        dw = csv.DictWriter(f, FAILED_GATE_SAMPLE_FIELDS)
+        dw.writeheader()
+        dw.writerows(rows)
+
+
 def run_mode_D_MC(N=10000, seed=42):
     """
     Full Mode D Monte Carlo (post-bakeout chamber state, N=10,000 samples).
@@ -1286,7 +1454,8 @@ def run_mode_D_MC(N=10000, seed=42):
     NC_ref=1e-6*0.5e-3*3510/(12*m_p)
     A_deb_ref=12*pi**4/5*NC_ref*k_B/2200.**3
     dZFS=74e3*2*pi
-    m_H2v=2*m_p; T_room=300.; n_mono=1e19
+    m_H2v=2*m_p; T_room=T_WALL_IMPINGEMENT_K
+    n_mono=N_MONOLAYER_SITES_PER_M2
 
     pass_total=0
     fail_reasons={"tau_c_detection":0,"G_eff_thermal":0,"eps_secondary_load":0,"theta_H2":0,"other":0}
@@ -1294,7 +1463,8 @@ def run_mode_D_MC(N=10000, seed=42):
 
     for _ in range(N):
         # Sample parameters (post-bakeout state)
-        P_H2_s= rng.uniform(5e-13, 2e-12)     # P_H2 post-bake+NEG (range)
+        # modelled bakeout+NEG chamber pressure, not the B4 assumption
+        P_H2_s= rng.uniform(*P_H2_POST_BAKEOUT_NEG_MC_RANGE_PA)
         Ge    = rng.uniform(5e-6,  3e-5)       # G_eff (Kapitza ±50%)
         Cc_   = rng.uniform(0.05,  0.20)       # C_contr (UNKNOWN at 10mK; sampled)
         T2s_  = rng.uniform(5e-6,  20e-6)      # T2* (ASSUMED range)
@@ -1351,6 +1521,10 @@ def run_mode_D_MC(N=10000, seed=42):
             elif not g_d10: dom="theta_H2"; fail_reasons["theta_H2"]+=1
             else: fail_reasons["other"]+=1
             if len(failed_samples)<200:
+                # Keys are written out, not zipped against the field tuple:
+                # positional pairing would silently mis-map every value if the
+                # declared order were ever edited. The declared order is
+                # enforced by the writer and by test_failed_gate_schema.
                 failed_samples.append(dict(tc_us=tc*1e6,Ge_WK=Ge,Cc=Cc_,
                     T2s_us=T2s_*1e6,ea=ea,Ts_mK=Ts*1e3,SNR=SNR,eps_pct=eps*100,
                     dominant_failure=dom,g_d10=g_d10,g_d3=g_d3,g_d13=g_d13,g_d18=g_d18))
@@ -1718,7 +1892,7 @@ INTERLOCKS=[
     ("IL-01","LCVD_on AND sensing_on","IMPOSSIBLE","thermal: 250x overload"),
     ("IL-02","precursor_on AND He3_dosing_on","IMPOSSIBLE","chemical: He-3 film in 2.6s"),
     ("IL-03","LCVD_on AND heat_switch_closed","IMPOSSIBLE","thermal: heats MC"),
-    ("IL-04","sensing_on AND heat_switch_open","IMPOSSIBLE","thermal: sample not at 10mK"),
+    ("IL-04","sensing_on AND heat_switch_closed","IMPOSSIBLE","thermal: 4K stage leaks into 10mK sensing path"),
     ("IL-05","sensing_on AND NOT RGA_pass_CH4","BLOCKED","CH4 contamination"),
     ("IL-06","sensing_on AND NOT RGA_pass_H2","BLOCKED","H2 coverage"),
     ("IL-07","sensing_on AND T_sample>12mK","BLOCKED","too warm for Ramsey"),
@@ -2187,11 +2361,7 @@ def main():
     # assumed_parameters.json is maintained separately with 75 entries in correct format.
     # Do NOT overwrite from sim — the manually-maintained version has full traceability.
     # with open(out/"assumed_parameters.json","w") as f: json.dump(...)  [DISABLED]
-    if failed_s:
-        with open(out/"failed_gate_samples.csv","w",newline="") as f:
-            dw=csv.DictWriter(f,failed_s[0].keys()); dw.writeheader(); dw.writerows(failed_s)
-    else:
-        with open(out/"failed_gate_samples.csv","w") as f: f.write("A,B,C,D,SNR,Ts_mK\n")
+    write_failed_gate_samples(out/"failed_gate_samples.csv", failed_s)
     # tau_c sweep — gated against CANONICAL threshold 292 µs (v3.3).
     # 27.7 µs (v3.0) is SUPERSEDED and is NOT used as a live gate.
     TAU_C_CANONICAL_S = 292e-6

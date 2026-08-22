@@ -27,6 +27,59 @@ DEFAULT_FACTORS = {
 }
 
 
+# Canonical field contract for a radiative-path record. Declared here, in the
+# producer, so a consumer can assert against it instead of guessing field
+# names. Consumers must index these keys directly and fail loud: permissive
+# ``.get(alias, fallback)`` chains silently substituted "stage_hop" and an
+# empty heat load into a governed output for every path in the chain.
+RADIATION_PATH_FIELDS = ("path_name", "source_stage", "sink_stage",
+                         "heat_load_W", "attenuation_factor",
+                         "shutter_state", "baffle_state",
+                         "reaches_10mK_region")
+RADIATION_METRIC_FIELDS = ("total_heat_load_to_10mK_W", "attenuation_factor",
+                           "shutter_state", "baffle_state", "finite")
+
+
+class RadiationSchemaError(ValueError):
+    """A radiative-path record does not satisfy the declared field contract."""
+
+
+def validate_radiation_paths(paths, metrics):
+    """Fail closed on any drift between producer and the declared contract.
+
+    Returns ``(paths, metrics)`` unchanged so callers can wrap a producer call
+    directly. Raises rather than defaulting: a missing heat load is missing
+    data, not zero watts.
+    """
+    import math as _math
+    if not paths:
+        raise RadiationSchemaError("no radiative paths produced")
+    for i, row in enumerate(paths):
+        missing = [k for k in RADIATION_PATH_FIELDS if k not in row]
+        if missing:
+            raise RadiationSchemaError(
+                f"radiative path row {i} missing required fields {missing}; "
+                f"present: {sorted(row)}")
+        name = row["path_name"]
+        if not isinstance(name, str) or not name.strip():
+            raise RadiationSchemaError(
+                f"radiative path row {i} has empty path_name {name!r}")
+        load = row["heat_load_W"]
+        if not isinstance(load, (int, float)) or isinstance(load, bool) \
+                or not _math.isfinite(float(load)):
+            raise RadiationSchemaError(
+                f"radiative path {name!r} has non-finite heat_load_W {load!r}")
+    missing = [k for k in RADIATION_METRIC_FIELDS if k not in metrics]
+    if missing:
+        raise RadiationSchemaError(
+            f"radiation metrics missing required fields {missing}")
+    total = metrics["total_heat_load_to_10mK_W"]
+    if not isinstance(total, (int, float)) or not _math.isfinite(float(total)):
+        raise RadiationSchemaError(
+            f"total_heat_load_to_10mK_W is not finite: {total!r}")
+    return paths, metrics
+
+
 def radiation_paths(epsilon_eff=0.05, view_factor=0.1, area_m2=1.0e-4,
                     factors=None, shutter_state="closed", baffle_state="engaged"):
     """Compute per-hop radiative heat loads down the stage chain."""
