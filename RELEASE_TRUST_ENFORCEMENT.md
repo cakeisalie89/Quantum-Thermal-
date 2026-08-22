@@ -10,13 +10,58 @@ That is the failure this table exists to prevent: before this pass,
 `source_repository`, `workflow_path`, `pinned_revision` and `trusted_builders`
 were all present in the policy and read by nothing.
 
+## The external trust root
+
+**A release cannot authorize itself.** A malicious artifact can always carry a
+policy naming its own signer, so the expected identity must come from outside
+the artifact.
+
+```
+verify_release.py --zip Q.zip --bundle b --online \
+    --trusted-policy /path/to/owner-authorized-release_trust_policy.json
+# or --trusted-policy-sha256 <64-hex>
+```
+
+`--online` **fails closed without one.** There is no fallback to the working
+directory, the bundle, or the archive. Independent consumers must obtain the
+authorized policy (or its digest) through a channel independent of the release.
+
+An earlier implementation compared the bundled policy against a
+repository-local path and, when that path did not exist, **skipped the
+comparison** — so in the independent-verification case there was no root at
+all. Offline verification now says `UNANCHORED` in that situation rather than
+staying silent, and is documented as structural checking only.
+
+Three words that must not blur:
+
+| term | meaning |
+|---|---|
+| **authorization policy** | pre-authorized owner intent, supplied externally |
+| **authenticated artifact** | bytes whose signature verified against that policy |
+| **auxiliary metadata** | shipped alongside, never independently authenticated |
+
+## Verification phases
+
+```
+1  trust root        load external policy; derive expected identity + issuer
+2  candidate         open zip, recompute digests    (NO authority yet)
+3  authenticate      Sigstore verify zip against the EXTERNAL identity
+4  authenticated     zip policy == root; bundle policy == root;
+                     read signed release_binding.json; recompute payload digest
+5  auxiliary         cross-check provenance / SBOM / index
+6  claims            recompute PASS from the signed gate table
+```
+
+No arrow points backward. The binding is read only in phase 4 — after the
+signature that authenticates it has been checked against the policy.
+
 ## Canonical source
 
 | | |
 |---|---|
 | canonical policy | `QTA_stage9_release_verification/release_trust_policy.json` |
 | schema + loader | `release_trust.py` (`load_canonical_policy`, `validate_policy`) |
-| schema version | `2.0.0` |
+| schema version | `3.0.0` |
 | consumers | `build_release_artifacts.py` (copies it), `verify_release.py` (enforces it), `release_revision_gate.py` (revision semantics) |
 | duplicate definitions | none — `trust_policy()` is now a loader with no values of its own |
 
@@ -29,15 +74,16 @@ canonical" is therefore a byte comparison, not a semantic argument.
 
 | Policy field | Canonical value source | Observed runtime source | Verifier comparison | Negative test |
 |---|---|---|---|---|
-| `schema_version` | canonical file | bundled policy | exact `== "2.0.0"` | `test_rejects_old_schema_version` |
+| `schema_version` | canonical file | bundled policy | exact `== "3.0.0"` | `test_rejects_old_schema_version` |
 | `wildcards_forbidden` | canonical file | bundled policy | must be exactly `True`; plus structural wildcard scan over **every leaf** | `test_rejects_wildcard_in_any_leaf`, `test_rejects_wildcards_forbidden_false` |
-| `source_repository` | canonical file | provenance `externalParameters.source_repository` **and** certificate SAN | three-way exact equality | `test_wrong_repository_fails`, `test_fork_repository_fails`, `test_same_workflow_other_repo_fails` |
-| `workflow_path` | canonical file | provenance `externalParameters.workflow_path` **and** certificate SAN | three-way exact equality | `test_wrong_workflow_fails`, `test_discovery_workflow_identity_fails` |
-| `authorized_ref` | canonical file (owner picks the tag name) | certificate SAN ref **and** provenance `externalParameters.authorized_ref`; `GITHUB_REF` and the tag target in the workflow | three-way exact equality | `test_wrong_tag_fails`, `test_bootstrap_tag_identity_rejected_when_final_tag_differs` |
-| `signer_identity` | derived: `https://github.com/{owner}/{repo}/{workflow_path}@{authorized_ref}` | Fulcio certificate SAN | exact equality, **and** must equal the value implied by the policy's own components | `test_signer_identity_must_match_its_own_components`, `test_wrong_signer_correct_issuer_fails` |
+| `source_repository` | canonical file | signed `release_binding.json`; also proven by the certificate, since Sigstore checked the SAN against the identity derived from this field | exact equality against the authenticated binding | `test_binding_disagreeing_with_policy_fails`, `test_wrong_repository_fails`, `test_fork_repository_fails` |
+| `workflow_path` | canonical file | signed `release_binding.json`; also proven by the certificate as above | exact equality against the authenticated binding | `test_binding_disagreeing_with_policy_fails`, `test_wrong_workflow_fails` |
+| `authorized_ref` | canonical file (owner picks the tag name) | signed `release_binding.json`; `GITHUB_REF` and the tag target in the workflow | exact equality against the authenticated binding | `test_binding_disagreeing_with_policy_fails`, `test_wrong_tag_fails` |
+| `signer_identity` | derived: `https://github.com/{owner}/{repo}/{workflow_path}@{authorized_ref}` | the certificate Sigstore verifies — this is the **only** genuinely observed certificate value, and it is observed *by* `verify_artifact`, not parsed beforehand | `Identity(identity=…, issuer=…)` from the **external** policy | `test_policy_to_sigstore_expected_identity_contract`, `test_signer_identity_must_match_its_own_components` |
 | `oidc_issuer` | canonical file | certificate issuer | exact `== https://token.actions.githubusercontent.com` | `test_correct_signer_wrong_issuer_fails` |
-| `pinned_revision` | canonical file (the **reviewed** revision `C`) | `git rev-parse HEAD` in the workflow; provenance `resolvedDependencies[].digest.gitCommit` | 40-hex; ancestor of the released commit; `!=` it; `C..A` diff touches only the policy file | `test_pinned_revision_must_be_ancestor`, `test_pinned_equal_to_release_fails`, `test_unreviewed_change_fails`, `test_pending_revision_fails` |
-| `trusted_builders` | derived: `github-actions://{owner}/{repo}/{workflow_path}@{authorized_ref}` | provenance `runDetails.builder.id` | exact list membership — never substring, prefix or suffix | `test_wrong_builder_fails`, `test_local_builder_cannot_satisfy_hosted`, `test_builder_prefix_trick_fails`, `test_builder_case_variation_fails` |
+| `pinned_revision` | canonical file (the **reviewed** revision `C`) | signed `release_binding.json`; `git rev-parse HEAD` in the workflow | 40-hex; ancestor of the released commit; `!=` it; `C..A` diff within the authorization closure | `test_pinned_revision_must_be_an_ancestor`, `test_pinned_equal_to_release_fails`, `test_unreviewed_change_fails` |
+| `reviewed_payload_sha256` | canonical file | **recomputed from the authenticated archive** | exact equality — offline-checkable with no Git checkout | `test_payload_digest_detects_any_payload_change`, `test_payload_digest_excludes_the_authorization_closure` |
+| `trusted_builders` | derived from repo/workflow/ref | **derived again** from the *authenticated* binding, never read from unsigned provenance | exact list membership | `test_builder_is_derived_from_authenticated_content_not_taken_on_trust`, `test_local_builder_cannot_satisfy_hosted` |
 | `bootstrap_state` | canonical file | — | closed vocabulary; a **resolved** policy must record an authorizing state | `test_resolved_policy_must_record_authorization` |
 | *(any unknown field)* | — | bundled policy | rejected | `test_unknown_field_rejected` |
 | *(any field)* | — | bundled policy | no `PENDING` anywhere, structurally, case- and whitespace-insensitive | `test_pending_anywhere_fails`, `test_pending_inside_trusted_builders_fails`, `test_pending_case_and_whitespace_tricks_fail` |
@@ -53,9 +99,50 @@ by the finalizer, so nothing may be authorized on its word.
 | `files[]` | integrity-critical | cross-checked against `SHA256SUMS` and against the contents of the zip |
 | `claims.scientific_gate_PASS_count` | authority-critical | recomputed from `results_gate_table.csv` **inside the signed zip**; the index must also *agree*, so an understating index is a failure |
 | `provenance.slsa_level_claimed` | authority-critical | any non-`NONE` value fails outright; the level cannot be promoted by index text |
+| *(external `provenance.intoto.json`)* | **`UNTRUSTED_AUXILIARY_METADATA`** | generated outside the signed zip and never itself signed. Cross-checked against the signed binding for consistency; grants **no** repository, workflow, ref, builder, revision or SLSA authority |
+| *(`SHA256SUMS`)* | derived redundancy | not authenticated. Convenience for consumers; every entry is also verified against the signed archive's own contents, so deleting entries removes redundancy rather than weakening authentication |
+| *(`sbom.cdx.json`)* | representation | not authenticated. Validated *against `uv.lock` inside the authenticated zip* — a representation checked against authenticated source, not a trusted claim |
 | `signing_status` | consistency metadata | signed state is derived from facts (declared bundle exists, parses, verifies). `PENDING` + a bundle on disk, or `SIGNED` + no bundle, are both failures |
 | `signature_bundles` | routing | path-contained (no absolute paths, no `..`, no symlink escape), no duplicates, exact `{name, bundle}` shape; the referenced bundle must exist and cryptographically verify |
 | `sbom`, `provenance` file refs | routing | the referenced files are read and validated directly |
+
+## Authorization closure
+
+Determined experimentally, not guessed. Filling the policy at `C` and running
+every required regeneration changes exactly these paths, and repeating reaches
+a stable fixed point:
+
+| path | class |
+|---|---|
+| `QTA_stage9_release_verification/release_trust_policy.json` | `AUTHORIZATION_INPUT` |
+| `final_manifest.json` | `DETERMINISTIC_DERIVATIVE` |
+| `manifest_hash.txt` | `DETERMINISTIC_DERIVATIVE` |
+| `ro-crate/ro-crate-metadata.json` | `DETERMINISTIC_DERIVATIVE` |
+
+The earlier rule — "only the policy file may differ" — was **not satisfiable
+here**: `generate_manifest.py` hashes every tracked file except its own two
+detached artifacts, so editing the policy necessarily changes the manifest, and
+`release.yml` runs `generate_manifest.py --check` before building. The fix is to
+widen the closure and require each derivative to equal an **independent
+regeneration**; excluding the policy from manifest coverage would remove it
+from governance and is forbidden.
+
+Membership alone is not enough: the gate regenerates and compares bytes, and
+also requires the authorization input itself to be present, so derivative churn
+alone is not an authorization.
+
+## Why the payload digest breaks the recursion
+
+`reviewed_payload_sha256` covers every release-payload file **except** the
+closure. So the policy records a digest of everything the policy does not
+affect, and filling the policy in cannot change the value it records. Verified:
+the digest is byte-identical at `C` and at `A`.
+
+```
+reviewed payload ──digest──> authorization policy ──> manifest/RO-Crate ──> zip ──> signature
+```
+
+No arrow points backward.
 
 ## What is deterministic and what is execution-specific
 
@@ -67,6 +154,18 @@ by the finalizer, so nothing may be authorized on its word.
 The stable builder id lives in `runDetails.builder.id` and *is* compared exactly.
 Keeping it apart from per-run data is what makes one authorization cover a rerun
 instead of being invalidated by a new run number.
+
+## On `trusted_builders`
+
+Honestly: the stable builder id is a pure function of repository, workflow and
+ref — the same three values `signer_identity` is derived from. It is therefore a
+**second encoding of the same authority, not an independent observation**, and
+this document does not claim otherwise. What it adds is defence in depth: the
+verifier derives it again from the *authenticated binding* and requires exact
+list membership, so a binding that asserts some other builder id is caught even
+though the certificate alone would not have caught it. If a future release model
+introduces builders that are not a function of those three values, this field
+becomes genuinely independent; today it is not.
 
 ## SLSA
 

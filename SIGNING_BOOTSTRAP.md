@@ -1,9 +1,15 @@
 # Signing trust bootstrap
 
 A trusted release is accepted only when the artifact, repository, workflow,
-revision, builder, signer and issuer **all independently agree with a policy
-that was authorized before the signature was accepted.** Cryptographic validity
-alone is not authorization.
+revision, builder, signer and issuer **all agree with a policy that was
+authorized before the signature was accepted, and that policy is supplied from
+OUTSIDE the release.** Cryptographic validity alone is not authorization.
+
+**The release cannot answer "who should I trust?" using its own data.**
+`verify_release.py --online` requires `--trusted-policy` (or
+`--trusted-policy-sha256`) and fails closed without it. The policy in the
+bundle and the policy inside the signed archive are *candidates*, checked
+against the external root; neither is the root.
 
 Signing status is **PENDING**. No pin is filled, no tag is cut, and no signature
 has been produced or verified.
@@ -47,12 +53,32 @@ A   the released commit. Child of C, identical except that it fills in the
 1. the ref being built equals `policy.authorized_ref`;
 2. `C` exists and is an **ancestor** of the checkout `A`;
 3. `C != A` — `A` must be the commit carrying the authorization;
-4. the `C..A` diff touches **only** the canonical policy file.
+4. the `C..A` diff stays within the **authorization closure**, each
+   deterministic derivative equals an independent regeneration, and the
+   authorization record itself is actually present.
 
-Check 4 is load-bearing. Without it, "descendant of a reviewed commit" would
-authorize arbitrary later changes. It is verified working: a scratch repository
-built in this exact order passes, and an authorization commit that also smuggles
-an unrelated file is refused, naming the file.
+The closure is four paths, determined experimentally rather than guessed:
+the policy (`AUTHORIZATION_INPUT`), plus `final_manifest.json`,
+`manifest_hash.txt` and `ro-crate/ro-crate-metadata.json`
+(`DETERMINISTIC_DERIVATIVE`). An earlier version allowed the policy file alone,
+which **was not satisfiable here**: `generate_manifest.py` hashes every tracked
+file except its own two detached artifacts, so editing the policy necessarily
+changes the manifest — and `release.yml` runs `generate_manifest.py --check`
+before building. Excluding the policy from manifest coverage would have removed
+it from governance and was rejected.
+
+**Content authorization does not depend on Git at all.**
+`reviewed_payload_sha256` covers every release-payload file *except* the
+closure, so the policy records a digest of everything the policy does not
+affect — which is what breaks the recursion. An offline consumer recomputes it
+from the signed archive with no checkout. `pinned_revision` remains for
+traceability and is checked by the workflow, which has the repository.
+
+Verified against the **real repository**, not a minimal scratch one: the
+sequence review `C` → authorize `A` → tag `A` passes
+`generate_manifest.py --check`, RO-Crate validation, the revision gate and the
+tag-target check simultaneously, and the payload digest is byte-identical at
+`C` and `A`.
 
 Order of operations, all ordinary Git: **review `C` → commit `A` filling the
 policy → tag `A` → push the tag.** No step requires knowing a hash before it

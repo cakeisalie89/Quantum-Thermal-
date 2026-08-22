@@ -188,9 +188,9 @@ What replaced it:
 | loader/validator | `release_trust.py` — the only reader; `trust_policy()` is now a loader with no values of its own |
 | bundled copy | written with the canonical serializer and compared **byte-for-byte** by the verifier |
 | unresolved scan | structural over every leaf, case- and whitespace-insensitive, including nested `trusted_builders` |
-| repository / workflow / ref | three-way exact equality: policy vs provenance vs certificate SAN |
-| builder | exact list membership; substring, prefix, suffix and case variants all fail |
-| revision | recomputed with `git rev-parse`, cross-checked against tag target and Actions context, then gated by `release_revision_gate.py` |
+| repository / workflow / ref | exact equality between the external policy and the **signed** release binding; also proven by the certificate, since Sigstore checks the SAN against the identity derived from those same fields. Unsigned provenance is cross-checked only |
+| builder | derived again from the authenticated binding, then exact list membership; substring, prefix, suffix and case variants all fail. Never read from unsigned provenance |
+| revision | `reviewed_payload_sha256` recomputed from the authenticated archive (no Git needed); plus `git rev-parse` cross-checked against tag target and Actions context and gated by `release_revision_gate.py` in the workflow |
 | SLSA | any non-`NONE` value in index or provenance is a failure |
 
 **The self-reference problem is solved rather than deferred.** A commit cannot
@@ -211,6 +211,20 @@ components. If a prediction is ever wrong the run fails closed; it is never TOFU
 The metadata blocker remains closed by `finalize_release_signing.py`, which is
 implemented and wired between signing and online verification. Signature
 existence is still not authorization.
+
+**A further review found the trust root itself was missing.** The verifier
+compared the bundled policy against a repository-local path and, when that path
+did not exist — the independent-consumer case — silently skipped the check.
+Unsigned `provenance.intoto.json` was also being consulted for repository,
+workflow, ref, builder and revision authorization, and policy-derived strings
+were reported as though they were observed certificate values.
+
+Corrected: `--online` now requires an external `--trusted-policy` and fails
+closed without it; a signed `release_binding.json` inside the archive carries
+the release facts so they come from authenticated bytes; provenance is
+reclassified `UNTRUSTED_AUXILIARY_METADATA` and cross-checked only; and the
+certificate check is named for what it is — Sigstore verifying the presented
+certificate against the identity derived from the *external* policy.
 
 **Signing status: PENDING.** `bootstrap_state` is `UNINITIALIZED`. No pin filled,
 no tag cut, no signature produced. 11 mutations of the trust boundary were each
