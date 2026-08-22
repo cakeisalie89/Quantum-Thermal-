@@ -26,7 +26,13 @@ sync at 393 files with 2 detached; 128 focused authority tests pass.
 
 ## 1. §6 L3 refinement level
 
-**Status: see `THERMAL_3D_L3.md`** — this section records only what the
+**Status: COMPLETED — see `THERMAL_3D_L3.md`.** Executed as declared: rel_error
+-6.1831e-03 at 26x26x32 / 72x96, monotone decreasing, within tolerance, 2 624 s
+and 1 448 MB. The extrapolated limit is -5.68e-03, a small non-zero residual
+attributable to the box/disc geometry difference the artifact already bounds at
+~6 %; it is not claimed to converge to zero.
+
+What follows — this section records only what the
 profiling established, because the profiling is what changed.
 
 The blocker was never convergence, memory or a defect. It is asymptotic solver
@@ -101,12 +107,27 @@ provenance binds the release-zip digest, the trust policy contains no wildcards,
 and the gate table inside the zip carries PASS = 0. **None of that is signature
 verification.** It proves internal consistency of the bundle, not its origin.
 
-**What closes it:** a genuine hosted run of `release.yml` on a tag, producing a
-Sigstore bundle whose certificate identity matches the expected issuer,
-repository, workflow and ref, over the actual release artifact digest, with
-Rekor inclusion. Verification must be independent: a cryptographically valid
-signature over the wrong artifact, commit, workflow or repository is a failure,
-not a pass.
+The route itself is sound and now sits on the default branch. `release.yml`
+grants `contents: read` plus `id-token: write` (keyless OIDC) and nothing else;
+it builds the release zip deterministically from the git index, verifies that
+exact file offline, signs **that same file** with `python -m sigstore sign`, and
+then re-verifies the same file against the same bundle directory with
+`verify_release.py --online`. The three-directory bug that once meant the signed
+artifact was never the verified one is fixed.
+
+**The four blockers are the four PENDING pins in
+`release_trust_policy.json`:** `oidc_issuer`, `signer_identity`,
+`pinned_revision`, and the hosted entry of `trusted_builders`. They cannot be
+filled in advance — the certificate identity and issuer are only knowable from
+the certificate of a real signing run — and the policy fails closed on any
+`PENDING` or wildcard, so no signature is trusted until they are exact.
+
+**What closes it:** the workflow fires only on `push: tags: ["qta-stage*"]`.
+There is no `workflow_dispatch`. A genuine hosted signing run therefore requires
+cutting a release tag, which is an owner decision and is not taken here. After
+that run, the four pins are set from the observed certificate and verification
+must be independent: a cryptographically valid signature over the wrong
+artifact, commit, workflow or repository is a failure, not a pass.
 
 ## 4. Material-property floors
 
@@ -176,12 +197,33 @@ CH₄ is not: it crosses a transport-regime boundary between 0.1 K and 1 K, so i
 classification would follow entirely from the assumption.
 
 **The prior question is whether a scalar gas temperature is meaningful here at
-all.** At Kn ≫ 1 the gas is in molecular flow: molecules cross the chamber
-without colliding with each other, so there is no mechanism to establish a
-Maxwellian at a single temperature. What a molecule "has" is the accommodation
-history of the last surface it struck, and those surfaces span 300 K feedthroughs
-to a 10 mK stage. The physically honest object is a **distribution over source
-populations**, not one T.
+all.** A temperature describes a Maxwellian, and a Maxwellian needs
+intermolecular collisions to establish. Counting them, at the modelled
+pressures and L_char = 0.01 m:
+
+| species | T | λ (m) | Kn | collisions per wall transit |
+|---|---|---|---|---|
+| C13_CH4 | 10 mK | 2.152e-03 | 2.152e-01 | **4.6** |
+| C13_CH4 | 1 K | 2.152e-01 | 2.152e+01 | 4.6e-02 |
+| C13_CH4 | 300 K | 6.456e+01 | 6.456e+03 | 1.5e-04 |
+| H2 | 10 mK | 3.695e+03 | 3.695e+05 | 2.7e-06 |
+| H2 | 1 K | 3.695e+05 | 3.695e+07 | 2.7e-08 |
+| H2 | 300 K | 1.109e+08 | 1.109e+10 | 9.0e-11 |
+
+For H₂ a molecule crosses the chamber between a million and a hundred billion
+times before meeting another molecule. There is no gas-phase equilibration at
+any temperature in the span, so there is no population for a temperature to
+describe: what a molecule carries is the accommodation history of the last
+surface it struck, and those surfaces run from 300 K feedthroughs to the 10 mK
+stage. `None` is not a missing value here — it is the physically correct answer,
+and assigning a scalar would be inventing an equilibrium that does not exist.
+
+CH₄ is the one case where the question is real. At 10 mK it manages ~4.6
+collisions per wall transit — marginally collisional, which is precisely why it
+sits at the TRANSITIONAL boundary — and by 1 K it is down to 0.046, collisionless
+like everything else. So a gas temperature is arguably definable for CH₄ only at
+the very bottom of the declared span, and the physically honest object over the
+rest of it is a **distribution over source populations**, not one T.
 
 | Quantity required | Physical definition | Evidence / model required | Consumers | Authority consequence |
 |---|---|---|---|---|
@@ -233,7 +275,7 @@ isolation tests is evidence of containment, never of correctness.
 
 | Quantity | State | Current evidence | Missing evidence | Consumer | Affected | Software-closable? |
 |---|---|---|---|---|---|---|
-| §6 L3 refinement | see `THERMAL_3D_L3.md` | L1, L2 executed | compute time only | reduction check | §6 convergence claim | **yes — compute** |
+| §6 L3 refinement | **CLOSED** | L1, L2, L3 executed | none | reduction check | §6 convergence claim | done |
 | Container runtime | build blocked | daemon 29.3.1 running | Docker Hub blob egress | release/reproducibility | container claim | no — infrastructure |
 | Signing | PENDING | offline bundle verified | hosted Sigstore run + identity match | release | provenance claim | no — infrastructure |
 | Cp(T) below 0.407 K | floored | none | measurement or validated law | all thermal solvers | Mode-C recool, 50 mK readiness | no — measurement |
@@ -243,5 +285,6 @@ isolation tests is evidence of containment, never of correctness.
 | Deep-layer trust | not trusted | thresholds measured and failing | independent validation programme | none (opt-in) | none | no — validation |
 | RGA / P_H2 measurement | not performed | assumption only | bakeout + NEG + RGA campaign | B4, D10a/b, E04 | Mode D interlock | no — physical |
 
-**Where further coding stops helping:** everything below the first row. L3 is
-the only remaining item that additional computation can close by itself.
+**Where further coding stops helping:** every remaining row. L3 was the only
+item additional computation could close by itself, and it is now closed. Nothing
+else in this table yields to more code.
