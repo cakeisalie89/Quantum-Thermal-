@@ -1,8 +1,8 @@
 # Signing trust bootstrap
 
 `release.yml` cannot establish its own trust. This document states the
-circularity precisely, and the three-stage procedure that breaks it without
-turning first-use into authorization.
+circularity precisely, and the staged procedure that breaks it without turning
+first-use into authorization.
 
 Signing status remains **PENDING**. Nothing here signs anything, and no pin in
 `QTA_stage9_release_verification/release_trust_policy.json` is filled by any
@@ -59,11 +59,14 @@ Equally forbidden, and each of these defeats the policy entirely:
 - treating `PENDING` as permissive;
 - accepting an identity because the signature cryptography validated.
 
-## The three-stage procedure
+## The staged procedure
 
-Trust is split into three separable acts: **discovery**, **authorization**,
-**verification**. Only the middle one confers trust, and only a human performs
-it.
+Trust is split into separable acts: **discovery** (Stage 1) and **evidence
+capture** (Stage 2) produce observations; **authorization** (Stage 2b) confers
+trust and is performed only by a human in a reviewed commit; **verification**
+(Stage 3) then runs against a policy that already existed.
+
+No single run performs more than one of these.
 
 ### Stage 1 — identity discovery (untrusted)
 
@@ -86,11 +89,56 @@ and nothing more.
 The artifact name carries the trust status structurally. A reader does not have
 to consult a description to know the material is unauthorized.
 
-### Stage 2 — authorization (human, in a reviewed commit)
+**What Stage 1 cannot establish, and why.** The Fulcio SAN names the workflow
+file that ran and the ref it ran on. A `workflow_dispatch` run of
+`identity-discovery.yml` on a branch therefore yields
+
+```
+https://github.com/cakeisalie89/Quantum-Thermal-/.github/workflows/identity-discovery.yml@refs/heads/<BRANCH>
+```
+
+which differs from the release identity in **both** components — a different
+workflow file and a different ref. So discovery can **never** produce the exact
+`signer_identity` string that must be pinned, and any procedure that asks a
+reviewer to "compare and pin what discovery observed" is asking for something
+the mechanism cannot deliver.
+
+What discovery *does* establish, which is still worth having before a tag is
+ever cut:
+
+| establishes | does not establish |
+|---|---|
+| the exact `oidc_issuer` (identical for every GitHub Actions run) | the exact `signer_identity` |
+| that the SAN is a URI of the form `https://github.com/OWNER/REPO/.github/workflows/FILE@REF` | the `FILE` and `REF` a release run will carry |
+| the repository component, verbatim | `pinned_revision` |
+| the Fulcio extension layout, so a reviewer knows which fields to read | `trusted_builders[hosted]` |
+
+The exact release identity comes from Stage 2 instead.
+
+### Stage 2 — the first release run fails, and keeps its certificate
+
+Cut a bootstrap tag. `release.yml` signs, online verification **fails** on the
+PENDING pins exactly as designed, and the job's
+`preserve UNTRUSTED bundle when verification fails` step — `if: failure()`,
+after the verification step — uploads the bundle as
+
+```
+UNTRUSTED-RELEASE-IDENTITY-EVIDENCE
+```
+
+This is the only step that can yield the exact release `signer_identity`,
+because it is the only one signing under `release.yml` at a tag ref. The run
+confers nothing: it exits non-zero, writes no pin, leaves the trust policy
+untouched, and never inspects its own certificate.
+
+Because a signed tag must never be re-pointed, this bootstrap tag is spent: the
+trusted release in Stage 3 uses a **new** tag.
+
+### Stage 2b — authorization (human, in a reviewed commit)
 
 Compare the observed claims against the prediction below. This is what keeps the
 procedure from being TOFU: the identity is **predicted from documented semantics
-first**, and the discovery run either confirms the prediction or contradicts it.
+first**, and the runs either confirm the prediction or contradict it.
 A contradiction is a finding, not something to paper over by pinning whatever
 turned up.
 
@@ -104,7 +152,9 @@ Predicted, for a tag-triggered run of `release.yml` in this repository:
 | `trusted_builders[hosted]` | the same workflow identity |
 
 These are predictions from GitHub OIDC and Fulcio semantics, **not verified
-values**. Stage 1 exists to check them.
+values**. Stage 1 checks the issuer and the SAN structure; Stage 2 supplies the
+exact `signer_identity`, `pinned_revision` and hosted builder. Neither run is
+asked to confirm something it cannot observe.
 
 If they match, pin the exact observed strings in a separate commit, review it,
 and merge it. If they do not match, stop and investigate — a certificate that
@@ -113,10 +163,39 @@ policy is for.
 
 ### Stage 3 — trusted release
 
-Cut the release tag against the pinned revision and let `release.yml` run
-unchanged. Verification now runs against a policy the owner pre-authorized, so a
-pass means the signature came from the identity that was intended, not merely
-from some identity.
+> **BLOCKER, unresolved: pinning the identity is necessary but not sufficient.**
+> An earlier revision of this document said to "let `release.yml` run
+> unchanged." That was wrong. There is a **second, independent** blocker, and
+> the release cannot verify online until it is fixed by an owner-authorized
+> change:
+>
+> `build_release_artifacts.py` writes `release_index.json` with
+> `"signing_status": "PENDING"` and `"signature_bundles": []` hardcoded. The
+> signing step writes `source.sigstore.json` but updates **neither** field. And
+> `verify_release.py` rejects before it ever looks at a signature:
+>
+> ```python
+> if status != "SIGNED" or not sig:
+>     fail_list(problems, "online verification requested but no "
+>                          "real signature exists (status="
+>                          f"{status}); absence is never success")
+> ```
+>
+> So online verification fails **regardless of whether the pins are filled**.
+>
+> What is required: a post-sign step that sets `signing_status` to `SIGNED` and
+> lists the produced bundle in `signature_bundles`. Scope, verified against the
+> code rather than assumed: `SHA256SUMS` covers the zip plus ten key files and
+> **not** `release_index.json`, and `idx["files"]` is that same set, so the
+> `release_index files != SHA256SUMS set` cross-check is unaffected and **no
+> integrity regeneration is needed**. This is left unimplemented deliberately —
+> it changes the release path's semantics, which is an owner decision, not a
+> correction.
+
+Once that is resolved, cut a new release tag against the pinned revision.
+Verification then runs against a policy the owner pre-authorized, so a pass
+means the signature came from the identity that was intended, not merely from
+some identity.
 
 Then verify independently, off the runner: signature, certificate chain, issuer,
 SAN, repository, workflow, ref, artifact SHA-256, source commit, SLSA predicate
@@ -128,12 +207,14 @@ Never re-point or mutate a tag that has been signed.
 ## Why this is not circular
 
 The signing run never decides whether its own identity is acceptable. Discovery
-produces evidence and says so in its own output; a human compares that evidence
-against a prediction written down beforehand; authorization happens in a
+fixes the issuer and the SAN structure, and the first release run — which fails,
+and is preserved precisely because it fails — supplies the exact identity; a
+human compares both against a prediction written down beforehand; authorization happens in a
 reviewed commit; and only then does verification run against a policy that
 existed before the signature it checks. Each act is performed by a different
-party at a different time, and naming the discovery artifact
-`UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE` puts its status in the one place a
+party at a different time, and naming the two evidence artifacts
+`UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE` and
+`UNTRUSTED-RELEASE-IDENTITY-EVIDENCE` puts their status in the one place a
 consumer cannot skip past. That is a strong convention, not a mechanical
 guarantee: nothing prevents someone from downloading it and pinning its contents
 without reading. What the design removes is any *automated* path from

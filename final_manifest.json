@@ -2458,8 +2458,8 @@
     },
     {
       "filename": ".github/workflows/release.yml",
-      "size_bytes": 3693,
-      "sha256": "d089fffc38df2c3290ad713a48c644ae33e1c3a6c9df1f817dbf721d32be60a1",
+      "size_bytes": 5177,
+      "sha256": "a65dbe76f6f7ecb886ea73be50d82cde6ed3cc6585c64e8c99d56c1ddcc7cb67",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2871,22 +2871,22 @@
     },
     {
       "filename": ".github/workflows/identity-discovery.yml",
-      "size_bytes": 4983,
-      "sha256": "044b36156ffbb6af33fd0578c9ea73f9d1fd7b211a1b1ed55bd55a30d7b1cf9e",
+      "size_bytes": 5547,
+      "sha256": "ef28da78bd5e812ca65dff2bba0b248e52e7b384220863f2e94dbe37bb22a606",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "SIGNING_BOOTSTRAP.md",
-      "size_bytes": 6249,
-      "sha256": "3399668c558f0ac699510247943fe1eecca6c42a663f65beb6e00027e951653f",
+      "size_bytes": 10258,
+      "sha256": "79d6bc9b8c01b103c56733890efbfaf87b2169718767227dd9765fe2486e99e4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_bootstrap_workflow_contract.py",
-      "size_bytes": 7895,
-      "sha256": "29234ee2477680875034a8b7012e432a298d3a84c22a1d2593d557c03d1b6944",
+      "size_bytes": 11257,
+      "sha256": "39e3a75796627de18f3185cb789f2da18a7c9990796c8046cc0a23a568d6d9b7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }

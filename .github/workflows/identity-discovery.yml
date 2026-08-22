@@ -8,13 +8,24 @@
 # the Sigstore bundle that carries the real certificate is destroyed with the
 # job. That is a bootstrap problem, not a cryptographic one.
 #
-# This workflow breaks the loop WITHOUT collapsing observation of an identity
-# into authorization of it. It obtains the real hosted certificate, preserves
-# it as an artifact, prints the observed claims, and stops. It does not write
-# the trust policy, does not sign a release artifact, and does not assert that
-# anything is trusted. A human compares the observed claims against the
-# prediction in SIGNING_BOOTSTRAP.md and, if they match, pins them in a
-# separate reviewed commit. Trust is conferred by that review, not by this run.
+# This workflow contributes to breaking the loop WITHOUT collapsing observation
+# of an identity into authorization of it. It obtains a real hosted certificate,
+# preserves it as an artifact, prints the observed claims, and stops. It does
+# not write the trust policy, does not sign a release artifact, and does not
+# assert that anything is trusted.
+#
+# SCOPE -- read this before treating its output as the release identity. The
+# Fulcio SAN names the workflow file that ran and the ref it ran on, so this
+# job's certificate reads
+#   .../identity-discovery.yml@refs/heads/<BRANCH>
+# and can NEVER equal the release identity
+#   .../release.yml@refs/tags/<TAG>.
+# What this run establishes is the exact oidc_issuer, the SAN URI structure,
+# the repository component and the Fulcio extension layout -- NOT the exact
+# signer_identity to pin. That string can only come from a run of release.yml
+# at a tag, whose failing bundle is preserved by release.yml's own
+# `preserve UNTRUSTED bundle when verification fails` step. See
+# SIGNING_BOOTSTRAP.md; do not pin this job's SAN as the release identity.
 #
 # It signs a throwaway bootstrap file rather than the release zip, so nothing
 # this produces can be mistaken for -- or promoted to -- a release signature.

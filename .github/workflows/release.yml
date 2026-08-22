@@ -79,3 +79,30 @@ jobs:
         with:
           name: qta-release-bundle
           path: ${{ env.REL_DIR }}
+
+      # ---- bootstrap evidence preservation (NOT a release artifact) ----
+      # Online verification MUST fail until the trust policy is pinned, and it
+      # runs before the upload above -- so the Sigstore bundle, the only
+      # artifact carrying the real certificate, used to die with the runner.
+      # That, not cryptography, is what made the bootstrap circular.
+      #
+      # This step preserves it under a name that cannot be mistaken for a
+      # release. It confers nothing: the job still fails, no pin is written,
+      # the trust policy is untouched, and a human must read the certificate
+      # and pin it in a separate reviewed commit before any release can verify.
+      #
+      # This is also the ONLY step that can yield the exact release signer
+      # identity. identity-discovery.yml signs under its own workflow file and
+      # its own branch ref, so its SAN is
+      #   .../identity-discovery.yml@refs/heads/<branch>
+      # and can never equal the release SAN
+      #   .../release.yml@refs/tags/<TAG>.
+      # Discovery pins down the issuer and the SAN structure; the exact
+      # identity string comes from here. See SIGNING_BOOTSTRAP.md.
+      - name: preserve UNTRUSTED bundle when verification fails
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: UNTRUSTED-RELEASE-IDENTITY-EVIDENCE
+          path: ${{ env.REL_DIR }}
+          if-no-files-found: warn

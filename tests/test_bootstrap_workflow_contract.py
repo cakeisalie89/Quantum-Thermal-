@@ -26,6 +26,7 @@ WF = os.path.join(ROOT, ".github", "workflows")
 DISCOVERY = os.path.join(WF, "identity-discovery.yml")
 CONTAINER = os.path.join(WF, "container-verify.yml")
 RELEASE = os.path.join(WF, "release.yml")
+BOOTSTRAP_DOC = os.path.join(ROOT, "SIGNING_BOOTSTRAP.md")
 
 
 def _load(path):
@@ -138,6 +139,71 @@ def test_no_workflow_introduces_a_wildcard_identity():
                     "--certificate-identity '*'", "certificate-identity-regexp"):
             assert bad not in t, f"{os.path.basename(path)} contains {bad!r}"
 
+
+
+def test_release_preserves_its_untrusted_bundle_when_verification_fails():
+    """The bootstrap's load-bearing step.
+
+    Online verification MUST fail while the pins are PENDING, and it runs
+    before the release upload -- so without this step the Sigstore bundle,
+    the only artifact carrying the real certificate, dies with the runner.
+    That is what made the loop circular in the first place.
+    """
+    steps = _load(RELEASE)["jobs"]["verify-and-release"]["steps"]
+    preserve = [s for s in steps
+                if "UNTRUSTED-RELEASE-IDENTITY-EVIDENCE"
+                in str(s.get("with", {}).get("name", ""))]
+    assert len(preserve) == 1, "expected exactly one untrusted-preservation step"
+    step = preserve[0]
+    # if: failure() -- it must run precisely when verification rejected, and
+    # must not fire on a clean run where the trusted upload already happened.
+    assert str(step.get("if", "")).strip() == "failure()", step.get("if")
+    assert step["uses"].startswith("actions/upload-artifact@")
+
+    # It must come after the online verification step, or it preserves nothing.
+    names = [str(s.get("name", "")) for s in steps]
+    online = next(i for i, n in enumerate(names) if "online" in n.lower())
+    assert names.index("preserve UNTRUSTED bundle when verification fails") > online
+
+
+def test_release_preservation_confers_no_trust():
+    """Preserving evidence must not become authorizing it."""
+    t = _executable_text(RELEASE)
+    # It may not write the trust policy, and it may not flip signing status.
+    assert "release_trust_policy" not in t.replace(
+        "verify_release.py", ""), "release job must not write the trust policy"
+    for forbidden in ('signing_status": "SIGNED"', "signing_status=SIGNED",
+                      "--certificate-identity-regexp"):
+        assert forbidden not in t, forbidden
+    # The job still grants only checkout + OIDC.
+    perms = _load(RELEASE)["jobs"]["verify-and-release"]["permissions"]
+    assert perms == {"contents": "read", "id-token": "write"}, perms
+
+
+def test_discovery_does_not_claim_to_supply_the_release_identity():
+    """A SAN under identity-discovery.yml@refs/heads/... can never equal
+    release.yml@refs/tags/..., so nothing may promise that it can."""
+    doc = _text(BOOTSTRAP_DOC)
+    assert "can **never** produce the exact" in doc or \
+           "never** produce the exact" in doc, \
+        "the document must state that discovery cannot yield signer_identity"
+    # And the discovery workflow must say so in its own header.
+    hdr = _text(DISCOVERY)
+    assert "can NEVER equal the release identity" in hdr
+
+
+def test_stage3_records_the_second_independent_blocker():
+    """Filling the pins is necessary but not sufficient: signing_status stays
+    PENDING and signature_bundles stays empty, so --online rejects first."""
+    doc = _text(BOOTSTRAP_DOC)
+    assert "necessary but not sufficient" in doc
+    assert "signature_bundles" in doc and "signing_status" in doc
+    # And the underlying facts must still hold, or the note is stale.
+    b = _text(os.path.join(ROOT, "build_release_artifacts.py"))
+    assert '"signing_status": "PENDING"' in b
+    assert '"signature_bundles": []' in b
+    v = _text(os.path.join(ROOT, "verify_release.py"))
+    assert 'status != "SIGNED" or not sig' in v
 
 # ------------------------------------------------ container verification ----
 
