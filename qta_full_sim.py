@@ -220,6 +220,18 @@ def eng_note(key: str, physics_value: str = "") -> str:
 # information. They are named here instead, and every consumer references a
 # name rather than a literal. No value changes.
 #
+#: Inputs of the governed H2 surface-coverage equation
+#:     theta = s * P * t / (sqrt(2 pi m k T) * n_mono)
+#: which gates B4 and D10b both evaluate. Each was restated as a bare local at
+#: five separate call sites; editing one would have left the others behind,
+#: exactly as the pre-bakeout pressure literal did. They are model parameters,
+#: not universal constants: the sticking coefficient and the monolayer site
+#: density are ASSUMED, and the impingement temperature is the warm-wall value
+#: the outgassing model uses, not a stage temperature. No value changes here.
+S_H2_STICKING = 0.3                  # dimensionless, ASSUMED
+N_MONOLAYER_SITES_PER_M2 = 1e19      # 1/m^2, ASSUMED monolayer basis
+T_WALL_IMPINGEMENT_K = 300.0         # K, warm-wall outgassing source
+
 # AUTHORITY: RESOLVED BY OWNER DECISION. Gate B4's surface-coverage forecast
 # uses the literature/design assumption (5e-12 Pa) and the chamber-state model
 # uses its own modelled pressures. These are DIFFERENT QUANTITIES, not rival
@@ -536,8 +548,9 @@ class ModeStateVector:
     P_CH4_valve_leak_Pa: float = 0.
 
     def solve(self):
-        m3=3*m_p; m_H2=2*m_p; m_CH4_mass=16*m_p; T_room=300.; n_mono=1e19
-        s_H2=0.3; s_CH4=1.0; t_meas=1e4
+        m3=3*m_p; m_H2=2*m_p; m_CH4_mass=16*m_p
+        T_room=T_WALL_IMPINGEMENT_K; n_mono=N_MONOLAYER_SITES_PER_M2
+        s_H2=S_H2_STICKING; s_CH4=1.0; t_meas=1e4
         self.theta_H2  = s_H2*self.P_H2_Pa/math.sqrt(2*pi*m_H2*k_B*T_room)*t_meas/n_mono
         self.theta_CH4 = s_CH4*self.P_CH4_Pa/math.sqrt(2*pi*m_CH4_mass*k_B*T_room)*t_meas/n_mono
         d_He=2.6e-10
@@ -623,7 +636,8 @@ class ChamberState:
         return P_H2_PRE_BAKEOUT_PA
 
     def theta_H2(self, t_meas=1e4):
-        m_H2=2*m_p; s_H2=0.3; n_mono=1e19; T_room=300.
+        m_H2=2*m_p; s_H2=S_H2_STICKING
+        n_mono=N_MONOLAYER_SITES_PER_M2; T_room=T_WALL_IMPINGEMENT_K
         return s_H2*self.P_H2_Pa()/math.sqrt(2*pi*m_H2*k_B*T_room)*t_meas/n_mono
 
     def G_eff_WK(self):
@@ -993,7 +1007,8 @@ def mode_B_processing_gates(s):
 
 def mode_B_gates(s):
     assert s.mode=="MODE_C_PURGE"
-    gates=[]; m_H2=2*m_p; s_H2=0.3; T_room=300.; n_mono=1e19
+    gates=[]; m_H2=2*m_p; s_H2=S_H2_STICKING
+    T_room=T_WALL_IMPINGEMENT_K; n_mono=N_MONOLAYER_SITES_PER_M2
     gates.append(Gate("B1","CH4 Pumpout Sufficient","MODE_C_PURGE",
         "t_purge >= 2h; P_CH4 -> below threshold",
         7200./3600.,2.0,"CONDITIONAL",
@@ -1274,7 +1289,8 @@ def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
     # a comment carrying the number is the same single-source defect as a
     # bare literal, just one that no checker can see.
     _P_H2_actual = _ch.P_H2_Pa()  # actual pressure from hardware state
-    _m_H2=2*m_p; _s_H2=0.3; _n_mono=1e19; _T_room=300.
+    _m_H2=2*m_p; _s_H2=S_H2_STICKING
+    _n_mono=N_MONOLAYER_SITES_PER_M2; _T_room=T_WALL_IMPINGEMENT_K
     _theta_actual = _s_H2*_P_H2_actual/math.sqrt(2*pi*_m_H2*k_B*_T_room)*1e4/_n_mono
     # Only evaluate D10b as PASS/FAIL if D10a is satisfied; otherwise BLOCKED
     if not _d10a_prereqs:
@@ -1438,7 +1454,8 @@ def run_mode_D_MC(N=10000, seed=42):
     NC_ref=1e-6*0.5e-3*3510/(12*m_p)
     A_deb_ref=12*pi**4/5*NC_ref*k_B/2200.**3
     dZFS=74e3*2*pi
-    m_H2v=2*m_p; T_room=300.; n_mono=1e19
+    m_H2v=2*m_p; T_room=T_WALL_IMPINGEMENT_K
+    n_mono=N_MONOLAYER_SITES_PER_M2
 
     pass_total=0
     fail_reasons={"tau_c_detection":0,"G_eff_thermal":0,"eps_secondary_load":0,"theta_H2":0,"other":0}

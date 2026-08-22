@@ -172,6 +172,79 @@ def _is_h2_pressure_name(name):
     return _names_hydrogen(name) and _names_pressure(name)
 
 
+
+#: Operators the folder will evaluate. Deliberately small: the guard is meant
+#: to catch a governed value written as arithmetic, not to be a symbolic
+#: algebra system whose own bugs become false positives.
+_FOLD_BINOPS = {
+    ast.Add: lambda a, b: a + b,
+    ast.Sub: lambda a, b: a - b,
+    ast.Mult: lambda a, b: a * b,
+    ast.Div: lambda a, b: a / b if b else None,
+    ast.Pow: lambda a, b: a ** b,
+}
+
+
+def _fold_numeric(node):
+    """Value of ``node`` if it is a closed numeric expression, else None.
+
+    THREAT MODEL. The guard defends against a governed H2 pressure reaching a
+    consumer without passing through its name. That covers a bare literal
+    (``return 1e-10``) and a value written as arithmetic over literals
+    (``1e-9 / 10``, ``10 ** -10``, ``2e-10 / 2``), because both leave the
+    authority constant editable without the consumer following.
+
+    It does NOT cover, and does not claim to cover:
+      * a value assembled at runtime from non-literal inputs, e.g.
+        ``base * factor`` where either comes from a variable, a call, a file or
+        an environment. Nothing static can know those equal a governed value.
+      * a value that arrives through a data file, JSON fixture or CSV.
+      * a deliberately obfuscated reconstruction (``float("1e-10")``,
+        ``Decimal("1e-10")``, string arithmetic).
+    Those are out of scope by construction, not by oversight; the equality
+    tests in test_single_source_of_truth are what catch a drifted duplicate
+    that this scan cannot see.
+
+    Folding is conservative: unknown operators, non-numeric leaves, division by
+    zero and absurd exponents all return None rather than a guess.
+    """
+    if isinstance(node, ast.Constant):
+        v = node.value
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        return float(v)
+    if isinstance(node, ast.UnaryOp):
+        v = _fold_numeric(node.operand)
+        if v is None:
+            return None
+        if isinstance(node.op, ast.USub):
+            return -v
+        if isinstance(node.op, ast.UAdd):
+            return v
+        return None
+    if isinstance(node, ast.BinOp):
+        op = _FOLD_BINOPS.get(type(node.op))
+        if op is None:
+            return None
+        a, b = _fold_numeric(node.left), _fold_numeric(node.right)
+        if a is None or b is None:
+            return None
+        if isinstance(node.op, ast.Pow) and (abs(a) > 1e6 or abs(b) > 64):
+            return None                     # refuse to evaluate 10 ** 10 ** 6
+        try:
+            r = op(a, b)
+        except (ZeroDivisionError, OverflowError, ValueError):
+            return None
+        if r is None or not isinstance(r, (int, float)):
+            return None
+        try:
+            r = float(r)
+        except (OverflowError, ValueError):
+            return None
+        return r if math.isfinite(r) else None
+    return None
+
+
 def _semantic_anchors(node, parent, enclosing_func):
     """Names that say what the literal at ``node`` MEANS, nearest first.
 
@@ -198,6 +271,8 @@ def _semantic_anchors(node, parent, enclosing_func):
                 anchors.extend(_target_names(t))
         elif isinstance(par, ast.AnnAssign):
             anchors.extend(_target_names(par.target))
+        elif isinstance(par, ast.NamedExpr):
+            anchors.extend(_target_names(par.target))    # walrus
         elif isinstance(par, ast.Call):
             anchors.extend(_callee_names(par.func))      # positional args
         elif isinstance(par, ast.arguments):
@@ -282,17 +357,34 @@ def scan_bare_h2_pressure_literals(source, module_declares=()):
 
     lo, hi = SCAN_WINDOW_PA
     offenders = []
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Constant)
-                and isinstance(node.value, float)
-                and not isinstance(node.value, bool)):
-            continue
-        if node in exempt or not (lo <= node.value <= hi):
-            continue
-        for anchor in _semantic_anchors(node, parent, enclosing_func(node)):
-            if _is_h2_pressure_name(anchor):
-                offenders.append((node.lineno, node.value, anchor))
-                break
+    seen_lines = set()
+
+    def visit(node, skip_children=False):
+        if node in exempt:
+            return
+        value = _fold_numeric(node)
+        # Magnitude, not signed value: a delta or an offset written as
+        # -1e-12 restates the same governed quantity.
+        if value is not None and lo <= abs(value) <= hi:
+            for anchor in _semantic_anchors(node, parent, enclosing_func(node)):
+                if _is_h2_pressure_name(anchor):
+                    key = (node.lineno, value)
+                    if key not in seen_lines:
+                        seen_lines.add(key)
+                        offenders.append((node.lineno, value, anchor))
+                    # Do not descend: the leaves of a folded expression are
+                    # parts of one restatement, not several.
+                    return
+        if value is not None and isinstance(node, (ast.BinOp, ast.UnaryOp)):
+            # A closed numeric expression IS one value. Its leaves are digits of
+            # that value, not separate restatements, so do not descend --
+            # otherwise `P_H2_ratio = 1e-10 / 1e-12` (a dimensionless ratio,
+            # folding to 100) would be reported twice for its own operands.
+            return
+        for child in ast.iter_child_nodes(node):
+            visit(child)
+
+    visit(tree)
     return offenders
 
 
@@ -348,6 +440,37 @@ _MUST_CATCH = {
         "P_H2_sweep_Pa = [x * 1e-12 for x in factors]\n",
     "parameter default":
         "def dose(P_H2_Pa=5e-12):\n    return P_H2_Pa\n",
+    "keyword-only default":
+        "def dose(*, P_H2_Pa=5e-12):\n    return P_H2_Pa\n",
+    "class attribute":
+        "class Chamber:\n    P_H2_Pa = 1e-10\n",
+    "dataclass field default":
+        "@dataclass\nclass Chamber:\n    P_H2_Pa: float = 1e-10\n",
+    "walrus":
+        "if (P_H2_now_Pa := 1e-10) > 0:\n    use(P_H2_now_Pa)\n",
+    "generator expression":
+        "P_H2_draws_Pa = (1e-12 for _ in range(3))\n",
+    "nested comprehension":
+        "P_H2_grid_Pa = [[1e-12 for _ in row] for row in rows]\n",
+    "f-string expression":
+        'P_H2_label_Pa = f"{1e-10:g} Pa"\n',
+    "set literal":
+        "P_H2_options_Pa = {1e-12, 2e-12}\n",
+    # --- values written as arithmetic over literals (constant folding) -------
+    "division reconstruction":
+        "P_H2_calc_Pa = 1e-9 / 10\n",
+    "power reconstruction":
+        "P_H2_calc_Pa = 10 ** -10\n",
+    "halving reconstruction":
+        "P_H2_calc_Pa = 2e-10 / 2\n",
+    "multiplication reconstruction":
+        "P_H2_calc_Pa = 1e-11 * 10\n",
+    "double negation":
+        "P_H2_calc_Pa = -(-1e-10)\n",
+    "parenthesised chain":
+        "P_H2_calc_Pa = ((5e-12 * 2) / 1) \n",
+    "reconstruction in a return":
+        "def P_H2_Pa(self):\n    return 1e-9 / 10\n",
 }
 
 _MUST_NOT_CATCH = {
@@ -373,6 +496,18 @@ _MUST_NOT_CATCH = {
         'P_H2_note = "pre-bakeout P_H2 = 1e-10 Pa (assumed)"\n',
     "a named constant reaching its consumer":
         "def P_H2_Pa(self):\n    return P_H2_PRE_BAKEOUT_PA\n",
+    "arithmetic on a named constant, not a reconstruction":
+        "P_H2_half_Pa = P_H2_PRE_BAKEOUT_PA / 2\n",
+    "a ratio of two pressures is dimensionless, not a pressure":
+        "P_H2_ratio_Pa = 1e-10 / 1e-12\n",
+    "a runtime product the scanner cannot and must not guess":
+        "P_H2_runtime_Pa = base * factor\n",
+    "a string-constructed value is out of the declared threat model":
+        'P_H2_str_Pa = float("1e-10")\n',
+    "Decimal from a string is likewise out of scope":
+        'P_H2_dec_Pa = Decimal("1e-10")\n',
+    "an exponent bomb must be refused, not evaluated":
+        "P_H2_bomb_Pa = 10 ** 10 ** 6\n",
 }
 
 
@@ -430,12 +565,10 @@ def test_no_undeclared_module_carries_a_bare_h2_pressure():
     """
     import subprocess
     declared = {n for n in dir(Q) if n.startswith("P_H2")}
-    allowed = {
-        "qta_multiphysics/cryopanel_dynamics_3d.py",
-        "qta_multiphysics/machine_fsm.py",
-        "qta_multiphysics/campaign_state_3d.py",
-        "qta_multiphysics/measurement_ingest_3d.py",
-    }
+    # Derived from the §31 registry, never duplicated here: adding a fifth
+    # restatement without registering it fails, and registering one without a
+    # restatement fails in test_the_declared_restatements_are_still_there.
+    allowed = set(_declared_h2_restatements()) - {"qta_full_sim.py"}
     tracked = subprocess.run(
         ["git", "-C", ROOT, "ls-files", "*.py"],
         capture_output=True, text=True, check=True).stdout.split()
@@ -453,14 +586,69 @@ def test_no_undeclared_module_carries_a_bare_h2_pressure():
 def test_the_declared_restatements_are_still_there():
     """If a restatement disappears, the allowlist above must shrink with it."""
     declared = {n for n in dir(Q) if n.startswith("P_H2")}
-    for rel in ("qta_multiphysics/cryopanel_dynamics_3d.py",
-                "qta_multiphysics/machine_fsm.py",
-                "qta_multiphysics/campaign_state_3d.py",
-                "qta_multiphysics/measurement_ingest_3d.py"):
+    for rel in sorted(set(_declared_h2_restatements()) - {"qta_full_sim.py"}):
         src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
         assert scan_bare_h2_pressure_literals(src, declared), (
             f"{rel} no longer restates an H2 pressure; remove it from the "
             "allowlist in test_no_undeclared_module_carries_a_bare_h2_pressure")
+
+
+
+def _declared_h2_restatements():
+    """Files the §31 registry declares may restate the H2 authority value.
+
+    Read from test_single_source_of_truth rather than copied, so the two
+    mechanisms cannot drift apart: a module added to one and not the other
+    fails immediately instead of quietly widening the allowlist.
+    """
+    sys.path.insert(0, os.path.join(ROOT, "tests"))
+    from test_single_source_of_truth import DECLARED_DERIVATIONS
+    entry = DECLARED_DERIVATIONS["post_bakeout_NEG_H2_pressure_Pa"]
+    return list(entry["allowed"])
+
+
+def test_every_named_h2_quantity_is_in_the_authority_record():
+    """A new governed H2 constant cannot appear without being registered.
+
+    The authority record is what the artifact publishes; a constant that
+    exists in code but not there is an unregistered governed quantity.
+    """
+    record = Q.H2_PRESSURE_AUTHORITY
+    registered = set(record["quantities_Pa"].values())
+    registered.update(record["mc_range_Pa"])
+    missing = []
+    for name in sorted(n for n in dir(Q) if n.startswith("P_H2")):
+        v = getattr(Q, name)
+        vals = list(v) if isinstance(v, tuple) else [v]
+        if not all(x in registered for x in vals):
+            missing.append(f"{name}={v}")
+    assert not missing, (
+        "governed H2 constants absent from H2_PRESSURE_AUTHORITY: "
+        + ", ".join(missing))
+
+
+def test_the_authority_record_names_the_quantity_the_mc_range_describes():
+    """A rename of the described constant must not leave the record pointing
+    at a name that no longer exists."""
+    described = Q.H2_PRESSURE_AUTHORITY["mc_range_describes"]
+    assert hasattr(Q, described), (
+        f"mc_range_describes={described!r} is not a module constant any more")
+
+
+def test_the_folder_refuses_what_it_cannot_evaluate():
+    """Conservative folding: refuse, never guess."""
+    def fold(expr):
+        return _fold_numeric(ast.parse(expr, mode="eval").body)
+    assert fold("1e-9 / 10") == 1e-10
+    assert fold("10 ** -10") == 1e-10
+    assert fold("2e-10 / 2") == 1e-10
+    assert fold("-(-1e-10)") == 1e-10
+    assert fold("1e-10 / 0") is None            # ZeroDivisionError
+    assert fold("10 ** 10 ** 6") is None        # exponent bomb refused
+    assert fold("base * 2") is None             # non-literal leaf
+    assert fold('float("1e-10")') is None       # out of the threat model
+    assert fold("1e-10 // 3") is None           # unsupported operator
+    assert fold("True") is None                 # bool is not a measurement
 
 
 def test_every_named_quantity_is_in_pascals_and_positive():
