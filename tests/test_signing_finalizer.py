@@ -107,8 +107,13 @@ def _index(bundle_dir):
 def _online_branch(status, sig):
     """Reproduce verify_release.py's own gate, asserted against its source."""
     src = open(os.path.join(ROOT, "verify_release.py"), encoding="utf-8").read()
-    assert 'if status != "SIGNED" or not sig:' in src, \
+    # The gate is now derived from facts rather than from the status string
+    # alone: a declared bundle must exist on disk. The status must AGREE with
+    # what is observed, so a mutable string cannot confer signed state.
+    assert 'status == "SIGNED" and declared and present' in src, \
         "verify_release's online gate changed; this test is now stale"
+    assert 'signing_status is PENDING but a' in src, \
+        "the PENDING+bundle inconsistency check is missing"
     return status != "SIGNED" or not sig
 
 
@@ -397,8 +402,8 @@ def test_finalizer_produces_the_schema_verify_sigstore_consumes(tmp_path):
 def test_the_record_shape_matches_verify_release_source():
     """If _verify_sigstore's resolution changes, this test must fail loudly."""
     src = open(os.path.join(ROOT, "verify_release.py"), encoding="utf-8").read()
-    assert 'entry.get("name")' in src
-    assert 'entry.get("bundle", name)' in src
+    assert 'entry["name"]' in src
+    assert '_bundle_relative(bundle, str(entry["bundle"]))' in src
     assert 'name or "").endswith(zip_path.name)' in src
 
 

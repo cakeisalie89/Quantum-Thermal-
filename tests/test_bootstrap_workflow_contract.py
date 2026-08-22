@@ -121,9 +121,16 @@ def test_discovery_runs_no_verification_that_could_authorize_it():
 
 def test_release_still_fails_closed_on_pending_pins():
     """The bootstrap must not have loosened what it exists to work around."""
+    # The PENDING/wildcard rules moved into release_trust and became
+    # STRUCTURAL: every leaf is scanned, including nested trusted_builders
+    # entries, instead of two named fields being checked.
+    rt = _text(os.path.join(ROOT, "release_trust.py"))
+    assert "def unresolved_leaves" in rt
+    assert "def wildcard_leaves" in rt
+    assert "PENDING_MARKER in v.strip().upper()" in rt
     v = _text(os.path.join(ROOT, "verify_release.py"))
-    assert 'value.startswith("PENDING")' in v
-    assert '"*" in value' in v
+    assert "enforce_resolved_policy" in v
+    assert "require_resolved=True" in v
 
 
 def test_release_is_still_tag_triggered_only():
@@ -184,26 +191,45 @@ def test_discovery_does_not_claim_to_supply_the_release_identity():
     """A SAN under identity-discovery.yml@refs/heads/... can never equal
     release.yml@refs/tags/..., so nothing may promise that it can."""
     doc = _text(BOOTSTRAP_DOC)
-    assert "can **never** produce the exact" in doc or \
-           "never** produce the exact" in doc, \
+    assert "can never equal a release" in doc or \
+        "never** produce" in doc, \
         "the document must state that discovery cannot yield signer_identity"
     # And the discovery workflow must say so in its own header.
     hdr = _text(DISCOVERY)
     assert "can NEVER equal the release identity" in hdr
 
 
-def test_stage3_records_the_second_independent_blocker():
-    """Filling the pins is necessary but not sufficient: signing_status stays
-    PENDING and signature_bundles stays empty, so --online rejects first."""
+def test_the_document_records_the_finalizer_as_implemented():
+    """The metadata blocker is closed; the document must say so.
+
+    This test previously asserted the blocker was still open, and it fired the
+    moment the finalizer landed -- which is what it was for. It now pins the
+    opposite: the finalizer exists, is wired into release.yml, and the document
+    no longer claims it is unimplemented.
+    """
     doc = _text(BOOTSTRAP_DOC)
-    assert "necessary but not sufficient" in doc
-    assert "signature_bundles" in doc and "signing_status" in doc
-    # And the underlying facts must still hold, or the note is stale.
-    b = _text(os.path.join(ROOT, "build_release_artifacts.py"))
-    assert '"signing_status": "PENDING"' in b
-    assert '"signature_bundles": []' in b
-    v = _text(os.path.join(ROOT, "verify_release.py"))
-    assert 'status != "SIGNED" or not sig' in v
+    assert "implemented and wired into" in doc
+    assert "unimplemented" not in doc.replace(
+        "said it was unimplemented", "")
+    assert os.path.isfile(os.path.join(ROOT, "finalize_release_signing.py"))
+    rel = _text(RELEASE)
+    assert "finalize_release_signing.py" in rel
+
+
+def test_the_document_states_there_is_no_bootstrap_tag():
+    """The tag-A/tag-B contradiction must be recorded as resolved."""
+    doc = _text(BOOTSTRAP_DOC)
+    assert "There is no bootstrap release tag" in doc
+    assert "can never equal the identity presented under B" in doc or \
+        "never equal the identity" in doc
+
+
+def test_the_document_states_the_self_reference_resolution():
+    doc = _text(BOOTSTRAP_DOC)
+    assert "cannot contain its own SHA" in doc
+    assert "reviewed source revision" in doc
+    assert "ancestor" in doc
+
 
 
 
@@ -304,7 +330,7 @@ def test_the_bootstrap_document_exists_and_states_the_circularity():
     doc = os.path.join(ROOT, "SIGNING_BOOTSTRAP.md")
     assert os.path.isfile(doc)
     t = open(doc, encoding="utf-8").read()
-    for required in ("circularity", "IDENTITY_DISCOVERY_ONLY",
+    for required in ("self-reference", "IDENTITY_DISCOVERY_ONLY",
                      "UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE",
                      "token.actions.githubusercontent.com", "PENDING"):
         assert required in t, f"bootstrap doc does not mention {required!r}"

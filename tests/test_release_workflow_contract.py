@@ -200,11 +200,34 @@ def _bundle_claiming_signed(tmp_path, identity=None, issuer=None):
         json.dumps(idx, indent=1, sort_keys=True) + "\n")
     (bundle / "source.sigstore.json").write_text('{"not":"a real bundle"}')
     if identity or issuer:
+        # A policy that merely names an identity is no longer enough to reach
+        # signature verification: every trust-critical field must be resolved
+        # and self-consistent first. Build a fully authorized policy for the
+        # supplied identity so the test can exercise the later stages.
+        import release_trust as _rt
         pol = json.loads((bundle / "release_trust_policy.json").read_text())
-        pol["signer_identity"] = identity or pol["signer_identity"]
-        pol["oidc_issuer"] = issuer or pol["oidc_issuer"]
-        (bundle / "release_trust_policy.json").write_text(
-            json.dumps(pol, indent=1, sort_keys=True) + "\n")
+        ident = identity or pol["signer_identity"]
+        parsed = _rt.derive_signer_identity  # noqa: F841  (documented below)
+        # Reconstruct repo/workflow/ref from the identity under test so the
+        # derived values agree; an inconsistent policy is rejected by design.
+        import re as _re
+        m = _re.match(
+            r"\Ahttps://github\.com/([^/]+)/([^/]+)/"
+            r"(\.github/workflows/[^@]+)@(.+)\Z", ident)
+        if m:
+            owner, repo, wf, ref = m.groups()
+            pol["source_repository"] = f"https://github.com/{owner}/{repo}"
+            pol["workflow_path"] = wf
+            pol["authorized_ref"] = ref
+            pol["signer_identity"] = ident
+            pol["trusted_builders"] = [
+                _rt.derive_stable_builder_id(
+                    pol["source_repository"], wf, ref)]
+        pol["oidc_issuer"] = issuer or _rt.GITHUB_OIDC_ISSUER
+        pol["pinned_revision"] = "0" * 40
+        pol["bootstrap_state"] = "RELEASE_IDENTITY_AUTHORIZED"
+        (bundle / "release_trust_policy.json").write_bytes(
+            _rt.canonical_bytes(pol))
     return zp, bundle
 
 
@@ -232,17 +255,67 @@ def test_online_rejects_pending_identity_pins_before_touching_signature(tmp_path
     zp, bundle = _bundle_claiming_signed(tmp_path)
     r = _online(zp, bundle)
     assert r.returncode == 1
-    assert "is not an exact pin" in r.stdout
+    assert "not authorized for a signed release" in r.stdout
+    assert "unresolved values" in r.stdout
 
 
 def test_online_reports_missing_tooling_as_a_blocker_not_success(tmp_path):
-    zp, bundle = _bundle_claiming_signed(
-        tmp_path,
-        identity="https://github.com/example/repo/.github/workflows/release.yml@refs/tags/v1",
-        issuer="https://token.actions.githubusercontent.com")
-    r = _online(zp, bundle)
-    assert r.returncode == 1
-    assert "absence of tooling is never success" in r.stdout
+    """Absent verification tooling must be a blocker, never silent success.
+
+    Driven directly against ``_verify_sigstore`` rather than end-to-end,
+    because a synthetic bundle can no longer reach that stage: the policy
+    enforcement added ahead of it (canonical-divergence, repository, ref and
+    builder checks) correctly rejects a fabricated identity first. Those are
+    covered by their own tests; this one isolates the tooling branch.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_vr", str(ROOT / "verify_release.py"))
+    vr = importlib.util.module_from_spec(spec)
+    sys.modules["_vr"] = vr
+    spec.loader.exec_module(vr)
+
+    # A policy and provenance that agree, so the run reaches the tooling
+    # branch and dies there rather than earlier.
+    import release_trust as _rt
+    repo = "https://github.com/example/repo"
+    wf = ".github/workflows/release.yml"
+    ref = "refs/tags/v1"
+    pol = {
+        "schema_version": _rt.SCHEMA_VERSION, "wildcards_forbidden": True,
+        "source_repository": repo, "workflow_path": wf,
+        "authorized_ref": ref,
+        "signer_identity": _rt.derive_signer_identity(repo, wf, ref),
+        "oidc_issuer": _rt.GITHUB_OIDC_ISSUER,
+        "pinned_revision": "a" * 40,
+        "trusted_builders": [_rt.derive_stable_builder_id(repo, wf, ref)],
+        "bootstrap_state": "RELEASE_IDENTITY_AUTHORIZED",
+    }
+    prov = {"predicate": {
+        "buildDefinition": {
+            "externalParameters": {"source_repository": repo,
+                                   "workflow_path": wf,
+                                   "authorized_ref": ref},
+            "resolvedDependencies": [{"uri": "git+" + repo,
+                                      "digest": {"gitCommit": "b" * 40}}]},
+        "runDetails": {"builder": {
+            "id": _rt.derive_stable_builder_id(repo, wf, ref)}}}}
+
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / "release_trust_policy.json").write_bytes(
+        _rt.canonical_bytes(pol))
+    (bundle / "source.sigstore.json").write_text('{"x":1}')
+    zp = tmp_path / "QTA_source.zip"
+    zp.write_bytes(b"payload")
+
+    problems = []
+    vr._verify_sigstore(
+        problems, zp, bundle, {},
+        [{"name": "QTA_source.zip", "bundle": "source.sigstore.json"}], prov)
+    joined = " ".join(problems)
+    assert "absence of tooling is never success" in joined, problems
+    assert problems, "missing tooling must be recorded as a failure"
 
 
 def test_online_has_a_reachable_success_path():

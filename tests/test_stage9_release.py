@@ -78,12 +78,16 @@ def make_release(tmp, *, zip_mut=None, gates=GATES, lock=LOCK,
     if prov_mut:
         prov = prov_mut(prov)
     (bundle / "provenance.intoto.json").write_text(json.dumps(prov))
-    pol = {"wildcards_forbidden": True,
-           "trusted_builders": ["qta:local-sandbox"],
-           "signer_identity": "PENDING: exact identity"}
+    # Use the real canonical policy, so the fixture exercises the same
+    # "bundled == canonical" byte comparison a real release must satisfy. A
+    # pol_mut test then legitimately fails BOTH its own check and the
+    # divergence check, which is the correct behaviour for a tampered policy.
+    import release_trust as _rt
+    pol = json.loads(pathlib.Path(_rt.CANONICAL_POLICY_PATH).read_text())
     if pol_mut:
         pol = pol_mut(pol)
-    (bundle / "release_trust_policy.json").write_text(json.dumps(pol))
+    (bundle / "release_trust_policy.json").write_bytes(
+        _rt.canonical_bytes(pol))
     idx = {"release_artifact": entries[0], "files": entries,
            "provenance": {"slsa_level_claimed": "NONE"},
            "signing_status": "PENDING", "signature_bundles": [],

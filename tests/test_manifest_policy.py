@@ -345,3 +345,29 @@ def test_generator_docstring_does_not_claim_a_sorted_file_list():
     head = src.split('"""')[1]
     assert "the file list is sorted" not in head, \
         "module docstring restates the withdrawn sorted-list claim"
+
+
+# ---------------------------------------------------------------------------
+# RO-Crate CLI: `ro_crate_tools.py build` used to create a stray build/ tree,
+# because the positional argument is a destination, not a subcommand.
+# ---------------------------------------------------------------------------
+
+def test_ro_crate_cli_refuses_subcommand_shaped_directory(tmp_path):
+    import subprocess as _sp
+    import sys as _sys
+    r = _sp.run([_sys.executable, "ro_crate_tools.py", "build"],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+    assert r.returncode == 2, r.stdout
+    assert "reads as a subcommand" in r.stdout
+    assert not (ROOT / "build").exists(), \
+        "the mistaken invocation must not create a stray directory"
+
+
+def test_ro_crate_cli_still_accepts_an_explicit_directory(tmp_path):
+    import subprocess as _sp
+    import sys as _sys
+    dest = tmp_path / "crate-out"
+    r = _sp.run([_sys.executable, "ro_crate_tools.py", "--output", str(dest)],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (dest / "ro-crate-metadata.json").exists()
