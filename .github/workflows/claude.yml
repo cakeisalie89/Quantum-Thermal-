@@ -3,9 +3,13 @@
 # are required before it can: the Claude GitHub App installed on this
 # repository, and an ANTHROPIC_API_KEY repository secret. A workflow only
 # takes effect once it is on the default branch.
-# PIN-BY-DIGEST REQUIRED: replace every @vN tag with the action's full commit
-# SHA before the first real run (RELEASE_POLICY.md #3), as for release.yml
-# and stack-verify.yml.
+# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3), as for release.yml and
+# stack-verify.yml. Every `uses:` below is an immutable 40-hex commit object;
+# the trailing comment records which upstream tag that commit was at when it
+# was pinned. Upstream is free to move those tags afterwards -- that is the
+# point, and a moved tag is not by itself a reason to repin. Re-pin only for a
+# stated reason (security advisory, action API change, required upstream fix),
+# and resolve the new SHA from the upstream ref, peeling annotated tags.
 #
 # TRIGGER AUTHORISATION. This repository is public, so anyone can open an
 # issue or comment. The gate is in the action, not in this file: it refuses to
@@ -63,14 +67,14 @@ jobs:
         # ANTHROPIC_API_KEY in the environment -- the action's own security
         # guidance is explicit that the base branch belongs at the root, and
         # that a PR head belongs in a subdirectory passed via --add-dir.
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803   # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803   # tag v6 at pin time
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f   # v1
+        uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f   # tag v1 at pin time (2026-08-20)
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # A project this concerned with provenance should not accept

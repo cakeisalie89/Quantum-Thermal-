@@ -105,6 +105,43 @@ def regime(kn: float) -> str:
     return "CONTINUUM"
 
 
+def _regime_span_sentence(row) -> str:
+    """State a parameterized species' regime span FROM ITS OWN COMPUTED SPAN.
+
+    An earlier version of this note asserted the boundary in prose and got it
+    wrong: it said C-13 methane was TRANSITIONAL only at 10 mK when the same
+    artifact's ``regime_parameterized_over`` shows it TRANSITIONAL at 0.1 K
+    too. Prose that restates computed data is prose that can contradict it, so
+    this sentence is derived instead of written.
+    """
+    span = row.get("regime_parameterized_over") or []
+    if not span:
+        return ""
+    by_regime: dict[str, list[float]] = {}
+    for s in span:
+        by_regime.setdefault(s["regime"], []).append(s["T_K"])
+    parts = ", ".join(
+        f"{reg} at {'/'.join(_fmt_T(t) for t in sorted(ts))} K"
+        for reg, ts in sorted(by_regime.items()))
+    if len(by_regime) == 1:
+        return (f"{row['species']} classifies {parts} -- one regime across the "
+                "whole declared span, so the classification is robust even "
+                "though its population temperature is unresolved.")
+    ordered = sorted(span, key=lambda s: s["T_K"])
+    crossings = [(ordered[i]["T_K"], ordered[i + 1]["T_K"])
+                 for i in range(len(ordered) - 1)
+                 if ordered[i]["regime"] != ordered[i + 1]["regime"]]
+    where = "; ".join(f"between {_fmt_T(a)} K and {_fmt_T(b)} K" for a, b in crossings)
+    return (f"{row['species']} is NOT robust: {parts}. The declared span crosses "
+            f"a transport-regime boundary ({where}), so no single regime can be "
+            "claimed for it and none is; the classification would follow entirely "
+            "from a temperature assumption that this repository does not make.")
+
+
+def _fmt_T(t: float) -> str:
+    return f"{t:g}"
+
+
 def summary() -> dict:
     per_species = []
     for name, role, d, dprov, P, pprov in SPECIES:
@@ -172,19 +209,19 @@ def summary() -> dict:
             "reason": "inlet/nozzle geometry is not parameterized in this "
                       "repository; no deposition-footprint numbers are invented",
         },
-        "note": "He-3/He-4 (dose) are deep in the molecular-flow regime at "
-                "the sensing-stage temperature (quasi-ballistic "
-                "line-of-sight transport); that classification is resolved. "
-                "Residual H2 classifies MOLECULAR_FLOW at every temperature "
-                "in the declared span, so its classification is robust even "
-                "though its population temperature is unresolved. The C-13 "
-                "methane precursor is NOT robust: it classifies TRANSITIONAL "
-                "at 10 mK and MOLECULAR_FLOW at every other declared stage "
-                "temperature, so the regime follows entirely from the "
-                "temperature assumption. This previously read as a settled "
-                "TRANSITIONAL (Kn~0.2) result because the Mode-D sensing-stage "
-                "temperature was applied to a Mode-B process gas. No Mode-B "
-                "gas temperature is registered in this repository and none is "
-                "invented here. Forecast, DERIVED numerical only.",
+        "note": (
+            "He-3/He-4 (dose) are deep in the molecular-flow regime at the "
+            "sensing-stage temperature (quasi-ballistic line-of-sight "
+            "transport); that classification is RESOLVED because the dosed gas "
+            "thermalises to the stage being sensed. "
+            + " ".join(_regime_span_sentence(r) for r in per_species
+                       if r["gas_temperature_status"] == UNRESOLVED)
+            + " The C-13 methane precursor previously read as a settled "
+            "TRANSITIONAL (Kn~0.2) result because the Mode-D sensing-stage "
+            "temperature was applied to a Mode-B process gas. No Mode-B gas "
+            "temperature is registered in this repository and none is invented "
+            "here. This whole record is a terminal DIAGNOSTIC artifact: no gate, "
+            "readiness metric or canonical forecast consumes it, and it confers "
+            "no authority. Forecast, DERIVED numerical only."),
         "label": LABEL,
     }
