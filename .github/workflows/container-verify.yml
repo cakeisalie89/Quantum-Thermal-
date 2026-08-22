@@ -1,0 +1,102 @@
+# Container runtime verification -- manually dispatched, non-authoritative.
+#
+# WHY THIS EXISTS. The declared container has been reviewed statically but never
+# executed. Locally that is not fixable: the Docker daemon runs (client and
+# server 29.3.1) and the Docker Hub manifest endpoint is reachable, but the
+# layer blobs live on production.cloudfront.docker.com, which the sandbox egress
+# proxy denies with a 403 on CONNECT. Substituting a different base image would
+# test a different artifact than the Dockerfile declares, so it was not done.
+#
+# A GitHub-hosted runner is a different network, and ubuntu-latest images ship a
+# Docker daemon. This workflow tries the declared build there. It changes
+# nothing about the container: same Dockerfile, same digest-pinned base, same
+# entrypoint, same non-root user.
+#
+# NON-AUTHORITATIVE. Nothing here can move a gate, a threshold or an authority
+# state. It grants `contents: read` and nothing else -- no id-token, no write of
+# any kind -- so it cannot sign, push or comment. Its only product is evidence
+# that the declared container does or does not build and run.
+#
+# STATUS UNTIL IT RUNS: the availability of a usable Docker daemon on the hosted
+# runner is documented by GitHub but NOT verified here. This workflow is the
+# means of verifying it, not a claim that it works.
+name: qta-container-verify
+on:
+  workflow_dispatch:        # manual only
+permissions: {}             # default-deny
+jobs:
+  container-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read        # checkout only; deliberately nothing else
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+
+      - name: record the runtime that is actually present
+        run: |
+          echo "== docker client/server =="
+          docker version || { echo "NO USABLE DOCKER DAEMON ON THIS RUNNER"; exit 1; }
+          echo "== declared base image =="
+          grep -E '^FROM ' Dockerfile
+
+      # The base digest is read from the Dockerfile rather than restated here,
+      # so this step cannot drift from the artifact under test.
+      - name: pull the exact digest-pinned base and confirm it
+        run: |
+          BASE=$(grep -E '^FROM ' Dockerfile | awk '{print $2}')
+          echo "base=$BASE"
+          case "$BASE" in
+            *@sha256:*) : ;;
+            *) echo "BASE IS NOT DIGEST-PINNED: $BASE"; exit 1 ;;
+          esac
+          WANT=${BASE##*@}
+          docker pull "$BASE"
+          # RepoDigests carries the digest the registry actually served. The
+          # comparison is against the Dockerfile's pin, not against itself.
+          GOT=$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$BASE")
+          echo "want=$WANT"
+          echo "resolved:"; echo "$GOT"
+          echo "$GOT" | grep -qF "$WANT" \
+            || { echo "DIGEST MISMATCH: pinned $WANT not among resolved digests"; exit 1; }
+          echo "digest pin confirmed against the served manifest"
+
+      - name: build the declared image
+        run: docker build -t qta:hosted-verify .
+
+      - name: confirm the image runs as the declared non-root user
+        run: |
+          U=$(docker run --rm qta:hosted-verify id -un)
+          echo "container user: $U"
+          [ "$U" = "qta" ] || { echo "EXPECTED USER qta, GOT $U"; exit 1; }
+          docker run --rm qta:hosted-verify sh -c 'echo "PATH=$PATH"; command -v python'
+
+      # No host .venv is mounted anywhere; the image must be self-sufficient.
+      - name: confirm no dependency on a host virtualenv
+        run: |
+          docker run --rm qta:hosted-verify python -c \
+            "import sys; print(sys.prefix); assert '/opt/venv' in sys.prefix, sys.prefix"
+          docker run --rm qta:hosted-verify python -c \
+            "import numpy, scipy, qutip, h5py; print(numpy.__version__, scipy.__version__, qutip.__version__, h5py.__version__)"
+
+      # The governed verification the container declares as its entrypoint.
+      # This is the step that would raise the evidence state from RUNTIME_BUILT
+      # to RUNTIME_SCIENTIFICALLY_REPRODUCED.
+      - name: run the governed in-container verification
+        run: docker run --rm qta:hosted-verify
+
+      - name: preserve evidence
+        if: always()
+        run: |
+          mkdir -p container-evidence
+          { docker version; echo; docker images qta:hosted-verify; } \
+            > container-evidence/runtime.txt 2>&1 || true
+          grep -E '^FROM |^USER |^CMD ' Dockerfile > container-evidence/declared.txt || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: container-runtime-evidence
+          path: container-evidence/
+          if-no-files-found: warn
