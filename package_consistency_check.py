@@ -101,7 +101,8 @@ SIM_TIMEOUT_S = 300
 
 
 def _as_text(v):
-    """TimeoutExpired carries bytes or str depending on how run() was called."""
+    """TimeoutExpired carries bytes or str depending on how run() was
+    called; either way the partial output is evidence."""
     if v is None:
         return ""
     return v if isinstance(v, str) else v.decode("utf-8", "replace")
@@ -187,7 +188,8 @@ else:
         partial = _as_text(e.stdout)
         fail("qta_full_sim.py completes within its budget",
              f"TIMEOUT after {SIM_TIMEOUT_S} s (elapsed {sim_elapsed:.1f} s); "
-             f"child killed; {len(partial.splitlines())} stdout lines captured; "
+             f"child killed; {len(partial.splitlines())} stdout lines "
+             "captured; "
              f"last output: {partial[-300:]!r}")
     except FileNotFoundError as e:
         fail("python interpreter available to run qta_full_sim.py",

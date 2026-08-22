@@ -236,10 +236,10 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "110066",
+   "contentSize": "110129",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "4c8abb8e71e97ba54cc30a8f7907e082415c05e2c8ce59922bb3dddb53df452a"
+   "sha256": "90e23c24a0b376e0b372e13921bc19ce24303e0e47c05dca3b2d18529c00b461"
   },
   {
    "@id": "pyproject.toml",

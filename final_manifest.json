@@ -190,8 +190,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 110066,
-      "sha256": "4c8abb8e71e97ba54cc30a8f7907e082415c05e2c8ce59922bb3dddb53df452a",
+      "size_bytes": 110129,
+      "sha256": "90e23c24a0b376e0b372e13921bc19ce24303e0e47c05dca3b2d18529c00b461",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "8ce23447bd2b5a91ac11f79c1b79e09d42b2f3825772d47b3410c746f1c07329",
+      "sha256": "1689a4cfd9132b1f6eee46867cc6caf3046d292d0fdf0ce34771e9b0ad237cdd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
