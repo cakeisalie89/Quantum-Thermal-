@@ -206,7 +206,7 @@ enforces). Neither is a packaging detail.
 | Element | Open item |
 |---|---|
 | Container | base-image digest still `UNRESOLVED`; pin at first pull (`container_verification.md`) |
-| SLSA / Sigstore | neither `release.yml` nor `stack-verify.yml` has run on a hosted runner; their actions are still tag-pinned, and policy #3 requires commit-SHA pins before the first real run; no SLSA level claimed |
+| SLSA / Sigstore | `stack-verify.yml` has run on a hosted runner (Actions run 32575190696, both legs green); `release.yml` has not, and no signed release exists; all actions are pinned by commit SHA per policy #3; **no SLSA level claimed** |
 | SALib | global vs. local ranking disagreement on the top parameter (§3) — open for human review |
 | Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference; NumPy stays in force |
 | FEniCSx | dolfinx unavailable; acceptance criteria 2–4 cannot run until a build exists |

@@ -2500,8 +2500,8 @@
     },
     {
       "filename": ".github/workflows/stack-verify.yml",
-      "size_bytes": 2885,
-      "sha256": "c720b255d807117fa5d3fa8f6ef63b9cad9ac6da5e3655d22f96a9f44ef448cd",
+      "size_bytes": 3555,
+      "sha256": "267ed91e377ed3088729fadf91016de4fcf3e2b586ecb2c9e13ef3b3a85abaf3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2563,8 +2563,8 @@
     },
     {
       "filename": "STACK.md",
-      "size_bytes": 13855,
-      "sha256": "3032d524bd69b10a32807c05c32dd755f60c4d15b8b92ca5de130d60f281e37d",
+      "size_bytes": 13879,
+      "sha256": "191890861dfb851080c86451fcbf4408a8ee5e1615ebca3b40bbe6a76957b9ed",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2668,8 +2668,8 @@
     },
     {
       "filename": "stack.json",
-      "size_bytes": 13045,
-      "sha256": "aa7895a52de21a01e1188166ae59c8a379291441ccd4bd72d996fa835a0790ab",
+      "size_bytes": 13060,
+      "sha256": "c46473c81a2cf3458630964f45b29c120a951c84f7cd7e9bae57fc657c5a6e6c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

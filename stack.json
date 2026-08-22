@@ -128,7 +128,7 @@
       "verification": "python verify_release.py --zip <release zip> --bundle <bundle>",
       "open_items": [
         "the release workflow has never run on a hosted runner",
-        "actions in release.yml and stack-verify.yml are still tag-pinned; policy #3 requires pinning by commit SHA before the first real run"
+        "stack-verify.yml has now run on a hosted runner (Actions run 32575190696, both legs green); release.yml still has not, and no SLSA level is claimed"
       ]
     },
     {
