@@ -113,8 +113,8 @@
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 172618,
-      "sha256": "6b8e8b99d342d90244c74b9469f29301ef253390fc58f8500b321cc5eaaa2c2c",
+      "size_bytes": 173641,
+      "sha256": "a42d00bddff1a9b8b7533f876b29a632b69fe5631e9b9452215ad53f966b461f",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
@@ -190,8 +190,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 106484,
-      "sha256": "03ed4a618c59d54b8a78c8b4e740ffc895fb33637f07be8697069e3352f1d2a1",
+      "size_bytes": 110066,
+      "sha256": "4c8abb8e71e97ba54cc30a8f7907e082415c05e2c8ce59922bb3dddb53df452a",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -953,8 +953,8 @@
     },
     {
       "filename": "qta_multiphysics/nv_spin/noise.py",
-      "size_bytes": 6111,
-      "sha256": "1d3e3248e7b7f06a9de44cf9a84f9fe2b25f519f7a7e3bc9d32932935b934f3c",
+      "size_bytes": 7308,
+      "sha256": "7fad1d5d42a4cfb038a2a0a3c8ac9125d9d9be931bbdd6c10a9a468e72a81929",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "NV S=1 spin-dynamics / decoherence layer source (QuTiP, forecast)"
     },
@@ -2410,14 +2410,14 @@
     {
       "filename": "qta_scientific_results.h5",
       "size_bytes": 1993400,
-      "sha256": "58728f2530ff789aa0a5efaa984f42e580c2e00973ea0c91ad1c30f729299c49",
+      "sha256": "86c852610ceba5a6d1b82ef9642e158495b8178a7f616b664af346a808c75219",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "5963ba7374bd98617d39380de14421304b739650899b2d5440260bf63be2178a",
+      "sha256": "921b141718d8fd2cdf919b15350f2b453d5305c33fb1cb0d569a468995c654fe",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2431,7 +2431,7 @@
     {
       "filename": "stage8_reports/hdf5_equivalence_report.json",
       "size_bytes": 503,
-      "sha256": "246a03f03d69692e52920814f4880ee8a6616b03fa17e950ce432e2bdb2cf128",
+      "sha256": "ce176d737d7b2793a07bd4e2de7c198d88902faea9484d0258b6045b0549c1d4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2794,8 +2794,8 @@
     },
     {
       "filename": "tests/test_h2_pressure_authority.py",
-      "size_bytes": 20645,
-      "sha256": "89438fa19d2f1c5d0eb3e8f5c8baaff4c0551be28dfd8f782a1142e548f51abd",
+      "size_bytes": 28810,
+      "sha256": "e8d5a58741a4f78beb0b1512b04863fdfecc400097e2ebd22f65c18281052ccb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2810,6 +2810,41 @@
       "filename": "tests/test_failed_gate_schema.py",
       "size_bytes": 5144,
       "sha256": "44073d54a6a5427a2a201c1cfca9eb61bb871a4e605c0640e63fb163bcad5c19",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_authority_promotion_barrier.py",
+      "size_bytes": 12187,
+      "sha256": "097bfad62cb3ab2020c85e821a57f93073867a1fd587cef6d08b868e7feb318d",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_checker_runtime_contract.py",
+      "size_bytes": 7920,
+      "sha256": "d5e31e0c172a8b477bd2bfbd0106d9110a6e54dce22f3fc08a69b9a447e55315",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_csv_schema_governance.py",
+      "size_bytes": 6872,
+      "sha256": "f42da5714371440f56d42e64d269043e6c7ada7f2907f1cc3695c8a9b84db10b",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_independent_gate_recomputation.py",
+      "size_bytes": 11244,
+      "sha256": "2e480250ad1504ef2ae1247a166faaff3f57fb5653be326a2b00138f4686db60",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_manifest_completeness.py",
+      "size_bytes": 7709,
+      "sha256": "3fbb118a07274f0ed91af4a25926cc3b54d276abba1339bacc237c440ecd5319",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }

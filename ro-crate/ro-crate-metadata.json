@@ -236,10 +236,10 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "106484",
+   "contentSize": "110066",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "03ed4a618c59d54b8a78c8b4e740ffc895fb33637f07be8697069e3352f1d2a1"
+   "sha256": "4c8abb8e71e97ba54cc30a8f7907e082415c05e2c8ce59922bb3dddb53df452a"
   },
   {
    "@id": "pyproject.toml",
@@ -252,10 +252,10 @@
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "172618",
+   "contentSize": "173641",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "6b8e8b99d342d90244c74b9469f29301ef253390fc58f8500b321cc5eaaa2c2c"
+   "sha256": "a42d00bddff1a9b8b7533f876b29a632b69fe5631e9b9452215ad53f966b461f"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
@@ -271,7 +271,7 @@
    "contentSize": "1993400",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "58728f2530ff789aa0a5efaa984f42e580c2e00973ea0c91ad1c30f729299c49"
+   "sha256": "86c852610ceba5a6d1b82ef9642e158495b8178a7f616b664af346a808c75219"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "246a03f03d69692e52920814f4880ee8a6616b03fa17e950ce432e2bdb2cf128"
+   "sha256": "ce176d737d7b2793a07bd4e2de7c198d88902faea9484d0258b6045b0549c1d4"
   },
   {
    "@id": "uv.lock",
