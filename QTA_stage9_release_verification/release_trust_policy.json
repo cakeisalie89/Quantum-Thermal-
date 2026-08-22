@@ -1,13 +1,14 @@
 {
- "note": "every PENDING must be replaced by an exact value before any signature is trusted; an asterisk wildcard anywhere in this file is itself a verification failure",
- "oidc_issuer": "PENDING: exact issuer at first signing",
- "pinned_revision": "PENDING: set at first signed release",
- "schema_version": "1.0.0",
- "signer_identity": "PENDING: exact certificate identity at first Sigstore signing",
+ "authorized_ref": "PENDING: refs/tags/<TAG> -- the owner chooses the exact release tag name; every other identity below is derived from it",
+ "bootstrap_state": "UNINITIALIZED",
+ "note": "CANONICAL SOURCE. build_release_artifacts.py copies this exact file into the release bundle and verify_release.py compares the bundled copy byte-for-byte against it; there is no second definition anywhere. Every PENDING must become an exact value before any signature is trusted -- enforced structurally over every leaf, including inside trusted_builders, not by a list of named fields. A wildcard anywhere is itself a verification failure. Resolution is an act of authorization performed by a human in a reviewed commit; no automated step may perform it.",
+ "oidc_issuer": "PENDING: https://token.actions.githubusercontent.com -- confirmed by identity discovery before it is written here as an exact value",
+ "pinned_revision": "PENDING: the 40-hex REVIEWED SOURCE revision C. Not the released commit: the released commit A is C's descendant carrying this authorization record, and a commit cannot name its own sha. The verifier requires C to be an ancestor of A and the C..A diff to touch only this policy file. See PINNED_REVISION_SEMANTICS in release_trust.py",
+ "schema_version": "2.0.0",
+ "signer_identity": "PENDING: derived as https://github.com/{owner}/{repo}/{workflow_path}@{authorized_ref} once authorized_ref is chosen; must equal the observed certificate SAN exactly",
  "source_repository": "https://github.com/cakeisalie89/Quantum-Thermal-",
  "trusted_builders": [
-  "qta:local-sandbox (unsigned local provenance only; carries no trust)",
-  "PENDING: pinned hosted workflow id after first real run"
+  "PENDING: github-actions://{owner}/{repo}/{workflow_path}@{authorized_ref} -- the stable builder id, derived from the same three values; per-run data (run id, attempt, timing) is execution metadata and never appears here"
  ],
  "wildcards_forbidden": true,
  "workflow_path": ".github/workflows/release.yml"

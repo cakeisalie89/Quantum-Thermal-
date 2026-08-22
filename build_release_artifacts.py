@@ -20,10 +20,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 import uuid
 from pathlib import Path
+
+import release_trust
 
 ROOT = Path(__file__).resolve().parent
 LBL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
@@ -95,7 +99,65 @@ def validate_sbom_against_lock(sbom: dict, lock: Path) -> list:
     return problems
 
 
-def build_provenance(subjects: list, ci: bool) -> dict:
+def git_revision() -> str:
+    """The revision actually checked out, recomputed from Git itself.
+
+    Deliberately NOT read from GITHUB_SHA: an environment variable copied into
+    four files is one claim repeated, not four independent checks. The hosted
+    workflow cross-checks this value against the Actions context separately;
+    here it is recomputed from the object store.
+    """
+    r = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True,
+                       text=True, cwd=str(ROOT))
+    if r.returncode != 0:
+        return "UNKNOWN-NOT-A-GIT-CHECKOUT"
+    return r.stdout.strip()
+
+
+def build_provenance(subjects: list, ci: bool, policy: dict) -> dict:
+    """SLSA v1 provenance recording the real source revision and builder.
+
+    Two identities are kept apart, because conflating them is what made
+    ``trusted_builders`` unenforceable:
+
+    * the STABLE builder id names the authorized builder class -- repository,
+      workflow, ref -- and is what the policy authorizes. It carries no
+      per-execution data, so one authorization covers a rerun of the same
+      release rather than being invalidated by a new run number.
+    * EXECUTION metadata (run id, attempt, ref, revision, timing) describes one
+      invocation and lives in ``runDetails.metadata``. It is expected to differ
+      between runs and is never compared against the policy.
+
+    The previous CI builder id was the literal placeholder
+    ``PENDING-hosted-runner``, which additionally *contained* the substring
+    "hosted" and therefore satisfied the old ``"hosted" not in builder`` SLSA
+    guard -- an unresolved value passing a trust check.
+    """
+    rev = git_revision()
+    repo = str(policy.get("source_repository", "")).strip()
+    ref = str(policy.get("authorized_ref", "")).strip()
+
+    if ci:
+        try:
+            builder_id = release_trust.derive_stable_builder_id(
+                repo, str(policy["workflow_path"]), ref)
+        except release_trust.PolicyError:
+            # Policy not yet resolved: record that the builder identity is
+            # unauthorized rather than inventing a plausible-looking one.
+            builder_id = "UNAUTHORIZED-BUILDER-POLICY-UNRESOLVED"
+    else:
+        builder_id = release_trust.LOCAL_BUILDER_ID
+
+    # Execution metadata. Present only when the runner supplies it; absent
+    # locally rather than faked, so a local bundle cannot look hosted.
+    execution = {k: v for k, v in {
+        "runId": os.environ.get("GITHUB_RUN_ID"),
+        "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+        "observedRef": os.environ.get("GITHUB_REF"),
+        "observedWorkflowRef": os.environ.get("GITHUB_WORKFLOW_REF"),
+        "contextSha": os.environ.get("GITHUB_SHA"),
+    }.items() if v}
+
     return {
         "_type": "https://in-toto.io/Statement/v1",
         "subject": subjects,
@@ -107,8 +169,18 @@ def build_provenance(subjects: list, ci: bool) -> dict:
                 "externalParameters": {
                     "authoritative_input": STAGE8,
                     "release_policy": "RELEASE_POLICY.md",
+                    # Named fields, not free text inside a builder string, so a
+                    # verifier can compare them exactly.
+                    "source_repository": repo,
+                    "workflow_path": str(policy.get("workflow_path", "")),
+                    "authorized_ref": ref,
                 },
                 "resolvedDependencies": [
+                    # The source itself, in the in-toto shape: a git URI plus a
+                    # gitCommit digest. This is where the released revision
+                    # lives -- previously it was recorded nowhere at all.
+                    {"uri": f"git+{repo}" if repo else "git+UNKNOWN",
+                     "digest": {"gitCommit": rev}},
                     {"uri": "uv.lock",
                      "digest": {"sha256": sha(Path("uv.lock"))}},
                     {"uri": "final_manifest.json",
@@ -117,12 +189,16 @@ def build_provenance(subjects: list, ci: bool) -> dict:
                 ],
             },
             "runDetails": {
-                "builder": {"id": ("PENDING-hosted-runner" if ci else
-                                   "qta:local-sandbox")},
-                "metadata": {"invocationId": "deterministic-local",
-                              "note": "NO SLSA level claimed; local "
-                                      "provenance until a qualifying "
-                                      "hosted build runs and verifies"},
+                "builder": {"id": builder_id},
+                "metadata": {
+                    "invocationId": (execution.get("runId")
+                                     or "deterministic-local"),
+                    "execution": execution,
+                    "note": "NO SLSA level claimed. builder.id is the STABLE "
+                            "authorized identity; everything under "
+                            "'execution' is per-run data and is never "
+                            "compared against the trust policy.",
+                },
             },
         },
         "qta_claims": {"scientific_gate_PASS_count": 0,
@@ -135,23 +211,17 @@ def build_provenance(subjects: list, ci: bool) -> dict:
 
 
 def trust_policy() -> dict:
-    return {"schema_version": "1.0.0",
-            "wildcards_forbidden": True,
-            "trusted_builders": ["qta:local-sandbox (unsigned local "
-                                  "provenance only; carries no trust)",
-                                  "PENDING: pinned hosted workflow id "
-                                  "after first real run"],
-            "source_repository":
-                "https://github.com/cakeisalie89/Quantum-Thermal-",
-            "pinned_revision": "PENDING: set at first signed release",
-            "workflow_path": ".github/workflows/release.yml",
-            "signer_identity": "PENDING: exact certificate identity at "
-                                "first Sigstore signing",
-            "oidc_issuer": "PENDING: exact issuer at first signing",
-            "note": "every PENDING must be replaced by an exact value "
-                    "before any signature is trusted; an asterisk "
-                    "wildcard anywhere in this file is itself a "
-                    "verification failure"}
+    """Load THE canonical policy. This function defines no policy values.
+
+    It used to reconstruct every field and value in Python, duplicating
+    QTA_stage9_release_verification/release_trust_policy.json. The two happened
+    to agree, but nothing enforced it, so the reviewed policy and the policy
+    actually shipped in a bundle could diverge silently. There is now one
+    source, and this is a loader for it -- if the canonical file is missing,
+    unreadable, empty, malformed, incomplete or carries unknown fields, the
+    build fails rather than substituting a default.
+    """
+    return release_trust.load_canonical_policy()
 
 
 #: Fixed timestamp for every zip entry. A release zip whose digest changes
@@ -211,6 +281,17 @@ def main() -> int:
     ap.add_argument("--out", default="release_bundle")
     ap.add_argument("--ci", action="store_true")
     a = ap.parse_args()
+
+    # Load and validate the canonical policy FIRST. A missing, unreadable,
+    # empty, malformed, incomplete or unknown-field policy fails the build
+    # before any artifact is written -- there is no default to fall back to,
+    # because a default would be a second policy definition.
+    try:
+        policy = trust_policy()
+    except release_trust.PolicyError as e:
+        print(f"[FAIL-CLOSED] canonical trust policy rejected: {e}")
+        return 1
+
     zp = Path(a.zip)
     if a.make_zip:
         make_source_zip(zp)
@@ -247,11 +328,14 @@ def main() -> int:
         json.dumps(sbom, indent=1, sort_keys=True) + "\n")
     subjects = [{"name": e["name"],
                  "digest": {"sha256": e["sha256"]}} for e in entries]
-    prov = build_provenance(subjects, a.ci)
+    prov = build_provenance(subjects, a.ci, policy)
     (out / "provenance.intoto.json").write_text(
         json.dumps(prov, indent=1, sort_keys=True) + "\n")
-    (out / "release_trust_policy.json").write_text(
-        json.dumps(trust_policy(), indent=1, sort_keys=True) + "\n")
+    # The bundled policy is the canonical policy, serialized by the one
+    # canonical serializer, so "bundled == canonical" is a byte comparison the
+    # verifier can make rather than a semantic argument.
+    (out / "release_trust_policy.json").write_bytes(
+        release_trust.canonical_bytes(policy))
     for doc in ("RELEASE_POLICY.md",):
         (out / doc).write_text(Path(doc).read_text())
     index = {"schema_version": "1.0.0", "label": LBL,
