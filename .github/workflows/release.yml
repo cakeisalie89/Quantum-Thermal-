@@ -115,37 +115,39 @@ jobs:
       # library being absent. None of those is reported as success.
       - name: verify what we signed (online)
         run: |
+          # The trust root is passed EXPLICITLY. In this repository CI the
+          # authorized policy is the checked-out canonical file; an
+          # independent consumer must obtain an owner-authorized copy through
+          # a channel independent of the release. Either way --online fails
+          # closed without one: the policy shipped inside a release is a
+          # candidate, never the root.
           uv run python verify_release.py \
-            --zip "$REL_ZIP" --bundle "$REL_BUNDLE" --online
+            --zip "$REL_ZIP" --bundle "$REL_BUNDLE" --online \
+            --trusted-policy QTA_stage9_release_verification/release_trust_policy.json
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         with:
           name: qta-release-bundle
           path: ${{ env.REL_DIR }}
 
-      # ---- bootstrap evidence preservation (NOT a release artifact) ----
-      # Online verification MUST fail until the trust policy is pinned, and it
-      # runs before the upload above -- so the Sigstore bundle, the only
-      # artifact carrying the real certificate, used to die with the runner.
-      # That, not cryptography, is what made the bootstrap circular.
+      # ---- failure diagnostics (NOT authorization material) ----
+      # Earlier revisions described this as the bootstrap step that supplied
+      # the exact release signer identity, on the theory that the first run
+      # must fail and its certificate must be harvested. That is no longer
+      # true and the framing is retired: the signer identity is DERIVED from
+      # (repository, workflow, tag) before any run, and is authorized in the
+      # policy in advance. There is no bootstrap tag.
       #
-      # This step preserves it under a name that cannot be mistaken for a
-      # release. It confers nothing: the job still fails, no pin is written,
-      # the trust policy is untouched, and a human must read the certificate
-      # and pin it in a separate reviewed commit before any release can verify.
-      #
-      # This is also the ONLY step that can yield the exact release signer
-      # identity. identity-discovery.yml signs under its own workflow file and
-      # its own branch ref, so its SAN is
-      #   .../identity-discovery.yml@refs/heads/<branch>
-      # and can never equal the release SAN
-      #   .../release.yml@refs/tags/<TAG>.
-      # Discovery pins down the issuer and the SAN structure; the exact
-      # identity string comes from here. See SIGNING_BOOTSTRAP.md.
-      - name: preserve UNTRUSTED bundle when verification fails
+      # What remains is diagnostics. If verification fails -- most usefully if
+      # a derived identity ever turns out not to match what Fulcio issues --
+      # the certificate that disproves the prediction survives for inspection
+      # instead of dying with the runner. It supplies NO authorization
+      # material: the job still exits non-zero, writes no pin, and leaves the
+      # trust policy untouched.
+      - name: preserve FAILED_RELEASE_DIAGNOSTIC_EVIDENCE
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         with:
-          name: UNTRUSTED-RELEASE-IDENTITY-EVIDENCE
+          name: FAILED-RELEASE-DIAGNOSTIC-EVIDENCE
           path: ${{ env.REL_DIR }}
           if-no-files-found: warn

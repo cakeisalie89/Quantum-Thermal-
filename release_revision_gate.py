@@ -40,9 +40,18 @@ from pathlib import Path
 
 import release_trust
 
-#: The only path the authorization commit is permitted to change relative to
-#: the reviewed revision. Anything else in the diff is unreviewed content.
-AUTHORIZATION_PATHS = frozenset({str(release_trust.CANONICAL_POLICY_PATH)})
+#: The governed authorization closure, determined experimentally rather than
+#: guessed: filling the policy at C and running every required deterministic
+#: regeneration changes exactly these paths, and repeating the regeneration
+#: reaches a stable fixed point.
+#:
+#: The earlier version allowed ONLY the policy file. That was not satisfiable
+#: in this repository: generate_manifest.py hashes every tracked file except
+#: its own two detached artifacts, so editing the policy necessarily changes
+#: the manifest -- and release.yml runs `generate_manifest.py --check` before
+#: building. Widening the closure is the fix; excluding the policy from
+#: manifest coverage would not be, because that removes it from governance.
+AUTHORIZATION_PATHS = release_trust.AUTHORIZATION_CLOSURE
 
 
 class GateError(Exception):
@@ -61,6 +70,37 @@ def _commit_exists(rev: str) -> bool:
         return _git("cat-file", "-t", rev) == "commit"
     except GateError:
         return False
+
+
+
+def _derivatives_match_regeneration(changed: list[str]) -> list[str]:
+    """Regenerate each deterministic derivative and require byte equality.
+
+    Runs the repository's own commands in dependency order -- RO-Crate first
+    (the manifest hashes it), then the manifest (the crate records its size) --
+    and compares the result against what the authorization commit actually
+    contains.
+    """
+    derivatives = sorted(set(changed) &
+                         release_trust.DETERMINISTIC_DERIVATIVE_PATHS)
+    if not derivatives:
+        return []
+    before = {d: Path(d).read_bytes() for d in derivatives if Path(d).exists()}
+    for cmd in (["python3", "ro_crate_tools.py"],
+                ["python3", "generate_manifest.py"]):
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            return [f"regeneration command {' '.join(cmd)} failed: "
+                    f"{r.stderr.strip()[:200]}"]
+    out = []
+    for d in derivatives:
+        now = Path(d).read_bytes() if Path(d).exists() else b""
+        if before.get(d) != now:
+            out.append(
+                f"{d} is in the authorization closure but does not equal an "
+                "independent regeneration; deterministic derivatives may not "
+                "be hand-edited")
+    return out
 
 
 def check(checkout: str, ref: str, policy: dict) -> list[str]:
@@ -104,13 +144,25 @@ def check(checkout: str, ref: str, policy: dict) -> list[str]:
     if unreviewed:
         problems.append(
             f"the released revision changes {len(unreviewed)} path(s) beyond "
-            f"the authorization record: {unreviewed[:8]}. Only "
+            f"the authorization closure: {unreviewed[:8]}. Only "
             f"{sorted(AUTHORIZATION_PATHS)} may differ between the reviewed "
             "revision and the released commit.")
     elif not changed:
         problems.append(
             f"the released revision is identical in content to "
             f"{pinned[:12]}; the authorization record was never filled in")
+    else:
+        # Membership in the closure is not enough: each DETERMINISTIC
+        # DERIVATIVE must equal an independent regeneration, or the closure
+        # would be a licence to hand-edit the manifest and RO-Crate.
+        problems.extend(_derivatives_match_regeneration(changed))
+        # The authorization INPUT must actually be present, or the "closure"
+        # was only derivative churn with no authorization in it.
+        if not (set(changed) & release_trust.AUTHORIZATION_INPUT_PATHS):
+            problems.append(
+                "the C..A diff contains no change to the authorization "
+                f"record {sorted(release_trust.AUTHORIZATION_INPUT_PATHS)}; "
+                "derivative churn alone is not an authorization")
     return problems
 
 

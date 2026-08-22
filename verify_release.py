@@ -59,30 +59,23 @@ def ok(msg: str) -> None:
 
 
 def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
-                     sig: list, prov: dict) -> None:
-    """Real Sigstore verification against the pinned identity and issuer.
+                     sig: list, trusted_pol: dict) -> None:
+    """Cryptographically authenticate the zip against the EXTERNAL trust root.
 
-    This used to be an unconditional failure: a genuinely signed release could
-    never pass --online, because the SIGNED branch called fail_list() with
-    "tooling unavailable" regardless of whether the tooling was there. That
-    made the online gate untestable and meaningless.
+    The expected identity and issuer come from ``trusted_pol`` -- the policy the
+    consumer supplied independently -- never from the bundle or the archive.
 
-    Fail-closed order matters here. The policy is checked BEFORE the signature,
-    so a bundle signed by anyone at all cannot pass while the identity pins are
-    still PENDING; and a missing sigstore library is reported as a blocker, not
-    silently treated as success.
+    On the certificate: Sigstore's ``Identity`` policy is what checks the
+    presented certificate's SAN and issuer, and it is given the exact expected
+    values from the trusted policy. An earlier version parsed the expected
+    identity out of the policy and reported the result as an observed
+    "certificate" value under a three-way agreement heading. That was wrong:
+    before ``verify_artifact`` runs there is no observed certificate at all,
+    only an expectation. The certificate check is exactly this call, and it is
+    named for what it is.
     """
-    policy = json.loads((bundle / "release_trust_policy.json").read_text())
-    identity = str(policy.get("signer_identity", ""))
-    issuer = str(policy.get("oidc_issuer", ""))
-
-    # Full policy enforcement, not two named fields. This covers repository,
-    # workflow, ref, builder, issuer, source revision and the structural
-    # "no unresolved value anywhere" rule -- previously an unresolved entry
-    # inside trusted_builders passed silently.
-    enforce_resolved_policy(problems, policy, prov, identity, issuer)
-    if problems:
-        return
+    identity = str(trusted_pol["signer_identity"])
+    issuer = str(trusted_pol["oidc_issuer"])
 
     try:
         from sigstore.verify import Verifier
@@ -110,9 +103,17 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
             fail_list(problems, f"duplicate signature_bundles record: {key}")
             continue
         seen_records.add(key)
-        name = entry["name"]
-        # signature_bundles is mutable routing metadata; it must never make the
-        # verifier read a path outside the bundle directory.
+
+        # Exact subject name, not a suffix match. The finalizer writes the
+        # exact basename; accepting anything ending in it would let routing
+        # metadata point the verifier at a differently-named subject.
+        name = str(entry["name"])
+        if name != zip_path.name:
+            fail_list(problems,
+                      f"signature subject {name!r} is not the release zip "
+                      f"{zip_path.name!r}; alternate subject names are "
+                      "refused")
+            continue
         bundle_path, why = _bundle_relative(bundle, str(entry["bundle"]))
         if bundle_path is None:
             fail_list(problems, f"refusing signature bundle path: {why}")
@@ -121,19 +122,9 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
             fail_list(problems,
                       f"signature bundle missing: {bundle_path.name}")
             continue
-        if (name or "").endswith(zip_path.name):
-            target = zip_path
-        else:
-            target, why = _bundle_relative(bundle, str(name))
-            if target is None:
-                fail_list(problems, f"refusing signed-subject path: {why}")
-                continue
-        if not target.exists():
-            fail_list(problems, f"signed subject missing: {name}")
-            continue
         try:
             b = Bundle.from_json(bundle_path.read_bytes())
-            with open(target, "rb") as fh:
+            with open(zip_path, "rb") as fh:
                 verifier.verify_artifact(fh.read(), b, pol)
             checked += 1
         except Exception as e:                        # noqa: BLE001
@@ -141,22 +132,12 @@ def _verify_sigstore(problems, zip_path: Path, bundle: Path, idx: dict,
                       f"Sigstore verification FAILED for {name}: "
                       f"{type(e).__name__}: {e}")
     if checked and not problems:
-        ok(f"Sigstore: {checked} signature(s) verified against pinned "
-           f"identity {identity!r} / issuer {issuer!r}")
+        ok(f"Sigstore verified {checked} signature(s): the certificate "
+           f"presented by the signer matched the expected identity "
+           f"{identity!r} and issuer {issuer!r} from the EXTERNAL trusted "
+           "policy")
     elif not checked and not problems:
         fail_list(problems, "no signature bundle could be verified")
-
-
-# ---------------------------------------------------------------------------
-# release-trust enforcement
-# ---------------------------------------------------------------------------
-#
-# Four policy fields used to be pure documentation: source_repository,
-# workflow_path, pinned_revision and trusted_builders appeared in the policy
-# and were never read here. The functions below make each one an exact
-# comparison against independently observed evidence, and cross-check the
-# three places an identity appears -- policy, provenance and certificate SAN --
-# rather than trusting whichever one is convenient.
 
 
 def _bundle_relative(bundle: Path, name: str):
@@ -204,6 +185,83 @@ def _observed_repo_and_workflow(identity: str):
     return (f"https://github.com/{owner}/{repo}", wf, ref)
 
 
+def load_trusted_policy(problems, trusted_policy, trusted_sha256):
+    """THE external trust root. Returns (policy, canonical_bytes) or (None, None).
+
+    A release cannot authorize itself. A malicious artifact can always carry a
+    policy naming its own signer, so the expected identity must come from
+    OUTSIDE the artifact -- supplied by the consumer through a channel the
+    release does not control.
+
+    The previous implementation compared the bundled policy against a
+    repository-local path and, when that path did not exist, SKIPPED the
+    comparison. Run from a directory with no QTA checkout -- which is exactly
+    the independent-verification case -- there was no trust root at all.
+    """
+    if not trusted_policy and not trusted_sha256:
+        fail_list(problems,
+                  "--online requires an externally supplied trust root: pass "
+                  "--trusted-policy PATH (an owner-authorized policy obtained "
+                  "independently of this release) or --trusted-policy-sha256. "
+                  "The policy inside the bundle or the zip is a CANDIDATE, "
+                  "never the root: an artifact cannot authorize itself.")
+        return None, None
+    if not trusted_policy:
+        # A digest alone is a valid root: it pins the bytes without shipping
+        # them, and the candidate policy is checked against it below.
+        return None, None
+    tp = Path(trusted_policy)
+    if not tp.exists():
+        fail_list(problems, f"--trusted-policy not found: {tp}")
+        return None, None
+    try:
+        raw = tp.read_text(encoding="utf-8")
+        pol = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as e:
+        fail_list(problems, f"--trusted-policy unreadable/invalid: {e}")
+        return None, None
+    try:
+        release_trust.validate_policy(pol, require_resolved=True)
+    except release_trust.PolicyError as e:
+        fail_list(problems,
+                  f"the supplied trusted policy is not authorized for a "
+                  f"signed release: {e}")
+        return None, None
+    canon = release_trust.canonical_bytes(pol)
+    if trusted_sha256:
+        got = release_trust.policy_digest(canon)
+        if got != str(trusted_sha256).strip().lower():
+            fail_list(problems,
+                      f"--trusted-policy digest {got} != "
+                      f"--trusted-policy-sha256 {trusted_sha256}")
+            return None, None
+    ok("external trust root loaded and authorized")
+    return pol, canon
+
+
+def bind_candidate_policy(problems, label: str, raw: bytes,
+                          trusted_canon: bytes, trusted_sha256):
+    """A candidate policy copy must equal the external trust root exactly."""
+    if trusted_canon is not None:
+        if raw != trusted_canon:
+            fail_list(problems,
+                      f"{label} policy differs from the external trusted "
+                      "policy; a release may only ship the authorized policy")
+            return False
+    elif trusted_sha256:
+        got = release_trust.policy_digest(raw)
+        if got != str(trusted_sha256).strip().lower():
+            fail_list(problems,
+                      f"{label} policy digest {got} != trusted "
+                      f"{trusted_sha256}")
+            return False
+    else:
+        fail_list(problems, f"no trust root to bind {label} policy against")
+        return False
+    ok(f"{label} policy is byte-identical to the external trust root")
+    return True
+
+
 def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
                          *, canonical: Path | None = None) -> dict | None:
     """Full policy enforcement. Returns the validated policy, or None.
@@ -236,6 +294,13 @@ def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
     # 2. The bundled policy must be the canonical policy, byte for byte.
     #    This is what makes a single source of truth enforceable rather than
     #    merely intended.
+    # OFFLINE ONLY. This is a repository-local consistency check, not a trust
+    # root: it says "this bundle matches the policy in this checkout". If the
+    # checkout is absent -- the independent-consumer case -- there is nothing
+    # to anchor to, and that is REPORTED rather than silently skipped, which
+    # is what the previous implementation did. Trusted verification never
+    # relies on this path; it requires --trusted-policy (see
+    # load_trusted_policy) and fails closed without one.
     canon = canonical if canonical is not None else \
         release_trust.CANONICAL_POLICY_PATH
     if Path(canon).exists():
@@ -247,123 +312,139 @@ def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
                       f"policy at {canon}; a release may only ship the "
                       "reviewed policy")
         else:
-            ok("bundled trust policy is byte-identical to the canonical policy")
+            ok("bundled policy matches this checkout's canonical policy "
+               "(local consistency only; NOT a trust root)")
+    else:
+        ok(f"no local canonical policy at {canon}: bundled policy is "
+           "UNANCHORED here. Offline verification checks structure only; "
+           "use --online --trusted-policy for an authorization decision.")
     return pol
 
 
-def enforce_resolved_policy(problems, pol: dict, prov: dict,
-                            identity: str, issuer: str) -> None:
-    """Everything that must hold before a signature may be trusted.
+def enforce_authenticated_binding(problems, pol: dict, binding: dict,
+                                  zip_policy_ok: bool) -> None:
+    """Compare the SIGNED release binding against the external trusted policy.
 
-    Called only on the online path, after the policy has been validated for
-    shape. Each check compares an authorized value against an independently
-    observed one; none of them accepts a substring or a prefix.
+    Called only after the Sigstore signature over the zip has verified, so the
+    binding's bytes are authenticated. Order matters and is not negotiable:
+
+        trusted policy -> expected identity -> verify signature ->
+        NOW read binding -> compare binding to policy
+
+    Never binding -> decide who to trust -> verify against that. That would be
+    artifact self-authorization.
+
+    The values here are genuinely observed release facts. The repository,
+    workflow and ref are ALSO proven by the certificate, because Sigstore
+    checked the SAN against the exact expected identity derived from the
+    trusted policy -- so agreement between the binding and the policy is a
+    real cross-check against an independent encoding, not a restatement.
     """
-    # --- every trust-critical value must be an exact authorized value ------
     try:
-        release_trust.validate_policy(pol, require_resolved=True)
+        release_trust.validate_binding(binding)
     except release_trust.PolicyError as e:
-        fail_list(problems, f"trust policy is not authorized for a signed "
-                            f"release: {e}")
+        fail_list(problems, f"signed release binding is invalid: {e}")
         return
-    ok("trust policy is fully resolved and self-consistent")
+    ok("signed release binding passes its schema")
 
-    pol_repo = pol["source_repository"]
-    pol_wf = pol["workflow_path"]
-    pol_ref = pol["authorized_ref"]
-
-    # --- the certificate SAN, parsed structurally --------------------------
-    observed = _observed_repo_and_workflow(identity)
-    if observed is None:
-        fail_list(problems,
-                  f"signer identity is not a GitHub Actions workflow SAN: "
-                  f"{identity!r}")
-        return
-    san_repo, san_wf, san_ref = observed
-
-    # --- repository: policy vs provenance vs certificate -------------------
-    ext = prov["predicate"]["buildDefinition"].get("externalParameters", {})
-    prov_repo = str(ext.get("source_repository", ""))
-    for label, value in (("provenance", prov_repo), ("certificate", san_repo)):
-        if value != pol_repo:
+    for field, policy_key in (("source_repository", "source_repository"),
+                              ("workflow_path", "workflow_path"),
+                              ("authorized_ref", "authorized_ref"),
+                              ("reviewed_payload_sha256",
+                               "reviewed_payload_sha256")):
+        got, want = str(binding[field]), str(pol[policy_key])
+        if got != want:
             fail_list(problems,
-                      f"repository mismatch: policy {pol_repo!r} != "
-                      f"{label} {value!r}")
-    if prov_repo == san_repo == pol_repo:
-        ok(f"repository agrees three ways: {pol_repo}")
-
-    # --- workflow: policy vs provenance vs certificate ---------------------
-    prov_wf = str(ext.get("workflow_path", ""))
-    for label, value in (("provenance", prov_wf), ("certificate", san_wf)):
-        if value != pol_wf:
-            fail_list(problems,
-                      f"workflow mismatch: policy {pol_wf!r} != "
-                      f"{label} {value!r}")
-    if prov_wf == san_wf == pol_wf:
-        ok(f"workflow agrees three ways: {pol_wf}")
-
-    # --- ref/tag -----------------------------------------------------------
-    prov_ref = str(ext.get("authorized_ref", ""))
-    if san_ref != pol_ref:
+                      f"signed binding {field}={got!r} != authorized "
+                      f"{want!r}")
+    if binding["reviewed_revision"] != pol["pinned_revision"]:
         fail_list(problems,
-                  f"ref mismatch: policy authorizes {pol_ref!r}, certificate "
-                  f"carries {san_ref!r}. A signature from a different tag is "
-                  "not the signature that was authorized.")
-    if prov_ref != pol_ref:
-        fail_list(problems,
-                  f"ref mismatch: policy {pol_ref!r} != provenance "
-                  f"{prov_ref!r}")
-    if san_ref == prov_ref == pol_ref:
-        ok(f"ref agrees three ways: {pol_ref}")
+                  f"signed binding reviewed_revision "
+                  f"{binding['reviewed_revision']} != authorized "
+                  f"pinned_revision {pol['pinned_revision']}")
 
-    # --- issuer ------------------------------------------------------------
-    if issuer != pol["oidc_issuer"]:
-        fail_list(problems, f"issuer mismatch: policy {pol['oidc_issuer']!r} "
-                            f"!= observed {issuer!r}")
-
-    # --- builder: exact membership, never substring ------------------------
-    builder = str(prov["predicate"]["runDetails"]["builder"]["id"])
-    authorized = list(pol["trusted_builders"])
-    if builder not in authorized:
+    # The stable builder id is DERIVED from authenticated repository/workflow/
+    # ref rather than taken from unsigned provenance, then compared against the
+    # authorized list. See RELEASE_TRUST_ENFORCEMENT.md on what this does and
+    # does not add over signer_identity.
+    derived = release_trust.derive_stable_builder_id(
+        binding["source_repository"], binding["workflow_path"],
+        binding["authorized_ref"])
+    if binding["stable_builder_id"] != derived:
         fail_list(problems,
-                  f"builder {builder!r} is not in trusted_builders "
-                  f"{authorized}. Exact equality only: a lookalike, a prefix "
-                  "or a suffix is a different builder.")
-    elif builder == release_trust.LOCAL_BUILDER_ID:
+                  f"signed binding stable_builder_id "
+                  f"{binding['stable_builder_id']!r} is not the value derived "
+                  f"from its own repository/workflow/ref ({derived!r})")
+    elif derived not in list(pol["trusted_builders"]):
         fail_list(problems,
-                  f"{builder!r} is the local unsigned builder and can never "
-                  "satisfy a hosted signed release")
+                  f"builder {derived!r} is not in trusted_builders "
+                  f"{list(pol['trusted_builders'])}. Exact equality only.")
+    elif derived == release_trust.LOCAL_BUILDER_ID:
+        fail_list(problems,
+                  "the local unsigned builder can never satisfy a hosted "
+                  "signed release")
     else:
-        ok(f"builder is exactly authorized: {builder}")
+        ok(f"builder derived from authenticated content and authorized: "
+           f"{derived}")
 
-    # --- source revision ---------------------------------------------------
-    dep_rev = ""
-    for dep in prov["predicate"]["buildDefinition"].get(
+    if not zip_policy_ok:
+        fail_list(problems,
+                  "the policy inside the signed zip was not bound to the "
+                  "external trust root")
+
+
+def check_auxiliary_provenance(problems, pol: dict, binding: dict,
+                               prov: dict) -> None:
+    """Cross-check UNSIGNED provenance. It is never authority.
+
+    provenance.intoto.json is generated OUTSIDE the source zip and is not
+    itself signed, so it is UNTRUSTED_AUXILIARY_METADATA. It was previously
+    consulted for repository, workflow, ref, builder and source revision --
+    every one an authorization decision resting on unauthenticated bytes.
+    Those now come from the signed binding. What remains here is a consistency
+    report: a disagreement is worth surfacing, but agreement grants nothing.
+    """
+    ext = prov.get("predicate", {}).get("buildDefinition", {}).get(
+        "externalParameters", {})
+    rev = ""
+    for dep in prov.get("predicate", {}).get("buildDefinition", {}).get(
             "resolvedDependencies", []):
-        d = dep.get("digest", {})
-        if "gitCommit" in d:
-            dep_rev = str(d["gitCommit"])
+        if "gitCommit" in dep.get("digest", {}):
+            rev = str(dep["digest"]["gitCommit"])
             break
-    if not re.fullmatch(r"[0-9a-f]{40}", dep_rev):
+    mismatches = []
+    for k in ("source_repository", "workflow_path", "authorized_ref"):
+        if str(ext.get(k, "")) != str(binding[k]):
+            mismatches.append(k)
+    if rev and rev != binding["release_revision"]:
+        mismatches.append("release_revision")
+    if mismatches:
         fail_list(problems,
-                  f"provenance records no usable source revision "
-                  f"(gitCommit={dep_rev!r})")
+                  f"auxiliary provenance disagrees with the signed binding "
+                  f"on {mismatches}; provenance is not authority, but a "
+                  "disagreement means the bundle is inconsistent")
     else:
-        # pinned_revision is the REVIEWED revision C; the released commit A is
-        # its descendant carrying this authorization record. They are
-        # deliberately different objects -- see PINNED_REVISION_SEMANTICS.
-        # Equality is therefore NOT the check; ancestry is, and it can only be
-        # decided where the object store is available.
-        ok(f"provenance records a concrete source revision: {dep_rev[:12]}")
-        if dep_rev == pol["pinned_revision"]:
-            fail_list(problems,
-                      "released revision equals pinned_revision; the released "
-                      "commit must be the descendant that carries the "
-                      "authorization record, not the reviewed revision itself")
+        ok("auxiliary provenance is consistent with the signed binding "
+           "(cross-check only; provenance is not authenticated)")
 
 
-def verify(zip_path: Path, bundle: Path, online: bool) -> int:
+def verify(zip_path: Path, bundle: Path, online: bool,
+           trusted_policy=None, trusted_sha256=None) -> int:
     problems: list = []
+
+    # ---- PHASE 1: trust root -------------------------------------------
+    # Nothing from the candidate artifact has any authority until phase 3.
+    trusted_pol, trusted_canon = (None, None)
+    if online:
+        trusted_pol, trusted_canon = load_trusted_policy(
+            problems, trusted_policy, trusted_sha256)
+        if problems:
+            print(f"\nRESULT: {len(problems)} FAILURES")
+            print("note: a signature proves origin and integrity only; "
+                  "never physics or hardware validation")
+            return 1
+
+    # ---- PHASE 2: candidate artifact structure --------------------------
     idx = json.loads((bundle / "release_index.json").read_text())
     sums: dict = {}
     for line in (bundle / "SHA256SUMS").read_text().splitlines():
@@ -539,7 +620,72 @@ def verify(zip_path: Path, bundle: Path, online: bool) -> int:
                                  f"present={present}); absence is never "
                                  "success")
         else:
-            _verify_sigstore(problems, zip_path, bundle, idx, sig, prov)
+            # ---- PHASE 3: cryptographic authentication ------------------
+            before = len(problems)
+            _verify_sigstore(problems, zip_path, bundle, idx, sig,
+                             trusted_pol)
+            authenticated = len(problems) == before
+
+            # ---- PHASE 4: authenticated-content checks ------------------
+            # Only now are the archive's bytes evidence.
+            if authenticated:
+                zip_pol_ok = False
+                try:
+                    zip_pol_raw = zf.read(
+                        f"{root}/{release_trust.CANONICAL_POLICY_PATH}")
+                except KeyError:
+                    fail_list(problems,
+                              "the signed zip contains no canonical trust "
+                              "policy")
+                    zip_pol_raw = None
+                if zip_pol_raw is not None:
+                    zip_pol_ok = bind_candidate_policy(
+                        problems, "signed-zip", zip_pol_raw, trusted_canon,
+                        trusted_sha256)
+
+                bundled_raw = (bundle /
+                               "release_trust_policy.json").read_bytes()
+                bind_candidate_policy(problems, "bundle", bundled_raw,
+                                      trusted_canon, trusted_sha256)
+
+                try:
+                    binding_raw = zf.read(
+                        f"{root}/{release_trust.RELEASE_BINDING_NAME}")
+                    binding = json.loads(binding_raw)
+                except (KeyError, json.JSONDecodeError) as e:
+                    fail_list(problems,
+                              f"the signed zip carries no usable "
+                              f"{release_trust.RELEASE_BINDING_NAME}: {e}")
+                    binding = None
+                if binding is not None and trusted_pol is not None:
+                    enforce_authenticated_binding(
+                        problems, trusted_pol, binding, zip_pol_ok)
+
+                    # Recompute the reviewed payload digest from the
+                    # AUTHENTICATED archive -- an offline consumer can do this
+                    # with no Git checkout at all.
+                    payload = {}
+                    for n in zf.namelist():
+                        if not n.startswith(root + "/") or n.endswith("/"):
+                            continue
+                        rel = n[len(root) + 1:]
+                        if rel == release_trust.RELEASE_BINDING_NAME:
+                            continue
+                        payload[rel] = zf.read(n)
+                    got = release_trust.payload_digest(payload)
+                    want = str(trusted_pol["reviewed_payload_sha256"])
+                    if got != want:
+                        fail_list(problems,
+                                  f"reviewed payload digest {got} != "
+                                  f"authorized {want}; the signed content is "
+                                  "not the reviewed content")
+                    else:
+                        ok("reviewed payload digest matches the authorized "
+                           "value, recomputed from the signed archive")
+
+                    # ---- PHASE 5: auxiliary metadata --------------------
+                    check_auxiliary_provenance(problems, trusted_pol,
+                                               binding, prov)
     elif status == "PENDING" and not problems:
         ok("signing status honestly PENDING (blockers recorded; no "
            "simulated signatures)")
@@ -556,8 +702,18 @@ def main() -> int:
     ap.add_argument("--zip", required=True)
     ap.add_argument("--bundle", required=True)
     ap.add_argument("--online", action="store_true")
+    ap.add_argument("--trusted-policy", default=None,
+                    help="PATH to an owner-authorized trust policy obtained "
+                         "INDEPENDENTLY of this release. Required for "
+                         "--online: the policy shipped with a release is a "
+                         "candidate, never the trust root.")
+    ap.add_argument("--trusted-policy-sha256", default=None,
+                    help="sha256 of the owner-authorized policy, as an "
+                         "alternative trust root when the file itself is not "
+                         "at hand")
     a = ap.parse_args()
-    return verify(Path(a.zip), Path(a.bundle), a.online)
+    return verify(Path(a.zip), Path(a.bundle), a.online,
+                  a.trusted_policy, a.trusted_policy_sha256)
 
 
 if __name__ == "__main__":
