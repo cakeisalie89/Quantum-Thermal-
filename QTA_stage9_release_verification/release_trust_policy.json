@@ -1,14 +1,15 @@
 {
- "authorized_ref": "PENDING: refs/tags/<TAG> -- the owner chooses the exact release tag name; every other identity below is derived from it",
+ "authorized_ref": "PENDING: refs/tags/<TAG> -- the owner chooses the exact release tag name; the signer identity and stable builder id are both derived from it",
  "bootstrap_state": "UNINITIALIZED",
- "note": "CANONICAL SOURCE. build_release_artifacts.py copies this exact file into the release bundle and verify_release.py compares the bundled copy byte-for-byte against it; there is no second definition anywhere. Every PENDING must become an exact value before any signature is trusted -- enforced structurally over every leaf, including inside trusted_builders, not by a list of named fields. A wildcard anywhere is itself a verification failure. Resolution is an act of authorization performed by a human in a reviewed commit; no automated step may perform it.",
- "oidc_issuer": "PENDING: https://token.actions.githubusercontent.com -- confirmed by identity discovery before it is written here as an exact value",
- "pinned_revision": "PENDING: the 40-hex REVIEWED SOURCE revision C. Not the released commit: the released commit A is C's descendant carrying this authorization record, and a commit cannot name its own sha. The verifier requires C to be an ancestor of A and the C..A diff to touch only this policy file. See PINNED_REVISION_SEMANTICS in release_trust.py",
- "schema_version": "2.0.0",
- "signer_identity": "PENDING: derived as https://github.com/{owner}/{repo}/{workflow_path}@{authorized_ref} once authorized_ref is chosen; must equal the observed certificate SAN exactly",
+ "note": "CANONICAL SOURCE, and the EXTERNAL TRUST ROOT. An independent consumer must obtain an owner-authorized copy of this file (or its sha256) through a channel independent of the release, and pass it to verify_release.py --trusted-policy. Online verification fails closed without one: a release cannot authorize itself, because a malicious artifact can always carry a policy naming its own signer. Every PENDING must become an exact value before any signature is trusted -- enforced structurally over every leaf. A wildcard anywhere is itself a verification failure. Resolution is an act of authorization performed by a human in a reviewed commit; no automated step may perform it.",
+ "oidc_issuer": "PENDING: https://token.actions.githubusercontent.com -- confirmed by identity discovery before being written here as an exact value",
+ "pinned_revision": "PENDING: the 40-hex REVIEWED revision C, for traceability. Not the released commit: the released commit A is C's descendant carrying this authorization record. Content authorization is reviewed_payload_sha256, which an offline consumer can recompute; this field records history and is checked by the release workflow, which has the repository",
+ "reviewed_payload_sha256": "PENDING: 64-hex digest of the reviewed release payload, excluding the authorization closure (this policy and its deterministic manifest/RO-Crate derivatives). Recomputable from the signed ZIP without a Git checkout. See payload_digest in release_trust.py",
+ "schema_version": "3.0.0",
+ "signer_identity": "PENDING: derived as https://github.com/{owner}/{repo}/{workflow_path}@{authorized_ref}; must equal the certificate SAN Sigstore verifies against",
  "source_repository": "https://github.com/cakeisalie89/Quantum-Thermal-",
  "trusted_builders": [
-  "PENDING: github-actions://{owner}/{repo}/{workflow_path}@{authorized_ref} -- the stable builder id, derived from the same three values; per-run data (run id, attempt, timing) is execution metadata and never appears here"
+  "PENDING: github-actions://{owner}/{repo}/{workflow_path}@{authorized_ref} -- the stable builder id, derived from the same three values as signer_identity; per-run data never appears here"
  ],
  "wildcards_forbidden": true,
  "workflow_path": ".github/workflows/release.yml"

@@ -44,6 +44,7 @@ required to differ from it only in the authorization record.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -52,12 +53,13 @@ from pathlib import Path
 CANONICAL_POLICY_PATH = Path(
     "QTA_stage9_release_verification/release_trust_policy.json")
 
-#: Bumped from 1.0.0: required fields were added (``authorized_ref``,
-#: ``bootstrap_state``), ``pinned_revision`` acquired a precise definition it
-#: did not have, and enforcement semantics changed from "documented" to
-#: "checked". That is a fundamental change, not a compatible correction, so the
-#: version moves and a migration test pins the old shape as rejected.
-SCHEMA_VERSION = "2.0.0"
+#: 1.0.0 -> 2.0.0 added ``authorized_ref``/``bootstrap_state`` and moved
+#: enforcement from documented to checked. 2.0.0 -> 3.0.0 adds
+#: ``reviewed_payload_sha256``, which changes what authorization *means*: the
+#: owner now authorizes a content digest that an offline consumer can
+#: recompute, rather than a Git relationship only a repository holder can
+#: check. Fundamental, so the version moves and older shapes are refused.
+SCHEMA_VERSION = "3.0.0"
 
 #: Marker for a value the owner has not yet authorized. Compared
 #: case-insensitively after stripping, so whitespace or case cannot smuggle an
@@ -80,6 +82,7 @@ REQUIRED_FIELDS = (
     "signer_identity",
     "oidc_issuer",
     "pinned_revision",
+    "reviewed_payload_sha256",
     "trusted_builders",
     "bootstrap_state",
 )
@@ -276,7 +279,7 @@ def validate_policy(policy, *, require_resolved: bool = False) -> dict:
 
     for f in ("source_repository", "workflow_path", "authorized_ref",
               "signer_identity", "oidc_issuer", "pinned_revision",
-              "bootstrap_state"):
+              "reviewed_payload_sha256", "bootstrap_state"):
         v = policy[f]
         _require(isinstance(v, str), f"{f} must be a string, got "
                                      f"{type(v).__name__}")
@@ -321,6 +324,10 @@ def validate_policy(policy, *, require_resolved: bool = False) -> dict:
     _require(_SHA40.match(policy["pinned_revision"]),
              f"pinned_revision must be a full 40-hex commit sha, got "
              f"{policy['pinned_revision']!r}")
+    _require(re.fullmatch(r"[0-9a-f]{64}",
+                          policy["reviewed_payload_sha256"]),
+             "reviewed_payload_sha256 must be a 64-hex digest, got "
+             f"{policy['reviewed_payload_sha256']!r}")
     _require(policy["oidc_issuer"] == GITHUB_OIDC_ISSUER,
              f"oidc_issuer must be exactly {GITHUB_OIDC_ISSUER!r}, got "
              f"{policy['oidc_issuer']!r}")
@@ -391,6 +398,128 @@ def is_resolved(policy: dict) -> bool:
 
 def bootstrap_state(policy: dict) -> str:
     return str(policy.get("bootstrap_state", "UNINITIALIZED"))
+
+
+# ---------------------------------------------------------------------------
+# authorization closure
+# ---------------------------------------------------------------------------
+#
+# Determined experimentally, not guessed: filling in the policy at revision C
+# and running every required deterministic regeneration changes exactly four
+# tracked paths, and repeating the regeneration reaches a stable fixed point.
+#
+#     release_trust_policy.json                  AUTHORIZATION_INPUT
+#            |
+#            v
+#     final_manifest.json, manifest_hash.txt     DETERMINISTIC_DERIVATIVE
+#            |
+#            v
+#     ro-crate/ro-crate-metadata.json            DETERMINISTIC_DERIVATIVE
+#                                                (records the manifest's size)
+#
+# The earlier design allowed only the policy file to differ between C and A.
+# That is not satisfiable here: generate_manifest.py hashes every tracked file
+# except its own two detached artifacts, so editing the policy necessarily
+# changes the manifest, and release.yml runs `generate_manifest.py --check`
+# before building. The fix is to widen the closure to the derivatives and
+# require each to equal an INDEPENDENT regeneration -- not to exclude the
+# policy from manifest coverage, which would remove it from governance.
+
+AUTHORIZATION_INPUT_PATHS = frozenset({str(CANONICAL_POLICY_PATH)})
+
+DETERMINISTIC_DERIVATIVE_PATHS = frozenset({
+    "final_manifest.json",
+    "manifest_hash.txt",
+    "ro-crate/ro-crate-metadata.json",
+})
+
+AUTHORIZATION_CLOSURE = AUTHORIZATION_INPUT_PATHS | DETERMINISTIC_DERIVATIVE_PATHS
+
+
+# ---------------------------------------------------------------------------
+# reviewed payload digest
+# ---------------------------------------------------------------------------
+
+def payload_digest(files: dict) -> str:
+    """A canonical digest over release payload content.
+
+    ``files`` maps a repository-relative path to its exact bytes.
+
+    Why this exists: Git ancestry can only be checked by someone holding the
+    object database. An offline consumer verifying a signed release has the
+    ZIP and nothing else. This digest is recomputable from either side -- from
+    the working tree at authorization time, and from the signed archive at
+    verification time -- so the owner can authorize *content* rather than a
+    relationship only they can evaluate.
+
+    The authorization closure is excluded, and that exclusion is what breaks
+    the recursion: the policy records a digest of everything the policy does
+    not affect, so filling the policy in cannot change the value it records.
+    Ordering is by path, and each record is length-prefixed, so no combination
+    of paths and digests can be re-partitioned into a different set with the
+    same serialization.
+    """
+    h = hashlib.sha256()
+    h.update(b"qta-reviewed-payload-v1\n")
+    for path in sorted(files):
+        if path in AUTHORIZATION_CLOSURE:
+            continue
+        body = files[path]
+        entry = hashlib.sha256(body).hexdigest()
+        line = f"{len(path)}:{path} {entry}\n".encode("utf-8")
+        h.update(line)
+    return h.hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# signed release binding
+# ---------------------------------------------------------------------------
+
+#: Name of the binding file placed inside the source ZIP. Because it is inside
+#: the archive, the Sigstore signature over the archive authenticates it -- but
+#: only AFTER that signature has been checked against an externally supplied
+#: trusted policy. It never decides who to trust.
+RELEASE_BINDING_NAME = "release_binding.json"
+
+BINDING_REQUIRED_FIELDS = (
+    "schema_version",
+    "source_repository",
+    "workflow_path",
+    "authorized_ref",
+    "release_revision",
+    "reviewed_revision",
+    "reviewed_payload_sha256",
+    "stable_builder_id",
+    "trusted_policy_sha256",
+)
+BINDING_ALLOWED_FIELDS = frozenset(BINDING_REQUIRED_FIELDS)
+
+
+def validate_binding(binding) -> dict:
+    """Strict shape validation for the signed release binding."""
+    _require(isinstance(binding, dict), "release binding is not a JSON object")
+    missing = [f for f in BINDING_REQUIRED_FIELDS if f not in binding]
+    _require(not missing, f"release binding missing fields: {missing}")
+    unknown = sorted(set(binding) - BINDING_ALLOWED_FIELDS)
+    _require(not unknown, f"release binding has unknown fields: {unknown}")
+    _require(binding["schema_version"] == SCHEMA_VERSION,
+             f"release binding schema_version must be {SCHEMA_VERSION!r}")
+    for f in ("release_revision", "reviewed_revision"):
+        _require(_SHA40.match(str(binding[f])),
+                 f"release binding {f} must be a 40-hex commit sha")
+    for f in ("reviewed_payload_sha256", "trusted_policy_sha256"):
+        _require(re.fullmatch(r"[0-9a-f]{64}", str(binding[f])),
+                 f"release binding {f} must be a 64-hex sha256")
+    _require(binding["release_revision"] != binding["reviewed_revision"],
+             "release binding release_revision equals reviewed_revision; the "
+             "released commit must be the descendant carrying the "
+             "authorization record")
+    return binding
+
+
+def policy_digest(policy_bytes: bytes) -> str:
+    """SHA-256 over the canonical policy bytes, for use as a trust anchor."""
+    return hashlib.sha256(policy_bytes).hexdigest()
 
 
 if __name__ == "__main__":                                   # pragma: no cover

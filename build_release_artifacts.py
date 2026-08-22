@@ -235,7 +235,54 @@ ZIP_EXCLUDE_PREFIXES = ("attic/", "outputs/", "release/", "release_bundle/")
 ZIP_EXCLUDE_SUFFIXES = (".bundle", ".zip", ".tar.gz", ".patch")
 
 
-def make_source_zip(dest: Path, prefix: str | None = None) -> Path:
+def tracked_payload() -> dict:
+    """Repository-relative path -> bytes, for every file the ZIP will carry."""
+    tracked = sorted(subprocess.run(
+        ["git", "ls-files"], cwd=str(ROOT), capture_output=True, text=True,
+        check=True).stdout.split("\n"))
+    return {f: (ROOT / f).read_bytes() for f in tracked
+            if f and not f.startswith(ZIP_EXCLUDE_PREFIXES)
+            and not f.endswith(ZIP_EXCLUDE_SUFFIXES)}
+
+
+def build_release_binding(policy: dict):
+    """The release facts that need cryptographic binding, or None.
+
+    Returns None when the policy is not yet authorized. An unresolved policy
+    has no ref, no reviewed revision and no builder, so there is nothing
+    truthful to bind -- and emitting a placeholder binding would be exactly the
+    "unresolved value inside a trust artifact" pattern this design exists to
+    prevent. Local unsigned builds therefore carry no binding, and online
+    verification (which requires an authorized external policy) requires one.
+
+    Placed inside the signed ZIP so a consumer reads them from authenticated
+    bytes. It records what this build IS; it never decides what should be
+    trusted -- that comes from the externally supplied policy, and this file is
+    only read after the signature has been checked against it.
+    """
+    if not release_trust.is_resolved(policy):
+        return None
+    repo = str(policy["source_repository"])
+    wf = str(policy["workflow_path"])
+    ref = str(policy["authorized_ref"])
+    builder = release_trust.derive_stable_builder_id(repo, wf, ref)
+    return {
+        "schema_version": release_trust.SCHEMA_VERSION,
+        "source_repository": repo,
+        "workflow_path": wf,
+        "authorized_ref": ref,
+        "release_revision": git_revision(),
+        "reviewed_revision": str(policy["pinned_revision"]),
+        "reviewed_payload_sha256": release_trust.payload_digest(
+            tracked_payload()),
+        "stable_builder_id": builder,
+        "trusted_policy_sha256": release_trust.policy_digest(
+            release_trust.canonical_bytes(policy)),
+    }
+
+
+def make_source_zip(dest: Path, prefix: str | None = None,
+                    binding: dict | None = None) -> Path:
     """Build the release zip deterministically from the git index.
 
     Nothing in the repository built this file, so the release workflow signed a
@@ -258,12 +305,36 @@ def make_source_zip(dest: Path, prefix: str | None = None) -> Path:
                and not f.endswith(ZIP_EXCLUDE_SUFFIXES)]
     root = (prefix or dest.name[:-4]
             if dest.name.endswith(".zip") else dest.name)
+
+    # The signed release binding is a SYNTHETIC member: release metadata, not
+    # scientific output, and not a tracked source file. It goes inside the
+    # archive so that the Sigstore signature over the archive authenticates it
+    # -- an offline consumer can then read the release facts from bytes whose
+    # signature was checked, instead of from unsigned external provenance.
+    # A collision with a tracked path is refused rather than silently
+    # shadowing real content.
+    binding_bytes = None
+    if binding is not None:
+        release_trust.validate_binding(binding)
+        if release_trust.RELEASE_BINDING_NAME in members:
+            raise SystemExit(
+                f"[FAIL-CLOSED] {release_trust.RELEASE_BINDING_NAME} is a "
+                "tracked file; the synthetic release binding would shadow it")
+        binding_bytes = (json.dumps(binding, indent=1, sort_keys=True)
+                         + "\n").encode("utf-8")
+        members = sorted(members + [release_trust.RELEASE_BINDING_NAME])
+
     dest.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED,
                          compresslevel=9) as z:
         for rel in members:
             info = zipfile.ZipInfo(f"{root}/{rel}", date_time=ZIP_EPOCH)
             info.compress_type = zipfile.ZIP_DEFLATED
+            if binding_bytes is not None and \
+                    rel == release_trust.RELEASE_BINDING_NAME:
+                info.external_attr = 0o644 << 16
+                z.writestr(info, binding_bytes)
+                continue
             info.external_attr = 0o644 << 16
             info.create_system = 3
             z.writestr(info, (ROOT / rel).read_bytes())
@@ -294,7 +365,8 @@ def main() -> int:
 
     zp = Path(a.zip)
     if a.make_zip:
-        make_source_zip(zp)
+        binding = build_release_binding(policy)
+        make_source_zip(zp, binding=binding)
         print(f"[zip] {zp} ({zp.stat().st_size} bytes, "
               f"sha256 {sha(zp)[:16]}...)")
     if not zp.exists():
