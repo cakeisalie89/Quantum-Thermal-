@@ -113,8 +113,8 @@
     },
     {
       "filename": "qta_full_sim.py",
-      "size_bytes": 171091,
-      "sha256": "85bc700500415757f39609aab942afec8467340df0b967a5a921890d2da14a67",
+      "size_bytes": 172618,
+      "sha256": "6b8e8b99d342d90244c74b9469f29301ef253390fc58f8500b321cc5eaaa2c2c",
       "generated_by": "manual",
       "purpose": "canonical generator \u2014 produces all gates and counts"
     },
@@ -190,8 +190,8 @@
     },
     {
       "filename": "package_consistency_check.py",
-      "size_bytes": 105689,
-      "sha256": "45df269aded2f082086c540b91bf8d15d78f4292438135a7aa5319719784ca9d",
+      "size_bytes": 106484,
+      "sha256": "03ed4a618c59d54b8a78c8b4e740ffc895fb33637f07be8697069e3352f1d2a1",
       "generated_by": "manual",
       "purpose": "independent verifier \u2014 reruns sim, compares all files"
     },
@@ -582,8 +582,8 @@
     },
     {
       "filename": "qta_multiphysics/exports.py",
-      "size_bytes": 3263,
-      "sha256": "5d584d557fc30cb4b126ac49f4761ba148c71042e6e2e59b6fe243e4187fec06",
+      "size_bytes": 3823,
+      "sha256": "34b34c521eb954a2a23fc602ed937adbd2643bdbc36e5c4beb5094d876e28045",
       "generated_by": "qta_multiphysics package (pass 15)",
       "purpose": "non-lumped 1D/2D multiphysics layer source module"
     },
@@ -1443,8 +1443,8 @@
     },
     {
       "filename": "qta_multiphysics/species_transport_3d.py",
-      "size_bytes": 9641,
-      "sha256": "1030e9dc3f4cf1b361485ee21cbee2252b7721a396c89a14767007927a642194",
+      "size_bytes": 11346,
+      "sha256": "da9b76bc94698d412afc4178439ff72eab8c6ab9c05ddb3102c2e6ad396e5f37",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1485,8 +1485,8 @@
     },
     {
       "filename": "species_transport_3d_summary.json",
-      "size_bytes": 8055,
-      "sha256": "1117bcb78f35f04148855ffeaa61b467019dd3c4dbbc2693b6d45915c60f20d8",
+      "size_bytes": 8419,
+      "sha256": "f97391992a1e8b6a808e26b5e32b201cac24f3d3f1a171c78aec030defa263a1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2396,28 +2396,28 @@
     {
       "filename": "hdf5_output_mapping.json",
       "size_bytes": 139219,
-      "sha256": "48fc51d3eb36831868f58991d9e4dc74acd012a3b90c91b9889260047310d0d5",
+      "sha256": "a12bc0a5b97f8a704ddd62d4920d06a8c4a87978a82abd0b0a460eb7bfcd8846",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "hdf5_schema.json",
       "size_bytes": 150481,
-      "sha256": "a9950d479948ec011ca2aa79adeaedab2784aae117955aaa5e6ac01f8345fdf1",
+      "sha256": "a4dae6b82144281fb04b6ebe1239f1540fab65d72285745314a2a9170157ff25",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "qta_scientific_results.h5",
-      "size_bytes": 1993036,
-      "sha256": "b9579670ed33a2e8f389c50e2c72c98fb0131e1bcf251430230358e96f0a39c2",
+      "size_bytes": 1993400,
+      "sha256": "58728f2530ff789aa0a5efaa984f42e580c2e00973ea0c91ad1c30f729299c49",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "6a28bd9635e12bf9163ef6651cdc95d2e22b472c95e7fcdf5c0bb86a7501707f",
+      "sha256": "1ad78d1e263ccaf113aec272fa0d237ac8ffefb2dd1a71470838b1786fff4fd1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2431,7 +2431,7 @@
     {
       "filename": "stage8_reports/hdf5_equivalence_report.json",
       "size_bytes": 503,
-      "sha256": "fba153fbee70e53df526a33fd7af72d7da322737d7d1c498c6eea01594a29c96",
+      "sha256": "246a03f03d69692e52920814f4880ee8a6616b03fa17e950ce432e2bdb2cf128",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2689,8 +2689,8 @@
     },
     {
       "filename": ".github/workflows/claude.yml",
-      "size_bytes": 5109,
-      "sha256": "9e82447e2e3ace256ff39ee23bb8c84187c38967ac7809633555ac9880ae512f",
+      "size_bytes": 5509,
+      "sha256": "981ab3a8979b9c734d53fdad518772d54710a3b19b093d2d5f823b272da676fb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2724,8 +2724,8 @@
     },
     {
       "filename": "tests/test_export_schema.py",
-      "size_bytes": 3596,
-      "sha256": "38499bb196490f226f74ecaaa3c8f1876d0b0cab3d561169ef1b1851774be988",
+      "size_bytes": 4021,
+      "sha256": "f2fe4d259e573ac9bf604118fc67cf0db12f2349057b4d3d37b51063de649eaf",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2794,8 +2794,8 @@
     },
     {
       "filename": "tests/test_h2_pressure_authority.py",
-      "size_bytes": 8780,
-      "sha256": "6da6d9f78305d6ac753c48fbef1a27627a95cf58badce58d9b5983fd4c6b64a9",
+      "size_bytes": 18394,
+      "sha256": "16be3946407ae725c7a3c79a2e62df629dad2904a8fe171cd096e023e62cfcff",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2803,6 +2803,13 @@
       "filename": "tests/test_lateral_boundary.py",
       "size_bytes": 6957,
       "sha256": "946b39e7ffba254a6d93c716a4e864ce5b4c6125d74237d129d0bbf8b962eb55",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_failed_gate_schema.py",
+      "size_bytes": 5144,
+      "sha256": "44073d54a6a5427a2a201c1cfca9eb61bb871a4e605c0640e63fb163bcad5c19",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }
