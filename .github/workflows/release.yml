@@ -64,6 +64,25 @@ jobs:
           uv run python -m sigstore sign \
             --bundle "$REL_BUNDLE/source.sigstore.json" "$REL_ZIP"
 
+      # ---- record that a signature now exists (metadata only) ----
+      # build_release_artifacts.py writes signing_status=PENDING and an empty
+      # signature_bundles, and the signing step above updates neither, so
+      # verify_release.py --online rejected on `status != "SIGNED" or not sig`
+      # BEFORE ever checking a signature -- regardless of whether the trust
+      # policy pins were filled. This step closes exactly that gap.
+      #
+      # It is NOT authorization. PENDING -> SIGNED asserts one thing: a
+      # signature bundle physically exists for this artifact. The finalizer
+      # refuses on any precondition failure (missing/empty/unparseable bundle,
+      # wrong zip, digest drift vs index/SHA256SUMS, non-PENDING start), may
+      # alter only signing_status and signature_bundles, and never reads or
+      # writes a trust-policy pin. The identity gate below is untouched.
+      - name: finalize signing metadata (confers no trust)
+        run: |
+          uv run python finalize_release_signing.py \
+            --bundle "$REL_BUNDLE" --zip "$REL_ZIP" \
+            --bundle-name source.sigstore.json
+
       # ---- online verification of the same file and the same bundle dir ----
       # verify_release.py --online now performs real Sigstore verification
       # against the exact signer_identity and oidc_issuer pinned in

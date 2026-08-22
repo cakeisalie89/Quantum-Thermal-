@@ -205,6 +205,56 @@ def test_stage3_records_the_second_independent_blocker():
     v = _text(os.path.join(ROOT, "verify_release.py"))
     assert 'status != "SIGNED" or not sig' in v
 
+
+
+def test_release_step_order_is_build_sign_finalize_verify_upload():
+    """The finalizer must sit between signing and online verification.
+
+    Before signing there is nothing to record; after online verification it
+    would be too late, because that is the step the metadata gates. Any other
+    position silently reopens the blocker.
+    """
+    steps = _load(RELEASE)["jobs"]["verify-and-release"]["steps"]
+    labels = [str(s.get("name", "")) or str(s.get("uses", "")) for s in steps]
+
+    def at(pred):
+        return next(i for i, n in enumerate(labels) if pred(n.lower()))
+
+    build = at(lambda n: "build release artifacts" in n)
+    offline = at(lambda n: "verify (offline)" in n)
+    sign = at(lambda n: "keyless sign" in n)
+    finalize = at(lambda n: "finalize signing metadata" in n)
+    online = at(lambda n: "online" in n and "verify" in n)
+    upload = at(lambda n: "upload-artifact" in n)
+    assert build < offline < sign < finalize < online < upload, labels
+
+
+def test_release_finalizer_is_invoked_with_the_signed_zip_and_bundle():
+    """It must finalize the same artifact that was signed, not a rebuild."""
+    steps = _load(RELEASE)["jobs"]["verify-and-release"]["steps"]
+    step = next(s for s in steps
+                if "finalize signing metadata" in str(s.get("name", "")))
+    run = str(step.get("run", ""))
+    assert "finalize_release_signing.py" in run
+    assert "$REL_BUNDLE" in run and "$REL_ZIP" in run
+    sign = next(s for s in steps if "keyless sign" in str(s.get("name", "")))
+    assert "$REL_ZIP" in str(sign.get("run", ""))
+    # Same bundle filename in both steps, or the finalizer records a file the
+    # signer never produced.
+    assert "source.sigstore.json" in run
+    assert "source.sigstore.json" in str(sign.get("run", ""))
+
+
+def test_release_finalizer_step_cannot_confer_trust():
+    """Metadata finalization must not be able to fill a pin."""
+    steps = _load(RELEASE)["jobs"]["verify-and-release"]["steps"]
+    step = next(s for s in steps
+                if "finalize signing metadata" in str(s.get("name", "")))
+    run = str(step.get("run", ""))
+    for forbidden in ("release_trust_policy", "signer_identity", "oidc_issuer",
+                      "--force", "sed ", "jq "):
+        assert forbidden not in run, f"finalize step must not use {forbidden!r}"
+
 # ------------------------------------------------ container verification ----
 
 def test_container_verify_is_manual_and_read_only():
