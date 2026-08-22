@@ -172,81 +172,51 @@ then re-verifies the same file against the same bundle directory with
 `verify_release.py --online`. The three-directory bug that once meant the signed
 artifact was never the verified one is fixed.
 
-**There are two independent blockers, not one.**
+**A later adversarial pass found that the trust path was not yet coherent, and
+rebuilt it.** Four policy fields — `source_repository`, `workflow_path`,
+`pinned_revision`, `trusted_builders` — were present in the policy and read by
+**nothing** (`grep -c` in `verify_release.py` returned 0 for each). The policy
+also had two hand-maintained definitions that could diverge, the CI builder id
+was the placeholder `PENDING-hosted-runner` which *contains* the substring the
+SLSA guard tested for, and the "every PENDING" rule was two named-field checks.
 
-*Blocker A — the four PENDING pins* in `release_trust_policy.json`:
-`oidc_issuer`, `signer_identity`, `pinned_revision`, and the hosted entry of
-`trusted_builders`. They cannot be filled in advance — the certificate identity
-and issuer are only knowable from the certificate of a real signing run — and
-the policy fails closed on any `PENDING` or wildcard, so no signature is trusted
-until they are exact.
+What replaced it:
 
-*Blocker B — signing metadata was never written.* Found in review, and it is the
-reason filling the pins would not have been enough on its own.
-`build_release_artifacts.py` hardcodes `"signing_status": "PENDING"` and
-`"signature_bundles": []`; the signing step writes `source.sigstore.json` and
-updates neither; and `verify_release.py` rejects on
-`status != "SIGNED" or not sig` *before* reaching `_verify_sigstore`. Online
-verification therefore failed **regardless of the pins**.
+| element | state |
+|---|---|
+| canonical policy | `QTA_stage9_release_verification/release_trust_policy.json`, schema `2.0.0` |
+| loader/validator | `release_trust.py` — the only reader; `trust_policy()` is now a loader with no values of its own |
+| bundled copy | written with the canonical serializer and compared **byte-for-byte** by the verifier |
+| unresolved scan | structural over every leaf, case- and whitespace-insensitive, including nested `trusted_builders` |
+| repository / workflow / ref | three-way exact equality: policy vs provenance vs certificate SAN |
+| builder | exact list membership; substring, prefix, suffix and case variants all fail |
+| revision | recomputed with `git rev-parse`, cross-checked against tag target and Actions context, then gated by `release_revision_gate.py` |
+| SLSA | any non-`NONE` value in index or provenance is a failure |
 
-Blocker B is now closed, under owner authorization, by
-`finalize_release_signing.py`, invoked between signing and online verification.
-It makes exactly one transition — `signing_status` `PENDING → SIGNED` and one
-`signature_bundles` record — and refuses on any precondition failure: missing,
-empty, unparseable or non-Sigstore-shaped bundle; wrong or missing zip;
-non-PENDING start; a non-empty signature list; or a zip digest that disagrees
-with the index, `files[]` or `SHA256SUMS`. Its mutation boundary is checked
-structurally, so an added or removed key is caught, and its write is atomic.
+**The self-reference problem is solved rather than deferred.** A commit cannot
+contain its own SHA, so `pinned_revision` names the *reviewed* revision `C`; the
+released commit `A` is its descendant carrying the authorization record, and the
+gate requires `C` to be an ancestor of `A` with the `C..A` diff touching **only**
+the policy file. Verified by constructing the sequence in a real scratch
+repository: the honest order passes, and an authorization commit that also
+smuggles an unrelated file is refused by name.
 
-**It confers no trust.** `PENDING → SIGNED` asserts only that a signature bundle
-physically exists. `verify_release.py` still independently requires exact
-`signer_identity` and `oidc_issuer` pins, so a cryptographically valid signature
-from an unauthorized signer remains a failure. The finalizer never reads or
-writes a trust-policy field; an AST test asserts its only write target is the
-release index. Blocker A is untouched — signing stays PENDING.
+**There is no bootstrap release tag.** The earlier plan — tag A, observe the
+identity, pin it, release under tag B — was self-contradictory, because the ref
+is part of the identity. The exact signer identity is instead derived from
+(repository, workflow, tag name), all of which the owner fixes in advance, and
+`validate_policy` refuses a policy whose `signer_identity` disagrees with its own
+components. If a prediction is ever wrong the run fails closed; it is never TOFU.
 
-**There is a bootstrap circularity, and the earlier claim that "cutting one tag
-fills all four pins" was wrong.** Because the policy fails closed on `PENDING`
-and online verification runs *before* `upload-artifact`, the first signing run
-must fail verification **and** discards the Sigstore bundle that carries the
-only copy of the real certificate. See `SIGNING_BOOTSTRAP.md` for the full
-statement and the staged fix.
+The metadata blocker remains closed by `finalize_release_signing.py`, which is
+implemented and wired between signing and online verification. Signature
+existence is still not authorization.
 
-**A second review finding corrected the bootstrap itself.** The Fulcio SAN names
-the workflow file *and* the ref that ran, so a `workflow_dispatch` run of
-`identity-discovery.yml` on a branch certifies
-`.../identity-discovery.yml@refs/heads/<BRANCH>` — differing from
-`.../release.yml@refs/tags/<TAG>` in **both** components. Discovery can
-therefore *never* produce the `signer_identity` string to pin, and the earlier
-instruction to "pin the exact observed strings" from it was asking for something
-the mechanism cannot deliver.
-
-**What closes it,** in order:
-
-1. **Discovery** — dispatch `.github/workflows/identity-discovery.yml`
-   (untrusted, `workflow_dispatch` only, signs a throwaway file rather than the
-   release zip, preserves the certificate as
-   `UNTRUSTED-BOOTSTRAP-IDENTITY-EVIDENCE`, writes no pin, reports
-   `IDENTITY_DISCOVERY_ONLY — NOT A TRUSTED RELEASE`). This fixes the
-   `oidc_issuer`, the SAN URI structure, the repository component and the
-   Fulcio extension layout — **not** the exact identity.
-2. **Evidence capture** — cut a bootstrap tag. `release.yml` builds, verifies
-   offline, signs, finalizes the signing metadata, and then **fails** online
-   verification on the PENDING pins exactly as designed. Its
-   `preserve UNTRUSTED bundle when verification fails` step (`if: failure()`)
-   keeps the certificate as `UNTRUSTED-RELEASE-IDENTITY-EVIDENCE`. This is the
-   only step that can yield the exact `signer_identity`, because it is the only
-   one signing under `release.yml` at a tag ref. The job still exits non-zero
-   and writes no pin.
-3. **Authorization** — a human compares both against the prediction recorded in
-   `SIGNING_BOOTSTRAP.md` and pins the exact values in a separate reviewed
-   commit. A contradiction is a finding, not something to paper over.
-4. **Trusted release** — cut a *new* tag (a signed tag is never re-pointed) and
-   let `release.yml` verify against a policy the owner pre-authorized.
-
-Verification must be independent: a cryptographically valid signature over the
-wrong artifact, commit, workflow or repository is a failure, not a pass. No
-automated path runs from observation to authorization at any step.
+**Signing status: PENDING.** `bootstrap_state` is `UNINITIALIZED`. No pin filled,
+no tag cut, no signature produced. 11 mutations of the trust boundary were each
+caught by 1–5 tests; the two that initially survived (deleting the ancestry check,
+and relaxing repository equality to substring) exposed real coverage gaps that
+were closed with tests before re-running.
 
 ## 4. Material-property floors
 

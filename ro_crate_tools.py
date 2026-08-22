@@ -226,7 +226,54 @@ def validate(meta_path: Path = META) -> int:
     return 1 if problems else 0
 
 
+#: Tokens that look like subcommands. `ro_crate_tools.py build` used to be
+#: parsed as "build into a directory named build/", silently creating a stray
+#: tree instead of rebuilding the crate. Refuse them rather than guessing.
+_LIKELY_SUBCOMMAND_TYPOS = frozenset({
+    "build", "make", "generate", "gen", "create", "check", "verify", "run",
+    "all", "help",
+})
+
+_USAGE = """\
+usage:
+  python ro_crate_tools.py                 rebuild the crate in ./ro-crate
+  python ro_crate_tools.py --output DIR    rebuild into DIR
+  python ro_crate_tools.py validate        validate the existing crate
+
+note: there is no 'build' subcommand -- rebuilding is the default action.
+      A bare directory argument is still accepted for backward compatibility,
+      but tokens that look like subcommands are refused."""
+
+
+def _cli(argv: list[str]) -> int:
+    args = argv[1:]
+    if args and args[0] in ("-h", "--help", "help"):
+        print(_USAGE)
+        return 0
+    if args and args[0] == "validate":
+        if len(args) > 1:
+            print(f"validate takes no arguments; got {args[1:]}")
+            return 2
+        return validate()
+    if args and args[0] == "--output":
+        if len(args) != 2:
+            print("--output needs exactly one directory\n\n" + _USAGE)
+            return 2
+        build(Path(args[1]))
+        return 0
+    if len(args) > 1:
+        print(f"unexpected arguments {args[1:]}\n\n" + _USAGE)
+        return 2
+    if args:
+        if args[0].lower() in _LIKELY_SUBCOMMAND_TYPOS:
+            print(f"refusing to treat {args[0]!r} as an output directory -- "
+                  f"it reads as a subcommand.\n\n" + _USAGE)
+            return 2
+        build(Path(args[0]))
+        return 0
+    build(CRATE_DIR)
+    return 0
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "validate":
-        sys.exit(validate())
-    build(Path(sys.argv[1]) if len(sys.argv) > 1 else CRATE_DIR)
+    sys.exit(_cli(sys.argv))
