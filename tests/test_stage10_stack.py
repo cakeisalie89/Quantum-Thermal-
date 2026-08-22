@@ -664,7 +664,11 @@ def test_registry_statuses_match_what_the_code_reports():
     unadopted = {e.id for e in REGISTRY.elements if e.status != "ADOPTED"}
     # rust-selective is ADOPTED_ADMISSION_MECHANISM_ONLY: the bit-parity rule
     # is in force and verified, but no scientific path consumes the kernels.
-    assert unadopted == {"slsa-sigstore", "fenicsx", "fmi", "rust-selective"}
+    # containers is STAGED: ADOPTED requires "in use, exercised by CI or the
+    # workflow, and its behaviour is verified in this repository", and the
+    # image has never been built or run, so none of the three clauses holds.
+    assert unadopted == {"slsa-sigstore", "fenicsx", "fmi", "rust-selective",
+                         "containers"}
     assert REGISTRY.by_id("rust-selective").status == \
         "ADOPTED_ADMISSION_MECHANISM_ONLY"
 
@@ -734,6 +738,54 @@ def test_no_scientific_module_imports_the_rust_kernels():
     importers = [f for f in r.stdout.split() if f]
     assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
         f"unexpected qta_kernels importers: {importers}"
+
+
+def test_container_is_not_presented_as_runtime_verified():
+    """Same failure mode as Selective Rust, caught the same way.
+
+    "Reproducible container | ADOPTED" read as an image that CI builds and
+    runs, while no build has ever completed. ADOPTED is defined as "in use,
+    exercised by CI or the workflow, and its behaviour is verified in this
+    repository" -- the container satisfies none of those three clauses, so the
+    row was false by the repository's own vocabulary.
+    """
+    import json as _json
+    stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
+    c = next(e for e in stack["elements"] if e["id"] == "containers")
+    assert c["status"] == "STAGED", \
+        "ADOPTED reads as an image CI builds and runs; none has been built"
+    assert "never been built or run" in c["boundary"]
+    assert "certifies nothing" in c["boundary"]
+    md = (ROOT / "STACK.md").read_text(encoding="utf-8")
+    assert "| Reproducible container | **STAGED**" in md
+
+
+def test_container_open_items_state_the_real_blocker():
+    """The blocker is egress on layer blobs, not a missing daemon, and not an
+    unresolved digest. Both earlier claims were false and must not return."""
+    import json as _json
+    stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
+    c = next(e for e in stack["elements"] if e["id"] == "containers")
+    items = " ".join(c["open_items"])
+    assert "ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS" in items
+    assert "RUNTIME_BUILT=NO" in items
+    # The digest IS resolved and pinned; claiming otherwise is the stale bug.
+    assert "digest still UNRESOLVED" not in items
+    md = (ROOT / "STACK.md").read_text(encoding="utf-8")
+    assert "base-image digest still `UNRESOLVED`" not in md
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "@sha256:" in dockerfile, "the digest pin must actually be there"
+
+
+def test_container_doc_does_not_claim_a_missing_daemon():
+    """dockerd and containerd run here; only the blob egress is blocked."""
+    doc = (ROOT / "container_verification.md").read_text(encoding="utf-8")
+    assert "LOCAL_RUNTIME` | `AVAILABLE" in doc
+    assert "ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS" in doc
+    assert "production.cloudfront.docker.com" in doc
+    assert "RUNTIME_SCIENTIFICALLY_REPRODUCED` | `NO" in doc
+    # workflow_dispatch reachability must be stated, not assumed away.
+    assert "default branch" in doc
 
 
 def test_fenicsx_is_not_presented_as_certifying_anything():

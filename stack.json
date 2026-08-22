@@ -58,14 +58,15 @@
       "id": "containers",
       "name": "Reproducible container",
       "doc_key": "Reproducible container",
-      "status": "ADOPTED",
+      "status": "STAGED",
       "since_stage": "stage7",
       "authority": "Dockerfile + container_verify.sh",
       "owner_module": "Dockerfile",
-      "boundary": "deterministic environment (fixed locale, TZ, PYTHONHASHSEED, single-threaded BLAS); the Rust extension is not built into it",
+      "boundary": "STAGED: the container DEFINITION is complete and statically verified (digest-pinned base, lockfile-frozen install, non-root user, deterministic locale/TZ/PYTHONHASHSEED/single-threaded BLAS), but the image has never been built or run, so it certifies nothing and reproduces no result. Adoption requires behaviour verified in this repository; that evidence does not exist yet. The Rust extension is not built into it.",
       "verification": "bash container_verify.sh (inside the image)",
       "open_items": [
-        "base-image digest still UNRESOLVED \u2014 recorded as a known gap in container_verification.md, to be pinned at first pull"
+        "the image has never been built or run: LOCAL_BUILD is ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS (dockerd and containerd run, Engine 29.3.1, docker info succeeds, Docker Hub manifests resolve, but layer blobs on production.cloudfront.docker.com are denied 403 on CONNECT; the base image was not substituted)",
+        "RUNTIME_BUILT=NO and RUNTIME_SCIENTIFICALLY_REPRODUCED=NO; container-verify.yml exists to close this on a hosted runner but is workflow_dispatch-only and cannot be dispatched until it reaches the default branch"
       ]
     },
     {

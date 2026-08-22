@@ -50,7 +50,7 @@ tree was untouched.
 | Python scientific core (NumPy/SciPy/QuTiP) | ADOPTED | `qta_multiphysics/`, `qta_full_sim.py` | the numerical authority; everything else is additive to it |
 | Snakemake | ADOPTED | `Snakefile` | wraps authoritative commands; rewrites no solver |
 | uv | ADOPTED | `uv.lock` + `pyproject.toml` | Stage-10 packages are *extras*, so `uv sync --all-groups` stays lean |
-| Reproducible container | ADOPTED¹ | `Dockerfile`, `container_verify.sh` | fixed locale/TZ/hash seed/single-threaded BLAS |
+| Reproducible container | **STAGED**¹ | `Dockerfile`, `container_verify.sh` | definition complete and statically verified; **never built or run**, so it certifies nothing |
 | pytest + Hypothesis | ADOPTED | `tests/` | software verification only |
 | Ruff + mypy + Pydantic | ADOPTED | `pyproject.toml`, `stage7_boundary_models.py`, `stack/registry.py` | trusted-boundary validation; no competing vocabulary |
 | HDF5 | ADOPTED | `hdf5_schema.json`, `build_hdf5.py` | representation only; equivalence checked, not assumed |
@@ -205,7 +205,7 @@ enforces). Neither is a packaging detail.
 
 | Element | Open item |
 |---|---|
-| Container | base-image digest still `UNRESOLVED`; pin at first pull (`container_verification.md`) |
+| Container | base-image digest is **RESOLVED_AND_PINNED**; the open item is runtime, not the digest: `RUNTIME_BUILT=NO`, local build `ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS` (403 on CONNECT to `production.cloudfront.docker.com`; base image not substituted). `container-verify.yml` can close it on a hosted runner but is `workflow_dispatch`-only and needs to reach the default branch first (`container_verification.md`) |
 | SLSA / Sigstore | `stack-verify.yml` has run on a hosted runner (Actions run 32575190696, both legs green); `release.yml` has not, and no signed release exists; all actions are pinned by commit SHA per policy #3; **no SLSA level claimed** |
 | SALib | global vs. local ranking disagreement on the top parameter (§3) — open for human review |
 | Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference; NumPy stays in force |

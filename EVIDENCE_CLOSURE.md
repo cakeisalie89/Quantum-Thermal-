@@ -71,14 +71,28 @@ and none was done.
 
 ## 2. Container runtime
 
-**Status: `STATIC_VERIFIED`.** Three states are tracked separately and must not
-be collapsed into a boolean:
+**Status: `STATIC_VERIFIED`.** Six levels are tracked separately and must not
+be collapsed into a boolean. The same vocabulary appears in
+`container_verification.md`; these two documents, `STACK.md` and `stack.json`
+must agree.
 
-| state | meaning | current |
+| level | value | meaning |
 |---|---|---|
-| `STATIC_VERIFIED` | Dockerfile, dependency and security review only | **yes** |
-| `RUNTIME_BUILT` | the exact declared image built and launched | no |
-| `RUNTIME_SCIENTIFICALLY_REPRODUCED` | governed verification executed inside it and outputs compared | no |
+| `CONTAINER_DEFINITION` | `STATIC_VERIFIED` | Dockerfile, dependency and security review only |
+| `BASE_DIGEST` | `RESOLVED_AND_PINNED` | `sha256:519591d6…657bf7`, pinned in the Dockerfile |
+| `LOCAL_RUNTIME` | `AVAILABLE` | containerd + dockerd running, `docker info` succeeds |
+| `LOCAL_BUILD` | `ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS` | manifests resolve; layer blobs 403 on CONNECT |
+| `RUNTIME_BUILT` | `NO` | the exact declared image has never built or launched |
+| `RUNTIME_SCIENTIFICALLY_REPRODUCED` | `NO` | governed verification never executed inside it |
+
+**Adoption status corrected to `STAGED`.** `STACK.md` defines ADOPTED as "in use,
+exercised by CI or the workflow, and its behaviour is verified in this
+repository." The container satisfies **none** of those three clauses, so
+"Reproducible container | ADOPTED" was false by the repository's own vocabulary
+— the same failure mode already caught for Selective Rust, where bare ADOPTED
+read as an active backend. `stack.json`, `STACK.md`, the registry model and the
+Stage-10 tests now all carry `STAGED`, and ADOPTED was **not** redefined to keep
+the row green.
 
 Locally: **runtime available, build blocked by registry egress policy.**
 
