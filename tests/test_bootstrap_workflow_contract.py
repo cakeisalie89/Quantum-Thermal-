@@ -129,8 +129,11 @@ def test_release_still_fails_closed_on_pending_pins():
     assert "def wildcard_leaves" in rt
     assert "PENDING_MARKER in v.strip().upper()" in rt
     v = _text(os.path.join(ROOT, "verify_release.py"))
-    assert "enforce_resolved_policy" in v
+    # The gate moved into the EXTERNAL trust root: an unresolved policy is
+    # refused as a trust root before any signature is considered.
+    assert "load_trusted_policy" in v
     assert "require_resolved=True" in v
+    assert "externally supplied trust root" in v
 
 
 def test_release_is_still_tag_triggered_only():
@@ -158,7 +161,7 @@ def test_release_preserves_its_untrusted_bundle_when_verification_fails():
     """
     steps = _load(RELEASE)["jobs"]["verify-and-release"]["steps"]
     preserve = [s for s in steps
-                if "UNTRUSTED-RELEASE-IDENTITY-EVIDENCE"
+                if "FAILED-RELEASE-DIAGNOSTIC-EVIDENCE"
                 in str(s.get("with", {}).get("name", ""))]
     assert len(preserve) == 1, "expected exactly one untrusted-preservation step"
     step = preserve[0]
@@ -170,15 +173,18 @@ def test_release_preserves_its_untrusted_bundle_when_verification_fails():
     # It must come after the online verification step, or it preserves nothing.
     names = [str(s.get("name", "")) for s in steps]
     online = next(i for i, n in enumerate(names) if "online" in n.lower())
-    assert names.index("preserve UNTRUSTED bundle when verification fails") > online
+    assert names.index("preserve FAILED_RELEASE_DIAGNOSTIC_EVIDENCE") > online
 
 
 def test_release_preservation_confers_no_trust():
     """Preserving evidence must not become authorizing it."""
     t = _executable_text(RELEASE)
     # It may not write the trust policy, and it may not flip signing status.
-    assert "release_trust_policy" not in t.replace(
-        "verify_release.py", ""), "release job must not write the trust policy"
+    # The job may PASS the canonical policy as an explicit trust root; what it
+    # must not do is write one.
+    for writing in ("release_trust_policy.json <<", "> QTA_stage9",
+                    "tee QTA_stage9", "sed -i"):
+        assert writing not in t, f"release job must not write the policy: {writing}"
     for forbidden in ('signing_status": "SIGNED"', "signing_status=SIGNED",
                       "--certificate-identity-regexp"):
         assert forbidden not in t, forbidden

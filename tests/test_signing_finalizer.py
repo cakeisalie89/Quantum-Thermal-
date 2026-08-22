@@ -404,7 +404,10 @@ def test_the_record_shape_matches_verify_release_source():
     src = open(os.path.join(ROOT, "verify_release.py"), encoding="utf-8").read()
     assert 'entry["name"]' in src
     assert '_bundle_relative(bundle, str(entry["bundle"]))' in src
-    assert 'name or "").endswith(zip_path.name)' in src
+    # Subject matching is now EXACT, not a suffix test: routing metadata must
+    # not be able to point the verifier at a differently named subject.
+    assert "if name != zip_path.name:" in src
+    assert 'endswith(zip_path.name)' not in src
 
 
 # ---------------------------------------------------------------------------

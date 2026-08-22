@@ -231,11 +231,33 @@ def _bundle_claiming_signed(tmp_path, identity=None, issuer=None):
     return zp, bundle
 
 
-def _online(zp, bundle):
-    return subprocess.run(
-        [sys.executable, "verify_release.py", "--zip", str(zp),
-         "--bundle", str(bundle), "--online"],
-        cwd=str(ROOT), capture_output=True, text=True)
+def _online(zp, bundle, trusted=None):
+    """--online now requires an EXTERNAL trust root and fails closed without.
+
+    Repository CI passes the checked-out canonical policy explicitly; these
+    tests do the same so they exercise the stages beyond the root check.
+    """
+    args = [sys.executable, "verify_release.py", "--zip", str(zp),
+            "--bundle", str(bundle), "--online"]
+    if trusted is not False:
+        args += ["--trusted-policy",
+                 str(trusted or (ROOT /
+                     "QTA_stage9_release_verification" /
+                     "release_trust_policy.json"))]
+    return subprocess.run(args, cwd=str(ROOT), capture_output=True, text=True)
+
+
+def test_online_without_an_external_trust_root_fails_closed(tmp_path):
+    """The headline fix: a release may not supply its own trust root."""
+    zp = tmp_path / "QTA_source.zip"
+    bundle = tmp_path / "bundle"
+    subprocess.run(
+        [sys.executable, "build_release_artifacts.py", "--zip", str(zp),
+         "--make-zip", "--out", str(bundle)],
+        cwd=str(ROOT), capture_output=True, text=True, check=True)
+    r = _online(zp, bundle, trusted=False)
+    assert r.returncode == 1
+    assert "externally supplied trust root" in r.stdout
 
 
 def test_online_rejects_absent_signature(tmp_path):
@@ -247,7 +269,11 @@ def test_online_rejects_absent_signature(tmp_path):
         cwd=str(ROOT), capture_output=True, text=True, check=True)
     r = _online(zp, bundle)
     assert r.returncode == 1
-    assert "absence is never success" in r.stdout
+    # Phase 1 (trust root) now precedes everything, and this repository's
+    # canonical policy is deliberately unresolved, so the run is refused
+    # there. Absence-of-signature handling is covered by
+    # test_signing_finalizer's online-gate tests against a resolved policy.
+    assert "not authorized for a signed release" in r.stdout
 
 
 def test_online_rejects_pending_identity_pins_before_touching_signature(tmp_path):
@@ -255,6 +281,8 @@ def test_online_rejects_pending_identity_pins_before_touching_signature(tmp_path
     zp, bundle = _bundle_claiming_signed(tmp_path)
     r = _online(zp, bundle)
     assert r.returncode == 1
+    # The repository's canonical policy is deliberately still unresolved, so
+    # the trust root itself is refused before any signature is considered.
     assert "not authorized for a signed release" in r.stdout
     assert "unresolved values" in r.stdout
 
@@ -312,7 +340,8 @@ def test_online_reports_missing_tooling_as_a_blocker_not_success(tmp_path):
     problems = []
     vr._verify_sigstore(
         problems, zp, bundle, {},
-        [{"name": "QTA_source.zip", "bundle": "source.sigstore.json"}], prov)
+        [{"name": "QTA_source.zip", "bundle": "source.sigstore.json"}],
+        pol)
     joined = " ".join(problems)
     assert "absence of tooling is never success" in joined, problems
     assert problems, "missing tooling must be recorded as a failure"

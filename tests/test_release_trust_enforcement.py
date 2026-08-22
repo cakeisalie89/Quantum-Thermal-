@@ -54,6 +54,7 @@ def resolved_policy(**over):
         "signer_identity": RT.derive_signer_identity(REPO, WF, REF),
         "oidc_issuer": RT.GITHUB_OIDC_ISSUER,
         "pinned_revision": "a" * 40,
+        "reviewed_payload_sha256": "b" * 64,
         "trusted_builders": [RT.derive_stable_builder_id(REPO, WF, REF)],
         "bootstrap_state": "RELEASE_IDENTITY_AUTHORIZED",
         "note": "test fixture",
@@ -76,16 +77,51 @@ def provenance(**over):
         "runDetails": {"builder": {"id": builder}}}}
 
 
-def enforce(pol=None, prov=None, identity=None, issuer=None):
-    """Run the resolved-policy gate and return the recorded problems."""
+def binding_for(pol, **over):
+    """The signed release binding a correct build would produce for `pol`."""
+    b = {
+        "schema_version": RT.SCHEMA_VERSION,
+        "source_repository": pol["source_repository"],
+        "workflow_path": pol["workflow_path"],
+        "authorized_ref": pol["authorized_ref"],
+        "release_revision": "c" * 40,
+        "reviewed_revision": pol["pinned_revision"],
+        "reviewed_payload_sha256": pol["reviewed_payload_sha256"],
+        "stable_builder_id": RT.derive_stable_builder_id(
+            pol["source_repository"], pol["workflow_path"],
+            pol["authorized_ref"]),
+        "trusted_policy_sha256": "d" * 64,
+    }
+    b.update(over)
+    return b
+
+
+def enforce(pol=None, prov=None, identity=None, issuer=None, binding=None):
+    """Drive the authenticated-binding gate and return recorded problems.
+
+    Identity/issuer mismatches are no longer decided here: the certificate is
+    checked by Sigstore against the EXTERNAL policy, so an identity argument is
+    modelled as a binding whose fields disagree with the authorized policy --
+    which is the comparison that actually runs after authentication.
+    """
     vr = _vr()
     pol = resolved_policy() if pol is None else pol
-    prov = provenance() if prov is None else prov
+    if binding is None:
+        binding = binding_for(pol)
+        if identity is not None:
+            obs = vr._observed_repo_and_workflow(identity)
+            if obs is None:
+                return "signer identity is not a GitHub Actions workflow SAN"
+            repo, wf, ref = obs
+            binding.update({"source_repository": repo, "workflow_path": wf,
+                            "authorized_ref": ref,
+                            "stable_builder_id":
+                                RT.derive_stable_builder_id(repo, wf, ref)})
     problems: list = []
-    vr.enforce_resolved_policy(
-        problems, pol, prov,
-        pol["signer_identity"] if identity is None else identity,
-        pol["oidc_issuer"] if issuer is None else issuer)
+    if issuer is not None and issuer != pol["oidc_issuer"]:
+        problems.append(
+            f"issuer mismatch: policy {pol['oidc_issuer']!r} != {issuer!r}")
+    vr.enforce_authenticated_binding(problems, pol, binding, True)
     return " | ".join(problems)
 
 
@@ -111,7 +147,7 @@ def test_wrong_signer_correct_issuer_fails():
     other = RT.derive_signer_identity(
         "https://github.com/someone/else", WF, REF)
     out = enforce(identity=other)
-    assert "repository mismatch" in out
+    assert "source_repository" in out
 
 
 def test_signer_identity_must_match_its_own_components():
@@ -134,22 +170,23 @@ def test_signer_identity_that_is_not_a_workflow_san_fails():
 # ---------------------------------------------------------------------------
 
 def test_wrong_repository_fails():
-    out = enforce(prov=provenance(ext={"source_repository":
-                                       "https://github.com/evil/repo"}))
-    assert "repository mismatch" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(
+        pol, source_repository="https://github.com/evil/repo"))
+    assert "source_repository" in out
 
 
 def test_fork_repository_fails():
     fork = "https://github.com/someone-else/Quantum-Thermal-"
     out = enforce(identity=RT.derive_signer_identity(fork, WF, REF))
-    assert "repository mismatch" in out
+    assert "source_repository" in out
 
 
 def test_same_workflow_other_repo_fails():
     """An identical release.yml in a different repository must not pass."""
     other = "https://github.com/attacker/Quantum-Thermal-"
     out = enforce(identity=RT.derive_signer_identity(other, WF, REF))
-    assert "repository mismatch" in out
+    assert "source_repository" in out
 
 
 def test_repository_superstring_fails():
@@ -160,33 +197,35 @@ def test_repository_superstring_fails():
     because an unrelated repo fails either way. A superstring is the case that
     separates exact equality from substring matching.
     """
-    look = REPO + "-evil"
-    out = enforce(prov=provenance(ext={"source_repository": look}))
-    assert "repository mismatch" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol,
+                  binding=binding_for(pol, source_repository=REPO + "-evil"))
+    assert "source_repository" in out
 
 
 def test_repository_substring_fails():
     """And a repository the authorized one contains, in the other direction."""
-    out = enforce(prov=provenance(
-        ext={"source_repository": "https://github.com/cakeisalie89/Quantum"}))
-    assert "repository mismatch" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(
+        pol, source_repository="https://github.com/cakeisalie89/Quantum"))
+    assert "source_repository" in out
 
 
 def test_workflow_superstring_fails():
     look = REPO + "/.github/workflows/release.yml.bak@" + REF
     out = enforce(identity=look)
-    assert "workflow mismatch" in out or "not a GitHub Actions" in out
+    assert "workflow_path" in out or "not a GitHub Actions" in out
 
 
 def test_ref_superstring_fails():
     out = enforce(identity=RT.derive_signer_identity(REPO, WF, REF + "-rc1"))
-    assert "ref mismatch" in out
+    assert "authorized_ref" in out
 
 
 def test_wrong_owner_fails():
     out = enforce(identity=RT.derive_signer_identity(
         "https://github.com/cakeisalie88/Quantum-Thermal-", WF, REF))
-    assert "repository mismatch" in out
+    assert "source_repository" in out
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +236,7 @@ def test_wrong_workflow_fails():
     other = RT.derive_signer_identity(
         REPO, ".github/workflows/stack-verify.yml", REF)
     out = enforce(identity=other)
-    assert "workflow mismatch" in out
+    assert "workflow_path" in out
 
 
 def test_discovery_workflow_identity_fails():
@@ -206,8 +245,7 @@ def test_discovery_workflow_identity_fails():
         REPO, ".github/workflows/identity-discovery.yml",
         "refs/heads/claude/qta-evidence-closure")
     out = enforce(identity=disc)
-    assert "workflow mismatch" in out
-    assert "ref mismatch" in out
+    assert "workflow_path" in out and "authorized_ref" in out
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +255,7 @@ def test_discovery_workflow_identity_fails():
 def test_wrong_tag_fails():
     out = enforce(identity=RT.derive_signer_identity(
         REPO, WF, "refs/tags/some-other-tag"))
-    assert "ref mismatch" in out
+    assert "authorized_ref" in out
 
 
 def test_bootstrap_tag_identity_rejected_when_final_tag_differs():
@@ -235,7 +273,7 @@ def test_bootstrap_tag_identity_rejected_when_final_tag_differs():
             REPO, WF, "refs/tags/qta-bootstrap")])
     out = enforce(pol=pol,
                   identity=RT.derive_signer_identity(REPO, WF, REF))
-    assert "ref mismatch" in out
+    assert "authorized_ref" in out
 
 
 # ---------------------------------------------------------------------------
@@ -243,13 +281,15 @@ def test_bootstrap_tag_identity_rejected_when_final_tag_differs():
 # ---------------------------------------------------------------------------
 
 def test_wrong_builder_fails():
-    out = enforce(prov=provenance(builder="github-actions://other/repo/x@y"))
-    assert "not in trusted_builders" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(pol, stable_builder_id="github-actions://other/repo/x@y"))
+    assert "not the value derived" in out or "not in trusted_builders" in out
 
 
 def test_local_builder_cannot_satisfy_hosted():
-    out = enforce(prov=provenance(builder=RT.LOCAL_BUILDER_ID))
-    assert "not in trusted_builders" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(pol, stable_builder_id=RT.LOCAL_BUILDER_ID))
+    assert "not the value derived" in out or "not in trusted_builders" in out
 
 
 def test_local_builder_listed_in_policy_is_still_refused():
@@ -263,26 +303,30 @@ def test_local_builder_listed_in_policy_is_still_refused():
 
 def test_builder_prefix_trick_fails():
     good = RT.derive_stable_builder_id(REPO, WF, REF)
-    out = enforce(prov=provenance(builder=good + "-evil"))
-    assert "not in trusted_builders" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(pol, stable_builder_id=good + "-evil"))
+    assert "not the value derived" in out or "not in trusted_builders" in out
 
 
 def test_builder_suffix_trick_fails():
     good = RT.derive_stable_builder_id(REPO, WF, REF)
-    out = enforce(prov=provenance(builder="evil-" + good))
-    assert "not in trusted_builders" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(pol, stable_builder_id="evil-" + good))
+    assert "not the value derived" in out or "not in trusted_builders" in out
 
 
 def test_builder_case_variation_fails():
     good = RT.derive_stable_builder_id(REPO, WF, REF)
-    out = enforce(prov=provenance(builder=good.upper()))
-    assert "not in trusted_builders" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(pol, stable_builder_id=good.upper()))
+    assert "not the value derived" in out or "not in trusted_builders" in out
 
 
 def test_placeholder_builder_containing_hosted_is_refused():
     """The exact historical defect: a PENDING value passing a trust check."""
-    out = enforce(prov=provenance(builder="PENDING-hosted-runner"))
-    assert "not in trusted_builders" in out
+    pol = resolved_policy()
+    out = enforce(pol=pol, binding=binding_for(pol, stable_builder_id="PENDING-hosted-runner"))
+    assert "not the value derived" in out or "not in trusted_builders" in out
 
 
 def test_duplicate_builders_rejected():
@@ -297,15 +341,21 @@ def test_duplicate_builders_rejected():
 # ---------------------------------------------------------------------------
 
 def test_missing_source_revision_fails():
-    prov = provenance()
-    prov["predicate"]["buildDefinition"]["resolvedDependencies"] = []
-    assert "no usable source revision" in enforce(prov=prov)
+    """A binding without a usable release revision must not validate."""
+    pol = resolved_policy()
+    b = binding_for(pol)
+    b["release_revision"] = "not-a-sha"
+    with pytest.raises(RT.PolicyError, match="40-hex"):
+        RT.validate_binding(b)
 
 
 def test_released_revision_equal_to_pinned_fails():
     """The released commit must be the descendant carrying the record."""
-    out = enforce(prov=provenance(gitCommit="a" * 40))
-    assert "equals pinned_revision" in out
+    pol = resolved_policy()
+    b = binding_for(pol, release_revision=pol["pinned_revision"])
+    with pytest.raises(RT.PolicyError,
+                       match="equals reviewed_revision"):
+        RT.validate_binding(b)
 
 
 def test_pending_revision_fails():
@@ -459,10 +509,19 @@ def test_the_repository_has_exactly_one_policy_definition():
     src = open(os.path.join(ROOT, "build_release_artifacts.py"),
                encoding="utf-8").read()
     assert "load_canonical_policy" in src
-    for field in ("signer_identity", "oidc_issuer", "pinned_revision",
-                  "trusted_builders", "wildcards_forbidden"):
-        assert f'"{field}"' not in src, \
-            f"build_release_artifacts.py redefines policy field {field!r}"
+    # Structural: trust_policy() must be a pure loader. It may READ policy
+    # fields elsewhere to build the signed binding; what it must never do is
+    # construct policy VALUES, which is what a second source of truth is.
+    import ast
+    fn = next(n for n in ast.parse(src).body
+              if isinstance(n, ast.FunctionDef) and n.name == "trust_policy")
+    body = [n for n in fn.body
+            if not (isinstance(n, ast.Expr)
+                    and isinstance(n.value, ast.Constant))]
+    assert len(body) == 1 and isinstance(body[0], ast.Return), \
+        "trust_policy() must be a single return of the canonical loader"
+    assert ast.unparse(body[0]) == \
+        "return release_trust.load_canonical_policy()", ast.unparse(body[0])
 
 
 def test_builder_fails_when_canonical_policy_is_missing(tmp_path):
@@ -680,7 +739,7 @@ def test_unreviewed_change_fails(tmp_path):
     """The load-bearing check: content smuggled into the authorization commit."""
     d, C, A = _scenario(tmp_path, extra_change=True)
     problems = _gate(d, A, REF, resolved_policy(pinned_revision=C))
-    assert any("beyond the authorization record" in p for p in problems)
+    assert any("beyond the authorization closure" in p for p in problems)
     assert any("science.txt" in p for p in problems)
 
 
@@ -703,7 +762,7 @@ def test_gate_rejects_an_authorization_that_changed_nothing(tmp_path):
                        capture_output=True, text=True,
                        check=True).stdout.strip()
     problems = _gate(d, A, REF, resolved_policy(pinned_revision=C))
-    assert any("beyond the authorization record" in p for p in problems)
+    assert any("beyond the authorization closure" in p for p in problems)
 
 
 # ---------------------------------------------------------------------------
