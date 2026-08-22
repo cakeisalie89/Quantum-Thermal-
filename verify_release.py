@@ -27,8 +27,14 @@ policies shipped with a release are CANDIDATES checked against the root.
 PHASES, and no arrow points backward:
 
     1 trust root     external policy -> expected identity and issuer
-    2 candidate      parse untrusted bundle/archive; classified refusals only,
-                     never a traceback. NOTHING here has authority yet
+    2 candidate      parse untrusted bundle/archive. Every malformation the
+                     adversarial suite exercises -- absent, unreadable or
+                     non-archive zip paths, corrupt or ambiguous archives,
+                     unparseable, wrongly typed, incomplete, duplicated or
+                     oversized metadata records, and decompression bombs --
+                     yields a NAMED refusal rather than a traceback. That is a
+                     claim about the reproduced surface, not a proof of
+                     totality. NOTHING here has authority yet
     3 authenticate   Sigstore verifies the zip against the EXTERNAL identity
     4 authenticated  zip policy == root; bundle policy == root; read the
                      signed release_binding.json; recompute the payload digest
@@ -48,9 +54,11 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import sys
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 import release_trust
@@ -217,8 +225,14 @@ def _observed_repo_and_workflow(identity: str):
 # attacker-controlled until phase 3 authenticates them. Direct reads therefore
 # fail closed only accidentally, through a Python traceback: exit non-zero, but
 # with no classification, no remaining diagnostics, and no way for a caller to
-# tell a hostile artifact from a broken tool. Each expected malformation is
-# now a named refusal.
+# tell a hostile artifact from a broken tool. A crash is not a decision.
+#
+# Each code below is a DECISION the verifier reached about a specific input.
+# tests/test_hostile_input_no_traceback.py drives the real entry point with
+# every shape that was reproduced as an uncaught exception and asserts a named
+# code comes back; tests/test_candidate_structure.py pins each validator.
+# Deleting any one guard is caught by the test that names its property --
+# verified by mutation, not by inspection.
 
 CANDIDATE_FAILURES = (
     "MISSING_RELEASE_INDEX",
@@ -229,10 +243,23 @@ CANDIDATE_FAILURES = (
     "INVALID_SBOM",
     "MISSING_PROVENANCE",
     "INVALID_PROVENANCE",
+    "MISSING_RELEASE_ZIP",
+    "UNREADABLE_RELEASE_ZIP",
+    "INVALID_RELEASE_ZIP",
     "EMPTY_ZIP",
     "INVALID_ZIP_STRUCTURE",
     "MISSING_REQUIRED_ZIP_MEMBER",
+    "MISSING_TRUST_POLICY",
 )
+
+# Structural resource bounds. These are NOT scientific thresholds and no
+# scientific result depends on them; they exist so that resource exhaustion on
+# hostile input is a classified refusal rather than a MemoryError or a
+# RecursionError. Both are set far above any plausible legitimate release --
+# the bundle's metadata files are kilobytes and the source archive is a few
+# megabytes -- so a healthy release can never reach them.
+MAX_METADATA_BYTES = 64 * 1024 * 1024
+MAX_DECLARED_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
 
 #: Members every release archive must carry exactly once, relative to the root.
 REQUIRED_ZIP_MEMBERS = (
@@ -242,10 +269,212 @@ REQUIRED_ZIP_MEMBERS = (
 )
 
 
+# --------------------------------------------------------------------------
+# Shape validation for UNTRUSTED nested structures.
+#
+# Type-checking only the outer container ("files is a list") and then reading
+# `e["name"]` inside a later comprehension makes that comprehension the first
+# place a malformed record is discovered -- and a comprehension has no
+# vocabulary for refusal, only KeyError and TypeError. These helpers state the
+# record shape up front so every consumer downstream reads values that are
+# already known to exist and to be of the right type.
+
+
+def _is_text(v) -> bool:
+    """A usable name: a non-empty string that is not just whitespace."""
+    return isinstance(v, str) and bool(v.strip())
+
+
+def _is_sha256(v) -> bool:
+    return isinstance(v, str) and re.fullmatch(r"[0-9a-f]{64}", v) is not None
+
+
+def _is_size(v) -> bool:
+    # bool is an int subclass; a size of True is a malformed record, not a 1.
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def _records(problems, seq, where: str, code: str, fields: dict):
+    """Validate a list of records against {field: predicate}.
+
+    Returns the list of records, or None. `fields` maps a dotted path
+    ("digest.sha256") to a predicate and a human description.
+    """
+    out = []
+    for i, rec in enumerate(seq):
+        if not isinstance(rec, dict):
+            fail_list(problems,
+                      f"{code}: {where}[{i}] is {type(rec).__name__}, "
+                      "not an object")
+            return None
+        for path, (pred, desc) in fields.items():
+            cur = rec
+            for k in path.split("."):
+                if not isinstance(cur, dict) or k not in cur:
+                    fail_list(problems,
+                              f"{code}: {where}[{i}] has no {path!r}")
+                    return None
+                cur = cur[k]
+            if not pred(cur):
+                fail_list(problems,
+                          f"{code}: {where}[{i}].{path} is not {desc} "
+                          f"({type(cur).__name__})")
+                return None
+        out.append(rec)
+    return out
+
+
+def _unique(problems, pairs, where: str, code: str):
+    """Reject duplicate keys before a set comprehension silently absorbs them.
+
+    A set built from records collapses duplicates, so a list carrying the same
+    name twice with two different digests would compare equal to a set that
+    never contained the contradiction. That must be a refusal.
+    """
+    seen: set = set()
+    for name, _ in pairs:
+        if name in seen:
+            fail_list(problems, f"{code}: {where} lists {name!r} twice")
+            return None
+        seen.add(name)
+    return frozenset(pairs)
+
+
+@dataclass(frozen=True)
+class CandidateBundle:
+    """Untrusted bundle metadata that has passed structural validation.
+
+    Construction is the ONLY way the rest of the verifier obtains these
+    values, and construction validates. The derived collections below are
+    built during validation rather than at the point of use, so no later
+    expression can be the first place a malformed record is discovered --
+    there is no later expression that indexes a raw record at all.
+
+    Validated does not mean trusted. Every field here is still
+    attacker-controlled; phase 3 decides authenticity. This object only
+    guarantees that a refusal, not a traceback, is what a hostile shape
+    produces.
+    """
+    index: dict
+    sums: dict
+    sbom: dict
+    provenance: dict
+    artifact_name: str
+    artifact_size: int
+    artifact_sha256: str
+    index_files: frozenset      # {(name, sha256)}
+    sbom_packages: frozenset    # {(name, version)}
+    subjects: frozenset         # {(name, sha256)}
+
+    @property
+    def sums_set(self) -> frozenset:
+        return frozenset(self.sums.items())
+
+
+def _validate_index(problems, idx: dict):
+    """Full shape of release_index.json. Returns derived values, or None."""
+    code = "INVALID_RELEASE_INDEX"
+    for key, typ in (("release_artifact", dict), ("files", list),
+                     ("claims", dict), ("provenance", dict)):
+        if key not in idx or not isinstance(idx[key], typ):
+            fail_list(problems,
+                      f"{code}: {key!r} missing or not {typ.__name__}")
+            return None
+
+    art = idx["release_artifact"]
+    for field, pred, desc in (("name", _is_text, "a non-empty string"),
+                              ("sha256", _is_sha256, "64 lowercase hex"),
+                              ("size", _is_size, "a non-negative integer")):
+        if field not in art:
+            fail_list(problems, f"{code}: release_artifact has no {field!r}")
+            return None
+        if not pred(art[field]):
+            fail_list(problems,
+                      f"{code}: release_artifact.{field} is not {desc} "
+                      f"({type(art[field]).__name__})")
+            return None
+
+    files = _records(problems, idx["files"], "files", code,
+                     {"name": (_is_text, "a non-empty string"),
+                      "sha256": (_is_sha256, "64 lowercase hex")})
+    if files is None:
+        return None
+    pairs = _unique(problems, [(f["name"], f["sha256"]) for f in files],
+                    "files", code)
+    if pairs is None:
+        return None
+
+    lvl = idx["provenance"].get("slsa_level_claimed")
+    if lvl is not None and not isinstance(lvl, str):
+        fail_list(problems,
+                  f"{code}: provenance.slsa_level_claimed is "
+                  f"{type(lvl).__name__}, not a string")
+        return None
+
+    # Written by the post-sign finalizer; still untrusted, still typed.
+    sig = idx.get("signature_bundles", [])
+    if not isinstance(sig, list):
+        fail_list(problems,
+                  f"{code}: 'signature_bundles' is "
+                  f"{type(sig).__name__}, not a list")
+        return None
+    return art["name"], art["size"], art["sha256"], pairs
+
+
+def _validate_sbom(problems, sbom: dict):
+    code = "INVALID_SBOM"
+    if not isinstance(sbom.get("components"), list):
+        fail_list(problems, f"{code}: components is missing or not a list")
+        return None
+    comps = _records(problems, sbom["components"], "components", code,
+                     {"name": (_is_text, "a non-empty string"),
+                      "version": (_is_text, "a non-empty string")})
+    if comps is None:
+        return None
+    # Duplicate (name, version) pairs are legitimate in a component list; only
+    # the pair set is compared against uv.lock, so uniqueness is not required.
+    return frozenset((c["name"], c["version"]) for c in comps)
+
+
+def _validate_provenance(problems, prov: dict):
+    code = "INVALID_PROVENANCE"
+    if not isinstance(prov.get("subject"), list) or \
+            not isinstance(prov.get("predicate"), dict):
+        fail_list(problems,
+                  f"{code}: subject/predicate missing or wrong type")
+        return None
+    subs = _records(problems, prov["subject"], "subject", code,
+                    {"name": (_is_text, "a non-empty string"),
+                     "digest": (lambda v: isinstance(v, dict), "an object"),
+                     "digest.sha256": (_is_sha256, "64 lowercase hex")})
+    if subs is None:
+        return None
+    lvl = prov["predicate"].get("slsa_level_claimed")
+    if lvl is not None and not isinstance(lvl, str):
+        fail_list(problems,
+                  f"{code}: predicate.slsa_level_claimed is "
+                  f"{type(lvl).__name__}, not a string")
+        return None
+    return _unique(problems,
+                   [(s["name"], s["digest"]["sha256"]) for s in subs],
+                   "subject", code)
+
+
 def _load_json_member(problems, path: Path, missing: str, invalid: str):
     """Read one candidate JSON file, classifying both failure modes."""
     if not path.exists():
         fail_list(problems, f"{missing}: {path}")
+        return None
+    try:
+        size = path.stat().st_size
+    except OSError as e:
+        fail_list(problems, f"{missing}: {path} unreadable: {e}")
+        return None
+    if size > MAX_METADATA_BYTES:
+        fail_list(problems,
+                  f"{invalid}: {path} is {size} bytes, above the "
+                  f"{MAX_METADATA_BYTES}-byte structural bound for release "
+                  "metadata")
         return None
     try:
         raw = path.read_bytes()
@@ -257,8 +486,13 @@ def _load_json_member(problems, path: Path, missing: str, invalid: str):
         return None
     try:
         doc = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as e:
-        fail_list(problems, f"{invalid}: {path}: {e}")
+    # RecursionError is not a ValueError. A document nested tens of thousands
+    # of levels deep -- trivially cheap to author -- crashed the decoder and
+    # escaped this handler entirely, producing exactly the traceback this
+    # function exists to prevent.
+    except (UnicodeDecodeError, ValueError, RecursionError) as e:
+        fail_list(problems, f"{invalid}: {path}: {type(e).__name__}: "
+                            f"{str(e)[:120]}")
         return None
     if not isinstance(doc, dict):
         fail_list(problems,
@@ -275,6 +509,11 @@ def parse_sha256sums(problems, path: Path):
         return None
     sums: dict = {}
     try:
+        if path.stat().st_size > MAX_METADATA_BYTES:
+            fail_list(problems,
+                      f"INVALID_SHA256SUMS: {path} exceeds the "
+                      f"{MAX_METADATA_BYTES}-byte structural bound")
+            return None
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
         fail_list(problems, f"INVALID_SHA256SUMS: {path} unreadable: {e}")
@@ -383,38 +622,125 @@ def validate_zip_structure(problems, names: list):
 
 
 def parse_candidate_bundle(problems, bundle: Path):
-    """Read the untrusted bundle's metadata. Returns a dict, or None."""
+    """Read and validate the untrusted bundle. Returns a CandidateBundle.
+
+    Every structure the verifier later reads is validated HERE, including the
+    nested records. Returning the typed object rather than a bare dict is what
+    makes that ordering structural: there is no accessor that yields an
+    unvalidated record.
+    """
     idx = _load_json_member(problems, bundle / "release_index.json",
                             "MISSING_RELEASE_INDEX", "INVALID_RELEASE_INDEX")
     if idx is None:
         return None
-    for key, typ in (("release_artifact", dict), ("files", list),
-                     ("claims", dict)):
-        if key not in idx or not isinstance(idx[key], typ):
-            fail_list(problems,
-                      f"INVALID_RELEASE_INDEX: {key!r} missing or not "
-                      f"{typ.__name__}")
-            return None
+    got = _validate_index(problems, idx)
+    if got is None:
+        return None
+    art_name, art_size, art_sha, idx_files = got
+
     sums = parse_sha256sums(problems, bundle / "SHA256SUMS")
     if sums is None:
         return None
+
     sbom = _load_json_member(problems, bundle / "sbom.cdx.json",
                              "MISSING_SBOM", "INVALID_SBOM")
     if sbom is None:
         return None
-    if not isinstance(sbom.get("components"), list):
-        fail_list(problems, "INVALID_SBOM: components is missing or not a list")
+    sbom_pkgs = _validate_sbom(problems, sbom)
+    if sbom_pkgs is None:
         return None
+
     prov = _load_json_member(problems, bundle / "provenance.intoto.json",
                              "MISSING_PROVENANCE", "INVALID_PROVENANCE")
     if prov is None:
         return None
-    if not isinstance(prov.get("subject"), list) or \
-            not isinstance(prov.get("predicate"), dict):
-        fail_list(problems,
-                  "INVALID_PROVENANCE: subject/predicate missing or wrong type")
+    subjects = _validate_provenance(problems, prov)
+    if subjects is None:
         return None
-    return {"index": idx, "sums": sums, "sbom": sbom, "provenance": prov}
+
+    # The bundled trust policy is read unconditionally later (schema check and
+    # metadata scan). Its absence is a classified refusal, not a stray
+    # FileNotFoundError from inside a generator expression.
+    if not (bundle / "release_trust_policy.json").exists():
+        fail_list(problems,
+                  "MISSING_TRUST_POLICY: the bundle carries no "
+                  "release_trust_policy.json")
+        return None
+
+    return CandidateBundle(
+        index=idx, sums=sums, sbom=sbom, provenance=prov,
+        artifact_name=art_name, artifact_size=art_size,
+        artifact_sha256=art_sha, index_files=idx_files,
+        sbom_packages=sbom_pkgs, subjects=subjects)
+
+
+def read_release_zip(problems, zip_path: Path):
+    """Classify the release archive PATH before any byte of it is read.
+
+    A missing, unreadable or non-archive file is an ordinary hostile input --
+    a consumer verifying an interrupted download hits it routinely -- so it
+    gets a named refusal like every other malformation. Previously the first
+    contact with the path was a bare ``zip_path.read_bytes()``, and a missing
+    file produced a FileNotFoundError traceback: non-zero exit, but no
+    classification, and indistinguishable from a broken verifier.
+    """
+    if not zip_path.exists():
+        # exists() follows symlinks, so a broken or looping link also lands
+        # here. That is not the same fact as "no such path", and reporting it
+        # as MISSING would misdescribe the artifact a consumer actually holds.
+        if os.path.lexists(zip_path):
+            fail_list(problems,
+                      f"UNREADABLE_RELEASE_ZIP: {zip_path} exists but does "
+                      "not resolve to a readable file")
+        else:
+            fail_list(problems, f"MISSING_RELEASE_ZIP: {zip_path}")
+        return None
+    if not zip_path.is_file():
+        fail_list(problems,
+                  f"UNREADABLE_RELEASE_ZIP: {zip_path} is not a regular file")
+        return None
+    try:
+        return zip_path.read_bytes()
+    except OSError as e:
+        fail_list(problems,
+                  f"UNREADABLE_RELEASE_ZIP: {zip_path}: "
+                  f"{type(e).__name__}: {e.strerror or e}")
+        return None
+
+
+def open_release_zip(problems, zb: bytes):
+    """Open the archive from bytes, classifying corruption.
+
+    Returns ``(zf, names)``, or ``(None, None)``.
+
+    ``testzip`` is run here so a CRC failure is refused before any member is
+    consumed, rather than surfacing halfway through digest checking.
+    """
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(zb))
+        names = zf.namelist()
+        # The central directory declares uncompressed sizes, so a
+        # decompression bomb is refused before a single member is expanded.
+        declared = sum(max(i.file_size, 0) for i in zf.infolist())
+        if declared > MAX_DECLARED_UNCOMPRESSED_BYTES:
+            fail_list(problems,
+                      f"INVALID_RELEASE_ZIP: declares {declared} "
+                      f"uncompressed bytes, above the "
+                      f"{MAX_DECLARED_UNCOMPRESSED_BYTES}-byte structural "
+                      "bound")
+            return None, None
+        bad = zf.testzip()
+        if bad is not None:
+            fail_list(problems,
+                      f"INVALID_RELEASE_ZIP: CRC failure at member {bad!r}")
+            return None, None
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError,
+            ValueError, RuntimeError, EOFError) as e:
+        fail_list(problems,
+                  f"INVALID_RELEASE_ZIP: not a readable archive: "
+                  f"{type(e).__name__}")
+        return None, None
+    return zf, names
 
 
 def load_trusted_policy(problems, trusted_policy, trusted_sha256,
@@ -740,6 +1066,33 @@ def check_auxiliary_provenance(problems, pol: dict, binding: dict,
            "(cross-check only; provenance is not authenticated)")
 
 
+def decode_member(problems, zf, name: str):
+    """Read one archive member as UTF-8 text, classifying both failures.
+
+    Silently substituting replacement characters would be worse than the
+    traceback it replaces: the gate table is where the PASS count is
+    RECOMPUTED, so a member that cannot be decoded must never be counted. Zero
+    PASS rows found in undecodable bytes is not evidence of zero PASS rows --
+    it is absence of evidence, and reporting it as "PASS count = 0" would be a
+    claim the verifier cannot support.
+    """
+    try:
+        raw = zf.read(name)
+    except (KeyError, OSError, zipfile.BadZipFile, RuntimeError,
+            EOFError, ValueError) as e:
+        fail_list(problems,
+                  f"INVALID_RELEASE_ZIP: cannot read {name!r}: "
+                  f"{type(e).__name__}")
+        return None
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        fail_list(problems,
+                  f"INVALID_RELEASE_ZIP: {name!r} is not valid UTF-8 "
+                  f"(byte {e.start}); its content cannot be established")
+        return None
+
+
 def verify(zip_path: Path, bundle: Path, online: bool,
            trusted_policy=None, trusted_sha256=None) -> int:
     problems: list = []
@@ -773,28 +1126,28 @@ def verify(zip_path: Path, bundle: Path, online: bool,
         print("note: a signature proves origin and integrity only; "
               "never physics or hardware validation")
         return 1
-    idx = candidate["index"]
-    sums = candidate["sums"]
-    zb = zip_path.read_bytes()
+    idx = candidate.index
+    sums = candidate.sums
+
+    zb = read_release_zip(problems, zip_path)
+    if zb is None:
+        print(f"\nRESULT: {len(problems)} FAILURES")
+        print("note: a signature proves origin and integrity only; "
+              "never physics or hardware validation")
+        return 1
     zh = sha_bytes(zb)
-    if idx["release_artifact"]["name"] != zip_path.name or \
-            idx["release_artifact"]["sha256"] != zh or \
-            idx["release_artifact"]["size"] != len(zb):
+    if candidate.artifact_name != zip_path.name or \
+            candidate.artifact_sha256 != zh or \
+            candidate.artifact_size != len(zb):
         fail_list(problems, "release zip name/size/digest mismatch vs "
                              "release_index")
     else:
         ok(f"release zip digest matches index ({zh[:16]}...)")
     if sums.get(zip_path.name) != zh:
         fail_list(problems, "release zip digest mismatch vs SHA256SUMS")
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(zb))
-        names = zf.namelist()
-        bad = zf.testzip()
-        if bad is not None:
-            raise zipfile.BadZipFile(f"CRC failure at {bad}")
-    except Exception as e:                      # corrupt structure
-        fail_list(problems, f"release zip unreadable/corrupted: "
-                             f"{type(e).__name__}")
+
+    zf, names = open_release_zip(problems, zb)
+    if zf is None:
         print(f"\nRESULT: {len(problems)} FAILURES")
         print("note: a signature proves origin and integrity only; "
               "never physics or hardware validation")
@@ -826,27 +1179,36 @@ def verify(zip_path: Path, bundle: Path, online: bool,
             fail_list(problems, f"digest mismatch inside zip: {name}")
     if not problems:
         ok(f"all {len(sums) - 1} SHA256SUMS entries verified inside zip")
-    idx_files = {(e["name"], e["sha256"]) for e in idx["files"]}
-    sums_set = {(n, h) for n, h in sums.items()}
+    # These collections were built during validation, not here: a set
+    # comprehension over raw records has no way to refuse a malformed one.
+    idx_files = candidate.index_files
+    sums_set = candidate.sums_set
     if idx_files != sums_set:
         fail_list(problems, "release_index files != SHA256SUMS set")
-    sbom = candidate["sbom"]
-    lock_txt = zf.read(f"{root}/uv.lock").decode()
-    lock_pkgs = set(re.findall(
-        r'name = "([^"]+)"\nversion = "([^"]+)"', lock_txt))
-    sbom_pkgs = {(c["name"], c["version"]) for c in sbom["components"]}
-    if lock_pkgs != sbom_pkgs:
-        fail_list(problems, "SBOM/uv.lock drift: only-in-lock "
-                             f"{sorted(lock_pkgs - sbom_pkgs)[:2]} "
-                             "only-in-sbom "
-                             f"{sorted(sbom_pkgs - lock_pkgs)[:2]}")
+    lock_txt = decode_member(problems, zf, f"{root}/uv.lock")
+    sbom_pkgs = candidate.sbom_packages
+    if lock_txt is None:
+        # A comparison that could not run is not a comparison that passed.
+        # Every branch below must be reachable only when lock_txt exists,
+        # including -- especially -- the success branch.
+        fail_list(problems,
+                  "SBOM cannot be checked against uv.lock: the archived lock "
+                  "file is unreadable")
     else:
-        ok(f"SBOM matches uv.lock ({len(sbom_pkgs)} packages)")
+        lock_pkgs = set(re.findall(
+            r'name = "([^"]+)"\nversion = "([^"]+)"', lock_txt))
+        if lock_pkgs != sbom_pkgs:
+            fail_list(problems, "SBOM/uv.lock drift: only-in-lock "
+                                f"{sorted(lock_pkgs - sbom_pkgs)[:2]} "
+                                "only-in-sbom "
+                                f"{sorted(sbom_pkgs - lock_pkgs)[:2]}")
+        else:
+            ok(f"SBOM matches uv.lock ({len(sbom_pkgs)} packages)")
     for n, v in SCI_PINS.items():
         if (n, v) not in sbom_pkgs:
             fail_list(problems, f"scientific pin drift: {n}!={v}")
-    prov = candidate["provenance"]
-    subj = {(s["name"], s["digest"]["sha256"]) for s in prov["subject"]}
+    prov = candidate.provenance
+    subj = candidate.subjects
     if (zip_path.name, zh) not in subj:
         fail_list(problems, "provenance subject missing/mismatching the "
                              "release zip digest")
@@ -862,6 +1224,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     # mutable string can promote the level.
     lvl = idx["provenance"].get("slsa_level_claimed")
     prov_lvl = prov["predicate"].get("slsa_level_claimed", lvl)
+    # Both containers, and both values, were typed in parse_candidate_bundle.
     if lvl not in (None, "NONE") or prov_lvl not in (None, "NONE"):
         fail_list(problems,
                   f"SLSA level claimed ({lvl!r}/{prov_lvl!r}) but no SLSA "
@@ -877,7 +1240,10 @@ def verify(zip_path: Path, bundle: Path, online: bool,
         # The structural wildcard scan lives in release_trust.validate_policy
         # and covers every leaf, including nested list entries.
         ok("trust policy contains no wildcards")
-    blob = "".join((bundle / f).read_text()
+    # Every one of these was proven present and parseable by
+    # parse_candidate_bundle, so this read cannot be the first place a
+    # missing bundle file is discovered.
+    blob = "".join((bundle / f).read_text(encoding="utf-8", errors="replace")
                    for f in ("release_index.json", "sbom.cdx.json",
                              "provenance.intoto.json",
                              "release_trust_policy.json"))
@@ -895,15 +1261,25 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     # signed zip is the authority. Recompute from it, and additionally require
     # the index to AGREE -- an index that understates the PASS count is a
     # lying envelope, not merely a redundant one.
-    gate_csv = zf.read(f"{root}/results_gate_table.csv").decode()
-    n_pass = sum(1 for line in gate_csv.splitlines()[1:]
-                 if re.search(r",PASS(,|$)", line))
-    if n_pass:
-        fail_list(problems, f"gate table inside zip has {n_pass} PASS")
-    else:
-        ok("gate table inside zip: scientific PASS count = 0")
+    gate_csv = decode_member(problems, zf, f"{root}/results_gate_table.csv")
     claimed = idx.get("claims", {}).get("scientific_gate_PASS_count")
-    if claimed != n_pass:
+    if gate_csv is None:
+        # Fail closed on the claim itself. An unreadable gate table does not
+        # mean zero PASS rows; it means the count is UNKNOWN, and an unknown
+        # count can never satisfy "PASS must be zero".
+        fail_list(problems,
+                  "scientific PASS count cannot be recomputed: the gate table "
+                  "inside the zip is unreadable; an unestablished count is "
+                  "never treated as zero")
+        n_pass = None
+    else:
+        n_pass = sum(1 for line in gate_csv.splitlines()[1:]
+                     if re.search(r",PASS(,|$)", line))
+        if n_pass:
+            fail_list(problems, f"gate table inside zip has {n_pass} PASS")
+        else:
+            ok("gate table inside zip: scientific PASS count = 0")
+    if n_pass is not None and claimed != n_pass:
         fail_list(problems,
                   f"release_index claims scientific_gate_PASS_count="
                   f"{claimed!r} but the gate table inside the zip has "

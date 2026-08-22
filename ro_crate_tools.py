@@ -242,7 +242,7 @@ usage:
 
 note: there is no 'build' subcommand -- rebuilding is the default action.
       A bare directory argument is still accepted for backward compatibility,
-      but tokens that look like subcommands are refused."""
+      but tokens that look like subcommands or options are refused."""
 
 
 def _cli(argv: list[str]) -> int:
@@ -265,6 +265,14 @@ def _cli(argv: list[str]) -> int:
         print(f"unexpected arguments {args[1:]}\n\n" + _USAGE)
         return 2
     if args:
+        # A mistyped or unsupported FLAG must never be taken as a directory
+        # name. `--validate` (there is no such flag; the subcommand is
+        # `validate`) was silently accepted as an output path and created a
+        # directory literally named "--validate".
+        if args[0].startswith("-"):
+            print(f"unknown option {args[0]!r}; it is not an output "
+                  f"directory.\n\n" + _USAGE)
+            return 2
         if args[0].lower() in _LIKELY_SUBCOMMAND_TYPOS:
             print(f"refusing to treat {args[0]!r} as an output directory -- "
                   f"it reads as a subcommand.\n\n" + _USAGE)

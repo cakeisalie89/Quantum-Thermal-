@@ -62,8 +62,8 @@ Three words that must not blur:
 
 ```
 1  trust root        load external policy; derive expected identity + issuer
-2  candidate         parse untrusted bundle + archive; CLASSIFIED refusals,
-                     never a traceback         (NO authority yet)
+2  candidate         parse untrusted bundle + archive; CLASSIFIED refusals
+                     across the reproduced surface  (NO authority yet)
 3  authenticate      Sigstore verify zip against the EXTERNAL identity
 4  authenticated     zip policy == root; bundle policy == root;
                      read signed release_binding.json; recompute payload digest
@@ -76,13 +76,86 @@ signature that authenticates it has been checked against the policy.
 
 ## Phase 2: parsing hostile input
 
-Phase 2 reads attacker-controlled data by design. Every expected malformation
-is a named refusal rather than a traceback:
+Phase 2 reads attacker-controlled data by design. A traceback is not a
+verification result: it exits non-zero, so it looks like failing closed, but it
+carries no classification, abandons the remaining diagnostics, and cannot be
+told apart from a broken tool. Failing closed means reaching a *decision*.
 
+`MISSING_RELEASE_ZIP` · `UNREADABLE_RELEASE_ZIP` · `INVALID_RELEASE_ZIP` ·
 `MISSING_RELEASE_INDEX` · `INVALID_RELEASE_INDEX` · `MISSING_SHA256SUMS` ·
 `INVALID_SHA256SUMS` · `MISSING_SBOM` · `INVALID_SBOM` · `MISSING_PROVENANCE` ·
-`INVALID_PROVENANCE` · `EMPTY_ZIP` · `INVALID_ZIP_STRUCTURE` ·
-`MISSING_REQUIRED_ZIP_MEMBER`
+`INVALID_PROVENANCE` · `MISSING_TRUST_POLICY` · `EMPTY_ZIP` ·
+`INVALID_ZIP_STRUCTURE` · `MISSING_REQUIRED_ZIP_MEMBER`
+
+### Validate first, then consume
+
+Typing only the outer container was not enough. `files` was checked to be a
+list, and the records inside it were first touched by
+
+```python
+{(e["name"], e["sha256"]) for e in idx["files"]}
+```
+
+— a set comprehension, which has no vocabulary for refusal. A `files` entry of
+`{}`, `null`, `"a string"` or `{"name": ["x"], ...}` produced `KeyError`,
+`TypeError: not subscriptable`, `TypeError: string indices` and
+`TypeError: unhashable type` respectively. The same held for
+`sbom["components"]` and `provenance["subject"]`, and the release ZIP path
+itself was opened with a bare `zip_path.read_bytes()`.
+
+`parse_candidate_bundle` now returns a `CandidateBundle`, and the collections
+the verifier compares — `index_files`, `sbom_packages`, `subjects` — are built
+**during** validation. That ordering is structural rather than conventional:
+there is no accessor that yields an unvalidated record, so no later expression
+can be the first place a malformed one is discovered.
+
+Duplicate records are refused rather than absorbed. Two entries naming one file
+with different digests collapse into two distinct set members, or with equal
+digests into one, and either way the list's internal contradiction never
+surfaces in a set comparison.
+
+### Resource exhaustion is also a decision
+
+Well-formed input can still be hostile by being too large or too deep.
+`RecursionError` is not a `ValueError`, so a JSON document nested tens of
+thousands of levels deep — a few hundred kilobytes, trivial to author — escaped
+the decoder's handler entirely. Metadata size, JSON depth, and declared
+uncompressed archive size are now bounded and classified; the archive bound is
+read from the central directory, so a decompression bomb is refused before any
+member is expanded.
+
+Those bounds are **structural, not scientific**. No result depends on them, and
+both sit orders of magnitude above the real artifact — a test asserts a healthy
+release cannot reach either.
+
+### A crash is not the only wrong answer
+
+Two of the repairs available here were worse than the traceback they replaced,
+and the tests exist to keep them out.
+
+The archive is bytes, and `zf.read(...).decode()` is strict, so a required
+member carrying invalid UTF-8 crashed the verifier. Decoding with
+`errors="replace"` stops the crash — and then counts zero `PASS` rows in the
+substituted text and reports **"scientific PASS count = 0"**. That turns
+unreadable input into an affirmative safety claim. The count now comes back
+UNKNOWN, and UNKNOWN fails: *absence of evidence is not evidence of absence.*
+
+The same shape appeared one check earlier. When the archived `uv.lock` could
+not be decoded the comparison was skipped — and fell through to the success
+branch, printing **"SBOM matches uv.lock"** about a file it had never read. A
+comparison that could not run is not a comparison that passed, so the success
+branch is now reachable only from the branch that actually compared.
+
+### What is claimed
+
+`tests/test_hostile_input_no_traceback.py` drives the real entry point with
+every shape that was *reproduced* as an uncaught exception and asserts a named
+code comes back. Twenty-one mutations, each re-opening one specific hole, are killed by the
+test naming that property.
+
+The claim is about the reproduced surface, not totality: it says every
+malformation the adversarial suite exercises produces a classified refusal, not
+that no input anywhere can crash the verifier.
 
 Archive structure is validated before any member is read, and nothing is
 extracted: exactly one top-level root; no absolute members; no `..`; no

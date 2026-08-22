@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import pathlib
 import sys
 import zipfile
 
@@ -23,6 +24,7 @@ import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+ROOT_PATH = pathlib.Path(ROOT)
 
 import release_trust as RT   # noqa: E402
 
@@ -42,19 +44,33 @@ REQUIRED = [f"{ROOTDIR}/uv.lock",
             f"{ROOTDIR}/{RT.CANONICAL_POLICY_PATH}"]
 
 
+#: The whole-bundle baseline every fixture starts from. It must be VALID:
+#: a test that breaks one field proves nothing about that field if some other
+#: field was already malformed and refused first.
+def good_index(**over) -> dict:
+    idx = {
+        "release_artifact": {"name": "QTA_source.zip", "size": 1,
+                             "sha256": "a" * 64},
+        "files": [], "claims": {"scientific_gate_PASS_count": 0},
+        "provenance": {"slsa_level_claimed": "NONE"},
+        "signing_status": "PENDING",
+    }
+    idx.update(over)
+    return idx
+
+
 def good_bundle(tmp_path, **over):
     """A structurally valid candidate bundle."""
     b = tmp_path / "bundle"
     b.mkdir(parents=True, exist_ok=True)
     files = {
-        "release_index.json": json.dumps({
-            "release_artifact": {"name": "QTA_source.zip", "size": 1,
-                                 "sha256": "a" * 64},
-            "files": [], "claims": {"scientific_gate_PASS_count": 0}}),
+        "release_index.json": json.dumps(good_index()),
         "SHA256SUMS": f"{'a' * 64}  QTA_source.zip\n",
         "sbom.cdx.json": json.dumps({"components": []}),
         "provenance.intoto.json": json.dumps({"subject": [],
                                               "predicate": {}}),
+        "release_trust_policy.json": (
+            ROOT_PATH / RT.CANONICAL_POLICY_PATH).read_text(),
     }
     files.update(over)
     for name, body in files.items():
@@ -62,6 +78,13 @@ def good_bundle(tmp_path, **over):
             continue
         (b / name).write_text(body)
     return b
+
+
+def baseline_is_valid(tmp_path) -> None:
+    """Guard for every negative test: prove the fixture starts clean."""
+    problems = []
+    assert _vr().parse_candidate_bundle(problems, good_bundle(tmp_path)) \
+        is not None, problems
 
 
 def classify(problems):
@@ -78,7 +101,12 @@ def test_a_good_bundle_parses(tmp_path):
     problems = []
     out = vr.parse_candidate_bundle(problems, good_bundle(tmp_path))
     assert out is not None and problems == []
-    assert set(out) == {"index", "sums", "sbom", "provenance"}
+    assert isinstance(out, vr.CandidateBundle)
+    # The derived collections exist BEFORE any consumer asks for them.
+    assert out.index_files == frozenset()
+    assert out.sbom_packages == frozenset()
+    assert out.subjects == frozenset()
+    assert out.artifact_name == "QTA_source.zip"
 
 
 @pytest.mark.parametrize("name,expect", [
@@ -130,18 +158,26 @@ def test_index_of_the_wrong_json_type_is_classified(tmp_path):
     assert "INVALID_RELEASE_INDEX" in " ".join(problems)
 
 
-@pytest.mark.parametrize("body", [
-    '{"files": [], "claims": {}}',                       # no release_artifact
-    '{"release_artifact": "str", "files": [], "claims": {}}',
-    '{"release_artifact": {}, "files": {}, "claims": {}}',
-    '{"release_artifact": {}, "files": [], "claims": []}',
+@pytest.mark.parametrize("drop,over", [
+    ("release_artifact", {}),
+    (None, {"release_artifact": "str"}),
+    (None, {"files": {}}),
+    (None, {"claims": []}),
+    ("provenance", {}),
+    (None, {"provenance": "str"}),
+    (None, {"signature_bundles": "not-a-list"}),
 ])
-def test_index_with_wrong_field_types_is_classified(tmp_path, body):
+def test_index_with_wrong_field_types_is_classified(tmp_path, drop, over):
+    baseline_is_valid(tmp_path)
     vr = _vr()
+    idx = good_index(**over)
+    if drop:
+        idx.pop(drop)
     problems = []
     assert vr.parse_candidate_bundle(
         problems, good_bundle(tmp_path,
-                              **{"release_index.json": body})) is None
+                              **{"release_index.json": json.dumps(idx)})
+    ) is None
     assert "INVALID_RELEASE_INDEX" in " ".join(problems)
 
 
@@ -162,6 +198,172 @@ def test_provenance_with_wrong_shape_is_classified(tmp_path):
         good_bundle(tmp_path,
                     **{"provenance.intoto.json": '{"subject": {}}'})) is None
     assert "INVALID_PROVENANCE" in " ".join(problems)
+
+
+# ---------------------------------------------------------------------------
+# 1b. Nested records.
+#
+# Outer-container typing ("files is a list") used to be the whole check, so a
+# malformed RECORD was first met by a set comprehension -- an expression with
+# no vocabulary for refusal. Each case below was reproduced as an uncaught
+# KeyError or TypeError before this validation existed.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("entry", [
+    {},                                        # KeyError: 'name'
+    None,                                      # TypeError: not subscriptable
+    "a-string",                                # TypeError: string indices
+    ["a", "b"],                                # TypeError: list indices
+    {"name": "x"},                             # KeyError: 'sha256'
+    {"sha256": "a" * 64},                      # KeyError: 'name'
+    {"name": ["x"], "sha256": "a" * 64},       # TypeError: unhashable
+    {"name": "x", "sha256": "not-hex"},
+    {"name": "x", "sha256": "A" * 64},         # uppercase is not canonical
+    {"name": "x", "sha256": "a" * 63},
+    {"name": "", "sha256": "a" * 64},
+    {"name": "   ", "sha256": "a" * 64},
+    {"name": "x", "sha256": None},
+    {"name": 7, "sha256": "a" * 64},
+])
+def test_malformed_index_file_record_is_classified(tmp_path, entry):
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    idx = good_index(files=[entry])
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(
+            tmp_path, **{"release_index.json": json.dumps(idx)})) is None
+    assert "INVALID_RELEASE_INDEX" in " ".join(problems), problems
+
+
+def test_duplicate_index_file_names_are_refused(tmp_path):
+    """A set comprehension would silently absorb the contradiction.
+
+    Two records naming the same file with different digests collapse into two
+    distinct set members -- or, with equal digests, into one -- and either way
+    the list's internal contradiction never surfaces. It must be refused.
+    """
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    idx = good_index(files=[{"name": "d", "sha256": "a" * 64},
+                            {"name": "d", "sha256": "b" * 64}])
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(
+            tmp_path, **{"release_index.json": json.dumps(idx)})) is None
+    assert "twice" in " ".join(problems)
+
+
+@pytest.mark.parametrize("field,bad", [
+    ("name", 7), ("name", None), ("name", ""), ("name", {}),
+    ("sha256", "zz" * 32), ("sha256", 1), ("sha256", None),
+    ("size", "1"), ("size", -1), ("size", None), ("size", 1.5),
+    ("size", True),          # bool is an int subclass; still malformed
+])
+def test_malformed_release_artifact_field_is_classified(tmp_path, field, bad):
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    art = dict(good_index()["release_artifact"])
+    art[field] = bad
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(tmp_path, **{
+            "release_index.json": json.dumps(
+                good_index(release_artifact=art))})) is None
+    assert "INVALID_RELEASE_INDEX" in " ".join(problems), problems
+
+
+@pytest.mark.parametrize("field", ["name", "sha256", "size"])
+def test_missing_release_artifact_field_is_classified(tmp_path, field):
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    art = dict(good_index()["release_artifact"])
+    art.pop(field)
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(tmp_path, **{
+            "release_index.json": json.dumps(
+                good_index(release_artifact=art))})) is None
+    assert field in " ".join(problems)
+
+
+@pytest.mark.parametrize("comp", [
+    {}, None, "str", ["x"], {"name": "n"}, {"version": "1"},
+    {"name": "n", "version": None}, {"name": "n", "version": ""},
+    {"name": "", "version": "1"}, {"name": 3, "version": "1"},
+])
+def test_malformed_sbom_component_is_classified(tmp_path, comp):
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(tmp_path, **{
+            "sbom.cdx.json": json.dumps({"components": [comp]})})) is None
+    assert "INVALID_SBOM" in " ".join(problems), problems
+
+
+@pytest.mark.parametrize("subj", [
+    {}, None, "str", ["x"],
+    {"name": "n"},                                  # no digest
+    {"name": "n", "digest": "sha"},                 # digest not an object
+    {"name": "n", "digest": {}},                    # no sha256
+    {"name": "n", "digest": {"sha256": "nope"}},
+    {"name": "n", "digest": {"sha256": None}},
+    {"name": "", "digest": {"sha256": "a" * 64}},
+    {"digest": {"sha256": "a" * 64}},               # no name
+])
+def test_malformed_provenance_subject_is_classified(tmp_path, subj):
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(tmp_path, **{
+            "provenance.intoto.json": json.dumps(
+                {"subject": [subj], "predicate": {}})})) is None
+    assert "INVALID_PROVENANCE" in " ".join(problems), problems
+
+
+def test_duplicate_provenance_subject_names_are_refused(tmp_path):
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    problems = []
+    subs = [{"name": "d", "digest": {"sha256": "a" * 64}},
+            {"name": "d", "digest": {"sha256": "b" * 64}}]
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(tmp_path, **{
+            "provenance.intoto.json": json.dumps(
+                {"subject": subs, "predicate": {}})})) is None
+    assert "twice" in " ".join(problems)
+
+
+@pytest.mark.parametrize("lvl", [3, ["3"], {"a": 1}])
+def test_non_string_slsa_claim_is_classified(tmp_path, lvl):
+    """A non-string level must be refused, not compared against 'NONE'.
+
+    The level is compared with `not in (None, "NONE")`, which a list or dict
+    passes silently -- so an unauthorized claim in a non-string shape would
+    have been read as an absent claim.
+    """
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    problems = []
+    assert vr.parse_candidate_bundle(
+        problems, good_bundle(tmp_path, **{
+            "provenance.intoto.json": json.dumps(
+                {"subject": [],
+                 "predicate": {"slsa_level_claimed": lvl}})})) is None
+    assert "INVALID_PROVENANCE" in " ".join(problems)
+
+
+def test_missing_bundled_trust_policy_is_classified(tmp_path):
+    """Reproduced as FileNotFoundError inside the metadata-scan genexpr."""
+    baseline_is_valid(tmp_path)
+    vr = _vr()
+    problems = []
+    b = good_bundle(tmp_path)
+    (b / "release_trust_policy.json").unlink()
+    assert vr.parse_candidate_bundle(problems, b) is None
+    assert "MISSING_TRUST_POLICY" in " ".join(problems)
 
 
 # ---------------------------------------------------------------------------

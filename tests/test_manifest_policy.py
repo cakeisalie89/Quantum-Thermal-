@@ -363,6 +363,35 @@ def test_ro_crate_cli_refuses_subcommand_shaped_directory(tmp_path):
         "the mistaken invocation must not create a stray directory"
 
 
+@pytest.mark.parametrize("flag", ["--validate", "--check", "--build", "-x"])
+def test_ro_crate_cli_refuses_an_unknown_option_as_a_directory(flag):
+    """An unknown OPTION must not become an output path.
+
+    The subcommand guard covered word-shaped typos only, so `--validate`
+    (there is no such flag -- the subcommand is `validate`) fell through to
+    the positional branch and created a directory literally named
+    "--validate" in the repository root.
+    """
+    import subprocess as _sp
+    import sys as _sys
+    r = _sp.run([_sys.executable, "ro_crate_tools.py", flag],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=120)
+    assert r.returncode == 2, r.stdout
+    assert "unknown option" in r.stdout
+    assert not (ROOT / flag).exists(), \
+        f"the mistaken invocation created a stray {flag!r} directory"
+
+
+def test_ro_crate_cli_validate_subcommand_works():
+    """The real spelling still has to work, or the guard is just a wall."""
+    import subprocess as _sp
+    import sys as _sys
+    r = _sp.run([_sys.executable, "ro_crate_tools.py", "validate"],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=180)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "VALID" in r.stdout.upper()
+
+
 def test_ro_crate_cli_still_accepts_an_explicit_directory(tmp_path):
     import subprocess as _sp
     import sys as _sys
