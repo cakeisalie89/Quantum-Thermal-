@@ -74,6 +74,32 @@ DECLARED_DERIVATIONS = {
                 "test_duplicated_values_equal_their_authority enforces it",
         },
     },
+    "post_bakeout_NEG_H2_pressure_Pa": {
+        "authority": "qta_full_sim.py :: P_H2_POST_BAKEOUT_NEG_PA",
+        "pattern": r"\bP_H2\w*\s*(?::\s*float\s*)?=\s*1\.?0?e-12\b"
+                   r"|\"P_H2_Pa\"\s*:\s*1\.?0?e-12\b"
+                   r"|lambda m, c: 1\.0e-12",
+        "allowed": {
+            "qta_full_sim.py":
+                "the authority itself",
+            "qta_multiphysics/cryopanel_dynamics_3d.py":
+                "P_H2_RESIDUAL_PA. No qta_multiphysics module imports "
+                "qta_full_sim -- the package deliberately does not depend on "
+                "the top-level script, whose import executes a full run -- so "
+                "the modelled post-bakeout+NEG pressure is restated here. The "
+                "derivation relationship is that it MUST equal "
+                "P_H2_POST_BAKEOUT_NEG_PA, enforced below",
+            "qta_multiphysics/machine_fsm.py":
+                "base_ctx['P_H2_Pa'], the FSM's post-bakeout context. Same "
+                "dependency-direction reason; same equality requirement",
+            "qta_multiphysics/campaign_state_3d.py":
+                "the campaign readiness context's P_H2_Pa. Same "
+                "dependency-direction reason; same equality requirement",
+            "qta_multiphysics/measurement_ingest_3d.py":
+                "the P_H2_Pa diagnostic predictor. Same dependency-direction "
+                "reason; same equality requirement",
+        },
+    },
     "mode_d_readiness_threshold_K": {
         "authority": "qta_multiphysics/config.py :: SolverConfig."
                      "mode_d_temp_threshold_K",
@@ -182,6 +208,29 @@ def test_duplicated_values_equal_their_authority():
     assert float(m.group(1)) == cfg.fridge.T_fridge_K, (
         f"qta_full_sim T_fridge_K={m.group(1)} has drifted from "
         f"FridgeConfig.T_fridge_K={cfg.fridge.T_fridge_K}")
+
+    # Post-bakeout+NEG H2 pressure: one authority, four package-side restatements
+    import qta_full_sim as Q
+    canonical = Q.P_H2_POST_BAKEOUT_NEG_PA
+    from qta_multiphysics import cryopanel_dynamics_3d
+    assert cryopanel_dynamics_3d.P_H2_RESIDUAL_PA == canonical, (
+        f"cryopanel P_H2_RESIDUAL_PA={cryopanel_dynamics_3d.P_H2_RESIDUAL_PA} "
+        f"has drifted from P_H2_POST_BAKEOUT_NEG_PA={canonical}")
+    # Found by the §14 AST scanner rather than a regex, so a restatement in a
+    # context the regex did not anticipate (a lambda body, a dict value on its
+    # own line) cannot slip past.
+    sys.path.insert(0, str(ROOT / "tests"))
+    from test_h2_pressure_authority import scan_bare_h2_pressure_literals
+    for rel in ("qta_multiphysics/machine_fsm.py",
+                "qta_multiphysics/campaign_state_3d.py",
+                "qta_multiphysics/measurement_ingest_3d.py"):
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        found = scan_bare_h2_pressure_literals(text)
+        assert found, f"no P_H2 restatement found in {rel}"
+        for lineno, value, anchor in found:
+            assert value == canonical, (
+                f"{rel}:{lineno} restates {anchor}={value}, which has drifted "
+                f"from P_H2_POST_BAKEOUT_NEG_PA={canonical}")
 
 
 def test_governed_output_count_has_one_source():

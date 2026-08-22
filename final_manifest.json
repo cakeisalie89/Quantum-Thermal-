@@ -2773,8 +2773,8 @@
     },
     {
       "filename": "tests/test_single_source_of_truth.py",
-      "size_bytes": 9106,
-      "sha256": "2434c6f13b47e6438f3a77c001efb502e5d1a1d3b415dce3f87e7913a20136ee",
+      "size_bytes": 11864,
+      "sha256": "3cbac02dc0a1d093177d6789a33d371a5e415d93de6b427ccdcdb9e503be93ed",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2794,8 +2794,8 @@
     },
     {
       "filename": "tests/test_h2_pressure_authority.py",
-      "size_bytes": 18394,
-      "sha256": "16be3946407ae725c7a3c79a2e62df629dad2904a8fe171cd096e023e62cfcff",
+      "size_bytes": 20645,
+      "sha256": "89438fa19d2f1c5d0eb3e8f5c8baaff4c0551be28dfd8f782a1142e548f51abd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },

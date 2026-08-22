@@ -142,8 +142,9 @@ def test_mc_sampler_uses_the_renamed_quantity():
 #: pressure in Pa anywhere in this repository, so it is never considered.
 #: The window is deliberately wider than the declared set: the point is to
 #: catch a value that is ABOUT to become a governed pressure, not only the
-#: ones already named.
-H2_PRESSURE_WINDOW_PA = (1e-15, 1e-6)
+#: ones already named. Named without an H2 token on purpose -- it is a scan
+#: bound, not a governed quantity, and must not flag itself.
+SCAN_WINDOW_PA = (1e-15, 1e-6)
 
 #: Identifier parts that mean "this name denotes a pressure".
 _PRESSURE_PARTS = {"p", "pa", "pressure"}
@@ -279,7 +280,7 @@ def scan_bare_h2_pressure_literals(source, module_declares=()):
         if any(t in declared_names for t in targets):
             exempt.update(ast.walk(stmt))
 
-    lo, hi = H2_PRESSURE_WINDOW_PA
+    lo, hi = SCAN_WINDOW_PA
     offenders = []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Constant)
@@ -414,6 +415,52 @@ def test_the_repository_binds_the_pre_bakeout_branch_to_its_constant():
     ch = Q.ChamberState()
     assert ch.bakeout_done is False and ch.NEG_installed is False
     assert ch.P_H2_Pa() is Q.P_H2_PRE_BAKEOUT_PA
+
+
+
+def test_no_undeclared_module_carries_a_bare_h2_pressure():
+    """Repo-wide: the §14 contract is not confined to qta_full_sim.py.
+
+    Four qta_multiphysics modules legitimately restate the post-bakeout+NEG
+    pressure, because no package module imports qta_full_sim -- the package
+    deliberately does not depend on the top-level script. Those four are
+    registered in test_single_source_of_truth.DECLARED_DERIVATIONS and their
+    equality with the authority is enforced there. Any OTHER module carrying a
+    bare H2 pressure literal is an undeclared duplicate and fails here.
+    """
+    import subprocess
+    declared = {n for n in dir(Q) if n.startswith("P_H2")}
+    allowed = {
+        "qta_multiphysics/cryopanel_dynamics_3d.py",
+        "qta_multiphysics/machine_fsm.py",
+        "qta_multiphysics/campaign_state_3d.py",
+        "qta_multiphysics/measurement_ingest_3d.py",
+    }
+    tracked = subprocess.run(
+        ["git", "-C", ROOT, "ls-files", "*.py"],
+        capture_output=True, text=True, check=True).stdout.split()
+    offenders = {}
+    for rel in tracked:
+        if rel.startswith(("attic/", "tests/")):
+            continue
+        hits = scan_bare_h2_pressure_literals(
+            open(os.path.join(ROOT, rel), encoding="utf-8").read(), declared)
+        if hits and rel not in allowed:
+            offenders[rel] = hits
+    assert not offenders, f"undeclared bare H2 pressure literals: {offenders}"
+
+
+def test_the_declared_restatements_are_still_there():
+    """If a restatement disappears, the allowlist above must shrink with it."""
+    declared = {n for n in dir(Q) if n.startswith("P_H2")}
+    for rel in ("qta_multiphysics/cryopanel_dynamics_3d.py",
+                "qta_multiphysics/machine_fsm.py",
+                "qta_multiphysics/campaign_state_3d.py",
+                "qta_multiphysics/measurement_ingest_3d.py"):
+        src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
+        assert scan_bare_h2_pressure_literals(src, declared), (
+            f"{rel} no longer restates an H2 pressure; remove it from the "
+            "allowlist in test_no_undeclared_module_carries_a_bare_h2_pressure")
 
 
 def test_every_named_quantity_is_in_pascals_and_positive():
