@@ -47,6 +47,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 #: The one canonical policy. Nothing else may define policy values.
@@ -398,6 +399,48 @@ def is_resolved(policy: dict) -> bool:
 
 def bootstrap_state(policy: dict) -> str:
     return str(policy.get("bootstrap_state", "UNINITIALIZED"))
+
+
+# ---------------------------------------------------------------------------
+# the trust root, as an object
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class TrustedPolicyRoot:
+    """A resolved, authorized policy plus how it was anchored.
+
+    Both modes must end here. Returning a bare ``(None, None)`` for a
+    "valid" digest-only root -- as an earlier version did -- left the caller
+    with nothing to verify against, so digest-only online verification could
+    never work end to end while a loader-level test still passed. An explicit
+    object makes that failure impossible to express.
+    """
+
+    policy: dict
+    canonical_bytes: bytes
+    sha256: str
+    source: str          # "file" | "digest"
+
+    def __post_init__(self):
+        if self.source not in ("file", "digest"):
+            raise PolicyError(f"unknown trust-root source {self.source!r}")
+        if not re.fullmatch(r"[0-9a-f]{64}", self.sha256):
+            raise PolicyError(f"trust-root digest is not 64-hex: "
+                              f"{self.sha256!r}")
+        # A root that is not fully authorized is not a root.
+        validate_policy(self.policy, require_resolved=True)
+
+
+def normalize_digest(value) -> str:
+    """Accept a user-supplied digest, or raise. Case and space normalized."""
+    if not isinstance(value, str):
+        raise PolicyError(f"digest must be a string, got "
+                          f"{type(value).__name__}")
+    v = value.strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", v):
+        raise PolicyError(
+            f"digest must be exactly 64 hex characters, got {value!r}")
+    return v
 
 
 # ---------------------------------------------------------------------------

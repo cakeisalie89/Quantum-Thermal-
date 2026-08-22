@@ -1,22 +1,46 @@
 #!/usr/bin/env python3
 """Consumer release verifier (Stage 9). Fail-closed.
 
-Offline (default): recomputes the release-zip digest; verifies every
-SHA256SUMS entry against the bundle's release_index and against the
-files inside the zip; cross-validates the SBOM against the zip's
-uv.lock; checks provenance subjects (name+digest) including the zip
-itself; enforces the trust policy (any wildcard is a failure; PENDING
-identity pins mean signatures cannot be trusted yet); scans release
-metadata for secrets, absolute paths, and claim-boundary violations
-(scientific PASS / performed experiments or campaigns / readiness
-drift); asserts the scientific dependency pins.
+TWO MODES, AND THEY DIFFER IN KIND -- not merely in thoroughness.
 
-Online (--online): verifies real Sigstore bundles when present; if no
-signature bundle exists or tooling/network is unavailable, it reports
-exactly that and FAILS the online gate -- absence is never success.
+OFFLINE (default) is STRUCTURAL ONLY. It recomputes the release zip digest,
+every SHA256SUMS entry against the archive's own contents, SBOM against the
+uv.lock inside the zip, provenance subjects, policy schema, a secret and
+absolute-path scan, and the claim boundaries (scientific PASS must be zero).
+It anchors nothing: with no local canonical policy it reports UNANCHORED, and
+it never decides that a signer is authorized.
 
-A signature proves origin and integrity only; it never validates the
-physics or hardware.
+ONLINE (--online) is an AUTHORIZATION decision, and it REQUIRES AN EXTERNAL
+TRUST ROOT. Pass either:
+
+    --trusted-policy PATH            an owner-authorized policy obtained
+                                     independently of this release
+    --trusted-policy-sha256 DIGEST   the sha256 of that policy; the bundle's
+                                     candidate copy is promoted only once its
+                                     canonical bytes hash to this value
+
+Without one, --online fails closed. There is no fallback to the working
+directory, the bundle, or the archive. A release cannot authorize itself: a
+malicious artifact can always carry a policy naming its own signer, so the
+policies shipped with a release are CANDIDATES checked against the root.
+
+PHASES, and no arrow points backward:
+
+    1 trust root     external policy -> expected identity and issuer
+    2 candidate      parse untrusted bundle/archive; classified refusals only,
+                     never a traceback. NOTHING here has authority yet
+    3 authenticate   Sigstore verifies the zip against the EXTERNAL identity
+    4 authenticated  zip policy == root; bundle policy == root; read the
+                     signed release_binding.json; recompute the payload digest
+    5 auxiliary      cross-check provenance -- UNTRUSTED_AUXILIARY_METADATA,
+                     never authority for repo/workflow/ref/builder/revision
+    6 claims         recompute scientific PASS from the signed gate table
+
+release_index.json is UNTRUSTED_ENVELOPE_METADATA: it is mutated after signing,
+so it supplies routing and consistency assertions only.
+
+MODEL-ONLY / FORECAST-ONLY: a signature proves origin and integrity of
+software. It is never physics, hardware, or experimental validation.
 """
 from __future__ import annotations
 
@@ -185,18 +209,244 @@ def _observed_repo_and_workflow(identity: str):
     return (f"https://github.com/{owner}/{repo}", wf, ref)
 
 
-def load_trusted_policy(problems, trusted_policy, trusted_sha256):
-    """THE external trust root. Returns (policy, canonical_bytes) or (None, None).
+# ---------------------------------------------------------------------------
+# candidate-structure parsing: deterministic, classified, no tracebacks
+# ---------------------------------------------------------------------------
+#
+# Phase 2 processes UNTRUSTED data by design -- the bundle and archive are
+# attacker-controlled until phase 3 authenticates them. Direct reads therefore
+# fail closed only accidentally, through a Python traceback: exit non-zero, but
+# with no classification, no remaining diagnostics, and no way for a caller to
+# tell a hostile artifact from a broken tool. Each expected malformation is
+# now a named refusal.
+
+CANDIDATE_FAILURES = (
+    "MISSING_RELEASE_INDEX",
+    "INVALID_RELEASE_INDEX",
+    "MISSING_SHA256SUMS",
+    "INVALID_SHA256SUMS",
+    "MISSING_SBOM",
+    "INVALID_SBOM",
+    "MISSING_PROVENANCE",
+    "INVALID_PROVENANCE",
+    "EMPTY_ZIP",
+    "INVALID_ZIP_STRUCTURE",
+    "MISSING_REQUIRED_ZIP_MEMBER",
+)
+
+#: Members every release archive must carry exactly once, relative to the root.
+REQUIRED_ZIP_MEMBERS = (
+    "uv.lock",
+    "results_gate_table.csv",
+    str(release_trust.CANONICAL_POLICY_PATH),
+)
+
+
+def _load_json_member(problems, path: Path, missing: str, invalid: str):
+    """Read one candidate JSON file, classifying both failure modes."""
+    if not path.exists():
+        fail_list(problems, f"{missing}: {path}")
+        return None
+    try:
+        raw = path.read_bytes()
+    except OSError as e:
+        fail_list(problems, f"{missing}: {path} unreadable: {e}")
+        return None
+    if not raw.strip():
+        fail_list(problems, f"{invalid}: {path} is empty")
+        return None
+    try:
+        doc = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        fail_list(problems, f"{invalid}: {path}: {e}")
+        return None
+    if not isinstance(doc, dict):
+        fail_list(problems,
+                  f"{invalid}: {path} is not a JSON object "
+                  f"({type(doc).__name__})")
+        return None
+    return doc
+
+
+def parse_sha256sums(problems, path: Path):
+    """Parse SHA256SUMS, refusing malformed lines rather than crashing."""
+    if not path.exists():
+        fail_list(problems, f"MISSING_SHA256SUMS: {path}")
+        return None
+    sums: dict = {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        fail_list(problems, f"INVALID_SHA256SUMS: {path} unreadable: {e}")
+        return None
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        parts = line.split(None, 1)
+        if len(parts) != 2:
+            fail_list(problems,
+                      f"INVALID_SHA256SUMS: line {n} is not "
+                      f"'<digest>  <name>': {line[:60]!r}")
+            return None
+        digest, name = parts[0].strip(), parts[1].strip()
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            fail_list(problems,
+                      f"INVALID_SHA256SUMS: line {n} digest is not 64-hex: "
+                      f"{digest[:20]!r}")
+            return None
+        if not name:
+            fail_list(problems, f"INVALID_SHA256SUMS: line {n} has no name")
+            return None
+        if name in sums:
+            fail_list(problems,
+                      f"INVALID_SHA256SUMS: duplicate entry {name!r}")
+            return None
+        sums[name] = digest
+    if not sums:
+        fail_list(problems, f"INVALID_SHA256SUMS: {path} lists nothing")
+        return None
+    return sums
+
+
+def validate_zip_structure(problems, names: list):
+    """Structural validation of an UNTRUSTED archive. Returns the root, or None.
+
+    Nothing is extracted; this only decides which member names may be read.
+    Ambiguity matters more than usual here because payload-digest
+    recomputation maps members into a dict keyed by relative path, so two
+    members normalizing to one key would silently collapse into a single
+    entry and change the digest's meaning.
+    """
+    if not names:
+        fail_list(problems, "EMPTY_ZIP: the archive contains no members")
+        return None
+
+    seen: set = set()
+    normalized: dict = {}
+    roots: set = set()
+    for raw in names:
+        if raw in seen:
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: duplicate member {raw!r}")
+            return None
+        seen.add(raw)
+        if raw.startswith("/") or (len(raw) > 1 and raw[1] == ":"):
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: absolute member {raw!r}")
+            return None
+        if "\\" in raw:
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: backslash in member {raw!r}; "
+                      "path separator is ambiguous")
+            return None
+        parts = PurePosixPath(raw).parts
+        if ".." in parts:
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: parent traversal in {raw!r}")
+            return None
+        if not parts:
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: empty member name {raw!r}")
+            return None
+        # A directory entry and a file of the same name are contradictory.
+        key = raw.rstrip("/")
+        kind = "dir" if raw.endswith("/") else "file"
+        if key in normalized and normalized[key] != kind:
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: {key!r} appears as both a file "
+                      "and a directory")
+            return None
+        if key in normalized and kind == "file":
+            fail_list(problems,
+                      f"INVALID_ZIP_STRUCTURE: member {key!r} occurs twice "
+                      "after normalization")
+            return None
+        normalized[key] = kind
+        roots.add(parts[0])
+
+    if len(roots) != 1:
+        fail_list(problems,
+                  f"INVALID_ZIP_STRUCTURE: expected exactly one top-level "
+                  f"release root, found {sorted(roots)[:5]}")
+        return None
+    root = roots.pop()
+
+    files = {k for k, v in normalized.items() if v == "file"}
+    for required in REQUIRED_ZIP_MEMBERS:
+        want = f"{root}/{required}"
+        if want not in files:
+            fail_list(problems,
+                      f"MISSING_REQUIRED_ZIP_MEMBER: {required!r} is not in "
+                      "the archive")
+            return None
+    return root
+
+
+def parse_candidate_bundle(problems, bundle: Path):
+    """Read the untrusted bundle's metadata. Returns a dict, or None."""
+    idx = _load_json_member(problems, bundle / "release_index.json",
+                            "MISSING_RELEASE_INDEX", "INVALID_RELEASE_INDEX")
+    if idx is None:
+        return None
+    for key, typ in (("release_artifact", dict), ("files", list),
+                     ("claims", dict)):
+        if key not in idx or not isinstance(idx[key], typ):
+            fail_list(problems,
+                      f"INVALID_RELEASE_INDEX: {key!r} missing or not "
+                      f"{typ.__name__}")
+            return None
+    sums = parse_sha256sums(problems, bundle / "SHA256SUMS")
+    if sums is None:
+        return None
+    sbom = _load_json_member(problems, bundle / "sbom.cdx.json",
+                             "MISSING_SBOM", "INVALID_SBOM")
+    if sbom is None:
+        return None
+    if not isinstance(sbom.get("components"), list):
+        fail_list(problems, "INVALID_SBOM: components is missing or not a list")
+        return None
+    prov = _load_json_member(problems, bundle / "provenance.intoto.json",
+                             "MISSING_PROVENANCE", "INVALID_PROVENANCE")
+    if prov is None:
+        return None
+    if not isinstance(prov.get("subject"), list) or \
+            not isinstance(prov.get("predicate"), dict):
+        fail_list(problems,
+                  "INVALID_PROVENANCE: subject/predicate missing or wrong type")
+        return None
+    return {"index": idx, "sums": sums, "sbom": sbom, "provenance": prov}
+
+
+def load_trusted_policy(problems, trusted_policy, trusted_sha256,
+                        bundle: Path | None = None):
+    """THE external trust root. Returns a TrustedPolicyRoot, or None.
 
     A release cannot authorize itself. A malicious artifact can always carry a
-    policy naming its own signer, so the expected identity must come from
-    OUTSIDE the artifact -- supplied by the consumer through a channel the
-    release does not control.
+    policy naming its own signer, so the authorization must come from OUTSIDE
+    the artifact -- supplied by the consumer through a channel the release does
+    not control.
 
-    The previous implementation compared the bundled policy against a
-    repository-local path and, when that path did not exist, SKIPPED the
-    comparison. Run from a directory with no QTA checkout -- which is exactly
-    the independent-verification case -- there was no trust root at all.
+    Two modes, both ending in a fully resolved, authorized policy object:
+
+    FILE   --trusted-policy PATH
+           read, parse, validate resolved, canonicalize, digest. If
+           --trusted-policy-sha256 is also given, the two must agree.
+
+    DIGEST --trusted-policy-sha256 DIGEST
+           the digest IS the root. It authenticates the exact bytes of a
+           candidate policy, so the bundle's copy may be *promoted* to the
+           trusted policy once its canonical bytes hash to the supplied value.
+           That is not self-authorization: the consumer supplied the hash
+           independently, and bytes that match it are the owner's bytes.
+
+           The bundle copy is used, never the archive copy: the archive cannot
+           be trusted before its signature is verified, and its signature
+           cannot be checked without the identity this root supplies.
+
+    An earlier version returned ``(None, None)`` for a "valid" digest-only
+    root, so `_verify_sigstore` had no policy to read an identity from and
+    digest-only verification could not work at all -- while a loader-level test
+    still passed. Hence the explicit object.
     """
     if not trusted_policy and not trusted_sha256:
         fail_list(problems,
@@ -205,38 +455,100 @@ def load_trusted_policy(problems, trusted_policy, trusted_sha256):
                   "independently of this release) or --trusted-policy-sha256. "
                   "The policy inside the bundle or the zip is a CANDIDATE, "
                   "never the root: an artifact cannot authorize itself.")
-        return None, None
-    if not trusted_policy:
-        # A digest alone is a valid root: it pins the bytes without shipping
-        # them, and the candidate policy is checked against it below.
-        return None, None
-    tp = Path(trusted_policy)
-    if not tp.exists():
-        fail_list(problems, f"--trusted-policy not found: {tp}")
-        return None, None
-    try:
-        raw = tp.read_text(encoding="utf-8")
-        pol = json.loads(raw)
-    except (OSError, json.JSONDecodeError) as e:
-        fail_list(problems, f"--trusted-policy unreadable/invalid: {e}")
-        return None, None
-    try:
-        release_trust.validate_policy(pol, require_resolved=True)
-    except release_trust.PolicyError as e:
-        fail_list(problems,
-                  f"the supplied trusted policy is not authorized for a "
-                  f"signed release: {e}")
-        return None, None
-    canon = release_trust.canonical_bytes(pol)
+        return None
+
+    want_digest = None
     if trusted_sha256:
+        try:
+            want_digest = release_trust.normalize_digest(trusted_sha256)
+        except release_trust.PolicyError as e:
+            fail_list(problems, f"--trusted-policy-sha256 is malformed: {e}")
+            return None
+
+    # ---- FILE mode --------------------------------------------------------
+    if trusted_policy:
+        tp = Path(trusted_policy)
+        if not tp.exists():
+            fail_list(problems, f"--trusted-policy not found: {tp}")
+            return None
+        try:
+            pol = json.loads(tp.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            fail_list(problems, f"--trusted-policy unreadable/invalid: {e}")
+            return None
+        try:
+            release_trust.validate_policy(pol, require_resolved=True)
+        except release_trust.PolicyError as e:
+            fail_list(problems,
+                      f"the supplied trusted policy is not authorized for a "
+                      f"signed release: {e}")
+            return None
+        canon = release_trust.canonical_bytes(pol)
         got = release_trust.policy_digest(canon)
-        if got != str(trusted_sha256).strip().lower():
+        if want_digest and got != want_digest:
             fail_list(problems,
                       f"--trusted-policy digest {got} != "
-                      f"--trusted-policy-sha256 {trusted_sha256}")
-            return None, None
-    ok("external trust root loaded and authorized")
-    return pol, canon
+                      f"--trusted-policy-sha256 {want_digest}")
+            return None
+        try:
+            root = release_trust.TrustedPolicyRoot(pol, canon, got, "file")
+        except release_trust.PolicyError as e:
+            fail_list(problems, f"trust root rejected: {e}")
+            return None
+        ok("external trust root loaded from file and authorized")
+        return root
+
+    # ---- DIGEST-ONLY mode -------------------------------------------------
+    if bundle is None:
+        fail_list(problems,
+                  "digest-only trust root needs the bundle's candidate policy "
+                  "to authenticate, but no bundle was supplied")
+        return None
+    cand = bundle / "release_trust_policy.json"
+    if not cand.exists():
+        fail_list(problems,
+                  f"digest-only trust root: no candidate policy at {cand} to "
+                  "authenticate against the supplied digest")
+        return None
+    try:
+        raw = cand.read_bytes()
+        pol = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
+        fail_list(problems,
+                  f"digest-only trust root: candidate policy is unreadable or "
+                  f"not valid JSON: {e}")
+        return None
+
+    # Canonicalize BEFORE comparing, so formatting cannot change the digest,
+    # and compare BEFORE trusting any value inside the document.
+    try:
+        canon = release_trust.canonical_bytes(pol)
+    except (TypeError, ValueError) as e:
+        fail_list(problems,
+                  f"digest-only trust root: candidate policy cannot be "
+                  f"canonicalized: {e}")
+        return None
+    got = release_trust.policy_digest(canon)
+    if got != want_digest:
+        fail_list(problems,
+                  f"digest-only trust root: candidate policy digest {got} does "
+                  f"not match the supplied {want_digest}. Nothing in the "
+                  "candidate has been trusted.")
+        return None
+
+    # Only now are these bytes the owner's bytes, and only now may their
+    # values be read.
+    try:
+        release_trust.validate_policy(pol, require_resolved=True)
+        root = release_trust.TrustedPolicyRoot(pol, canon, got, "digest")
+    except release_trust.PolicyError as e:
+        fail_list(problems,
+                  f"digest-authenticated policy is not authorized for a "
+                  f"signed release: {e}")
+        return None
+    ok("external trust root established by digest: the bundle's candidate "
+       "policy hashes to the independently supplied value and is authorized")
+    return root
 
 
 def bind_candidate_policy(problems, label: str, raw: bytes,
@@ -434,10 +746,18 @@ def verify(zip_path: Path, bundle: Path, online: bool,
 
     # ---- PHASE 1: trust root -------------------------------------------
     # Nothing from the candidate artifact has any authority until phase 3.
+    root = None
     trusted_pol, trusted_canon = (None, None)
     if online:
-        trusted_pol, trusted_canon = load_trusted_policy(
-            problems, trusted_policy, trusted_sha256)
+        root = load_trusted_policy(problems, trusted_policy, trusted_sha256,
+                                   bundle)
+        if root is not None:
+            # One object, both modes. Everything downstream reads the
+            # AUTHENTICATED canonical bytes held here, never a re-read of the
+            # candidate file, so bytes changed after the digest check cannot
+            # re-enter the decision.
+            trusted_pol = root.policy
+            trusted_canon = root.canonical_bytes
         if problems:
             print(f"\nRESULT: {len(problems)} FAILURES")
             print("note: a signature proves origin and integrity only; "
@@ -445,13 +765,16 @@ def verify(zip_path: Path, bundle: Path, online: bool,
             return 1
 
     # ---- PHASE 2: candidate artifact structure --------------------------
-    idx = json.loads((bundle / "release_index.json").read_text())
-    sums: dict = {}
-    for line in (bundle / "SHA256SUMS").read_text().splitlines():
-        h, name = line.split(None, 1)
-        if name in sums:
-            fail_list(problems, f"duplicate SHA256SUMS entry: {name}")
-        sums[name] = h
+    # Untrusted by definition. Every expected malformation is a classified
+    # refusal, not a traceback.
+    candidate = parse_candidate_bundle(problems, bundle)
+    if candidate is None:
+        print(f"\nRESULT: {len(problems)} FAILURES")
+        print("note: a signature proves origin and integrity only; "
+              "never physics or hardware validation")
+        return 1
+    idx = candidate["index"]
+    sums = candidate["sums"]
     zb = zip_path.read_bytes()
     zh = sha_bytes(zb)
     if idx["release_artifact"]["name"] != zip_path.name or \
@@ -476,7 +799,12 @@ def verify(zip_path: Path, bundle: Path, online: bool,
         print("note: a signature proves origin and integrity only; "
               "never physics or hardware validation")
         return 1
-    root = names[0].split("/")[0]
+    root = validate_zip_structure(problems, names)
+    if root is None:
+        print(f"\nRESULT: {len(problems)} FAILURES")
+        print("note: a signature proves origin and integrity only; "
+              "never physics or hardware validation")
+        return 1
     seen: set = set()
     for name, h in sums.items():
         if name == zip_path.name:
@@ -502,7 +830,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     sums_set = {(n, h) for n, h in sums.items()}
     if idx_files != sums_set:
         fail_list(problems, "release_index files != SHA256SUMS set")
-    sbom = json.loads((bundle / "sbom.cdx.json").read_text())
+    sbom = candidate["sbom"]
     lock_txt = zf.read(f"{root}/uv.lock").decode()
     lock_pkgs = set(re.findall(
         r'name = "([^"]+)"\nversion = "([^"]+)"', lock_txt))
@@ -517,7 +845,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     for n, v in SCI_PINS.items():
         if (n, v) not in sbom_pkgs:
             fail_list(problems, f"scientific pin drift: {n}!={v}")
-    prov = json.loads((bundle / "provenance.intoto.json").read_text())
+    prov = candidate["provenance"]
     subj = {(s["name"], s["digest"]["sha256"]) for s in prov["subject"]}
     if (zip_path.name, zh) not in subj:
         fail_list(problems, "provenance subject missing/mismatching the "
@@ -641,12 +969,13 @@ def verify(zip_path: Path, bundle: Path, online: bool,
                 if zip_pol_raw is not None:
                     zip_pol_ok = bind_candidate_policy(
                         problems, "signed-zip", zip_pol_raw, trusted_canon,
-                        trusted_sha256)
+                        root.sha256 if root else None)
 
                 bundled_raw = (bundle /
                                "release_trust_policy.json").read_bytes()
                 bind_candidate_policy(problems, "bundle", bundled_raw,
-                                      trusted_canon, trusted_sha256)
+                                      trusted_canon,
+                                      root.sha256 if root else None)
 
                 try:
                     binding_raw = zf.read(

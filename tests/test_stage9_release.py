@@ -38,9 +38,16 @@ def _sha(b: bytes) -> str:
 def make_release(tmp, *, zip_mut=None, gates=GATES, lock=LOCK,
                  idx_mut=None, sums_mut=None, prov_mut=None,
                  pol_mut=None, sbom_mut=None):
+    # A real release zip carries the tracked canonical policy, and phase 4
+    # compares that copy against the external trust root, so the structural
+    # validator requires it. The fixture mirrors that rather than the
+    # requirement being relaxed to accommodate the fixture.
+    import release_trust as _rt
+    _pol_bytes = pathlib.Path(_rt.CANONICAL_POLICY_PATH).read_bytes()
     inner = {"uv.lock": lock.encode(),
              "results_gate_table.csv": gates.encode(),
-             "final_manifest.json": b"{}"}
+             "final_manifest.json": b"{}",
+             str(_rt.CANONICAL_POLICY_PATH): _pol_bytes}
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         for n, b in sorted(inner.items()):

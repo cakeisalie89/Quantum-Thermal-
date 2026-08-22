@@ -89,8 +89,8 @@ def binding(**over):
 def test_online_without_a_trust_root_fails_closed():
     vr = _vr()
     problems = []
-    pol, canon = vr.load_trusted_policy(problems, None, None)
-    assert pol is None and canon is None
+    root = vr.load_trusted_policy(problems, None, None, None)
+    assert root is None
     assert any("externally supplied trust root" in p for p in problems)
 
 
@@ -98,7 +98,7 @@ def test_the_error_names_the_self_authorization_problem():
     """The message must explain WHY, not just refuse."""
     vr = _vr()
     problems = []
-    vr.load_trusted_policy(problems, None, None)
+    vr.load_trusted_policy(problems, None, None, None)
     joined = " ".join(problems)
     assert "cannot authorize itself" in joined
     assert "CANDIDATE" in joined
@@ -111,25 +111,36 @@ def test_an_unresolved_external_policy_is_refused(tmp_path):
     p.write_bytes(RT.canonical_bytes(
         authorized_policy(pinned_revision="PENDING: later")))
     problems = []
-    pol, _ = vr.load_trusted_policy(problems, str(p), None)
-    assert pol is None
+    root = vr.load_trusted_policy(problems, str(p), None, None)
+    assert root is None
     assert any("not authorized for a signed release" in x for x in problems)
 
 
 def test_a_missing_external_policy_is_refused(tmp_path):
     vr = _vr()
     problems = []
-    pol, _ = vr.load_trusted_policy(problems, str(tmp_path / "nope"), None)
-    assert pol is None
+    root = vr.load_trusted_policy(problems, str(tmp_path / "nope"), None, None)
+    assert root is None
     assert any("not found" in x for x in problems)
 
 
-def test_digest_only_trust_root_is_accepted(tmp_path):
-    """--trusted-policy-sha256 alone is a valid root: it pins bytes."""
+def test_digest_only_trust_root_yields_a_usable_policy(tmp_path):
+    """--trusted-policy-sha256 alone is a valid root: it pins bytes.
+
+    The earlier version of this test asserted only ``problems == []`` and so
+    passed while the loader returned ``(None, None)`` and digest-only
+    verification could not work at all. It now requires a usable object; the
+    full end-to-end contract lives in tests/test_digest_trust_root.py.
+    """
     vr = _vr()
+    canon = RT.canonical_bytes(authorized_policy())
+    b = tmp_path / "bundle"
+    b.mkdir()
+    (b / "release_trust_policy.json").write_bytes(canon)
     problems = []
-    pol, canon = vr.load_trusted_policy(problems, None, "e" * 64)
+    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
     assert problems == []
+    assert root is not None and root.policy["signer_identity"]
 
 
 def test_policy_and_digest_must_agree(tmp_path):
@@ -137,7 +148,7 @@ def test_policy_and_digest_must_agree(tmp_path):
     p = tmp_path / "pol.json"
     p.write_bytes(RT.canonical_bytes(authorized_policy()))
     problems = []
-    vr.load_trusted_policy(problems, str(p), "0" * 64)
+    vr.load_trusted_policy(problems, str(p), "0" * 64, None)
     assert any("digest" in x for x in problems)
 
 

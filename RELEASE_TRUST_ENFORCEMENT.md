@@ -26,6 +26,24 @@ verify_release.py --zip Q.zip --bundle b --online \
 directory, the bundle, or the archive. Independent consumers must obtain the
 authorized policy (or its digest) through a channel independent of the release.
 
+**Both modes end in the same object** — a `TrustedPolicyRoot` carrying a
+resolved policy, its canonical bytes, its digest and its source:
+
+| mode | how the root is established |
+|---|---|
+| `--trusted-policy PATH` | read → parse → validate resolved → canonicalize → digest. If a digest is also supplied, the two must agree. |
+| `--trusted-policy-sha256 DIGEST` | the digest **is** the root. The bundle's candidate policy is promoted only once its canonical bytes hash to the supplied value; only then are its values read. Not self-authorization — the consumer supplied the hash independently, and bytes matching it are the owner's bytes. |
+
+Digest mode uses the **bundle** copy, never the archive copy: the archive
+cannot be trusted before its signature is checked, and that check needs the
+identity this root supplies. The root holds the bytes it authenticated, so a
+candidate file modified afterwards cannot re-enter the decision.
+
+An earlier implementation returned `(None, None)` for a "valid" digest-only
+root, so digest-only verification could not work end to end — while a
+loader-level test still passed. The mutation suite now restores that shape
+specifically, and 11 tests fail.
+
 An earlier implementation compared the bundled policy against a
 repository-local path and, when that path did not exist, **skipped the
 comparison** — so in the independent-verification case there was no root at
@@ -44,7 +62,8 @@ Three words that must not blur:
 
 ```
 1  trust root        load external policy; derive expected identity + issuer
-2  candidate         open zip, recompute digests    (NO authority yet)
+2  candidate         parse untrusted bundle + archive; CLASSIFIED refusals,
+                     never a traceback         (NO authority yet)
 3  authenticate      Sigstore verify zip against the EXTERNAL identity
 4  authenticated     zip policy == root; bundle policy == root;
                      read signed release_binding.json; recompute payload digest
@@ -54,6 +73,26 @@ Three words that must not blur:
 
 No arrow points backward. The binding is read only in phase 4 — after the
 signature that authenticates it has been checked against the policy.
+
+## Phase 2: parsing hostile input
+
+Phase 2 reads attacker-controlled data by design. Every expected malformation
+is a named refusal rather than a traceback:
+
+`MISSING_RELEASE_INDEX` · `INVALID_RELEASE_INDEX` · `MISSING_SHA256SUMS` ·
+`INVALID_SHA256SUMS` · `MISSING_SBOM` · `INVALID_SBOM` · `MISSING_PROVENANCE` ·
+`INVALID_PROVENANCE` · `EMPTY_ZIP` · `INVALID_ZIP_STRUCTURE` ·
+`MISSING_REQUIRED_ZIP_MEMBER`
+
+Archive structure is validated before any member is read, and nothing is
+extracted: exactly one top-level root; no absolute members; no `..`; no
+backslash ambiguity; no duplicate raw or normalized names; no path that is both
+a file and a directory; and each required member present exactly once as a file.
+
+This matters for the payload digest specifically. Recomputation maps members
+into a dict keyed by relative path, so two members normalizing to one key would
+collapse into a single entry and silently change what the digest covers. The
+structural check refuses that shape before any digest is computed.
 
 ## Canonical source
 
