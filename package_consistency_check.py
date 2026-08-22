@@ -139,13 +139,32 @@ if "--sim-log" in sys.argv:
     _i = sys.argv.index("--sim-log")
     _SIM_LOG = sys.argv[_i + 1] if _i + 1 < len(sys.argv) else None
 
+#: Classification of the existing generated output set. "USABLE" means the
+#: set is present and iterable; every other value names a specific refusal and
+#: suppresses the steps that would otherwise raise on it. Full-regeneration
+#: mode always produces the set itself, so it starts USABLE there.
+_OUTPUTS_STATE = "USABLE"
+
 if VERIFY_EXISTING:
     print("  MODE: --verify-existing (verification-only; NOT the "
           "release gate — full regeneration remains authoritative)")
     if not sim_path.exists():
         fail("qta_full_sim.py present", f"missing {sim_path}")
     if not gen_outputs_dir.exists():
-        fail("existing outputs/ directory present", "missing")
+        # Classified refusal, not a traceback. Steps that iterate the
+        # generated set are skipped explicitly below rather than exploding
+        # on the first iterdir(); the run still exits nonzero.
+        _OUTPUTS_STATE = "MISSING_EXISTING_OUTPUTS"
+        fail("existing outputs/ directory present",
+             f"{_OUTPUTS_STATE}: {gen_outputs_dir} does not exist. "
+             "--verify-existing verifies an existing complete output set and "
+             "never regenerates one; run the default full-regeneration mode "
+             "(no --verify-existing) to produce it.")
+    elif not gen_outputs_dir.is_dir():
+        _OUTPUTS_STATE = "EXISTING_OUTPUTS_NOT_A_DIRECTORY"
+        fail("existing outputs/ directory present",
+             f"{_OUTPUTS_STATE}: {gen_outputs_dir} exists but is not a "
+             "directory")
     else:
         _n = len([x for x in gen_outputs_dir.iterdir() if x.is_file()])
         # the canonical complete-set size is exactly 89 files (88 governed
@@ -154,9 +173,14 @@ if VERIFY_EXISTING:
         # (missing files would otherwise escape Step 2b, which iterates
         # only files that exist).
         if _n != 89:
+            _OUTPUTS_STATE = ("INCOMPLETE_EXISTING_OUTPUTS" if _n < 89
+                              else "FOREIGN_EXISTING_OUTPUTS")
+            _names = sorted(x.name for x in gen_outputs_dir.iterdir()
+                            if x.is_file())
             fail("existing output set complete (exactly 89 files)",
-                 f"{_n} files present; partial/truncated or foreign sets "
-                 "are never accepted")
+                 f"{_OUTPUTS_STATE}: {_n} files present; partial/truncated "
+                 "or foreign sets are never accepted. "
+                 f"first 5 present: {_names[:5]}")
         else:
             ok("existing output set complete (exactly 89 files; "
                "byte-identity further enforced file-by-file in Steps 2+)")
@@ -303,25 +327,44 @@ else:
 def regen_root_byte_drift(gen_dir, root_dir, exceptions=frozenset()):
     """Names of regenerated files whose ROOT canonical copy exists but is not
     byte-identical (stale committed snapshots)."""
-    drift = []
+    drift, unreadable = [], []
     for p in sorted(gen_dir.iterdir()):
         if not p.is_file() or p.name in exceptions:
             continue
         rootp = root_dir / p.name
-        if rootp.exists():
-            if hashlib.sha256(p.read_bytes()).hexdigest() != \
-               hashlib.sha256(rootp.read_bytes()).hexdigest():
-                drift.append(p.name)
-    return drift
+        if not rootp.exists():
+            continue
+        try:
+            a = hashlib.sha256(p.read_bytes()).hexdigest()
+            b = hashlib.sha256(rootp.read_bytes()).hexdigest()
+        except OSError as e:
+            # An output that cannot be read is not "no drift" -- it is an
+            # unverifiable file, reported by name rather than skipped.
+            unreadable.append(f"{p.name} ({type(e).__name__})")
+            continue
+        if a != b:
+            drift.append(p.name)
+    return drift, unreadable
 
 _REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
-_drift = regen_root_byte_drift(gen_outputs_dir, PKG, _REGEN_EXEMPT)
-if _drift:
+if _OUTPUTS_STATE != "USABLE":
+    # No vacuous PASS: with no usable generated set there is nothing to
+    # compare against, and silence here would read as agreement.
     fail("root canonical outputs byte-match the canonical regeneration",
-         f"stale root copies: {_drift[:8]}")
+         f"NOT CHECKED — {_OUTPUTS_STATE}; no generated output set to "
+         "compare the root canonical copies against")
 else:
-    ok("root canonical outputs byte-match the canonical regeneration "
-       "(exempt by design: deep_surrogate_readiness.json)")
+    _drift, _unreadable = regen_root_byte_drift(
+        gen_outputs_dir, PKG, _REGEN_EXEMPT)
+    if _unreadable:
+        fail("every regenerated output is readable",
+             f"UNREADABLE_EXISTING_OUTPUT: {_unreadable[:8]}")
+    if _drift:
+        fail("root canonical outputs byte-match the canonical regeneration",
+             f"stale root copies: {_drift[:8]}")
+    elif not _unreadable:
+        ok("root canonical outputs byte-match the canonical regeneration "
+           "(exempt by design: deep_surrogate_readiness.json)")
 
 # ===================== STEP 3: sim stdout stale audit ========================
 print()
