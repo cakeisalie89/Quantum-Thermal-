@@ -2850,17 +2850,45 @@
     },
     {
       "filename": "EVIDENCE_CLOSURE.md",
-      "size_bytes": 16208,
-      "sha256": "cdde1e85ba393d1e8dbd28969d84a1eb6c52657ec10e29efd3cc04248e2aa95f",
+      "size_bytes": 23104,
+      "sha256": "ceaedac085226ff5641f8542c52ad23540e5c558cdd1c4989219ee1800fd66a0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "THERMAL_3D_L3.md",
-      "size_bytes": 4461,
-      "sha256": "fff873133116e6d5f321cc4aeb4ac819afd4013592e25bc104a7efd6057de4fa",
+      "size_bytes": 7778,
+      "sha256": "f3b9744370ef442604cd74ae6801a2a37bd61ade00b2adfa4d307f101f9c80dd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": ".github/workflows/container-verify.yml",
+      "size_bytes": 4840,
+      "sha256": "a896490163492a07cb241b9bc81e03ecb75499a584a4d48b700e959e5590fbd3",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": ".github/workflows/identity-discovery.yml",
+      "size_bytes": 4983,
+      "sha256": "044b36156ffbb6af33fd0578c9ea73f9d1fd7b211a1b1ed55bd55a30d7b1cf9e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "SIGNING_BOOTSTRAP.md",
+      "size_bytes": 6249,
+      "sha256": "3399668c558f0ac699510247943fe1eecca6c42a663f65beb6e00027e951653f",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_bootstrap_workflow_contract.py",
+      "size_bytes": 7895,
+      "sha256": "29234ee2477680875034a8b7012e432a298d3a84c22a1d2593d557c03d1b6944",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."
