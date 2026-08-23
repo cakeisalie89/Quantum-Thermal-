@@ -102,75 +102,9 @@ jobs:
       - name: DIAGNOSTIC capture fresh container regeneration + fingerprint
         if: always()
         run: |
-          mkdir -p diag/outputs diag/meta
-          cat > diag/meta/collect.py <<'PY'
-          import hashlib, json, os, platform, subprocess, sys
-          from pathlib import Path
-          fp = {"python": sys.version.split()[0],
-                "platform": platform.platform(),
-                "machine": platform.machine()}
-          import numpy, scipy, h5py
-          fp.update(numpy=numpy.__version__, scipy=scipy.__version__,
-                    h5py=h5py.__version__)
-          try:
-              import qutip; fp["qutip"] = qutip.__version__
-          except Exception as e:
-              fp["qutip"] = repr(e)
-          try:
-              cfg = numpy.show_config(mode="dicts")
-              bd = cfg.get("Build Dependencies", {})
-              fp["blas"] = bd.get("blas", {})
-              fp["lapack"] = bd.get("lapack", {})
-              fp["simd"] = cfg.get("SIMD Extensions", {})
-          except Exception as e:
-              fp["show_config"] = repr(e)
-          for v in ("OMP_NUM_THREADS","OPENBLAS_NUM_THREADS","MKL_NUM_THREADS",
-                    "BLIS_NUM_THREADS","NUMEXPR_NUM_THREADS",
-                    "VECLIB_MAXIMUM_THREADS","PYTHONHASHSEED","LANG","LC_ALL",
-                    "TZ","GITHUB_SHA","GITHUB_REF","GITHUB_WORKFLOW",
-                    "GITHUB_RUN_ID","RUNNER_OS"):
-              fp[v] = os.environ.get(v)
-          cpu = {"count": os.cpu_count()}
-          try:
-              for line in open("/proc/cpuinfo"):
-                  if line.startswith("model name") and "model" not in cpu:
-                      cpu["model"] = line.split(":", 1)[1].strip()
-                  if line.startswith("flags") and "flags" not in cpu:
-                      cpu["flags"] = line.split(":", 1)[1].split()
-          except OSError as e:
-              cpu["error"] = repr(e)
-          fp["cpu"] = cpu
-          try:
-              fp["uname"] = subprocess.run(["uname","-a"], capture_output=True,
-                                           text=True).stdout.strip()
-          except Exception as e:
-              fp["uname"] = repr(e)
-          Path("/diag/meta/fingerprint_hosted.json").write_text(
-              json.dumps(fp, indent=1, sort_keys=True))
-
-          # FRESH regeneration into an empty directory.
-          out = Path("/diag/outputs")
-          from qta_multiphysics.runner_3d import run_3d_all
-          from qta_multiphysics.runner import run_all
-          run_3d_all(out, heavy=False, verbose=False)
-          run_all(out, verbose=False)
-
-          inv = {}
-          for f in sorted(out.iterdir()):
-              if f.is_file():
-                  b = f.read_bytes()
-                  inv[f.name] = {"sha256": hashlib.sha256(b).hexdigest(),
-                                 "size": len(b)}
-          Path("/diag/meta/hosted_3d_hashes.json").write_text(
-              json.dumps({"provenance": "freshly regenerated inside the "
-                          "container into an empty bind mount; NOT the "
-                          "committed repository copies",
-                          "github_sha": os.environ.get("GITHUB_SHA"),
-                          "files": inv}, indent=1, sort_keys=True))
-          print(f"captured {len(inv)} regenerated files")
-          PY
+          mkdir -p diag
           docker run --rm -v "$PWD/diag:/diag" -w /qta qta:hosted-verify \
-            python /diag/meta/collect.py
+            python analysis/collect_container_3d.py /diag
           echo "--- captured:"; ls -1 diag/outputs | head -40
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
