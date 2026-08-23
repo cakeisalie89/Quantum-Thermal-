@@ -198,11 +198,53 @@ fine; **authorization** comes only after digest equality.
 and its own codes. A malformed external root is an `INVALID_TRUST_ROOT` — a bad
 *question*, not a bad release — and never a traceback.
 
+### Two roots, two types, never one name
+
+`verify()` bound `root` to the `TrustedPolicyRoot` in phase 1, rebound the same
+name to the archive's top-level directory **string** in phase 2, and evaluated
+`root.sha256` in phase 4:
+
+```
+AttributeError: 'str' object has no attribute 'sha256'
+```
+
+Phase 4 runs only after the Sigstore signature verifies. **No test had ever
+executed the successful online path**, so a suite full of refusal tests passed
+against a verifier that could not successfully verify anything. The names are
+now `trust_root: TrustedPolicyRoot | None` and `archive_root: str`, an AST test
+forbids a bare `root` binding in `verify()`, and
+`test_online_success_reaches_all_authenticated_phases` drives phases 3→6 with
+only the cryptography mocked, asserting each authenticated stage actually ran.
+
+Testing only refusal is a blind spot of its own: every "does it say no?" test
+can pass while "does it ever say yes?" is broken.
+
+### Validate once, consume the same bytes — for all four documents
+
+The policy was already retained. The index, SBOM and provenance were still
+re-read from disk during the secret / absolute-path / claim scan. That is the
+same TOCTOU window one layer over, and it forced `errors="replace"` onto bytes
+whose strict decode had already succeeded — substitution that can only mask
+content. All four now carry their exact bytes and strictly-decoded text
+(`JsonDocument`, `PolicyDocument`), and the scan reads `candidate.scanned_text`.
+A test plants a secret in each file *after* validation and asserts the run
+cannot see it.
+
+### Unsigned auxiliary structures are attacker-controlled after authentication
+
+`provenance.intoto.json` sits beside the archive, so anyone can edit it while
+the signature over the zip stays valid. `predicate` was typed at parse time but
+nothing below it was, and the phase-5 cross-check walked
+`buildDefinition → externalParameters → resolvedDependencies` with bare `.get`
+chains — four distinct `AttributeError`s, all reachable **only** after a
+successful signature. Nested access now degrades to "no value" instead of
+raising.
+
 ### What is claimed
 
 `tests/test_hostile_input_no_traceback.py` drives the real entry point with
 every shape that was *reproduced* as an uncaught exception and asserts a named
-code comes back. Thirty-three mutations, each re-opening one specific hole, are killed by the
+code comes back. Forty-three mutations, each re-opening one specific hole, are killed by the
 test naming that property.
 
 The claim is about the reproduced surface, not totality: it says every

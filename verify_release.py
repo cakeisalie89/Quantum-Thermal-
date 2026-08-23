@@ -371,6 +371,9 @@ class CandidateBundle:
     sums: dict
     sbom: dict
     provenance: dict
+    index_doc: JsonDocument
+    sbom_doc: JsonDocument
+    provenance_doc: JsonDocument
     policy_doc: PolicyDocument
     artifact_name: str
     artifact_size: int
@@ -392,6 +395,19 @@ class CandidateBundle:
     def policy_bytes(self) -> bytes:
         """The exact bytes that were validated -- never re-read from disk."""
         return self.policy_doc.raw
+
+    @property
+    def scanned_text(self) -> str:
+        """Concatenated text of every validated metadata document.
+
+        The secret / absolute-path / claim-boundary scan reads THIS, not the
+        filesystem. Re-reading after validation would let a file replaced
+        mid-run be validated in one form and scanned in another -- and it
+        forced errors="replace" on bytes whose strict decoding had already
+        succeeded, which can only mask content.
+        """
+        return (self.index_doc.text + self.sbom_doc.text +
+                self.provenance_doc.text + self.policy_doc.text)
 
 
 def _validate_index(problems, idx: dict):
@@ -571,8 +587,23 @@ def load_policy_document(problems, path: Path, *, label: str,
     return PolicyDocument(raw=raw, text=text, policy=doc)
 
 
+@dataclass(frozen=True)
+class JsonDocument:
+    """One candidate metadata file: exact bytes, strict text, parsed object."""
+    raw: bytes
+    text: str
+    doc: dict
+
+
 def _load_json_member(problems, path: Path, missing: str, invalid: str):
-    """Read one candidate JSON file, classifying both failure modes."""
+    """Read one candidate JSON file, classifying both failure modes.
+
+    Returns a JsonDocument carrying the exact bytes, the strictly decoded
+    text, and the parsed object -- never just the object. Handing back only
+    the object forced later consumers to re-read the file, which is a TOCTOU
+    window: the document that was validated and the document that is used stop
+    being the same document.
+    """
     if not path.exists():
         fail_list(problems, f"{missing}: {path}")
         return None
@@ -596,7 +627,8 @@ def _load_json_member(problems, path: Path, missing: str, invalid: str):
         fail_list(problems, f"{invalid}: {path} is empty")
         return None
     try:
-        doc = json.loads(raw.decode("utf-8"))
+        text = raw.decode("utf-8")
+        doc = json.loads(text)
     # RecursionError is not a ValueError. A document nested tens of thousands
     # of levels deep -- trivially cheap to author -- crashed the decoder and
     # escaped this handler entirely, producing exactly the traceback this
@@ -610,7 +642,10 @@ def _load_json_member(problems, path: Path, missing: str, invalid: str):
                   f"{invalid}: {path} is not a JSON object "
                   f"({type(doc).__name__})")
         return None
-    return doc
+    # The decoded text is RETAINED and handed back with the object. Every
+    # later consumer -- notably the secret/path/claim scan -- reads it instead
+    # of re-opening the file, so what is scanned is exactly what was parsed.
+    return JsonDocument(raw=raw, text=text, doc=doc)
 
 
 def parse_sha256sums(problems, path: Path):
@@ -659,7 +694,11 @@ def parse_sha256sums(problems, path: Path):
 
 
 def validate_zip_structure(problems, names: list):
-    """Structural validation of an UNTRUSTED archive. Returns the root, or None.
+    """Structural validation of an UNTRUSTED archive.
+
+    Returns the archive's top-level directory name (a str), or None. This is
+    the ARCHIVE root -- a ZIP member prefix. It is not, and must never be
+    confused with, the TrustedPolicyRoot returned by load_trusted_policy.
 
     Nothing is extracted; this only decides which member names may be read.
     Ambiguity matters more than usual here because payload-digest
@@ -719,17 +758,17 @@ def validate_zip_structure(problems, names: list):
                   f"INVALID_ZIP_STRUCTURE: expected exactly one top-level "
                   f"release root, found {sorted(roots)[:5]}")
         return None
-    root = roots.pop()
+    archive_root = roots.pop()
 
     files = {k for k, v in normalized.items() if v == "file"}
     for required in REQUIRED_ZIP_MEMBERS:
-        want = f"{root}/{required}"
+        want = f"{archive_root}/{required}"
         if want not in files:
             fail_list(problems,
                       f"MISSING_REQUIRED_ZIP_MEMBER: {required!r} is not in "
                       "the archive")
             return None
-    return root
+    return archive_root
 
 
 def parse_candidate_bundle(problems, bundle: Path,
@@ -745,10 +784,12 @@ def parse_candidate_bundle(problems, bundle: Path,
     makes that ordering structural: there is no accessor that yields an
     unvalidated record.
     """
-    idx = _load_json_member(problems, bundle / "release_index.json",
-                            "MISSING_RELEASE_INDEX", "INVALID_RELEASE_INDEX")
-    if idx is None:
+    idx_doc = _load_json_member(problems, bundle / "release_index.json",
+                                "MISSING_RELEASE_INDEX",
+                                "INVALID_RELEASE_INDEX")
+    if idx_doc is None:
         return None
+    idx = idx_doc.doc
     got = _validate_index(problems, idx)
     if got is None:
         return None
@@ -758,24 +799,27 @@ def parse_candidate_bundle(problems, bundle: Path,
     if sums is None:
         return None
 
-    sbom = _load_json_member(problems, bundle / "sbom.cdx.json",
-                             "MISSING_SBOM", "INVALID_SBOM")
-    if sbom is None:
+    sbom_doc = _load_json_member(problems, bundle / "sbom.cdx.json",
+                                 "MISSING_SBOM", "INVALID_SBOM")
+    if sbom_doc is None:
         return None
+    sbom = sbom_doc.doc
     sbom_pkgs = _validate_sbom(problems, sbom)
     if sbom_pkgs is None:
         return None
 
-    prov = _load_json_member(problems, bundle / "provenance.intoto.json",
-                             "MISSING_PROVENANCE", "INVALID_PROVENANCE")
-    if prov is None:
+    prov_doc = _load_json_member(problems, bundle / "provenance.intoto.json",
+                                 "MISSING_PROVENANCE", "INVALID_PROVENANCE")
+    if prov_doc is None:
         return None
+    prov = prov_doc.doc
     subjects = _validate_provenance(problems, prov)
     if subjects is None:
         return None
 
     return CandidateBundle(
         index=idx, sums=sums, sbom=sbom, provenance=prov,
+        index_doc=idx_doc, sbom_doc=sbom_doc, provenance_doc=prov_doc,
         policy_doc=policy_doc,
         artifact_name=art_name, artifact_size=art_size,
         artifact_sha256=art_sha, index_files=idx_files,
@@ -927,12 +971,13 @@ def load_trusted_policy(problems, trusted_policy, trusted_sha256,
                       f"--trusted-policy-sha256 {want_digest}")
             return None
         try:
-            root = release_trust.TrustedPolicyRoot(pol, canon, got, "file")
+            trust_root = release_trust.TrustedPolicyRoot(
+                pol, canon, got, "file")
         except release_trust.PolicyError as e:
             fail_list(problems, f"trust root rejected: {e}")
             return None
         ok("external trust root loaded from file and authorized")
-        return root
+        return trust_root
 
     # ---- DIGEST-ONLY mode -------------------------------------------------
     # The candidate document was already read and structurally validated in
@@ -966,7 +1011,8 @@ def load_trusted_policy(problems, trusted_policy, trusted_sha256,
     # values be read.
     try:
         release_trust.validate_policy(pol, require_resolved=True)
-        root = release_trust.TrustedPolicyRoot(pol, canon, got, "digest")
+        trust_root = release_trust.TrustedPolicyRoot(
+            pol, canon, got, "digest")
     except release_trust.PolicyError as e:
         fail_list(problems,
                   f"digest-authenticated policy is not authorized for a "
@@ -974,7 +1020,7 @@ def load_trusted_policy(problems, trusted_policy, trusted_sha256,
         return None
     ok("external trust root established by digest: the bundle's candidate "
        "policy hashes to the independently supplied value and is authorized")
-    return root
+    return trust_root
 
 
 def bind_candidate_policy(problems, label: str, raw: bytes,
@@ -1130,6 +1176,21 @@ def enforce_authenticated_binding(problems, pol: dict, binding: dict,
                   "external trust root")
 
 
+def _dig(doc, *keys, default=None):
+    """Walk nested mapping keys, yielding `default` the moment one is not one.
+
+    Used for UNSIGNED auxiliary structures, where every level is
+    attacker-controlled and a missing level and a wrongly-typed level are the
+    same thing: no value. Returns {} by default so callers can `.get` safely.
+    """
+    cur = doc
+    for k in keys:
+        if not isinstance(cur, dict) or k not in cur:
+            return {} if default is None else default
+        cur = cur[k]
+    return cur
+
+
 def check_auxiliary_provenance(problems, pol: dict, binding: dict,
                                prov: dict) -> None:
     """Cross-check UNSIGNED provenance. It is never authority.
@@ -1141,15 +1202,27 @@ def check_auxiliary_provenance(problems, pol: dict, binding: dict,
     Those now come from the signed binding. What remains here is a consistency
     report: a disagreement is worth surfacing, but agreement grants nothing.
     """
-    ext = prov.get("predicate", {}).get("buildDefinition", {}).get(
-        "externalParameters", {})
+    # Provenance is UNSIGNED. It sits beside the archive, so anyone can edit
+    # it while the signature over the zip stays valid -- which means these
+    # nested reads are attacker-controlled even on a genuinely authenticated
+    # release. `predicate` is typed at parse time, but nothing below it was:
+    # a `buildDefinition` of "nope", an `externalParameters` list, a
+    # `resolvedDependencies` string, or a null dependency each raised
+    # AttributeError here. Reached only after the signature verifies, which is
+    # exactly why no refusal test found it.
+    ext = _dig(prov, "predicate", "buildDefinition", "externalParameters")
+    deps = _dig(prov, "predicate", "buildDefinition", "resolvedDependencies",
+                default=[])
     rev = ""
-    for dep in prov.get("predicate", {}).get("buildDefinition", {}).get(
-            "resolvedDependencies", []):
-        if "gitCommit" in dep.get("digest", {}):
-            rev = str(dep["digest"]["gitCommit"])
-            break
+    if isinstance(deps, list):
+        for dep in deps:
+            digest = dep.get("digest") if isinstance(dep, dict) else None
+            if isinstance(digest, dict) and "gitCommit" in digest:
+                rev = str(digest["gitCommit"])
+                break
     mismatches = []
+    if not isinstance(ext, dict):
+        ext = {}
     for k in ("source_repository", "workflow_path", "authorized_ref"):
         if str(ext.get(k, "")) != str(binding[k]):
             mismatches.append(k)
@@ -1192,7 +1265,7 @@ def decode_member(problems, zf, name: str):
         return None
 
 
-def read_release_binding(problems, zf, root: str):
+def read_release_binding(problems, zf, archive_root: str):
     """Parse the release binding from the AUTHENTICATED archive.
 
     This input is not pre-authentication hostile input: the signature over the
@@ -1206,7 +1279,7 @@ def read_release_binding(problems, zf, root: str):
     RecursionError and UnicodeDecodeError are named explicitly because neither
     is a JSONDecodeError, which is all the earlier version caught.
     """
-    name = f"{root}/{release_trust.RELEASE_BINDING_NAME}"
+    name = f"{archive_root}/{release_trust.RELEASE_BINDING_NAME}"
     try:
         raw = zf.read(name)
         doc = json.loads(raw.decode("utf-8"))
@@ -1254,18 +1327,25 @@ def verify(zip_path: Path, bundle: Path, online: bool,
 
     # ---- PHASE 1: trust root -------------------------------------------
     # Nothing from the candidate artifact has any authority until phase 3.
-    root = None
+    # `trust_root` and `archive_root` are DIFFERENT KINDS OF THING and were
+    # once both called `root`. Phase 1 bound the TrustedPolicyRoot; phase 2
+    # rebound the same name to the archive's top-level directory string; and
+    # phase 4 then evaluated `root.sha256` on a str. Every refusal test passed,
+    # because no test had ever executed the successful online path all the way
+    # into phase 4. The names are now distinct and annotated so the two can
+    # never be confused again.
+    trust_root: release_trust.TrustedPolicyRoot | None = None
     trusted_pol, trusted_canon = (None, None)
     if online:
-        root = load_trusted_policy(problems, trusted_policy, trusted_sha256,
-                                   candidate_policy)
-        if root is not None:
+        trust_root = load_trusted_policy(problems, trusted_policy,
+                                         trusted_sha256, candidate_policy)
+        if trust_root is not None:
             # One object, both modes. Everything downstream reads the
             # AUTHENTICATED canonical bytes held here, never a re-read of the
             # candidate file, so bytes changed after the digest check cannot
             # re-enter the decision.
-            trusted_pol = root.policy
-            trusted_canon = root.canonical_bytes
+            trusted_pol = trust_root.policy
+            trusted_canon = trust_root.canonical_bytes
         if problems:
             print(f"\nRESULT: {len(problems)} FAILURES")
             print("note: a signature proves origin and integrity only; "
@@ -1307,8 +1387,8 @@ def verify(zip_path: Path, bundle: Path, online: bool,
         print("note: a signature proves origin and integrity only; "
               "never physics or hardware validation")
         return 1
-    root = validate_zip_structure(problems, names)
-    if root is None:
+    archive_root: str | None = validate_zip_structure(problems, names)
+    if archive_root is None:
         print(f"\nRESULT: {len(problems)} FAILURES")
         print("note: a signature proves origin and integrity only; "
               "never physics or hardware validation")
@@ -1317,7 +1397,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     for name, h in sums.items():
         if name == zip_path.name:
             continue
-        inner = f"{root}/{name}"
+        inner = f"{archive_root}/{name}"
         if inner in seen:
             fail_list(problems, f"duplicate artifact {name}")
         seen.add(inner)
@@ -1340,7 +1420,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     sums_set = candidate.sums_set
     if idx_files != sums_set:
         fail_list(problems, "release_index files != SHA256SUMS set")
-    lock_txt = decode_member(problems, zf, f"{root}/uv.lock")
+    lock_txt = decode_member(problems, zf, f"{archive_root}/uv.lock")
     sbom_pkgs = candidate.sbom_packages
     if lock_txt is None:
         # A comparison that could not run is not a comparison that passed.
@@ -1395,15 +1475,11 @@ def verify(zip_path: Path, bundle: Path, online: bool,
         # The structural wildcard scan lives in release_trust.validate_policy
         # and covers every leaf, including nested list entries.
         ok("trust policy contains no wildcards")
-    # Every one of these was proven present and parseable by
-    # parse_candidate_bundle, so this read cannot be the first place a
-    # missing bundle file is discovered. The policy is NOT re-read: its text
-    # comes from the document validated in phase 0, so the bytes scanned for
-    # secrets are exactly the bytes that were validated and will be hashed.
-    blob = "".join((bundle / f).read_text(encoding="utf-8", errors="replace")
-                   for f in ("release_index.json", "sbom.cdx.json",
-                             "provenance.intoto.json")) + \
-        candidate.policy_doc.text
+    # NOTHING is re-read here. Every document was decoded strictly and parsed
+    # during validation, and its text was retained; the scan examines exactly
+    # those documents. A file replaced after validation cannot change what
+    # this run scans.
+    blob = candidate.scanned_text
     for pat in SECRET_PATTERNS:
         if re.search(pat, blob):
             fail_list(problems, f"secret-pattern hit: {pat[:24]}...")
@@ -1418,7 +1494,8 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     # signed zip is the authority. Recompute from it, and additionally require
     # the index to AGREE -- an index that understates the PASS count is a
     # lying envelope, not merely a redundant one.
-    gate_csv = decode_member(problems, zf, f"{root}/results_gate_table.csv")
+    gate_csv = decode_member(
+        problems, zf, f"{archive_root}/results_gate_table.csv")
     claimed = idx.get("claims", {}).get("scientific_gate_PASS_count")
     if gate_csv is None:
         # Fail closed on the claim itself. An unreadable gate table does not
@@ -1493,7 +1570,8 @@ def verify(zip_path: Path, bundle: Path, online: bool,
                 zip_pol_ok = False
                 try:
                     zip_pol_raw = zf.read(
-                        f"{root}/{release_trust.CANONICAL_POLICY_PATH}")
+                        f"{archive_root}/"
+                        f"{release_trust.CANONICAL_POLICY_PATH}")
                 except KeyError:
                     fail_list(problems,
                               "the signed zip contains no canonical trust "
@@ -1502,15 +1580,16 @@ def verify(zip_path: Path, bundle: Path, online: bool,
                 if zip_pol_raw is not None:
                     zip_pol_ok = bind_candidate_policy(
                         problems, "signed-zip", zip_pol_raw, trusted_canon,
-                        root.sha256 if root else None)
+                        trust_root.sha256 if trust_root else None)
 
                 # The retained phase-0 bytes, not a fresh read: the copy
                 # bound to the trust root must be the copy that was validated.
                 bind_candidate_policy(problems, "bundle",
                                       candidate.policy_bytes, trusted_canon,
-                                      root.sha256 if root else None)
+                                      trust_root.sha256 if trust_root
+                                      else None)
 
-                binding = read_release_binding(problems, zf, root)
+                binding = read_release_binding(problems, zf, archive_root)
                 if binding is not None and trusted_pol is not None:
                     enforce_authenticated_binding(
                         problems, trusted_pol, binding, zip_pol_ok)
@@ -1520,9 +1599,10 @@ def verify(zip_path: Path, bundle: Path, online: bool,
                     # with no Git checkout at all.
                     payload = {}
                     for n in zf.namelist():
-                        if not n.startswith(root + "/") or n.endswith("/"):
+                        if (not n.startswith(archive_root + "/")
+                                or n.endswith("/")):
                             continue
-                        rel = n[len(root) + 1:]
+                        rel = n[len(archive_root) + 1:]
                         if rel == release_trust.RELEASE_BINDING_NAME:
                             continue
                         payload[rel] = zf.read(n)

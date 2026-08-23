@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "3f9097b51b908e21ff1604e96a5888c2755cb19886d707d0a3bd8ce41cd16813",
+      "sha256": "335124e815fdf120adc1d81531214b9594923fa4d9acd9ccd8571bb926d755d1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2493,8 +2493,8 @@
     },
     {
       "filename": "verify_release.py",
-      "size_bytes": 69483,
-      "sha256": "774278baf6729977ac3bd3ccb5a70f0fb4d158cb6c64cb7362e6787ed0b2caa9",
+      "size_bytes": 73203,
+      "sha256": "c0fe9fb36954d533b2442b0af8412c78a4866fa2f3690001748e4634a4867d61",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2920,8 +2920,8 @@
     },
     {
       "filename": "RELEASE_TRUST_ENFORCEMENT.md",
-      "size_bytes": 20285,
-      "sha256": "ab8e608345a62e72366b6ba1039bd6b5d63e634b5ecd162300c0bede6465bb9a",
+      "size_bytes": 22388,
+      "sha256": "c94b35c178a36170b9013c96481627a83a08698477323b5354d238587ea4813a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2976,8 +2976,15 @@
     },
     {
       "filename": "tests/test_hostile_trust_policy.py",
-      "size_bytes": 18929,
-      "sha256": "1044d3a898ec75adbc5397e12cbec8b0e2fb50639c815e88afdc3f3bb126a1a5",
+      "size_bytes": 23098,
+      "sha256": "20ace9e382d3ccad9caae1661938c1b854a2b59101806f7838c27fc018aa7cd1",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_online_success_path.py",
+      "size_bytes": 18634,
+      "sha256": "b0d1d4d92dcee7e7e18a6dacfc82835afaa8f5967adf60e39207f374f83d8339",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }

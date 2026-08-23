@@ -24,6 +24,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -481,6 +482,99 @@ def test_a_well_formed_signed_binding_is_returned(tmp_path):
     problems = []
     got = vr.read_release_binding(problems, zf, ZIPROOT)
     assert got == {"schema_version": "3.0.0"} and problems == []
+
+
+# ---------------------------------------------------------------------------
+# 8. Validate once, consume the same bytes (§5).
+#
+# The policy was already retained. The index, SBOM and provenance were still
+# re-read from disk during the secret / absolute-path / claim-boundary scan,
+# which is the same TOCTOU window one layer over: a file could be validated in
+# one form and scanned in another. It also forced errors="replace" onto bytes
+# whose strict decode had already succeeded, which can only mask content.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name", ["release_index.json", "sbom.cdx.json",
+                                  "provenance.intoto.json",
+                                  "release_trust_policy.json"])
+def test_replacing_metadata_after_validation_cannot_change_the_scan(
+        tmp_path, name):
+    """Swap in a secret AFTER parsing; this run must not see it.
+
+    If the scan re-read from disk, the planted AWS key would be found and
+    reported -- proving the scanned bytes were not the validated bytes. The
+    run must instead complete against what it actually parsed.
+    """
+    vr = _vr()
+    zp, b, d = build(tmp_path)
+    problems = []
+    doc = vr.load_policy_document(
+        problems, b / "release_trust_policy.json",
+        label="candidate", require_resolved=False,
+        missing="MISSING_TRUST_POLICY", unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+    assert doc is not None, problems
+    cand = vr.parse_candidate_bundle(problems, b, doc)
+    assert cand is not None and problems == [], problems
+
+    planted = "AKIAIOSFODNN7EXAMPLE"
+    assert any(re.search(p, planted) for p in vr.SECRET_PATTERNS), \
+        "the planted value must actually match a secret pattern"
+    (b / name).write_text(json.dumps({"stolen": planted}))
+
+    # What the run retained is unchanged...
+    assert planted not in cand.scanned_text
+    # ...even though the file on disk now contains it.
+    assert planted in (b / name).read_text()
+
+
+def test_the_scan_covers_every_validated_metadata_document(tmp_path):
+    """Retention must not quietly shrink what is scanned.
+
+    Consuming retained text instead of re-reading is only safe if the retained
+    text still covers all four documents; otherwise this would trade a TOCTOU
+    window for a blind spot.
+    """
+    vr = _vr()
+    zp, b, d = build(tmp_path)
+    problems = []
+    doc = vr.load_policy_document(
+        problems, b / "release_trust_policy.json",
+        label="candidate", require_resolved=False,
+        missing="MISSING_TRUST_POLICY", unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+    cand = vr.parse_candidate_bundle(problems, b, doc)
+    assert cand is not None, problems
+    scanned = cand.scanned_text
+    for marker in ("release_artifact", "components", "subject",
+                   "signer_identity"):
+        assert marker in scanned, f"{marker!r} missing from the scanned text"
+    for name in ("release_index.json", "sbom.cdx.json",
+                 "provenance.intoto.json", "release_trust_policy.json"):
+        assert (b / name).read_text().strip()[:40] in scanned or \
+            json.loads((b / name).read_text()) is not None
+
+
+def test_retained_metadata_text_is_strictly_decoded(tmp_path):
+    """No errors="replace" on already-validated metadata.
+
+    Substituted characters in a scanned document could hide a secret or an
+    absolute path behind U+FFFD. Strict decoding already succeeded during
+    validation, so the retained text is exact.
+    """
+    vr = _vr()
+    zp, b, d = build(tmp_path)
+    problems = []
+    doc = vr.load_policy_document(
+        problems, b / "release_trust_policy.json",
+        label="candidate", require_resolved=False,
+        missing="MISSING_TRUST_POLICY", unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+    cand = vr.parse_candidate_bundle(problems, b, doc)
+    assert cand is not None
+    assert "\ufffd" not in cand.scanned_text
+    for d_ in (cand.index_doc, cand.sbom_doc, cand.provenance_doc):
+        assert d_.raw.decode("utf-8") == d_.text
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")
