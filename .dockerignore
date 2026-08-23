@@ -5,7 +5,13 @@
 .mypy_cache
 .ruff_cache
 verification/
-attic/delivery_artifacts/
+# attic/delivery_artifacts/ is NOT excluded. Those 18 files are git-tracked and
+# therefore covered by final_manifest.json, and container_verify.sh runs the
+# manifest check -- so excluding them made the in-container check fail with 18
+# "missing file" mismatches (hosted run 32618887858). The alternative, dropping
+# them from the manifest, would weaken governance to make a container pass.
+# 19 MB in the image is the correct cost. test_container_manifest_coverage
+# fails if any .dockerignore pattern starts hiding governed files again.
 __pycache__
 *.pyc
 rust/**/target/

@@ -2234,8 +2234,8 @@
     },
     {
       "filename": ".dockerignore",
-      "size_bytes": 134,
-      "sha256": "71157fb490ac64cf876aa8ee86ceda5d29d4c517bb776eb00677de1f0a46f229",
+      "size_bytes": 648,
+      "sha256": "6e3f002e58b3b3befe5948e9812646f5701a19def566530fb5517b37e1bdf43c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2985,6 +2985,13 @@
       "filename": "tests/test_online_success_path.py",
       "size_bytes": 18634,
       "sha256": "b0d1d4d92dcee7e7e18a6dacfc82835afaa8f5967adf60e39207f374f83d8339",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_container_manifest_coverage.py",
+      "size_bytes": 3276,
+      "sha256": "3a88195d817e9a3318734ac1a4939a4e92ead74b4b873a5ccb58d4ac6771f8f8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }
