@@ -85,7 +85,11 @@ told apart from a broken tool. Failing closed means reaching a *decision*.
 `MISSING_RELEASE_INDEX` · `INVALID_RELEASE_INDEX` · `MISSING_SHA256SUMS` ·
 `INVALID_SHA256SUMS` · `MISSING_SBOM` · `INVALID_SBOM` · `MISSING_PROVENANCE` ·
 `INVALID_PROVENANCE` · `MISSING_TRUST_POLICY` · `EMPTY_ZIP` ·
-`INVALID_ZIP_STRUCTURE` · `MISSING_REQUIRED_ZIP_MEMBER`
+`INVALID_ZIP_STRUCTURE` · `MISSING_REQUIRED_ZIP_MEMBER` ·
+`UNREADABLE_TRUST_POLICY` · `INVALID_TRUST_POLICY`
+
+External trust root: `MISSING_TRUST_ROOT` · `UNREADABLE_TRUST_ROOT` ·
+`INVALID_TRUST_ROOT`
 
 ### Validate first, then consume
 
@@ -146,11 +150,59 @@ branch, printing **"SBOM matches uv.lock"** about a file it had never read. A
 comparison that could not run is not a comparison that passed, so the success
 branch is now reachable only from the branch that actually compared.
 
+### One parser, one read, one validated byte sequence
+
+The bundled trust policy was the last candidate structure parsed outside
+`CandidateBundle`. Phase 2 checked only `path.exists()`, and **four** later
+sites re-opened and re-parsed the same attacker-controlled file with four
+different exception lists — so whether a hostile policy crashed the verifier
+depended on which caller reached it first. A policy that was a directory
+crashed `enforce_trust_policy`; one nested deeply enough to exhaust the stack
+crashed both the offline path and the digest-only root.
+
+There is now exactly one path from raw policy bytes to a validated document:
+
+```
+load_policy_document()
+    regular file  →  size bound  →  read once  →  strict UTF-8
+    →  JSON  →  object  →  schema
+```
+
+and exactly one authorization transition from that document to a
+`TrustedPolicyRoot`. `CandidateBundle` carries the result, so the metadata
+scan, the offline consistency check, the digest comparison and the
+post-authentication binding all read the same retained bytes. A test asserts
+the file is opened exactly **once** per run, and a second asserts the filename
+appears exactly once in the module.
+
+The single read is not an optimization. A second read is a TOCTOU window: the
+bytes that were validated and the bytes that are used stop being the same
+bytes, and the digest that authorized them no longer describes what is in use.
+
+### Phase 0, and why it comes first
+
+```
+0 candidate material   read + structurally validate the bundled policy
+                       NOTHING believed yet
+1 trust root           external digest authenticates THOSE bytes
+                       → TrustedPolicyRoot
+2 candidate            the remaining bundle and archive structures
+```
+
+Phase 0 exists because the digest-only root authenticates the candidate's own
+bytes. Putting the safe parse first means the digest path reuses it instead of
+carrying a second policy reader. Structural parsing before the digest match is
+fine; **authorization** comes only after digest equality.
+
+`--trusted-policy` goes through the same loader with `require_resolved=True`
+and its own codes. A malformed external root is an `INVALID_TRUST_ROOT` — a bad
+*question*, not a bad release — and never a traceback.
+
 ### What is claimed
 
 `tests/test_hostile_input_no_traceback.py` drives the real entry point with
 every shape that was *reproduced* as an uncaught exception and asserts a named
-code comes back. Twenty-one mutations, each re-opening one specific hole, are killed by the
+code comes back. Thirty-three mutations, each re-opening one specific hole, are killed by the
 test naming that property.
 
 The claim is about the reproduced surface, not totality: it says every

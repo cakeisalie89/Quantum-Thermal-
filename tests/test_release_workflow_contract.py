@@ -273,7 +273,8 @@ def test_online_rejects_absent_signature(tmp_path):
     # canonical policy is deliberately unresolved, so the run is refused
     # there. Absence-of-signature handling is covered by
     # test_signing_finalizer's online-gate tests against a resolved policy.
-    assert "not authorized for a signed release" in r.stdout
+    assert "INVALID_TRUST_ROOT" in r.stdout
+    assert "unresolved values" in r.stdout
 
 
 def test_online_rejects_pending_identity_pins_before_touching_signature(tmp_path):
@@ -283,7 +284,7 @@ def test_online_rejects_pending_identity_pins_before_touching_signature(tmp_path
     assert r.returncode == 1
     # The repository's canonical policy is deliberately still unresolved, so
     # the trust root itself is refused before any signature is considered.
-    assert "not authorized for a signed release" in r.stdout
+    assert "INVALID_TRUST_ROOT" in r.stdout
     assert "unresolved values" in r.stdout
 
 

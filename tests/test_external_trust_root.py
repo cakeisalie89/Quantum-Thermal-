@@ -47,6 +47,23 @@ def _vr():
     return m
 
 
+def _cand_doc(vr, bundle, problems=None):
+    """Phase 0: the candidate policy, read and structurally validated once.
+
+    verify() does this before phase 1, so the digest-only root authenticates
+    bytes already known to be parseable. Tests take the same route; handing a
+    bundle directory to load_trusted_policy would exercise a parser that no
+    longer exists.
+    """
+    return vr.load_policy_document(
+        problems if problems is not None else [],
+        bundle / "release_trust_policy.json",
+        label="the bundled candidate trust policy", require_resolved=False,
+        missing="MISSING_TRUST_POLICY", unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+
+
+
 def authorized_policy(**over):
     pol = {
         "schema_version": RT.SCHEMA_VERSION,
@@ -113,7 +130,7 @@ def test_an_unresolved_external_policy_is_refused(tmp_path):
     problems = []
     root = vr.load_trusted_policy(problems, str(p), None, None)
     assert root is None
-    assert any("not authorized for a signed release" in x for x in problems)
+    assert any("INVALID_TRUST_ROOT" in x for x in problems), problems
 
 
 def test_a_missing_external_policy_is_refused(tmp_path):
@@ -121,7 +138,7 @@ def test_a_missing_external_policy_is_refused(tmp_path):
     problems = []
     root = vr.load_trusted_policy(problems, str(tmp_path / "nope"), None, None)
     assert root is None
-    assert any("not found" in x for x in problems)
+    assert any("MISSING_TRUST_ROOT" in x for x in problems), problems
 
 
 def test_digest_only_trust_root_yields_a_usable_policy(tmp_path):
@@ -138,7 +155,8 @@ def test_digest_only_trust_root_yields_a_usable_policy(tmp_path):
     b.mkdir()
     (b / "release_trust_policy.json").write_bytes(canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
+    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon),
+                                  _cand_doc(vr, b))
     assert problems == []
     assert root is not None and root.policy["signer_identity"]
 

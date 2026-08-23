@@ -250,6 +250,18 @@ CANDIDATE_FAILURES = (
     "INVALID_ZIP_STRUCTURE",
     "MISSING_REQUIRED_ZIP_MEMBER",
     "MISSING_TRUST_POLICY",
+    "UNREADABLE_TRUST_POLICY",
+    "INVALID_TRUST_POLICY",
+)
+
+#: Failures of the EXTERNAL trust root. Kept separate from the candidate codes
+#: above on purpose: a bad candidate is a bad release, but a bad trust root is
+#: a bad question -- the consumer supplied material that cannot authorize
+#: anything, and no release should be judged against it.
+TRUST_ROOT_FAILURES = (
+    "MISSING_TRUST_ROOT",
+    "UNREADABLE_TRUST_ROOT",
+    "INVALID_TRUST_ROOT",
 )
 
 # Structural resource bounds. These are NOT scientific thresholds and no
@@ -359,6 +371,7 @@ class CandidateBundle:
     sums: dict
     sbom: dict
     provenance: dict
+    policy_doc: PolicyDocument
     artifact_name: str
     artifact_size: int
     artifact_sha256: str
@@ -369,6 +382,16 @@ class CandidateBundle:
     @property
     def sums_set(self) -> frozenset:
         return frozenset(self.sums.items())
+
+    @property
+    def policy(self) -> dict:
+        """The candidate policy object. Structurally valid, NOT trusted."""
+        return self.policy_doc.policy
+
+    @property
+    def policy_bytes(self) -> bytes:
+        """The exact bytes that were validated -- never re-read from disk."""
+        return self.policy_doc.raw
 
 
 def _validate_index(problems, idx: dict):
@@ -458,6 +481,94 @@ def _validate_provenance(problems, prov: dict):
     return _unique(problems,
                    [(s["name"], s["digest"]["sha256"]) for s in subs],
                    "subject", code)
+
+
+@dataclass(frozen=True)
+class PolicyDocument:
+    """One policy file, read once, decoded once, parsed once, validated once.
+
+    Holding the bytes alongside the object is the point. Every later consumer
+    -- the metadata scan, the offline consistency check, the digest
+    comparison, the post-authentication binding -- reads from this object, so
+    the file is never re-opened. A second read is not merely wasteful: it is a
+    TOCTOU window in which the bytes that were validated and the bytes that
+    are used stop being the same bytes.
+
+    Structurally valid is NOT trusted. This type says the document parsed and
+    matched the schema; only TrustedPolicyRoot says anyone authorized it.
+    """
+    raw: bytes
+    text: str
+    policy: dict
+
+
+def load_policy_document(problems, path: Path, *, label: str,
+                         require_resolved: bool,
+                         missing: str, unreadable: str, invalid: str):
+    """THE parsing path from raw policy bytes to a validated document.
+
+    There is exactly one of these on purpose. The same file used to be opened
+    in five places with four different exception lists, so whether a hostile
+    policy crashed the verifier depended on which caller reached it first.
+    """
+    if not path.exists():
+        # exists() follows symlinks, so a broken or looping link lands here
+        # too; that is "cannot be resolved", not "not there".
+        if os.path.lexists(path):
+            fail_list(problems,
+                      f"{unreadable}: {label} at {path} exists but does not "
+                      "resolve to a readable file")
+        else:
+            fail_list(problems, f"{missing}: {label} at {path}")
+        return None
+    if not path.is_file():
+        fail_list(problems,
+                  f"{unreadable}: {label} at {path} is not a regular file")
+        return None
+    try:
+        size = path.stat().st_size
+    except OSError as e:
+        fail_list(problems,
+                  f"{unreadable}: {label} at {path}: {type(e).__name__}")
+        return None
+    if size > MAX_METADATA_BYTES:
+        fail_list(problems,
+                  f"{invalid}: {label} is {size} bytes, above the "
+                  f"{MAX_METADATA_BYTES}-byte structural bound")
+        return None
+    try:
+        raw = path.read_bytes()
+    except OSError as e:
+        fail_list(problems,
+                  f"{unreadable}: {label} at {path}: {type(e).__name__}: "
+                  f"{e.strerror or e}")
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        fail_list(problems,
+                  f"{invalid}: {label} is not valid UTF-8 (byte {e.start})")
+        return None
+    try:
+        doc = json.loads(text)
+    # RecursionError is not a ValueError. A policy nested tens of thousands of
+    # levels deep crashed every caller that named only JSONDecodeError.
+    except (ValueError, RecursionError) as e:
+        fail_list(problems,
+                  f"{invalid}: {label} is not parseable JSON: "
+                  f"{type(e).__name__}: {str(e)[:100]}")
+        return None
+    if not isinstance(doc, dict):
+        fail_list(problems,
+                  f"{invalid}: {label} is a JSON {type(doc).__name__}, not an "
+                  "object")
+        return None
+    try:
+        release_trust.validate_policy(doc, require_resolved=require_resolved)
+    except release_trust.PolicyError as e:
+        fail_list(problems, f"{invalid}: {label}: {e}")
+        return None
+    return PolicyDocument(raw=raw, text=text, policy=doc)
 
 
 def _load_json_member(problems, path: Path, missing: str, invalid: str):
@@ -621,8 +732,13 @@ def validate_zip_structure(problems, names: list):
     return root
 
 
-def parse_candidate_bundle(problems, bundle: Path):
+def parse_candidate_bundle(problems, bundle: Path,
+                           policy_doc: PolicyDocument):
     """Read and validate the untrusted bundle. Returns a CandidateBundle.
+
+    ``policy_doc`` is the candidate trust policy, already read and validated
+    by ``load_policy_document`` in phase 0. It is passed in rather than opened
+    here so that the file is read exactly once for the whole run.
 
     Every structure the verifier later reads is validated HERE, including the
     nested records. Returning the typed object rather than a bare dict is what
@@ -658,17 +774,9 @@ def parse_candidate_bundle(problems, bundle: Path):
     if subjects is None:
         return None
 
-    # The bundled trust policy is read unconditionally later (schema check and
-    # metadata scan). Its absence is a classified refusal, not a stray
-    # FileNotFoundError from inside a generator expression.
-    if not (bundle / "release_trust_policy.json").exists():
-        fail_list(problems,
-                  "MISSING_TRUST_POLICY: the bundle carries no "
-                  "release_trust_policy.json")
-        return None
-
     return CandidateBundle(
         index=idx, sums=sums, sbom=sbom, provenance=prov,
+        policy_doc=policy_doc,
         artifact_name=art_name, artifact_size=art_size,
         artifact_sha256=art_sha, index_files=idx_files,
         sbom_packages=sbom_pkgs, subjects=subjects)
@@ -744,7 +852,7 @@ def open_release_zip(problems, zb: bytes):
 
 
 def load_trusted_policy(problems, trusted_policy, trusted_sha256,
-                        bundle: Path | None = None):
+                        candidate: PolicyDocument | None = None):
     """THE external trust root. Returns a TrustedPolicyRoot, or None.
 
     A release cannot authorize itself. A malicious artifact can always carry a
@@ -793,27 +901,29 @@ def load_trusted_policy(problems, trusted_policy, trusted_sha256,
 
     # ---- FILE mode --------------------------------------------------------
     if trusted_policy:
-        tp = Path(trusted_policy)
-        if not tp.exists():
-            fail_list(problems, f"--trusted-policy not found: {tp}")
+        # Owner-supplied, but still parsed through the one safe path: a
+        # malformed trust root is an INVALID TRUST ROOT, never a crash. The
+        # question being asked is bad, not the release being asked about.
+        doc = load_policy_document(
+            problems, Path(trusted_policy),
+            label="the externally supplied trusted policy",
+            require_resolved=True,
+            missing="MISSING_TRUST_ROOT", unreadable="UNREADABLE_TRUST_ROOT",
+            invalid="INVALID_TRUST_ROOT")
+        if doc is None:
             return None
+        pol = doc.policy
         try:
-            pol = json.loads(tp.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as e:
-            fail_list(problems, f"--trusted-policy unreadable/invalid: {e}")
-            return None
-        try:
-            release_trust.validate_policy(pol, require_resolved=True)
-        except release_trust.PolicyError as e:
+            canon = release_trust.canonical_bytes(pol)
+        except (TypeError, ValueError) as e:
             fail_list(problems,
-                      f"the supplied trusted policy is not authorized for a "
-                      f"signed release: {e}")
+                      f"INVALID_TRUST_ROOT: the supplied trusted policy "
+                      f"cannot be canonicalized: {e}")
             return None
-        canon = release_trust.canonical_bytes(pol)
         got = release_trust.policy_digest(canon)
         if want_digest and got != want_digest:
             fail_list(problems,
-                      f"--trusted-policy digest {got} != "
+                      f"INVALID_TRUST_ROOT: --trusted-policy digest {got} != "
                       f"--trusted-policy-sha256 {want_digest}")
             return None
         try:
@@ -825,25 +935,15 @@ def load_trusted_policy(problems, trusted_policy, trusted_sha256,
         return root
 
     # ---- DIGEST-ONLY mode -------------------------------------------------
-    if bundle is None:
+    # The candidate document was already read and structurally validated in
+    # phase 0. Nothing here re-opens the file: the bytes that get hashed are
+    # the bytes that were validated, with no window in between.
+    if candidate is None:
         fail_list(problems,
                   "digest-only trust root needs the bundle's candidate policy "
-                  "to authenticate, but no bundle was supplied")
+                  "to authenticate, but no candidate policy was supplied")
         return None
-    cand = bundle / "release_trust_policy.json"
-    if not cand.exists():
-        fail_list(problems,
-                  f"digest-only trust root: no candidate policy at {cand} to "
-                  "authenticate against the supplied digest")
-        return None
-    try:
-        raw = cand.read_bytes()
-        pol = json.loads(raw.decode("utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
-        fail_list(problems,
-                  f"digest-only trust root: candidate policy is unreadable or "
-                  f"not valid JSON: {e}")
-        return None
+    pol = candidate.policy
 
     # Canonicalize BEFORE comparing, so formatting cannot change the digest,
     # and compare BEFORE trusting any value inside the document.
@@ -900,7 +1000,8 @@ def bind_candidate_policy(problems, label: str, raw: bytes,
     return True
 
 
-def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
+def enforce_trust_policy(problems, candidate: "CandidateBundle", idx: dict,
+                         prov: dict,
                          *, canonical: Path | None = None) -> dict | None:
     """Full policy enforcement. Returns the validated policy, or None.
 
@@ -908,25 +1009,15 @@ def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
     whose bundled copy diverges from the canonical one is defective regardless
     of whether a signature exists.
     """
-    bundled_path = bundle / "release_trust_policy.json"
-    if not bundled_path.exists():
-        fail_list(problems, "bundle has no release_trust_policy.json")
-        return None
-    bundled_raw = bundled_path.read_bytes()
-    try:
-        pol = json.loads(bundled_raw.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        fail_list(problems, f"bundled trust policy is not valid JSON: {e}")
-        return None
-
-    # 1. Shape. Unknown fields, missing fields, wildcards, bad types all fail
-    #    here -- including for an unresolved policy, which must still be
-    #    structurally correct.
-    try:
-        release_trust.validate_policy(pol)
-    except release_trust.PolicyError as e:
-        fail_list(problems, f"bundled trust policy is invalid: {e}")
-        return None
+    # 1. Shape was established in phase 0 by load_policy_document, which is
+    #    the ONLY path from raw policy bytes to a validated document. This
+    #    function used to re-open and re-parse the file with a narrower
+    #    exception list, so a policy that was a directory, or nested deeply
+    #    enough to exhaust the stack, crashed here after passing everywhere
+    #    else. It now consumes what phase 0 validated and never touches the
+    #    filesystem.
+    pol = candidate.policy
+    bundled_raw = candidate.policy_bytes
     ok("bundled trust policy passes the strict schema")
 
     # 2. The bundled policy must be the canonical policy, byte for byte.
@@ -941,9 +1032,17 @@ def enforce_trust_policy(problems, bundle: Path, idx: dict, prov: dict,
     # load_trusted_policy) and fails closed without one.
     canon = canonical if canonical is not None else \
         release_trust.CANONICAL_POLICY_PATH
-    if Path(canon).exists():
-        want = release_trust.canonical_bytes(
-            json.loads(Path(canon).read_text(encoding="utf-8")))
+    if Path(canon).is_file():
+        try:
+            want = release_trust.canonical_bytes(
+                json.loads(Path(canon).read_text(encoding="utf-8")))
+        except (OSError, UnicodeDecodeError, ValueError,
+                RecursionError) as e:
+            fail_list(problems,
+                      f"the repository-local canonical policy at {canon} is "
+                      f"unreadable: {type(e).__name__}; local consistency "
+                      "cannot be checked")
+            return None
         if bundled_raw != want:
             fail_list(problems,
                       "bundled trust policy differs from the canonical "
@@ -1093,9 +1192,65 @@ def decode_member(problems, zf, name: str):
         return None
 
 
+def read_release_binding(problems, zf, root: str):
+    """Parse the release binding from the AUTHENTICATED archive.
+
+    This input is not pre-authentication hostile input: the signature over the
+    archive already verified, so these bytes are the signer's bytes. That does
+    not make them well formed. A malformed signed release is a real outcome --
+    a broken build, a truncated write -- and it must produce a refusal with a
+    reason rather than a traceback, so this is deterministic signed-artifact
+    validation, not a security boundary. Claiming otherwise would overstate
+    what it does.
+
+    RecursionError and UnicodeDecodeError are named explicitly because neither
+    is a JSONDecodeError, which is all the earlier version caught.
+    """
+    name = f"{root}/{release_trust.RELEASE_BINDING_NAME}"
+    try:
+        raw = zf.read(name)
+        doc = json.loads(raw.decode("utf-8"))
+    except (KeyError, OSError, zipfile.BadZipFile, RuntimeError, EOFError,
+            UnicodeDecodeError, ValueError, RecursionError) as e:
+        fail_list(problems,
+                  f"the signed zip carries no usable "
+                  f"{release_trust.RELEASE_BINDING_NAME}: "
+                  f"{type(e).__name__}: {str(e)[:100]}")
+        return None
+    if not isinstance(doc, dict):
+        fail_list(problems,
+                  f"the signed {release_trust.RELEASE_BINDING_NAME} is a JSON "
+                  f"{type(doc).__name__}, not an object")
+        return None
+    return doc
+
+
 def verify(zip_path: Path, bundle: Path, online: bool,
            trusted_policy=None, trusted_sha256=None) -> int:
     problems: list = []
+
+    # ---- PHASE 0: candidate trust-root MATERIAL -------------------------
+    # The bundled policy is attacker-controlled bytes. It is read, decoded,
+    # parsed and schema-checked exactly once, here, before anything else looks
+    # at it -- and NOTHING in it is believed yet. Structural validity is not
+    # authorization; it only means the document can be handled safely.
+    #
+    # This runs before phase 1 because the digest-only trust root
+    # authenticates these very bytes. Doing it here means one parser and one
+    # validated byte sequence, instead of a second policy reader living inside
+    # the digest path.
+    candidate_policy = load_policy_document(
+        problems, bundle / "release_trust_policy.json",
+        label="the bundled candidate trust policy",
+        require_resolved=False,
+        missing="MISSING_TRUST_POLICY",
+        unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+    if candidate_policy is None:
+        print(f"\nRESULT: {len(problems)} FAILURES")
+        print("note: a signature proves origin and integrity only; "
+              "never physics or hardware validation")
+        return 1
 
     # ---- PHASE 1: trust root -------------------------------------------
     # Nothing from the candidate artifact has any authority until phase 3.
@@ -1103,7 +1258,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     trusted_pol, trusted_canon = (None, None)
     if online:
         root = load_trusted_policy(problems, trusted_policy, trusted_sha256,
-                                   bundle)
+                                   candidate_policy)
         if root is not None:
             # One object, both modes. Everything downstream reads the
             # AUTHENTICATED canonical bytes held here, never a re-read of the
@@ -1120,7 +1275,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     # ---- PHASE 2: candidate artifact structure --------------------------
     # Untrusted by definition. Every expected malformation is a classified
     # refusal, not a traceback.
-    candidate = parse_candidate_bundle(problems, bundle)
+    candidate = parse_candidate_bundle(problems, bundle, candidate_policy)
     if candidate is None:
         print(f"\nRESULT: {len(problems)} FAILURES")
         print("note: a signature proves origin and integrity only; "
@@ -1233,7 +1388,7 @@ def verify(zip_path: Path, bundle: Path, online: bool,
     else:
         ok("SLSA level claimed = NONE")
 
-    pol = enforce_trust_policy(problems, bundle, idx, prov)
+    pol = enforce_trust_policy(problems, candidate, idx, prov)
     if pol is None:
         pol = {}
     else:
@@ -1242,11 +1397,13 @@ def verify(zip_path: Path, bundle: Path, online: bool,
         ok("trust policy contains no wildcards")
     # Every one of these was proven present and parseable by
     # parse_candidate_bundle, so this read cannot be the first place a
-    # missing bundle file is discovered.
+    # missing bundle file is discovered. The policy is NOT re-read: its text
+    # comes from the document validated in phase 0, so the bytes scanned for
+    # secrets are exactly the bytes that were validated and will be hashed.
     blob = "".join((bundle / f).read_text(encoding="utf-8", errors="replace")
                    for f in ("release_index.json", "sbom.cdx.json",
-                             "provenance.intoto.json",
-                             "release_trust_policy.json"))
+                             "provenance.intoto.json")) + \
+        candidate.policy_doc.text
     for pat in SECRET_PATTERNS:
         if re.search(pat, blob):
             fail_list(problems, f"secret-pattern hit: {pat[:24]}...")
@@ -1347,21 +1504,13 @@ def verify(zip_path: Path, bundle: Path, online: bool,
                         problems, "signed-zip", zip_pol_raw, trusted_canon,
                         root.sha256 if root else None)
 
-                bundled_raw = (bundle /
-                               "release_trust_policy.json").read_bytes()
-                bind_candidate_policy(problems, "bundle", bundled_raw,
-                                      trusted_canon,
+                # The retained phase-0 bytes, not a fresh read: the copy
+                # bound to the trust root must be the copy that was validated.
+                bind_candidate_policy(problems, "bundle",
+                                      candidate.policy_bytes, trusted_canon,
                                       root.sha256 if root else None)
 
-                try:
-                    binding_raw = zf.read(
-                        f"{root}/{release_trust.RELEASE_BINDING_NAME}")
-                    binding = json.loads(binding_raw)
-                except (KeyError, json.JSONDecodeError) as e:
-                    fail_list(problems,
-                              f"the signed zip carries no usable "
-                              f"{release_trust.RELEASE_BINDING_NAME}: {e}")
-                    binding = None
+                binding = read_release_binding(problems, zf, root)
                 if binding is not None and trusted_pol is not None:
                     enforce_authenticated_binding(
                         problems, trusted_pol, binding, zip_pol_ok)

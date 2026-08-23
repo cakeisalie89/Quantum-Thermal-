@@ -42,6 +42,23 @@ def _vr(name="_vr_digest"):
     return m
 
 
+def _cand_doc(vr, bundle, problems=None):
+    """Phase 0: the candidate policy, read and structurally validated once.
+
+    verify() does this before phase 1, so the digest-only root authenticates
+    bytes already known to be parseable. Tests take the same route; handing a
+    bundle directory to load_trusted_policy would exercise a parser that no
+    longer exists.
+    """
+    return vr.load_policy_document(
+        problems if problems is not None else [],
+        bundle / "release_trust_policy.json",
+        label="the bundled candidate trust policy", require_resolved=False,
+        missing="MISSING_TRUST_POLICY", unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+
+
+
 def authorized_policy(**over):
     pol = {
         "schema_version": RT.SCHEMA_VERSION,
@@ -89,7 +106,7 @@ def test_digest_only_root_drives_online_identity_verification(tmp_path,
     b = bundle_with(tmp_path, canon)
 
     problems = []
-    root = vr.load_trusted_policy(problems, None, digest, b)
+    root = vr.load_trusted_policy(problems, None, digest, _cand_doc(vr, b))
     assert problems == [], problems
     assert root is not None, "digest-only root must produce a policy object"
     assert root.source == "digest"
@@ -151,7 +168,8 @@ def test_digest_only_root_has_no_nonetype_path(tmp_path):
     canon = RT.canonical_bytes(authorized_policy())
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
+    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon),
+                                  _cand_doc(vr, b))
     assert root is not None
     # Every field _verify_sigstore reads must be present and subscriptable.
     assert isinstance(root.policy, dict)
@@ -188,7 +206,8 @@ def test_correct_digest_and_matching_candidate_reaches_authorization(tmp_path):
     canon = RT.canonical_bytes(authorized_policy())
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
+    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon),
+                                  _cand_doc(vr, b))
     assert root is not None and problems == []
 
 
@@ -197,7 +216,7 @@ def test_wrong_digest_fails_before_any_value_is_read(tmp_path):
     canon = RT.canonical_bytes(authorized_policy())
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, "0" * 64, b)
+    root = vr.load_trusted_policy(problems, None, "0" * 64, _cand_doc(vr, b))
     assert root is None
     assert any("does not match the supplied" in p for p in problems)
     assert any("Nothing in the candidate has been trusted" in p
@@ -211,7 +230,7 @@ def test_malformed_digest_fails_deterministically(tmp_path, bad):
     canon = RT.canonical_bytes(authorized_policy())
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, bad, b)
+    root = vr.load_trusted_policy(problems, None, bad, _cand_doc(vr, b))
     assert root is None
     assert problems, f"{bad!r} produced no failure"
 
@@ -223,7 +242,8 @@ def test_digest_is_case_and_whitespace_normalized(tmp_path):
     digest = RT.policy_digest(canon)
     problems = []
     root = vr.load_trusted_policy(problems, None,
-                                  f"  {digest.upper()}  ", b)
+                                  f"  {digest.upper()}  ",
+                                  _cand_doc(vr, b))
     assert root is not None, problems
 
 
@@ -234,22 +254,31 @@ def test_correct_digest_over_unresolved_policy_fails(tmp_path):
     canon = RT.canonical_bytes(pol)
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
+    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon),
+                                  _cand_doc(vr, b))
     assert root is None
     assert any("not authorized for a signed release" in p for p in problems)
 
 
 def test_correct_digest_over_malformed_policy_fails(tmp_path):
+    """A schema-invalid candidate never reaches the digest comparison.
+
+    The refusal now happens in phase 0, where the document is parsed, rather
+    than after the digest matched. Matching a digest over a malformed document
+    would mean the owner authorized bytes that cannot be interpreted -- so
+    there is nothing for the digest to authorize.
+    """
     vr = _vr()
     pol = authorized_policy()
     pol["unexpected_field"] = "surprise"
     canon = RT.canonical_bytes(pol)
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
-    assert root is None
+    doc = _cand_doc(vr, b, problems)
+    assert doc is None, "a policy with unknown fields must not parse"
+    assert any("INVALID_TRUST_POLICY" in p for p in problems), problems
     assert any("unknown fields" in p or "not authorized" in p
-               for p in problems)
+               for p in problems), problems
 
 
 def test_file_policy_and_digest_disagreement_fails(tmp_path):
@@ -278,18 +307,24 @@ def test_digest_only_with_missing_bundle_policy_fails_closed(tmp_path):
     vr = _vr()
     b = bundle_with(tmp_path, None)
     problems = []
-    root = vr.load_trusted_policy(problems, None, "a" * 64, b)
+    root = vr.load_trusted_policy(problems, None, "a" * 64, _cand_doc(vr, b))
     assert root is None
     assert any("no candidate policy" in p for p in problems)
 
 
 def test_digest_only_with_malformed_bundle_policy_fails_closed(tmp_path):
+    """Unparseable candidate bytes are refused before any digest is computed."""
     vr = _vr()
     b = bundle_with(tmp_path, b"{not json at all")
     problems = []
-    root = vr.load_trusted_policy(problems, None, "a" * 64, b)
-    assert root is None
-    assert any("not valid JSON" in p for p in problems)
+    doc = _cand_doc(vr, b, problems)
+    assert doc is None
+    assert any("INVALID_TRUST_POLICY" in p for p in problems), problems
+    assert any("not parseable JSON" in p for p in problems), problems
+    # And with no candidate document, the root itself still fails closed.
+    problems2 = []
+    assert vr.load_trusted_policy(problems2, None, "a" * 64, None) is None
+    assert problems2
 
 
 def test_digest_only_without_a_bundle_fails_closed():
@@ -311,7 +346,8 @@ def test_candidate_modified_after_the_digest_check_is_not_reread(tmp_path):
     canon = RT.canonical_bytes(authorized_policy())
     b = bundle_with(tmp_path, canon)
     problems = []
-    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon), b)
+    root = vr.load_trusted_policy(problems, None, RT.policy_digest(canon),
+                                  _cand_doc(vr, b))
     assert root is not None
 
     evil = authorized_policy(

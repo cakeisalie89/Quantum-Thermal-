@@ -38,6 +38,23 @@ def _vr():
     return m
 
 
+def _pcb(vr, problems, bundle):
+    """Phase 0 then phase 2, sequenced the way verify() sequences them.
+
+    The bundled policy is now read and validated once, before the rest of the
+    candidate structures, and handed to the parser. Tests drive that same
+    order so they exercise the real architecture rather than a shortcut.
+    """
+    doc = vr.load_policy_document(
+        problems, bundle / "release_trust_policy.json",
+        label="the bundled candidate trust policy", require_resolved=False,
+        missing="MISSING_TRUST_POLICY", unreadable="UNREADABLE_TRUST_POLICY",
+        invalid="INVALID_TRUST_POLICY")
+    if doc is None:
+        return None
+    return vr.parse_candidate_bundle(problems, bundle, doc)
+
+
 ROOTDIR = "QTA_source"
 REQUIRED = [f"{ROOTDIR}/uv.lock",
             f"{ROOTDIR}/results_gate_table.csv",
@@ -83,7 +100,7 @@ def good_bundle(tmp_path, **over):
 def baseline_is_valid(tmp_path) -> None:
     """Guard for every negative test: prove the fixture starts clean."""
     problems = []
-    assert _vr().parse_candidate_bundle(problems, good_bundle(tmp_path)) \
+    assert _pcb(_vr(), problems, good_bundle(tmp_path)) \
         is not None, problems
 
 
@@ -99,7 +116,7 @@ def classify(problems):
 def test_a_good_bundle_parses(tmp_path):
     vr = _vr()
     problems = []
-    out = vr.parse_candidate_bundle(problems, good_bundle(tmp_path))
+    out = _pcb(vr, problems, good_bundle(tmp_path))
     assert out is not None and problems == []
     assert isinstance(out, vr.CandidateBundle)
     # The derived collections exist BEFORE any consumer asks for them.
@@ -119,7 +136,7 @@ def test_missing_metadata_is_classified(tmp_path, name, expect):
     vr = _vr()
     b = good_bundle(tmp_path, **{name: None})
     problems = []
-    assert vr.parse_candidate_bundle(problems, b) is None
+    assert _pcb(vr, problems, b) is None
     assert classify(problems) == [expect], problems
 
 
@@ -131,8 +148,7 @@ def test_missing_metadata_is_classified(tmp_path, name, expect):
 def test_unparseable_metadata_is_classified(tmp_path, name, expect):
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{name: "{not json"})) is None
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{name: "{not json"})) is None
     assert expect in " ".join(problems)
 
 
@@ -144,16 +160,14 @@ def test_unparseable_metadata_is_classified(tmp_path, name, expect):
 def test_empty_metadata_is_classified(tmp_path, name, expect):
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{name: ""})) is None
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{name: ""})) is None
     assert expect in " ".join(problems)
 
 
 def test_index_of_the_wrong_json_type_is_classified(tmp_path):
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path,
+    assert _pcb(vr, problems, good_bundle(tmp_path,
                               **{"release_index.json": "[1,2,3]"})) is None
     assert "INVALID_RELEASE_INDEX" in " ".join(problems)
 
@@ -174,8 +188,7 @@ def test_index_with_wrong_field_types_is_classified(tmp_path, drop, over):
     if drop:
         idx.pop(drop)
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path,
+    assert _pcb(vr, problems, good_bundle(tmp_path,
                               **{"release_index.json": json.dumps(idx)})
     ) is None
     assert "INVALID_RELEASE_INDEX" in " ".join(problems)
@@ -184,8 +197,7 @@ def test_index_with_wrong_field_types_is_classified(tmp_path, drop, over):
 def test_sbom_without_components_is_classified(tmp_path):
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path,
+    assert _pcb(vr, problems, good_bundle(tmp_path,
                               **{"sbom.cdx.json": '{"x": 1}'})) is None
     assert "INVALID_SBOM" in " ".join(problems)
 
@@ -193,10 +205,10 @@ def test_sbom_without_components_is_classified(tmp_path):
 def test_provenance_with_wrong_shape_is_classified(tmp_path):
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems,
-        good_bundle(tmp_path,
-                    **{"provenance.intoto.json": '{"subject": {}}'})) is None
+    assert _pcb(vr, problems,
+                good_bundle(tmp_path,
+                            **{"provenance.intoto.json":
+                               '{"subject": {}}'})) is None
     assert "INVALID_PROVENANCE" in " ".join(problems)
 
 
@@ -230,8 +242,7 @@ def test_malformed_index_file_record_is_classified(tmp_path, entry):
     vr = _vr()
     idx = good_index(files=[entry])
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(
+    assert _pcb(vr, problems, good_bundle(
             tmp_path, **{"release_index.json": json.dumps(idx)})) is None
     assert "INVALID_RELEASE_INDEX" in " ".join(problems), problems
 
@@ -248,8 +259,7 @@ def test_duplicate_index_file_names_are_refused(tmp_path):
     idx = good_index(files=[{"name": "d", "sha256": "a" * 64},
                             {"name": "d", "sha256": "b" * 64}])
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(
+    assert _pcb(vr, problems, good_bundle(
             tmp_path, **{"release_index.json": json.dumps(idx)})) is None
     assert "twice" in " ".join(problems)
 
@@ -266,8 +276,7 @@ def test_malformed_release_artifact_field_is_classified(tmp_path, field, bad):
     art = dict(good_index()["release_artifact"])
     art[field] = bad
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{
             "release_index.json": json.dumps(
                 good_index(release_artifact=art))})) is None
     assert "INVALID_RELEASE_INDEX" in " ".join(problems), problems
@@ -280,8 +289,7 @@ def test_missing_release_artifact_field_is_classified(tmp_path, field):
     art = dict(good_index()["release_artifact"])
     art.pop(field)
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{
             "release_index.json": json.dumps(
                 good_index(release_artifact=art))})) is None
     assert field in " ".join(problems)
@@ -296,8 +304,7 @@ def test_malformed_sbom_component_is_classified(tmp_path, comp):
     baseline_is_valid(tmp_path)
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{
             "sbom.cdx.json": json.dumps({"components": [comp]})})) is None
     assert "INVALID_SBOM" in " ".join(problems), problems
 
@@ -316,8 +323,7 @@ def test_malformed_provenance_subject_is_classified(tmp_path, subj):
     baseline_is_valid(tmp_path)
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{
             "provenance.intoto.json": json.dumps(
                 {"subject": [subj], "predicate": {}})})) is None
     assert "INVALID_PROVENANCE" in " ".join(problems), problems
@@ -329,8 +335,7 @@ def test_duplicate_provenance_subject_names_are_refused(tmp_path):
     problems = []
     subs = [{"name": "d", "digest": {"sha256": "a" * 64}},
             {"name": "d", "digest": {"sha256": "b" * 64}}]
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{
             "provenance.intoto.json": json.dumps(
                 {"subject": subs, "predicate": {}})})) is None
     assert "twice" in " ".join(problems)
@@ -347,8 +352,7 @@ def test_non_string_slsa_claim_is_classified(tmp_path, lvl):
     baseline_is_valid(tmp_path)
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, **{
+    assert _pcb(vr, problems, good_bundle(tmp_path, **{
             "provenance.intoto.json": json.dumps(
                 {"subject": [],
                  "predicate": {"slsa_level_claimed": lvl}})})) is None
@@ -362,7 +366,7 @@ def test_missing_bundled_trust_policy_is_classified(tmp_path):
     problems = []
     b = good_bundle(tmp_path)
     (b / "release_trust_policy.json").unlink()
-    assert vr.parse_candidate_bundle(problems, b) is None
+    assert _pcb(vr, problems, b) is None
     assert "MISSING_TRUST_POLICY" in " ".join(problems)
 
 
@@ -381,8 +385,7 @@ def test_missing_bundled_trust_policy_is_classified(tmp_path):
 def test_malformed_sha256sums_is_classified_not_crashed(tmp_path, body):
     vr = _vr()
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, SHA256SUMS=body)) is None
+    assert _pcb(vr, problems, good_bundle(tmp_path, SHA256SUMS=body)) is None
     assert "INVALID_SHA256SUMS" in " ".join(problems)
 
 
@@ -390,8 +393,7 @@ def test_duplicate_sha256sums_entry_is_refused(tmp_path):
     vr = _vr()
     body = f"{'a' * 64}  dup\n{'b' * 64}  dup\n"
     problems = []
-    assert vr.parse_candidate_bundle(
-        problems, good_bundle(tmp_path, SHA256SUMS=body)) is None
+    assert _pcb(vr, problems, good_bundle(tmp_path, SHA256SUMS=body)) is None
     assert "duplicate entry" in " ".join(problems)
 
 
