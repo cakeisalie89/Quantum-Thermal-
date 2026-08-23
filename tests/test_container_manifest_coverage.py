@@ -31,8 +31,9 @@ def _patterns() -> list:
 
 
 def _governed() -> list:
-    with open(os.path.join(ROOT, "final_manifest.json"), encoding="utf-8") as f:
-        return [e["filename"] for e in json.load(f)["files"]]
+    path = os.path.join(ROOT, "final_manifest.json")
+    with open(path, encoding="utf-8") as fh:
+        return [e["filename"] for e in json.load(fh)["files"]]
 
 
 def _excluded_by(pattern: str, name: str) -> bool:
