@@ -102,10 +102,29 @@ jobs:
       - name: DIAGNOSTIC capture fresh container regeneration + fingerprint
         if: always()
         run: |
-          mkdir -p diag
+          # The image runs as non-root `qta`; a bind mount created by the
+          # runner user is not writable by it, which is the most likely reason
+          # the previous attempt died in under a second. Widen the HOST temp
+          # directory only -- nothing in the image or its runtime user changes.
+          mkdir -p diag/meta
+          chmod -R 0777 diag
+          # This step reports its OWN failure into the artifact. Two hosted
+          # round-trips were already spent because the error lived only in the
+          # job log, where it is awkward to retrieve.
+          set +e
           docker run --rm -v "$PWD/diag:/diag" -w /qta qta:hosted-verify \
-            python analysis/collect_container_3d.py /diag
-          echo "--- captured:"; ls -1 diag/outputs | head -40
+            python analysis/collect_container_3d.py /diag \
+            > diag/meta/step.log 2>&1
+          rc=$?
+          echo "docker_run_exit=$rc" >> diag/meta/step.log
+          { echo "--- id inside container:"; \
+            docker run --rm qta:hosted-verify sh -c 'id; ls -ld /qta'; } \
+            >> diag/meta/step.log 2>&1
+          echo "===== diagnostic step log ====="
+          cat diag/meta/step.log
+          echo "===== captured files ====="
+          ls -1 diag/outputs 2>/dev/null | head -40 || echo "(none)"
+          exit $rc
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         if: always()

@@ -2864,8 +2864,8 @@
     },
     {
       "filename": ".github/workflows/container-verify.yml",
-      "size_bytes": 6180,
-      "sha256": "c39e8a835d6a68c6d9386ee2c45f1dde7dc61953d456a8310b6cc05d9ec9760c",
+      "size_bytes": 7178,
+      "sha256": "3ef28a231fa2a9c157ce241d253a3bfc714c81882b89b18bd84e8b5549d6c605",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2994,6 +2994,13 @@
       "sha256": "8f237d415bc81921387e17a11ebf230a5d9d2ddfbf796e603372805816ce5ccd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "analysis/collect_container_3d.py",
+      "size_bytes": 5112,
+      "sha256": "0c8907c8164c085087af91864bf4d11ad765da5d45aeff5aef3993e29b067447",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."
