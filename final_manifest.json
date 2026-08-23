@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "335124e815fdf120adc1d81531214b9594923fa4d9acd9ccd8571bb926d755d1",
+      "sha256": "07d919600feda14791f718b4c4143958465b43451dab7ed6c5c658817ae00ed4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2955,8 +2955,8 @@
     },
     {
       "filename": "tests/test_digest_trust_root.py",
-      "size_bytes": 16555,
-      "sha256": "c08e23207f35040d010ad27b2ea9567ee9592f84412ce75e7b0768433a708d6d",
+      "size_bytes": 16780,
+      "sha256": "4626a08fd5786444cc1ccc34f8e45df9f8347423d9c5d08bb54dc1a16d1e7fdf",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },

@@ -184,6 +184,10 @@ def test_a_valid_root_is_never_expressed_as_none():
 
     It must not be possible to return 'success' with nothing usable, which is
     what (None, None) plus an empty problem list was.
+
+    The permitted name is `trust_root`, not a bare `root`: binding a
+    TrustedPolicyRoot and an archive-root string to one name is what put an
+    `AttributeError: 'str' object has no attribute 'sha256'` in phase 4.
     """
     import ast
     src = open(os.path.join(ROOT, "verify_release.py"), encoding="utf-8").read()
@@ -193,7 +197,7 @@ def test_a_valid_root_is_never_expressed_as_none():
     for node in ast.walk(fn):
         if isinstance(node, ast.Return) and node.value is not None:
             rendered = ast.unparse(node.value)
-            assert rendered in ("None", "root"), \
+            assert rendered in ("None", "trust_root"), \
                 f"loader returns an ambiguous value: {rendered!r}"
 
 
