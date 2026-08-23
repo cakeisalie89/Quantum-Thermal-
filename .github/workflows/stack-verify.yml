@@ -1,9 +1,18 @@
 # Stage-10 scientific-stack verification.
-# STATUS: PENDING FIRST HOSTED RUN -- this sandbox has no Actions runner;
-# nothing below has executed.
-# PIN-BY-DIGEST REQUIRED: replace every @vN tag with the action's full commit
-# SHA before the first real run (RELEASE_POLICY.md #3), exactly as for
-# release.yml.
+# STATUS: EXECUTED ON A HOSTED RUNNER. Actions run 32575190696 (both matrix
+# legs, core and full) completed green on PR #14 head d26e70e. The previous
+# "PENDING FIRST HOSTED RUN -- nothing below has executed" header is retired
+# because it is no longer true; this is an evidence upgrade backed by that run,
+# not a widening of what the job checks.
+# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
+# immutable 40-hex commit object. The earlier "replace every @vN tag"
+# instruction was already satisfied and has been removed.
+#
+# SCOPE, so the green badge is not over-read: this job lints and type-checks
+# qta_multiphysics/stack, runs tests/test_stage10_stack.py only, runs the
+# 11-step s10_full Snakemake DAG, and asserts the canonical tree is untouched
+# with scientific_PASS_count == 0. It does NOT run the full pytest suite and
+# does NOT run package_consistency_check.py; those remain local-only evidence.
 #
 # What this proves: the Stage-10 adapters are deterministic, fail closed
 # without their optional packages, and leave the canonical tree untouched.

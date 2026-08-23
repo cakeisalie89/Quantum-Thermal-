@@ -14,21 +14,56 @@
   recorded as UNRESOLVED on the grounds that the sandbox had "no route to any
   container registry"; that is no longer true of this environment, and the
   digest is now pinned in the Dockerfile.
-- **Container build verified: NO** — exact blocker: a `docker` **client** is
-  present (`/usr/bin/docker`, Engine 29.3.1) but there is **no daemon**:
-  `/var/run/docker.sock` does not exist, so `docker build` and `docker run`
-  cannot execute. The previously recorded blocker ("no `docker`, `podman` or
-  `buildah` binary exists in the sandbox and no registry/network route") was
-  wrong on both counts and is corrected here.
-- **Container execution verified: NO** (same blocker: no daemon).
-- **Container output identity verified: NO** (same blocker). Expected
-  procedure once a daemon is available: run `container_verify.sh`, then
+
+## Explicit state levels
+
+These are the authoritative container states. Each is separately evidenced, so
+a reader cannot infer runtime evidence from definition completeness.
+
+| level | value |
+|---|---|
+| `CONTAINER_DEFINITION` | `STATIC_VERIFIED` |
+| `BASE_DIGEST` | `RESOLVED_AND_PINNED` |
+| `LOCAL_RUNTIME` | `AVAILABLE` |
+| `LOCAL_BUILD` | `ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS` |
+| `RUNTIME_BUILT` | `NO` |
+| `RUNTIME_SCIENTIFICALLY_REPRODUCED` | `NO` |
+
+- **Container build verified: NO** — and the blocker is no longer the one
+  previously recorded. This document used to say a `docker` client was present
+  but there was **no daemon** and `/var/run/docker.sock` did not exist. That was
+  true of an earlier environment and is **false now**. What the executed
+  evidence establishes in this environment:
+  - `containerd` started successfully;
+  - `dockerd` started successfully;
+  - Docker **client and server** both report Engine **29.3.1**;
+  - `docker info` succeeds — there is a working daemon;
+  - the exact declared image build was **attempted**, not skipped;
+  - the Docker Hub **manifest** endpoint resolves and responds;
+  - **layer blob download fails**: `production.cloudfront.docker.com` is denied
+    by the sandbox egress policy with **HTTP 403 on CONNECT**;
+  - the base image was **not substituted** — swapping in a reachable image
+    would verify a different artifact than the Dockerfile declares;
+  - therefore the build **did not complete**.
+
+  The blocker is egress policy on layer blobs, not the absence of a runtime.
+- **Container execution verified: NO** — the image was never built, so nothing
+  could be run from it. Not a daemon problem.
+- **Container output identity verified: NO** (nothing was built to compare).
+  Expected procedure once a build succeeds: run `container_verify.sh`, then
   compare the workspace outputs byte-for-byte against the **88** governed
   output hashes recorded in `final_manifest.json`. (This document previously
   said 87; the governed set is 88, as `build_hdf5_mapping.py` reports and
   `hdf5_output_mapping.json` records.) Bitwise identity across differing
   CPU/BLAS microarchitectures is **NOT** claimed in advance; it must be
   tested, not asserted.
+- **Hosted path:** `.github/workflows/container-verify.yml` exists to close
+  `RUNTIME_BUILT` on a GitHub-hosted runner, whose network is not subject to
+  this sandbox's egress policy. It is `workflow_dispatch`-only and **has not
+  run**. GitHub receives a `workflow_dispatch` only for workflows present on
+  the **default branch**, so it cannot be dispatched while it exists solely on
+  a feature branch; it becomes dispatchable once merged to `main`. No result is
+  claimed for it here.
 - **Static checks performed here:** Dockerfile parse/lint by inspection;
   `.dockerignore` excludes envs/caches/history; `container_verify.sh` is
   syntax-checked (`bash -n`) and its pytest-collection guard was executed

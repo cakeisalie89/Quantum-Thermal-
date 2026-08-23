@@ -208,6 +208,54 @@ def test_no_deep_module_writes_a_canonical_root_artifact():
         + "; ".join(offenders))
 
 
+def test_every_deep_layer_write_targets_the_deep_output_directory():
+    """Containment by construction, not by naming discipline.
+
+    The weaker test above forbids a deep module from NAMING a canonical
+    artifact. This one is the positive statement: every write-capable call in
+    the layer must resolve into the deep output directory and carry the deep_
+    prefix, so there is no path -- not even an unnamed one built at runtime --
+    by which the learned layer reaches a governed file.
+    """
+    import ast as _ast
+    import subprocess as _sp
+    files = [p for p in _sp.run(
+        ["git", "-C", ROOT, "ls-files", "qta_multiphysics/deep_expdesign/*.py"],
+        capture_output=True, text=True, check=True).stdout.split() if p]
+    assert files, "deep layer not found; this test is watching nothing"
+    WRITERS = {"open", "write_text", "write_bytes", "to_csv", "savez", "save",
+               "dump", "write_json"}
+    offenders = []
+    for rel in files:
+        # io.py DEFINES the generic write helpers; they take a path parameter by
+        # design. What matters is that every CALL SITE hands them a deep_ path,
+        # which is what the loop below checks everywhere else.
+        if rel.endswith("/io.py"):
+            continue
+        tree = _ast.parse(open(os.path.join(ROOT, rel), encoding="utf-8").read())
+        for n in _ast.walk(tree):
+            if not isinstance(n, _ast.Call):
+                continue
+            f = n.func
+            name = f.attr if isinstance(f, _ast.Attribute) else (
+                f.id if isinstance(f, _ast.Name) else "")
+            if name not in WRITERS or not n.args:
+                continue
+            if name == "open":
+                continue                      # reads; writes go through io.py
+            if name in ("write_text", "write_bytes"):
+                target = _ast.unparse(f.value) if isinstance(f, _ast.Attribute) else ""
+            else:
+                target = _ast.unparse(n.args[0])
+            if not target:
+                continue
+            if "deep_" not in target:
+                offenders.append(f"{rel}:{n.lineno} {name} -> {target[:60]}")
+    assert not offenders, (
+        "deep-layer write outside the deep output directory: " + "; ".join(offenders))
+
+
+
 def test_falsification_count_is_a_model_internal_statement():
     """n_falsified_in_model must not be read as an experimental result."""
     d = json.load(open(os.path.join(ROOT, "falsification_report_3d.json")))

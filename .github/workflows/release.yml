@@ -36,6 +36,30 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - run: uv sync --frozen --all-groups
 
+      # ---- establish WHICH revision is being released, independently ----
+      # Not one environment variable copied into four files: the checkout SHA
+      # is recomputed from the object store with `git rev-parse`, the tag's
+      # target is resolved separately, and both are compared against the
+      # Actions context. Any disagreement means the thing being signed is not
+      # the thing the trigger named.
+      - name: verify the released revision against the authorized policy
+        run: |
+          set -euo pipefail
+          CHECKOUT=$(git rev-parse HEAD)
+          echo "context GITHUB_SHA : ${GITHUB_SHA}"
+          echo "git rev-parse HEAD : ${CHECKOUT}"
+          echo "context GITHUB_REF : ${GITHUB_REF}"
+          [ "$CHECKOUT" = "$GITHUB_SHA" ] || {
+            echo "REVISION MISMATCH: checkout $CHECKOUT != context $GITHUB_SHA"
+            exit 1; }
+          TAG_TARGET=$(git rev-list -n 1 "${GITHUB_REF}")
+          echo "tag target         : ${TAG_TARGET}"
+          [ "$CHECKOUT" = "$TAG_TARGET" ] || {
+            echo "TAG MISMATCH: checkout $CHECKOUT != ${GITHUB_REF} -> $TAG_TARGET"
+            exit 1; }
+          uv run python release_revision_gate.py \
+            --checkout "$CHECKOUT" --ref "$GITHUB_REF"
+
       # ---- regenerate and verify the canonical package ----
       - run: uv run python qta_full_sim.py
       - run: uv run python package_consistency_check.py
@@ -64,6 +88,25 @@ jobs:
           uv run python -m sigstore sign \
             --bundle "$REL_BUNDLE/source.sigstore.json" "$REL_ZIP"
 
+      # ---- record that a signature now exists (metadata only) ----
+      # build_release_artifacts.py writes signing_status=PENDING and an empty
+      # signature_bundles, and the signing step above updates neither, so
+      # verify_release.py --online rejected on `status != "SIGNED" or not sig`
+      # BEFORE ever checking a signature -- regardless of whether the trust
+      # policy pins were filled. This step closes exactly that gap.
+      #
+      # It is NOT authorization. PENDING -> SIGNED asserts one thing: a
+      # signature bundle physically exists for this artifact. The finalizer
+      # refuses on any precondition failure (missing/empty/unparseable bundle,
+      # wrong zip, digest drift vs index/SHA256SUMS, non-PENDING start), may
+      # alter only signing_status and signature_bundles, and never reads or
+      # writes a trust-policy pin. The identity gate below is untouched.
+      - name: finalize signing metadata (confers no trust)
+        run: |
+          uv run python finalize_release_signing.py \
+            --bundle "$REL_BUNDLE" --zip "$REL_ZIP" \
+            --bundle-name source.sigstore.json
+
       # ---- online verification of the same file and the same bundle dir ----
       # verify_release.py --online now performs real Sigstore verification
       # against the exact signer_identity and oidc_issuer pinned in
@@ -72,10 +115,39 @@ jobs:
       # library being absent. None of those is reported as success.
       - name: verify what we signed (online)
         run: |
+          # The trust root is passed EXPLICITLY. In this repository CI the
+          # authorized policy is the checked-out canonical file; an
+          # independent consumer must obtain an owner-authorized copy through
+          # a channel independent of the release. Either way --online fails
+          # closed without one: the policy shipped inside a release is a
+          # candidate, never the root.
           uv run python verify_release.py \
-            --zip "$REL_ZIP" --bundle "$REL_BUNDLE" --online
+            --zip "$REL_ZIP" --bundle "$REL_BUNDLE" --online \
+            --trusted-policy QTA_stage9_release_verification/release_trust_policy.json
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
         with:
           name: qta-release-bundle
           path: ${{ env.REL_DIR }}
+
+      # ---- failure diagnostics (NOT authorization material) ----
+      # Earlier revisions described this as the bootstrap step that supplied
+      # the exact release signer identity, on the theory that the first run
+      # must fail and its certificate must be harvested. That is no longer
+      # true and the framing is retired: the signer identity is DERIVED from
+      # (repository, workflow, tag) before any run, and is authorized in the
+      # policy in advance. There is no bootstrap tag.
+      #
+      # What remains is diagnostics. If verification fails -- most usefully if
+      # a derived identity ever turns out not to match what Fulcio issues --
+      # the certificate that disproves the prediction survives for inspection
+      # instead of dying with the runner. It supplies NO authorization
+      # material: the job still exits non-zero, writes no pin, and leaves the
+      # trust policy untouched.
+      - name: preserve FAILED_RELEASE_DIAGNOSTIC_EVIDENCE
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        with:
+          name: FAILED-RELEASE-DIAGNOSTIC-EVIDENCE
+          path: ${{ env.REL_DIR }}
+          if-no-files-found: warn
