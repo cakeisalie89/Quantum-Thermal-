@@ -21,6 +21,14 @@ COPY --chown=qta:qta pyproject.toml uv.lock requirements.txt ./
 RUN pip install --no-cache-dir uv==0.11.7 && \
     uv sync --frozen --all-groups
 COPY --chown=qta:qta . /qta
+# WORKDIR creates /qta owned by root, and `COPY --chown` sets ownership on the
+# entries it copies, NOT on the pre-existing destination directory. `outputs/`
+# is gitignored, so it is absent from the build context and must be created at
+# runtime -- which a non-root process cannot do inside a root-owned directory.
+# The first hosted run (32618446522) died exactly there: qta_full_sim.py printed
+# its full report and then failed at OUTPUT_DIR.mkdir(). The checker also
+# removes and recreates outputs/, so the directory itself must be writable.
+RUN chown qta:qta /qta
 USER qta
 ENV PATH="/opt/venv/bin:$PATH"
 # writable workspace for generated outputs (canonical sources untouched)
