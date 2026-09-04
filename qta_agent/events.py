@@ -42,6 +42,7 @@ so recovery is possible without discarding history.
 """
 from __future__ import annotations
 
+import json
 import os
 import time
 from dataclasses import dataclass, field
@@ -136,7 +137,16 @@ class ChainState:
 
 @dataclass(frozen=True)
 class VerifyReport:
-    """Outcome of a full-chain verification. Structured, never a bare bool."""
+    """Outcome of a chain verification. Structured, never a bare bool.
+
+    ``prefix_verified`` is the field that keeps an incremental verification
+    honest. :meth:`EventLog.verify_from` re-checks only the records after a
+    caller-supplied anchor and leaves this False, with
+    ``unverified_through`` naming the last seq it did not look at. A report
+    that says ``ok`` while carrying ``prefix_verified=False`` is saying
+    something strictly weaker than one that does not, and callers that treat
+    the two alike are the reason this is a field rather than a docstring.
+    """
     ok: bool
     count: int
     head_seq: int
@@ -144,6 +154,10 @@ class VerifyReport:
     problems: list = field(default_factory=list)
     #: Non-fatal observations: wall-clock regressions, unusual gaps in time.
     notes: list = field(default_factory=list)
+    #: False when records before an anchor were trusted rather than re-checked.
+    prefix_verified: bool = True
+    #: Last seq that was trusted without being re-checked; -1 when none were.
+    unverified_through: int = -1
 
     def raise_if_bad(self) -> "VerifyReport":
         if not self.ok:
@@ -182,6 +196,33 @@ def _validate_field_types(rec: dict, where: str) -> None:
         # content beside a valid digest.
         raise MalformedEvent(
             f"{where}: unhashed extra fields {sorted(unknown)}")
+
+
+@dataclass(frozen=True)
+class Anchor:
+    """A caller's assertion that the log is verified through ``seq``.
+
+    Carries byte offsets so verification of the tail does not have to read the
+    prefix to reach it. The offsets are a shortcut, never a trust input: the
+    record found at ``record_offset`` must parse and must hash to
+    ``head_hash``, or the anchor is refused. A rewritten log moves those
+    bytes, the seek lands mid-record, and the check fails closed.
+    """
+    seq: int
+    head_hash: str
+    #: Byte offset where the record at ``seq`` begins.
+    record_offset: int
+    #: Byte offset just past that record, where the tail starts.
+    next_offset: int
+
+    def to_record(self) -> dict:
+        return {"seq": self.seq, "head_hash": self.head_hash,
+                "record_offset": self.record_offset,
+                "next_offset": self.next_offset}
+
+    @property
+    def chain_state(self) -> ChainState:
+        return ChainState(self.seq, self.head_hash)
 
 
 class EventLog:
@@ -258,41 +299,61 @@ class EventLog:
         prev_hash = ZERO_DIGEST
         prev_wall = None
         for i, ev in enumerate(events):
-            if ev.seq != i:
-                problems.append(
-                    f"seq {ev.seq} at position {i}: sequence must be "
-                    "contiguous and ascending from 0")
-            if ev.prev_hash != prev_hash:
-                problems.append(
-                    f"seq {ev.seq}: prev_hash {ev.prev_hash[:12]} does not "
-                    f"link to {prev_hash[:12]}")
-            try:
-                recomputed = ev.recompute_hash()
-            except CanonicalizationError as exc:
-                problems.append(f"seq {ev.seq}: not hashable: {exc}")
+            if not self._check_link(ev, i, prev_hash, prev_wall,
+                                    problems, notes):
                 break
-            if recomputed != ev.hash:
-                problems.append(
-                    f"seq {ev.seq}: hash {ev.hash[:12]} != recomputed "
-                    f"{recomputed[:12]}; record was altered")
-            if ev.canonical_form_version != CANONICAL_FORM_VERSION:
-                problems.append(
-                    f"seq {ev.seq}: canonical form v"
-                    f"{ev.canonical_form_version} != "
-                    f"v{CANONICAL_FORM_VERSION};"
-                    " digests are not comparable across forms")
-            if prev_wall is not None and ev.wall_time < prev_wall:
-                # Diagnostic, not fatal: clocks legitimately move backwards.
-                notes.append(
-                    f"seq {ev.seq}: wall_time went backwards "
-                    f"({ev.wall_time} < {prev_wall}); ordering uses seq, not "
-                    "wall time")
             prev_wall = ev.wall_time
             prev_hash = ev.hash
 
         head_seq = events[-1].seq if events else -1
         head_hash = events[-1].hash if events else ZERO_DIGEST
+        self._check_witness(head_seq, head_hash, expected_head, use_witness,
+                            problems, notes)
+        return VerifyReport(not problems, len(events), head_seq, head_hash,
+                            problems, notes)
 
+    # The two verification paths -- whole-chain and from-an-anchor -- share
+    # these. Two copies of "what makes a record acceptable" would drift, and
+    # the incremental path is exactly where a weakened copy would go unnoticed.
+    @staticmethod
+    def _check_link(ev, expected_seq: int, prev_hash: str, prev_wall,
+                    problems: list, notes: list) -> bool:
+        """Check one record against its expected position. False = stop."""
+        if ev.seq != expected_seq:
+            problems.append(
+                f"seq {ev.seq} at position {expected_seq}: sequence must be "
+                "contiguous and ascending from 0")
+        if ev.prev_hash != prev_hash:
+            problems.append(
+                f"seq {ev.seq}: prev_hash {ev.prev_hash[:12]} does not "
+                f"link to {prev_hash[:12]}")
+        try:
+            recomputed = ev.recompute_hash()
+        except CanonicalizationError as exc:
+            problems.append(f"seq {ev.seq}: not hashable: {exc}")
+            return False
+        if recomputed != ev.hash:
+            problems.append(
+                f"seq {ev.seq}: hash {ev.hash[:12]} != recomputed "
+                f"{recomputed[:12]}; record was altered")
+        if ev.canonical_form_version != CANONICAL_FORM_VERSION:
+            problems.append(
+                f"seq {ev.seq}: canonical form v"
+                f"{ev.canonical_form_version} != "
+                f"v{CANONICAL_FORM_VERSION};"
+                " digests are not comparable across forms")
+        if prev_wall is not None and ev.wall_time < prev_wall:
+            # Diagnostic, not fatal: clocks legitimately move backwards.
+            notes.append(
+                f"seq {ev.seq}: wall_time went backwards "
+                f"({ev.wall_time} < {prev_wall}); ordering uses seq, not "
+                "wall time")
+        return True
+
+    def _check_witness(self, head_seq: int, head_hash: str,
+                       expected_head, use_witness: bool,
+                       problems: list, notes: list) -> None:
+        """Compare the log's head against the independently held witness."""
         witness = expected_head
         if witness is None and use_witness:
             try:
@@ -300,27 +361,173 @@ class EventLog:
             except EventLogError as exc:
                 problems.append(str(exc))
                 witness = None
-        if witness is not None:
-            if witness.seq > head_seq:
-                problems.append(
-                    f"TRUNCATED: witness records seq {witness.seq} but "
-                    "the log "
-                    f"ends at {head_seq}; {witness.seq - head_seq} record(s) "
-                    "are missing")
-            elif witness.seq == head_seq and witness.head_hash != head_hash:
-                problems.append(
-                    f"FORKED: witness head {witness.head_hash[:12]} != "
-                    "log head "
-                    f"{head_hash[:12]} at the same seq")
-            elif witness.seq < head_seq:
-                notes.append(
-                    f"witness is behind the log ({witness.seq} < {head_seq}); "
-                    "expected only if a crash occurred between append and "
-                    "witness update")
-        return VerifyReport(not problems, len(events), head_seq, head_hash,
-                            problems, notes)
+        if witness is None:
+            return
+        if witness.seq > head_seq:
+            problems.append(
+                f"TRUNCATED: witness records seq {witness.seq} but "
+                "the log "
+                f"ends at {head_seq}; {witness.seq - head_seq} record(s) "
+                "are missing")
+        elif witness.seq == head_seq and witness.head_hash != head_hash:
+            problems.append(
+                f"FORKED: witness head {witness.head_hash[:12]} != "
+                "log head "
+                f"{head_hash[:12]} at the same seq")
+        elif witness.seq < head_seq:
+            notes.append(
+                f"witness is behind the log ({witness.seq} < {head_seq}); "
+                "expected only if a crash occurred between append and "
+                "witness update")
 
     # ---- appending ----------------------------------------------------
+    def anchor_at(self, seq: int) -> "Anchor":
+        """Build an anchor for ``seq`` by reading the log once.
+
+        Deliberately the slow path. An anchor is only worth trusting because
+        something verified the log to produce it, so producing one costs a
+        full pass; the saving comes from every use afterwards.
+        """
+        if seq < 0:
+            raise EventLogError(f"cannot anchor at negative seq {seq}")
+        offset = 0
+        with self.path.open("rb") as fh:
+            for raw in fh:
+                start = offset
+                offset += len(raw)
+                if not raw.strip():
+                    continue
+                rec = json.loads(raw.decode("utf-8"))
+                _validate_field_types(rec, f"offset {start}")
+                if rec["seq"] == seq:
+                    ev = Event(**rec)
+                    if ev.recompute_hash() != ev.hash:
+                        raise ChainBroken(
+                            f"seq {seq}: record does not hash to its own "
+                            "stored hash; refusing to anchor on it")
+                    return Anchor(seq, ev.hash, start, offset)
+        raise EventLogError(f"no record at seq {seq}")
+
+    def verify_from(self, anchor: "Anchor", *,
+                    use_witness: bool = True) -> VerifyReport:
+        """Verify only the records after ``anchor``, TRUSTING the prefix.
+
+        This is strictly weaker than :meth:`verify` and the returned report
+        says so: ``prefix_verified`` is False and ``unverified_through``
+        names the last seq that was taken on faith. Tampering with records
+        before the anchor is invisible here -- by construction, since not
+        reading them is the entire point -- and only :meth:`verify` will find
+        it.
+
+        The anchor itself is not trusted blindly: the record at its offset
+        must parse, must sit at the anchor's seq, and must hash to the
+        anchor's hash. Any disagreement raises rather than silently falling
+        back to a full pass, because a caller who asked for the cheap check
+        and received the expensive one has been given a cost profile they did
+        not choose -- and, worse, a caller who asked for the cheap check and
+        received a *successful* one has no way to tell which they got.
+        """
+        problems: list = []
+        notes: list = []
+
+        try:
+            size = self.path.stat().st_size
+        except FileNotFoundError:
+            raise ChainBroken(
+                f"anchor claims seq {anchor.seq} but the log does not "
+                "exist") from None
+        if anchor.next_offset > size:
+            raise ChainBroken(
+                f"TRUNCATED: anchor ends at byte {anchor.next_offset} but the "
+                f"log is {size} bytes; {anchor.next_offset - size} byte(s) "
+                "are missing")
+
+        with self.path.open("rb") as fh:
+            fh.seek(anchor.record_offset)
+            raw = fh.readline()
+            if anchor.record_offset + len(raw) != anchor.next_offset:
+                raise ChainBroken(
+                    f"anchor at seq {anchor.seq} does not describe the bytes "
+                    "now at its offset; the log was rewritten")
+            try:
+                rec = json.loads(raw.decode("utf-8"))
+                _validate_field_types(rec, f"anchor seq {anchor.seq}")
+                anchored = Event(**rec)
+            except (UnicodeDecodeError, ValueError, TypeError,
+                    EventLogError) as exc:
+                raise ChainBroken(
+                    f"anchor at seq {anchor.seq} does not point at a valid "
+                    f"record: {exc}") from exc
+            if anchored.seq != anchor.seq:
+                raise ChainBroken(
+                    f"anchor claims seq {anchor.seq} but the record there is "
+                    f"seq {anchored.seq}")
+            if anchored.hash != anchor.head_hash:
+                raise ChainBroken(
+                    f"anchor expects hash {anchor.head_hash[:12]} at seq "
+                    f"{anchor.seq}, found {anchored.hash[:12]}")
+            if anchored.recompute_hash() != anchored.hash:
+                raise ChainBroken(
+                    f"seq {anchor.seq}: the anchored record does not hash to "
+                    "its own stored hash")
+
+            tail = self._read_tail(fh, anchor.next_offset, problems)
+
+        prev_hash = anchor.head_hash
+        prev_wall = anchored.wall_time
+        expected = anchor.seq + 1
+        for ev in tail:
+            if not self._check_link(ev, expected, prev_hash, prev_wall,
+                                    problems, notes):
+                break
+            prev_wall = ev.wall_time
+            prev_hash = ev.hash
+            expected += 1
+
+        head_seq = tail[-1].seq if tail else anchor.seq
+        head_hash = tail[-1].hash if tail else anchor.head_hash
+        self._check_witness(head_seq, head_hash, None, use_witness,
+                            problems, notes)
+
+        return VerifyReport(not problems, len(tail), head_seq, head_hash,
+                            problems, notes, prefix_verified=False,
+                            unverified_through=anchor.seq)
+
+    def read_from(self, anchor: "Anchor") -> list:
+        """Parse the records after ``anchor`` without reading the prefix.
+
+        No verification: callers pair this with :meth:`verify_from`, which is
+        the thing that decides whether these records are acceptable. Kept
+        separate so a caller cannot get the parsing without having chosen a
+        verification, or vice versa, by accident.
+        """
+        with self.path.open("rb") as fh:
+            return self._read_tail(fh, anchor.next_offset, [])
+
+    def _read_tail(self, fh, offset: int, problems: list) -> list:
+        events: list = []
+        fh.seek(offset)
+        for raw in fh:
+            if len(raw) > MAX_EVENT_BYTES:
+                raise MalformedEvent(
+                    f"{len(raw)} bytes exceeds the {MAX_EVENT_BYTES}-byte "
+                    "bound")
+            if not raw.strip():
+                continue
+            try:
+                rec = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError) as exc:
+                raise MalformedEvent(
+                    f"unparseable record after the anchor "
+                    f"({type(exc).__name__}); if this is the final line the "
+                    "log was truncated mid-append") from exc
+            if not isinstance(rec, dict):
+                raise MalformedEvent(
+                    f"record is {type(rec).__name__}, not an object")
+            _validate_field_types(rec, "after anchor")
+            events.append(Event(**rec))
+        return events
+
     def append(self, *, actor: str, action: str, target: str,
                payload: dict | None = None,
                event_id: str | None = None,
@@ -330,24 +537,61 @@ class EventLog:
         Verifies the existing chain first: appending onto a broken log would
         extend the damage and make the break harder to locate.
         """
-        import uuid
-
         report = self.verify()
         if not report.ok:
             raise ChainBroken(
                 "refusing to append to a broken chain: "
                 + "; ".join(report.problems))
+        ev, _ = self._write_event(
+            report.head_seq, report.head_hash, actor=actor, action=action,
+            target=target, payload=payload, event_id=event_id,
+            wall_time=wall_time)
+        return ev
+
+    def append_verified(self, anchor: "Anchor", *, actor: str, action: str,
+                        target: str, payload: dict | None = None,
+                        event_id: str | None = None,
+                        wall_time: float | None = None) -> tuple:
+        """Append, re-checking only the records after ``anchor``.
+
+        Returns ``(event, new_anchor)``, where the new anchor covers the
+        record just written -- so a caller appending in a loop pays O(1) per
+        append instead of re-hashing the whole log each time. That quadratic
+        cost is not academic: it is the mechanism by which a chain check gets
+        switched off in practice, and a switched-off check is worse than a
+        cheap one because nothing records that it stopped running.
+
+        The prefix is TRUSTED, exactly as in :meth:`verify_from`. This is a
+        separate method rather than a keyword on :meth:`append` so that the
+        weaker guarantee cannot be selected by accident, and so the default
+        stays the strong one.
+        """
+        report = self.verify_from(anchor)
+        if not report.ok:
+            raise ChainBroken(
+                "refusing to append to a broken chain: "
+                + "; ".join(report.problems))
+        return self._write_event(
+            report.head_seq, report.head_hash, actor=actor, action=action,
+            target=target, payload=payload, event_id=event_id,
+            wall_time=wall_time)
+
+    def _write_event(self, head_seq: int, head_hash: str, *, actor: str,
+                     action: str, target: str, payload: dict | None,
+                     event_id: str | None, wall_time: float | None) -> tuple:
+        """Build, bound-check and durably write one record. One writer."""
+        import uuid
 
         payload = dict(payload or {})
         body = {
-            "seq": report.head_seq + 1,
+            "seq": head_seq + 1,
             "event_id": event_id or uuid.uuid4().hex,
             "wall_time": time.time() if wall_time is None else wall_time,
             "actor": actor,
             "action": action,
             "target": target,
             "payload": payload,
-            "prev_hash": report.head_hash,
+            "prev_hash": head_hash,
             "canonical_form_version": CANONICAL_FORM_VERSION,
         }
         # Reject unhashable payloads before touching the file, so a bad append
@@ -361,11 +605,16 @@ class EventLog:
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("ab") as fh:
+            # Offsets are taken from the handle, not from a prior stat: an
+            # append-mode write lands at the true end of file, which a stat
+            # taken earlier may no longer describe.
+            start = fh.tell()
             fh.write(line)
             fh.flush()
             os.fsync(fh.fileno())
+            end = fh.tell()
         self._write_head(ChainState(ev.seq, ev.hash))
-        return ev
+        return ev, Anchor(ev.seq, ev.hash, start, end)
 
     def _write_head(self, state: ChainState) -> None:
         """Update the witness atomically: temp file, fsync, rename."""

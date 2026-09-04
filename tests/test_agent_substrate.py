@@ -18,15 +18,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from qta_agent.authority import (  # noqa: E402
-    EDGES, INITIAL, TERMINAL, Edge, Role, State, TransitionError,
+    EDGES, INITIAL, TERMINAL, Role, State, TransitionError,
     TransitionRequest, allowed_targets, check,
 )
 from qta_agent.canonical import (  # noqa: E402
-    CanonicalizationError, assert_digest_stable, canonical_bytes, digest,
+    CanonicalizationError, assert_digest_stable, digest,
     is_digest,
 )
 from qta_agent.events import (  # noqa: E402
-    _HASHED_FIELDS, ChainBroken, ChainState, EventLog, MalformedEvent,
+    _HASHED_FIELDS, ChainBroken, ChainState, EventLog,
 )
 from qta_agent.invalidation import (  # noqa: E402
     apply_invalidation, find_cycles, plan_invalidation,

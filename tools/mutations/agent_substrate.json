@@ -10,29 +10,29 @@
     {
       "name": "M1_no_hash_recompute",
       "path": "qta_agent/events.py",
-      "find": "            if recomputed != ev.hash:",
-      "replace": "            if False:",
+      "find": "        if recomputed != ev.hash:",
+      "replace": "        if False:",
       "rationale": "a record could be edited in place and still verify"
     },
     {
       "name": "M2_no_chain_link_check",
       "path": "qta_agent/events.py",
-      "find": "            if ev.prev_hash != prev_hash:",
-      "replace": "            if False:",
+      "find": "        if ev.prev_hash != prev_hash:",
+      "replace": "        if False:",
       "rationale": "a record could be spliced in claiming an ancestry it does not have"
     },
     {
       "name": "M3_no_sequence_check",
       "path": "qta_agent/events.py",
-      "find": "            if ev.seq != i:",
-      "replace": "            if False:",
+      "find": "        if ev.seq != expected_seq:",
+      "replace": "        if False:",
       "rationale": "seq is what gives the log a total order; wall time cannot"
     },
     {
       "name": "M4_ignore_truncation_witness",
       "path": "qta_agent/events.py",
-      "find": "            if witness.seq > head_seq:",
-      "replace": "            if False:",
+      "find": "        if witness.seq > head_seq:",
+      "replace": "        if False:",
       "rationale": "a prefix of a valid chain is itself a valid chain; only the separate witness can see truncation"
     },
     {
@@ -45,8 +45,8 @@
     {
       "name": "M6_append_onto_broken_chain",
       "path": "qta_agent/events.py",
-      "find": "        if not report.ok:\n            raise ChainBroken(",
-      "replace": "        if False:\n            raise ChainBroken(",
+      "find": "        report = self.verify()\n        if not report.ok:\n            raise ChainBroken(",
+      "replace": "        report = self.verify()\n        if False:\n            raise ChainBroken(",
       "rationale": "appending onto a broken chain buries the break under valid records"
     },
     {

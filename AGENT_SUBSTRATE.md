@@ -37,6 +37,7 @@ rather than a web:
 | `events.py` | append-only hash-chained log; the authority history |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
+| `checkpoint.py` | a cached verification result, never a second truth |
 | `store.py` | live projection, transactional through the log |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
@@ -104,6 +105,7 @@ in turn, and the suite must fail:
 |---|---|---|---|
 | state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 20 | 20 killed |
 | evidence store and the gate wired to it | `tools/mutations/agent_evidence.json` | 20 | 20 killed |
+| checkpointing, incremental verification, snapshots | `tools/mutations/agent_checkpoint.json` | 23 | 23 killed |
 
 Re-run either with:
 
@@ -154,12 +156,26 @@ those was redundant:
   for a file that was always too large is false and sends an operator after a
   race that never happened.
 
+Four survived the first run of the checkpoint matrix, all masked the same way
+— an adjacent check fired on the same fixture. The isolating fixtures each
+leave every other precondition satisfied: a rolled-back head witness on a log
+whose bytes are all still present, an anchor naming a real record's real hash
+at the real offsets and lying only about its position, and an anchor pointing
+at a record whose *stored* hash it faithfully repeats while the record's
+contents no longer produce it.
+
 One further defect surfaced from the matrix rather than from a test: removing
 the store's file-type check made the suite **hang** on a FIFO instead of
 failing, so the mutation was "killed" by a forty-minute harness timeout that
 said nothing about which check was lost. The FIFO tests now bound themselves
 with `SIGALRM` and fail in five seconds, and the harness reports a
 timeout-kill as a defect in the test rather than as a clean result.
+
+The harness also earns its keep on refactors. Extracting the shared
+per-record checks out of `verify()` moved five mutation anchors, and the run
+reported **ANCHOR DRIFT — tested nothing** for each rather than quietly
+scoring them. A mutation whose anchor no longer matches is not a passing
+mutation; it is an absent one.
 
 Beyond the matrices, `reconstruct.py` is a deliberately separate
 implementation — different data structures, and it does not import
@@ -185,6 +201,44 @@ verified, and promoted under a recorded policy. It does **not** mean:
 
 The substrate governs the *provenance of assertions*. It has no opinion about
 whether an assertion is physically true, and it never acquires one.
+
+## 6a. Checkpoints cache a verification result, never trust
+
+`EventLog.append` verified the whole chain before every append and
+`AuthorityStore.load` verified it again, so N appends cost O(N²) hashing.
+That is not an abstract concern: verification that grows without bound is
+verification that someone eventually switches off, and the switch-off is
+recorded nowhere. Measured at 400 records, the incremental path is 6.6× faster,
+and the gap widens quadratically.
+
+A checkpoint says: *at seq K the head hash was H, and a full verification
+passed when this was written.* Using it means checking only K+1..N and taking
+0..K on faith. Three rules keep that from becoming a second source of truth:
+
+1. **Every use is recorded as weaker.** `EventLog.verify_from` returns a
+   report with `prefix_verified=False` and `unverified_through=K`;
+   `AuthorityStore.loaded_prefix_verified` says the same about a projection.
+   Nothing in this layer can produce a report claiming a full verification it
+   did not perform.
+2. **The anchor is re-checked, never trusted.** The record at the anchor's
+   byte offset must parse, sit at the claimed seq, carry the claimed hash, and
+   re-hash to it. Byte offsets are a seek shortcut, not a trust input.
+3. **Nothing here authenticates a checkpoint.** Its self-hash catches a
+   truncated write or a bad disk. It catches nothing an adversary does —
+   anyone who can rewrite the file can recompute the hash. A test asserts this
+   *limit* rather than dressing the self-hash up as authentication. Against a
+   hostile filesystem, use `EventLog.verify`, which needs no checkpoint and
+   trusts nothing.
+
+Tampering inside the checkpointed prefix is therefore invisible to the
+incremental check — by construction — and found by the full one. Both halves
+are asserted in one test so the limit cannot be read as a bug in one or a
+guarantee in the other.
+
+The projection snapshot is stored as **evidence**: canonical bytes in the
+content-addressed store, pinned by digest from the checkpoint. The two cannot
+drift, because a snapshot whose bytes changed no longer resolves to the digest
+the checkpoint names.
 
 ## 7. Status: built, verified, and not yet driving anything
 

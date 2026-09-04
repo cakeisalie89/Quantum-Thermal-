@@ -50,14 +50,10 @@ jobs:
       - name: lint the substrate
         # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
         # project's 79-column setting like any other non-legacy module.
-        run: uv run ruff check qta_agent tests/test_agent_substrate_isolation.py
+        run: uv run ruff check qta_agent tests/test_agent_*.py
       - name: agent test suites
         run: |
-          uv run python -m pytest \
-            tests/test_agent_substrate.py \
-            tests/test_agent_substrate_properties.py \
-            tests/test_agent_substrate_isolation.py \
-            tests/test_agent_evidence.py -q
+          uv run python -m pytest tests/test_agent_*.py -q
       - name: mutation matrix -- substrate
         # Non-zero exit on a survivor, an anchor that no longer matches, or a
         # source not restored byte-identical. A red baseline aborts the run
@@ -69,6 +65,10 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_evidence.json
+      - name: mutation matrix -- checkpointing
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_checkpoint.json
       - name: sources are unchanged after mutation testing
         # The harness verifies this itself by re-hashing; git is the
         # independent check, because a harness that restores incorrectly

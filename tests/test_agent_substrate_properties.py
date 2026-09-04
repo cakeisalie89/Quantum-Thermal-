@@ -18,23 +18,23 @@ import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import (
-    Bundle, RuleBasedStateMachine, initialize, invariant, precondition, rule,
+    Bundle, RuleBasedStateMachine, initialize, invariant, rule,
 )
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from qta_agent.authority import (  # noqa: E402
-    EDGES, INITIAL, TERMINAL, Role, State, TransitionError, TransitionRequest,
-    allowed_targets, check,
+    TERMINAL, Role, State, TransitionError, TransitionRequest,
+    check,
 )
 from qta_agent.canonical import (  # noqa: E402
     CanonicalizationError, digest, is_digest,
 )
 from qta_agent.events import EventLog  # noqa: E402
-from qta_agent.invalidation import apply_invalidation, plan_invalidation  # noqa: E402
+from qta_agent.invalidation import apply_invalidation  # noqa: E402
 from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from qta_agent.store import AuthorityStore  # noqa: E402
 
 DIG = "b" * 64
 
