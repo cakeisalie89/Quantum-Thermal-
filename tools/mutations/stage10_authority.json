@@ -1,0 +1,115 @@
+{
+  "title": "Stage-10 write authority and retrieval trust (recovered defects)",
+  "note": "These guards were recovered from tests/test_agent_authority_boundaries.py in the PR #16 corpus, which proved current main had lost them: the Stage-10 writers overwrote README.md and wrote {\"status\": \"PASS\"} into results_gate_table.csv during an ordinary test run, and load_index accepted a rewritten index as authoritative. Each mutation below reopens one of those holes.",
+  "suites": [
+    "tests/test_agent_authority_boundaries.py",
+    "tests/test_stage10_stack.py"
+  ],
+  "mutations": [
+    {
+      "name": "W1_workspace_boundary_not_enforced",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "    if p != ws and ws not in p.parents:\n        _refuse(p, what)",
+      "replace": "    if False:\n        _refuse(p, what)",
+      "rationale": "every location becomes writable; the allowlist stops existing"
+    },
+    {
+      "name": "W2_text_writer_skips_the_guard",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "    target = assert_in_workspace(path)\n    data = text.replace",
+      "replace": "    target = Path(path)\n    data = text.replace",
+      "rationale": "THE ORIGINAL DEFECT: the writer takes any path and calls write_bytes, so the guard is advisory and a caller who forgets it overwrites canonical state"
+    },
+    {
+      "name": "W3_guard_output_dir_skips_the_check",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "    p = assert_in_workspace(out_dir, what=\"output directories\")\n    p.mkdir(parents=True, exist_ok=True)",
+      "replace": "    p = Path(out_dir).resolve()\n    p.mkdir(parents=True, exist_ok=True)",
+      "rationale": "governed directories and directory symlinks escaping the workspace are created and returned as valid output locations"
+    },
+    {
+      "name": "W4_relpath_launders_external_paths",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "        raise ValueError(\n            f\"{p} is outside the repository; refusing to record it as a \"\n            \"repository-relative path\") from exc",
+      "replace": "        return Path(os.path.basename(p)).as_posix()",
+      "rationale": "/etc/secret.md is laundered into secret.md, so a provenance record names a repository file that is not the file the bytes came from"
+    },
+    {
+      "name": "R1_absolute_corpus_path_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if PurePosixPath(rel).is_absolute() or Path(rel).is_absolute():",
+      "replace": "        if False:",
+      "rationale": "the corpus root stops deciding what is in the corpus"
+    },
+    {
+      "name": "R2_path_traversal_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if any(part in (\"..\", \".\") for part in parts):",
+      "replace": "        if False:",
+      "rationale": "'..' escapes the corpus root and reads files retrieval was never given"
+    },
+    {
+      "name": "R3_excluded_dirs_ignored",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if any(part in EXCLUDED_DIRS for part in parts):",
+      "replace": "        if False:",
+      "rationale": "generated, untracked and non-governed trees enter retrieval wearing a governed label"
+    },
+    {
+      "name": "R4_non_document_suffix_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if not rel.endswith(CORPUS_SUFFIXES):",
+      "replace": "        if False:",
+      "rationale": "arbitrary file types are indexed as governed text documents"
+    },
+    {
+      "name": "R5_corpus_symlink_followed",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if p.is_symlink():",
+      "replace": "        if False:",
+      "rationale": "the link target, chosen by whoever can write the directory, is indexed under a name the corpus root implies"
+    },
+    {
+      "name": "R6_duplicate_corpus_entries_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if resolved in seen:",
+      "replace": "        if False:",
+      "rationale": "one file counted twice silently doubles its weight in the ranking"
+    },
+    {
+      "name": "R7_corpus_root_escape_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if resolved != root_resolved and root_resolved not in resolved.parents:",
+      "replace": "        if False:",
+      "rationale": "a path resolving outside the corpus root is indexed anyway"
+    },
+    {
+      "name": "R8_serialized_index_trusted_verbatim",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    if expected != doc:",
+      "replace": "    if False:",
+      "rationale": "THE OTHER RECOVERED DEFECT: a rewritten index puts words into a governed document's mouth with impeccable-looking provenance"
+    },
+    {
+      "name": "R9_k_type_not_checked",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if isinstance(k, bool) or not isinstance(k, int):",
+      "replace": "        if False:",
+      "rationale": "a silently coerced k changes how much of the corpus a reader is handed"
+    },
+    {
+      "name": "R10_k_bounds_not_checked",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if not 1 <= k <= MAX_K:",
+      "replace": "        if False:",
+      "rationale": "retrieval becomes an unbounded corpus dump"
+    },
+    {
+      "name": "R11_file_digests_shape_not_checked",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    if not isinstance(stored_digests, dict) or not all(",
+      "replace": "    if False and not all(",
+      "rationale": "a malformed digest map is fed into the rebuild path"
+    }
+  ]
+}

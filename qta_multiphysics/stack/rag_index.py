@@ -35,7 +35,7 @@ import math
 import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from . import AUTOMATIC_GATE_EFFECT, LABEL
 from .workspace import (StrPath, guard_output_dir, repo_root, sha256_file,
@@ -50,6 +50,12 @@ MAX_SNIPPET_CHARS = 600
 EXCLUDED_DIRS = ("attic", "verification", ".git", ".venv", "outputs",
                  "release", "__pycache__")
 CORPUS_GLOBS = ("*.md", "*.txt")
+CORPUS_SUFFIXES = tuple(g.lstrip("*") for g in CORPUS_GLOBS)
+
+#: Upper bound on results per query. Retrieval hands verbatim spans to a
+#: reader; an unbounded k turns "retrieve" into "dump the corpus", which is a
+#: different operation with different review implications.
+MAX_K = 50
 
 STOPWORDS = frozenset("""
 a an and are as at be by for from has have in into is it its of on or
@@ -82,6 +88,67 @@ def corpus_files(root: StrPath | None = None) -> list[str]:
                 continue
             out.append(rel.as_posix())
     return sorted(set(out))
+
+
+def _validate_corpus_paths(root: Path, rels: list) -> list:
+    """Validate caller-supplied corpus paths. Fail closed on every doubt.
+
+    ``build_index(paths=[...])`` lets a caller name the corpus explicitly, and
+    that argument is the retrieval layer's whole attack surface: whatever is
+    named here becomes text a reader may act on, carrying this module's
+    provenance. So the names are checked, not trusted.
+
+    Retrieval stays read-only either way -- nothing here writes -- but
+    read-only is not the same as harmless. A path that escapes the corpus root
+    turns an index of governed documents into a way to read ``.git/config``
+    and hand it back wearing a governed label.
+    """
+    seen: dict = {}
+    out: list = []
+    for rel in rels:
+        if not isinstance(rel, str) or not rel:
+            raise ValueError(f"corpus path must be a non-empty string: {rel!r}")
+        if PurePosixPath(rel).is_absolute() or Path(rel).is_absolute():
+            raise ValueError(
+                f"unsafe corpus path {rel!r}: absolute paths are refused so "
+                "the corpus root is the only thing that decides what is in it")
+        parts = PurePosixPath(rel).parts
+        if any(part in ("..", ".") for part in parts):
+            raise ValueError(
+                f"unsafe corpus path {rel!r}: '..' and '.' segments are "
+                "refused rather than normalised")
+        if any(part in EXCLUDED_DIRS for part in parts):
+            raise ValueError(
+                f"corpus path {rel!r} lies under an excluded directory; these "
+                "trees are generated, untracked or non-governed and are "
+                "excluded from retrieval by policy")
+        if not rel.endswith(CORPUS_SUFFIXES):
+            raise ValueError(
+                f"corpus path {rel!r} is not a governed text document "
+                f"{CORPUS_SUFFIXES}")
+
+        p = root / rel
+        try:
+            resolved = p.resolve()
+        except OSError as exc:
+            raise ValueError(f"corpus path {rel!r} is unreadable: {exc}") from exc
+        if p.is_symlink():
+            raise ValueError(
+                f"corpus path {rel!r} is a symlink; its target is chosen by "
+                "whoever can write the directory, not by the corpus root")
+        root_resolved = root.resolve()
+        if resolved != root_resolved and root_resolved not in resolved.parents:
+            raise ValueError(
+                f"unsafe corpus path {rel!r}: resolves outside the corpus root")
+        if not p.is_file():
+            raise ValueError(f"corpus path {rel!r} is not a regular file")
+        if resolved in seen:
+            raise ValueError(
+                f"duplicate corpus entry: {rel!r} and {seen[resolved]!r} name "
+                "the same file, which would double its weight in the ranking")
+        seen[resolved] = rel
+        out.append(rel)
+    return out
 
 
 def split_chunks(text: str, path: str) -> list[dict]:
@@ -161,6 +228,13 @@ class ReadOnlyIndex:
         dropped rather than padded, because an empty result is a truthful
         answer and a padded one is not.
         """
+        if isinstance(k, bool) or not isinstance(k, int):
+            raise ValueError(
+                f"k must be an int, got {type(k).__name__}; bools and strings "
+                "are refused rather than coerced, because a silently coerced "
+                "k changes how much of the corpus a reader is handed")
+        if not 1 <= k <= MAX_K:
+            raise ValueError(f"k must be between 1 and {MAX_K}, got {k}")
         terms = tokenize(query)
         if not terms:
             return []
@@ -228,7 +302,10 @@ def build_index(root: StrPath | None = None,
                 paths: Iterable[str] | None = None) -> ReadOnlyIndex:
     """Build the index by reading the governed corpus (no writes at all)."""
     root = Path(root) if root is not None else repo_root()
-    rels = list(paths) if paths is not None else corpus_files(root)
+    if paths is not None:
+        rels = _validate_corpus_paths(root, list(paths))
+    else:
+        rels = corpus_files(root)
     chunks: list[dict] = []
     digests: dict[str, str] = {}
     for rel in rels:
@@ -241,14 +318,61 @@ def build_index(root: StrPath | None = None,
 
 def load_index(path: StrPath,
                root: StrPath | None = None) -> ReadOnlyIndex:
-    """Rebuild an index object from a persisted index document."""
+    """Rebuild an index from source and require the stored document to match.
+
+    A serialized index is a CACHE, never an authority. It carries verbatim
+    text, line ranges and source paths that a reader will treat as quotations
+    from governed documents -- so if the file on disk were trusted, anyone who
+    could write it could put words into a governed document's mouth: change a
+    chunk's text to "gate PASS", or repoint its path at a file the corpus
+    never contained, and the provenance fields would still look impeccable.
+
+    The check is therefore not a checksum over the document (which whoever
+    rewrote it could also recompute) but a rebuild from the source files it
+    names, compared field for field. Anything the document asserts that the
+    corpus does not produce is a mismatch: label, digests, text, line ranges,
+    paths, retrieval parameters, all of it.
+
+    A mismatch is reported as "stale or forged" because from here those are
+    genuinely indistinguishable -- the source may have moved on, or the index
+    may have been rewritten -- and naming only one of them would be a guess
+    presented as a diagnosis. Either way the answer is the same: rebuild.
+    """
     import json
-    doc = json.loads(Path(path).read_text())
+    raw = Path(path).read_text()
+    try:
+        doc = json.loads(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"index document is unparseable ({type(exc).__name__})") from exc
+    if not isinstance(doc, dict):
+        raise ValueError(
+            f"index document is {type(doc).__name__}, not an object")
     if doc.get("schema_version") != INDEX_SCHEMA_VERSION:
         raise ValueError(
             f"index schema {doc.get('schema_version')!r} != "
             f"{INDEX_SCHEMA_VERSION!r}; rebuild the index")
-    return ReadOnlyIndex(doc["chunks"], doc["file_digests"], root=root)
+
+    stored_digests = doc.get("file_digests")
+    if not isinstance(stored_digests, dict) or not all(
+            isinstance(k, str) and isinstance(v, str)
+            for k, v in stored_digests.items()):
+        raise ValueError("index file_digests must map path -> sha256 digest")
+
+    index_root = Path(root) if root is not None else repo_root()
+    rebuilt = build_index(root=index_root,
+                          paths=_validate_corpus_paths(
+                              index_root, sorted(stored_digests)))
+    expected = rebuilt.to_dict()
+    if expected != doc:
+        differing = sorted(
+            key for key in set(expected) | set(doc)
+            if expected.get(key) != doc.get(key))
+        raise ValueError(
+            f"index is stale or forged: rebuilding from source disagrees on "
+            f"{differing}. A serialized index is a cache of the corpus, not a "
+            "second copy of it with independent standing; rebuild it.")
+    return rebuilt
 
 
 def write_index(out_dir: StrPath, root: StrPath | None = None,

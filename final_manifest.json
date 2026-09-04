@@ -2598,8 +2598,8 @@
     },
     {
       "filename": "qta_multiphysics/stack/rag_index.py",
-      "size_bytes": 12050,
-      "sha256": "ed257d56b6c24206c09405897145188f3882eeb1ac7703678533bf78e5f93b82",
+      "size_bytes": 18058,
+      "sha256": "eacaddff00b130b7ec4fd75400961a4e410d6d25d7c60a6909cf4ebe8bba3391",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2633,8 +2633,8 @@
     },
     {
       "filename": "qta_multiphysics/stack/workspace.py",
-      "size_bytes": 3523,
-      "sha256": "a7c81fa4e07e4a21226a1ddbde2285792a984803226e690514804b437806dedb",
+      "size_bytes": 5662,
+      "sha256": "1a9fe06d23781a919138ce5fb9bac9a9da51bc3eb8557f51743dc62678ad9e2d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2997,8 +2997,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 3590,
-      "sha256": "5aaca83c276257ecda1bd7b7e626578cbf1a95d7de1e8631316a700628706727",
+      "size_bytes": 4174,
+      "sha256": "c9b9452a762b3137ee90c338e1a19ef5d293f985842d75e9d1336c6d6b42393e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3095,8 +3095,8 @@
     },
     {
       "filename": "tools/mutation_matrix.py",
-      "size_bytes": 7146,
-      "sha256": "9aaacc370af2d88e3d48a701eeea3ed97b7f9b984ea2cbec57ec0edadaf071d1",
+      "size_bytes": 9321,
+      "sha256": "cf87c85087fcdf5506a78db3ef62bde58ec512666c6dbf4a42c8ade0fe423688",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3132,6 +3132,27 @@
       "filename": "tools/mutations/agent_checkpoint.json",
       "size_bytes": 10190,
       "sha256": "669fc45ee7a38fe794ee9b7fb5b092cd4e6a7b12931d6ef7fb06f579e40de2f6",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "docs/CORPUS_RECOVERY_TRIAGE.md",
+      "size_bytes": 6105,
+      "sha256": "bc7de2215d82c04bff4323b692f877dabb1326c6fd6bf5a981bfc6a886e7aa4c",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_agent_authority_boundaries.py",
+      "size_bytes": 12840,
+      "sha256": "54efe6d5509cf8683651618409a7fb32a8edaa080666aa4fbcd2a7dfeede7bd3",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tools/mutations/stage10_authority.json",
+      "size_bytes": 5781,
+      "sha256": "6ce83540e28f889643b8e0961b10e8de0bd8f449ea605a57699ae45b445551da",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     }

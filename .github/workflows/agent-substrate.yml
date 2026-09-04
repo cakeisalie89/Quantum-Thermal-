@@ -1,9 +1,10 @@
 # Agent authority substrate verification.
 #
-# STATUS: NOT YET EXECUTED ON A HOSTED RUNNER. Nothing below has run in CI at
-# the time this file was committed. Local evidence only. This header is
-# retired only by an actual run, and is replaced with that run's id -- not by
-# an expectation that it will pass.
+# STATUS: EXECUTED ON A HOSTED RUNNER. Actions runs 33905260267 (head 687c8a2)
+# and 33909571694 (head a3515e7) both completed green. The previous "NOT YET
+# EXECUTED ON A HOSTED RUNNER -- local evidence only" header is retired because
+# it is no longer true; this is an evidence upgrade backed by those runs, not a
+# widening of what the job checks.
 #
 # PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
 # immutable 40-hex commit object.
@@ -47,13 +48,14 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - name: sync environment
         run: uv sync --frozen --all-groups
-      - name: lint the substrate
+      - name: lint the substrate and the guarded Stage-10 modules
         # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
         # project's 79-column setting like any other non-legacy module.
-        run: uv run ruff check qta_agent tests/test_agent_*.py
+        run: uv run ruff check qta_agent qta_multiphysics/stack tests/test_agent_*.py
       - name: agent test suites
         run: |
-          uv run python -m pytest tests/test_agent_*.py -q
+          uv run python -m pytest tests/test_agent_*.py \
+            tests/test_stage10_stack.py -q
       - name: mutation matrix -- substrate
         # Non-zero exit on a survivor, an anchor that no longer matches, or a
         # source not restored byte-identical. A red baseline aborts the run
@@ -69,6 +71,13 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_checkpoint.json
+      - name: mutation matrix -- Stage-10 write authority and retrieval trust
+        # Guards recovered from the PR #16 corpus, which proved current main had
+        # lost them. Kept in this workflow rather than stack-verify because the
+        # harness and its specs live here.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/stage10_authority.json
       - name: sources are unchanged after mutation testing
         # The harness verifies this itself by re-hashing; git is the
         # independent check, because a harness that restores incorrectly

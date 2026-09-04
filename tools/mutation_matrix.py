@@ -62,6 +62,28 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _dirty_tracked_files() -> list:
+    """Tracked files currently modified in the working tree, repo-relative.
+
+    Deliberately git rather than a hash snapshot: git already knows the full
+    tracked set, so this notices damage to a file the harness never touched
+    and never listed.
+    """
+    proc = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain",
+                           "--untracked-files=no"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        return []
+    return sorted(line[3:].strip() for line in proc.stdout.splitlines()
+                  if line.strip())
+
+
+def _restore(paths: list) -> None:
+    if paths:
+        subprocess.run(["git", "-C", str(ROOT), "checkout", "HEAD", "--",
+                        *paths], capture_output=True, text=True)
+
+
 def run_suite(suites: list, python: str) -> tuple:
     """Return (returncode, [failed test names]). ``-x`` stops at the first."""
     proc = subprocess.run(
@@ -108,6 +130,16 @@ def main() -> int:
     original = {p: (ROOT / p).read_text(encoding="utf-8") for p in paths}
     before = {p: _sha(ROOT / p) for p in paths}
 
+    # A mutation that disables a safety guard lets the SUITE damage files the
+    # harness never touched. Verifying only that the mutated sources were
+    # restored misses that entirely -- and it happened: removing the Stage-10
+    # write guard let a test replace a 261-line governed README with one line
+    # of forged text, and the corrupted file was nearly committed alongside a
+    # manifest regenerated over it. The tracked working tree is therefore
+    # checked after every mutation, not just the files being mutated.
+    baseline_dirty = set(_dirty_tracked_files())
+    collateral: dict = {}
+
     results: dict = {}
     try:
         for m in mutations:
@@ -134,6 +166,11 @@ def main() -> int:
                 continue
             finally:
                 (ROOT / path).write_text(src, encoding="utf-8")
+                damaged = [f for f in _dirty_tracked_files()
+                           if f not in baseline_dirty and f != path]
+                if damaged:
+                    collateral[name] = damaged
+                    _restore(damaged)
 
             if rc != 0:
                 by = f"  by {failed[0]}" if failed else ""
@@ -163,12 +200,22 @@ def main() -> int:
         print(f"SURVIVED: {survived}")
     if anchors:
         print(f"ANCHOR DRIFT (tested nothing): {anchors}")
+    if collateral:
+        print("TESTS DAMAGED TRACKED FILES under mutation (restored, but the "
+              "test is unsafe -- it must undo its own writes in a finally):")
+        for name, files in sorted(collateral.items()):
+            print(f"  {name}: {files}")
     if drifted:
         print(f"SOURCES NOT RESTORED: {drifted}")
     else:
         print("all sources restored byte-identical (verified by re-hashing)")
 
-    return 0 if not (survived or anchors or drifted) else 1
+    still_dirty = [f for f in _dirty_tracked_files()
+                   if f not in baseline_dirty]
+    if still_dirty:
+        print(f"WORKING TREE LEFT DIRTY: {still_dirty}")
+    return 0 if not (survived or anchors or drifted or collateral
+                     or still_dirty) else 1
 
 
 if __name__ == "__main__":
