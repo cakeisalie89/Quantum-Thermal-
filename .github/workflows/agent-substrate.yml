@@ -1,0 +1,85 @@
+# Agent authority substrate verification.
+#
+# STATUS: NOT YET EXECUTED ON A HOSTED RUNNER. Nothing below has run in CI at
+# the time this file was committed. Local evidence only. This header is
+# retired only by an actual run, and is replaced with that run's id -- not by
+# an expectation that it will pass.
+#
+# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
+# immutable 40-hex commit object.
+#
+# SCOPE, so a green badge is not over-read: this job lints qta_agent/, runs
+# the four agent test suites, and runs both mutation matrices. It does NOT run
+# the full pytest suite, does NOT run package_consistency_check.py, and does
+# NOT execute any solver.
+#
+# What this proves: the authority layer's enforcement points are load-bearing
+# -- each one is deleted in turn and the suite must fail -- and the layer is
+# structurally isolated from the scientific tree.
+#
+# What it proves scientifically: NOTHING. automatic_gate_effect = NONE. No
+# module under qta_agent/ is imported by any solver, by qta_full_sim.py, or by
+# metrics.py, and the isolation suite fails if that ever changes. PASS = 0 is
+# unaffected by every result in this workflow.
+name: qta-agent-substrate
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "qta_agent/**"
+      - "tests/test_agent_*.py"
+      - "tools/mutation_matrix.py"
+      - "tools/mutations/**"
+      - "AGENT_SUBSTRATE.md"
+      - "authorities.json"
+      - ".github/workflows/agent-substrate.yml"
+  pull_request:
+  workflow_dispatch:
+permissions: {}            # default-deny
+jobs:
+  agent-substrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read       # checkout only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --all-groups
+      - name: lint the substrate
+        # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
+        # project's 79-column setting like any other non-legacy module.
+        run: uv run ruff check qta_agent tests/test_agent_substrate_isolation.py
+      - name: agent test suites
+        run: |
+          uv run python -m pytest \
+            tests/test_agent_substrate.py \
+            tests/test_agent_substrate_properties.py \
+            tests/test_agent_substrate_isolation.py \
+            tests/test_agent_evidence.py -q
+      - name: mutation matrix -- substrate
+        # Non-zero exit on a survivor, an anchor that no longer matches, or a
+        # source not restored byte-identical. A red baseline aborts the run
+        # rather than reporting twenty spurious kills.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_substrate.json
+      - name: mutation matrix -- evidence store and gate
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_evidence.json
+      - name: sources are unchanged after mutation testing
+        # The harness verifies this itself by re-hashing; git is the
+        # independent check, because a harness that restores incorrectly
+        # would also report incorrectly.
+        run: |
+          if ! git diff --quiet; then
+            echo "mutation testing left the working tree modified:"
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "working tree clean"
+      - name: the substrate did not touch the canonical tree
+        run: |
+          uv run python generate_manifest.py --check

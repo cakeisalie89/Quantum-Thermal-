@@ -236,6 +236,21 @@
         "tests/test_stage10_stack.py (asserts the registry matches the code)"
       ],
       "note": "additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, and the s10_canonical_untouched rule re-verifies final_manifest.json after the stage runs"
+    },
+    "agent_authority_substrate": {
+      "authority": "qta_agent/authority.py :: the transition table and invariants I1-I6 that decide what may become canonical; qta_agent/events.py :: the append-only hash-chained log that is the only writable record of those decisions; qta_agent/evidence.py :: the content-addressed store that makes a cited digest resolvable, which is what turns I6 from a shape check into an existence check; qta_agent/canonical.py :: the one byte representation every digest in the layer is taken over",
+      "owner": "agent_substrate",
+      "schema_version": "1.0.0",
+      "implementation": "qta_agent/ -- canonical (serialization), events (log + separate head witness), authority (state machine), store (live projection, optimistic concurrency, idempotency), invalidation (transitive staleness derived from the transition table), reconstruct (a deliberately separate replay that re-authorizes every transition and is compared against the live projection), evidence (content-addressed, self-verifying, append-only)",
+      "consumers": [
+        "tests/test_agent_substrate.py (transition table, log integrity, projection, invalidation, reconstruction)",
+        "tests/test_agent_substrate_properties.py (Hypothesis property and stateful testing; invariants asserted on every reachable state)",
+        "tests/test_agent_evidence.py (the store, and the gate wired to it)"
+      ],
+      "automatic_gate_effect": "NONE",
+      "does_not_mean": "This layer governs how claims ABOUT the project become canonical. It does not govern, compute, or influence any physics. No module in qta_agent/ is imported by the solvers, by qta_full_sim.py, or by metrics.py; it cannot read or write any gate; PASS=0 is unaffected by anything it does. A record reaching PROMOTED here means a claim was proposed, independently verified, and promoted under a recorded policy -- it does not mean a gate passed, that anything was measured, or that hardware exists.",
+      "note": "Enforcement is verified by mutation testing rather than by coverage: each check is deleted in turn and the suite must fail. Two matrices, both at 20/20 killed -- tools/mutations/agent_substrate.json (state machine, log, projection, invalidation, reconstruction) and tools/mutations/agent_evidence.json (evidence store and the gate wired to it) -- re-run with tools/mutation_matrix.py, which exits non-zero on a survivor, on an anchor that no longer matches its source, or on a source not restored byte-identically, and refuses to start against a red baseline. A surviving mutation means a check is unprotected, not that it is redundant. Narrative form: AGENT_SUBSTRATE.md.",
+      "status": "BUILT_AND_VERIFIED_NO_PRODUCTION_CALLER: the substrate has no consumer outside its own test suites, and tests/test_agent_substrate_isolation.py enforces that by name (ALLOWED_IMPORTERS). Nothing has been promoted through it; no existing claim, gate, document, or output in this project has been re-derived under it. PROMOTED is a state this code reaches in its tests and nowhere else. Wiring it to a real workflow is a separate change that must name which claims it governs and who holds each role."
     }
   },
   "competing_sources_record": [

@@ -1,0 +1,151 @@
+{
+  "title": "Agent substrate: state machine, log, projection, invalidation, reconstruction",
+  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that.",
+  "suites": [
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_substrate_isolation.py"
+  ],
+  "mutations": [
+    {
+      "name": "M1_no_hash_recompute",
+      "path": "qta_agent/events.py",
+      "find": "            if recomputed != ev.hash:",
+      "replace": "            if False:",
+      "rationale": "a record could be edited in place and still verify"
+    },
+    {
+      "name": "M2_no_chain_link_check",
+      "path": "qta_agent/events.py",
+      "find": "            if ev.prev_hash != prev_hash:",
+      "replace": "            if False:",
+      "rationale": "a record could be spliced in claiming an ancestry it does not have"
+    },
+    {
+      "name": "M3_no_sequence_check",
+      "path": "qta_agent/events.py",
+      "find": "            if ev.seq != i:",
+      "replace": "            if False:",
+      "rationale": "seq is what gives the log a total order; wall time cannot"
+    },
+    {
+      "name": "M4_ignore_truncation_witness",
+      "path": "qta_agent/events.py",
+      "find": "            if witness.seq > head_seq:",
+      "replace": "            if False:",
+      "rationale": "a prefix of a valid chain is itself a valid chain; only the separate witness can see truncation"
+    },
+    {
+      "name": "M5_allow_unhashed_extra_fields",
+      "path": "qta_agent/events.py",
+      "find": "    if unknown:",
+      "replace": "    if False:",
+      "rationale": "an unhashed field could carry unverified content beside a valid digest"
+    },
+    {
+      "name": "M6_append_onto_broken_chain",
+      "path": "qta_agent/events.py",
+      "find": "        if not report.ok:\n            raise ChainBroken(",
+      "replace": "        if False:\n            raise ChainBroken(",
+      "rationale": "appending onto a broken chain buries the break under valid records"
+    },
+    {
+      "name": "M7_allow_terminal_escape",
+      "path": "qta_agent/authority.py",
+      "find": "    if req.src in TERMINAL:",
+      "replace": "    if False:",
+      "rationale": "I2: revoked authority could be resurrected if the edge table ever grows"
+    },
+    {
+      "name": "M8_ignore_missing_edge",
+      "path": "qta_agent/authority.py",
+      "find": "    if edge is None:",
+      "replace": "    if edge is None and False:",
+      "rationale": "any state could reach any other; the transition table would be advisory"
+    },
+    {
+      "name": "M9_ignore_role",
+      "path": "qta_agent/authority.py",
+      "find": "    if req.role not in edge.roles:",
+      "replace": "    if False:",
+      "rationale": "an automatic SYSTEM actor could promote a claim with no human or agent promoter"
+    },
+    {
+      "name": "M10_allow_self_verification",
+      "path": "qta_agent/authority.py",
+      "find": "        if req.actor == req.proposer:",
+      "replace": "        if False:",
+      "rationale": "I4: an agent that proposes and verifies has no verification"
+    },
+    {
+      "name": "M11_skip_evidence_requirement",
+      "path": "qta_agent/authority.py",
+      "find": "    if missing:",
+      "replace": "    if False:",
+      "rationale": "I6: missing evidence would be diagnosed as malformed evidence, sending the caller after a value they never supplied"
+    },
+    {
+      "name": "M12_accept_non_digest_evidence",
+      "path": "qta_agent/authority.py",
+      "find": "        if not is_digest(val):",
+      "replace": "        if False:",
+      "rationale": "I6: evidence could be cited as free text and then changed"
+    },
+    {
+      "name": "M13_promote_without_policy",
+      "path": "qta_agent/authority.py",
+      "find": "    if req.dst is State.PROMOTED and req.policy_id is None:",
+      "replace": "    if False:",
+      "rationale": "I5: a promotion with no policy in force cannot be audited against one"
+    },
+    {
+      "name": "M14_ignore_optimistic_concurrency",
+      "path": "qta_agent/store.py",
+      "find": "        if expected_revision is not None and cur.revision != expected_revision:",
+      "replace": "        if False:",
+      "rationale": "concurrent transitions would silently last-writer-win over authority"
+    },
+    {
+      "name": "M15_skip_unknown_action_guard",
+      "path": "qta_agent/store.py",
+      "find": "            raise StoreError(\n                f\"seq {ev.seq}: unknown action {ev.action!r}; refusing to \"",
+      "replace": "            pass\n            _unused = (\n                f\"seq {ev.seq}: unknown action {ev.action!r}; refusing to \"",
+      "rationale": "an unrecognised action would be skipped, so the projection would diverge from the log while looking healthy"
+    },
+    {
+      "name": "M16_load_without_verifying",
+      "path": "qta_agent/store.py",
+      "find": "        self.log.verify().raise_if_bad()",
+      "replace": "        pass",
+      "rationale": "the live projection would be built from a log known to be broken"
+    },
+    {
+      "name": "M17_only_immediate_children",
+      "path": "qta_agent/invalidation.py",
+      "find": "            affected.append(child)\n            queue.append(child)",
+      "replace": "            affected.append(child)",
+      "rationale": "staleness would stop one hop out, leaving canonical records resting on invalidated ones"
+    },
+    {
+      "name": "M18_hardcode_invalidatable",
+      "path": "qta_agent/invalidation.py",
+      "find": "    return frozenset(e.src for e in EDGES if e.dst is State.STALE)",
+      "replace": "    return frozenset({State.VERIFIED, State.PROMOTED, State.PROPOSED})",
+      "rationale": "a hand-maintained copy of the transition table drifts from it; this is the exact defect Hypothesis found"
+    },
+    {
+      "name": "M19_apply_unauthorized_transitions",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                    continue\n            cur[\"state\"] = p[\"dst\"]",
+      "replace": "                    pass\n            cur[\"state\"] = p[\"dst\"]",
+      "rationale": "replay would apply a transition the state machine forbids, so a forged log entry would reconstruct cleanly"
+    },
+    {
+      "name": "M20_reconstruct_without_verifying",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    report.raise_if_bad()",
+      "replace": "    pass",
+      "rationale": "differential verification would run against a corrupt log and agree"
+    }
+  ]
+}
