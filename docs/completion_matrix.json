@@ -1,0 +1,1364 @@
+{
+  "schema_version": "1.0.0",
+  "label": "MODEL_ONLY / FORECAST_ONLY / NOT_MEASURED_IN_THIS_SYSTEM",
+  "scope": "Agent-substrate and governance requirements R21-R59, as enumerated in the full-system completion directive. The scientific requirements of the earlier sections are governed by authorities.json and are not restated here.",
+  "rule": "A row may not be classified above PARTIALLY_IMPLEMENTED without tests, nor COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT without mutation coverage AND an empty residual_gaps list. tools/completion_matrix.py enforces every mechanically checkable claim; tests/test_completion_matrix.py runs it in CI.",
+  "does_not_mean": "A complete row means the SOFTWARE requirement is met to the current technically defensible limit. It says nothing about scientific validity. PASS remains 0 and no row here can change that.",
+  "rows": [
+    {
+      "id": "R21",
+      "requirement": "Tool execution as a full subsystem: identity, contract, schemas, capability, limits, timeout, cancellation, provenance",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no tool registry, contract, executor or provenance capture exists anywhere in the repository"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R22",
+      "requirement": "Default deny for tool, filesystem, network, secret and external-service authority",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_multiphysics/stack/workspace.py"
+      ],
+      "callers": [
+        "qta_multiphysics/stack/vtk_export.py",
+        "qta_multiphysics/stack/rag_index.py"
+      ],
+      "production_caller": "qta_multiphysics/stack/vtk_export.py",
+      "persistent_state": "filesystem writes under verification/stage10 only",
+      "authority_owner": "workspace.assert_in_workspace",
+      "evidence": "refusal is raised, not logged",
+      "provenance": "none",
+      "failure_semantics": "fail-closed ValueError",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "filesystem write allowlist enforced inside the writers",
+      "tests": [
+        "tests/test_agent_authority_boundaries.py",
+        "tests/test_stage10_stack.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/stage10_authority.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "filesystem writes only; no default-deny layer for tools, network, secrets or subprocess environment",
+        "read paths are not gated at all"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R23",
+      "requirement": "Subprocess and process-lifecycle semantics",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "nothing in the repository spawns or supervises a subprocess under governance"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R24",
+      "requirement": "Durable task/job lifecycle with centralized transitions",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "qta_agent.authority governs CLAIM records, not tasks; there is no task state machine, queue or durable job record"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R25",
+      "requirement": "Leases, ownership and duplicate-execution prevention",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no worker model exists, so no lease model exists"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R26",
+      "requirement": "Scheduling and orchestration",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "Snakemake orders scientific rules but is not authority-aware and has no agent-substrate integration"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R27",
+      "requirement": "Agent identity and role authority",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_agent/authority.py"
+      ],
+      "callers": [
+        "qta_agent/store.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "actor string + Role enum recorded per event",
+      "authority_owner": "authority.check",
+      "evidence": "edge.reason recorded per transition",
+      "provenance": "actor and role in every log record",
+      "failure_semantics": "TransitionError, fail-closed",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "separation of duties (I4)",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "actor is an opaque string with no authentication",
+        "no agent-instance identity distinct from role",
+        "no distinction between human and agent actors",
+        "no worker/scheduler/recovery/auditor roles"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R28",
+      "requirement": "Human authority and escalation as workflow states",
+      "classification": "SKELETAL",
+      "implementation": [
+        "qta_agent/authority.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "authority.EDGES",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "fail-closed",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "UNDER_REVIEW exists but there is no review-request, additional-evidence, escalation or expiry state",
+        "no way to distinguish a human approver from an agent one"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R29",
+      "requirement": "Versioned, inspectable, testable policy engine",
+      "classification": "SKELETAL",
+      "implementation": [
+        "qta_agent/authority.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "policy_id recorded on promotion",
+      "authority_owner": "authority.check (I5)",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "fail-closed",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "policy_id is an opaque identity; no policy document, version, digest, rule set or evaluation record exists",
+        "no decision log answering why a policy allowed an action"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R30",
+      "requirement": "Capabilities as enforceable authority objects",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no capability object, grant, scope, expiry or revocation exists"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R31",
+      "requirement": "Filesystem authority: immutable evidence vs workspace vs canonical outputs",
+      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "implementation": [
+        "qta_multiphysics/stack/workspace.py",
+        "qta_agent/evidence.py"
+      ],
+      "callers": [
+        "qta_multiphysics/stack/vtk_export.py",
+        "qta_multiphysics/stack/rag_index.py",
+        "qta_multiphysics/stack/fmi_contract.py"
+      ],
+      "production_caller": "qta_multiphysics/stack/vtk_export.py",
+      "persistent_state": "content-addressed evidence store; Stage-10 workspace",
+      "authority_owner": "workspace.assert_in_workspace; evidence.EvidenceStore",
+      "evidence": "every read re-hashes; digests are content-addressed",
+      "provenance": "blob digests",
+      "failure_semantics": "fail-closed ValueError/EvidenceError",
+      "recovery": "append-only store; no delete path",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "write allowlist; symlink, FIFO, traversal and size guards",
+      "tests": [
+        "tests/test_agent_authority_boundaries.py",
+        "tests/test_agent_evidence.py",
+        "tests/test_stage10_stack.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/stage10_authority.json",
+        "tools/mutations/agent_evidence.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "read paths are not gated",
+        "no TOCTOU handling between resolve and write",
+        "no disk-full or permission-error injection tests"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R32",
+      "requirement": "Network authority: explicit, auditable egress",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "retrieval declares network_access NONE and makes no calls, but nothing enforces or audits egress for any future caller"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R33",
+      "requirement": "Secret handling: references not inherited environment",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no secret reference, capability or redaction layer; nothing prevents a future component logging a secret"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R34",
+      "requirement": "Context lifecycle as a controlled subsystem",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no separation of authoritative state, working context, retrieved evidence and transient model context"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R35",
+      "requirement": "Read-only evidence retrieval that cannot mutate authority",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_multiphysics/stack/rag_index.py"
+      ],
+      "callers": [
+        "tests/test_stage10_stack.py",
+        "tests/test_agent_authority_boundaries.py"
+      ],
+      "production_caller": "qta_multiphysics/stack/rag_index.py",
+      "persistent_state": "serialized index treated as a cache, verified against source",
+      "authority_owner": "rag_index.load_index",
+      "evidence": "every hit carries path, line range, source digest and evidence_status=RETRIEVED_TEXT_NOT_EVIDENCE",
+      "provenance": "file_digests + per-chunk source spans",
+      "failure_semantics": "fail-closed ValueError on stale-or-forged index",
+      "recovery": "rebuild from source",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "path traversal, absolute, symlink, duplicate, excluded-tree, suffix and root-escape guards; k bounded",
+      "tests": [
+        "tests/test_agent_authority_boundaries.py",
+        "tests/test_stage10_stack.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/stage10_authority.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "corpus membership is git-tracked-file equality, not a signed allowlist",
+        "no fuzzing of the index document parser"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R36",
+      "requirement": "Durable agent memory separated from evidence and authority",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no memory subsystem exists"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R37",
+      "requirement": "Multi-agent identity, message provenance and conflict handling",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no inter-agent messaging or ownership model exists"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R38",
+      "requirement": "Independent verification with real separation",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_agent/reconstruct.py"
+      ],
+      "callers": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "none (pure replay)",
+      "authority_owner": "reconstruct.reconstruct",
+      "evidence": "Divergence tuples",
+      "provenance": "none",
+      "failure_semantics": "refuses a broken log",
+      "recovery": "rebuilds state from the log alone",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "reconstruct vs AuthorityStore",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "separation is implementation-level only: same process, same language, same canonical-form module",
+        "no separate-process or separate-dependency verifier"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R39",
+      "requirement": "Transactions across real workflows",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_agent/events.py",
+        "qta_agent/store.py"
+      ],
+      "callers": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_checkpoint.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "append-only log is the commit point",
+      "authority_owner": "EventLog.append",
+      "evidence": "hash-chained records",
+      "provenance": "none",
+      "failure_semantics": "fail-closed; refuses to append to a broken chain",
+      "recovery": "crash between append and witness update is recoverable",
+      "retry": "n/a",
+      "idempotency": "idempotency keys bound to the record they completed",
+      "cancellation": "n/a",
+      "concurrency": "optimistic concurrency via expected_revision",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_checkpoint.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json",
+        "tools/mutations/agent_checkpoint.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "only one crash point is tested (append vs witness)",
+        "no compensating actions for non-rollbackable effects",
+        "no cross-subsystem transaction spanning evidence + log + state"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R40",
+      "requirement": "Event log at production-operational quality",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_agent/events.py"
+      ],
+      "callers": [
+        "qta_agent/store.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "JSONL log + separately witnessed head",
+      "authority_owner": "EventLog",
+      "evidence": "hash chain + head witness",
+      "provenance": "actor, action, target, wall_time per record",
+      "failure_semantics": "fail-closed; structured VerifyReport, never a bare bool",
+      "recovery": "corrupt-tail detection; truncation caught by the witness",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "none",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_checkpoint.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json",
+        "tools/mutations/agent_checkpoint.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "no process locking; two writers would interleave appends",
+        "no segmentation, rotation or archival",
+        "no event schema versioning or migration path",
+        "torn/partial write is detected but not repaired"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R41",
+      "requirement": "Checkpointing",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_agent/checkpoint.py"
+      ],
+      "callers": [
+        "qta_agent/store.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "checkpoint files + snapshot blobs in the evidence store",
+      "authority_owner": "checkpoint.create / CheckpointStore",
+      "evidence": "snapshot pinned by content digest",
+      "provenance": "full_verification flag travels with the checkpoint",
+      "failure_semantics": "fail-closed; refuses to checkpoint a log that does not verify",
+      "recovery": "latest_usable walks back past unusable checkpoints",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_checkpoint.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_checkpoint.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "self-hash detects corruption, NOT tampering — no authentication",
+        "no cleanup or retention policy for old checkpoints",
+        "concurrent checkpoint-while-appending is untested"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R42",
+      "requirement": "Independent state reconstruction covering every event type",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_agent/reconstruct.py"
+      ],
+      "callers": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "reconstruct.compare",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "refuses a broken log",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "compare(store, recon) over generated histories",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "covers the three current actions; any new event type must be added here or the row is invalid"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R43",
+      "requirement": "Invalidation across every real dependency",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_agent/invalidation.py"
+      ],
+      "callers": [
+        "qta_agent/store.py"
+      ],
+      "production_caller": null,
+      "persistent_state": "STALE transitions recorded in the log",
+      "authority_owner": "invalidation.plan_invalidation",
+      "evidence": "explain() returns the dependency path",
+      "provenance": "none",
+      "failure_semantics": "cycle-tolerant; reports rather than looping",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "dependencies are explicit record-to-record edges only; nothing derives them from real scientific inputs"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R44",
+      "requirement": "Observability sufficient for incident reconstruction",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "the log is readable but there is no observability layer, no structured emission, no redaction"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R45",
+      "requirement": "Machine-usable audit queries over provenance chains",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "answering 'why is this canonical' means reading raw JSONL"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R46",
+      "requirement": "Crash and recovery testing at transaction boundaries",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_agent/events.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_checkpoint.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "one crash point tested; the directive lists fourteen",
+        "no real process-kill test, only simulated file states"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R47",
+      "requirement": "Concurrency and race testing",
+      "classification": "SKELETAL",
+      "implementation": [
+        "qta_agent/store.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "optimistic concurrency",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "expected_revision is tested single-threaded only",
+        "no simultaneous create/promote/invalidate races",
+        "no multi-process test at all"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R48",
+      "requirement": "Long-horizon testing",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "longest test history is a few dozen events"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R49",
+      "requirement": "Performance regression guards on critical paths",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "the O(N^2) append defect was measured once by hand and fixed; nothing guards against its return or a new one"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R50",
+      "requirement": "Fuzzing of parsers and authority boundaries",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "no fuzz target or regression corpus exists"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R51",
+      "requirement": "Mutation testing of enforcement logic",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "tools/mutation_matrix.py"
+      ],
+      "callers": [
+        ".github/workflows/agent-substrate.yml"
+      ],
+      "production_caller": ".github/workflows/agent-substrate.yml",
+      "persistent_state": "none",
+      "authority_owner": "tools/mutation_matrix.py",
+      "evidence": "78 mutations across four specs, all killed",
+      "provenance": "none",
+      "failure_semantics": "refuses a red baseline; anchor drift is an error not a skip; detects tests that damage the working tree",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py",
+        "tests/test_agent_evidence.py",
+        "tests/test_agent_checkpoint.py",
+        "tests/test_agent_authority_boundaries.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "the harness itself has NO mutation coverage: the four specs mutate the subsystems it tests, not tools/mutation_matrix.py. Its own guards (red-baseline refusal, anchor-drift detection, working-tree damage detection) are verified only by the positive control run by hand.",
+        "covers qta_agent and Stage-10 authority only; the scientific tree has no mutation coverage"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R52",
+      "requirement": "Machine-checked formal/state-machine invariants",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_agent/authority.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "authority.EDGES + check",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "I1-I6 cover record authority; the directive lists thirteen invariant classes, most about tasks, execution and capabilities that do not exist yet"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R53",
+      "requirement": "Differential testing across independent implementations",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_agent/reconstruct.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate.py"
+      ],
+      "property_tests": [
+        "tests/test_agent_substrate_properties.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/agent_substrate.json"
+      ],
+      "fuzzing": "none",
+      "differential": "stateful Hypothesis machine compares both on every step",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "one differential pair; no numerical differential testing",
+        "no tolerated-difference register"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R54",
+      "requirement": "Adversarial agent testing",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_multiphysics/stack/workspace.py",
+        "qta_multiphysics/stack/rag_index.py",
+        "qta_agent/evidence.py"
+      ],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_authority_boundaries.py",
+        "tests/test_agent_evidence.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/stage10_authority.json",
+        "tools/mutations/agent_evidence.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "covers fabricated evidence, forged retrieval and write escape",
+        "no tests for forbidden tool, sandbox escape, self-approval, stale capability, hidden exit status — those subsystems are absent"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R55",
+      "requirement": "Scientific workflow integration with a real production caller",
+      "classification": "ABSENT",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "none",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none",
+      "residual_gaps": [
+        "THE LARGEST GAP. qta_agent has no production caller; nothing in any scientific workflow is mediated by it. PROMOTED is a state reached in tests and nowhere else."
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R56",
+      "requirement": "Existing scientific/release stack intact",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "implementation": [
+        "generate_manifest.py",
+        "qta_multiphysics/stack/workspace.py"
+      ],
+      "callers": [
+        "tests/test_manifest_policy.py"
+      ],
+      "production_caller": "generate_manifest.py",
+      "persistent_state": "final_manifest.json + detached manifest_hash.txt",
+      "authority_owner": "generate_manifest.py",
+      "evidence": "437-file manifest, both-direction membership check",
+      "provenance": "sha256 + size per file",
+      "failure_semantics": "non-zero exit on drift",
+      "recovery": "regenerate",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "detached hash",
+      "tests": [
+        "tests/test_manifest_policy.py",
+        "tests/test_manifest_completeness.py",
+        "tests/test_stage10_stack.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/stage10_authority.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [],
+      "blocker": null
+    },
+    {
+      "id": "R57",
+      "requirement": "PASS remains separate from architectural completeness",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_agent/__init__.py",
+        "authorities.json"
+      ],
+      "callers": [
+        "tests/test_agent_substrate_isolation.py"
+      ],
+      "production_caller": "tests/test_agent_substrate_isolation.py",
+      "persistent_state": "none",
+      "authority_owner": "authorities.json :: agent_authority_substrate",
+      "evidence": "automatic_gate_effect=NONE, enforced by import isolation",
+      "provenance": "none",
+      "failure_semantics": "the isolation suite fails if qta_agent is imported by the scientific tree",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_agent_substrate_isolation.py",
+        "tests/test_single_source_of_truth.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "enforcement is a structural test over the import graph, not a runtime guard, so there is no code path a mutation could delete. The property holds because nothing imports qta_agent, which a test can assert but a mutation cannot attack."
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R58",
+      "requirement": "Hosted CI",
+      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "implementation": [
+        ".github/workflows/agent-substrate.yml"
+      ],
+      "callers": [
+        ".github/workflows/stack-verify.yml"
+      ],
+      "production_caller": ".github/workflows/agent-substrate.yml",
+      "persistent_state": "none",
+      "authority_owner": "GitHub Actions",
+      "evidence": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "provenance": "none",
+      "failure_semantics": "non-zero exit fails the job",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [
+        "tests/test_release_workflow_contract.py",
+        "tests/test_bootstrap_workflow_contract.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "residual_gaps": [
+        "single Python version, single OS",
+        "does not run the full pytest suite or package_consistency_check.py",
+        "container-verify remains red on the 3D divergence"
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R59",
+      "requirement": "Cross-environment 3D divergence resolved",
+      "classification": "EPISTEMICALLY_BLOCKED",
+      "implementation": [],
+      "callers": [],
+      "production_caller": null,
+      "persistent_state": "none",
+      "authority_owner": "none",
+      "evidence": "hosted run 32626098635 (head 97397c8) captured container bytes and an environment fingerprint; conclusion=failure by design, artifact not yet analysed. The collector analysis/collect_container_3d.py lives on branch claude/3d-cross-environment-repro (head 97397c8), not on this branch.",
+      "provenance": "none",
+      "failure_semantics": "none",
+      "recovery": "none",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "none",
+      "tests": [],
+      "property_tests": [],
+      "mutation_tests": [],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "container-verify runs 4,5,6,7 all red",
+      "residual_gaps": [
+        "root cause not established"
+      ],
+      "blocker": {
+        "missing_input": "the numerical cause of an 8-file byte divergence between the local and hosted/container environments for the 3D outputs",
+        "why_not_replaceable": "widening tolerances or exempting the files would make the workflow green by ungoverning the artifacts, which is the failure mode the byte gate exists to prevent",
+        "work_completed": "randomness and thread-count ruled out over 10 local runs; divergence proven container-specific; hosted diagnostic dispatched and its artifact identified",
+        "unblocked_by": "analysing artifact from run 32626098635 to compare BLAS/SIMD dispatch and CPU flags against the local fingerprint, then deciding between numerical-equivalence and byte-identity semantics with a stated justification"
+      }
+    }
+  ]
+}

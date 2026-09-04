@@ -52,6 +52,9 @@ jobs:
         # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
         # project's 79-column setting like any other non-legacy module.
         run: uv run ruff check qta_agent qta_multiphysics/stack tests/test_agent_*.py
+      - name: completion matrix is self-consistent
+        # The matrix is a self-assessment; this is what stops it drifting.
+        run: uv run python tools/completion_matrix.py
       - name: agent test suites
         run: |
           uv run python -m pytest tests/test_agent_*.py \

@@ -2997,8 +2997,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 4174,
-      "sha256": "c9b9452a762b3137ee90c338e1a19ef5d293f985842d75e9d1336c6d6b42393e",
+      "size_bytes": 4354,
+      "sha256": "b0d7ed84f3da6b38be195d7c0ed560875401ff9cb0056a9eff19444fda4792f2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3153,6 +3153,27 @@
       "filename": "tools/mutations/stage10_authority.json",
       "size_bytes": 5781,
       "sha256": "6ce83540e28f889643b8e0961b10e8de0bd8f449ea605a57699ae45b445551da",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "docs/completion_matrix.json",
+      "size_bytes": 46765,
+      "sha256": "387f7fb75cddc8c3618733acf4dcf9865d7f468a531ab93fde591ef27e069bb6",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_completion_matrix.py",
+      "size_bytes": 3295,
+      "sha256": "2aeecd6d5b91c27cde902420d470d64c0733da26efa010b9b9227af58b21991a",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tools/completion_matrix.py",
+      "size_bytes": 7692,
+      "sha256": "8a8d477e9170a0729b8bca2d5d0ee876173529663e99a6075754341eca8acae1",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
