@@ -74,6 +74,19 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_checkpoint.json
+      - name: mutation matrix -- capabilities, tools and bounded execution
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_execution.json
+      - name: mutation matrix -- task lifecycle and the governed path
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_tasks.json
+      - name: the governed production path actually runs
+        # The point of a production caller is that it is exercised. This runs
+        # the real Snakemake rule, not a test double, and s10_governed fails
+        # the build unless the run reaches VERIFIED.
+        run: uv run snakemake --cores 1 s10_governed
       - name: mutation matrix -- Stage-10 write authority and retrieval trust
         # Guards recovered from the PR #16 corpus, which proved current main had
         # lost them. Kept in this workflow rather than stack-verify because the
