@@ -517,10 +517,7 @@ rule s10_governed:
                         "validity; no gate is reachable from here and PASS "
                         "remains 0"),
                 },
-            },
-            submitter="snakemake",
-            worker="stage10-worker",
-            verifier="stage10-verifier")
+            })
 
         # The rule FAILS if the chain did not complete. A governed path that
         # reports success on an unverified run is worse than no governed path,
@@ -529,6 +526,41 @@ rule s10_governed:
             f"governed run ended {run.state.value}: {run.reason}")
         assert run.artifacts, "a verified run with no artifacts proves nothing"
         assert gov.log.verify().ok, "the task log does not verify"
+
+        # Each of these is a subsystem that is ON the path rather than beside
+        # it. If any were merely available, the run would still have reached
+        # VERIFIED and these assertions would not.
+        from qta_agent.scheduler import JobState
+
+        assert run.job_state == JobState.SUCCEEDED.value, (
+            f"the queue record ended {run.job_state}, not SUCCEEDED; the "
+            "work did not go through the scheduler")
+        assert run.policy_identity and run.policy_digest, (
+            "no policy decision was recorded for this run")
+        assert run.context_digest, "no context manifest was recorded"
+        assert run.memory_id, "no note was filed for this run"
+
+        actions_seen = {ev.action for ev in gov.log.read()}
+        required = {"policy.publish", "policy.decision", "agent.register",
+                    "scheduler.enqueue", "scheduler.transition",
+                    "task.create", "capability.issue", "task.execution",
+                    "task.evidence", "context.build", "memory.write"}
+        missing = sorted(required - actions_seen)
+        assert not missing, (
+            f"the governed run's history is missing {missing}; a subsystem "
+            "that leaves no record was not on the path")
+
+        # No egress grant was ever issued, and the default is no network.
+        assert not [ev for ev in gov.log.read()
+                    if ev.action == "network.grant"], (
+            "a governed Stage-10 run needs no network and must hold no "
+            "egress grant")
+
+        # The note this run filed is a note. Its digest must not resolve as
+        # evidence, or a remembered statement could support a transition.
+        note = gov.memory.get(run.memory_id)
+        assert not gov.evidence.contains(note.digest()), (
+            "the run's memory entry resolves as evidence; nothing checked it")
 
         # The audit is part of the production path, not a separate tool. A
         # chain with a provenance hole fails the build: the transitions were
@@ -549,8 +581,20 @@ rule s10_governed:
             "artifacts": run.artifacts,
             "log_head_seq": run.log_head_seq,
             "verification": run.reason,
+            "job_id": run.job_id,
+            "job_state": run.job_state,
+            "policy": {"identity": run.policy_identity,
+                       "digest": run.policy_digest},
+            "context_manifest_digest": run.context_digest,
+            "memory_id": run.memory_id,
+            "egress_grants": 0,
             "automatic_gate_effect": "NONE",
             "scientific_PASS_count": 0,
+            "does_not_mean": (
+                "a VERIFIED task means a declared tool ran bounded, produced "
+                "the bytes it claims, and a separated actor confirmed they "
+                "are still there. That is provenance. It is not scientific "
+                "validity, not a measurement, and not a gate."),
             "provenance": explanation.to_record(),
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

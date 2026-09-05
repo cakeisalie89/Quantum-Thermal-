@@ -55,7 +55,7 @@ rather than a web:
 | `agents.py` | several agents, role separation, and a human that cannot be simulated |
 | `audit.py` | turning the log into answers, and finding provenance holes |
 | `_stage10_tool.py` | the subprocess entry point a governed run executes |
-| `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end |
+| `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
 
 **The log is the truth and everything else is derived from it.** A lost
 projection costs time, never authority.

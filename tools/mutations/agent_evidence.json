@@ -2,10 +2,11 @@
   "title": "Evidence store, and the authority gate wired to it",
   "note": "I6 was half a guarantee until this store existed: check() required evidence to LOOK like a digest, so '\"a\" * 64' -- a well-formed digest of nothing -- was accepted. These mutations delete the checks that close that hole and the checks that keep the store from trusting its own directory layout.",
   "suites": [
+    "tests/test_agent_concurrency.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_substrate.py",
-    "tests/test_agent_substrate_properties.py",
-    "tests/test_agent_substrate_isolation.py"
+    "tests/test_agent_substrate_isolation.py",
+    "tests/test_agent_substrate_properties.py"
   ],
   "mutations": [
     {
@@ -147,6 +148,13 @@
       "find": "        return None if self.evidence is None else self.evidence.contains",
       "replace": "        return None",
       "rationale": "attaching an evidence store would have no effect at all"
+    },
+    {
+      "name": "E21_metadata_temp_name_is_not_unique",
+      "path": "qta_agent/evidence.py",
+      "find": "        fd, tmp_name = tempfile.mkstemp(dir=str(meta.parent),\n                                        prefix=\".meta-\", suffix=\".tmp\")",
+      "replace": "        tmp_name = str(meta.with_suffix(\".tmp\"))\n        fd = os.open(tmp_name, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)",
+      "rationale": "two writers storing identical bytes collide on one temporary file and the second's rename fails, turning a race with no losing side into a crash"
     }
   ]
 }

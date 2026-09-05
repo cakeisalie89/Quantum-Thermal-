@@ -14,8 +14,9 @@
         "qta_agent/execution.py"
       ],
       "callers": [
-        "tests/test_agent_execution.py",
-        "qta_agent/governed_stage10.py"
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
+        "tests/test_agent_execution.py"
       ],
       "production_caller": "Snakefile",
       "persistent_state": "none yet; results are returned, not recorded",
@@ -99,6 +100,8 @@
         "qta_agent/execution.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_execution.py"
       ],
       "production_caller": "Snakefile",
@@ -138,6 +141,7 @@
         "qta_agent/tasks.py"
       ],
       "callers": [
+        "Snakefile",
         "qta_agent/governed_stage10.py",
         "tests/test_agent_governed_stage10.py"
       ],
@@ -218,12 +222,14 @@
         "qta_agent/scheduler.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_scheduler.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "scheduler.enqueue / scheduler.transition / scheduler.priority events; the whole queue is a projection",
       "authority_owner": "Scheduler.readiness (dependencies, evidence, capability, capacity, policy) and check_edge",
-      "evidence": "requires_evidence digests must resolve through a caller-supplied resolver before dispatch",
+      "evidence": "requires_evidence digests must resolve through a caller-supplied resolver before dispatch; the governed Stage-10 run is dispatched through the scheduler and its outcome reported to it; the Snakemake rule fails unless the job reaches SUCCEEDED",
       "provenance": "every readiness verdict, requeue, retry and cancellation is an event carrying its reason",
       "failure_semantics": "explicit: BLOCKED for a dependency that will never satisfy, FAILED for a spent retry budget, CANCELLED for a decision, INVALIDATED for a withdrawn input",
       "recovery": "restart reloads the queue from the log; reconcile requeues lapsed leases and is idempotent",
@@ -243,10 +249,10 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: governed_stage10 still drives the task machine directly rather than through the queue",
         "no concurrent-writer test: leases and revisions are exercised single-threaded",
         "no long-horizon run, so queue scaling behaviour is unmeasured",
-        "no fuzzing of job records"
+        "no fuzzing of job records",
+        "the governed path enqueues one job per run, so dependency graphs and multi-job scheduling are exercised only in tests"
       ],
       "blocker": null
     },
@@ -259,12 +265,14 @@
         "qta_agent/tasks.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_agents.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
       "authority_owner": "AgentDirectory.require and check_separation",
-      "evidence": "each identity has a content digest over agent id, instance id, kind and roles",
+      "evidence": "each identity has a content digest over agent id, instance id, kind and roles; the governed run requires registered worker and verifier identities and runs check_separation between them",
       "provenance": "who registered whom, and for a HUMAN principal the chain back to the out-of-band bootstrap",
       "failure_semantics": "fail-closed: an unregistered instance did not participate; an unregistered prior role-holder is treated as the SAME party rather than a different one",
       "recovery": "the directory reloads from the log; a duplicate registration, a duplicate escalation or a redelivery that changes a body each refuse the load",
@@ -284,9 +292,9 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: governed_stage10 passes worker and verifier as strings and does not consult the directory",
         "identity is not authenticated; instance_id is a name the registrar chose",
-        "no cryptographic binding between an instance and the actions attributed to it"
+        "no cryptographic binding between an instance and the actions attributed to it",
+        "identity is still not authenticated on the production path"
       ],
       "blocker": null
     },
@@ -298,9 +306,11 @@
         "qta_agent/agents.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_agents.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
       "authority_owner": "AgentDirectory.answer -- HUMAN principals only",
       "evidence": "the answer, the option set it was checked against, and the answerer's reason",
@@ -323,9 +333,9 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: nothing in the governed path raises an escalation yet",
         "a human cannot be authenticated here; PrincipalKind.HUMAN is a property of a registration record and the module says so",
-        "no notification channel -- an open escalation is visible by query, not delivered"
+        "no notification channel -- an open escalation is visible by query, not delivered",
+        "the governed path raises no escalation, because nothing in a Stage-10 artifact run is a decision a human must make"
       ],
       "blocker": null
     },
@@ -338,12 +348,14 @@
         "qta_agent/authority.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "qta_agent/scheduler.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "policy.publish events; documents are projected from the verified log",
       "authority_owner": "PolicyDocument.evaluate (deny-overrides, default deny) and authority.check (I5)",
-      "evidence": "each Decision carries the deciding document's content digest, not only its id",
+      "evidence": "each Decision carries the deciding document's content digest, not only its id; the governed run publishes stage10.governed, consults it, and records the decision; a DENY rule stops the run before any task record exists",
       "provenance": "policy.decision events record allowed AND denied requests with the rule that decided",
       "failure_semantics": "fail-closed: unpublished policy authorizes nothing; no matching rule denies; empty match fields refused at construction",
       "recovery": "PolicyStore.load rebuilds every version from the log; a version gap or a document whose content does not match its recorded digest refuses the load",
@@ -364,7 +376,6 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: the governed Stage-10 path does not yet publish or consult a policy",
         "no fuzzing of policy records",
         "no obligations/constraints on an ALLOW decision, only a boolean verdict"
       ],
@@ -378,8 +389,10 @@
         "qta_agent/capability.py"
       ],
       "callers": [
-        "tests/test_agent_execution.py",
-        "qta_agent/execution.py"
+        "Snakefile",
+        "qta_agent/execution.py",
+        "qta_agent/governed_stage10.py",
+        "tests/test_agent_execution.py"
       ],
       "production_caller": "Snakefile",
       "persistent_state": "none",
@@ -419,9 +432,11 @@
         "qta_agent/evidence.py"
       ],
       "callers": [
-        "qta_multiphysics/stack/vtk_export.py",
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
+        "qta_multiphysics/stack/fmi_contract.py",
         "qta_multiphysics/stack/rag_index.py",
-        "qta_multiphysics/stack/fmi_contract.py"
+        "qta_multiphysics/stack/vtk_export.py"
       ],
       "production_caller": "qta_multiphysics/stack/vtk_export.py",
       "persistent_state": "content-addressed evidence store; Stage-10 workspace",
@@ -463,12 +478,14 @@
         "qta_agent/netauth.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_netauth.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "network.grant / network.request / network.result events; grants are projected from the verified log",
       "authority_owner": "NetworkAuthority.authorize (default deny) and socket_guard at the process layer",
-      "evidence": "each decision carries the deciding grant's content digest",
+      "evidence": "each decision carries the deciding grant's content digest; the governed run executes inside a socket guard with no egress grant, and a connection attempted during execution is refused",
       "provenance": "every attempt is recorded with actor, task, tool, capability and destination -- refusals included, payloads never",
       "failure_semantics": "fail-closed: no grant means no network; NetworkDenied deliberately does not subclass OSError so a retry loop cannot swallow a policy decision",
       "recovery": "grants reload from the log; a grant record whose content does not match its recorded digest refuses the load",
@@ -489,7 +506,6 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: no governed tool requests egress today, so the layer is enforced only where something routes through it",
         "kernel-level containment (network namespace, seccomp, firewall) is NOT provided and is documented as absent; in-process code can restore socket.connect",
         "no fuzzing of URL parsing",
         "ingress is not modelled at all; Direction has one member"
@@ -504,6 +520,7 @@
         "qta_agent/secrets.py"
       ],
       "callers": [
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_secrets.py"
       ],
       "production_caller": null,
@@ -517,7 +534,7 @@
       "idempotency": "n/a",
       "cancellation": "revocation takes effect at the next reveal, not when the last handle is collected",
       "concurrency": "n/a",
-      "security_boundary": "reference/value separation, placeholder rendering through str/repr/format, value-based redaction across every output surface, and an explicit egress-composition check against the confused deputy",
+      "security_boundary": "reference/value separation, placeholder rendering through str/repr/format, value-based redaction across every output surface, an explicit egress-composition check against the confused deputy, and a governed tool environment that inherits nothing",
       "tests": [
         "tests/test_agent_secrets.py",
         "tests/test_agent_context.py"
@@ -530,10 +547,10 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: no governed tool needs a credential today",
+        "no secret is resolved on the production path, because nothing there needs one -- the governed tool's environment is BUILT from a declared allowlist rather than inherited, so a credential in os.environ cannot reach it at all",
         "redaction finds the value and the enumerated encodings only; a hashed, encrypted, compressed or split derivative is not detectable and the module says so",
         "zeroing a bytearray does not guarantee no copy remains; str is immutable and the interpreter may have copied it",
-        "no external secret provider integration (file, keyring, cloud) -- values are supplied by the caller"
+        "no external secret provider integration (file, keyring, cloud)"
       ],
       "blocker": null
     },
@@ -545,12 +562,14 @@
         "qta_agent/context.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_context.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "context.build events carry the manifest -- digests, tiers, lengths and omissions -- and never the assembled text",
       "authority_owner": "ContextBuilder.build; MANDATORY tiers cannot be dropped",
-      "evidence": "every item is named by the digest of the exact bytes shown",
+      "evidence": "every item is named by the digest of the exact bytes shown; the governed run builds and records a context manifest whose digest is written into governed_run.json",
       "provenance": "the manifest answers which policy version and which evidence were available, and what was available and NOT shown",
       "failure_semantics": "fail-closed: mandatory material that does not fit raises ContextBudgetError rather than being dropped",
       "recovery": "manifests round-trip from the log; an unknown field refuses the read",
@@ -570,7 +589,6 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: nothing in the governed path assembles a model context, because nothing in it calls a model",
         "model-output reproducibility is explicitly NOT provided; sampling and model version are not captured",
         "no token-based budgeting, only bytes -- a byte budget is a proxy for a token budget and the two differ per tokenizer"
       ],
@@ -624,12 +642,14 @@
         "qta_agent/memory.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_memory.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "memory.write / memory.status events; entries are projected from the verified log",
       "authority_owner": "none, deliberately: memory influences proposals and decides nothing",
-      "evidence": "an entry names what it was derived from, and a citation that does not resolve in the evidence store is refused at write time",
+      "evidence": "an entry names what it was derived from, and a citation that does not resolve in the evidence store is refused at write time; the governed run files a note citing its artifacts, and the Snakemake rule fails if that note's digest resolves as evidence",
       "provenance": "author, sources, supersession and the reason for every status change",
       "failure_semantics": "fail-closed on fabricated citations, duplicate ids, empty or oversized entries, and unknown record fields",
       "recovery": "entries reload from the log; a duplicate write refuses the load",
@@ -649,7 +669,6 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: nothing in the governed path writes memory yet",
         "memory is not retrievable through the RAG index, so the 'retrievable memory keeps its lower authority' case is unimplemented rather than solved",
         "no bound on total memory size across entries, only per entry"
       ],
@@ -663,12 +682,14 @@
         "qta_agent/agents.py"
       ],
       "callers": [
+        "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_agents.py"
       ],
-      "production_caller": null,
+      "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
       "authority_owner": "AgentDirectory.resolve under a DECLARED ConflictRule",
-      "evidence": "claims name their value by digest, so two claims are compared without comparing prose",
+      "evidence": "claims name their value by digest, so two claims are compared without comparing prose; worker and verifier are distinct registered instances and the separation between them is checked by the directory",
       "provenance": "messages are identified, attributed, ordered by the log and append-only",
       "failure_semantics": "an unresolved conflict is an explicit outcome; there is deliberately no LAST_WRITER_WINS rule",
       "recovery": "the directory reloads from the log; a duplicate registration, a duplicate escalation or a redelivery that changes a body each refuse the load",
@@ -688,7 +709,6 @@
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
-        "no production caller: one process drives the governed run today, so the parties are distinct identities rather than distinct processes",
         "no transport: the bus is a projection of one shared log, which assumes every party can write to it",
         "REQUIRE_HUMAN is unsatisfiable in this repository, by design, because no human decision exists here"
       ],
@@ -959,6 +979,7 @@
       ],
       "callers": [
         "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_audit.py"
       ],
       "production_caller": "Snakefile",
@@ -999,6 +1020,7 @@
       ],
       "callers": [
         "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_audit.py"
       ],
       "production_caller": "Snakefile",
@@ -1411,6 +1433,7 @@
       ],
       "callers": [
         "Snakefile",
+        "qta_agent/governed_stage10.py",
         "tests/test_agent_governed_stage10.py"
       ],
       "production_caller": "Snakefile",

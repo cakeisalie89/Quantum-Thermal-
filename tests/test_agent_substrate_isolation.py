@@ -27,9 +27,15 @@ if str(ROOT) not in sys.path:
 
 PKG = ROOT / "qta_agent"
 
-#: Test modules are the substrate's only legitimate consumers today. Adding a
-#: consumer here is a deliberate act that this list makes visible in review.
+#: The substrate's legitimate consumers: its own test modules, and the
+#: verification TOOLS that exist to attack it. Adding an entry here is a
+#: deliberate act that this list makes visible in review, and the direction
+#: that matters is unchanged -- nothing that computes a scientific result may
+#: appear in this set.
 ALLOWED_IMPORTERS = {
+    # A verification tool, not a test: it fuzzes every parser in the package
+    # and therefore has to import them. It computes nothing.
+    "tools/fuzz_substrate.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",
     "tests/test_agent_evidence.py",

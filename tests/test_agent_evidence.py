@@ -634,3 +634,49 @@ def test_list_digests_never_yields_a_name_that_is_not_a_digest(tmp_path):
     # mean nobody ever hears about them.
     problems = s.verify_store().problems
     assert len(problems) == 3, problems
+
+
+def test_two_writers_storing_identical_bytes_do_not_race_on_a_temp_name(
+        tmp_path):
+    """Content addressing means this race has no losing side.
+
+    The metadata was written through a FIXED temporary name,
+    ``<digest>.meta.tmp``, while the blob used a unique one. Two processes
+    storing identical bytes therefore collided: the first renamed the temp
+    away and the second's rename failed with FileNotFoundError. The crash was
+    an artefact of the name, not of the situation -- both writers had the
+    same bytes and the same digest, and neither had anything to lose.
+
+    Reproduced here with threads and a barrier, so the two writes are inside
+    the window rather than merely near it. The cross-process form is in
+    tests/test_agent_concurrency.py, where it failed 3 runs in 8 before this
+    was fixed.
+    """
+    import threading
+
+    store = EvidenceStore(tmp_path / "evidence")
+    payload = b"identical bytes from every writer" * 50
+    ready = threading.Barrier(6)
+    results: list = []
+    errors: list = []
+
+    def put():
+        ready.wait(timeout=10)
+        try:
+            results.append(store.put(payload))
+        except Exception as exc:                    # noqa: BLE001 - collected
+            errors.append(exc)
+
+    threads = [threading.Thread(target=put) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+
+    assert not errors, errors[:3]
+    assert len(set(results)) == 1
+    assert store.get(results[0]) == payload
+    assert store.verify_store().ok
+    leftovers = [p.name for p in (tmp_path / "evidence").rglob("*")
+                 if p.is_file() and p.name.endswith(".tmp")]
+    assert not leftovers, f"temporary files were left behind: {leftovers}"

@@ -22,7 +22,8 @@ from qta_agent.canonical import digest_bytes  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.governed_stage10 import (  # noqa: E402
-    ACT_TASK_TRANSITION, GovernedStage10, stage10_registry,
+    ACT_TASK_TRANSITION, SUBMITTER_ID, VERIFIER_ID, WORKER_ID,
+    GovernedStage10, stage10_registry,
 )
 from qta_agent.tasks import (  # noqa: E402
     LeaseError, TaskRole, TaskState, TaskTransitionError,
@@ -60,10 +61,22 @@ def _inputs(gov, **over):
     return base
 
 
+def _task_events(gov) -> list:
+    """Task-lifecycle events only.
+
+    The constructor bootstraps a policy and three identities onto the log, so
+    "nothing happened" is no longer "the log is empty" -- it is "no task was
+    created". Asserting the older, coarser thing would have started passing
+    for the wrong reason the moment anything else shared the log.
+    """
+    return [ev.action for ev in gov.log.read()
+            if ev.action.startswith("task.")]
+
+
 def _run(gov, **over):
     kw = dict(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
-              submitter="owner", worker="agent-worker-1",
-              verifier="agent-verifier-2")
+              submitter=SUBMITTER_ID, worker=WORKER_ID,
+              verifier=VERIFIER_ID)
     kw.update(over)
     return gov.run(**kw)
 
@@ -141,7 +154,9 @@ def test_an_unregistered_tool_never_creates_a_task(gov):
     """
     with pytest.raises(ToolNotRegistered):
         _run(gov, tool_id="rm_rf")
-    assert gov.log.verify().count == 0
+    assert _task_events(gov) == [], (
+        "the bootstrap's policy and identity records are expected; a TASK "
+        "record for work that could never run is not")
 
 
 def test_the_same_actor_cannot_execute_and_verify(gov):
@@ -151,8 +166,8 @@ def test_the_same_actor_cannot_execute_and_verify(gov):
     fails at the call rather than producing a VERIFIED task nobody checked.
     """
     with pytest.raises(ValueError, match="verifies its own work"):
-        _run(gov, worker="agent-1", verifier="agent-1")
-    assert gov.log.verify().count == 0
+        _run(gov, worker=WORKER_ID, verifier=WORKER_ID)
+    assert _task_events(gov) == []
 
 
 def test_contract_violating_inputs_are_rejected_and_recorded(gov):
@@ -188,9 +203,9 @@ def test_a_completed_task_cannot_be_verified_by_the_executor(gov):
     task = gov.projection().get(run.task_id)
     from qta_agent.tasks import TaskTransition, check
     req = TaskTransition(task_id=task.task_id, src=TaskState.COMPLETED,
-                         dst=TaskState.VERIFIED, actor="agent-worker-1",
+                         dst=TaskState.VERIFIED, actor=WORKER_ID,
                          role=TaskRole.VERIFIER, at_seq=99,
-                         executed_by="agent-worker-1")
+                         executed_by=WORKER_ID)
     completed = task.__class__(**{**task.__dict__,
                                   "state": TaskState.COMPLETED})
     with pytest.raises(TaskTransitionError, match="verifies its own work"):
@@ -202,13 +217,13 @@ def test_a_worker_with_a_lapsed_lease_cannot_report_completion(gov):
     run = _run(gov)
     task = gov.projection().get(run.task_id)
     from qta_agent.tasks import Lease, TaskTransition, check
-    lapsed = Lease(lease_id="L1", holder="agent-worker-1", granted_seq=1,
+    lapsed = Lease(lease_id="L1", holder=WORKER_ID, granted_seq=1,
                    expires_after_seq=5)
     executing = task.__class__(**{**task.__dict__,
                                   "state": TaskState.EXECUTING,
                                   "lease": lapsed})
     req = TaskTransition(task_id=task.task_id, src=TaskState.EXECUTING,
-                         dst=TaskState.COMPLETED, actor="agent-worker-1",
+                         dst=TaskState.COMPLETED, actor=WORKER_ID,
                          role=TaskRole.WORKER, at_seq=99, lease_id="L1",
                          result_digest="a" * 64)
     with pytest.raises(LeaseError, match="lapsed"):
@@ -531,3 +546,204 @@ def test_a_timed_out_run_never_reaches_completed_or_verified(gov):
         "a timed-out run reached VERIFIED")
     assert ("EXECUTING", "TIMED_OUT") in moves
     assert gov.log.verify().ok
+
+
+# ---- the integrations, each shown to be load-bearing ---------------------
+def test_one_log_carries_every_subsystem_of_the_run(gov):
+    """The premise, on the production path rather than in a test fixture."""
+    run = _run(gov)
+    assert run.state is TaskState.VERIFIED
+    seen = {ev.action for ev in gov.log.read()}
+    for action in ("policy.publish", "policy.decision", "agent.register",
+                   "scheduler.enqueue", "scheduler.transition",
+                   "task.create", "capability.issue", "task.execution",
+                   "task.evidence", "context.build", "memory.write"):
+        assert action in seen, f"{action} is missing from the run's history"
+    assert gov.log.verify().ok
+
+
+def test_the_policy_decision_is_recorded_and_names_its_document(gov):
+    run = _run(gov)
+    assert run.policy_identity == "stage10.governed@1"
+    assert run.policy_digest == gov.policy.in_force(
+        "stage10.governed").digest()
+    (ev,) = [e for e in gov.log.read() if e.action == "policy.decision"]
+    assert ev.payload["decision"]["allowed"] is True
+    assert ev.payload["decision"]["rule_id"] == "allow-governed-stage10"
+
+
+def test_a_policy_that_denies_stops_the_run_before_any_task_exists(gov):
+    """Load-bearing, not decorative: denial ends the run."""
+    from qta_agent.policy import Effect, PolicyDenied, document, rule
+
+    gov.policy.publish(document(
+        policy_id="stage10.governed", version=2,
+        rules=(rule(rule_id="halt", effect=Effect.DENY, actions=("*",),
+                    subjects=("*",), roles=("*",), resources=("*",),
+                    reason="this path is closed"),)), actor="owner")
+    with pytest.raises(PolicyDenied, match="this path is closed"):
+        _run(gov)
+    assert _task_events(gov) == []
+
+
+def test_the_work_really_went_through_the_scheduler(gov):
+    from qta_agent.scheduler import JobState
+
+    run = _run(gov)
+    assert run.job_id and run.job_state == JobState.SUCCEEDED.value
+    job = gov.scheduler.get(run.job_id)
+    assert job.task_id == run.task_id
+    assert job.attempts == 1
+    assert job.lease_holder is None, (
+        "a finished job must not still name an owner")
+
+
+def test_a_failed_run_is_classified_by_the_scheduler_not_beside_it(gov):
+    from qta_agent.scheduler import JobState
+
+    run = _run(gov, inputs=_inputs(gov, name="../escape.json"))
+    assert run.state in (TaskState.FAILED, TaskState.REJECTED)
+    if run.job_id:
+        assert gov.scheduler.get(run.job_id).state is JobState.FAILED
+
+
+def test_the_context_manifest_is_recorded_and_holds_no_prompt(gov):
+    from qta_agent.context import Tier, manifest_from_record
+
+    run = _run(gov)
+    (ev,) = [e for e in gov.log.read() if e.action == "context.build"]
+    manifest = manifest_from_record(ev.payload["manifest"])
+    assert manifest.digest() == run.context_digest
+    assert manifest.policy_identity == run.policy_identity
+    assert {i.tier for i in manifest.items} >= {
+        Tier.OWNER_INSTRUCTION, Tier.SYSTEM_POLICY, Tier.TASK_STATE,
+        Tier.TASK_EVIDENCE}
+    flat = str(ev.payload)
+    assert "touch no gate" not in flat, (
+        "the manifest records digests and identities; storing the assembled "
+        "text would put it in the authority log forever")
+
+
+def test_the_run_files_a_note_that_cannot_become_evidence(gov):
+    run = _run(gov)
+    entry = gov.memory.get(run.memory_id)
+    assert set(entry.derived_from) == set(run.artifacts.values())
+    assert not gov.evidence.contains(entry.digest()), (
+        "a remembered note whose digest resolved as evidence could support a "
+        "transition; nothing checked it")
+    assert "says nothing about scientific validity" in entry.text
+
+
+def test_an_unregistered_worker_cannot_be_used(gov):
+    from qta_agent.agents import IdentityError
+
+    with pytest.raises(IdentityError, match="not registered"):
+        _run(gov, worker="ghost-worker")
+    assert _task_events(gov) == []
+
+
+def test_an_actor_without_the_role_cannot_take_it(gov):
+    from qta_agent.agents import IdentityError
+
+    with pytest.raises(IdentityError, match="may not act as"):
+        _run(gov, worker=VERIFIER_ID, verifier=WORKER_ID)
+
+
+def test_the_run_holds_no_egress_grant_at_all(gov):
+    """Default deny, on the real path: nothing here needs the network."""
+    from qta_agent.netauth import NetworkRequest, parse_target
+
+    _run(gov)
+    assert not [e for e in gov.log.read() if e.action == "network.grant"]
+    decision = gov.network.authorize(NetworkRequest(
+        actor=WORKER_ID, task_id="t", tool_id="stage10.emit_artifact",
+        target=parse_target("https://example.com/x")))
+    assert decision.allowed is False
+    assert "default is no network" in decision.reason
+
+
+def test_execution_runs_inside_the_network_guard(gov, monkeypatch):
+    """The guard is applied, not merely available.
+
+    Asserted by attempting a connection from inside the executor call, which
+    is exactly where a dependency that phones home would attempt one.
+    """
+    import socket
+
+    from qta_agent.execution import Executor
+    from qta_agent.netauth import GuardedConnection
+
+    attempted = {}
+    real_run = Executor.run
+
+    def probing_run(self, **kw):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.connect(("93.184.216.34", 443))
+        except GuardedConnection as exc:
+            attempted["refused"] = str(exc)
+        finally:
+            s.close()
+        return real_run(self, **kw)
+
+    monkeypatch.setattr(Executor, "run", probing_run)
+    run = _run(gov)
+    assert run.state is TaskState.VERIFIED
+    assert "refused" in attempted, (
+        "a connection opened during execution was not refused; the guard is "
+        "not on the path")
+    assert "not authorized" in attempted["refused"]
+
+
+def test_the_bootstrap_is_idempotent_across_runs(gov):
+    """A governed run may be the first thing to touch a log, or the tenth."""
+    _run(gov)
+    versions = gov.policy.versions("stage10.governed")
+    registrations = [e for e in gov.log.read()
+                     if e.action == "agent.register"]
+    _run(gov, inputs=_inputs(gov, name="second.json"))
+    assert gov.policy.versions("stage10.governed") == versions
+    assert len([e for e in gov.log.read()
+                if e.action == "agent.register"]) == len(registrations)
+
+
+def test_the_tool_inherits_nothing_from_the_parent_environment(gov,
+                                                               monkeypatch):
+    """The strongest secret handling available on this path.
+
+    A credential in ``os.environ`` cannot reach a governed tool, because the
+    tool's environment is BUILT rather than inherited. That is why this path
+    needs no secret grants: there is nothing to grant access to.
+    """
+    from qta_agent.governed_stage10 import GOVERNED_ENV_KEYS
+
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "a-credential-in-the-parent")
+    monkeypatch.setenv("GITHUB_TOKEN", "another-one")
+
+    seen = {}
+    from qta_agent.execution import Executor
+    real_run = Executor.run
+
+    def capturing_run(self, **kw):
+        seen["env"] = dict(kw["env"])
+        return real_run(self, **kw)
+
+    monkeypatch.setattr(Executor, "run", capturing_run)
+    run = _run(gov)
+    assert run.state is TaskState.VERIFIED
+    assert set(seen["env"]) == set(GOVERNED_ENV_KEYS)
+    flat = " ".join(f"{k}={v}" for k, v in seen["env"].items())
+    assert "a-credential-in-the-parent" not in flat
+    assert "another-one" not in flat
+
+
+def test_the_governed_environment_allowlist_is_enforced_not_described(gov):
+    """The check is on the dict that is about to be passed, not on a comment.
+
+    A variable added to the builder without being added to the allowlist
+    fails here rather than reaching a tool.
+    """
+    env = gov._tool_environment()
+    from qta_agent.governed_stage10 import GOVERNED_ENV_KEYS
+    assert set(env) == set(GOVERNED_ENV_KEYS)
+    assert env["OPENBLAS_NUM_THREADS"] == "1"

@@ -17,7 +17,9 @@ from qta_agent.audit import (  # noqa: E402
 )
 from qta_agent.events import ChainBroken, EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.governed_stage10 import GovernedStage10  # noqa: E402
+from qta_agent.governed_stage10 import (  # noqa: E402
+    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedStage10,
+)
 
 WS = "verification/stage10/_pytest_audit"
 
@@ -41,7 +43,8 @@ def _run(gov, **over):
     kw = dict(tool_id="stage10.emit_artifact",
               inputs={"out_dir": gov.out_rel, "name": "a.json",
                       "payload": {"v": 1}},
-              submitter="owner", worker="w1", verifier="v2")
+              submitter=SUBMITTER_ID, worker=WORKER_ID,
+              verifier=VERIFIER_ID)
     kw.update(over)
     return gov.run(**kw)
 
@@ -57,7 +60,7 @@ def test_a_governed_run_explains_itself_end_to_end(gov):
     actions = [s.action for s in exp.steps]
     for required in REQUIRED_RECORDS["VERIFIED"]:
         assert required in actions, f"{required} missing from the chain"
-    assert set(exp.actors) >= {"owner", "w1", "v2"}
+    assert set(exp.actors) >= {SUBMITTER_ID, WORKER_ID, VERIFIER_ID}
 
 
 def test_the_chain_names_the_tool_version_and_the_authority(gov):
@@ -124,20 +127,20 @@ def test_a_log_showing_self_verification_is_flagged(gov, tmp_path):
     """
     log2 = EventLog(tmp_path / "forged.jsonl")
     tid = "task-forged"
-    log2.append(actor="w1", action="task.create", target=tid,
-                payload={"task_id": tid, "tool_id": "t", "submitter": "w1",
+    log2.append(actor=WORKER_ID, action="task.create", target=tid,
+                payload={"task_id": tid, "tool_id": "t", "submitter": WORKER_ID,
                          "inputs_digest": "a" * 64})
     log2.append(actor="s", action="capability.issue", target=tid,
                 payload={"task_id": tid, "tool_id": "t"})
-    log2.append(actor="w1", action="task.execution", target=tid,
+    log2.append(actor=WORKER_ID, action="task.execution", target=tid,
                 payload={"task_id": tid, "tool_id": "t"})
-    log2.append(actor="w1", action="task.evidence", target=tid,
+    log2.append(actor=WORKER_ID, action="task.evidence", target=tid,
                 payload={"task_id": tid, "artifacts": {}})
-    log2.append(actor="w1", action="task.transition", target=tid,
+    log2.append(actor=WORKER_ID, action="task.transition", target=tid,
                 payload={"task_id": tid, "src": "EXECUTING",
                          "dst": "COMPLETED", "role": "WORKER",
-                         "executed_by": "w1"})
-    log2.append(actor="w1", action="task.transition", target=tid,
+                         "executed_by": WORKER_ID})
+    log2.append(actor=WORKER_ID, action="task.transition", target=tid,
                 payload={"task_id": tid, "src": "COMPLETED",
                          "dst": "VERIFIED", "role": "VERIFIER"})
     exp = AuditIndex.from_log(log2).explain_task(tid)
@@ -202,12 +205,27 @@ def test_an_untracked_digest_traces_to_nothing_rather_than_guessing(gov):
 def test_every_action_is_attributable_to_an_actor(gov):
     run = _run(gov)
     idx = AuditIndex.from_log(gov.log)
-    assert set(idx.actors()) >= {"owner", "scheduler", "w1", "v2", "system"}
-    verifier_actions = idx.actions_by("v2")
-    assert len(verifier_actions) == 1
-    assert verifier_actions[0].payload["dst"] == "VERIFIED"
+    assert set(idx.actors()) >= {
+        "owner", "scheduler", WORKER_ID, VERIFIER_ID, "system"}
     assert idx.actions_by("nobody") == ()
     assert run.task_id in idx.subjects()
+
+    # The verifier does more than one thing now -- it also reports the
+    # outcome to the scheduler and files the run's note. What must remain
+    # true is narrower and more important than "exactly one action": the
+    # verifier performed the VERIFIED transition, and did NOT perform any of
+    # the executor's.
+    by_verifier = idx.actions_by(VERIFIER_ID)
+    transitions = [e for e in by_verifier
+                   if e.action == "task.transition"]
+    assert [e.payload["dst"] for e in transitions] == ["VERIFIED"]
+    assert not [e for e in by_verifier
+                if e.action in ("task.execution", "task.evidence")], (
+        "the verifier executed or captured evidence for the work it was "
+        "verifying")
+    by_worker = idx.actions_by(WORKER_ID)
+    assert not [e for e in by_worker if e.action == "task.transition"
+                and e.payload.get("dst") == "VERIFIED"]
 
 
 def test_the_timeline_covers_every_record(gov):

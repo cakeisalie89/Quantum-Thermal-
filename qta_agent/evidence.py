@@ -259,6 +259,20 @@ class EvidenceStore:
 
     def _write_meta_if_absent(self, dg: str, size: int,
                               media_type: str) -> None:
+        """Publish the metadata beside the blob, atomically and privately.
+
+        The temporary name is UNIQUE, like the blob's. It was fixed --
+        ``<digest>.meta.tmp`` -- and two processes storing identical bytes
+        therefore raced on one file: the first renamed it away and the
+        second's rename failed with FileNotFoundError. Content addressing
+        means such a race has no losing side by design, so a crash there was
+        purely an artefact of the temp name.
+
+        Under a genuine first-write race the recorded ``first_seen`` is one of
+        the two writers' timestamps. Both are "when the store learned these
+        bytes" to within the width of the race, and picking between them
+        would be inventing precision.
+        """
         meta = self._meta_path(dg)
         if meta.exists():
             # First-seen is first-seen. A second put of identical bytes does
@@ -267,10 +281,20 @@ class EvidenceStore:
         import time
         rec = {"digest": dg, "size": size, "media_type": str(media_type),
                "first_seen": time.time()}
-        tmp = meta.with_suffix(".tmp")
-        tmp.write_text(json.dumps(rec, sort_keys=True, separators=(",", ":")),
-                       encoding="utf-8")
-        os.replace(tmp, meta)
+        meta.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(dir=str(meta.parent),
+                                        prefix=".meta-", suffix=".tmp")
+        tmp = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(rec, fh, sort_keys=True, separators=(",", ":"))
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.replace(tmp, meta)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+        self._fsync_dir(meta.parent)
 
     @staticmethod
     def _fsync_dir(path: Path) -> None:

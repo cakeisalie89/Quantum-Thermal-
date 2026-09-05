@@ -94,9 +94,9 @@
     {
       "name": "G2_projection_accepts_unknown_actions",
       "path": "qta_agent/governed_stage10.py",
-      "find": "                raise ValueError(\n                    f\"seq {ev.seq}: unknown action {ev.action!r}; refusing to \"",
-      "replace": "                pass\n                _unused = (\n                    f\"seq {ev.seq}: unknown action {ev.action!r}; refusing to \"",
-      "rationale": "a future writer's authority-relevant events are silently dropped by older readers, and the projection looks healthy while disagreeing with the log"
+      "find": "                except actions.UnknownAction as exc:\n                    # Re-raised as ValueError, this projection's existing",
+      "replace": "                except actions.UnknownAction:\n                    continue\n                except actions.UnknownAction as exc:\n                    # Re-raised as ValueError, this projection's existing",
+      "rationale": "the task projection silently skips an action it does not understand, so a task's recovered state omits whatever that event recorded and the projection looks healthy while disagreeing with the log"
     },
     {
       "name": "G3_replay_does_not_reauthorize",
@@ -157,8 +157,8 @@
     {
       "name": "G11_registry_bypassed",
       "path": "qta_agent/governed_stage10.py",
-      "find": "        spec = self.registry.get(tool_id)",
-      "replace": "        spec = self.registry.get(tool_id) if tool_id in self.registry else stage10_registry().get('stage10.emit_artifact')",
+      "find": "        spec = self.registry.get(tool_id)          # default deny",
+      "replace": "        spec = (self.registry.get(tool_id) if tool_id in self.registry\n                else stage10_registry().get('stage10.emit_artifact'))          # default deny",
       "rationale": "an unregistered tool id silently runs a registered tool instead"
     }
   ]
