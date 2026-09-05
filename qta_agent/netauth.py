@@ -300,7 +300,7 @@ def parse_target(url: str, *, method: str = "GET") -> Target:
 
 def _normalise_hosts(hosts) -> tuple:
     out = set()
-    for raw in hosts:
+    for raw in _seq(hosts, "hosts"):
         if not isinstance(raw, str) or not raw:
             raise NetworkError(
                 f"host pattern must be a non-empty str: {raw!r}")
@@ -422,6 +422,28 @@ class EgressGrant:
         return False
 
 
+def _seq(value, what: str):
+    """A sequence, refusing the bare string that iterates character by
+    character."""
+    if isinstance(value, (str, bytes)):
+        raise NetworkError(
+            f"{what} must be a sequence of values, not the bare string "
+            f"{value!r}; iterating it would produce one entry per character")
+    try:
+        return list(value)
+    except TypeError as exc:
+        raise NetworkError(f"{what} is not iterable: {exc}") from exc
+
+
+def _lower_str(value, what: str, *, fold: bool = True) -> str:
+    """A non-empty string, checked before anything is done to it."""
+    if not isinstance(value, str) or not value:
+        raise NetworkError(
+            f"{what} must be a non-empty str, got "
+            f"{type(value).__name__}: {value!r}")
+    return value.lower() if fold else value
+
+
 def grant(*, grant_id: str, subject: str, task_id: str, tool_id: str,
           schemes, hosts, ports, methods, paths=(),
           address_classes=(AddressClass.PUBLIC,), addresses=(),
@@ -434,7 +456,13 @@ def grant(*, grant_id: str, subject: str, task_id: str, tool_id: str,
             raise NetworkError(
                 f"{name} must be a non-empty str; a grant with no {name} is a "
                 "grant with no boundary")
-    schemes = tuple(sorted({s.lower() for s in schemes}))
+    # Type-checked BEFORE being transformed. Written the other way round
+    # first, and a fuzz campaign found it: a record whose "schemes" is a list
+    # of lists raised AttributeError from .lower() rather than NetworkError,
+    # so the refusal happened by accident and a caller catching NetworkError
+    # did not catch it.
+    schemes = tuple(sorted({_lower_str(v, "scheme") for v in _seq(schemes,
+                                                                 "schemes")}))
     if not schemes:
         raise NetworkError("a grant must name at least one scheme")
     for s in schemes:
@@ -443,16 +471,21 @@ def grant(*, grant_id: str, subject: str, task_id: str, tool_id: str,
                 f"scheme {s!r} is not one this layer can reason about "
                 f"({sorted(DEFAULT_PORTS)}); refusing rather than passing an "
                 "unknown transport through unchecked")
-    ports = tuple(sorted(set(ports)))
+    # Checked BEFORE set() and sorted(): an unhashable element raises
+    # TypeError from inside the builtin, and a caller catching NetworkError
+    # does not catch that.
+    raw_ports = _seq(ports, "ports")
+    for p in raw_ports:
+        if isinstance(p, bool) or not isinstance(p, int) \
+                or not 1 <= p <= 65535:
+            raise NetworkError(f"port {p!r} is not an integer in 1-65535")
+    ports = tuple(sorted(set(raw_ports)))
     if not ports:
         raise NetworkError(
             "a grant must name its ports; 'the default port' is a decision "
             "that belongs in the grant, not in whatever client runs later")
-    for p in ports:
-        if isinstance(p, bool) or not isinstance(p, int) \
-                or not 1 <= p <= 65535:
-            raise NetworkError(f"port {p!r} is not an integer in 1-65535")
-    methods = tuple(sorted({m.upper() for m in methods}))
+    methods = tuple(sorted({_lower_str(v, "method").upper()
+                            for v in _seq(methods, "methods")}))
     if not methods:
         raise NetworkError("a grant must name at least one method")
     unknown = [m for m in methods if m not in METHODS]
@@ -460,21 +493,27 @@ def grant(*, grant_id: str, subject: str, task_id: str, tool_id: str,
         raise NetworkError(
             f"methods {unknown} are not in {sorted(METHODS)}; an unknown "
             "method cannot be classified as safe or mutating")
+    raw_classes = _seq(address_classes, "address_classes")
     classes = tuple(sorted({
-        c.value if isinstance(c, AddressClass) else str(c)
-        for c in address_classes}))
+        c.value if isinstance(c, AddressClass)
+        else _lower_str(c, "address class", fold=False)
+        for c in raw_classes}))
     if not classes:
         raise NetworkError("a grant must name at least one address class")
     for c in classes:
         if c not in {a.value for a in AddressClass}:
             raise NetworkError(f"unknown address class {c!r}")
-    addrs = tuple(sorted(set(addresses)))
-    for a in addrs:
+    raw_addrs = _seq(addresses, "addresses")
+    for a in raw_addrs:
+        if not isinstance(a, str):
+            raise NetworkError(
+                f"pinned address must be a str, got {type(a).__name__}: {a!r}")
         try:
             ipaddress.ip_address(a)
         except ValueError as exc:
             raise NetworkError(
                 f"pinned address {a!r} is not an IP address: {exc}") from exc
+    addrs = tuple(sorted(set(raw_addrs)))
     if not isinstance(issued_seq, int) or isinstance(issued_seq, bool) \
             or issued_seq < 0:
         raise NetworkError("issued_seq must be a non-negative int")

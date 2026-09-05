@@ -46,6 +46,9 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_agents.py",
     "tests/test_agent_concurrency.py",
     "tests/test_agent_crash_recovery.py",
+    "tests/test_agent_fuzz.py",
+    "tests/test_agent_performance.py",
+    "tests/test_agent_long_horizon.py",
     "tests/test_agent_substrate_isolation.py",
 }
 

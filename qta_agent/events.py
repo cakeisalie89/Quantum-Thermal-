@@ -40,6 +40,33 @@ A crash mid-append can leave a partial trailing line; :meth:`verify` treats a
 malformed tail as a truncation boundary and reports the last intact record,
 so recovery is possible without discarding history.
 
+COST, AND WHY IT IS NOT A SIDE ISSUE
+
+:meth:`append` used to verify the ENTIRE chain before every write, which is
+O(n) per append and O(n^2) over a history. Measured: 2.1 ms per append at 100
+records, 10.4 ms at 800, with each doubling of n roughly quadrupling total
+time. At a hundred thousand records an append would cost over a second, and
+building such a log would take most of a day.
+
+That is a security property, not a performance footnote. A check whose cost
+grows without bound is a check that gets switched off, and the same defect had
+already been found once in this package's checkpointing.
+
+So an :class:`EventLog` verifies the whole chain on its FIRST append and
+verifies only the tail after an :class:`Anchor` thereafter. The guarantee that
+buys, stated exactly:
+
+  * no writer extends a chain that was already broken when it started;
+  * no writer extends damage that appeared at or after its anchor, including
+    damage from another process interleaved between two of its own appends;
+  * damage done to the PREFIX during this writer's lifetime is not caught by
+    its appends -- it is caught by :meth:`verify`, which every reader performs
+    before projecting, and by the next writer's first append.
+
+``full_verify_every`` restores periodic whole-chain checking for a deployment
+that wants the middle case closed at a quadratic price, and defaults to off
+because that price is the one that ends up disabling the check entirely.
+
 CONCURRENT WRITERS
 
 An append is read-then-write: it verifies the chain to learn the head, then
@@ -272,6 +299,15 @@ class EventLog:
         #: rotated, truncated or not yet created, and locking a file that does
         #: not exist is not possible.
         self.lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        #: Set by the first append and advanced by each one after it. Held per
+        #: OBJECT, not per path: a new EventLog on the same file starts with
+        #: no anchor and therefore full-verifies once, which is what makes
+        #: "no writer extends an already-broken chain" true per process.
+        self._anchor: Anchor | None = None
+        self._appends_since_full = 0
+        #: 0 disables periodic whole-chain verification during append. See
+        #: the module docstring for exactly which case that leaves open.
+        self.full_verify_every = 0
 
     @contextlib.contextmanager
     def exclusive(self):
@@ -619,16 +655,38 @@ class EventLog:
         extend the damage and make the break harder to locate.
         """
         with self.exclusive():
-            report = self.verify()
+            anchor = self._anchor
+            if anchor is not None and self._needs_full_verify():
+                anchor = None
+            if anchor is None:
+                report = self.verify()
+            else:
+                try:
+                    report = self.verify_from(anchor)
+                except ChainBroken:
+                    # The anchor no longer describes the bytes at its offset:
+                    # the log was rewritten, rotated or truncated. Falling
+                    # back to a FULL verify is strictly stronger, not weaker,
+                    # and it will refuse the append if the damage is real.
+                    self._anchor = None
+                    report = self.verify()
             if not report.ok:
                 raise ChainBroken(
                     "refusing to append to a broken chain: "
                     + "; ".join(report.problems))
-            ev, _ = self._write_event(
+            ev, new_anchor = self._write_event(
                 report.head_seq, report.head_hash, actor=actor, action=action,
                 target=target, payload=payload, event_id=event_id,
                 wall_time=wall_time)
+            self._anchor = new_anchor
+            self._appends_since_full = (
+                0 if report.prefix_verified else self._appends_since_full + 1)
         return ev
+
+    def _needs_full_verify(self) -> bool:
+        """True when the periodic whole-chain check is due, if enabled."""
+        return (self.full_verify_every > 0
+                and self._appends_since_full >= self.full_verify_every)
 
     def append_verified(self, anchor: "Anchor", *, actor: str, action: str,
                         target: str, payload: dict | None = None,
@@ -654,10 +712,12 @@ class EventLog:
                 raise ChainBroken(
                     "refusing to append to a broken chain: "
                     + "; ".join(report.problems))
-            return self._write_event(
+            out = self._write_event(
                 report.head_seq, report.head_hash, actor=actor, action=action,
                 target=target, payload=payload, event_id=event_id,
                 wall_time=wall_time)
+            self._anchor = out[1]
+            return out
 
     def _write_event(self, head_seq: int, head_hash: str, *, actor: str,
                      action: str, target: str, payload: dict | None,

@@ -221,7 +221,27 @@ class AuthorityStore:
         }
 
     def snapshot_digest(self) -> str:
+        """Digest of the WHOLE snapshot, including its log position.
+
+        That position is part of what a checkpoint pins, so it belongs here.
+        It also makes this the wrong function for "are these two projections
+        in the same state": on a shared log a live store's position is its own
+        last write, while a freshly loaded one has read to the head, and the
+        two differ while describing identical records. Use
+        :meth:`state_digest` for that question.
+        """
         return digest(self.snapshot())
+
+    def state_digest(self) -> str:
+        """Digest of the STATE alone: records and idempotency keys.
+
+        Position-independent, so two projections built by different routes --
+        a full replay, a checkpointed load, a live store mid-run -- can be
+        compared for the thing that actually matters.
+        """
+        snap = self.snapshot()
+        return digest({"records": snap["records"],
+                       "applied_keys": snap["applied_keys"]})
 
     def _restore(self, snap: dict) -> None:
         """Rebuild the projection from a snapshot. Validates, never assumes."""
@@ -287,6 +307,19 @@ class AuthorityStore:
             raise StoreError(
                 "checkpointing needs a blob store for the snapshot; attach "
                 "one as AuthorityStore(log, evidence=...) or pass blobs=")
+
+        # The log can have advanced since this projection last applied an
+        # event: other subsystems share it, and other processes may write to
+        # it. A checkpoint that pins the CURRENT head while holding a snapshot
+        # taken at an earlier position describes neither, and load_from
+        # refuses it -- correctly, and only long afterwards. So the projection
+        # is brought up to the head first.
+        #
+        # This could not happen while the store was the only writer, which is
+        # exactly why it appeared the moment the log became shared.
+        head = self.log.verify().head_seq
+        if self._loaded_through < head:
+            self.load()
         payload = canonical_bytes(self.snapshot())
         dg = target.put(payload, media_type="application/json")
         cp = cp_mod.create(self.log, state_digest=dg)

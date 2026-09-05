@@ -615,3 +615,34 @@ def test_only_egress_is_modelled():
     assert [d.value for d in Direction] == ["EGRESS"]
     assert EgressGrant.__dataclass_fields__["direction"].default \
         is Direction.EGRESS
+
+
+# ---- found by fuzzing ----------------------------------------------------
+@pytest.mark.parametrize("field", ["schemes", "methods", "ports",
+                                   "address_classes", "addresses", "hosts"])
+def test_a_grant_field_is_type_checked_before_it_is_transformed(field):
+    """Found by a fuzz campaign, not by inspection.
+
+    ``methods`` was upper-cased and ``schemes`` lower-cased before anything
+    checked they held strings, so a record whose field was a list of lists
+    raised AttributeError -- outside NetworkError, which is what every caller
+    catches. The refusal happened by accident, in a place nobody chose.
+    """
+    kw = dict(grant_id="g1", subject=ACTOR, task_id=TASK, tool_id=TOOL,
+              schemes=("https",), hosts=("api.example.com",), ports=(443,),
+              methods=("GET",))
+    kw[field] = [[], [], []]
+    with pytest.raises(NetworkError):
+        grant(**kw)
+
+
+@pytest.mark.parametrize("field", ["schemes", "methods", "ports",
+                                   "addresses", "hosts"])
+def test_a_bare_string_field_is_refused_rather_than_iterated(field):
+    """``methods="GET"`` would become {'G','E','T'} and match nothing."""
+    kw = dict(grant_id="g1", subject=ACTOR, task_id=TASK, tool_id=TOOL,
+              schemes=("https",), hosts=("api.example.com",), ports=(443,),
+              methods=("GET",))
+    kw[field] = "GET"
+    with pytest.raises(NetworkError):
+        grant(**kw)

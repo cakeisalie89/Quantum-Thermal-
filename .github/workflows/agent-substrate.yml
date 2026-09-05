@@ -137,6 +137,12 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_actions.json
+      - name: fuzz the parsers and trust boundaries
+        # Two jobs: replay every committed regression input, then run a
+        # bounded seeded campaign. A finding fails the build. The campaign is
+        # a floor, not a fuzzing programme -- see tests/fuzz_corpus/README.md.
+        run: |
+          uv run python tools/fuzz_substrate.py --cases 2000
       - name: the governed production path actually runs
         # The point of a production caller is that it is exercised. This runs
         # the real Snakemake rule, not a test double, and s10_governed fails

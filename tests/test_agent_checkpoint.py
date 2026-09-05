@@ -703,3 +703,43 @@ def test_a_replayed_transition_returns_rather_than_repeating(tmp_path):
                          role=Role.VERIFIER, idempotency_key="t1")
     assert again == first
     assert log.verify().count == count, "the replay appended a second event"
+
+
+def test_a_checkpoint_describes_the_position_it_pins(tmp_path):
+    """The projection may lag the log when other subsystems share it.
+
+    ``AuthorityStore.checkpoint`` snapshotted whatever the projection had
+    applied and pinned the log's CURRENT head. While the store was the only
+    writer those were always the same position. On a shared log they are not,
+    and the resulting checkpoint describes neither: ``load_from`` refuses it,
+    correctly and long after the fact.
+    """
+    import sys
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parent.parent
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from qta_agent.checkpoint import CheckpointStore
+    from qta_agent.events import EventLog
+    from qta_agent.evidence import EvidenceStore
+    from qta_agent.store import AuthorityStore
+
+    log = EventLog(tmp_path / "log.jsonl")
+    evidence = EvidenceStore(tmp_path / "evidence")
+    checkpoints = CheckpointStore(tmp_path / "checkpoints")
+    store = AuthorityStore(log, evidence=evidence).load()
+    store.create(record_id="r1", kind="claim", proposer="alice")
+
+    # Another subsystem writes to the same log; the store does not see it.
+    log.append(actor="scheduler", action="scheduler.enqueue", target="j1",
+               payload={"job": {"job_id": "j1", "work_digest": "0" * 64,
+                                "submitter": "alice"}})
+    assert store._loaded_through < log.verify().head_seq
+
+    cp = store.checkpoint(checkpoints)
+    assert cp.seq == log.verify().head_seq
+    restored = AuthorityStore.load_from(
+        EventLog(tmp_path / "log.jsonl"), checkpoints, blobs=evidence,
+        evidence=evidence, require_checkpoint=True)
+    assert restored.get("r1").state is store.get("r1").state
