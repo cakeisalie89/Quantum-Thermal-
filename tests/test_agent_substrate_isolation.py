@@ -35,8 +35,21 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",
+    "tests/test_agent_governed_stage10.py",
     "tests/test_agent_substrate_isolation.py",
 }
+
+#: NOTE for whoever adds the next test file and sees this pass locally:
+#: the check below uses ``git grep``, which sees TRACKED files only. A new
+#: test importing qta_agent is invisible to it until it is staged, so the
+#: suite goes green locally and red in CI the moment it is committed. That has
+#: happened twice. Run this test after ``git add``, or expect the hosted run
+#: to be the thing that tells you.
+#:
+#: Scanning the filesystem instead would fix the surprise and break the
+#: invariant: an untracked scratch file is not part of the repository, so it
+#: cannot make the repository's import graph wrong. The tracked set is the
+#: right question; only the timing is the trap.
 
 #: A linearization of the dependency graph. Each module may import only
 #: modules strictly earlier in this tuple, which keeps the graph a line
