@@ -1286,9 +1286,9 @@
    "production_caller": ".github/workflows/agent-substrate.yml",
    "persistent_state": "none",
    "authority_owner": "tools/mutation_matrix.py",
-   "evidence": "218 mutations across ten specs, all killed; the harness itself is mutated by tools/mutations/mutation_harness.json",
+   "evidence": "359 mutations across 15 specifications, each deleting exactly one enforcement point; the suite must fail. Every spec is additionally checked STATICALLY on each test run: an anchor must match exactly once, a replacement must change something, and the mutated source must still parse",
    "provenance": "none",
-   "failure_semantics": "fail-closed: a red baseline, a NON-DETERMINISTIC baseline, anchor drift, a malformed specification, collateral damage, unrestored sources or a post-run baseline failure each fail the run",
+   "failure_semantics": "non-zero on a survivor, a drifted anchor, a source not restored byte-identically, collateral damage to a tracked file, or a post-run baseline that no longer passes; refuses to start against a red OR non-deterministic baseline, or with a leftover mutation on disk",
    "recovery": "a recovery sidecar plus SIGTERM/SIGINT handlers restore sources; --recover restores from an interrupted run",
    "retry": "n/a",
    "idempotency": "n/a",
@@ -1312,8 +1312,9 @@
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "no mutation coverage of the multi-agent layer, because it does not exist yet",
-    "the harness suite covers collateral-damage detection only through the per-mutation restore test, not through a mutation that damages an unrelated tracked file"
+    "a mutation killed only by the harness's 300s backstop counts as a kill while saying nothing about which check was lost. Two were in that state and are now bounded, but nothing PREVENTS a new one: the harness reports the condition and fails, and writing the bounded test is still manual",
+    "mutations are hand-written, one per enforcement point. There is no generated operator set, so coverage is as complete as the specification author's imagination and no better",
+    "the specs mutate qta_agent, the Stage-10 write guard and the harness itself. The scientific tree has no mutation coverage at all"
    ],
    "blocker": null
   },

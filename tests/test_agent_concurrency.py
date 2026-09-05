@@ -26,6 +26,11 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+HERE = str(Path(__file__).resolve().parent)
+if HERE not in sys.path:                # so hangguard imports without pytest
+    sys.path.insert(0, HERE)
+
+from hangguard import PROCESS_DEADLINE_S, deadline  # noqa: E402
 
 from qta_agent.canonical import digest  # noqa: E402
 from qta_agent.events import EventLog, EventLogError  # noqa: E402
@@ -41,6 +46,35 @@ from qta_agent.store import AuthorityStore, ConcurrencyError  # noqa: E402
 #: produced four records at seq 0 on the first run.
 WRITERS = 4
 PER_WRITER = 15
+
+#: Every wait in this file is bounded, and that is not incidental tidiness.
+#: A test that blocks reports nothing, and under the mutation harness it is
+#: worse than nothing: the mutation counts as "KILLED (TIMEOUT)" while saying
+#: nothing about which check was lost, and it burns the whole suite timeout on
+#: every run. Two mutations here were in exactly that state -- an unbounded
+#: lock wait and a leaked lock descriptor -- costing 300 seconds each per
+#: hosted run to report a result nobody could act on.
+#:
+#: multiprocessing.Pool.map has no timeout, so map_async(...).get(timeout=)
+#: is used instead; a hung worker then raises rather than parking the suite.
+JOIN_TIMEOUT_S = 60.0
+
+#: Longer than nothing here legitimately takes (every test in this file is
+#: sub-second healthy) and shorter than EventLog.LOCK_TIMEOUT_S, so a single
+#: append that blocks on a lock nobody will release fails here rather than
+#: waiting the lock out once per append.
+LOCK_WAIT_DEADLINE_S = 20.0
+
+
+def _map_bounded(pool, fn, args, timeout: float = PROCESS_DEADLINE_S):
+    """pool.map with a wall bound. A hung worker fails the test."""
+    try:
+        return pool.map_async(fn, args).get(timeout=timeout)
+    except mp.TimeoutError as exc:
+        raise AssertionError(
+            f"a worker did not finish within {timeout}s; a blocked writer is "
+            "the failure this suite exists to catch, and a test that waits "
+            "for it forever reports nothing") from exc
 
 
 # ---- module-level workers: multiprocessing needs them importable ---------
@@ -82,7 +116,7 @@ def test_concurrent_processes_cannot_corrupt_the_chain(tmp_path, writers,
     path = tmp_path / "log.jsonl"
     args = [(str(path), tag, each) for tag in range(writers)]
     with mp.get_context("spawn").Pool(writers) as pool:
-        results = pool.map(_append_worker, args)
+        results = _map_bounded(pool, _append_worker, args)
 
     assert all(failed == 0 for _, failed in results), results
     assert sum(ok for ok, _ in results) == writers * each
@@ -101,7 +135,7 @@ def test_every_writer_s_records_survive(tmp_path):
     path = tmp_path / "log.jsonl"
     args = [(str(path), tag, 8) for tag in range(3)]
     with mp.get_context("spawn").Pool(3) as pool:
-        pool.map(_append_worker, args)
+        _map_bounded(pool, _append_worker, args)
     by_writer: dict = {}
     for ev in EventLog(path).read():
         by_writer.setdefault(ev.payload["writer"], set()).add(
@@ -132,7 +166,7 @@ def test_concurrent_threads_cannot_corrupt_the_chain(tmp_path):
     for t in threads:
         t.start()
     for t in threads:
-        t.join(timeout=60)
+        t.join(timeout=JOIN_TIMEOUT_S)
     assert not any(t.is_alive() for t in threads), "a writer never finished"
     assert not errors, errors[:3]
     assert EventLog(path).verify().ok
@@ -143,7 +177,7 @@ def test_the_head_witness_agrees_with_the_log_after_concurrent_writes(
     path = tmp_path / "log.jsonl"
     args = [(str(path), tag, 10) for tag in range(3)]
     with mp.get_context("spawn").Pool(3) as pool:
-        pool.map(_append_worker, args)
+        _map_bounded(pool, _append_worker, args)
     log = EventLog(path)
     witness = log.head()
     events = log.read()
@@ -170,9 +204,14 @@ def test_a_held_lock_makes_an_append_refuse_rather_than_hang(tmp_path,
     log = EventLog(tmp_path / "log.jsonl")
     monkeypatch.setattr(EventLog, "LOCK_TIMEOUT_S", 0.2)
     holder = EventLog(tmp_path / "log.jsonl")
-    with holder.exclusive():
-        with pytest.raises(EventLogError, match="writer lock"):
-            log.append(actor="a", action="probe", target="t", payload={})
+    # The deadline is the point, not decoration. Without it, deleting the
+    # deadline CHECK inside exclusive() makes this test spin forever: the
+    # mutation is then "killed" by the harness timing out, which reports
+    # nothing about the lost check and costs 300s of wall clock every run.
+    with deadline(5.0):
+        with holder.exclusive():
+            with pytest.raises(EventLogError, match="writer lock"):
+                log.append(actor="a", action="probe", target="t", payload={})
 
 
 def test_the_lock_is_released_even_when_the_body_raises(tmp_path):
@@ -207,7 +246,7 @@ def test_concurrent_inserts_of_the_same_content_agree(tmp_path):
     payload = "the same bytes from every writer" * 200
     args = [(str(path), payload, 5) for _ in range(4)]
     with mp.get_context("spawn").Pool(4) as pool:
-        results = pool.map(_evidence_worker, args)
+        results = _map_bounded(pool, _evidence_worker, args)
 
     digests = {d for batch in results for d in batch}
     assert len(digests) == 1
@@ -221,7 +260,7 @@ def test_concurrent_inserts_of_different_content_all_survive(tmp_path):
     path = tmp_path / "evidence"
     args = [(str(path), f"writer {t} content", 3) for t in range(4)]
     with mp.get_context("spawn").Pool(4) as pool:
-        results = pool.map(_evidence_worker, args)
+        results = _map_bounded(pool, _evidence_worker, args)
     digests = {d for batch in results for d in batch}
     assert len(digests) == 4
     store = EvidenceStore(path)
@@ -232,50 +271,62 @@ def test_concurrent_inserts_of_different_content_all_survive(tmp_path):
 # ---- optimistic concurrency ---------------------------------------------
 def test_two_writers_racing_on_one_record_do_not_both_win(tmp_path):
     """Last-writer-wins is never used for authority; the loser is told."""
-    from qta_agent.authority import Role, State
+    # Bounded: a leaked lock descriptor makes every later
+    # append wait out the whole lock timeout, so an unbounded
+    # version of this test parks the suite for minutes.
+    with deadline(LOCK_WAIT_DEADLINE_S):
+        from qta_agent.authority import Role, State
 
-    log = EventLog(tmp_path / "log.jsonl")
-    store = AuthorityStore(log).load()
-    store.create(record_id="r1", kind="claim", proposer="alice")
-    stale = store.get("r1").revision
+        log = EventLog(tmp_path / "log.jsonl")
+        store = AuthorityStore(log).load()
+        store.create(record_id="r1", kind="claim", proposer="alice")
+        stale = store.get("r1").revision
 
-    store.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
-                     role=Role.VERIFIER, expected_revision=stale)
-    with pytest.raises(ConcurrencyError, match="changed since it was read"):
-        store.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="carol",
+        store.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
                          role=Role.VERIFIER, expected_revision=stale)
+        with pytest.raises(ConcurrencyError, match="changed since it was read"):
+            store.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="carol",
+                             role=Role.VERIFIER, expected_revision=stale)
 
 
 def test_two_workers_cannot_both_take_one_job(tmp_path):
-    log = EventLog(tmp_path / "log.jsonl")
-    pol = PolicyStore(log).load()
-    pol.publish(default_policy(), actor="owner")
-    sched = Scheduler(log, policy=pol, policy_id="scheduler.default",
-                      capacity={"slots": 4}).load()
-    sched.enqueue(job_id="j1", work_digest=digest({"w": 1}),
-                  submitter="owner")
-    sched.reconcile()
+    # Bounded: a leaked lock descriptor makes every later
+    # append wait out the whole lock timeout, so an unbounded
+    # version of this test parks the suite for minutes.
+    with deadline(LOCK_WAIT_DEADLINE_S):
+        log = EventLog(tmp_path / "log.jsonl")
+        pol = PolicyStore(log).load()
+        pol.publish(default_policy(), actor="owner")
+        sched = Scheduler(log, policy=pol, policy_id="scheduler.default",
+                          capacity={"slots": 4}).load()
+        sched.enqueue(job_id="j1", work_digest=digest({"w": 1}),
+                      submitter="owner")
+        sched.reconcile()
 
-    sched.dispatch(job_id="j1", worker="w1", lease_id="L1", lease_seqs=50)
-    with pytest.raises(JobTransitionError, match="only a READY job"):
-        sched.dispatch(job_id="j1", worker="w2", lease_id="L2",
-                       lease_seqs=50)
-    assert sched.get("j1").lease_holder == "w1"
+        sched.dispatch(job_id="j1", worker="w1", lease_id="L1", lease_seqs=50)
+        with pytest.raises(JobTransitionError, match="only a READY job"):
+            sched.dispatch(job_id="j1", worker="w2", lease_id="L2",
+                           lease_seqs=50)
+        assert sched.get("j1").lease_holder == "w1"
 
 
 def test_a_stale_revision_cannot_move_a_job(tmp_path):
-    log = EventLog(tmp_path / "log.jsonl")
-    pol = PolicyStore(log).load()
-    pol.publish(default_policy(), actor="owner")
-    sched = Scheduler(log, policy=pol, policy_id="scheduler.default").load()
-    sched.enqueue(job_id="j1", work_digest=digest({"w": 1}),
-                  submitter="owner")
-    stale = sched.get("j1").revision
-    sched.set_priority(job_id="j1", priority=2, actor="scheduler",
-                       role="SCHEDULER", reason="bump")
-    with pytest.raises(SchedulerError, match="changed since it was read"):
-        sched.transition(job_id="j1", dst=JobState.READY, actor="scheduler",
-                         expected_revision=stale)
+    # Bounded: a leaked lock descriptor makes every later
+    # append wait out the whole lock timeout, so an unbounded
+    # version of this test parks the suite for minutes.
+    with deadline(LOCK_WAIT_DEADLINE_S):
+        log = EventLog(tmp_path / "log.jsonl")
+        pol = PolicyStore(log).load()
+        pol.publish(default_policy(), actor="owner")
+        sched = Scheduler(log, policy=pol, policy_id="scheduler.default").load()
+        sched.enqueue(job_id="j1", work_digest=digest({"w": 1}),
+                      submitter="owner")
+        stale = sched.get("j1").revision
+        sched.set_priority(job_id="j1", priority=2, actor="scheduler",
+                           role="SCHEDULER", reason="bump")
+        with pytest.raises(SchedulerError, match="changed since it was read"):
+            sched.transition(job_id="j1", dst=JobState.READY, actor="scheduler",
+                             expected_revision=stale)
 
 
 def test_a_platform_without_advisory_locking_refuses_to_append(tmp_path,

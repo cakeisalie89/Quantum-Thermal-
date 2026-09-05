@@ -121,15 +121,15 @@ in turn, and the suite must fail:
 | Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused | `tools/mutations/agent_actions.json` | 6 | re-run here |
 | Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 30 | CI |
 | Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 20 | re-run here |
-| Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | CI |
+| Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | re-run here |
 | Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | CI |
 | Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 42 | re-run here |
 | Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 25 | CI |
-| Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 35 | CI |
+| Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 35 | re-run here |
 | Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 14 | CI |
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
 | Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
-| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 24 | CI |
+| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 24 | re-run here |
 | Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 22 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
@@ -156,6 +156,33 @@ tell damage from an uncommitted edit and it destroyed real work twice before
 that copy existed.
 
 A surviving mutation means a check is unprotected — not that it is redundant.
+
+### The instrument's own blind spots, found twice
+
+Two failure modes of the harness itself came out of a red hosted run, and
+neither was a wrong answer -- both were the harness reporting a kill that had
+not happened:
+
+- **A drifted anchor tests nothing.** An anchor whose text no longer appears
+  in the source mutates nothing at all. The harness reports `ANCHOR DRIFT`
+  and exits non-zero, which is right and expensive: it is found after the
+  matrix has spent its minutes, and only for the spec that was run. Four
+  mutations were silently broken across the committed specs at once -- two
+  matching nothing, one that no longer parsed, one a no-op. Every committed
+  spec is now checked STATICALLY in `tests/test_mutation_harness.py`: each
+  anchor must match exactly once, each replacement must change something, and
+  each mutated source must still parse. It takes about a second over all of
+  them.
+
+- **A mutation "killed by timeout" is a badly written test.** Two mutations
+  -- an unbounded lock wait and a leaked lock descriptor -- were killed only
+  by the harness's 300-second backstop. That counts as a kill while saying
+  nothing about which check was lost, and it cost 600 seconds of wall clock
+  on every hosted run. The cause was on the test side: `pool.map` has no
+  timeout, and nothing bounded a single blocked append. `tests/hangguard.py`
+  now provides one deadline for the whole suite (a second copy is where two
+  deadlines drift), and the two mutations fail in 6 and 31 seconds with a
+  named error instead of 300 with none.
 
 ### What property testing found that mutation testing could not
 

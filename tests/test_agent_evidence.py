@@ -7,10 +7,8 @@ content says another.
 """
 from __future__ import annotations
 
-import contextlib
 import json
 import os
-import signal
 import stat
 import sys
 from pathlib import Path
@@ -20,6 +18,9 @@ import pytest
 ROOT = str(Path(__file__).resolve().parent.parent)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+HERE = str(Path(__file__).resolve().parent)
+if HERE not in sys.path:                # so hangguard imports without pytest
+    sys.path.insert(0, HERE)
 
 from qta_agent.authority import (  # noqa: E402
     Role, State, TransitionError, TransitionRequest, check,
@@ -34,39 +35,14 @@ from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
 
 REPORT = b'{"result":"verified","gates":83,"pass":0}'
 
-#: Long enough that a loaded machine never trips it, short enough that a
-#: genuine hang is a test failure in seconds rather than a stalled CI job.
-HANG_DEADLINE_S = 5.0
-
-
-class Hung(Exception):
-    """The call under test did not return within its deadline."""
-
-
-@contextlib.contextmanager
-def deadline(seconds: float = HANG_DEADLINE_S):
-    """Fail a test that blocks, instead of letting it stall the whole run.
-
-    The FIFO tests below exist because reading a named pipe with no writer
-    blocks forever. Asserting only ``pytest.raises`` would let the mutation
-    that removes the file-type check "pass" by hanging the suite -- and a
-    mutation matrix would then record it as killed by a 40-minute timeout
-    rather than by a test. SIGALRM turns the hang into a failure.
-
-    Interrupting a blocked read works because the handler raises: PEP 475
-    retries a syscall interrupted by a signal only when the handler returns
-    normally.
-    """
-    def _fire(signum, frame):
-        raise Hung(f"call did not return within {seconds}s")
-
-    previous = signal.signal(signal.SIGALRM, _fire)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
-    try:
-        yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous)
+# The FIFO tests below exist because reading a named pipe with no writer
+# blocks forever. Asserting only pytest.raises would let the mutation that
+# removes the file-type check "pass" by hanging the suite, and the matrix
+# would record it as killed by a timeout rather than by a test. The guard
+# now lives in tests/hangguard.py, because a second copy of a deadline is
+# where the two drift and a deadline that stopped firing would make every
+# test relying on it pass for no reason at all.
+from hangguard import Hung, deadline  # noqa: E402
 
 
 def test_the_hang_deadline_actually_observes_a_hang():

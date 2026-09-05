@@ -38,6 +38,7 @@ ALLOWED_IMPORTERS = {
     "tools/fuzz_substrate.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_machine_properties.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",

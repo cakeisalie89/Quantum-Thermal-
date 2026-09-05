@@ -544,3 +544,97 @@ def test_the_quarantine_is_not_written_when_nothing_is_damaged(tmp_path):
     proc = _run(tmp_path, spec)
     assert "TESTS DAMAGED TRACKED FILES" not in proc.stdout, proc.stdout
     assert not (tmp_path / ".mutation-quarantine").exists()
+
+
+# ---- every committed spec, checked statically -----------------------------
+#
+# The harness detects a drifted anchor at RUN time and exits non-zero, which
+# is correct and expensive: the drift is found after the matrix has already
+# spent its minutes, and only for the one spec that was run. Four mutations
+# were sitting silently broken across the committed specs at once -- two whose
+# anchor no longer matched anything, one that no longer parsed, and one that
+# had become a no-op -- and each was testing NOTHING while the table still
+# counted it.
+#
+# These checks are static and take about a second over all of them.
+
+SPEC_DIR = ROOT / "tools" / "mutations"
+
+
+def _specs():
+    return sorted(SPEC_DIR.glob("*.json"))
+
+
+def test_there_are_specs_to_check():
+    """A glob that silently matches nothing would make every check below
+    vacuously true."""
+    assert len(_specs()) >= 10
+
+
+@pytest.mark.parametrize("spec_path", _specs(), ids=lambda p: p.name)
+def test_every_mutation_anchor_matches_exactly_once(spec_path):
+    """An anchor matching zero times tests nothing; matching twice mutates
+    somewhere nobody named."""
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    problems = []
+    for m in spec["mutations"]:
+        src = (ROOT / m["path"]).read_text(encoding="utf-8")
+        n = src.count(m["find"])
+        if n != 1:
+            problems.append(f"{m['name']}: anchor matches {n}x in {m['path']}")
+    assert not problems, problems
+
+
+@pytest.mark.parametrize("spec_path", _specs(), ids=lambda p: p.name)
+def test_no_mutation_is_a_no_op(spec_path):
+    """A mutation identical to the source deletes no check, so the suite
+    passes and the table records a kill that never happened."""
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    problems = []
+    for m in spec["mutations"]:
+        src = (ROOT / m["path"]).read_text(encoding="utf-8")
+        if src.replace(m["find"], m["replace"], 1) == src:
+            problems.append(f"{m['name']}: replacement changes nothing")
+    assert not problems, problems
+
+
+@pytest.mark.parametrize("spec_path", _specs(), ids=lambda p: p.name)
+def test_every_mutated_source_still_parses(spec_path):
+    """A mutation that does not compile fails every test for the wrong reason.
+
+    It counts as a kill, and it proves only that Python rejected the file --
+    nothing about whether the check it was meant to delete is load-bearing.
+    """
+    import ast
+
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    problems = []
+    for m in spec["mutations"]:
+        if not m["path"].endswith(".py"):
+            continue
+        src = (ROOT / m["path"]).read_text(encoding="utf-8")
+        try:
+            ast.parse(src.replace(m["find"], m["replace"], 1))
+        except SyntaxError as exc:
+            problems.append(f"{m['name']}: mutated {m['path']} does not "
+                            f"parse: {exc.msg} (line {exc.lineno})")
+    assert not problems, problems
+
+
+@pytest.mark.parametrize("spec_path", _specs(), ids=lambda p: p.name)
+def test_every_spec_names_suites_and_paths_that_exist(spec_path):
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    missing = [s for s in spec["suites"] if not (ROOT / s).is_file()]
+    missing += [m["path"] for m in spec["mutations"]
+                if not (ROOT / m["path"]).is_file()]
+    assert not missing, missing
+
+
+@pytest.mark.parametrize("spec_path", _specs(), ids=lambda p: p.name)
+def test_every_mutation_states_why_it_matters(spec_path):
+    """The rationale is what a survivor's report says. A missing or empty one
+    turns a finding into a name."""
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    thin = [m["name"] for m in spec["mutations"]
+            if len(m.get("rationale", "").strip()) < 20]
+    assert not thin, thin
