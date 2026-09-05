@@ -36,6 +36,12 @@ ALLOWED_IMPORTERS = {
     # A verification tool, not a test: it fuzzes every parser in the package
     # and therefore has to import them. It computes nothing.
     "tools/fuzz_substrate.py",
+    # The read-only auditor. It imports the index, the log and the two
+    # reconstructions in order to ASK them questions, opens nothing for
+    # writing, and computes no scientific result -- which is the direction
+    # this list exists to police.
+    "tools/audit_log.py",
+    "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",
     "tests/test_agent_machine_properties.py",
