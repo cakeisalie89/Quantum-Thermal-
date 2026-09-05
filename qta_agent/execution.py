@@ -58,6 +58,12 @@ from .canonical import digest_bytes
 from .capability import Action, CapabilityDenied, CapabilitySet, Request
 from .tools import Registry, ToolSpec
 
+#: How much of a failing tool's output to carry back for a human to read. A
+#: failure whose cause is only a digest is a failure nobody can diagnose
+#: without re-running it -- and a hosted run that cannot be re-run locally is
+#: exactly the case where that matters.
+EXCERPT_BYTES = 2000
+
 #: Grace between asking a process group to stop and insisting. Long enough for
 #: a well-behaved tool to flush and exit, short enough that a hung one does not
 #: hold the executor open.
@@ -164,6 +170,13 @@ class ExecutionResult:
     reason: str = ""
     #: Digests of files the tool declared as outputs, if collected.
     output_digests: dict = field(default_factory=dict)
+    #: Bounded excerpts, for a human reading a failure. DELIBERATELY excluded
+    #: from :meth:`to_record`, and therefore from the log and from
+    #: ``result_digest``: the digests above are the provenance, and putting a
+    #: tool's raw output into a hash-chained record makes anything it happened
+    #: to print permanent and unremovable.
+    stdout_excerpt: str = ""
+    stderr_excerpt: str = ""
 
     @property
     def succeeded(self) -> bool:
@@ -362,7 +375,17 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
         out, out_size, out_cut = _read_capped(out_path, limits.output_bytes)
         err, err_size, err_cut = _read_capped(err_path, limits.output_bytes)
         ended = time.time()
+
+        def _excerpt(raw: bytes) -> str:
+            text = raw.decode("utf-8", errors="replace")
+            if len(text) <= EXCERPT_BYTES:
+                return text
+            half = EXCERPT_BYTES // 2
+            return f"{text[:half]}\n...[{len(text) - EXCERPT_BYTES} chars " \
+                   f"elided]...\n{text[-half:]}"
+
         return ExecutionResult(
+            stdout_excerpt=_excerpt(out), stderr_excerpt=_excerpt(err),
             outcome=outcome, exit_status=exit_status,
             signal_number=signal_number,
             stdout_digest=digest_bytes(out), stderr_digest=digest_bytes(err),

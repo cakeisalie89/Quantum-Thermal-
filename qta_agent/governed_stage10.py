@@ -264,11 +264,33 @@ class GovernedStage10:
                    }.get(result.outcome, TaskState.FAILED)
             role = (TaskRole.SYSTEM if dst is TaskState.CANCELLED
                     else TaskRole.WORKER)
+            # The excerpt is what makes a hosted failure diagnosable without
+            # a second round trip. It is carried in the RETURN value and in
+            # the transition note, not in the execution record -- see
+            # ExecutionResult on why raw tool output stays out of the log.
+            detail = result.reason
+            # Environment facts, for a failure that reproduces on a runner and
+            # not here. Which of these differs is usually the whole answer,
+            # and gathering them costs one round trip less than guessing.
+            detail += (
+                f"\n--- caller environment ---\n"
+                f"pid={os.getpid()} pgid={os.getpgrp()} sid={os.getsid(0)}\n"
+                f"python={sys.executable}\n"
+                f"platform={sys.platform}\n"
+                f"argv0={argv[0]}\n"
+                f"exit_status={result.exit_status} "
+                f"signal={result.signal_number}\n"
+                f"stdout_bytes={result.stdout_bytes} "
+                f"stderr_bytes={result.stderr_bytes}\n")
+            if result.stderr_excerpt.strip():
+                detail += f"\n--- tool stderr ---\n{result.stderr_excerpt}"
+            if result.stdout_excerpt.strip():
+                detail += f"\n--- tool stdout ---\n{result.stdout_excerpt}"
             task = self._move(task, dst, worker, role,
                               lease_id=lease.lease_id, note=result.reason)
             return GovernedRun(task_id, task.state, result.outcome.value,
                                result_digest, {},
-                               self.log.verify().head_seq, result.reason)
+                               self.log.verify().head_seq, detail)
 
         # Capture what the tool produced as CONTENT, not as a claim about it.
         artifacts = self._capture(out_dir, task_id)
