@@ -63,6 +63,17 @@ jobs:
       - name: completion matrix is self-consistent
         # The matrix is a self-assessment; this is what stops it drifting.
         run: uv run python tools/completion_matrix.py
+      - name: derived artifacts are in step with their sources
+        # Cheap, and it closes a hole this workflow fell into. A commit
+        # changed the Snakefile without rebuilding the RO-Crate, so the crate
+        # carried a checksum for a file that no longer had it. Nothing on a
+        # push noticed: only release.yml runs the full pytest suite, and the
+        # single test that would have caught it lives there. Both checks
+        # below are seconds of work and fail on drift rather than reporting
+        # it later, to nobody, at release time.
+        run: |
+          uv run python generate_manifest.py --check
+          uv run python ro_crate_tools.py validate
       - name: agent test suites
         run: |
           uv run python -m pytest tests/test_agent_*.py \

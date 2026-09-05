@@ -241,28 +241,30 @@
    "authority_owner": "Scheduler.readiness (dependencies, evidence, capability, capacity, policy) and check_edge",
    "evidence": "requires_evidence digests must resolve through a caller-supplied resolver before dispatch; the governed Stage-10 run is dispatched through the scheduler and its outcome reported to it; the Snakemake rule fails unless the job reaches SUCCEEDED",
    "provenance": "every readiness verdict, requeue, retry and cancellation is an event carrying its reason",
-   "failure_semantics": "explicit: BLOCKED for a dependency that will never satisfy, FAILED for a spent retry budget, CANCELLED for a decision, INVALIDATED for a withdrawn input",
+   "failure_semantics": "eight job states with a derived SEALED set; a permanently FAILED, CANCELLED or INVALIDATED job blocks everything transitively downstream at the moment it finishes, rather than leaving dependents WAITING until reconcile next runs",
    "recovery": "restart reloads the queue from the log; reconcile requeues lapsed leases and is idempotent",
    "retry": "classified by FailureClass; only TRANSIENT, TIMEOUT and RESOURCE_EXHAUSTED are retryable, with capped exponential backoff in sequence numbers",
    "idempotency": "an idempotency key returns the original job for identical work and is refused for different work",
-   "cancellation": "reachable from every pre-terminal state and cascades to transitive dependents; a late report cannot complete a cancelled job",
+   "cancellation": "cancel cascades transitively by default; a terminal failure cascades to BLOCKED, distinguishing a decision from a failure because an operator responds to the two differently",
    "concurrency": "leases with sequence-number expiry, optimistic revisions, and capacity bounds on concurrent dispatch",
    "security_boundary": "policy-gated enqueue, dispatch, cancellation and priority escalation; a stale or foreign lease may not report an outcome",
    "tests": [
+    "tests/test_agent_machine_properties.py",
     "tests/test_agent_scheduler.py"
    ],
-   "property_tests": [],
+   "property_tests": [
+    "tests/test_agent_machine_properties.py (SchedulerMachine: readiness, the cancellation cascade, lease presence, retry budget, and a fresh replay equal to the live projection, checked after every step)"
+   ],
    "mutation_tests": [
     "tools/mutations/agent_scheduler.json"
    ],
-   "fuzzing": "none",
+   "fuzzing": "tools/fuzz_substrate.py fuzzes job_from_record, so a malformed durable job record is refused rather than projected",
    "differential": "none",
    "hosted_ci": "pending: added after run 33939090740",
    "residual_gaps": [
-    "no concurrent-writer test: leases and revisions are exercised single-threaded",
-    "no long-horizon run, so queue scaling behaviour is unmeasured",
-    "no fuzzing of job records",
-    "the governed path enqueues one job per run, so dependency graphs and multi-job scheduling are exercised only in tests"
+    "the governed path enqueues ONE job per run, so dependency graphs and multi-job scheduling are exercised only in tests and in the long-horizon workload, never by a real caller",
+    "no wall-clock scheduling at all: every deadline, lease and backoff is in sequence numbers. That is what makes the queue reproducible after a restart, and it means a lease on an idle log never lapses in real time",
+    "one queue in one process. There is no distributed dispatch, no work stealing, and the advisory lock that serializes writers is a weaker guarantee on shared network storage than on a local filesystem"
    ],
    "blocker": null
   },
@@ -1318,17 +1320,23 @@
   {
    "id": "R52",
    "requirement": "Machine-checked formal/state-machine invariants",
-   "classification": "PARTIALLY_IMPLEMENTED",
+   "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
    "implementation": [
-    "qta_agent/authority.py"
+    "qta_agent/authority.py",
+    "qta_agent/tasks.py",
+    "qta_agent/scheduler.py",
+    "qta_agent/capability.py"
    ],
-   "callers": [],
+   "callers": [
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_machine_properties.py"
+   ],
    "production_caller": null,
    "persistent_state": "none",
-   "authority_owner": "authority.EDGES + check",
-   "evidence": "none",
+   "authority_owner": "authority.check, tasks.check, scheduler.check_edge and CapabilitySet.check -- one gate per machine",
+   "evidence": "each machine's edge table is the single description of what is permitted; SEALED and CAN_STILL_SUCCEED are DERIVED from it by search rather than written beside it, so a guard and its table cannot drift apart",
    "provenance": "none",
-   "failure_semantics": "none",
+   "failure_semantics": "a violated invariant fails the suite with the shortest generated sequence that produces it",
    "recovery": "none",
    "retry": "n/a",
    "idempotency": "n/a",
@@ -1336,19 +1344,27 @@
    "concurrency": "n/a",
    "security_boundary": "none",
    "tests": [
-    "tests/test_agent_substrate.py"
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_machine_properties.py",
+    "tests/test_agent_scheduler.py"
    ],
    "property_tests": [
-    "tests/test_agent_substrate_properties.py"
+    "tests/test_agent_substrate_properties.py (AuthorityMachine: I1, terminality, no canonical record on a stale dependency, replay agreement)",
+    "tests/test_agent_machine_properties.py (SchedulerMachine and LedgerMachine, plus table-level properties over the task machine, the job machine and capability checking)"
    ],
    "mutation_tests": [
-    "tools/mutations/agent_substrate.json"
+    "tools/mutations/agent_substrate.json",
+    "tools/mutations/agent_tasks.json",
+    "tools/mutations/agent_scheduler.json",
+    "tools/mutations/agent_execution.json"
    ],
    "fuzzing": "none",
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "I1-I6 are machine-checked over the authority record machine, including a Hypothesis state machine. The task machine (tasks.py), the job machine (scheduler.py) and capability checking have example-based tests and reachability invariants but NO property-based state machine, so their invariants are asserted at the edges rather than explored"
+    "Hypothesis explores, it does not exhaust: a property that survives generated histories is evidence the invariant is not trivially violable, not a proof that it holds",
+    "no model checker and no machine-checked proof; the invariants are executable assertions over generated traces",
+    "the stateful machines drive one process. Concurrency invariants are tested by real concurrent processes in test_agent_concurrency.py, which is example-based, so interleavings across processes are not explored"
    ],
    "blocker": null
   },
@@ -1587,9 +1603,9 @@
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "single Python version, single OS",
-    "does not run the full pytest suite or package_consistency_check.py",
-    "container-verify remains red on the 3D divergence"
+    "single Python version, single OS: nothing tests that these guarantees hold on another interpreter or another kernel",
+    "agent-substrate.yml runs the agent suites, all fifteen mutation matrices, the fuzz campaign and a derived-artifact freshness check on every push; the FULL pytest suite and package_consistency_check.py run only in release.yml, so a failure confined to the scientific tests is seen later than it could be",
+    "container-verify builds a declared image; the sandbox this work is done in cannot build it, so that workflow's result is only ever read, never reproduced locally"
    ],
    "blocker": null
   },

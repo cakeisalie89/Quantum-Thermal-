@@ -225,6 +225,29 @@ SEALED: FrozenSet[JobState] = frozenset(
     s for s in JobState if not any(e.src is s for e in EDGES))
 
 
+def _can_still_succeed() -> FrozenSet[JobState]:
+    """States from which SUCCEEDED is still reachable, by backward search.
+
+    Derived from the edge table for the same reason :data:`SEALED` is: a
+    hand-written list beside the table is a second place to forget, and the
+    two would drift the first time an edge changed.
+    """
+    reachable = {JobState.SUCCEEDED}
+    changed = True
+    while changed:
+        changed = False
+        for e in EDGES:
+            if e.dst in reachable and e.src not in reachable:
+                reachable.add(e.src)
+                changed = True
+    return frozenset(reachable)
+
+
+#: A dependency in any state OUTSIDE this set can never succeed, so anything
+#: depending on it can never become ready.
+CAN_STILL_SUCCEED: FrozenSet[JobState] = _can_still_succeed()
+
+
 def find_edge(src: JobState, dst: JobState) -> JobEdge | None:
     return _BY_PAIR.get((src, dst))
 
@@ -652,6 +675,21 @@ class Scheduler:
                     f"dependency {dep!r} does not exist; a job may not depend "
                     "on something unrecorded, because nothing would ever "
                     "satisfy it")
+            dep_state = self._jobs[dep].state
+            if dep_state not in CAN_STILL_SUCCEED:
+                # The same refusal as the two above, for the same reason. A
+                # dependency that is already CANCELLED, FAILED, BLOCKED or
+                # INVALIDATED is SEALED: no edge leads from it to SUCCEEDED,
+                # so this job could never become ready. Accepting it would
+                # leave a job WAITING on work nobody will ever do, and
+                # waiting forever looks exactly like slow. reconcile() would
+                # eventually move it to BLOCKED, which is a worse answer than
+                # this one: it arrives later, to nobody in particular, and
+                # the submitter has already gone.
+                raise SchedulerError(
+                    f"dependency {dep!r} is {dep_state.value}, from which "
+                    f"SUCCEEDED is unreachable; {job_id!r} could never become "
+                    "ready. Refusing to enqueue work that would wait forever")
         for dg in requires_evidence:
             if not is_digest(dg):
                 raise SchedulerError(
@@ -812,10 +850,45 @@ class Scheduler:
                 reason=note, last_failure=note, lease_id="", lease_holder="",
                 lease_expires_after_seq=-1,
                 backoff_until_seq=at + backoff_for(job.attempts))
-        return self.transition(
+        failed = self.transition(
             job_id=job_id, dst=JobState.FAILED, actor=who, reason=note,
             last_failure=note, lease_id="", lease_holder="",
             lease_expires_after_seq=-1)
+        self._block_dependents_of(job_id, actor=who, why=note)
+        return failed
+
+    def _block_dependents_of(self, job_id: str, *, actor: str,
+                             why: str) -> tuple:
+        """Everything downstream of work that can no longer succeed.
+
+        FOUND BY THE STATEFUL PROPERTY TEST, as an asymmetry rather than a
+        crash. :meth:`cancel` cascades and says why -- "the alternative is a
+        dependent that waits on work nobody will ever do" -- and
+        :meth:`invalidate` cascades for the same reason. A terminal FAILURE
+        has exactly that consequence for a dependent and did not cascade: the
+        dependent stayed WAITING until somebody happened to run
+        :meth:`reconcile`.
+
+        Leaving it to reconcile is a real difference, not a timing detail. A
+        job WAITING on a dead parent is indistinguishable from a job waiting
+        on a slow one, so nothing alerts and nobody looks; and if the process
+        dies before the next tick, the queue on disk describes work that is
+        still pending when it is not.
+
+        BLOCKED rather than CANCELLED, following :meth:`invalidate`: the
+        premise is gone, but nobody decided to stop this job, and an operator
+        responds to the two differently.
+        """
+        moves = []
+        for dep_id in self.transitive_dependents(job_id):
+            dep = self.get(dep_id)
+            if dep.state in TERMINAL:
+                continue
+            moves.append(self.transition(
+                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,
+                reason=f"upstream {job_id} can no longer succeed: {why}",
+                blocked_by=[job_id]))
+        return tuple(moves)
 
     def cancel(self, *, job_id: str, actor: str, reason: str,
                cascade: bool = True) -> tuple:

@@ -836,3 +836,176 @@ def test_a_finished_job_is_refused_with_the_reason_an_operator_needs(sched):
     with pytest.raises(JobTransitionError, match="is terminal"):
         sched.transition(job_id="j1", dst=JobState.DISPATCHED,
                          actor="scheduler")
+
+
+# --- a dependency that can never succeed ------------------------------------
+
+def test_enqueueing_onto_a_cancelled_dependency_is_refused(sched):
+    """FOUND BY THE STATEFUL PROPERTY TEST, in three steps.
+
+    enqueue already refuses work that would wait forever twice over -- for
+    capacity it can never have, and for a dependency nothing recorded. A
+    dependency that is already CANCELLED is the same condition with the same
+    consequence: CANCELLED is SEALED, no edge leads from it to SUCCEEDED, so
+    the new job could never become ready.
+
+    reconcile() would eventually move it to BLOCKED. That is a worse answer
+    than this one: it arrives later, to nobody in particular, and by then the
+    submitter has gone.
+    """
+    _enqueue(sched, "j1")
+    sched.cancel(job_id="j1", actor="owner", reason="not needed")
+    with pytest.raises(SchedulerError, match="wait forever"):
+        _enqueue(sched, "j2", depends_on=("j1",))
+
+
+@pytest.mark.parametrize("state", ["FAILED", "BLOCKED", "INVALIDATED"])
+def test_no_sealed_dependency_state_is_acceptable(sched, state):
+    """Every state from which SUCCEEDED is unreachable, not just the one the
+    property test happened to find."""
+    from qta_agent.scheduler import CAN_STILL_SUCCEED, JobState
+
+    assert JobState(state) not in CAN_STILL_SUCCEED
+    _enqueue(sched, "dep")
+    sched.transition(job_id="dep", dst=JobState.READY, actor="scheduler")
+    sched.dispatch(job_id="dep", worker="w", lease_id="L1", lease_seqs=50)
+    if state == "FAILED":
+        sched.report(job_id="dep", worker="w",
+                     failure=FailureClass.PERMANENT)
+    elif state == "INVALIDATED":
+        # Reachable only from SUCCEEDED: an input changed after acceptance.
+        sched.report(job_id="dep", worker="w")
+        sched.invalidate(job_id="dep", actor="owner", reason="input changed")
+    else:
+        sched.transition(job_id="dep", dst=JobState(state), actor="scheduler")
+    with pytest.raises(SchedulerError, match="wait forever"):
+        _enqueue(sched, "later", depends_on=("dep",))
+
+
+def test_a_dependency_still_in_flight_is_accepted(sched):
+    """The refusal must name a real impossibility, not any unfinished parent.
+
+    A job depending on one that is still WAITING, READY, DISPATCHED or
+    RETRY_WAIT is the ordinary case, and refusing it would make dependencies
+    useless.
+    """
+    from qta_agent.scheduler import JobState
+
+    _enqueue(sched, "dep")
+    for i, dst in enumerate((None, JobState.READY)):
+        if dst is not None:
+            sched.transition(job_id="dep", dst=dst, actor="scheduler")
+        _enqueue(sched, f"child{i}", depends_on=("dep",))
+    sched.dispatch(job_id="dep", worker="w", lease_id="L1", lease_seqs=50)
+    _enqueue(sched, "child2", depends_on=("dep",))
+    assert sched.get("child2").state is JobState.WAITING
+
+
+def test_the_reachability_set_is_derived_from_the_edge_table(sched):
+    """A hand-written list beside the table is a second place to forget."""
+    from qta_agent.scheduler import (
+        CAN_STILL_SUCCEED, EDGES, SEALED, JobState,
+    )
+
+    # Every state outside the set is one no edge leads out of toward success.
+    for st in JobState:
+        if st in CAN_STILL_SUCCEED:
+            continue
+        assert st in SEALED or not any(
+            e.src is st and e.dst in CAN_STILL_SUCCEED for e in EDGES), (
+            f"{st.value} is excluded but has an edge toward success")
+    assert JobState.SUCCEEDED in CAN_STILL_SUCCEED
+
+
+def test_a_terminal_failure_blocks_everything_downstream(sched):
+    """FOUND BY THE STATEFUL PROPERTY TEST, as an asymmetry.
+
+    cancel() cascades and says why: "the alternative is a dependent that
+    waits on work nobody will ever do". invalidate() cascades for the same
+    reason. A terminal FAILURE has exactly that consequence and did not --
+    the dependent stayed WAITING until somebody happened to run reconcile().
+
+    That is not a timing detail. A job WAITING on a dead parent is
+    indistinguishable from one waiting on a slow parent, so nothing alerts
+    and nobody looks; and a process that dies before the next tick leaves a
+    queue on disk describing work as pending when it is not.
+    """
+    from qta_agent.scheduler import JobState
+
+    _enqueue(sched, "parent")
+    _enqueue(sched, "child", depends_on=("parent",))
+    _enqueue(sched, "grandchild", depends_on=("child",))
+    sched.transition(job_id="parent", dst=JobState.READY, actor="scheduler")
+    sched.dispatch(job_id="parent", worker="w", lease_id="L1", lease_seqs=50)
+    sched.report(job_id="parent", worker="w",
+                 failure=FailureClass.PERMANENT)
+
+    assert sched.get("parent").state is JobState.FAILED
+    # Transitive, not just the immediate child -- the classic shortcut bug.
+    assert sched.get("child").state is JobState.BLOCKED
+    assert sched.get("grandchild").state is JobState.BLOCKED
+    # blocked_by lives on the transition record, not on the Job: it is why
+    # the move happened, and the projection carries current state.
+    rec = next(ev.payload for ev in sched.log.read()
+               if ev.action == "scheduler.transition"
+               and ev.payload["job_id"] == "child"
+               and ev.payload["dst"] == JobState.BLOCKED.value)
+    assert rec["blocked_by"] == ["parent"]
+
+
+def test_a_retryable_failure_does_not_block_dependents(sched):
+    """The cascade must name a real impossibility.
+
+    A RETRY_WAIT job still has attempts left, so SUCCEEDED is reachable and
+    a dependent that waits is waiting for something that may yet arrive.
+    Blocking it here would turn a transient outage into a dead queue.
+    """
+    from qta_agent.scheduler import JobState
+
+    _enqueue(sched, "parent", max_attempts=3)
+    _enqueue(sched, "child", depends_on=("parent",))
+    sched.transition(job_id="parent", dst=JobState.READY, actor="scheduler")
+    sched.dispatch(job_id="parent", worker="w", lease_id="L1", lease_seqs=50)
+    sched.report(job_id="parent", worker="w",
+                 failure=FailureClass.TRANSIENT)
+
+    assert sched.get("parent").state is JobState.RETRY_WAIT
+    assert sched.get("child").state is JobState.WAITING
+
+
+def test_the_failure_cascade_does_not_rewrite_a_finished_dependent(sched):
+    """A dependent that already finished keeps how it finished."""
+    from qta_agent.scheduler import JobState
+
+    _enqueue(sched, "parent")
+    _enqueue(sched, "child", depends_on=("parent",))
+    sched.cancel(job_id="child", actor="owner", reason="not wanted")
+    sched.transition(job_id="parent", dst=JobState.READY, actor="scheduler")
+    sched.dispatch(job_id="parent", worker="w", lease_id="L1", lease_seqs=50)
+    sched.report(job_id="parent", worker="w",
+                 failure=FailureClass.PERMANENT)
+
+    assert sched.get("child").state is JobState.CANCELLED
+
+
+def test_the_cascade_is_recorded_so_an_operator_can_see_it(sched):
+    """Every move the scheduler makes on its own is an event.
+
+    A state change nobody can attribute is a state change an operator cannot
+    reason about after the fact.
+    """
+    from qta_agent.scheduler import ACT_JOB_TRANSITION, JobState
+
+    _enqueue(sched, "parent")
+    _enqueue(sched, "child", depends_on=("parent",))
+    sched.transition(job_id="parent", dst=JobState.READY, actor="scheduler")
+    sched.dispatch(job_id="parent", worker="w", lease_id="L1", lease_seqs=50)
+    sched.report(job_id="parent", worker="w",
+                 failure=FailureClass.PERMANENT)
+
+    blocked = [ev for ev in sched.log.read()
+               if ev.action == ACT_JOB_TRANSITION
+               and ev.payload["job_id"] == "child"
+               and ev.payload["dst"] == JobState.BLOCKED.value]
+    assert len(blocked) == 1
+    assert "can no longer succeed" in blocked[0].payload["reason"]

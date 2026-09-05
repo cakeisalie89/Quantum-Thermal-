@@ -116,13 +116,28 @@ Coverage says a line ran. It does not say anything would have noticed if the
 line were deleted. Every enforcement point in this layer is therefore deleted
 in turn, and the suite must fail:
 
-| Matrix | Spec | Mutations | Result |
-|---|---|---|---|
-| state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 20 | 20 killed |
-| evidence store and the gate wired to it | `tools/mutations/agent_evidence.json` | 20 | 20 killed |
-| checkpointing, incremental verification, snapshots | `tools/mutations/agent_checkpoint.json` | 23 | 23 killed |
+| Matrix | Spec | Mutations | Last measured |
+|---|---|---:|---|
+| Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused | `tools/mutations/agent_actions.json` | 6 | re-run here |
+| Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 30 | CI |
+| Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 20 | re-run here |
+| Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | CI |
+| Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | CI |
+| Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 42 | re-run here |
+| Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 25 | CI |
+| Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 35 | CI |
+| Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 14 | CI |
+| Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
+| Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
+| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 24 | CI |
+| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 22 | re-run here |
+| The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
+| Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-Re-run either with:
+**359 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
+
+Re-run any of them with:
 
 ```
 python3 tools/mutation_matrix.py tools/mutations/agent_substrate.json
@@ -132,9 +147,48 @@ The harness exits non-zero on a survivor, on an anchor that no longer matches
 its source (a silently skipped mutation is a mutation that tested nothing),
 and on a source it failed to restore byte-identically. It refuses to start
 against a red baseline: all N mutations would "fail the suite" for the
-pre-existing reason and the report would read as a perfect score.
+pre-existing reason and the report would read as a perfect score. It also
+refuses to start when a previous run died mid-mutation, because a leftover
+mutation is a DISABLED SAFETY GUARD that no test is currently reporting; and
+when it reverts a tracked file a mutated build damaged, it keeps a copy of
+what it discarded under `.mutation-quarantine/`, because `git checkout` cannot
+tell damage from an uncommitted edit and it destroyed real work twice before
+that copy existed.
 
 A surviving mutation means a check is unprotected — not that it is redundant.
+
+### What property testing found that mutation testing could not
+
+Mutation testing asks whether a check that EXISTS is load-bearing. It cannot
+ask whether a check is MISSING, because there is nothing to delete. The
+Hypothesis state machines in `tests/test_agent_substrate_properties.py` and
+`tests/test_agent_machine_properties.py` drive the real objects through
+generated histories and assert the invariants after every step, which is the
+question mutation testing structurally cannot pose.
+
+Two scheduler defects came out of the second one, both in three steps, both
+asymmetries rather than crashes:
+
+- **A job could be enqueued onto a dependency that can never succeed.**
+  `enqueue` already refused work that would wait forever twice over — for
+  capacity it could never have, and for a dependency nothing had recorded.
+  A parent already `CANCELLED` is the same condition with the same
+  consequence, and was accepted. The set of states from which `SUCCEEDED` is
+  still reachable is now derived from the edge table by backward search, for
+  the same reason `SEALED` is: a list written beside the table is a second
+  place to forget.
+
+- **A terminal failure did not cascade.** `cancel` cascades and says why —
+  "the alternative is a dependent that waits on work nobody will ever do" —
+  and `invalidate` cascades for the same reason. A permanently `FAILED`
+  parent left its dependents `WAITING` until somebody happened to run
+  `reconcile`. That is not a timing detail: a job waiting on a dead parent is
+  indistinguishable from one waiting on a slow parent, so nothing alerts and
+  nobody looks, and a process that dies before the next tick leaves a queue
+  on disk describing work as pending when it is not.
+
+Neither was reachable from any example a person had thought to write, and both
+now have example-based regression tests and mutations of their own.
 
 Five mutations survived the first run of the first matrix. Every one survived
 for the same reason: the tests provoked corruptions that tripped *two* checks
