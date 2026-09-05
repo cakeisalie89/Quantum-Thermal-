@@ -156,10 +156,10 @@
       "rationale": "the audit reports the FORGED outcome with no complaint while the enforcement path refuses the same records -- an auditor telling a reader the attack worked"
     },
     {
-      "name": "A22_the_audit_reads_the_executor_from_the_payload",
+      "name": "A22_the_audit_prefers_the_completions_executor_claim",
       "path": "qta_agent/audit.py",
-      "find": "                if s.action == \"task.execution\":\n                    # The durable statement of who ran the tool, made by the\n                    # actor that ran it. This is the only source for it.\n                    executed_by = s.actor",
-      "replace": "                if s.action == \"task.execution\":\n                    executed_by = s.detail.get(\"executed_by\") or s.actor",
+      "find": "                        if executed_by is None:\n                            executed_by = s.actor",
+      "replace": "                        executed_by = s.detail.get(\"executed_by\") or s.actor",
       "rationale": "the self-verification check asks the forger's own field whether the forgery happened, and is told no"
     },
     {

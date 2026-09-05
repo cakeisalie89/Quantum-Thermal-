@@ -477,3 +477,25 @@ def test_a_grant_does_not_reach_back_over_a_secret_already_read():
     s.set_position(4)
     with pytest.raises(SecretNotYetIssued, match="reach backwards"):
         _resolve(s)
+
+
+def test_a_log_backed_store_stamps_the_grants_start_from_the_log(tmp_path):
+    """The stamping branch only runs when there IS a log.
+
+    The window test above uses a log-less store, so it exercised the check
+    and not the stamp -- and a mutation that deleted the stamp survived
+    every test in this file. Where a grant begins is the log's to decide,
+    and that is only true on the path where a log exists.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    s = SecretStore(log)
+    s.register("api-token", VALUE)
+    for i in range(3):
+        log.append(actor="x", action="record.create", target=f"r{i}",
+                   payload={})
+    g = s.issue(_grant(issued_seq=0), actor="owner")
+    seq = [e.seq for e in log.read()][-1]
+    assert g.issued_seq == seq, (
+        "the caller's issued_seq was kept, so a grant can be backdated over "
+        "a secret that was already read")
+    assert s._grants["sg1"].issued_seq == seq

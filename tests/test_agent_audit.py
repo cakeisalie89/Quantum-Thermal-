@@ -792,3 +792,50 @@ def test_the_audit_takes_the_executor_from_the_execution_record(tmp_path):
     gaps = AuditIndex.from_log(log).explain_task(tid).gaps
     assert not any("executor and verifier" in g for g in gaps), gaps
     assert not any("choosing its own verifier" in g for g in gaps), gaps
+
+
+def test_the_execution_step_detail_never_carries_an_executor_claim():
+    """WHY the line above it is safe, pinned rather than assumed.
+
+    ``_gaps`` takes the executor from the task.execution step's ACTOR. A
+    mutation that made it prefer ``s.detail.get("executed_by")`` survived
+    every test in this file -- not because nothing checks the property, but
+    because that step's ``detail`` is built from a fixed key list which does
+    not contain "executed_by", so the mutated expression could not differ.
+
+    That is a fragile reason to be safe: it holds only while nobody adds the
+    key. If somebody does, the payload becomes readable at exactly the point
+    the audit must not read one, and no test would have noticed. So the key
+    list is the thing asserted.
+    """
+    import ast
+
+    src = (ROOT / "qta_agent" / "audit.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "explain_task")
+
+    # The dict comprehension guarded by `ev.action == "task.execution"`.
+    keys = None
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Compare):
+            continue
+        if not (isinstance(node.left, ast.Attribute)
+                and node.left.attr == "action"):
+            continue
+        cmp = node.comparators[0]
+        if not (isinstance(cmp, ast.Constant) and cmp.value == "task.execution"):
+            continue
+        branch = next(n for n in ast.walk(fn)
+                      if isinstance(n, ast.If) and n.test is node)
+        for sub in ast.walk(branch):
+            if isinstance(sub, ast.Tuple) and all(
+                    isinstance(e, ast.Constant) for e in sub.elts):
+                cand = [e.value for e in sub.elts]
+                if "tool_id" in cand:
+                    keys = cand
+    assert keys is not None, "could not find the execution step's key list"
+    assert "executed_by" not in keys, (
+        "the execution step's detail now carries an executed_by claim; the "
+        "audit reads the executor from the record's ACTOR and a payload "
+        "field beside it is exactly what that check must not consult")

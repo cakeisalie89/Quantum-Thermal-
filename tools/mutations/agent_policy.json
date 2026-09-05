@@ -1,6 +1,6 @@
 {
   "title": "Versioned policy: rules that decide, and decisions that survive",
-  "note": "The policy layer is what makes 'which rules allowed this' answerable. Each mutation here removes one property that answer depends on: deny-overrides, the default-deny fallthrough, conjunctive matching, gap-free versioning, non-retroactivity, and the refusal to publish a document whose content does not match its claimed digest. P4 is the sharpest -- if in_force_at returns today's policy, every historical decision is re-judged under rules that did not exist when it was made, and I5 means nothing.",
+  "note": "The policy layer is what makes 'which rules allowed this' answerable. Each mutation here removes one property that answer depends on: deny-overrides, the default-deny fallthrough, conjunctive matching, gap-free versioning, non-retroactivity, and the refusal to publish a document whose content does not match its claimed digest. P4 is the sharpest -- if in_force_at returns today's policy, every historical decision is re-judged under rules that did not exist when it was made, and I5 means nothing. P18 was REMOVED as equivalent, not because it survived: swapping _recheck_decision's in_force_at(ev.seq) for in_force() is a no-op, because apply() is only ever reached in log order -- load() replays oldest-first and both write paths apply the event they just appended -- so only versions published at or before ev.seq have been folded when the re-check runs. The property it appeared to test is P4's, and P4 is killed. The equivalence is asserted by a test over the call sites rather than by this sentence.",
   "suites": [
     "tests/test_agent_policy.py",
     "tests/test_agent_scheduler.py"
@@ -124,13 +124,6 @@
       "find": "        for field_name, replayed_value in ((\"allowed\", replayed.allowed),\n                                           (\"effect\", replayed.effect.value),\n                                           (\"rule_id\", replayed.rule_id)):",
       "replace": "        for field_name, replayed_value in ((\"allowed\", replayed.allowed),):",
       "rationale": "an ALLOW can be attributed to a rule that did not fire, sending an incident reviewer to read the wrong rule"
-    },
-    {
-      "name": "P18_decision_checked_against_todays_policy",
-      "path": "qta_agent/policy.py",
-      "find": "            doc = self.in_force_at(policy_id, ev.seq)",
-      "replace": "            doc = self.in_force(policy_id)",
-      "rationale": "every historical decision fails the moment a policy is updated, which is how this check gets deleted rather than fixed"
     },
     {
       "name": "P19_a_decision_without_a_request_is_accepted",

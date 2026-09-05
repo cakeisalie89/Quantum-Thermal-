@@ -572,6 +572,47 @@ def test_a_role_that_does_not_own_an_edge_cannot_take_it():
         TaskState.VALIDATED
 
 
+def test_a_request_may_not_rename_an_established_executor():
+    """The gate's own contract, tested directly rather than through a caller.
+
+    Both projections now pass ``executed_by=task.executed_by``, so this
+    guard is unreachable through either of them -- and a mutation deleting
+    it survived every test in the package. That is not evidence it is
+    unnecessary: ``check`` is a pure public function, and a third caller
+    would be entitled to pass whatever it liked.
+
+    The executor is what verification must differ from, so a request that
+    could rename it could choose its own counterparty.
+    """
+    ran = _task(state=TaskState.COMPLETED, executed_by="worker-a",
+                result_digest=DIG)
+    with pytest.raises(TaskTransitionError, match="was executed by"):
+        check(_req(src=TaskState.COMPLETED, dst=TaskState.VERIFIED,
+                   actor="verifier", role=TaskRole.VERIFIER,
+                   executed_by="somebody-else"), ran)
+
+    # Agreeing, or saying nothing, is fine -- the guard refuses a CONTRADICTION
+    # and must not refuse the honest paths the projections actually take.
+    assert check(_req(src=TaskState.COMPLETED, dst=TaskState.VERIFIED,
+                      actor="verifier", role=TaskRole.VERIFIER,
+                      executed_by="worker-a"), ran).dst is TaskState.VERIFIED
+    assert check(_req(src=TaskState.COMPLETED, dst=TaskState.VERIFIED,
+                      actor="verifier", role=TaskRole.VERIFIER),
+                 ran).dst is TaskState.VERIFIED
+
+
+def test_an_established_executor_is_never_replaced_by_a_request():
+    """And the fold keeps it, so a later record cannot rewrite the trail."""
+    from qta_agent.tasks import apply_transition
+
+    ran = _task(state=TaskState.COMPLETED, executed_by="worker-a",
+                result_digest=DIG)
+    req = _req(src=TaskState.COMPLETED, dst=TaskState.VERIFIED,
+               actor="verifier", role=TaskRole.VERIFIER)
+    out = apply_transition(ran, check(req, ran), req, seq=99)
+    assert out.executed_by == "worker-a"
+
+
 def test_only_the_lease_holder_may_report_on_the_work():
     """Q5: the lease names a holder, and the holder is checked."""
     lease = Lease("L1", "worker-1", granted_seq=1, expires_after_seq=100)

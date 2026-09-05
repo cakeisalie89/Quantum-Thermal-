@@ -482,3 +482,59 @@ def test_a_decision_still_replays_after_a_later_version_is_published(store,
                   actor="owner")
     reloaded = PolicyStore(EventLog(tmp_path / "log.jsonl")).load()
     assert reloaded.in_force("p").version == 2
+
+
+def test_the_reducer_is_only_ever_reached_in_log_order():
+    """WHY one mutation was removed as EQUIVALENT rather than left surviving.
+
+    ``_recheck_decision`` asks ``in_force_at(policy_id, ev.seq)`` for the
+    document that decided. Swapping that for ``in_force(policy_id)`` is
+    currently a no-op, and a mutation that did so survived: ``apply`` is
+    only ever reached in log order, so when the re-check runs, only versions
+    published at or before ``ev.seq`` have been folded in, and the two
+    expressions return the same document.
+
+    That is a fact about the CALL SITES, not about the expression -- so the
+    call sites are what this asserts. Add an out-of-order caller and the two
+    stop agreeing, this test fails, and the mutation becomes meaningful
+    again and belongs back in the spec.
+
+    The non-retroactivity property itself is tested by P4, which mutates
+    ``in_force_at`` internally and is killed.
+    """
+    import ast
+
+    src = (ROOT / "qta_agent" / "policy.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    calls = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "apply"
+             and isinstance(n.func.value, ast.Name)
+             and n.func.value.id == "self"]
+    assert len(calls) == 3, (
+        f"policy.py now has {len(calls)} self.apply call sites, not 3; the "
+        "equivalence argument above covers exactly load() and the two write "
+        "paths, and a new one may fold events out of order")
+
+    fns = {}
+    for fn in ast.walk(tree):
+        if isinstance(fn, ast.FunctionDef):
+            for c in calls:
+                if c in ast.walk(fn):
+                    fns.setdefault(fn.name, 0)
+                    fns[fn.name] += 1
+    assert set(fns) == {"load", "publish", "decide_and_record"}, (
+        f"self.apply is now called from {sorted(fns)}; every caller must "
+        "fold in log order for the re-check to see only the prefix")
+
+    # And nothing outside this module drives the reducer at all: every
+    # caller above is in policy.py, so "in log order" is a property of this
+    # file rather than of the whole package.
+    outside = [p.name for p in sorted((ROOT / "qta_agent").glob("*.py"))
+               if p.name != "policy.py"
+               and "PolicyStore(" in p.read_text(encoding="utf-8")
+               and ".apply(" in p.read_text(encoding="utf-8")]
+    assert not outside, (
+        f"{outside} construct a PolicyStore and call apply; check they fold "
+        "in log order before trusting the equivalence above")
