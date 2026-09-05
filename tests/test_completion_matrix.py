@@ -81,3 +81,92 @@ def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
         pytest.fail(
             f"{row_id} is marked complete -- update this test in the change "
             "that completed it, so closing it stays a deliberate act")
+
+
+# --- the validator's own guards, provoked ----------------------------------
+#
+# A validator that would pass a bad matrix is worse than none: it converts
+# "nobody checked" into "checked and fine". Each guard below is given the
+# exact shape it exists to refuse.
+
+def _row(**over):
+    """A minimal well-formed row, so each test provokes exactly one guard."""
+    base = {f: "" for f in CM.REQUIRED}
+    base.update({
+        "id": "RX", "requirement": "a requirement",
+        "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+        "implementation": ["qta_agent/scheduler.py"],
+        "callers": [], "production_caller": "",
+        "tests": ["tests/test_agent_scheduler.py"],
+        "property_tests": [], "mutation_tests": [], "fuzzing": "none",
+        "differential": "none", "hosted_ci": "n/a",
+        "residual_gaps": ["a real remaining gap, stated"], "blocker": None,
+    })
+    base.update(over)
+    return base
+
+
+def _problems(**over):
+    return CM.validate({"rows": [_row(**over)]})
+
+
+def test_the_validator_refuses_a_gap_that_describes_a_built_subsystem():
+    """THE staleness guard.
+
+    Twelve rows were found at once still saying "the scheduler does not exist
+    yet" long after it did. Documentation that has stopped being true is not
+    a smaller problem than code that has stopped working -- it is the same
+    problem, read by someone deciding what to trust.
+    """
+    problems = _problems(residual_gaps=["the scheduler does not exist yet"])
+    assert any("stopped being true" in p for p in problems), problems
+
+
+def test_the_staleness_guard_does_not_fire_on_an_honest_gap():
+    """It must refuse stale prose, not any sentence containing a module name.
+
+    A guard that flagged every mention of "scheduler" would be turned off
+    within a week, and then it would be protecting nothing.
+    """
+    assert not _problems(residual_gaps=[
+        "the scheduler enqueues one job per governed run, so dependency "
+        "graphs are exercised only in tests"])
+
+
+def test_the_validator_refuses_a_row_with_no_gaps_and_no_completion_claim():
+    problems = _problems(residual_gaps=[])
+    assert any("no residual gaps listed" in p for p in problems), problems
+
+
+def test_the_validator_refuses_borrowed_mutation_coverage():
+    """A row may not cite a spec that mutates somebody else's code."""
+    problems = _problems(
+        implementation=["qta_agent/memory.py"],
+        mutation_tests=["tools/mutations/agent_scheduler.json"])
+    assert any("none of this row's implementation" in p for p in problems), \
+        problems
+
+
+def test_the_validator_refuses_a_production_caller_that_calls_nothing():
+    problems = _problems(implementation=["qta_agent/memory.py"],
+                         production_caller="README.md")
+    assert any("in a form that would import" in p for p in problems), (
+        "a README that merely contains the word 'memory' passed as a"
+        " production caller; a guard that cannot fail is not a guard")
+
+
+def test_the_validator_refuses_a_path_that_does_not_exist():
+    problems = _problems(implementation=["qta_agent/does_not_exist.py"])
+    assert any("does not exist" in p for p in problems), problems
+
+
+def test_the_validator_refuses_property_test_claims_over_files_without_any():
+    """A row claiming property testing must name a file that has some."""
+    problems = _problems(property_tests=["tests/test_agent_scheduler.py"])
+    assert any("contains no property-based testing" in p
+               for p in problems), problems
+
+
+def test_the_property_claim_guard_accepts_a_real_property_suite():
+    assert not _problems(
+        property_tests=["tests/test_agent_machine_properties.py"])

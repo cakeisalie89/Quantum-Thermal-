@@ -616,10 +616,12 @@
     "qta_multiphysics/stack/rag_index.py"
    ],
    "callers": [
+    "Snakefile",
+    "tools/fuzz_substrate.py",
     "tests/test_stage10_stack.py",
     "tests/test_agent_authority_boundaries.py"
    ],
-   "production_caller": "qta_multiphysics/stack/rag_index.py",
+   "production_caller": "Snakefile",
    "persistent_state": "serialized index treated as a cache, verified against source",
    "authority_owner": "rag_index.load_index",
    "evidence": "every hit carries path, line range, source digest and evidence_status=RETRIEVED_TEXT_NOT_EVIDENCE",
@@ -1037,7 +1039,7 @@
     "qta_agent/governed_stage10.py",
     "tests/test_agent_audit.py"
    ],
-   "production_caller": "qta_agent/governed_stage10.py",
+   "production_caller": "Snakefile",
    "persistent_state": "none",
    "authority_owner": "audit.AuditIndex.explain_task / explain_record / explain_decision",
    "evidence": "task chains: claim -> evidence -> execution -> tool/version -> inputs -> capability -> verifier -> transition -> actor. Authority records: creation -> a connected walk of real edges -> separation of duties -> required evidence -> dependencies still canonical. Decisions: request -> effect -> rule -> the published document whose digest decided",
