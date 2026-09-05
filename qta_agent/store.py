@@ -37,6 +37,7 @@ from .authority import (
     INITIAL,
     Role,
     State,
+    TransitionError,
     TransitionRequest,
     check,
 )
@@ -179,9 +180,50 @@ class AuthorityStore:
         elif ev.action == ACT_TRANSITION:
             rid = p["record_id"]
             cur = self._records[rid]
+            # RE-AUTHORIZE ON REPLAY, FROM THE STATE THIS REPLAY REACHED.
+            #
+            # This used to take p["dst"] and apply it. Nothing was checked:
+            # not the edge, not the role, not separation of duties, not the
+            # declared src -- which was written into the payload and then
+            # ignored. One appended line moved a record from UNDER_REVIEW
+            # straight to PROMOTED, the state that carries canonical
+            # authority and is reachable only from VERIFIED by I1, and
+            # store.canonical() reported it.
+            #
+            # reconstruct.py refused the same log correctly, and that is
+            # what hid this: the test asserting "an unauthorized transition
+            # in the log is not applied" asked the INDEPENDENT reader, while
+            # the live projection -- the one every caller consults -- applied
+            # it. A second reader is a detector, not a substitute for the
+            # first reader being right.
+            #
+            # No resolver is passed. Evidence may legitimately have been
+            # archived since a historical transition was made, and forcing
+            # resolution here would turn an archival policy into a
+            # retroactive authority failure. The state machine is still
+            # enforced in full.
+            claimed = p.get("src")
+            if claimed is not None and claimed != cur.state.value:
+                raise StoreError(
+                    f"seq {ev.seq}: {rid!r} is {cur.state.value}, but the "
+                    f"record moves it from {claimed}. A transition whose "
+                    "starting state the replay does not agree with was not "
+                    "written through the gate.")
+            merged_evidence = {**cur.evidence, **p.get("evidence", {})}
+            try:
+                check(TransitionRequest(
+                    record_id=rid, src=cur.state, dst=State(p["dst"]),
+                    actor=ev.actor, role=Role(p["role"]),
+                    evidence=merged_evidence, proposer=cur.proposer,
+                    policy_id=p.get("policy_id") or cur.policy_id))
+            except TransitionError as exc:
+                raise StoreError(
+                    f"seq {ev.seq}: {rid!r} {cur.state.value} -> "
+                    f"{p.get('dst')} would be refused today: {exc}. Presence "
+                    "in the log is not authority.") from exc
             self._records[rid] = replace(
                 cur, state=State(p["dst"]), revision=cur.revision + 1,
-                evidence={**cur.evidence, **p.get("evidence", {})},
+                evidence=merged_evidence,
                 updated_seq=ev.seq,
                 stale_reason=p.get("stale_reason", cur.stale_reason),
                 policy_id=p.get("policy_id", cur.policy_id))

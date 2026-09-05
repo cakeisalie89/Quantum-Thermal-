@@ -18,7 +18,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from qta_agent.agents import (  # noqa: E402
-    ACT_MESSAGE, BOOTSTRAP, AgentDirectory, AgentError, AgentRole,
+    ACT_ESCALATION_ANSWER, ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
+    AgentError, AgentRole,
     ConflictError, ConflictRule, EscalationError, EscalationState,
     IdentityError, INCOMPATIBLE, MessageError, PrincipalKind,
     check_separation, identity, identity_from_record,
@@ -518,3 +519,263 @@ def test_a_rule_missing_its_parameter_is_refused_even_when_claims_agree(dir_):
     with pytest.raises(ConflictError, match="int >= 2"):
         dir_.resolve(task_id="t1", subject="result",
                      rule=ConflictRule.REQUIRE_QUORUM, quorum=1)
+
+
+# --- §29/§31: the replay must not let an event pick its own authority -------
+
+def test_an_agent_cannot_answer_its_own_escalation_by_appending_one_line(
+        tmp_path):
+    """THE human gate, on the replay side.
+
+    "No arrangement of roles substitutes for a person" is the strongest claim
+    this module makes, and every check enforcing it lived on the WRITE path.
+    The reducer assigned the record's own fields, so one appended line let an
+    agent answer its own escalation -- HUMAN-principal check and
+    not-the-asker check both bypassed, with the projection reporting a
+    decision no person made.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="bot", instance_id="bot",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+
+    log.append(actor="bot", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "bot",
+                        "reason": "I approve of myself"})
+    with pytest.raises(EscalationError, match="may not answer|raised"):
+        AgentDirectory(log).load()
+
+
+def test_a_non_human_principal_cannot_answer_on_replay(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    for name in ("bot", "other-bot"):
+        d.register(identity(agent_id=name, instance_id=name,
+                            kind=PrincipalKind.AGENT,
+                            roles={AgentRole.REVIEWER}), by="system")
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    log.append(actor="other-bot", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "other-bot",
+                        "reason": "holding REVIEWER"})
+    with pytest.raises(EscalationError, match="AGENT principal"):
+        AgentDirectory(log).load()
+
+
+def test_an_answer_not_among_the_options_is_refused_on_replay(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="bot", instance_id="bot",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    d.register(identity(agent_id="person", instance_id="person",
+                        kind=PrincipalKind.HUMAN,
+                        roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    log.append(actor="person", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "maybe", "answered_by": "person",
+                        "reason": "hedging"})
+    with pytest.raises(EscalationError, match="not one of"):
+        AgentDirectory(log).load()
+
+
+def test_an_answered_escalation_cannot_be_answered_again_on_replay(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="bot", instance_id="bot",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    for who in ("person", "person2"):
+        d.register(identity(agent_id=who, instance_id=who,
+                            kind=PrincipalKind.HUMAN,
+                            roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    d.answer(escalation_id="e1", answered_by="person", answer="no",
+             reason="not yet")
+    log.append(actor="person2", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "person2",
+                        "reason": "overruling"})
+    with pytest.raises(EscalationError, match="already recorded"):
+        AgentDirectory(log).load()
+
+
+def test_a_legitimate_answer_and_withdrawal_still_replay(tmp_path):
+    """The guards must name real conditions, not refuse the ordinary path."""
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="bot", instance_id="bot",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    d.register(identity(agent_id="person", instance_id="person",
+                        kind=PrincipalKind.HUMAN,
+                        roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    d.answer(escalation_id="e1", answered_by="person", answer="yes",
+             reason="checked")
+    d.escalate(escalation_id="e2", task_id="t2", question="again?",
+               raised_by="bot", options=("yes", "no"))
+    d.withdraw(escalation_id="e2", by="bot", reason="no longer needed")
+
+    fresh = AgentDirectory(log).load()
+    assert fresh.escalation("e1").state.value == "ANSWERED"
+    assert fresh.escalation("e1").answered_by == "person"
+    assert fresh.escalation("e2").state.value == "WITHDRAWN"
+
+
+# --- isolating the write path from the replay it now shares rules with ------
+#
+# Adding replay-side checks made several write-path mutations survive: the
+# write path calls apply() on the event it just appended, so a deleted
+# write-path check is caught by the replay one. They are NOT redundant. The
+# write path refuses BEFORE the append, so the forged decision never becomes
+# a permanent, hash-chained fact. The replay path refuses records that were
+# never offered to the write path at all. Each test below provokes one with
+# the other unable to fire.
+
+def _human_world(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="alice", instance_id="alice",
+                        kind=PrincipalKind.HUMAN,
+                        roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    d.register(identity(agent_id="bob", instance_id="bob",
+                        kind=PrincipalKind.HUMAN,
+                        roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    d.register(identity(agent_id="bot", instance_id="bot",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    return log, d
+
+
+def _escalation_events(log):
+    return [e for e in log.read() if e.action == ACT_ESCALATION_ANSWER]
+
+
+def test_a_refused_answer_never_reaches_the_log(tmp_path):
+    """The write path's job: refuse BEFORE the append.
+
+    The replay checks would catch each of these too, but only after the
+    record existed -- and a forged decision that is a permanent hash-chained
+    fact is a different thing from one that was never written. This is the
+    same reasoning the evidence store uses for citations.
+    """
+    log, d = _human_world(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    before = len(list(log.read()))
+
+    with pytest.raises(EscalationError):          # an AGENT may not answer
+        d.answer(escalation_id="e1", answered_by="bot", answer="yes",
+                 reason="self")
+    with pytest.raises(EscalationError):          # not among the options
+        d.answer(escalation_id="e1", answered_by="alice", answer="maybe",
+                 reason="hedging")
+    with pytest.raises(EscalationError):          # not the asker
+        d.withdraw(escalation_id="e1", by="alice", reason="not mine")
+
+    assert len(list(log.read())) == before, (
+        "a refused decision was appended to the log; the write path must "
+        "refuse before the record exists, not rely on the replay noticing "
+        "afterwards")
+    assert _escalation_events(log) == []
+
+
+def test_answering_twice_is_refused_before_the_second_record_exists(tmp_path):
+    log, d = _human_world(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    d.answer(escalation_id="e1", answered_by="alice", answer="no",
+             reason="not yet")
+    after_first = len(list(log.read()))
+
+    with pytest.raises(EscalationError, match="already recorded|ANSWERED"):
+        d.answer(escalation_id="e1", answered_by="bob", answer="yes",
+                 reason="overruling")
+    assert len(list(log.read())) == after_first, (
+        "a second decision was recorded over the first")
+
+
+def test_a_human_cannot_answer_their_own_escalation_on_replay(tmp_path):
+    """A32, isolated: the asker is a HUMAN, so only the asker-check can fire.
+
+    The earlier version of this test used an agent as the asker, and the
+    HUMAN-principal check refused it first -- so the not-the-asker rule was
+    never the thing under test.
+    """
+    log, d = _human_world(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="alice", options=("yes", "no"))
+    log.append(actor="alice", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "alice",
+                        "reason": "answering myself"})
+    with pytest.raises(EscalationError, match="may not also answer"):
+        AgentDirectory(log).load()
+
+
+def test_a_third_party_cannot_withdraw_an_escalation_on_replay(tmp_path):
+    """A35, isolated by appending directly.
+
+    Withdrawal is the asker saying they no longer need the decision. A third
+    party doing it makes a question a human was going to answer simply
+    disappear, and no answer is ever recorded.
+    """
+    log, d = _human_world(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    log.append(actor="alice", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "WITHDRAWN",
+                        "reason": "making it go away"})
+    with pytest.raises(EscalationError, match="may not withdraw"):
+        AgentDirectory(log).load()
+
+
+def test_a_non_human_that_is_not_the_asker_still_cannot_answer(tmp_path):
+    """A9, isolated. My first attempt at this masked it.
+
+    That test had ONE actor answering -- an agent which was also the asker --
+    so the not-the-asker rule refused it and the HUMAN-principal rule was
+    never the thing under test. Here a DIFFERENT agent answers, so only the
+    kind check can refuse: holding a role does not change what kind of thing
+    is deciding.
+    """
+    log, d = _human_world(tmp_path)
+    d.register(identity(agent_id="bot2", instance_id="bot2",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.REVIEWER}), by="system")
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    before = len(list(log.read()))
+
+    with pytest.raises(EscalationError, match="AGENT principal"):
+        d.answer(escalation_id="e1", answered_by="bot2", answer="yes",
+                 reason="I hold REVIEWER")
+    assert len(list(log.read())) == before, (
+        "the refusal happened only after the record was appended")
+
+
+def test_a_human_asker_cannot_answer_through_the_write_path(tmp_path):
+    """A11, isolated. The asker is HUMAN, so the kind check cannot refuse.
+
+    The replay-side twin of this appends the record directly; this one goes
+    through answer(), so it provokes the write-path rule specifically.
+    """
+    log, d = _human_world(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="alice", options=("yes", "no"))
+    before = len(list(log.read()))
+
+    with pytest.raises(EscalationError, match="may not also answer"):
+        d.answer(escalation_id="e1", answered_by="alice", answer="yes",
+                 reason="answering myself")
+    assert len(list(log.read())) == before

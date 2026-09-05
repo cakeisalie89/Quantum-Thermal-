@@ -284,7 +284,7 @@
    "production_caller": "qta_agent/governed_stage10.py",
    "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
    "authority_owner": "AgentDirectory.require and check_separation",
-   "evidence": "each identity has a content digest over agent id, instance id, kind and roles; the governed run requires registered worker and verifier identities and runs check_separation between them",
+   "evidence": "each identity has a content digest over agent id, instance id, kind and roles; the governed run requires registered worker and verifier identities and runs check_separation between them; replay re-authorizes every transition from the state IT reached, so presence in the log is never authority",
    "provenance": "who registered whom, and for a HUMAN principal the chain back to the out-of-band bootstrap",
    "failure_semantics": "fail-closed: an unregistered instance did not participate; an unregistered prior role-holder is treated as the SAME party rather than a different one",
    "recovery": "the directory reloads from the log; a duplicate registration, a duplicate escalation or a redelivery that changes a body each refuse the load",
@@ -675,7 +675,7 @@
    "idempotency": "one write per memory_id; a second is refused rather than replacing the first",
    "cancellation": "retraction by the author only; the text stays in the log and the status changes",
    "concurrency": "n/a",
-   "security_boundary": "structural: a memory digest never enters the evidence store so it cannot satisfy I6, and no module in the authority path may import this one -- enforced by the layering test",
+   "security_boundary": "structural: a memory digest never enters the evidence store so it cannot satisfy I6, and no module in the authority path may import this one -- enforced by the layering test; a status a replay would refuse does not become state: the status machine and the authorship rule are enforced on REPLAY as well as on the write path",
    "tests": [
     "tests/test_agent_memory.py"
    ],
@@ -715,7 +715,7 @@
    "idempotency": "message_id",
    "cancellation": "messages for a superseded task are refused and reported, without stopping delivery of the ones behind them",
    "concurrency": "ordering is the log's; a retired recipient's messages are not delivered to a successor",
-   "security_boundary": "an instance cannot act under another's identity, cannot claim in a role it does not hold, and cannot manufacture a quorum by repeating itself",
+   "security_boundary": "an instance cannot act under another's identity, cannot claim in a role it does not hold, and cannot manufacture a quorum by repeating itself; the human gate is enforced on replay: an appended agent.escalation.answer cannot record a decision no person made, by a non-human principal, by the asker, outside the offered options, or over one already recorded",
    "tests": [
     "tests/test_agent_agents.py"
    ],

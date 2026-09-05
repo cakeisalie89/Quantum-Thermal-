@@ -799,3 +799,100 @@ def test_missing_policy_id_evidence_is_reported_as_missing():
     with pytest.raises(TransitionError,
                        match=r"I6: .* requires evidence \['policy_id'\]"):
         check(req)
+
+
+def test_the_live_store_refuses_a_forged_transition_not_only_reconstruct(
+        tmp_path):
+    """THE §29 anti-pattern, in the reducer that decides what is canonical.
+
+    ``test_an_unauthorized_transition_in_the_log_is_not_applied`` asserts
+    that ``reconstruct`` refuses a forged record, and it always passed. The
+    LIVE store applied the same record without checking anything: not the
+    edge, not the role, not separation of duties, not even the ``src`` it
+    wrote into the payload itself.
+
+    One appended line therefore moved a record from UNDER_REVIEW straight to
+    PROMOTED -- the state carrying canonical authority, reachable only from
+    VERIFIED by I1 -- and ``store.canonical()`` reported it.
+
+    A second reader is a DETECTOR. It is not a substitute for the first
+    reader being right, and asking only the detector is how this survived.
+    """
+    log = EventLog(tmp_path / "ev.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+
+    log.append(actor="mallory", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": State.VERIFIED.value,
+                        "dst": State.PROMOTED.value,
+                        "role": Role.PROMOTER.value,
+                        "evidence": {}, "policy_id": "p1"})
+
+    with pytest.raises(StoreError, match="moves it from"):
+        AuthorityStore(log).load()
+
+
+def test_the_live_store_refuses_an_edge_the_machine_does_not_have(tmp_path):
+    """Stated as the property: replay re-authorizes, it does not just apply.
+
+    Here the declared src AGREES with the replay, so the src check cannot be
+    what refuses it. The edge itself is the thing that does not exist.
+    """
+    log = EventLog(tmp_path / "ev.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+
+    # PROPOSED -> PROMOTED: no such edge (I1).
+    log.append(actor="mallory", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": State.PROPOSED.value,
+                        "dst": State.PROMOTED.value,
+                        "role": Role.PROMOTER.value,
+                        "evidence": {}, "policy_id": "p1"})
+    with pytest.raises(StoreError, match="would be refused today"):
+        AuthorityStore(log).load()
+
+
+def test_the_live_store_refuses_self_verification_on_replay(tmp_path):
+    """Separation of duties survives the replay, not only the write path."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+
+    log.append(actor="alice", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": State.UNDER_REVIEW.value,
+                        "dst": State.VERIFIED.value,
+                        "role": Role.VERIFIER.value,
+                        "evidence": {"verification_report": DIG}})
+    with pytest.raises(StoreError, match="would be refused today"):
+        AuthorityStore(log).load()
+
+
+def test_replay_does_not_require_evidence_that_has_since_been_archived(
+        tmp_path):
+    """The refusal must be the state machine, not a resolver.
+
+    A replay verifying historical transitions may legitimately run against a
+    store that no longer holds long-expired evidence. Forcing resolution here
+    would turn an archival policy into a retroactive authority failure, so
+    the re-authorization deliberately passes no resolver.
+    """
+    from qta_agent.evidence import EvidenceStore
+
+    ev = EvidenceStore(tmp_path / "blobs")
+    report = ev.put(b"verification report")
+    log = EventLog(tmp_path / "ev.jsonl")
+    s = AuthorityStore(log, evidence=ev).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+    s.transition(record_id="r1", dst=State.UNDER_REVIEW, actor="bob",
+                 role=Role.VERIFIER)
+    s.transition(record_id="r1", dst=State.VERIFIED, actor="bob",
+                 role=Role.VERIFIER, evidence={"verification_report": report})
+
+    # The evidence is archived away; the history must still replay.
+    ev._blob_path(report).unlink()
+    reloaded = AuthorityStore(log, evidence=ev).load()
+    assert reloaded.get("r1").state is State.VERIFIED

@@ -80,6 +80,25 @@ class MemoryStatus(str, Enum):
 NOT_CURRENT = frozenset({MemoryStatus.STALE, MemoryStatus.SUPERSEDED,
                          MemoryStatus.RETRACTED})
 
+#: Where a status may move to. Enforced on REPLAY as well as on the write
+#: path, because a reducer that just assigns whatever a record says lets one
+#: appended line rewrite history.
+#:
+#: Nothing leads back to ACTIVE. That is the point rather than an omission: a
+#: note goes stale because a source it rested on was invalidated, and if that
+#: source becomes trustworthy again the honest record is a NEW entry, not a
+#: quiet reinstatement of the old one. RETRACTED is terminal for the same
+#: reason -- an author withdrew a statement, and un-withdrawing it by fiat
+#: would leave the log saying it was never withdrawn.
+STATUS_EDGES: dict = {
+    MemoryStatus.ACTIVE: frozenset({
+        MemoryStatus.STALE, MemoryStatus.SUPERSEDED, MemoryStatus.RETRACTED}),
+    MemoryStatus.STALE: frozenset({
+        MemoryStatus.SUPERSEDED, MemoryStatus.RETRACTED}),
+    MemoryStatus.SUPERSEDED: frozenset({MemoryStatus.RETRACTED}),
+    MemoryStatus.RETRACTED: frozenset(),
+}
+
 
 @dataclass(frozen=True)
 class MemoryEntry:
@@ -206,8 +225,28 @@ class MemoryStore:
         elif ev.action == ACT_MEMORY_STATUS:
             mid = p["memory_id"]
             cur = self._entries[mid]
+            # RE-AUTHORIZE ON REPLAY. This used to assign whatever the record
+            # said, so one appended line moved a RETRACTED note back to
+            # ACTIVE -- a statement its author had withdrawn, presented as
+            # current again, in a store that feeds the agent's context.
+            dst = MemoryStatus(p["status"])
+            allowed = STATUS_EDGES.get(cur.status, frozenset())
+            if dst is not cur.status and dst not in allowed:
+                raise MemoryError_(
+                    f"seq {ev.seq}: {mid!r} is {cur.status.value} and may not "
+                    f"move to {dst.value}. Permitted: "
+                    f"{sorted(x.value for x in allowed) or 'nothing'}. "
+                    "A status a replay would refuse today does not become "
+                    "state by being present in the log.")
+            if dst is MemoryStatus.RETRACTED and ev.actor != cur.author:
+                # The same rule the write path applies. Withdrawing someone
+                # else's statement is a different act, and a replay that let
+                # it through would make the write-path check advisory.
+                raise MemoryError_(
+                    f"seq {ev.seq}: {mid!r} was written by {cur.author!r}; "
+                    f"{ev.actor!r} may not retract it.")
             self._entries[mid] = replace(
-                cur, status=MemoryStatus(p["status"]),
+                cur, status=dst,
                 status_reason=p.get("reason", ""),
                 superseded_by=p.get("superseded_by", cur.superseded_by),
                 updated_seq=ev.seq)

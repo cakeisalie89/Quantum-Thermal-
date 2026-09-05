@@ -218,6 +218,27 @@
    "find": "    report = log.verify()\n    report.raise_if_bad()\n    out = TaskReconstruction(",
    "replace": "    report = log.verify()\n    out = TaskReconstruction(",
    "rationale": "a second opinion about a document that may have been rewritten is not a second opinion; the differential would then compare two readings of tampered bytes"
+  },
+  {
+   "name": "M31_store_replay_trusts_the_records_src",
+   "path": "qta_agent/store.py",
+   "find": "            if claimed is not None and claimed != cur.state.value:",
+   "replace": "            if False:",
+   "rationale": "a forged record.transition picks the state it is validated against, so every edge in the table becomes reachable from wherever the record was actually sitting"
+  },
+  {
+   "name": "M32_store_replay_does_not_reauthorize",
+   "path": "qta_agent/store.py",
+   "find": "                check(TransitionRequest(\n                    record_id=rid, src=cur.state, dst=State(p[\"dst\"]),",
+   "replace": "                _unused = (TransitionRequest(\n                    record_id=rid, src=cur.state, dst=State(p[\"dst\"]),",
+   "rationale": "THE DEFECT: presence in the log becomes authority. One appended line moved a record from UNDER_REVIEW to PROMOTED -- the state carrying canonical authority, reachable only from VERIFIED by I1"
+  },
+  {
+   "name": "M33_store_replay_resolves_archived_evidence",
+   "path": "qta_agent/store.py",
+   "find": "                    policy_id=p.get(\"policy_id\") or cur.policy_id))",
+   "replace": "                    policy_id=p.get(\"policy_id\") or cur.policy_id),\n                    resolve=self._resolver)",
+   "rationale": "replaying a historical transition whose evidence has since been archived becomes a retroactive authority failure, turning an archival policy into corruption"
   }
  ]
 }

@@ -23,7 +23,8 @@ from qta_agent.canonical import digest  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.memory import (  # noqa: E402
-    ACT_MEMORY_WRITE, MAX_ENTRY_BYTES, MemoryEntry, MemoryError_,
+    ACT_MEMORY_STATUS, ACT_MEMORY_WRITE, MAX_ENTRY_BYTES,
+    MemoryEntry, MemoryError_,
     MemoryIsNotEvidence, MemoryStatus, MemoryStore, UnknownMemory,
     entry_from_record, refuse_as_evidence,
 )
@@ -305,3 +306,92 @@ def test_apply_ignores_foreign_actions(mem):
     ev = mem.log.append(actor="x", action="task.create", target="t",
                         payload={})
     assert mem.apply(ev) is False
+
+
+# --- §29: a status a replay would refuse does not become state --------------
+
+def test_a_retracted_note_cannot_be_un_retracted_by_appending_one_line(
+        tmp_path):
+    """Retraction is a withdrawal, and withdrawals are not undone by fiat.
+
+    The reducer used to assign whatever status a record named, so one line
+    moved a RETRACTED note back to ACTIVE -- a statement its author had
+    withdrawn, presented as current again, in a store that feeds context.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    ev = EvidenceStore(tmp_path / "e")
+    m = MemoryStore(log, evidence=ev).load()
+    m.remember(memory_id="m1", text="a note", author="a")
+    m.retract("m1", actor="a", reason="withdrawn")
+
+    log.append(actor="mallory", action=ACT_MEMORY_STATUS, target="m1",
+               payload={"memory_id": "m1", "status": "ACTIVE",
+                        "reason": "forged un-retraction"})
+    with pytest.raises(MemoryError_, match="may not move to ACTIVE"):
+        MemoryStore(log, evidence=ev).load()
+
+
+def test_nothing_ever_moves_back_to_active(tmp_path):
+    """Not an omission: a re-validated source produces a NEW entry.
+
+    Reinstating the old one would leave the log saying it was never stale.
+    """
+    from qta_agent.memory import STATUS_EDGES, MemoryStatus
+
+    for src, dsts in STATUS_EDGES.items():
+        assert MemoryStatus.ACTIVE not in dsts, (
+            f"{src.value} may move to ACTIVE, so a note can be quietly "
+            "reinstated instead of a new one being written")
+    assert STATUS_EDGES[MemoryStatus.RETRACTED] == frozenset(), (
+        "RETRACTED must be terminal")
+
+
+def test_only_the_author_may_retract_on_replay_too(tmp_path):
+    """The write path checks this; a reducer that did not made it advisory."""
+    log = EventLog(tmp_path / "log.jsonl")
+    ev = EvidenceStore(tmp_path / "e")
+    m = MemoryStore(log, evidence=ev).load()
+    m.remember(memory_id="m1", text="a note", author="alice")
+
+    log.append(actor="mallory", action=ACT_MEMORY_STATUS, target="m1",
+               payload={"memory_id": "m1", "status": "RETRACTED",
+                        "reason": "withdrawing someone else's statement"})
+    with pytest.raises(MemoryError_, match="may not retract"):
+        MemoryStore(log, evidence=ev).load()
+
+
+def test_the_ordinary_status_moves_still_replay(tmp_path):
+    """The guard must name a real condition, not refuse the normal path."""
+    log = EventLog(tmp_path / "log.jsonl")
+    ev = EvidenceStore(tmp_path / "e")
+    m = MemoryStore(log, evidence=ev).load()
+    m.remember(memory_id="m1", text="first", author="a")
+    m.remember(memory_id="m2", text="second", author="a")
+    m.supersede(old_id="m1", new_id="m2", actor="a", reason="replaced")
+    m.retract("m2", actor="a", reason="withdrawn")
+
+    fresh = MemoryStore(log, evidence=ev).load()
+    assert fresh.get("m1").status.value == "SUPERSEDED"
+    assert fresh.get("m2").status.value == "RETRACTED"
+
+
+def test_a_refused_retraction_never_reaches_the_log(tmp_path):
+    """Y3, isolated from the replay check that now also catches it.
+
+    Both refuse someone withdrawing another author's statement. They are not
+    redundant: the write path refuses BEFORE the append, so the attempt never
+    becomes a permanent hash-chained record claiming it happened.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    ev = EvidenceStore(tmp_path / "e")
+    m = MemoryStore(log, evidence=ev).load()
+    m.remember(memory_id="m1", text="a note", author="alice")
+    before = len(list(log.read()))
+
+    with pytest.raises(MemoryError_, match="may not retract"):
+        m.retract("m1", actor="mallory", reason="not mine to withdraw")
+
+    assert len(list(log.read())) == before, (
+        "a refused retraction was appended; the write path must refuse "
+        "before the record exists")
+    assert m.get("m1").status is MemoryStatus.ACTIVE

@@ -121,23 +121,23 @@ in turn, and the suite must fail:
 | Matrix | Spec | Mutations | Last measured |
 |---|---|---:|---|
 | Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused | `tools/mutations/agent_actions.json` | 6 | re-run here |
-| Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 30 | CI |
+| Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 35 | re-run here |
 | Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 21 | re-run here |
 | Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | re-run here |
 | Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | re-run here |
 | Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 42 | re-run here |
-| Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 25 | CI |
+| Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 28 | re-run here |
 | Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 35 | re-run here |
 | Governed reads: confinement at the open, and who may perform one | `tools/mutations/agent_readpath.json` | 21 | re-run here |
 | Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 14 | CI |
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
 | Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
-| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 30 | re-run here |
+| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 33 | re-run here |
 | Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 25 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**390 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**401 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -159,6 +159,48 @@ tell damage from an uncommitted edit and it destroyed real work twice before
 that copy existed.
 
 A surviving mutation means a check is unprotected — not that it is redundant.
+
+### One anti-pattern, found in four reducers
+
+The hostile campaign found that the task replay re-authorized a forged record
+against the starting state the RECORD declared. The fix was local; the lesson
+was not. An event may state what it claims occurred — the replay must decide
+what state actually existed immediately before it, and never let the event
+choose the authority context it is judged against.
+
+Auditing every reducer for the same shape found three more, two of them worse
+than the original:
+
+- **The authority store checked nothing at all.** Not the edge, not the role,
+  not separation of duties, not even the `src` it wrote into its own payload.
+  One appended line moved a record from `UNDER_REVIEW` straight to `PROMOTED`
+  — the state carrying canonical authority, reachable only from `VERIFIED` by
+  I1 — and `store.canonical()` reported it. `reconstruct.py` refused the same
+  log correctly, and that is exactly what hid it: the test asserting "an
+  unauthorized transition in the log is not applied" asked the *independent*
+  reader, while the live projection every caller consults applied it. A second
+  reader is a detector, not a substitute for the first reader being right.
+
+- **An agent could answer its own escalation.** "No arrangement of roles
+  substitutes for a person" is the strongest claim the multi-agent layer
+  makes, and every check enforcing it lived on the write path. The reducer
+  assigned the record's own fields, so one appended line recorded a decision
+  no human made, by the party that raised the question.
+
+- **A retracted memory note could be un-retracted.** A statement its author
+  had withdrawn, presented as current again, in the store that feeds context.
+
+`scheduler.apply` and `reconstruct` already did it correctly, which is where
+the corrected shape came from rather than being invented.
+
+**A note on what defence-in-depth costs.** Adding the replay checks made seven
+write-path mutations survive — the two layers now catch each other. They are
+not redundant: the write path refuses *before* the append, so a forged
+decision never becomes a permanent hash-chained fact, while the replay path
+refuses records that were never offered to the write path at all. Each now has
+a test that provokes it with the other unable to fire, and two of those tests
+were themselves wrong on the first attempt: they used one actor that was both
+an agent and the asker, so the two rules masked each other again.
 
 ### Reads had the write side's old defect, and kept it longer
 

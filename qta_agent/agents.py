@@ -463,10 +463,65 @@ class AgentDirectory:
                 esc, raised_seq=ev.seq)
         elif ev.action == ACT_ESCALATION_ANSWER:
             eid = p["escalation_id"]
-            cur = self._escalations[eid]
+            # RE-AUTHORIZE ON REPLAY. This used to assign the record's own
+            # fields, so one appended line let an AGENT answer its own
+            # escalation: the HUMAN-principal check and the not-the-asker
+            # check both live on the write path, and a reducer that trusts
+            # the payload makes both advisory.
+            #
+            # "No arrangement of roles substitutes for a person" is the
+            # strongest claim this module makes. It cannot rest on a field
+            # the answering party writes.
+            cur = self._escalations.get(eid)
+            if cur is None:
+                raise EscalationError(
+                    f"seq {ev.seq}: answer for escalation {eid!r}, which "
+                    "this history never opened")
+            if cur.state is not EscalationState.OPEN:
+                raise EscalationError(
+                    f"seq {ev.seq}: escalation {eid!r} is "
+                    f"{cur.state.value}; answering it again would rewrite a "
+                    "decision that was already recorded")
+            dst = EscalationState(p["state"])
+            if dst is EscalationState.WITHDRAWN:
+                # A withdrawal is a different act from an answer: the ASKER
+                # says they no longer need the decision, and no human is
+                # claimed to have made one. Only the asker may do it.
+                if ev.actor != cur.raised_by:
+                    raise EscalationError(
+                        f"seq {ev.seq}: escalation {eid!r} was raised by "
+                        f"{cur.raised_by!r}; {ev.actor!r} may not withdraw "
+                        "it")
+                self._escalations[eid] = replace(
+                    cur, state=dst, answer_reason=p.get("reason", ""),
+                    answered_seq=ev.seq)
+                self._at_seq = ev.seq
+                return True
+            answered_by = p.get("answered_by")
+            ident = self._identities.get(answered_by)
+            if ident is None:
+                raise EscalationError(
+                    f"seq {ev.seq}: {answered_by!r} answered escalation "
+                    f"{eid!r} and is not a registered principal")
+            if ident.kind is not PrincipalKind.HUMAN:
+                raise EscalationError(
+                    f"seq {ev.seq}: {answered_by!r} is a "
+                    f"{ident.kind.value} principal and may not answer an "
+                    "escalation. An escalation exists because the decision "
+                    "was not the agent's to make; holding a role does not "
+                    "change what kind of thing is deciding.")
+            if answered_by == cur.raised_by:
+                raise EscalationError(
+                    f"seq {ev.seq}: {answered_by!r} raised escalation "
+                    f"{eid!r} and may not also answer it")
+            if p.get("answer") not in cur.options:
+                raise EscalationError(
+                    f"seq {ev.seq}: answer {p.get('answer')!r} is not one of "
+                    f"{list(cur.options)}; an answer that cannot be checked "
+                    "against what was asked is a note, not a decision")
             self._escalations[eid] = replace(
                 cur, state=EscalationState(p["state"]),
-                answer=p.get("answer"), answered_by=p.get("answered_by"),
+                answer=p.get("answer"), answered_by=answered_by,
                 answer_reason=p.get("reason", ""), answered_seq=ev.seq)
         else:
             return False
