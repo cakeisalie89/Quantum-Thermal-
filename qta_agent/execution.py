@@ -74,7 +74,20 @@ TERMINATE_GRACE_S = 5.0
 DEFAULT_MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 DEFAULT_MAX_ADDRESS_SPACE_BYTES = 2 * 1024 * 1024 * 1024
 DEFAULT_MAX_CPU_SECONDS = 120
-DEFAULT_MAX_PROCESSES = 64
+#: ADDITIONAL tasks the tool may create, over what the user already has.
+#:
+#: Not an absolute cap, because RLIMIT_NPROC cannot express one. It is a
+#: PER-UID limit and on Linux it counts threads as well as processes, so an
+#: absolute value means "this tool may run only if the machine happens to be
+#: quiet" -- which is not a limit, it is a coin flip. It cost a hosted failure
+#: to learn: at an absolute 64, OpenBLAS could not create its worker threads
+#: on a runner whose user already held most of that budget, numpy's import
+#: died, and the governed run reported SIGINT with no obvious cause.
+#:
+#: Bounding a process TREE is what cgroups are for. This is the honest
+#: approximation available to a process that does not own a cgroup: measure
+#: what the user is using and allow this much more.
+DEFAULT_MAX_ADDITIONAL_TASKS = 512
 
 
 class ExecutionError(Exception):
@@ -110,14 +123,17 @@ class Limits:
     cpu_seconds: int = DEFAULT_MAX_CPU_SECONDS
     address_space_bytes: int = DEFAULT_MAX_ADDRESS_SPACE_BYTES
     output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES
-    processes: int = DEFAULT_MAX_PROCESSES
+    #: Additional tasks (processes AND threads) over current usage. See
+    #: DEFAULT_MAX_ADDITIONAL_TASKS for why this cannot be absolute.
+    additional_tasks: int = DEFAULT_MAX_ADDITIONAL_TASKS
 
     def to_record(self) -> dict:
         return {"wall_seconds": self.wall_seconds,
                 "cpu_seconds": self.cpu_seconds,
                 "address_space_bytes": self.address_space_bytes,
                 "output_bytes": self.output_bytes,
-                "processes": self.processes}
+                "additional_tasks": self.additional_tasks,
+                "nproc_baseline": count_user_tasks()}
 
 
 @dataclass
@@ -207,6 +223,31 @@ class ExecutionResult:
         }
 
 
+def count_user_tasks() -> int:
+    """Processes owned by this real UID, as a floor on RLIMIT_NPROC usage.
+
+    A floor rather than a count: RLIMIT_NPROC counts THREADS, and totalling
+    every process's thread count would mean reading /proc/<pid>/status for
+    each one on every spawn. The headroom above is sized so the difference
+    does not matter, and being wrong in this direction only makes the limit
+    more generous -- never falsely tight, which is the failure that matters.
+    """
+    uid = os.getuid()
+    count = 0
+    try:
+        for entry in os.scandir("/proc"):
+            if not entry.name.isdigit():
+                continue
+            try:
+                if entry.stat().st_uid == uid:
+                    count += 1
+            except OSError:
+                continue                       # exited between scan and stat
+    except OSError:                            # pragma: no cover - platform
+        return 0
+    return count
+
+
 def _apply_limits(limits: Limits):
     """Return a preexec_fn that puts the child in its own session and caps it.
 
@@ -215,6 +256,10 @@ def _apply_limits(limits: Limits):
     the child leaves its children running, and an orphaned grandchild holding
     the output file is exactly the leak that makes timeouts unreliable.
     """
+    # Measured in the PARENT: /proc cannot be scanned between fork and exec
+    # without allocating, and preexec_fn must not allocate.
+    nproc = count_user_tasks() + limits.additional_tasks
+
     def _preexec() -> None:                       # pragma: no cover - in child
         os.setsid()
         resource.setrlimit(resource.RLIMIT_CPU,
@@ -224,8 +269,7 @@ def _apply_limits(limits: Limits):
                             limits.address_space_bytes))
         resource.setrlimit(resource.RLIMIT_FSIZE,
                            (limits.output_bytes, limits.output_bytes))
-        resource.setrlimit(resource.RLIMIT_NPROC,
-                           (limits.processes, limits.processes))
+        resource.setrlimit(resource.RLIMIT_NPROC, (nproc, nproc))
         # No core dumps: a crash inside a sandboxed tool must not write a
         # multi-gigabyte image into a workspace that is size-governed.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))

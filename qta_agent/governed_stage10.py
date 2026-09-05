@@ -250,7 +250,16 @@ class GovernedStage10:
             limits=Limits(wall_seconds=spec.timeout_s),
             env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
                  "PYTHONPATH": str(self.root),
-                 "PYTHONHASHSEED": "0"})
+                 "PYTHONHASHSEED": "0",
+                 # Pinned for determinism AND for thread budget. A governed
+                 # tool importing numpy pulls in OpenBLAS, which spawns a
+                 # worker per core; the count varies by machine, so leaving it
+                 # unset makes both the task budget and any threaded numerical
+                 # result environment-dependent.
+                 "OPENBLAS_NUM_THREADS": "1",
+                 "OMP_NUM_THREADS": "1",
+                 "MKL_NUM_THREADS": "1",
+                 "NUMEXPR_NUM_THREADS": "1"})
 
         result_digest = digest(result.to_record())
         self.log.append(actor=worker, action=ACT_EXECUTION, target=task_id,

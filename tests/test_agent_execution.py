@@ -517,3 +517,67 @@ def test_the_executor_never_signals_its_own_process_group(env, tmp_path):
             child.wait()
     # Reaching this line at all is the assertion: killpg would have killed us.
     assert True
+
+
+def test_the_task_limit_is_relative_to_what_the_user_already_uses(env):
+    """RLIMIT_NPROC is per-UID and counts threads, so it cannot be absolute.
+
+    A hosted run proved this the expensive way: at an absolute 64, OpenBLAS
+    could not create its worker threads on a runner whose user already held
+    most of that budget, numpy's import died mid-way, and the governed run
+    reported SIGINT with no obvious cause. The limit now means "this much MORE
+    than the user is already using".
+    """
+    from qta_agent.execution import count_user_tasks
+
+    baseline = count_user_tasks()
+    assert baseline > 0, "this process is owned by someone"
+    rec = Limits().to_record()
+    assert rec["additional_tasks"] >= 64
+    assert rec["nproc_baseline"] >= 1
+    assert "processes" not in rec, (
+        "the absolute name is gone; it described a limit that could not exist")
+
+
+def test_a_tool_that_imports_a_threaded_numerical_stack_still_runs(env):
+    """The regression test for the hosted failure, as close as it gets here.
+
+    This sandbox runs as a user with few processes, so the ABSOLUTE limit
+    happened to work here and failed on the runner -- which is exactly why
+    this test asserts the import succeeds under DEFAULT limits rather than
+    asserting a number. If the budget is ever made absolute again, a busy
+    machine breaks it and this is the test that has a chance of noticing.
+    """
+    r = _run(env, [PY, "-c",
+                   "import numpy; print(numpy.__version__)"],
+             limits=Limits(wall_seconds=60.0))
+    assert r.outcome is Outcome.COMPLETED, (
+        f"numpy could not import under the default task budget: "
+        f"{r.reason}\n{r.stderr_excerpt}")
+    assert r.stdout_bytes > 0
+
+
+def test_a_failure_carries_an_excerpt_a_human_can_act_on(env):
+    """A digest is not a diagnosis.
+
+    Excerpts are deliberately absent from to_record(), so they never enter the
+    log or the result digest: the digests are the provenance, and a tool's raw
+    output does not belong in a hash-chained record where anything it happened
+    to print becomes permanent.
+    """
+    r = _run(env, [PY, "-c",
+                   "import sys; sys.stderr.write('the reason it failed\\n'); "
+                   "sys.exit(7)"])
+    assert r.outcome is Outcome.FAILED and r.exit_status == 7
+    assert "the reason it failed" in r.stderr_excerpt
+    assert "stderr_excerpt" not in r.to_record()
+    assert "stdout_excerpt" not in r.to_record()
+
+
+def test_a_very_large_excerpt_is_elided_in_the_middle(env):
+    """Bounded, and honest about what it dropped."""
+    r = _run(env, [PY, "-c",
+                   "import sys; sys.stderr.write('x' * 50000); sys.exit(1)"],
+             limits=Limits(wall_seconds=30.0))
+    assert len(r.stderr_excerpt) < 5000
+    assert "chars elided" in r.stderr_excerpt
