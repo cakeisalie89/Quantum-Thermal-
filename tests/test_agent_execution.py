@@ -19,7 +19,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from qta_agent.capability import (  # noqa: E402
-    NEVER_EXPIRES, Action, Capability, CapabilityDenied, CapabilityError,
+    Action, Capability, CapabilityDenied, CapabilityError,
     CapabilityExpired, CapabilityRevoked, CapabilitySet, CapabilityUnknown,
     Request, capability_from_record, digest_is_consistent, issue,
 )
