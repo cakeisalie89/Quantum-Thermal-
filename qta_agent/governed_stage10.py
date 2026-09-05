@@ -91,7 +91,7 @@ from .policy import Effect, PolicyRequest, PolicyStore, document, rule
 from .scheduler import FailureClass, Scheduler
 from .tasks import (
     Lease, Task, TaskProjection, TaskRole, TaskState, TaskTransition,
-    apply_transition, check,
+    TaskTransitionError, apply_transition, check,
 )
 from .tools import Determinism, Field_, Registry, SideEffect, ToolSpec
 
@@ -297,8 +297,37 @@ class GovernedStage10:
                 lease = None
                 if p.get("lease"):
                     lease = Lease(**p["lease"])
+                # THE SRC COMES FROM THE REPLAY, NOT FROM THE RECORD.
+                #
+                # This re-authorizes, and re-authorizing against a src the
+                # WRITER supplied authorizes nothing: every pair the table
+                # contains is available to a forger, who simply names a
+                # convenient starting state. A hostile campaign moved a task
+                # out of VERIFIED -- a sealed state -- by appending one record
+                # claiming src=EXECUTING, and the check passed because
+                # EXECUTING -> TIMED_OUT is a real edge.
+                #
+                # The existing forgery test missed it by choosing a pair that
+                # is not an edge at all, so the record was refused for a
+                # different reason and this one stayed hidden. That is the
+                # "passes for the wrong reason" shape, in the test guarding
+                # the property that matters most here.
+                #
+                # scheduler.apply and reconstruct.reconstruct both already do
+                # it this way. This projection was the odd one out, and it is
+                # the one on the production path.
+                claimed = TaskState(p["src"])
+                if task.state is not claimed:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: {task.task_id!r} is "
+                        f"{task.state.value}, but the record moves it from "
+                        f"{claimed.value}. A transition whose starting state "
+                        "the replay does not agree with was not written "
+                        "through the gate; applying it would let a forger "
+                        "pick any edge in the table by naming a convenient "
+                        "src.")
                 req = TaskTransition(
-                    task_id=p["task_id"], src=TaskState(p["src"]),
+                    task_id=p["task_id"], src=task.state,
                     dst=TaskState(p["dst"]), actor=ev.actor,
                     role=TaskRole(p["role"]), at_seq=ev.seq,
                     lease_id=(lease.lease_id if lease else p.get("lease_id")),

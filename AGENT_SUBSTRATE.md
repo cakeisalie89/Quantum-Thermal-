@@ -120,7 +120,7 @@ in turn, and the suite must fail:
 |---|---|---:|---|
 | Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused | `tools/mutations/agent_actions.json` | 6 | re-run here |
 | Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 30 | CI |
-| Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 20 | re-run here |
+| Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 21 | re-run here |
 | Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | re-run here |
 | Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | CI |
 | Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 42 | re-run here |
@@ -130,11 +130,11 @@ in turn, and the suite must fail:
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
 | Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
 | Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 24 | re-run here |
-| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 22 | re-run here |
+| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 24 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**359 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**362 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -183,6 +183,44 @@ not happened:
   now provides one deadline for the whole suite (a second copy is where two
   deadlines drift), and the two mutations fail in 6 and 31 seconds with a
   named error instead of 300 with none.
+
+### What a hostile campaign found that isolated tests could not
+
+Every subsystem here already had adversarial tests, and they all passed. What
+they could not answer is the question an operator actually has: given a
+participant that is TRYING, in one world, across a whole run, does anything
+accumulate? `tests/test_agent_hostile_campaign.py` drives one hostile agent
+through sixteen escalating attempts against a single shared log, then asks
+what the whole history shows.
+
+It found the most serious defect in this package to date.
+
+**The replay re-authorized against a starting state the WRITER supplied.**
+`projection()` says, in its own comment, that it re-authorizes so "a forged
+log entry cannot become state simply by being present". It called `check()`
+with `src` read out of the record. That authorizes nothing: every pair in the
+transition table is available to a forger who names a convenient starting
+state. One appended record claiming `EXECUTING -> TIMED_OUT` moved a task out
+of `VERIFIED` — a SEALED state, the thing the machine exists to make
+unreachable.
+
+The existing forgery test missed it by choosing `EXECUTING -> VERIFIED`, which
+is not an edge at all, so the record was refused for a reason that had nothing
+to do with the property being claimed. That is the "passes for the wrong
+reason" shape, sitting in the test guarding the property that matters most.
+
+`scheduler.apply` and `reconstruct.reconstruct` both already compare the
+claimed `src` against the state THEY replayed. The task projection was the odd
+one out, and it is the one on the production path. It now refuses a record
+whose starting state the replay disagrees with, naming the tampering rather
+than silently correcting it.
+
+**And the auditor disagreed with the enforcement path.** With the forged
+record present, `explain_task` reported the task as `TIMED_OUT` and raised no
+complaint, because it took the last `dst` it saw — while `projection()` was
+refusing the same records. An auditor that answers with the forged outcome
+tells a reader the attack worked. `explain_task` now makes the same connected-
+walk check `explain_record` already made.
 
 ### What property testing found that mutation testing could not
 

@@ -1051,7 +1051,8 @@
    "security_boundary": "none",
    "tests": [
     "tests/test_agent_audit.py",
-    "tests/test_agent_crash_recovery.py"
+    "tests/test_agent_crash_recovery.py",
+    "tests/test_agent_hostile_campaign.py"
    ],
    "property_tests": [],
    "mutation_tests": [
@@ -1410,21 +1411,25 @@
   {
    "id": "R54",
    "requirement": "Adversarial agent testing",
-   "classification": "PARTIALLY_IMPLEMENTED",
+   "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
    "implementation": [
     "qta_multiphysics/stack/workspace.py",
     "qta_multiphysics/stack/rag_index.py",
     "qta_agent/evidence.py",
     "qta_agent/capability.py",
-    "qta_agent/tasks.py"
+    "qta_agent/tasks.py",
+    "qta_agent/governed_stage10.py"
    ],
-   "callers": [],
+   "callers": [
+    "tests/test_agent_hostile_campaign.py",
+    "tests/test_agent_governed_stage10.py"
+   ],
    "production_caller": null,
    "persistent_state": "none",
    "authority_owner": "none",
-   "evidence": "none",
+   "evidence": "one hostile agent, one governed world, sixteen escalating attempts against a shared log, then questions asked of the whole history: did it obtain a VERIFIED task, a PROMOTED record, a live capability, an egress grant or a human's approval (no); does the log still verify (yes); is the attacker visible to an auditor reading only the log (yes)",
    "provenance": "none",
-   "failure_semantics": "none",
+   "failure_semantics": "every attempt is refused by an exception OR by a run that does not reach VERIFIED; the campaign counts both, because scoring only exceptions would record a refused run as a success for the attacker",
    "recovery": "none",
    "retry": "n/a",
    "idempotency": "n/a",
@@ -1432,25 +1437,23 @@
    "concurrency": "n/a",
    "security_boundary": "none",
    "tests": [
-    "tests/test_agent_authority_boundaries.py",
-    "tests/test_agent_evidence.py",
-    "tests/test_agent_execution.py",
-    "tests/test_agent_governed_stage10.py"
+    "tests/test_agent_hostile_campaign.py",
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_authority_boundaries.py"
    ],
    "property_tests": [],
    "mutation_tests": [
+    "tools/mutations/agent_tasks.json",
     "tools/mutations/stage10_authority.json",
-    "tools/mutations/agent_evidence.json",
-    "tools/mutations/agent_execution.json",
-    "tools/mutations/agent_tasks.json"
+    "tools/mutations/agent_execution.json"
    ],
    "fuzzing": "none",
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "covers fabricated evidence, forged retrieval, write escape, capability reuse across actor/task/tool/scope, revocation, expiry, a grant the log never recorded, and a memory entry that must not resolve as evidence",
-    "no single adversarial CAMPAIGN driving one hostile agent through the whole governed path; the hostile cases are per-subsystem tests rather than an end-to-end attempt",
-    "no sandbox-escape testing: the substrate mediates, it does not contain, and nothing tests what a tool that ignores mediation can do"
+    "the campaign is one shared world in one process. Nothing tests a hostile participant racing an honest one across processes, which is where the advisory lock and the optimistic-concurrency checks would be under real pressure",
+    "no sandbox-escape testing, and there cannot be while the substrate MEDIATES rather than CONTAINS: the egress guard binds this process and not the child, the write allowlist lives at the write primitive rather than in a kernel sandbox, and a subprocess that opens its own socket is not stopped",
+    "the attacker is a registered participant. A compromised SUBMITTER, WORKER and VERIFIER acting together are not modelled, and separation of duties is exactly the assumption that would not survive it"
    ],
    "blocker": null
   },

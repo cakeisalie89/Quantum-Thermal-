@@ -3,6 +3,7 @@
  "note": "The interesting mutations are A2, A3 and A7: they do not break a chain, they make an INCOMPLETE chain read as complete. A hole in provenance is indistinguishable from a fabrication nobody noticed, so an auditor that cannot see holes is worse than none -- it produces confident reassurance.  A13 and A20 are the pair that matters most: A13 hides canonical authority resting on a withdrawn input, and A20 is the real defect that made that state unfixable -- the cascade cited a digest it never stored, so it could not run at all in the only configuration where citations are checked.",
  "suites": [
   "tests/test_agent_audit.py",
+  "tests/test_agent_hostile_campaign.py",
   "tests/test_agent_substrate.py",
   "tests/test_agent_substrate_isolation.py"
  ],
@@ -59,8 +60,8 @@
   {
    "name": "A8_record_discontinuity_ignored",
    "path": "qta_agent/audit.py",
-   "find": "            if expected is not None and src != expected:",
-   "replace": "            if False:",
+   "find": "            src, dst = s.detail.get(\"src\"), s.detail.get(\"dst\")\n            if expected is not None and src != expected:",
+   "replace": "            src, dst = s.detail.get(\"src\"), s.detail.get(\"dst\")\n            if False:",
    "rationale": "a history written around AuthorityStore -- transitions that do not join up -- reads as a whole chain"
   },
   {
@@ -146,6 +147,13 @@
    "find": "    return evidence.put(canonical_bytes(body), media_type=\"application/json\")",
    "replace": "    return digest(body)",
    "rationale": "THE REGRESSION. The cascade cites a digest it never stores, so against an evidence-backed store -- the governed configuration -- invalidation cannot run at all and a record whose foundation was withdrawn can never be marked STALE"
+  },
+  {
+   "name": "A21_task_chain_discontinuity_ignored",
+   "path": "qta_agent/audit.py",
+   "find": "        for seq, src, dst in transitions:\n            if expected is not None and src != expected:",
+   "replace": "        for seq, src, dst in transitions:\n            if False:",
+   "rationale": "the audit reports the FORGED outcome with no complaint while the enforcement path refuses the same records -- an auditor telling a reader the attack worked"
   }
  ]
 }

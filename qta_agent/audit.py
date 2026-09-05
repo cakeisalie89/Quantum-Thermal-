@@ -241,6 +241,7 @@ class AuditIndex:
         steps = []
         outcome = "UNKNOWN"
         seen_actions = set()
+        transitions: list = []
         for ev in events:
             seen_actions.add(ev.action)
             p = ev.payload
@@ -258,6 +259,7 @@ class AuditIndex:
                 detail = {k: p.get(k) for k in
                           ("src", "dst", "role", "result_digest",
                            "executed_by")}
+                transitions.append((ev.seq, p.get("src"), p.get("dst")))
             elif ev.action == "capability.issue":
                 summary = (f"granted {p.get('action')} on tool "
                            f"{p.get('tool_id')!r} scoped to {p.get('scope')}, "
@@ -285,14 +287,35 @@ class AuditIndex:
             steps.append(Step(ev.seq, ev.wall_time, ev.actor, ev.action,
                               summary, detail))
 
-        gaps = self._gaps(task_id, outcome, seen_actions, steps)
+        gaps = self._gaps(task_id, outcome, seen_actions, steps,
+                          transitions)
         actors = tuple(sorted({s.actor for s in steps}))
         return Explanation(task_id, outcome, tuple(steps), gaps, actors)
 
     def _gaps(self, task_id: str, outcome: str, seen: set,
-              steps: tuple) -> tuple:
+              steps: tuple, transitions: list) -> tuple:
         """Structural holes in a chain. The question enforcement cannot ask."""
         gaps = []
+
+        # A connected walk, the same check explain_record makes. Without it a
+        # forged record naming a convenient src changes the OUTCOME this
+        # method reports: a hostile campaign appended one claiming
+        # EXECUTING -> TIMED_OUT against a task sitting in VERIFIED, the
+        # projection refused it (correctly), and the audit still read the
+        # task as TIMED_OUT because it took the last dst it saw.
+        #
+        # The two answers must not disagree. An auditor that reports a state
+        # the enforcement path rejected is telling a reader the attack worked.
+        expected = None
+        for seq, src, dst in transitions:
+            if expected is not None and src != expected:
+                gaps.append(
+                    f"seq {seq}: transition claims to start at {src!r} but "
+                    f"the chain was at {expected!r}; a record whose starting "
+                    "state the history does not agree with was not written "
+                    "through the gate, and the outcome reported above is the "
+                    "forged one")
+            expected = dst
         for required in REQUIRED_RECORDS.get(outcome, ()):
             if required not in seen:
                 gaps.append(

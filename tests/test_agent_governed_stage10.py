@@ -294,6 +294,49 @@ def test_a_forged_transition_in_the_log_is_not_applied(gov):
         gov.projection()
 
 
+def test_a_forged_record_cannot_pick_its_own_starting_state(gov):
+    """THE hole the test above was masking, found by the hostile campaign.
+
+    ``test_a_forged_transition_in_the_log_is_not_applied`` chose EXECUTING ->
+    VERIFIED, which is not an edge at all, so the record was refused for a
+    reason that had nothing to do with the property being claimed. Choose a
+    pair that IS an edge and name a convenient ``src``, and the replay applied
+    it: every pair in the table is available to a forger, because the check
+    ran against the starting state the RECORD supplied.
+
+    This moved a task out of VERIFIED -- a sealed state -- which is the exact
+    thing the state machine exists to make impossible.
+    """
+    run = _run(gov)
+    assert gov.projection().tasks[run.task_id].state is TaskState.VERIFIED
+
+    gov.log.append(
+        actor="attacker", action=ACT_TASK_TRANSITION, target=run.task_id,
+        payload={"task_id": run.task_id, "src": TaskState.EXECUTING.value,
+                 "dst": TaskState.TIMED_OUT.value, "role": "SYSTEM"})
+    with pytest.raises(TaskTransitionError, match="moves it from"):
+        gov.projection()
+
+
+def test_the_replay_reads_src_from_itself_not_from_the_record(gov):
+    """Stated as the property rather than as one attack.
+
+    scheduler.apply and reconstruct.reconstruct both already re-authorize
+    from the state THEY replayed. This projection was the odd one out, and
+    it is the one on the production path.
+    """
+    src = (ROOT / "qta_agent" / "governed_stage10.py").read_text(
+        encoding="utf-8")
+    rule = src.split("elif ev.action == ACT_TASK_TRANSITION:", 1)[1]
+    rule = rule.split("elif ev.action in", 1)[0]
+    assert "src=task.state" in rule, (
+        "the replay must build its request from the state it replayed; "
+        "re-authorizing against a src the writer supplied authorizes nothing")
+    assert "TaskState(p[\"src\"])" in rule, (
+        "the record's claim must still be READ, so a disagreement can be "
+        "reported rather than silently corrected")
+
+
 # --- the production wiring itself -------------------------------------------
 
 def test_the_governed_rule_is_part_of_the_ordinary_stage10_workflow():

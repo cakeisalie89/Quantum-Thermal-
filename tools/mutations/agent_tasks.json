@@ -4,6 +4,7 @@
  "suites": [
   "tests/test_agent_execution.py",
   "tests/test_agent_governed_stage10.py",
+  "tests/test_agent_hostile_campaign.py",
   "tests/test_agent_machine_properties.py",
   "tests/test_agent_substrate_isolation.py"
  ],
@@ -161,6 +162,20 @@
    "find": "        spec = self.registry.get(tool_id)          # default deny",
    "replace": "        spec = (self.registry.get(tool_id) if tool_id in self.registry\n                else stage10_registry().get('stage10.emit_artifact'))          # default deny",
    "rationale": "an unregistered tool id silently runs a registered tool instead"
+  },
+  {
+   "name": "G12_replay_trusts_the_records_own_src",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                if task.state is not claimed:",
+   "replace": "                if False:",
+   "rationale": "THE HOSTILE-CAMPAIGN FINDING: re-authorizing against a starting state the WRITER supplied authorizes nothing, because every pair in the table becomes available to a forger who names a convenient src -- one appended record moved a task out of VERIFIED, a sealed state"
+  },
+  {
+   "name": "G13_replay_reauthorizes_from_the_claim",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                    task_id=p[\"task_id\"], src=task.state,",
+   "replace": "                    task_id=p[\"task_id\"], src=claimed,",
+   "rationale": "the disagreement is reported but the check still runs against the forger's src, so the refusal above becomes the only thing standing between a forged record and state"
   }
  ]
 }
