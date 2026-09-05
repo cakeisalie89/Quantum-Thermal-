@@ -87,11 +87,14 @@ def test_only_finite_floats_are_serializable(f):
 # the transition table, over arbitrary inputs
 # ---------------------------------------------------------------------------
 
-@given(st.sampled_from(list(State)), st.sampled_from(list(State)),
-       st.sampled_from(list(Role)))
+@given(st.sampled_from(sorted(TERMINAL, key=lambda s: s.value)),
+       st.sampled_from(list(State)), st.sampled_from(list(Role)))
 @settings(max_examples=400, deadline=None)
 def test_no_role_can_ever_leave_a_terminal_state(src, dst, role):
-    assume(src in TERMINAL)
+    # Sampled from TERMINAL rather than filtered down to it. Two of eight
+    # states are terminal, so ``assume`` discarded three examples in four and
+    # tripped Hypothesis's filter_too_much health check on some seeds -- a
+    # suite that fails one run in N is a suite people learn to re-run.
     with pytest.raises(TransitionError):
         check(TransitionRequest("r", src, dst, "actor", role,
                                 {"verification_report": DIG,

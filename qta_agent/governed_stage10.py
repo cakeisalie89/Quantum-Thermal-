@@ -352,9 +352,23 @@ class GovernedStage10:
                 # The execution record is the durable statement of who ran
                 # the tool. A claim that disagrees with it is refused rather
                 # than preferred.
+                # AND THERE MUST BE ONE. The first version of this check
+                # compared the claim only when an execution record had
+                # already set task.executed_by. Omitting the execution
+                # record entirely therefore left the claim unopposed, and a
+                # forged history that never ran anything got to invent an
+                # executor out of a string: one actor created, leased,
+                # "executed", completed and VERIFIED its own task, named a
+                # ghost as the executor, and both readers agreed with it.
+                #
+                # So the claim is compared against task.executed_by
+                # including when that is None. With no execution record the
+                # executor stays unset, and COMPLETED -> VERIFIED is then
+                # refused by the state machine for the honest reason:
+                # nothing records who ran this, so nothing can be
+                # independent of them.
                 claimed_by = p.get("executed_by")
-                if (claimed_by and task.executed_by
-                        and claimed_by != task.executed_by):
+                if claimed_by and claimed_by != task.executed_by:
                     raise TaskTransitionError(
                         f"seq {ev.seq}: the record names {claimed_by!r} as "
                         f"the executor of {task.task_id!r}, but the execution "
@@ -367,7 +381,7 @@ class GovernedStage10:
                     dst=TaskState(p["dst"]), actor=ev.actor,
                     role=TaskRole(p["role"]), at_seq=ev.seq,
                     lease_id=(lease.lease_id if lease else p.get("lease_id")),
-                    executed_by=task.executed_by or claimed_by,
+                    executed_by=task.executed_by,
                     result_digest=p.get("result_digest"))
                 # Re-authorize on replay. A transition that would be refused
                 # today is not applied, so a forged log entry cannot become

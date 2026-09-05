@@ -1,4 +1,4 @@
-"""One hostile agent, one governed world, sixteen escalating attempts.
+"""One hostile agent, one governed world, twenty escalating attempts.
 
 WHY A CAMPAIGN AND NOT MORE PER-SUBSYSTEM TESTS
 
@@ -54,6 +54,7 @@ from qta_agent.capability import (  # noqa: E402
     Action, Request, issue,
 )
 from qta_agent.events import EventLog  # noqa: E402
+from qta_agent.reconstruct import reconstruct_tasks  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.governed_stage10 import (  # noqa: E402
     SUBMITTER_ID, VERIFIER_ID, WORKER_ID, GovernedStage10,
@@ -348,13 +349,141 @@ def test_16_enqueue_onto_work_that_can_never_succeed(world, campaign):
 
 
 # ---------------------------------------------------------------------------
+# attempts 17-20: the identity fields, rather than the state fields
+#
+# 01-16 attacked WHAT a record claims happened. These attack WHO it claims
+# did it -- the fields separation of duties, lease ownership and "was this
+# permitted" all rest on. Each was refused by the write path and accepted on
+# replay, so each is tried BOTH ways: the call, and the record appended
+# around it. A fresh reader is built over the shared log to ask the second
+# question, so the world's own projections are left as attempts 01-16 left
+# them.
+# ---------------------------------------------------------------------------
+
+def test_17_complete_a_task_naming_an_executor_that_does_not_exist(world,
+                                                                    campaign):
+    """Then verify it. One string, and separation of duties is gone.
+
+    The cheapest version omits the execution record entirely: with nothing
+    to disagree with, the claim used to be adopted as the executor, and the
+    actor that completed the task was no longer the one verification had to
+    differ from.
+    """
+    from qta_agent.canonical import digest_bytes
+    from qta_agent.governed_stage10 import ACT_TASK_TRANSITION
+
+    tid = "task-hostile-ghost"
+    dg = digest_bytes(b"a result nobody produced")
+    lease = {"lease_id": "L-h", "holder": HOSTILE, "granted_seq": 0,
+             "expires_after_seq": 10 ** 9}
+
+    def tr(src, dst, role, **extra):
+        payload = {"task_id": tid, "src": src, "dst": dst, "role": role}
+        payload.update(extra)
+        world.log.append(actor=HOSTILE, action=ACT_TASK_TRANSITION,
+                         target=tid, payload=payload)
+
+    world.log.append(actor=HOSTILE, action="task.create", target=tid,
+                     payload={"task_id": tid,
+                              "tool_id": "stage10.emit_artifact",
+                              "submitter": HOSTILE, "inputs_digest": dg})
+    tr("CREATED", "VALIDATED", "SUBMITTER")
+    tr("VALIDATED", "QUEUED", "SCHEDULER")
+    tr("QUEUED", "LEASED", "WORKER", lease=lease)
+    tr("LEASED", "EXECUTING", "WORKER", lease_id="L-h")
+    tr("EXECUTING", "COMPLETED", "WORKER", lease_id="L-h",
+       executed_by="a-ghost-who-does-not-exist", result_digest=dg)
+    tr("COMPLETED", "VERIFIED", "VERIFIER")
+
+    assert _try(campaign, "name a fictitious executor and self-verify",
+                world.projection) is None
+    recon = reconstruct_tasks(world.log)
+    assert tid not in recon.verified_ids()
+    assert any("as its executor" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_18_report_an_outcome_on_a_job_it_does_not_hold(world, campaign):
+    """The refusal it already met at :meth:`report`, appended directly.
+
+    Attempt 14 made the call and was told "leased to worker-honest, not
+    mallory". This writes the record that call would have written. The queue
+    reloaded it and called the job SUCCEEDED.
+    """
+    from qta_agent.scheduler import ACT_JOB_TRANSITION, Scheduler
+
+    world.scheduler.enqueue(job_id="j-h9", work_digest=digest({"w": 9}),
+                            submitter="owner")
+    world.scheduler.reconcile(resolve=world.evidence.contains)
+    world.scheduler.dispatch(job_id="j-h9", worker="worker-honest",
+                             lease_id="L-h9", lease_seqs=500)
+    world.log.append(
+        actor=HOSTILE, action=ACT_JOB_TRANSITION, target="j-h9",
+        payload={"job_id": "j-h9", "src": "DISPATCHED", "dst": "SUCCEEDED",
+                 "reason": "verified", "lease_id": "", "lease_holder": "",
+                 "lease_expires_after_seq": -1})
+
+    def reload_queue():
+        return Scheduler(world.log, policy=world.policy,
+                         policy_id="scheduler.default").load()
+
+    assert _try(campaign, "append an outcome for someone else's lease",
+                reload_queue) is None
+
+
+def test_19_record_a_decision_the_rules_would_not_reach(world, campaign):
+    """A verdict, a rule that does not exist, and a reason. All in a payload.
+
+    The decision reducer folded these in unread, so the audit index quoted
+    the invented rule back as the reason something was permitted.
+    """
+    from qta_agent.policy import (
+        ACT_POLICY_DECISION, PolicyRequest, PolicyStore,
+    )
+
+    doc = world.policy.in_force("stage10.governed")
+    req = PolicyRequest(action="promote", subject=HOSTILE, role="WORKER",
+                        resource="anything-at-all", task_id="t-mine")
+    assert not doc.evaluate(req).allowed, "premise: the rules deny this"
+    rec = {"allowed": True, "policy_id": doc.policy_id,
+           "version": doc.version, "policy_digest": doc.digest(),
+           "rule_id": "a-rule-that-says-yes", "effect": "ALLOW",
+           "request": req.to_record(), "reason": "I approve", "at_seq": -1}
+    body = {k: v for k, v in rec.items() if k != "at_seq"}
+    world.log.append(actor=HOSTILE, action=ACT_POLICY_DECISION,
+                     target="anything-at-all",
+                     payload={"decision": rec, "decision_digest": digest(body)})
+    assert _try(campaign, "record a decision the rules deny",
+                lambda: PolicyStore(world.log).load()) is None
+
+
+def test_20_backdate_a_capability_over_what_it_already_did(world, campaign):
+    """A grant is only meaningful if its START is the log's to say.
+
+    Everything above happened at a known position. A grant recorded now,
+    claiming seq 0, would have covered all of it -- and the digest would
+    agree with the backdated body, because content-binding catches tampering
+    and not a self-consistent lie.
+    """
+    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+
+    backdated = issue(capability_id="cap-hostile-backdated", subject=HOSTILE,
+                      action=Action.WRITE_PATHS, task_id="t-mine",
+                      scope=("verification/stage10",), issued_seq=0)
+    world.log.append(actor=HOSTILE, action=ACT_ISSUE, target="t-mine",
+                     payload={"task_id": "t-mine", **backdated.body()})
+    assert _try(campaign, "backdate a capability over its own history",
+                lambda: CapabilityLedger(world.log).load()) is None
+
+
+# ---------------------------------------------------------------------------
 # what the campaign established, asked of the whole history
 # ---------------------------------------------------------------------------
 
 def test_99_the_campaign_gained_nothing_and_the_history_proves_it(world,
                                                                   campaign):
     attempts = [a for a in campaign if a.name != "honest run (control)"]
-    assert len(attempts) >= 15, (
+    assert len(attempts) >= 19, (
         f"the campaign did not run: only {len(attempts)} attempts recorded")
     allowed = [a for a in attempts if not a.refused]
     assert not allowed, f"attempts that were NOT refused: {allowed}"

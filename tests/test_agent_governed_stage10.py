@@ -395,6 +395,60 @@ def test_a_worker_cannot_name_a_fictitious_executor_and_verify_its_own_work(
         shutil.rmtree(forged)
 
 
+def test_a_task_that_never_RAN_cannot_name_an_executor_either(gov):
+    """THE HALF THE FIRST FIX LEFT OPEN.
+
+    The guard above compares the claim to the execution record. With no
+    execution record there was nothing to compare, and ``or claimed_by``
+    supplied the claim -- so the cheapest forgery was not to fake an
+    execution but to omit one.
+
+    A single actor then created, leased, "executed", completed and VERIFIED
+    its own task, naming a ghost as executor. The production projection, the
+    independent reconstruction and the audit index all agreed with it, and
+    none of them reported anything.
+
+    Found by asking the question the first fix answered for one branch --
+    "what re-derives this on replay?" -- about the branch where the answer
+    is nothing.
+    """
+    forged = ROOT / WS / "no_exec"
+    if forged.exists():
+        shutil.rmtree(forged)
+    forged.mkdir(parents=True)
+    log2 = EventLog(forged / "log.jsonl")
+    tid = "task-never-ran"
+    dg = digest_bytes(b"a result nobody produced")
+    lease = {"lease_id": "L1", "holder": "mallory", "granted_seq": 3,
+             "expires_after_seq": 9999}
+
+    def tr(src, dst, role, **extra):
+        payload = {"task_id": tid, "src": src, "dst": dst, "role": role,
+                   "note": ""}
+        payload.update(extra)
+        log2.append(actor="mallory", action=ACT_TASK_TRANSITION, target=tid,
+                    payload=payload)
+
+    try:
+        log2.append(actor="mallory", action="task.create", target=tid,
+                    payload={"task_id": tid, "tool_id": "stage10.emit_artifact",
+                             "submitter": "mallory", "inputs_digest": dg,
+                             "depends_on": []})
+        tr("CREATED", "VALIDATED", "SUBMITTER")
+        tr("VALIDATED", "QUEUED", "SCHEDULER")
+        tr("QUEUED", "LEASED", "WORKER", lease=lease)
+        tr("LEASED", "EXECUTING", "WORKER", lease_id="L1")
+        tr("EXECUTING", "COMPLETED", "WORKER", lease_id="L1",
+           executed_by="a-ghost-who-does-not-exist", result_digest=dg)
+        tr("COMPLETED", "VERIFIED", "VERIFIER")
+
+        g2 = GovernedStage10(root=ROOT, log=log2, evidence=gov.evidence)
+        with pytest.raises(TaskTransitionError, match="execution record says"):
+            g2.projection()
+    finally:
+        shutil.rmtree(forged)
+
+
 def test_the_projection_learns_the_executor_from_the_execution_record(gov):
     """Stated as the property, not as one attack."""
     run = _run(gov)
@@ -968,30 +1022,26 @@ def test_two_grants_cannot_share_an_id_in_the_log(gov, tmp_path):
         CapabilityLedger(gov.log).load()
 
 
-def test_the_executor_and_src_fallbacks_are_unreachable_differences():
-    """Why two mutations were REMOVED from the spec rather than left surviving.
+def test_the_projection_never_takes_an_executor_from_a_payload():
+    """The fallback that USED to be here, and why it is gone.
 
-    The projection writes ``src=task.state`` and
-    ``executed_by=task.executed_by or claimed_by``. Reversing either operand
-    order changes nothing, because the guards immediately above refuse any
-    transition whose claim disagrees with the replay -- so by the time the
-    expression runs, the operands are equal.
+    The projection wrote ``executed_by=task.executed_by or claimed_by``, and
+    an earlier version of this test argued the ``or`` was unreachable: the
+    guard above refuses a claim that disagrees with the execution record, so
+    by the time the expression ran the operands were equal.
 
-    An equivalent mutation surviving is not evidence of an unprotected check,
-    and leaving one in the matrix would be a permanent false finding. This
-    enumerates the combinations so the claim is CHECKED rather than asserted
-    in a spec comment nobody re-derives.
+    That argument had a hole exactly the size of ``task.executed_by is
+    None``. With no execution record in the log at all there was nothing for
+    the claim to disagree WITH, the guard passed, and ``or claimed_by``
+    supplied an executor invented by the same actor. One string, and a task
+    that had never run anything reached VERIFIED with its completer as its
+    verifier.
+
+    So the expression is now ``executed_by=task.executed_by``: the payload's
+    claim is compared and never consulted. This test pins the source, because
+    the operand that came back would be invisible in behaviour until someone
+    built the forged history that needs it.
     """
-    differing = []
-    for recorded in (None, "worker", "ghost"):
-        for claimed in (None, "worker", "ghost"):
-            if claimed and recorded and claimed != recorded:
-                continue                    # refused before either is read
-            if (recorded or claimed) != (claimed or recorded):
-                differing.append((recorded, claimed))
-    assert not differing, differing
-
-    # And the guard that makes them unreachable is really there.
     src = (ROOT / "qta_agent" / "governed_stage10.py").read_text(
         encoding="utf-8")
     # Matched on fragments that survive the f-string line breaks: the first
@@ -999,6 +1049,9 @@ def test_the_executor_and_src_fallbacks_are_unreachable_differences():
     # across two lines, and failed for a guard that was present.
     assert "claimed_by != task.executed_by" in src
     assert "task.state is not claimed" in src
+    assert "executed_by=task.executed_by or claimed_by" not in src, (
+        "the payload fallback is back; a task with no execution record can "
+        "name its own executor again")
 
 
 # --- R31: verification reads through the governed boundary ------------------

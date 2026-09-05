@@ -417,9 +417,74 @@ class PolicyStore:
             self._loaded_through = ev.seq
             return True
         if ev.action == ACT_POLICY_DECISION:
+            self._recheck_decision(ev)
             self._loaded_through = ev.seq
             return True
         return False
+
+    def _recheck_decision(self, ev) -> None:
+        """Re-derive a recorded verdict from the rules that were in force.
+
+        A decision record names its own verdict, its own rule and its own
+        policy version. Folding it in unread meant the log could contain an
+        ALLOW that no published rule would produce, and every reader
+        downstream -- the audit index most of all -- would repeat it as the
+        reason something was permitted.
+
+        The record carries the whole request, so this is not a matter of
+        trusting it more carefully: the verdict is recomputable. The document
+        in force at this position decides, and the record is compared against
+        what it says. That makes a forged ALLOW a load-time failure instead
+        of a citation.
+        """
+        rec = ev.payload.get("decision")
+        if not isinstance(rec, dict):
+            raise PolicyError(
+                f"seq {ev.seq}: decision record carries no decision")
+        claimed = ev.payload.get("decision_digest")
+        body = {k: v for k, v in rec.items() if k != "at_seq"}
+        if claimed != digest(body):
+            raise PolicyError(
+                f"seq {ev.seq}: decision claims digest {str(claimed)[:12]} "
+                f"but its content hashes to {digest(body)[:12]}")
+        policy_id = rec.get("policy_id")
+        try:
+            doc = self.in_force_at(policy_id, ev.seq)
+        except (UnknownPolicy, PolicyError) as exc:
+            raise PolicyError(
+                f"seq {ev.seq}: decision cites policy {policy_id!r}, which "
+                f"nothing published by this position: {exc}") from None
+        if doc.digest() != rec.get("policy_digest"):
+            raise PolicyError(
+                f"seq {ev.seq}: decision cites policy digest "
+                f"{str(rec.get('policy_digest'))[:12]}, but {doc.identity} "
+                f"in force here hashes to {doc.digest()[:12]}; two documents "
+                "sharing an id and version are a tampering signature")
+        req = rec.get("request")
+        if not isinstance(req, dict):
+            raise PolicyError(
+                f"seq {ev.seq}: decision records no request, so its verdict "
+                "cannot be re-derived and is only an assertion")
+        try:
+            replayed = doc.evaluate(PolicyRequest(
+                action=req.get("action", ""), subject=req.get("subject", ""),
+                role=req.get("role", ""), resource=req.get("resource", ""),
+                task_id=req.get("task_id", ""),
+                attributes=dict(req.get("attributes") or {})))
+        except (TypeError, ValueError) as exc:
+            raise PolicyError(
+                f"seq {ev.seq}: decision carries a request this build cannot "
+                f"evaluate: {exc}") from None
+        for field_name, replayed_value in (("allowed", replayed.allowed),
+                                           ("effect", replayed.effect.value),
+                                           ("rule_id", replayed.rule_id)):
+            if rec.get(field_name) != replayed_value:
+                raise PolicyError(
+                    f"seq {ev.seq}: the record says {field_name}="
+                    f"{rec.get(field_name)!r} for "
+                    f"{req.get('action')!r} on {req.get('resource')!r}, but "
+                    f"{doc.identity} decides {replayed_value!r}. A verdict "
+                    "the rules do not produce did not come from them.")
 
     # ---- reads ---------------------------------------------------------
     def in_force(self, policy_id: str) -> PolicyDocument:

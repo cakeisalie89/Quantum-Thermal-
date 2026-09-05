@@ -33,12 +33,18 @@ plane with a great deal still unproven, not a finished system.
 
 ## 2. What testing found
 
-Six defects were found by testing rather than by review. Each is listed with
-the technique that found it, because the techniques are not interchangeable.
+Defects found by testing rather than by review, each listed with the technique
+that found it, because the techniques are not interchangeable.
 
 | Defect | Found by |
 |---|---|
 | **Separation of duties could be bypassed.** The projection read `executed_by` from a transition payload — a field written by the same actor whose independence was being checked. A worker could complete its own task naming a fictitious executor, then verify it. | Differential comparison against a second reader |
+| **…and the first fix closed half of it.** The claim was compared against the execution record *when there was one*. Omitting the execution record left the claim unopposed, so the cheapest forgery was to fake nothing: one actor created, leased, "executed", completed and VERIFIED its own task. The projection, the independent reconstruction and the audit index all agreed with it. | Asking the first fix's question about the branch where the answer is *nothing* |
+| **The audit asked the forger whether the forgery happened.** The executor/verifier gap check exists only for a history that did not go through the gate — and it read the executor out of the forger's own payload, reporting a clean separation of duties over a log in which one actor did both jobs. | The same sweep, applied to the reader instead of the writer |
+| **The scheduler's replay never checked who was reporting.** `report()` refuses an outcome from anyone but the live lease holder. That refusal lived on the write path alone, so the rejected worker appended the identical record and the next process to load the queue called the job SUCCEEDED. | Auditing each payload-named field for "what re-derives this on replay?" |
+| **A recorded policy decision was folded in unread.** A forged `policy.decision` claiming ALLOW under a rule that does not exist loaded cleanly, and the audit index quoted the invented rule back as the reason something was permitted — even though the record carries the whole request and the verdict is recomputable. | The same sweep |
+| **Every grant had a window with one end.** Capabilities, egress grants and secret grants checked expiry and not issuance, so a grant recorded at seq 90 answered "was this permitted at seq 20?" with yes. `issued_seq` was also the record's to name, and content-binding by digest catches tampering, not a self-consistent lie. | The same sweep |
+| **A second egress grant under a live `grant_id` replaced the first** on replay, silently widening authority already in force. | The same sweep |
 | **A forged record could name its own starting state.** Replay re-authorized against the `src` the record supplied, so every pair in the transition table was available to a forger. One appended line moved a task out of the sealed `VERIFIED` state. | Hostile-agent campaign |
 | **The invalidation cascade cited bytes it never stored.** Against an evidence-backed store — the governed configuration — dependency invalidation could not run at all, so a record whose foundation was withdrawn could never be marked `STALE`. | Writing an audit test for the dependency case |
 | **A job could be enqueued onto work that can never succeed**, and **a terminal failure did not cascade**, leaving dependents waiting forever on a dead parent. | Hypothesis state machine over the scheduler |
@@ -51,10 +57,18 @@ a hostile campaign ask the second question. The differential pair asks a third:
 whether two readers of the same bytes agree. Each found something the others
 structurally could not.
 
+The second cluster adds a fourth, which is not a technique but a question, and
+the cheapest of the four: taking each field a payload names — `src`,
+`executed_by`, `lease_holder`, `attempts`, the verdict, `issued_seq` — and
+asking *what re-derives this on replay?* Where the answer was "nothing", the
+write path's refusal was advice. Half of these were in code the previous sweep
+had already examined and passed, because that sweep asked about **state** and
+this one asks about **identity**.
+
 ## 3. What the verification consists of
 
-- **1,118 tests** across 25 agent suites (2,204 in the repository).
-- **369 mutations** across 15 specifications, each deleting exactly one
+- **1,256 tests** across 26 agent suites (2,327 in the repository).
+- **430 mutations** across 16 specifications, each deleting exactly one
   enforcement point; the suite must then fail. Every spec is additionally
   checked *statically* on each run: an anchor must match exactly once, a
   replacement must change something, the mutated source must still parse.
@@ -62,8 +76,11 @@ structurally could not.
   plus the capability ledger.
 - **Two differential pairs** — authority records and the task lifecycle — each
   a second implementation sharing no reducer with the live projection.
-- **A hostile-agent campaign**: sixteen escalating attempts against one shared
-  log, then questions asked of the whole history.
+- **A hostile-agent campaign**: twenty escalating attempts against one shared
+  log, then questions asked of the whole history. The last four attack the
+  identity fields rather than the state fields, and each is tried twice --
+  through the call that refuses it, and as the record appended around that
+  call.
 - **A crash at every boundary** of a governed run, with a named recovery for
   every state a crash can leave a task in.
 - **Fuzzing** with a committed regression corpus.
@@ -100,6 +117,16 @@ Stated plainly, because a report that only lists successes is not a report.
 - **Separation of duties assumes the parties are distinct.** A compromised
   submitter, worker and verifier acting together are not modelled, and that is
   precisely the assumption that would not survive it.
+- **The log's `actor` field is an assertion, not an identity.** The replay
+  checks now added — the lease holder reports the outcome, the executor comes
+  from the execution record — raise the bar from "any string in a payload" to
+  "the right name, at the right log position, inside a live lease". That is
+  not authentication. Anyone who can write the log can write a name, and the
+  log file remains the trust boundary it always was.
+- **There is no ISSUER authority.** Any actor that can write the log can mint
+  a capability, an egress grant or a secret grant. `issuer_of()` records who
+  did, and is deliberately not consulted by `check()`: attribution, not
+  authorization.
 - **The governed path is not atomic.** There is no two-phase commit. What is
   established instead is that every prefix is a state recovery handles.
 - **Hypothesis explores; it does not exhaust.** A property surviving generated
@@ -113,9 +140,12 @@ Stated plainly, because a report that only lists successes is not a report.
 ## 5. The honest summary
 
 The substrate does real work under real constraints, and the verification
-around it found six defects that review did not — including one that defeated
-the package's central claim. That is the argument for the verification, not
-for the code.
+around it found thirteen defects that review did not — including one that
+defeated the package's central claim, and a second cluster in code an earlier
+sweep had already examined and passed. That is the argument for the
+verification, not for the code, and the repetition is the more useful half of
+it: a fix that closes the case you imagined is not the same as a fix that
+closes the rule.
 
 What remains is most of the point: one workflow is governed, nothing
 scientific has been promoted, and the layer that decides what becomes canonical

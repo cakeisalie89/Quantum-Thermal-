@@ -323,6 +323,22 @@ def check(req: TaskTransition, task: Task) -> TaskEdge:
                 f"{lease.expires_after_seq}; the log is at {req.at_seq}. A "
                 "worker back from the dead does not get to report success.")
 
+    # WHO EXECUTED IT IS ESTABLISHED ONCE, AND A LATER RECORD MAY ONLY
+    # AGREE WITH IT.
+    #
+    # The executor is the subject of the separation-of-duties check below, so
+    # a request that could change it could choose whom it has to differ from.
+    # This gate cannot see the execution record -- that lives a layer up, in
+    # the projections -- but it can refuse to let a request contradict an
+    # executor the task already has.
+    if (req.executed_by and task.executed_by
+            and req.executed_by != task.executed_by):
+        raise TaskTransitionError(
+            f"{req.task_id} was executed by {task.executed_by!r} and this "
+            f"record names {req.executed_by!r}. The executor is what "
+            "verification must differ from; a transition that could rename "
+            "it could pick its own counterparty.")
+
     if edge.requires_distinct_actor:
         if task.executed_by is None:
             raise TaskTransitionError(
@@ -353,7 +369,10 @@ def apply_transition(task: Task, edge: TaskEdge, req: TaskTransition, *,
         new_lease = None
     return replace(
         task, state=req.dst, revision=task.revision + 1, lease=new_lease,
-        executed_by=req.executed_by or task.executed_by,
+        # Established value first: check() has already refused a request
+        # that disagrees, so the only thing `or` can add here is a NEW
+        # executor named by a record that is not an execution record.
+        executed_by=task.executed_by or req.executed_by,
         result_digest=req.result_digest or task.result_digest,
         updated_seq=seq, reason=edge.reason)
 

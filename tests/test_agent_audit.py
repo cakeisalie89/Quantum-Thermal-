@@ -713,3 +713,82 @@ def test_the_governed_run_records_the_decision_that_permitted_it(gov):
                if d.detail["policy_digest"] == run.policy_digest)
     exp = idx.explain_decision(seq)
     assert exp.outcome == "ALLOW" and exp.complete, exp.gaps
+
+
+# --- the audit's own executor question --------------------------------------
+#
+# _gaps checks that the executor and the verifier are not the same actor. The
+# state machine forbids it, so this check exists for exactly one case: a log
+# that did NOT go through the gate. It read the executor from
+# ``detail["executed_by"]`` -- the forger's own field -- so the check asked
+# the attacker whether the attack happened, and was told no.
+
+def _self_verified_log(tmp_path, *, executed_by=None):
+    """One actor executes and verifies. Optionally naming someone else."""
+    from qta_agent.canonical import digest_bytes
+
+    log = EventLog(tmp_path / "log.jsonl")
+    tid, dg = "t-self", digest_bytes(b"r")
+    log.append(actor="mallory", action="task.create", target=tid,
+               payload={"task_id": tid, "tool_id": "probe",
+                        "submitter": "mallory", "inputs_digest": dg})
+    log.append(actor="mallory", action="task.execution", target=tid,
+               payload={"task_id": tid, "result_digest": dg,
+                        "outcome": "COMPLETED", "tool_id": "probe"})
+    completed = {"task_id": tid, "src": "EXECUTING", "dst": "COMPLETED",
+                 "role": "WORKER", "result_digest": dg}
+    if executed_by is not None:
+        completed["executed_by"] = executed_by
+    log.append(actor="mallory", action="task.transition", target=tid,
+               payload=completed)
+    log.append(actor="mallory", action="task.transition", target=tid,
+               payload={"task_id": tid, "src": "COMPLETED",
+                        "dst": "VERIFIED", "role": "VERIFIER"})
+    return log, tid
+
+
+def test_the_audit_reports_self_verification_it_can_see(tmp_path):
+    """The baseline: no claim in the payload, and the gap is reported."""
+    log, tid = _self_verified_log(tmp_path)
+    gaps = AuditIndex.from_log(log).explain_task(tid).gaps
+    assert any("executor and verifier are both 'mallory'" in g
+               for g in gaps), gaps
+
+
+def test_a_payload_naming_a_ghost_does_not_silence_that_report(tmp_path):
+    """THE DEFECT. Same history, one extra string, and the gap disappeared.
+
+    An auditor reading this output would have seen a clean separation of
+    duties over a log in which one actor did both jobs. That is worse than
+    no audit: it converts "nobody checked" into "checked and fine".
+    """
+    log, tid = _self_verified_log(tmp_path, executed_by="a-ghost")
+    gaps = AuditIndex.from_log(log).explain_task(tid).gaps
+    assert any("executor and verifier are both 'mallory'" in g
+               for g in gaps), gaps
+    assert any("renames one is choosing its own verifier" in g
+               for g in gaps), gaps
+
+
+def test_the_audit_takes_the_executor_from_the_execution_record(tmp_path):
+    """Stated as the property, so it survives a rewrite of the check above."""
+    from qta_agent.canonical import digest_bytes
+
+    log = EventLog(tmp_path / "log.jsonl")
+    tid, dg = "t-two", digest_bytes(b"r")
+    log.append(actor="alice", action="task.create", target=tid,
+               payload={"task_id": tid, "tool_id": "probe",
+                        "submitter": "alice", "inputs_digest": dg})
+    log.append(actor="worker-a", action="task.execution", target=tid,
+               payload={"task_id": tid, "result_digest": dg,
+                        "outcome": "COMPLETED", "tool_id": "probe"})
+    log.append(actor="worker-a", action="task.transition", target=tid,
+               payload={"task_id": tid, "src": "EXECUTING",
+                        "dst": "COMPLETED", "role": "WORKER",
+                        "executed_by": "worker-a", "result_digest": dg})
+    log.append(actor="verifier-b", action="task.transition", target=tid,
+               payload={"task_id": tid, "src": "COMPLETED",
+                        "dst": "VERIFIED", "role": "VERIFIER"})
+    gaps = AuditIndex.from_log(log).explain_task(tid).gaps
+    assert not any("executor and verifier" in g for g in gaps), gaps
+    assert not any("choosing its own verifier" in g for g in gaps), gaps

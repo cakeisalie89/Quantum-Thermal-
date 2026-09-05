@@ -74,7 +74,7 @@ import contextlib
 import ipaddress
 import socket
 import urllib.parse
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import PurePosixPath
 
@@ -642,6 +642,28 @@ class NetworkAuthority:
                         f"seq {ev.seq}: egress grant claims digest "
                         f"{str(claimed)[:12]} but hashes to "
                         f"{g.digest()[:12]}")
+                existing = self._grants.get(g.grant_id)
+                if existing is not None:
+                    if existing.digest() != g.digest():
+                        # It USED to overwrite. issue() refuses a duplicate
+                        # id, so this path is only reachable by a record that
+                        # did not go through it -- and it silently widened a
+                        # grant already in force.
+                        raise NetworkError(
+                            f"seq {ev.seq}: egress grant {g.grant_id!r} was "
+                            "issued twice with different terms; the second "
+                            "record would replace authority already in force")
+                    self._at_seq = ev.seq       # a replay of the same grant
+                    return True
+                if g.issued_seq != ev.seq:
+                    # The digest binds the CONTENT of the grant, which
+                    # includes the start it names -- so a self-consistent
+                    # record can still be backdated. Where a grant begins is
+                    # the log's to say. See the same check in capability.py.
+                    raise NetworkError(
+                        f"seq {ev.seq}: egress grant {g.grant_id!r} claims "
+                        f"it was issued at seq {g.issued_seq}; a grant is in "
+                        "force from where it appears in the log")
                 self._grants[g.grant_id] = g
             self._at_seq = ev.seq
             return True
@@ -659,6 +681,9 @@ class NetworkAuthority:
                 f"egress grant {g.grant_id!r} already exists; reusing an id "
                 "would make two different grants indistinguishable in the log")
         if self.log is not None:
+            # Stamped, not accepted: a caller that could choose the start
+            # could grant egress over traffic that already happened.
+            g = replace(g, issued_seq=self.log.verify().head_seq + 1)
             ev = self.log.append(
                 actor=actor, action=ACT_NET_GRANT, target=g.task_id,
                 payload={"grant": g.body(), "grant_digest": g.digest(),
@@ -723,6 +748,14 @@ class NetworkAuthority:
                            "that does not appear in the log does not exist")
         if gid in self._revoked:
             return False, f"egress grant {gid!r} was revoked"
+        if self._at_seq < g.issued_seq:
+            # The other end of the window. Without it a grant recorded later
+            # answers "was this egress permitted at seq N" for an N before it
+            # existed.
+            return False, (f"egress grant {gid!r} was issued at seq "
+                           f"{g.issued_seq} and the log is at {self._at_seq}; "
+                           "a grant does not reach backwards over traffic "
+                           "that already happened")
         if (g.expires_after_seq != NEVER_EXPIRES
                 and self._at_seq > g.expires_after_seq):
             return False, (f"egress grant {gid!r} expired after seq "

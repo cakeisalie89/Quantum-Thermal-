@@ -302,7 +302,11 @@ def test_revocation_takes_effect_at_the_next_use_not_the_next_object(store):
 def test_expiry_takes_effect_at_the_next_use(store):
     s = SecretStore()
     s.register("api-token", VALUE)
-    s.issue(_grant(issued_seq=1, expires_after_seq=10), actor="owner")
+    # issued_seq 0: this store has no log, so its position starts at 0, and a
+    # grant issued at seq 1 would not yet be in force when it is resolved
+    # below. That is the not-yet-issued half of the window doing its job --
+    # this test is about the OTHER end.
+    s.issue(_grant(issued_seq=0, expires_after_seq=10), actor="owner")
     secret = _resolve(s)
     s.set_position(10)
     assert secret.reveal() == VALUE
@@ -454,3 +458,22 @@ def test_the_key_heuristic_is_not_the_defence(store):
     """The leak that matters is the one under an innocent name."""
     r = store.redactor()
     assert r.text(f"result={VALUE}") == "result=<redacted:api-token>"
+
+
+def test_a_grant_does_not_reach_back_over_a_secret_already_read():
+    """The window's other end, checked here as it is in capability.py.
+
+    A secret grant recorded after the fact would otherwise answer "was this
+    read authorized?" with yes, for a read that happened before anyone had
+    granted anything.
+    """
+    from qta_agent.secrets import SecretNotYetIssued
+
+    s = SecretStore()
+    s.register("api-token", VALUE)
+    s.issue(_grant(issued_seq=5), actor="owner")
+    s.set_position(5)
+    assert _resolve(s).reveal() == VALUE
+    s.set_position(4)
+    with pytest.raises(SecretNotYetIssued, match="reach backwards"):
+        _resolve(s)

@@ -66,7 +66,7 @@ import binascii
 import json
 import re
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import FrozenSet
 
 from .canonical import digest
@@ -108,6 +108,15 @@ class UnknownSecret(SecretDenied):
 
 class SecretExpired(SecretDenied):
     """The grant was valid, and is no longer."""
+
+
+class SecretNotYetIssued(SecretDenied):
+    """The grant exists, and did not yet at the position being asked about.
+
+    The other end of :class:`SecretExpired`. See the identical pair in
+    :mod:`qta_agent.capability`: a window checked at one end is a half-check,
+    and the end that was missing is the one an incident review depends on.
+    """
 
 
 class SecretRevoked(SecretDenied):
@@ -420,6 +429,10 @@ class SecretStore:
             raise UnknownSecret(
                 f"no secret {g.secret_id!r} is registered; a grant over "
                 "something that does not exist would look like authority")
+        if self.log is not None:
+            # Stamped from the log, like the capability and egress ledgers:
+            # where a grant begins is not the caller's to choose.
+            g = replace(g, issued_seq=self.log.verify().head_seq + 1)
         self._grants[g.grant_id] = g
         if self.log is not None:
             # The grant BODY, which names ids and purposes and no value.
@@ -473,6 +486,11 @@ class SecretStore:
             raise SecretRevoked(
                 f"secret grant {grant_id!r} was revoked; it authorizes "
                 "nothing from the moment the revocation was recorded")
+        if self._at_seq < g.issued_seq:
+            raise SecretNotYetIssued(
+                f"secret grant {grant_id!r} was issued at seq {g.issued_seq} "
+                f"and the log is at {self._at_seq}; a grant does not reach "
+                "backwards over a secret that was already read")
         if (g.expires_after_seq != NEVER_EXPIRES
                 and self._at_seq > g.expires_after_seq):
             raise SecretExpired(

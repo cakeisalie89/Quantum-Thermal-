@@ -219,6 +219,13 @@ EDGES: tuple = _edges()
 _BY_PAIR = {(e.src, e.dst): e for e in EDGES}
 INITIAL: JobState = JobState.WAITING
 
+#: Leaving DISPATCHED with a verdict about the attempt. These are the moves
+#: :meth:`Scheduler.report` guards, and the ones replay has to guard too --
+#: see :func:`reauthorize_job_edge`.
+OUTCOME_STATES: FrozenSet[JobState] = frozenset({
+    JobState.SUCCEEDED, JobState.RETRY_WAIT, JobState.FAILED,
+})
+
 #: States with no outgoing edge at all. DERIVED from the table, so the guard
 #: and the table cannot disagree.
 SEALED: FrozenSet[JobState] = frozenset(
@@ -434,6 +441,7 @@ class Scheduler:
             # is not applied, so a forged record cannot become state merely by
             # appearing in the file.
             edge = check_edge(src, dst, cur.job_id)
+            reauthorize_job_edge(cur, dst, p, actor=ev.actor, seq=ev.seq)
             self._jobs[cur.job_id] = _apply_edge(cur, edge, p, seq=ev.seq)
         elif ev.action == ACT_PRIORITY:
             cur = self._jobs[p["job_id"]]
@@ -834,10 +842,16 @@ class Scheduler:
                 f"lease {job.lease_id!r} lapsed after seq "
                 f"{job.lease_expires_after_seq}; the log is at {at}. A late "
                 "report does not get to decide the outcome.")
+        # The EVENT is written as the lease holder, because the replay now
+        # re-checks ownership from the record's own actor and the holder is
+        # who the write path just checked. A different judging actor (the
+        # verifier, on the governed path) is carried as a payload field: it
+        # is a fact about the decision, not the authority for the move.
         who = actor or worker
         if failure is None:
             return self.transition(job_id=job_id, dst=JobState.SUCCEEDED,
-                                   actor=who, reason=detail or "verified",
+                                   actor=worker, closed_by=who,
+                                   reason=detail or "verified",
                                    lease_id="", lease_holder="",
                                    lease_expires_after_seq=-1)
         if not isinstance(failure, FailureClass):
@@ -846,13 +860,14 @@ class Scheduler:
         note = f"{failure.value}: {detail}" if detail else failure.value
         if failure in RETRYABLE and job.attempts < job.max_attempts:
             return self.transition(
-                job_id=job_id, dst=JobState.RETRY_WAIT, actor=who,
+                job_id=job_id, dst=JobState.RETRY_WAIT, actor=worker,
+                closed_by=who,
                 reason=note, last_failure=note, lease_id="", lease_holder="",
                 lease_expires_after_seq=-1,
                 backoff_until_seq=at + backoff_for(job.attempts))
         failed = self.transition(
-            job_id=job_id, dst=JobState.FAILED, actor=who, reason=note,
-            last_failure=note, lease_id="", lease_holder="",
+            job_id=job_id, dst=JobState.FAILED, actor=worker, closed_by=who,
+            reason=note, last_failure=note, lease_id="", lease_holder="",
             lease_expires_after_seq=-1)
         self._block_dependents_of(job_id, actor=who, why=note)
         return failed
@@ -1023,6 +1038,80 @@ def check_edge(src: JobState, dst: JobState, job_id: str) -> JobEdge:
             f"no edge {src.value} -> {dst.value} for {job_id!r}; permitted "
             f"targets are {sorted(s.value for s in allowed_targets(src))}")
     return edge
+
+
+def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
+                         actor: str, seq: int) -> None:
+    """Re-run the OWNERSHIP half of the gate, from replayed state. Or raise.
+
+    :func:`check_edge` asks whether the pair exists in the table. That is the
+    whole of what replay used to ask, and it is not the whole of what
+    :meth:`Scheduler.report` asks. ``report`` refuses an outcome from anyone
+    but the lease holder, and refuses one from a holder whose lease has
+    lapsed -- and those two refusals lived ONLY on the write path.
+
+    So they were not refusals, they were a suggestion. A worker whose report
+    was rejected ("j1 is leased to 'worker-a', not 'mallory'") could append
+    the identical record to the log itself, and the next process to load the
+    queue folded it in and called the job SUCCEEDED. Found by asking, of each
+    field the payload gets to name, "and what re-derives this on replay?"
+
+    Everything here is decided from ``job`` -- the state this replay reached
+    -- and from ``actor``/``seq``, which are the event's own header. The
+    payload is only ever the thing being checked.
+
+    What this does NOT establish: the log's ``actor`` field is an assertion
+    by whoever wrote the record. Checking it raises the bar from "any string
+    in a payload" to "the lease holder's name, at the right log position,
+    while the lease was live". It is not authentication, and the log file
+    remains the trust boundary it always was.
+    """
+    # The write path decides at head_seq and the record it writes lands at
+    # head_seq + 1. Evaluating liveness at ``seq`` would therefore refuse a
+    # report that ``report`` had just accepted, at exactly the boundary seq.
+    at = seq - 1
+    if job.state is JobState.DISPATCHED and dst in OUTCOME_STATES:
+        if actor != job.lease_holder:
+            raise JobTransitionError(
+                f"seq {seq}: {job.job_id!r} is leased to "
+                f"{job.lease_holder!r}, and {actor!r} is reporting its "
+                f"outcome as {dst.value}. An attempt is reported by the "
+                "worker that holds it; a record from anyone else is a "
+                "verdict on work they were not doing.")
+        if not job.lease_is_live(at):
+            raise JobTransitionError(
+                f"seq {seq}: lease {job.lease_id!r} on {job.job_id!r} lapsed "
+                f"after seq {job.lease_expires_after_seq}. A late report does "
+                "not get to decide the outcome -- the work may already have "
+                "been redone.")
+    if (job.state is JobState.DISPATCHED and dst is JobState.READY
+            and job.lease_is_live(at)):
+        # The requeue edge is the one edge out of DISPATCHED that someone
+        # OTHER than the holder is meant to take, so it cannot be guarded by
+        # actor. It is guarded by the fact it claims: the lease has lapsed.
+        raise JobTransitionError(
+            f"seq {seq}: {job.job_id!r} is requeued as though its lease had "
+            f"lapsed, but lease {job.lease_id!r} runs to seq "
+            f"{job.lease_expires_after_seq}. Reclaiming a live lease hands "
+            "the same work to a second worker.")
+    if "attempts" in payload:
+        want = int(payload["attempts"])
+        allowed = (job.attempts + 1
+                   if (job.state is JobState.READY
+                       and dst is JobState.DISPATCHED)
+                   else job.attempts)
+        if want != allowed:
+            raise JobTransitionError(
+                f"seq {seq}: {job.job_id!r} has {job.attempts} attempts and "
+                f"this record sets {want}. The count is what max_attempts "
+                "bounds, so a record that may rewrite it may retry forever.")
+    if (payload.get("lease_holder") or payload.get("lease_id")) and not (
+            job.state is JobState.READY and dst is JobState.DISPATCHED):
+        raise JobTransitionError(
+            f"seq {seq}: {job.job_id!r} {job.state.value} -> {dst.value} "
+            "carries a lease. Ownership is taken at dispatch and cleared on "
+            "the way out; a record that grants one anywhere else is naming "
+            "its own owner.")
 
 
 def _apply_edge(job: Job, edge: JobEdge, payload: dict, *, seq: int) -> Job:

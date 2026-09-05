@@ -326,9 +326,29 @@ class AuditIndex:
             executed_by = None
             verified_by = None
             for s in steps:
-                if s.action == "task.transition":
+                if s.action == "task.execution":
+                    # The durable statement of who ran the tool, made by the
+                    # actor that ran it. This is the only source for it.
+                    executed_by = s.actor
+                elif s.action == "task.transition":
                     if s.detail.get("dst") == "COMPLETED":
-                        executed_by = s.detail.get("executed_by") or s.actor
+                        # NOT s.detail["executed_by"]. This check exists to
+                        # catch a history that did not go through the gate,
+                        # and reading the forger's own field to decide
+                        # whether the forger cheated answers no every time.
+                        # The actor is who the log says moved it; a payload
+                        # naming someone else is itself the finding.
+                        if executed_by is None:
+                            executed_by = s.actor
+                        claimed = s.detail.get("executed_by")
+                        if claimed and claimed != executed_by:
+                            gaps.append(
+                                f"seq {s.seq}: the completion names "
+                                f"{claimed!r} as the executor, but the log "
+                                f"shows {executed_by!r}; separation of duties "
+                                "is judged against the executor, so a record "
+                                "that renames one is choosing its own "
+                                "verifier")
                     elif s.detail.get("dst") == "VERIFIED":
                         verified_by = s.actor
             if executed_by is not None and executed_by == verified_by:

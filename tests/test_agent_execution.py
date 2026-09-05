@@ -20,8 +20,9 @@ if ROOT not in sys.path:
 
 from qta_agent.capability import (  # noqa: E402
     Action, Capability, CapabilityDenied, CapabilityError,
-    CapabilityExpired, CapabilityRevoked, CapabilitySet, CapabilityUnknown,
-    Request, capability_from_record, digest_is_consistent, issue,
+    CapabilityExpired, CapabilityNotYetIssued, CapabilityRevoked,
+    CapabilitySet, CapabilityUnknown, Request, capability_from_record,
+    digest_is_consistent, issue,
 )
 from qta_agent.execution import (  # noqa: E402
     RETRYABLE, SUCCESSFUL, CancellationToken, Executor, Limits, Outcome,
@@ -672,12 +673,15 @@ def test_the_same_grant_recorded_twice_is_not_a_conflict(tmp_path):
 
     Refusing it would make the projection reject a log that a retried append
     could legitimately produce.
+
+    "Byte-identical" means identical to what was RECORDED, which is what
+    :meth:`issue` returns -- the ledger stamps the grant's start with the seq
+    its record lands at, so a caller's pre-stamp copy is a different grant.
     """
     from qta_agent.capability import ACT_ISSUE, CapabilityLedger
 
     log, ledger = _ledger(tmp_path)
-    cap = _cap()
-    ledger.issue(cap, actor="scheduler")
+    cap = ledger.issue(_cap(), actor="scheduler")
     log.append(actor="scheduler", action=ACT_ISSUE, target="t1",
                payload={"task_id": "t1", **cap.body()})
     assert CapabilityLedger(log).load().issued_ids() == ("c1",)
@@ -725,3 +729,77 @@ def test_the_ledger_skips_foreign_events_without_dropping_unknown_ones(
     ledger.issue(_cap(), actor="scheduler")
     assert CapabilityLedger(log).load().issued_ids() == ("c1",)
     assert ledger.apply(log.read()[0]) is False
+
+
+# --- a grant has two ends, and only one was checked --------------------------
+
+def test_a_grant_does_not_authorize_what_happened_before_it_existed():
+    """THE MISSING HALF OF THE VALIDITY WINDOW.
+
+    Expiry was checked. Issuance was not, so a capability recorded at seq 90
+    answered "was this permitted at seq 20?" with yes -- and that is exactly
+    the question an auditor asks. A grant written after an incident would
+    have retroactively covered it.
+    """
+    cap = _cap(issued_seq=50)
+    caps = CapabilitySet(issued={"c1": cap}, at_seq=20)
+    with pytest.raises(CapabilityNotYetIssued, match="reach backwards"):
+        caps.check("c1", Request("agent-1", Action.EXECUTE_TOOL, "t1",
+                                 "probe"))
+
+
+def test_the_window_is_closed_at_both_ends_and_open_between_them():
+    """Stated as the window, so neither end can be dropped unnoticed."""
+    cap = _cap(issued_seq=10, expires_after_seq=20)
+    req = Request("agent-1", Action.EXECUTE_TOOL, "t1", "probe")
+    for at in (10, 15, 20):
+        assert CapabilitySet(issued={"c1": cap}, at_seq=at).check("c1", req)
+    with pytest.raises(CapabilityNotYetIssued):
+        CapabilitySet(issued={"c1": cap}, at_seq=9).check("c1", req)
+    with pytest.raises(CapabilityExpired):
+        CapabilitySet(issued={"c1": cap}, at_seq=21).check("c1", req)
+
+
+def test_the_ledger_stamps_the_start_rather_than_taking_it_from_the_caller(
+        tmp_path):
+    """Where a grant begins is the log's to decide.
+
+    A caller that could choose it could backdate one over work already done,
+    and the digest would agree with the backdated body -- content-binding
+    catches tampering, not a self-consistent lie.
+    """
+    log, ledger = _ledger(tmp_path)
+    stored = ledger.issue(_cap(issued_seq=0), actor="scheduler")
+    seq = [e.seq for e in log.read()][-1]
+    assert stored.issued_seq == seq
+    assert ledger.in_force().issued["c1"].issued_seq == seq
+
+
+def test_a_record_that_names_its_own_start_is_refused_on_replay(tmp_path):
+    """And the same rule from the other side: a record written around
+    :meth:`issue` cannot claim a start of its own choosing."""
+    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+
+    log, ledger = _ledger(tmp_path)
+    for i in range(3):
+        log.append(actor="x", action="record.create", target=f"r{i}",
+                   payload={})
+    backdated = _cap(capability_id="c-back", issued_seq=0)
+    log.append(actor="mallory", action=ACT_ISSUE, target="t1",
+               payload={"task_id": "t1", **backdated.body()})
+    with pytest.raises(CapabilityError, match="claims it was issued at seq"):
+        CapabilityLedger(log).load()
+
+
+def test_the_ledger_records_who_granted_each_capability(tmp_path):
+    """Attribution, and deliberately NOT authorization.
+
+    Nothing in this build constrains who may issue a grant -- there is no
+    issuer authority, and this is stated rather than implied. What an auditor
+    gets is the actor the grant is attributable to, which is strictly more
+    than the log position it appeared at.
+    """
+    log, ledger = _ledger(tmp_path)
+    ledger.issue(_cap(), actor="scheduler")
+    assert ledger.issuer_of("c1") == "scheduler"
+    assert ledger.issuer_of("never-issued") is None

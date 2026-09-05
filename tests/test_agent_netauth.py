@@ -646,3 +646,88 @@ def test_a_bare_string_field_is_refused_rather_than_iterated(field):
     kw[field] = "GET"
     with pytest.raises(NetworkError):
         grant(**kw)
+
+
+# ---- the grant's window, and a grant that replaced one already in force ----
+#
+# Egress had the two defects capability.py had, in the same shape: the window
+# was checked at one end, and a re-issued grant_id overwrote the grant on
+# replay. issue() refuses a duplicate id, so that path was reachable only by
+# a record written around it -- which is precisely the record it mattered for.
+
+def test_a_grant_does_not_authorize_traffic_from_before_it_existed(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    a = NetworkAuthority(log)
+    for i in range(3):
+        log.append(actor="x", action="record.create", target=f"r{i}",
+                   payload={})
+    a.issue(_grant(), actor="scheduler")
+    issued_at = a._at_seq
+
+    a.set_position(issued_at)
+    assert a.authorize(_req()).allowed
+    a.set_position(issued_at - 1)
+    d = a.authorize(_req())
+    assert not d.allowed
+    assert "reach backwards" in d.reason, d.reason
+
+
+def test_the_authority_stamps_the_grants_start_from_the_log(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    a = NetworkAuthority(log)
+    for i in range(3):
+        log.append(actor="x", action="record.create", target=f"r{i}",
+                   payload={})
+    a.issue(_grant(issued_seq=0), actor="scheduler")
+    seq = [e.seq for e in log.read()][-1]
+    assert a._grants["g1"].issued_seq == seq
+
+
+def test_a_backdated_grant_record_is_refused_on_replay(tmp_path):
+    from qta_agent.netauth import ACT_NET_GRANT
+
+    log = EventLog(tmp_path / "log.jsonl")
+    for i in range(3):
+        log.append(actor="x", action="record.create", target=f"r{i}",
+                   payload={})
+    g = _grant(issued_seq=0)
+    log.append(actor="mallory", action=ACT_NET_GRANT, target=TASK,
+               payload={"grant": g.body(), "grant_digest": g.digest(),
+                        "grant_id": g.grant_id})
+    with pytest.raises(NetworkError, match="claims it was issued at seq"):
+        NetworkAuthority(log).load()
+
+
+def test_a_second_grant_under_one_id_does_not_silently_widen_the_first(
+        tmp_path):
+    """It used to overwrite. A record naming an existing grant_id with a
+    wider host set replaced authority already in force, and nothing said so.
+    """
+    from qta_agent.netauth import ACT_NET_GRANT
+
+    log = EventLog(tmp_path / "log.jsonl")
+    a = NetworkAuthority(log)
+    a.issue(_grant(), actor="scheduler")
+    wider = _grant(hosts=("api.example.com", "evil.example.net"),
+                   issued_seq=a._at_seq + 1)
+    log.append(actor="mallory", action=ACT_NET_GRANT, target=TASK,
+               payload={"grant": wider.body(), "grant_digest": wider.digest(),
+                        "grant_id": wider.grant_id})
+    with pytest.raises(NetworkError, match="issued twice with different"):
+        NetworkAuthority(log).load()
+
+
+def test_the_same_grant_recorded_twice_is_still_a_replay(tmp_path):
+    """The guard above must refuse a REPLACEMENT, not a retried append."""
+    from qta_agent.netauth import ACT_NET_GRANT
+
+    log = EventLog(tmp_path / "log.jsonl")
+    a = NetworkAuthority(log)
+    a.issue(_grant(), actor="scheduler")
+    same = a._grants["g1"]
+    log.append(actor="scheduler", action=ACT_NET_GRANT, target=TASK,
+               payload={"grant": same.body(), "grant_digest": same.digest(),
+                        "grant_id": same.grant_id})
+    reloaded = NetworkAuthority(log).load()
+    assert set(reloaded._grants) == {"g1"}
+    assert reloaded._grants["g1"].digest() == same.digest()

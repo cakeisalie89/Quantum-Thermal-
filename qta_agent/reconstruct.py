@@ -318,6 +318,17 @@ def reconstruct_tasks(log: EventLog, *,
             out.anomalies.append(
                 f"seq {ev.seq}: {tid} claims src {claimed} but replay has it "
                 f"in {cur['state']}")
+        # The same question about the OTHER field the record gets to name.
+        # Who executed the task decides who is allowed to verify it, and only
+        # a task.execution record establishes it. A transition may repeat
+        # that answer; it may not supply one, and it may not change it.
+        claimed_by = p.get("executed_by")
+        if claimed_by is not None and claimed_by != cur["executed_by"]:
+            out.anomalies.append(
+                f"seq {ev.seq}: {tid} names {claimed_by!r} as its executor, "
+                f"but replay has {cur['executed_by']!r}; the executor comes "
+                "from the execution record, so this record is naming the "
+                "actor that verification has to differ from")
         lease = None
         if p.get("lease"):
             try:
@@ -374,8 +385,12 @@ def reconstruct_tasks(log: EventLog, *,
         cur["updated_seq"] = ev.seq
         if p.get("result_digest") is not None:
             cur["result_digest"] = p["result_digest"]
-        if p.get("executed_by") is not None:
-            cur["executed_by"] = p["executed_by"]
+        # cur["executed_by"] is NOT updated here. It was, and that single
+        # line put this reader back underneath the bypass the production
+        # projection had already been fixed for: the reauthorization above
+        # correctly used the replayed executor, and then the payload
+        # overwrote it in time for the NEXT transition to be checked against
+        # the forger's choice.
         cur["history"].append((ev.seq, p["dst"]))
 
     out.tasks = tasks

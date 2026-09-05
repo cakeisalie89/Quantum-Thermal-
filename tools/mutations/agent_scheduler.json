@@ -1,298 +1,354 @@
 {
- "title": "Durable scheduling: readiness, ownership, retry, cancellation",
- "note": "A scheduler's enforcement points are the ones that decide whether work runs at all, who owns it, and what happens when it does not succeed. Each mutation here removes one. The sharpest are N3 (a failed dependency stops blocking, so dependents wait forever on work nobody will do), N7 (a stale lease may report success, so a worker back from the dead overwrites the outcome someone else produced) and N12 (a verification failure becomes retryable, which is how a flaky pass is eventually obtained).",
- "suites": [
-  "tests/test_agent_machine_properties.py",
-  "tests/test_agent_policy.py",
-  "tests/test_agent_scheduler.py"
- ],
- "mutations": [
-  {
-   "name": "N1_replayed_transition_not_reauthorized",
-   "path": "qta_agent/scheduler.py",
-   "find": "            edge = check_edge(src, dst, cur.job_id)",
-   "replace": "            edge = find_edge(src, dst) or JobEdge(src, dst, \"forged\")",
-   "rationale": "a forged log entry becomes queue state simply by being present"
-  },
-  {
-   "name": "N2_replay_ignores_the_recorded_source_state",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if cur.state is not src:",
-   "replace": "            if False:",
-   "rationale": "a transition record can claim any source state and still apply"
-  },
-  {
-   "name": "N3_failed_dependency_stops_blocking",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if dep.state in TERMINAL:\n                # FAILED, BLOCKED, CANCELLED or INVALIDATED: this job will",
-   "replace": "            if False:\n                # FAILED, BLOCKED, CANCELLED or INVALIDATED: this job will",
-   "rationale": "a dependent waits forever on work nobody will ever do, and looks like it is about to start"
-  },
-  {
-   "name": "N4_dependencies_not_checked_at_all",
-   "path": "qta_agent/scheduler.py",
-   "find": "        for dep_id in job.depends_on:\n            dep = self._jobs.get(dep_id)",
-   "replace": "        for dep_id in []:\n            dep = self._jobs.get(dep_id)",
-   "rationale": "a job runs before its inputs exist"
-  },
-  {
-   "name": "N5_backoff_ignored",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if job.state is JobState.RETRY_WAIT and at_seq < job.backoff_until_seq:",
-   "replace": "        if False:",
-   "rationale": "a failing job is retried immediately and forever"
-  },
-  {
-   "name": "N6_lease_holder_not_checked",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if job.lease_holder != worker:",
-   "replace": "        if False:",
-   "rationale": "any worker reports the outcome of another worker's attempt"
-  },
-  {
-   "name": "N7_stale_lease_may_report",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if not job.lease_is_live(at):",
-   "replace": "        if False:",
-   "rationale": "a worker back from the dead decides an outcome someone else already produced"
-  },
-  {
-   "name": "N8_requeue_keeps_the_lease",
-   "path": "qta_agent/scheduler.py",
-   "find": "    if edge.dst in TERMINAL or edge.dst in PENDING:",
-   "replace": "    if False:",
-   "rationale": "requeued work carries an owner it no longer has, so two workers can hold it"
-  },
-  {
-   "name": "N9_expiry_not_detected",
-   "path": "qta_agent/scheduler.py",
-   "find": "             if j.state is JobState.DISPATCHED and not j.lease_is_live(seq)),",
-   "replace": "             if False),",
-   "rationale": "a dead worker's job is never returned to the queue"
-  },
-  {
-   "name": "N10_idempotency_key_reuse_unchecked",
-   "path": "qta_agent/scheduler.py",
-   "find": "                if existing_digest != work_digest:",
-   "replace": "                if False:",
-   "rationale": "a genuinely different request is suppressed as if it were a retry of the first"
-  },
-  {
-   "name": "N11_duplicate_enqueue_replaces_the_original",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if job.job_id in self._jobs:\n                raise DuplicateJob(",
-   "replace": "            if False:\n                raise DuplicateJob(",
-   "rationale": "a second enqueue silently resets attempts and lease on live work"
-  },
-  {
-   "name": "N12_every_failure_becomes_retryable",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if failure in RETRYABLE and job.attempts < job.max_attempts:",
-   "replace": "        if job.attempts < job.max_attempts:",
-   "rationale": "a policy denial and a failed verification are retried until they pass"
-  },
-  {
-   "name": "N13_retry_budget_unbounded",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if failure in RETRYABLE and job.attempts < job.max_attempts:",
-   "replace": "        if failure in RETRYABLE or True:",
-   "rationale": "a permanently failing job never reaches FAILED"
-  },
-  {
-   "name": "N14_cancellation_does_not_cascade",
-   "path": "qta_agent/scheduler.py",
-   "find": "            for dep_id in self.transitive_dependents(job_id):\n                dep = self.get(dep_id)\n                if dep.state in TERMINAL:\n                    continue",
-   "replace": "            for dep_id in []:\n                dep = self.get(dep_id)\n                if dep.state in TERMINAL:\n                    continue",
-   "rationale": "downstream work waits on a cancelled parent that will never run"
-  },
-  {
-   "name": "N15_finished_job_can_be_cancelled",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if job.state in TERMINAL:\n            raise JobTransitionError(\n                f\"{job_id!r} is already {job.state.value}; cancelling a \"",
-   "replace": "        if False:\n            raise JobTransitionError(\n                f\"{job_id!r} is already {job.state.value}; cancelling a \"",
-   "rationale": "how a job finished can be rewritten after the fact"
-  },
-  {
-   "name": "N16_capacity_ignored_at_dispatch",
-   "path": "qta_agent/scheduler.py",
-   "find": "        over = _exceeds(combined, self.capacity)",
-   "replace": "        over = {}",
-   "rationale": "unbounded concurrent execution regardless of declared resources"
-  },
-  {
-   "name": "N17_impossible_work_is_enqueued",
-   "path": "qta_agent/scheduler.py",
-   "find": "        over = _exceeds(resources, self.capacity)\n        if over:\n            raise CapacityError(",
-   "replace": "        over = {}\n        if over:\n            raise CapacityError(",
-   "rationale": "work that can never be dispatched waits forever instead of being refused"
-  },
-  {
-   "name": "N18_dispatch_skips_the_readiness_recheck",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if not r.ready:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {r.reason}\")",
-   "replace": "        if False:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {r.reason}\")",
-   "rationale": "dispatch decides against a stale snapshot of readiness"
-  },
-  {
-   "name": "N19_priority_escalation_unchecked",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if priority < job.priority:",
-   "replace": "        if False:",
-   "rationale": "any worker makes its own work most urgent; priority stops meaning anything"
-  },
-  {
-   "name": "N20_priority_bounds_removed",
-   "path": "qta_agent/scheduler.py",
-   "find": "    if not MIN_PRIORITY <= priority <= MAX_PRIORITY:",
-   "replace": "    if False:",
-   "rationale": "an out-of-range priority starves every other job"
-  },
-  {
-   "name": "N21_enqueue_policy_not_consulted",
-   "path": "qta_agent/scheduler.py",
-   "find": "                          role=\"SUBMITTER\", resource=job_id,\n                          task_id=task_id or \"\"))\n        decision.raise_if_denied()",
-   "replace": "                          role=\"SUBMITTER\", resource=job_id,\n                          task_id=task_id or \"\"))",
-   "rationale": "the policy layer is bypassed on the way in"
-  },
-  {
-   "name": "N22_dispatch_policy_not_consulted",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if not decision.allowed:\n            return Readiness(False, fatal=True,",
-   "replace": "        if False:\n            return Readiness(False, fatal=True,",
-   "rationale": "the policy layer is bypassed on the way out"
-  },
-  {
-   "name": "N23_unresolved_evidence_treated_as_present",
-   "path": "qta_agent/scheduler.py",
-   "find": "            missing = [d for d in job.requires_evidence if not resolve(d)]",
-   "replace": "            missing = []",
-   "rationale": "a job citing evidence that does not exist is dispatched anyway"
-  },
-  {
-   "name": "N24_missing_resolver_counts_as_satisfied",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if resolve is None:\n                return Readiness(\n                    False, reason=(\"this job cites evidence, and no resolver \"",
-   "replace": "            if False:\n                return Readiness(\n                    False, reason=(\"this job cites evidence, and no resolver \"",
-   "rationale": "an unchecked citation passes as a checked one"
-  },
-  {
-   "name": "N25_revoked_capability_accepted",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if job.requires_capability in capabilities.revoked:",
-   "replace": "            if False:",
-   "rationale": "a withdrawn grant still authorizes dispatch"
-  },
-  {
-   "name": "N26_expired_capability_accepted",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if (cap.expires_after_seq != NEVER_EXPIRES\n                    and at_seq > cap.expires_after_seq):",
-   "replace": "            if False:",
-   "rationale": "an expired grant still authorizes dispatch"
-  },
-  {
-   "name": "N27_ready_order_loses_its_tiebreak",
-   "path": "qta_agent/scheduler.py",
-   "find": "            out, key=lambda j: (j.effective_priority(seq), j.enqueued_seq,\n                                j.job_id)))",
-   "replace": "            out, key=lambda j: (j.effective_priority(seq),)))",
-   "rationale": "dispatch order stops being reproducible across a restart"
-  },
-  {
-   "name": "N28_aging_removed",
-   "path": "qta_agent/scheduler.py",
-   "find": "        return max(MIN_PRIORITY, self.priority - waited // AGING_INTERVAL)",
-   "replace": "        return self.priority",
-   "rationale": "low-priority work is starved indefinitely by a stream of urgent work"
-  },
-  {
-   "name": "N29_invalidation_does_not_reach_downstream",
-   "path": "qta_agent/scheduler.py",
-   "find": "        for dep_id in self.transitive_dependents(job_id):\n            dep = self.get(dep_id)\n            if dep.state is JobState.SUCCEEDED:",
-   "replace": "        for dep_id in []:\n            dep = self.get(dep_id)\n            if dep.state is JobState.SUCCEEDED:",
-   "rationale": "results built on a withdrawn input stay current"
-  },
-  {
-   "name": "N30_unfinished_job_can_be_invalidated",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if job.state is not JobState.SUCCEEDED:",
-   "replace": "        if False:",
-   "rationale": "work that was never treated as current is marked as withdrawn, hiding what actually happened"
-  },
-  {
-   "name": "N31_optimistic_concurrency_removed",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if (expected_revision is not None\n                and job.revision != expected_revision):",
-   "replace": "        if False:",
-   "rationale": "two writers racing on one job both win, and the loser is never told"
-  },
-  {
-   "name": "N32_unknown_job_fields_projected",
-   "path": "qta_agent/scheduler.py",
-   "find": "    if unknown:\n        raise SchedulerError(\n            f\"job record carries unknown fields {sorted(unknown)}; refusing \"",
-   "replace": "    if False:\n        raise SchedulerError(\n            f\"job record carries unknown fields {sorted(unknown)}; refusing \"",
-   "rationale": "a job record written by a newer version is projected with fields this reader silently drops"
-  },
-  {
-   "name": "N33_terminal_diagnosis_lost",
-   "path": "qta_agent/scheduler.py",
-   "find": "        if src in TERMINAL:\n            raise JobTransitionError(\n                f\"{src.value} is terminal; job {job_id!r} cannot leave it. \"",
-   "replace": "        if False:\n            raise JobTransitionError(\n                f\"{src.value} is terminal; job {job_id!r} cannot leave it. \"",
-   "rationale": "a finished job's refusal stops saying WHY: 'no edge SUCCEEDED -> READY' does not tell an operator that re-doing the work means a new job. This branch is reached only when no edge exists, so what it protects is the diagnosis, not the refusal -- and that is what the test pins."
-  },
-  {
-   "name": "N34_self_dependency_allowed",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if dep == job_id:",
-   "replace": "            if False:",
-   "rationale": "a job that can never become ready is accepted as if it could"
-  },
-  {
-   "name": "N35_dependency_on_nothing_allowed",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if dep not in self._jobs:\n                raise SchedulerError(\n                    f\"dependency {dep!r} does not exist;",
-   "replace": "            if False:\n                raise SchedulerError(\n                    f\"dependency {dep!r} does not exist;",
-   "rationale": "a job depends on something unrecorded, so nothing ever satisfies it"
-  },
-  {
-   "name": "N36_dependency_that_can_never_succeed_accepted",
-   "path": "qta_agent/scheduler.py",
-   "find": "            if dep_state not in CAN_STILL_SUCCEED:",
-   "replace": "            if False:",
-   "rationale": "a job is enqueued onto a CANCELLED or FAILED parent and waits forever; waiting forever looks exactly like slow"
-  },
-  {
-   "name": "N37_reachability_set_includes_everything",
-   "path": "qta_agent/scheduler.py",
-   "find": "    reachable = {JobState.SUCCEEDED}",
-   "replace": "    reachable = set(JobState)",
-   "rationale": "the derived set stops excluding anything, so the enqueue guard it feeds permits every sealed dependency"
-  },
-  {
-   "name": "N38_reachability_search_stops_after_one_hop",
-   "path": "qta_agent/scheduler.py",
-   "find": "    changed = True\n    while changed:\n        changed = False",
-   "replace": "    changed = True\n    while changed:\n        changed = False\n        if len(reachable) > 1:\n            break",
-   "rationale": "backward reachability finds only direct predecessors of SUCCEEDED, so legitimate in-flight dependencies are refused"
-  },
-  {
-   "name": "N39_terminal_failure_does_not_cascade",
-   "path": "qta_agent/scheduler.py",
-   "find": "        self._block_dependents_of(job_id, actor=who, why=note)",
-   "replace": "        pass",
-   "rationale": "a dependent stays WAITING on a permanently FAILED parent, indistinguishable from waiting on a slow one, until somebody happens to run reconcile"
-  },
-  {
-   "name": "N40_failure_cascade_is_not_transitive",
-   "path": "qta_agent/scheduler.py",
-   "find": "        for dep_id in self.transitive_dependents(job_id):\n            dep = self.get(dep_id)\n            if dep.state in TERMINAL:\n                continue\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,",
-   "replace": "        for dep_id in sorted(j.job_id for j in self.dependents(job_id)):\n            dep = self.get(dep_id)\n            if dep.state in TERMINAL:\n                continue\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,",
-   "rationale": "only the immediate child is blocked -- the classic shortcut bug -- so a grandchild waits forever on work nobody will do"
-  },
-  {
-   "name": "N41_failure_cascade_rewrites_finished_dependents",
-   "path": "qta_agent/scheduler.py",
-   "find": "            dep = self.get(dep_id)\n            if dep.state in TERMINAL:\n                continue\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,\n                reason=f\"upstream {job_id} can no longer succeed: {why}\",",
-   "replace": "            dep = self.get(dep_id)\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,\n                reason=f\"upstream {job_id} can no longer succeed: {why}\",",
-   "rationale": "a dependent that already finished has how it finished rewritten"
-  }
- ]
+  "title": "Durable scheduling: readiness, ownership, retry, cancellation",
+  "note": "A scheduler's enforcement points are the ones that decide whether work runs at all, who owns it, and what happens when it does not succeed. Each mutation here removes one. The sharpest are N3 (a failed dependency stops blocking, so dependents wait forever on work nobody will do), N7 (a stale lease may report success, so a worker back from the dead overwrites the outcome someone else produced) and N12 (a verification failure becomes retryable, which is how a flaky pass is eventually obtained).",
+  "suites": [
+    "tests/test_agent_machine_properties.py",
+    "tests/test_agent_policy.py",
+    "tests/test_agent_scheduler.py"
+  ],
+  "mutations": [
+    {
+      "name": "N1_replayed_transition_not_reauthorized",
+      "path": "qta_agent/scheduler.py",
+      "find": "            edge = check_edge(src, dst, cur.job_id)",
+      "replace": "            edge = find_edge(src, dst) or JobEdge(src, dst, \"forged\")",
+      "rationale": "a forged log entry becomes queue state simply by being present"
+    },
+    {
+      "name": "N2_replay_ignores_the_recorded_source_state",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if cur.state is not src:",
+      "replace": "            if False:",
+      "rationale": "a transition record can claim any source state and still apply"
+    },
+    {
+      "name": "N3_failed_dependency_stops_blocking",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if dep.state in TERMINAL:\n                # FAILED, BLOCKED, CANCELLED or INVALIDATED: this job will",
+      "replace": "            if False:\n                # FAILED, BLOCKED, CANCELLED or INVALIDATED: this job will",
+      "rationale": "a dependent waits forever on work nobody will ever do, and looks like it is about to start"
+    },
+    {
+      "name": "N4_dependencies_not_checked_at_all",
+      "path": "qta_agent/scheduler.py",
+      "find": "        for dep_id in job.depends_on:\n            dep = self._jobs.get(dep_id)",
+      "replace": "        for dep_id in []:\n            dep = self._jobs.get(dep_id)",
+      "rationale": "a job runs before its inputs exist"
+    },
+    {
+      "name": "N5_backoff_ignored",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.state is JobState.RETRY_WAIT and at_seq < job.backoff_until_seq:",
+      "replace": "        if False:",
+      "rationale": "a failing job is retried immediately and forever"
+    },
+    {
+      "name": "N6_lease_holder_not_checked",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.lease_holder != worker:",
+      "replace": "        if False:",
+      "rationale": "any worker reports the outcome of another worker's attempt"
+    },
+    {
+      "name": "N7_stale_lease_may_report",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not job.lease_is_live(at):\n            raise JobTransitionError(\n                f\"lease {job.lease_id!r} lapsed after seq \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"lease {job.lease_id!r} lapsed after seq \"",
+      "rationale": "a worker back from the dead decides an outcome someone else already produced"
+    },
+    {
+      "name": "N8_requeue_keeps_the_lease",
+      "path": "qta_agent/scheduler.py",
+      "find": "    if edge.dst in TERMINAL or edge.dst in PENDING:",
+      "replace": "    if False:",
+      "rationale": "requeued work carries an owner it no longer has, so two workers can hold it"
+    },
+    {
+      "name": "N9_expiry_not_detected",
+      "path": "qta_agent/scheduler.py",
+      "find": "             if j.state is JobState.DISPATCHED and not j.lease_is_live(seq)),",
+      "replace": "             if False),",
+      "rationale": "a dead worker's job is never returned to the queue"
+    },
+    {
+      "name": "N10_idempotency_key_reuse_unchecked",
+      "path": "qta_agent/scheduler.py",
+      "find": "                if existing_digest != work_digest:",
+      "replace": "                if False:",
+      "rationale": "a genuinely different request is suppressed as if it were a retry of the first"
+    },
+    {
+      "name": "N11_duplicate_enqueue_replaces_the_original",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if job.job_id in self._jobs:\n                raise DuplicateJob(",
+      "replace": "            if False:\n                raise DuplicateJob(",
+      "rationale": "a second enqueue silently resets attempts and lease on live work"
+    },
+    {
+      "name": "N12_every_failure_becomes_retryable",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if failure in RETRYABLE and job.attempts < job.max_attempts:",
+      "replace": "        if job.attempts < job.max_attempts:",
+      "rationale": "a policy denial and a failed verification are retried until they pass"
+    },
+    {
+      "name": "N13_retry_budget_unbounded",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if failure in RETRYABLE and job.attempts < job.max_attempts:",
+      "replace": "        if failure in RETRYABLE or True:",
+      "rationale": "a permanently failing job never reaches FAILED"
+    },
+    {
+      "name": "N14_cancellation_does_not_cascade",
+      "path": "qta_agent/scheduler.py",
+      "find": "            for dep_id in self.transitive_dependents(job_id):\n                dep = self.get(dep_id)\n                if dep.state in TERMINAL:\n                    continue",
+      "replace": "            for dep_id in []:\n                dep = self.get(dep_id)\n                if dep.state in TERMINAL:\n                    continue",
+      "rationale": "downstream work waits on a cancelled parent that will never run"
+    },
+    {
+      "name": "N15_finished_job_can_be_cancelled",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.state in TERMINAL:\n            raise JobTransitionError(\n                f\"{job_id!r} is already {job.state.value}; cancelling a \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"{job_id!r} is already {job.state.value}; cancelling a \"",
+      "rationale": "how a job finished can be rewritten after the fact"
+    },
+    {
+      "name": "N16_capacity_ignored_at_dispatch",
+      "path": "qta_agent/scheduler.py",
+      "find": "        over = _exceeds(combined, self.capacity)",
+      "replace": "        over = {}",
+      "rationale": "unbounded concurrent execution regardless of declared resources"
+    },
+    {
+      "name": "N17_impossible_work_is_enqueued",
+      "path": "qta_agent/scheduler.py",
+      "find": "        over = _exceeds(resources, self.capacity)\n        if over:\n            raise CapacityError(",
+      "replace": "        over = {}\n        if over:\n            raise CapacityError(",
+      "rationale": "work that can never be dispatched waits forever instead of being refused"
+    },
+    {
+      "name": "N18_dispatch_skips_the_readiness_recheck",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not r.ready:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {r.reason}\")",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {r.reason}\")",
+      "rationale": "dispatch decides against a stale snapshot of readiness"
+    },
+    {
+      "name": "N19_priority_escalation_unchecked",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if priority < job.priority:",
+      "replace": "        if False:",
+      "rationale": "any worker makes its own work most urgent; priority stops meaning anything"
+    },
+    {
+      "name": "N20_priority_bounds_removed",
+      "path": "qta_agent/scheduler.py",
+      "find": "    if not MIN_PRIORITY <= priority <= MAX_PRIORITY:",
+      "replace": "    if False:",
+      "rationale": "an out-of-range priority starves every other job"
+    },
+    {
+      "name": "N21_enqueue_policy_not_consulted",
+      "path": "qta_agent/scheduler.py",
+      "find": "                          role=\"SUBMITTER\", resource=job_id,\n                          task_id=task_id or \"\"))\n        decision.raise_if_denied()",
+      "replace": "                          role=\"SUBMITTER\", resource=job_id,\n                          task_id=task_id or \"\"))",
+      "rationale": "the policy layer is bypassed on the way in"
+    },
+    {
+      "name": "N22_dispatch_policy_not_consulted",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not decision.allowed:\n            return Readiness(False, fatal=True,",
+      "replace": "        if False:\n            return Readiness(False, fatal=True,",
+      "rationale": "the policy layer is bypassed on the way out"
+    },
+    {
+      "name": "N23_unresolved_evidence_treated_as_present",
+      "path": "qta_agent/scheduler.py",
+      "find": "            missing = [d for d in job.requires_evidence if not resolve(d)]",
+      "replace": "            missing = []",
+      "rationale": "a job citing evidence that does not exist is dispatched anyway"
+    },
+    {
+      "name": "N24_missing_resolver_counts_as_satisfied",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if resolve is None:\n                return Readiness(\n                    False, reason=(\"this job cites evidence, and no resolver \"",
+      "replace": "            if False:\n                return Readiness(\n                    False, reason=(\"this job cites evidence, and no resolver \"",
+      "rationale": "an unchecked citation passes as a checked one"
+    },
+    {
+      "name": "N25_revoked_capability_accepted",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if job.requires_capability in capabilities.revoked:",
+      "replace": "            if False:",
+      "rationale": "a withdrawn grant still authorizes dispatch"
+    },
+    {
+      "name": "N26_expired_capability_accepted",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if (cap.expires_after_seq != NEVER_EXPIRES\n                    and at_seq > cap.expires_after_seq):",
+      "replace": "            if False:",
+      "rationale": "an expired grant still authorizes dispatch"
+    },
+    {
+      "name": "N27_ready_order_loses_its_tiebreak",
+      "path": "qta_agent/scheduler.py",
+      "find": "            out, key=lambda j: (j.effective_priority(seq), j.enqueued_seq,\n                                j.job_id)))",
+      "replace": "            out, key=lambda j: (j.effective_priority(seq),)))",
+      "rationale": "dispatch order stops being reproducible across a restart"
+    },
+    {
+      "name": "N28_aging_removed",
+      "path": "qta_agent/scheduler.py",
+      "find": "        return max(MIN_PRIORITY, self.priority - waited // AGING_INTERVAL)",
+      "replace": "        return self.priority",
+      "rationale": "low-priority work is starved indefinitely by a stream of urgent work"
+    },
+    {
+      "name": "N29_invalidation_does_not_reach_downstream",
+      "path": "qta_agent/scheduler.py",
+      "find": "        for dep_id in self.transitive_dependents(job_id):\n            dep = self.get(dep_id)\n            if dep.state is JobState.SUCCEEDED:",
+      "replace": "        for dep_id in []:\n            dep = self.get(dep_id)\n            if dep.state is JobState.SUCCEEDED:",
+      "rationale": "results built on a withdrawn input stay current"
+    },
+    {
+      "name": "N30_unfinished_job_can_be_invalidated",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.state is not JobState.SUCCEEDED:",
+      "replace": "        if False:",
+      "rationale": "work that was never treated as current is marked as withdrawn, hiding what actually happened"
+    },
+    {
+      "name": "N31_optimistic_concurrency_removed",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if (expected_revision is not None\n                and job.revision != expected_revision):",
+      "replace": "        if False:",
+      "rationale": "two writers racing on one job both win, and the loser is never told"
+    },
+    {
+      "name": "N32_unknown_job_fields_projected",
+      "path": "qta_agent/scheduler.py",
+      "find": "    if unknown:\n        raise SchedulerError(\n            f\"job record carries unknown fields {sorted(unknown)}; refusing \"",
+      "replace": "    if False:\n        raise SchedulerError(\n            f\"job record carries unknown fields {sorted(unknown)}; refusing \"",
+      "rationale": "a job record written by a newer version is projected with fields this reader silently drops"
+    },
+    {
+      "name": "N33_terminal_diagnosis_lost",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if src in TERMINAL:\n            raise JobTransitionError(\n                f\"{src.value} is terminal; job {job_id!r} cannot leave it. \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"{src.value} is terminal; job {job_id!r} cannot leave it. \"",
+      "rationale": "a finished job's refusal stops saying WHY: 'no edge SUCCEEDED -> READY' does not tell an operator that re-doing the work means a new job. This branch is reached only when no edge exists, so what it protects is the diagnosis, not the refusal -- and that is what the test pins."
+    },
+    {
+      "name": "N34_self_dependency_allowed",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if dep == job_id:",
+      "replace": "            if False:",
+      "rationale": "a job that can never become ready is accepted as if it could"
+    },
+    {
+      "name": "N35_dependency_on_nothing_allowed",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if dep not in self._jobs:\n                raise SchedulerError(\n                    f\"dependency {dep!r} does not exist;",
+      "replace": "            if False:\n                raise SchedulerError(\n                    f\"dependency {dep!r} does not exist;",
+      "rationale": "a job depends on something unrecorded, so nothing ever satisfies it"
+    },
+    {
+      "name": "N36_dependency_that_can_never_succeed_accepted",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if dep_state not in CAN_STILL_SUCCEED:",
+      "replace": "            if False:",
+      "rationale": "a job is enqueued onto a CANCELLED or FAILED parent and waits forever; waiting forever looks exactly like slow"
+    },
+    {
+      "name": "N37_reachability_set_includes_everything",
+      "path": "qta_agent/scheduler.py",
+      "find": "    reachable = {JobState.SUCCEEDED}",
+      "replace": "    reachable = set(JobState)",
+      "rationale": "the derived set stops excluding anything, so the enqueue guard it feeds permits every sealed dependency"
+    },
+    {
+      "name": "N38_reachability_search_stops_after_one_hop",
+      "path": "qta_agent/scheduler.py",
+      "find": "    changed = True\n    while changed:\n        changed = False",
+      "replace": "    changed = True\n    while changed:\n        changed = False\n        if len(reachable) > 1:\n            break",
+      "rationale": "backward reachability finds only direct predecessors of SUCCEEDED, so legitimate in-flight dependencies are refused"
+    },
+    {
+      "name": "N39_terminal_failure_does_not_cascade",
+      "path": "qta_agent/scheduler.py",
+      "find": "        self._block_dependents_of(job_id, actor=who, why=note)",
+      "replace": "        pass",
+      "rationale": "a dependent stays WAITING on a permanently FAILED parent, indistinguishable from waiting on a slow one, until somebody happens to run reconcile"
+    },
+    {
+      "name": "N40_failure_cascade_is_not_transitive",
+      "path": "qta_agent/scheduler.py",
+      "find": "        for dep_id in self.transitive_dependents(job_id):\n            dep = self.get(dep_id)\n            if dep.state in TERMINAL:\n                continue\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,",
+      "replace": "        for dep_id in sorted(j.job_id for j in self.dependents(job_id)):\n            dep = self.get(dep_id)\n            if dep.state in TERMINAL:\n                continue\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,",
+      "rationale": "only the immediate child is blocked -- the classic shortcut bug -- so a grandchild waits forever on work nobody will do"
+    },
+    {
+      "name": "N41_failure_cascade_rewrites_finished_dependents",
+      "path": "qta_agent/scheduler.py",
+      "find": "            dep = self.get(dep_id)\n            if dep.state in TERMINAL:\n                continue\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,\n                reason=f\"upstream {job_id} can no longer succeed: {why}\",",
+      "replace": "            dep = self.get(dep_id)\n            moves.append(self.transition(\n                job_id=dep_id, dst=JobState.BLOCKED, actor=actor,\n                reason=f\"upstream {job_id} can no longer succeed: {why}\",",
+      "rationale": "a dependent that already finished has how it finished rewritten"
+    },
+    {
+      "name": "N42_replay_does_not_recheck_ownership",
+      "path": "qta_agent/scheduler.py",
+      "find": "            reauthorize_job_edge(cur, dst, p, actor=ev.actor, seq=ev.seq)",
+      "replace": "            pass",
+      "rationale": "report()'s refusals become write-path advice: the record it rejected is accepted when appended directly"
+    },
+    {
+      "name": "N43_a_non_holder_may_report_an_outcome",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if actor != job.lease_holder:",
+      "replace": "        if False:",
+      "rationale": "anyone may declare someone else's dispatched job SUCCEEDED"
+    },
+    {
+      "name": "N44_a_lapsed_lease_may_still_report",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not job.lease_is_live(at):\n            raise JobTransitionError(\n                f\"seq {seq}: lease {job.lease_id!r} on {job.job_id!r} lapsed \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"seq {seq}: lease {job.lease_id!r} on {job.job_id!r} lapsed \"",
+      "rationale": "a worker back from the dead overwrites the outcome someone else produced"
+    },
+    {
+      "name": "N45_lease_deadline_read_one_seq_late",
+      "path": "qta_agent/scheduler.py",
+      "find": "    at = seq - 1",
+      "replace": "    at = seq",
+      "rationale": "off by one against the write path: a report accepted at the boundary seq is refused on the next load, so the queue cannot be reloaded"
+    },
+    {
+      "name": "N46_a_live_lease_may_be_reclaimed",
+      "path": "qta_agent/scheduler.py",
+      "find": "    if (job.state is JobState.DISPATCHED and dst is JobState.READY\n            and job.lease_is_live(at)):",
+      "replace": "    if False:",
+      "rationale": "'the lease lapsed' becomes a sentence anyone can write, and the same work goes to a second worker"
+    },
+    {
+      "name": "N47_the_attempt_count_may_be_rewritten",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if want != allowed:",
+      "replace": "        if False:",
+      "rationale": "max_attempts stops bounding anything, so a record can retry forever"
+    },
+    {
+      "name": "N48_a_transition_may_grant_itself_a_lease",
+      "path": "qta_agent/scheduler.py",
+      "find": "    if (payload.get(\"lease_holder\") or payload.get(\"lease_id\")) and not (\n            job.state is JobState.READY and dst is JobState.DISPATCHED):",
+      "replace": "    if False:",
+      "rationale": "ownership can be taken anywhere, by naming yourself in a payload"
+    },
+    {
+      "name": "N49_a_report_is_written_under_the_judging_actor",
+      "path": "qta_agent/scheduler.py",
+      "find": "            return self.transition(job_id=job_id, dst=JobState.SUCCEEDED,\n                                   actor=worker, closed_by=who,",
+      "replace": "            return self.transition(job_id=job_id, dst=JobState.SUCCEEDED,\n                                   actor=who, closed_by=who,",
+      "rationale": "the record's actor stops being the lease holder, so replay cannot re-check ownership on the production path at all"
+    }
+  ]
 }

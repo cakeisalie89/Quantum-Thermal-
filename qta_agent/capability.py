@@ -40,7 +40,7 @@ same log. Wall time is recorded for humans and never used for a decision.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import PurePosixPath
 from typing import FrozenSet
@@ -62,6 +62,15 @@ class CapabilityRevoked(CapabilityDenied):
 
 class CapabilityExpired(CapabilityDenied):
     """The grant was valid, and is no longer."""
+
+
+class CapabilityNotYetIssued(CapabilityDenied):
+    """The grant exists in the log, but not yet at the position asked about.
+
+    The other half of :class:`CapabilityExpired`. A grant has a window, and a
+    window with only one end is a half-check: without this, a capability
+    recorded at seq 90 answered "was this permitted at seq 20?" with yes.
+    """
 
 
 class CapabilityUnknown(CapabilityDenied):
@@ -226,7 +235,8 @@ class CapabilitySet:
         """Authorize ``req`` under grant ``cap_id``, or raise.
 
         Order matters and is deliberate: existence, then revocation, then
-        expiry, then subject, then task, then action, then tool, then paths.
+        the validity WINDOW (not yet issued, then expired), then subject,
+        then task, then action, then tool, then paths.
         The message names the FIRST thing that was wrong, and the earlier
         checks are the ones an operator can act on -- "this grant was revoked"
         is actionable, "this path is not in scope" on a revoked grant is
@@ -242,6 +252,16 @@ class CapabilitySet:
             raise CapabilityRevoked(
                 f"capability {cap_id!r} was revoked; it authorizes nothing "
                 "from the moment the revocation was recorded")
+        if self.at_seq < cap.issued_seq:
+            # A grant has two ends. Only one was checked, so a capability
+            # recorded at seq 90 authorized actions at seq 20 -- and the
+            # question an auditor asks is precisely "was this permitted at
+            # the time", which this answered with a grant that did not yet
+            # exist.
+            raise CapabilityNotYetIssued(
+                f"capability {cap_id!r} was issued at seq {cap.issued_seq} "
+                f"and the question is at seq {self.at_seq}; a grant does not "
+                "reach backwards over what was already done")
         if (cap.expires_after_seq != NEVER_EXPIRES
                 and self.at_seq > cap.expires_after_seq):
             raise CapabilityExpired(
@@ -382,6 +402,7 @@ class CapabilityLedger:
     def load(self) -> "CapabilityLedger":
         self.log.verify().raise_if_bad()
         self._issued = {}
+        self._issued_by = {}
         self._revoked = set()
         self._at_seq = -1
         for ev in self.log.read():
@@ -393,12 +414,37 @@ class CapabilityLedger:
         if ev.action == ACT_ISSUE:
             cap = capability_from_record(ev.payload)
             existing = self._issued.get(cap.capability_id)
-            if existing is not None and existing.digest() != cap.digest():
+            if existing is not None:
+                if existing.digest() != cap.digest():
+                    raise CapabilityError(
+                        f"seq {ev.seq}: capability {cap.capability_id!r} was "
+                        "issued twice with different terms; two grants "
+                        "sharing an id cannot be told apart by anything that "
+                        "cites one")
+                # Byte-identical: a replay of a grant already in force, which
+                # a retried append can legitimately produce. Its start is the
+                # FIRST record's, and that one was checked when it was read.
+                self._at_seq = ev.seq
+                return True
+            if cap.issued_seq != ev.seq:
+                # WHERE a grant starts is the log's to say, not the record's.
+                # A capability appended at seq 90 claiming issued_seq 5 reads,
+                # to every later question about seq 5..89, as authority that
+                # was in force at the time. The window is only meaningful if
+                # its start is the position the grant actually appeared at.
                 raise CapabilityError(
-                    f"seq {ev.seq}: capability {cap.capability_id!r} was "
-                    "issued twice with different terms; two grants sharing "
-                    "an id cannot be told apart by anything that cites one")
+                    f"seq {ev.seq}: capability {cap.capability_id!r} claims "
+                    f"it was issued at seq {cap.issued_seq}. A grant is in "
+                    "force from where it appears in the log; one that names "
+                    "its own start could be backdated over anything already "
+                    "done.")
             self._issued[cap.capability_id] = cap
+            # WHO granted it. Kept beside the grant rather than inside it,
+            # because body() defines the capability's digest and its identity
+            # must not depend on who recorded it. Not an authorization -- see
+            # :meth:`issuer_of` -- but an auditor asking "where did this
+            # authority come from" now has an answer that is not "the log".
+            self._issued_by[cap.capability_id] = ev.actor
         elif ev.action == ACT_REVOKE:
             cap_id = ev.payload.get("capability_id")
             if not cap_id:
@@ -424,6 +470,17 @@ class CapabilityLedger:
     def issued_ids(self) -> tuple:
         return tuple(sorted(self._issued))
 
+    def issuer_of(self, capability_id: str) -> str | None:
+        """The actor whose record granted ``capability_id``.
+
+        Diagnostic, and deliberately not consulted by :meth:`CapabilitySet.
+        check`. Nothing here constrains WHO may issue a grant -- there is no
+        issuer authority in this build, and saying so is more useful than a
+        check that reads like one. What this does give an auditor is the
+        actor the grant is attributable to.
+        """
+        return self._issued_by.get(capability_id)
+
     def revoked_ids(self) -> tuple:
         return tuple(sorted(self._revoked))
 
@@ -436,6 +493,9 @@ class CapabilityLedger:
             raise CapabilityError(
                 f"capability {cap.capability_id!r} already exists; reusing an "
                 "id would make two grants indistinguishable in the log")
+        # Stamped, not accepted: the position a grant starts at is the log's
+        # to decide, and a caller that could choose it could backdate one.
+        cap = replace(cap, issued_seq=self.log.verify().head_seq + 1)
         ev = self.log.append(actor=actor, action=ACT_ISSUE,
                              target=cap.task_id,
                              payload={"task_id": cap.task_id, **cap.body()})

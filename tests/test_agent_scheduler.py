@@ -1009,3 +1009,165 @@ def test_the_cascade_is_recorded_so_an_operator_can_see_it(sched):
                and ev.payload["dst"] == JobState.BLOCKED.value]
     assert len(blocked) == 1
     assert "can no longer succeed" in blocked[0].payload["reason"]
+
+
+# --- ownership, re-checked on replay ----------------------------------------
+#
+# report() refuses an outcome from anyone but the lease holder, and refuses a
+# report from a holder whose lease has lapsed. Those refusals lived only on
+# the write path, so they were advice: mallory's report was rejected, and
+# mallory appended the identical record to the log instead. The next process
+# to load the queue folded it in and called the job SUCCEEDED.
+#
+# Each test below appends the record the write path had just refused.
+
+def _dispatched(sched, job_id="j1", worker="worker-a", lease_seqs=100):
+    _enqueue(sched, job_id)
+    sched.transition(job_id=job_id, dst=JobState.READY, actor="scheduler")
+    return sched.dispatch(job_id=job_id, worker=worker, lease_id="L1",
+                          lease_seqs=lease_seqs)
+
+
+def _reload(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    pol = PolicyStore(log).load()
+    return Scheduler(log, policy=pol, policy_id="scheduler.default").load()
+
+
+def test_the_write_path_refuses_an_outcome_from_a_non_holder(sched):
+    """The refusal this pair of tests is about. Stated first, so the one
+    below is visibly the SAME record arriving by another route."""
+    _dispatched(sched)
+    with pytest.raises(JobTransitionError, match="leased to 'worker-a'"):
+        sched.report(job_id="j1", worker="mallory")
+
+
+def test_and_replay_refuses_it_too_when_it_arrives_as_a_record(sched,
+                                                               tmp_path):
+    _dispatched(sched)
+    sched.log.append(
+        actor="mallory", action="scheduler.transition", target="j1",
+        payload={"job_id": "j1", "src": JobState.DISPATCHED.value,
+                 "dst": JobState.SUCCEEDED.value, "reason": "verified",
+                 "lease_id": "", "lease_holder": "",
+                 "lease_expires_after_seq": -1})
+    with pytest.raises(JobTransitionError, match="is reporting its outcome"):
+        _reload(tmp_path)
+
+
+def test_replay_refuses_an_outcome_reported_after_the_lease_lapsed(sched,
+                                                                   tmp_path):
+    """A worker back from the dead does not get to decide the outcome.
+
+    The work may already have been redone by someone else, and differently.
+    """
+    _dispatched(sched, lease_seqs=1)
+    for i in range(4):                       # push the log past the expiry
+        _enqueue(sched, f"filler{i}")
+    sched.log.append(
+        actor="worker-a", action="scheduler.transition", target="j1",
+        payload={"job_id": "j1", "src": JobState.DISPATCHED.value,
+                 "dst": JobState.SUCCEEDED.value, "reason": "verified",
+                 "lease_id": "", "lease_holder": "",
+                 "lease_expires_after_seq": -1})
+    with pytest.raises(JobTransitionError, match="lapsed"):
+        _reload(tmp_path)
+
+
+def test_replay_refuses_reclaiming_a_lease_that_is_still_live(sched,
+                                                              tmp_path):
+    """The requeue edge cannot be guarded by actor -- it is the edge somebody
+    ELSE is meant to take -- so it is guarded by the fact it claims.
+
+    Without this, "the lease lapsed" is a sentence anyone can write, and the
+    same work goes to a second worker while the first is still running it.
+    """
+    _dispatched(sched, lease_seqs=500)
+    sched.log.append(
+        actor="mallory", action="scheduler.transition", target="j1",
+        payload={"job_id": "j1", "src": JobState.DISPATCHED.value,
+                 "dst": JobState.READY.value, "reason": "lease lapsed",
+                 "lease_id": "", "lease_holder": "",
+                 "lease_expires_after_seq": -1})
+    with pytest.raises(JobTransitionError, match="Reclaiming a live lease"):
+        _reload(tmp_path)
+
+
+def test_an_honest_reconcile_of_a_lapsed_lease_still_replays(sched, tmp_path):
+    """The guard above must refuse the claim, not the operation.
+
+    A requeue that is TRUE is the scheduler's ordinary recovery path, and a
+    check that broke it would be removed within a week.
+    """
+    _dispatched(sched, lease_seqs=1)
+    for i in range(4):
+        _enqueue(sched, f"filler{i}")
+    moved = sched.reconcile()
+    assert any(j.job_id == "j1" and j.state is JobState.READY for j in moved)
+    assert _reload(tmp_path).get("j1").state is JobState.READY
+
+
+def test_replay_refuses_a_record_that_rewrites_the_attempt_count(sched,
+                                                                 tmp_path):
+    """max_attempts bounds the count, so whoever may set the count may retry
+    forever -- and a retry loop is the cheapest denial of service there is."""
+    _dispatched(sched)
+    sched.log.append(
+        actor="worker-a", action="scheduler.transition", target="j1",
+        payload={"job_id": "j1", "src": JobState.DISPATCHED.value,
+                 "dst": JobState.RETRY_WAIT.value, "reason": "again",
+                 "attempts": 0, "lease_id": "", "lease_holder": "",
+                 "lease_expires_after_seq": -1, "backoff_until_seq": 0})
+    with pytest.raises(JobTransitionError, match="attempts"):
+        _reload(tmp_path)
+
+
+def test_replay_refuses_a_record_that_grants_itself_a_lease(sched, tmp_path):
+    """Ownership is taken at dispatch. A record that hands one out anywhere
+    else is naming its own owner, which is the whole of the defence."""
+    _enqueue(sched, "j1")
+    sched.log.append(
+        actor="mallory", action="scheduler.transition", target="j1",
+        payload={"job_id": "j1", "src": JobState.WAITING.value,
+                 "dst": JobState.READY.value, "reason": "mine now",
+                 "lease_id": "L9", "lease_holder": "mallory",
+                 "lease_expires_after_seq": 99999})
+    with pytest.raises(JobTransitionError, match="carries a lease"):
+        _reload(tmp_path)
+
+
+def test_a_governed_report_is_written_under_the_holders_identity(sched):
+    """The verifier judges; the lease holder is who the record is FROM.
+
+    Both facts are durable: replay re-checks ownership from the actor, and
+    ``closed_by`` keeps the verifier's separate role visible to an auditor.
+    """
+    from qta_agent.scheduler import ACT_JOB_TRANSITION
+
+    _dispatched(sched)
+    sched.report(job_id="j1", worker="worker-a", actor="verifier-1")
+    ev = [e for e in sched.log.read()
+          if e.action == ACT_JOB_TRANSITION
+          and e.payload["dst"] == JobState.SUCCEEDED.value][-1]
+    assert ev.actor == "worker-a"
+    assert ev.payload["closed_by"] == "verifier-1"
+
+
+def test_the_replayed_lease_deadline_is_the_one_the_write_path_used(sched,
+                                                                    tmp_path):
+    """An off-by-one here refuses reports that report() had just accepted.
+
+    ``report`` decides at ``at_seq()`` and the record it writes lands one seq
+    later, so replay evaluates liveness at ``seq - 1``. This pins that
+    exactly: the report below is made at the LAST position the lease is live,
+    which is the only position where the two readings differ.
+    """
+    _dispatched(sched, lease_seqs=1)
+    job = sched.get("j1")
+    _enqueue(sched, "filler")                # advance to the boundary seq
+    assert sched.at_seq() == job.lease_expires_after_seq, (
+        "this test is only meaningful at the last live seq")
+
+    sched.report(job_id="j1", worker="worker-a")
+    assert sched.get("j1").state is JobState.SUCCEEDED
+    assert _reload(tmp_path).get("j1").state is JobState.SUCCEEDED

@@ -122,22 +122,22 @@ in turn, and the suite must fail:
 |---|---|---:|---|
 | Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused | `tools/mutations/agent_actions.json` | 6 | re-run here |
 | Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 35 | re-run here |
-| Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 21 | re-run here |
+| Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 23 | re-run here |
 | Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | re-run here |
 | Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | re-run here |
-| Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 42 | re-run here |
+| Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 45 | re-run here |
 | Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 28 | re-run here |
-| Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 35 | re-run here |
+| Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 39 | re-run here |
 | Governed reads: confinement at the open, and who may perform one | `tools/mutations/agent_readpath.json` | 21 | re-run here |
-| Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 14 | CI |
-| Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
-| Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
-| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 33 | re-run here |
-| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 25 | re-run here |
+| Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 20 | CI |
+| Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 49 | re-run here |
+| Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 27 | CI |
+| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 35 | re-run here |
+| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 27 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**401 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**430 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -201,6 +201,80 @@ refuses records that were never offered to the write path at all. Each now has
 a test that provokes it with the other unable to fire, and two of those tests
 were themselves wrong on the first attempt: they used one actor that was both
 an agent and the asker, so the two rules masked each other again.
+
+### The same question, asked about identity instead of state
+
+The sweep above asked, of every reducer: *what decides the state this event is
+judged against?* The follow-up asked it of the other thing a payload names —
+**who**. Separation of duties, lease ownership, and every "was this permitted"
+answer rest on identity fields, and a field the acting party writes is not an
+answer to a question about the acting party.
+
+`scheduler.apply` and `reconstruct` are named above as having already got the
+*state* invariant right. They had, and both were wrong about identity. That is
+the point of asking the second question separately.
+
+- **A task that never ran could name its own executor.** The earlier fix
+  compared a completion's `executed_by` claim against the execution record —
+  *when there was one*. With no `task.execution` event at all there was
+  nothing to disagree with, and the `or claimed_by` fallback supplied the
+  claim. So the cheapest forgery was not to fake an execution but to omit
+  one: a single actor created, leased, "executed", completed and **VERIFIED**
+  its own task, naming a ghost as executor. The production projection, the
+  independent reconstruction and the audit index all agreed with it, and none
+  of them reported anything. Three readers, one hole, because all three read
+  the same field.
+
+- **The audit asked the forger whether the forgery happened.** `_gaps` checks
+  that executor and verifier differ. It exists *only* for a log that did not
+  go through the gate — the state machine forbids it otherwise — and it read
+  the executor from `detail["executed_by"]`. Over a history in which one actor
+  did both jobs, it reported a clean separation of duties. That is worse than
+  no audit: it converts "nobody checked" into "checked and fine".
+
+- **The scheduler's replay never looked at who was reporting.** `report()`
+  refuses an outcome from anyone but the lease holder, and refuses a late one
+  from a holder whose lease has lapsed. Both refusals lived on the write path
+  alone, so they were advice: the rejected worker appends the identical record
+  to the log, and the next process to load the queue folds it in and calls the
+  job SUCCEEDED. The replay now re-derives ownership, lease liveness, the
+  attempt count, and whether a requeue's "the lease lapsed" is *true* — the
+  last one because the requeue edge is the one edge out of `DISPATCHED` that
+  somebody else is meant to take, so it cannot be guarded by actor at all.
+
+- **A recorded policy decision was folded in unread.** The record names its own
+  verdict, its own rule and its own policy version — and carries the whole
+  request, so the verdict is recomputable. It was not recomputed. A forged
+  `policy.decision` claiming `ALLOW` under a rule that does not exist loaded
+  cleanly, and the audit index repeated it verbatim as the reason something
+  was permitted. It is now re-evaluated against the document in force *at that
+  position*, which is the version the decision was made under, not the one
+  written since.
+
+- **Every grant had a window with one end.** Capabilities, egress grants and
+  secret grants all checked expiry and none checked issuance. A grant recorded
+  at seq 90 answered "was this permitted at seq 20?" with yes — and that is
+  precisely the question an incident review asks. A grant written after the
+  fact retroactively covered it. Worse, `issued_seq` was the record's to name:
+  content-binding by digest catches tampering, not a self-consistent lie. The
+  ledgers now **stamp** the start from the log and refuse a record that names
+  its own, and the check is closed at both ends.
+
+Two further findings came out of the same pass rather than from the identity
+question directly: a second egress grant under a live `grant_id` used to
+*overwrite* the first on replay (`issue()` refuses a duplicate id, so that path
+was reachable only by a record written around it — which is the record it
+mattered for), and `capability_id`/`task_id`/`evidence_digest` were checked
+carefully everywhere and needed nothing.
+
+**What this does not establish.** The log's `actor` field is an assertion by
+whoever wrote the record. Checking it raises the bar from "any string in a
+payload" to "the right name, at the right log position, inside a live lease" —
+it is not authentication, and the log file remains the trust boundary it always
+was. Nothing here constrains *who may issue* a grant either: `issuer_of()`
+records the actor a grant is attributable to and is deliberately not consulted
+by `check`. There is no issuer authority in this build, and saying so is more
+useful than a check that reads like one.
 
 ### Reads had the write side's old defect, and kept it longer
 

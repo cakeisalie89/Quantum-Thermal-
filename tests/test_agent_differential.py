@@ -296,3 +296,82 @@ def test_the_two_readers_agree_about_who_holds_a_lease(gov):
                                          "expires_after_seq": 99}
     diffs = compare_tasks(gov.projection(), recon)
     assert [d.field_name for d in diffs] == ["lease"]
+
+
+# --- the second reader had the same hole, one line lower ---------------------
+
+def _forged_history(tmp_path, *, execution_record: bool):
+    """A task moved end to end by ONE actor, naming a ghost as its executor."""
+    from qta_agent.canonical import digest_bytes
+
+    log = EventLog(tmp_path / "log.jsonl")
+    tid = "t-forged"
+    dg = digest_bytes(b"a result nobody produced")
+
+    def tr(src, dst, role, **extra):
+        payload = {"task_id": tid, "src": src, "dst": dst, "role": role}
+        payload.update(extra)
+        log.append(actor="mallory", action=ACT_TASK_TRANSITION, target=tid,
+                   payload=payload)
+
+    log.append(actor="mallory", action="task.create", target=tid,
+               payload={"task_id": tid, "tool_id": "probe",
+                        "submitter": "mallory", "inputs_digest": dg})
+    tr("CREATED", "VALIDATED", "SUBMITTER")
+    tr("VALIDATED", "QUEUED", "SCHEDULER")
+    tr("QUEUED", "LEASED", "WORKER",
+       lease={"lease_id": "L1", "holder": "mallory", "granted_seq": 3,
+              "expires_after_seq": 9999})
+    tr("LEASED", "EXECUTING", "WORKER", lease_id="L1")
+    if execution_record:
+        log.append(actor="mallory", action="task.execution", target=tid,
+                   payload={"task_id": tid, "result_digest": dg,
+                            "outcome": "COMPLETED", "tool_id": "probe"})
+    tr("EXECUTING", "COMPLETED", "WORKER", lease_id="L1",
+       executed_by="a-ghost", result_digest=dg)
+    tr("COMPLETED", "VERIFIED", "VERIFIER")
+    return log, tid
+
+
+@pytest.mark.parametrize("execution_record", [True, False])
+def test_the_reconstruction_does_not_take_the_executor_from_a_payload(
+        tmp_path, execution_record):
+    """The line that put this reader back underneath a fixed bypass.
+
+    The re-authorization above it was already correct: it probed with the
+    executor THIS replay had derived, from the execution record. Then, five
+    lines later, ``cur["executed_by"] = p["executed_by"]`` overwrote that
+    with the payload's claim -- in time for the NEXT transition to be checked
+    against the forger's choice of counterparty.
+
+    So the second opinion agreed with the first one's defect while looking
+    like an independent check. Both parametrizations matter: with an
+    execution record the claim contradicts a known executor, and without one
+    it invents an executor from nothing.
+    """
+    log, tid = _forged_history(tmp_path, execution_record=execution_record)
+    recon = reconstruct_tasks(log)
+
+    assert recon.states()[tid] != TaskState.VERIFIED.value
+    assert recon.verified_ids() == ()
+    assert any("as its executor" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert any("would be refused today" in u for u in recon.unauthorized), \
+        recon.unauthorized
+
+
+def test_both_readers_refuse_the_forged_history_the_same_way(tmp_path, gov):
+    """Agreement about a REFUSAL is the comparison that matters here.
+
+    The production projection raises; this reader records and continues --
+    that difference is designed. What must not differ is the verdict: if one
+    of them called this task VERIFIED the package's central claim would be
+    false, and the diff is what says so.
+    """
+    from qta_agent.governed_stage10 import GovernedStage10
+
+    log, tid = _forged_history(tmp_path, execution_record=True)
+    g2 = GovernedStage10(root=ROOT, log=log, evidence=gov.evidence)
+    with pytest.raises(TaskTransitionError, match="execution record says"):
+        g2.projection()
+    assert reconstruct_tasks(log).verified_ids() == ()
