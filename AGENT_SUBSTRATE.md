@@ -56,6 +56,7 @@ rather than a web:
 | `context.py` | what the agent was shown, recorded apart from what is true |
 | `agents.py` | several agents, role separation, and a human that cannot be simulated |
 | `audit.py` | turning the log into answers, and finding provenance holes |
+| `tools/audit_log.py` | those answers as a COMMAND: read-only, fail-closed, and run by CI over the governed run's own log |
 | `_stage10_tool.py` | the subprocess entry point a governed run executes |
 | `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
 
@@ -129,15 +130,15 @@ in turn, and the suite must fail:
 | Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 28 | re-run here |
 | Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 39 | re-run here |
 | Governed reads: confinement at the open, and who may perform one | `tools/mutations/agent_readpath.json` | 21 | re-run here |
-| Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 20 | CI |
+| Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 19 | re-run here |
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 49 | re-run here |
-| Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 27 | CI |
+| Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 27 | re-run here |
 | Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 35 | re-run here |
 | Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 27 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**430 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**429 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -409,7 +410,7 @@ The execution record is the durable statement of who ran the tool. The
 projection now learns the executor from it, and refuses a transition whose
 claim disagrees rather than preferring the claim.
 
-### Two mutations were removed as EQUIVALENT, not because they survived
+### Three mutations were removed as EQUIVALENT, not because they survived
 
 After that fix, two mutations of the resulting expressions survived. They are
 unreachable-difference changes: the guards immediately above refuse any
@@ -421,6 +422,40 @@ leaving one in the matrix would be a permanent false finding.
 They were removed, and the equivalence is asserted by a test that enumerates
 every combination rather than by a comment nobody re-derives. The checks those
 expressions actually rest on are separate mutations, and both are killed.
+
+A third joined them later, for a reason worth separating from the first two.
+`_recheck_decision` asks `in_force_at(policy_id, ev.seq)` for the document
+that decided; swapping it for `in_force(policy_id)` is a no-op, because
+`apply` is only ever reached in log order — `load` replays oldest-first and
+both write paths apply the event they just appended — so only versions
+published at or before `ev.seq` have been folded when the re-check runs.
+
+That is a fact about the CALL SITES rather than about the expression, so the
+call sites are what the test asserts: three of them, in `load`, `publish` and
+`decide_and_record`. Add a caller that folds out of order and the test fails,
+and the mutation becomes meaningful again and belongs back in the spec. The
+non-retroactivity property itself is P4's, which mutates `in_force_at`
+internally and is killed.
+
+### Survived is not one finding
+
+Re-running the extended matrices left four mutations alive, and they had four
+different causes. Treating "survived" as a single verdict is how a matrix
+becomes a score to improve rather than a question to answer:
+
+| | Cause | Answer |
+|---|---|---|
+| `S27` | **Reachable, untested.** The secret grant's stamp runs only when the store has a log, and every test used a log-less one. | A log-backed test. |
+| `G18` | **Reachable, untested.** Both projections pass `executed_by=task.executed_by`, so the guard in `check()` is unreachable through either — but `check` is a pure public function and a third caller may pass anything. | A direct test of the gate's own contract. |
+| `A22` | **Undetectable at its anchor.** The `task.execution` step's `detail` is built from a fixed key list with no `executed_by`, so preferring it over the actor could not differ. | Re-anchored where the same defect IS observable — and the key list, the only reason the original line was safe, is now asserted. |
+| `P18` | **Equivalent**, as above. | Removed, with the reasoning pinned by a test. |
+
+Two more survived and were neither: `N6` and `N7`, the write-path lease checks
+the new replay checks now also cover. Those are the defence-in-depth cost
+described above, and the isolating tests assert on the LOG rather than the
+exception — with the write-path check gone, `report()` still raises, but only
+after the record is a permanent hash-chained fact and the queue can never be
+loaded again.
 
 ### A second reader, because one reader with a hole says nothing
 

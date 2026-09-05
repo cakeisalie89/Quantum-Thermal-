@@ -68,7 +68,7 @@ this one asks about **identity**.
 ## 3. What the verification consists of
 
 - **1,256 tests** across 26 agent suites (2,327 in the repository).
-- **430 mutations** across 16 specifications, each deleting exactly one
+- **429 mutations** across 16 specifications, each deleting exactly one
   enforcement point; the suite must then fail. Every spec is additionally
   checked *statically* on each run: an anchor must match exactly once, a
   replacement must change something, the mutated source must still parse.
@@ -84,6 +84,9 @@ this one asks about **identity**.
 - **A crash at every boundary** of a governed run, with a named recovery for
   every state a crash can leave a task in.
 - **Fuzzing** with a committed regression corpus.
+- **A read-only auditor** run by CI over the governed run's own log:
+  nine named queries, a finding carried in the exit status, and
+  read-only asserted by hashing the log before and after every one.
 - **Hosted CI** running all of the above on every push.
 
 ## 4. What is NOT established

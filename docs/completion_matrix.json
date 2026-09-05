@@ -997,9 +997,11 @@
       "requirement": "Observability sufficient for incident reconstruction",
       "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
       "implementation": [
-        "qta_agent/audit.py"
+        "qta_agent/audit.py",
+        "tools/audit_log.py"
       ],
       "callers": [
+        ".github/workflows/agent-substrate.yml",
         "Snakefile",
         "qta_agent/governed_stage10.py",
         "tests/test_agent_audit.py"
@@ -1007,9 +1009,9 @@
       "production_caller": "Snakefile",
       "persistent_state": "none; a view over the log",
       "authority_owner": "audit.AuditIndex",
-      "evidence": "every step names actor, action, tool, version and digests",
+      "evidence": "every step names actor, action, tool, version and digests; and the queries are a committed COMMAND (tools/audit_log.py) that CI runs over the governed run's own log immediately after the rule writes it, failing the build when the answer is a finding rather than printing it into a log nobody reads",
       "provenance": "the chain IS the provenance record",
-      "failure_semantics": "refuses an unverified log rather than answering",
+      "failure_semantics": "refuses an unverified log rather than answering; the command carries the verdict in its EXIT STATUS -- 0 answered and clean, 1 a finding in the history, 2 the question could not be asked, because 'no such task' and 'this task is broken' are different answers",
       "recovery": "rebuilt from the log on demand",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1017,7 +1019,8 @@
       "concurrency": "n/a",
       "security_boundary": "credential-shaped keys redacted on the way out",
       "tests": [
-        "tests/test_agent_audit.py"
+        "tests/test_agent_audit.py",
+        "tests/test_agent_audit_cli.py"
       ],
       "property_tests": [],
       "mutation_tests": [
@@ -1028,7 +1031,7 @@
       "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
       "residual_gaps": [
         "no structured emission to an external sink; the log is the only sink",
-        "no metrics, no sampling, no live view",
+        "no metrics and no sampling, and the auditor is on-demand over a log at rest rather than a LIVE view: that is the incident-reconstruction case, not the watch-it-happen one",
         "redaction is a coarse key-name net over audit output and is the second line of defence, not the first: the executor builds the child's environment rather than inheriting it, and raw tool output never enters the log"
       ],
       "blocker": null
@@ -1038,9 +1041,11 @@
       "requirement": "Machine-usable audit queries over provenance chains",
       "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
       "implementation": [
-        "qta_agent/audit.py"
+        "qta_agent/audit.py",
+        "tools/audit_log.py"
       ],
       "callers": [
+        ".github/workflows/agent-substrate.yml",
         "Snakefile",
         "qta_agent/governed_stage10.py",
         "tests/test_agent_audit.py"
@@ -1049,16 +1054,17 @@
       "persistent_state": "none",
       "authority_owner": "audit.AuditIndex.explain_task / explain_record / explain_decision",
       "evidence": "task chains: claim -> evidence -> execution -> tool/version -> inputs -> capability -> verifier -> transition -> actor. Authority records: creation -> a connected walk of real edges -> separation of duties -> required evidence -> dependencies still canonical. Decisions: request -> effect -> rule -> the published document whose digest decided",
-      "provenance": "none",
+      "provenance": "the queries are named, committed and reviewable rather than reachable only by importing the index and writing Python at the time they are needed -- an ad-hoc query written mid-incident is unreviewed code making claims about a history",
       "failure_semantics": "a provenance gap, an unjoinable policy decision or a gapped authority record fails the governed build",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "read-only over the verified log; the separation-of-duties gap check takes the executor from the task.execution record's ACTOR, never from a transition payload. It read the payload, so over a history in which one actor executed and verified its own work it reported a clean separation -- an audit that converts 'nobody checked' into 'checked and fine'",
+      "security_boundary": "read-only over the verified log; the separation-of-duties gap check takes the executor from the task.execution record's ACTOR, never from a transition payload. It read the payload, so over a history in which one actor executed and verified its own work it reported a clean separation -- an audit that converts 'nobody checked' into 'checked and fine'. The command is read-only, and that is asserted rather than promised: the log is hashed before and after every command and the whole directory compared by mtime, because an auditor is run mid-incident by somebody who is not certain what they are doing and the cost of being wrong is the evidence",
       "tests": [
         "tests/test_agent_audit.py",
+        "tests/test_agent_audit_cli.py",
         "tests/test_agent_crash_recovery.py",
         "tests/test_agent_hostile_campaign.py"
       ],
