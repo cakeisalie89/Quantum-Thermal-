@@ -3235,8 +3235,8 @@
     },
     {
       "filename": "tests/test_agent_governed_stage10.py",
-      "size_bytes": 20284,
-      "sha256": "2ce9b545600856722c4a37ba3522fbaa10830e44bd6b0417a9f66b71fdf987c7",
+      "size_bytes": 22443,
+      "sha256": "dc69e5f43d4c02017bc9652663780e8ef7c7c95826593e3184ea70414e777d89",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },

@@ -485,3 +485,49 @@ def test_the_capability_is_scoped_to_exactly_what_the_tool_declared(gov):
         f"{list(spec.writable_scope)}")
     assert issued[0]["tool_id"] == "stage10.emit_artifact"
     assert issued[0]["action"] == "EXECUTE_TOOL"
+
+
+def test_a_timed_out_run_never_reaches_completed_or_verified(gov):
+    """G5, deterministically: a non-COMPLETED outcome stops the chain.
+
+    The earlier attempt at this relied on a tool FAILING because its output
+    directory was refused. That killed the mutation locally and SURVIVED in
+    hosted CI -- an environment-dependent kill, which is not a kill at all. It
+    is the same class of mistake as counting a harness timeout: the mutation
+    died for a reason the fixture did not control.
+
+    A one-millisecond wall-clock bound is controlled. No Python interpreter
+    starts in a millisecond, on any runner, so the outcome is TIMED_OUT every
+    time -- and the assertion is on the LOG, which must contain no COMPLETED
+    and no VERIFIED transition. With the early return removed, the run would
+    proceed to evidence capture and verification, and those records would
+    appear.
+    """
+    from qta_agent.tools import Determinism, Field_, Registry, ToolSpec
+
+    slow = ToolSpec(
+        tool_id="stage10.emit_artifact", version="1.0.0",
+        summary="the same tool under a bound nothing can meet",
+        inputs=(Field_("out_dir", "str"), Field_("name", "str"),
+                Field_("payload", "dict")),
+        outputs=(Field_("path", "str"), Field_("sha256", "str")),
+        determinism=Determinism.BYTE_IDENTICAL,
+        writable_scope=("verification/stage10",), timeout_s=0.001)
+    gov.registry = Registry([slow])
+    from qta_agent.execution import Executor
+    gov.executor = Executor(gov.registry, workspace=ROOT)
+
+    run = _run(gov)
+    assert run.state is TaskState.TIMED_OUT, (
+        f"a run that never finished ended {run.state.value}")
+    assert run.outcome == "TIMED_OUT"
+    assert not run.artifacts
+
+    moves = [(e.payload["src"], e.payload["dst"]) for e in gov.log.read()
+             if e.action == ACT_TASK_TRANSITION]
+    assert ("EXECUTING", "COMPLETED") not in moves, (
+        "a timed-out run was recorded as completed")
+    assert not any(dst == "VERIFIED" for _, dst in moves), (
+        "a timed-out run reached VERIFIED")
+    assert ("EXECUTING", "TIMED_OUT") in moves
+    assert gov.log.verify().ok
