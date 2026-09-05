@@ -36,6 +36,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",
     "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_audit.py",
     "tests/test_agent_substrate_isolation.py",
 }
 
@@ -57,7 +58,8 @@ ALLOWED_IMPORTERS = {
 #: instead of aspirational.
 LAYERS = ("canonical", "events", "evidence", "capability", "tools",
           "execution", "checkpoint", "authority", "store", "invalidation",
-          "reconstruct", "tasks", "_stage10_tool", "governed_stage10")
+          "reconstruct", "tasks", "audit", "_stage10_tool",
+          "governed_stage10")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.

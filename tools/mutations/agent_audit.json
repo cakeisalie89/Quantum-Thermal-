@@ -1,0 +1,59 @@
+{
+  "title": "Audit queries and provenance-gap detection",
+  "note": "The interesting mutations are A2, A3 and A7: they do not break a chain, they make an INCOMPLETE chain read as complete. A hole in provenance is indistinguishable from a fabrication nobody noticed, so an auditor that cannot see holes is worse than none -- it produces confident reassurance.",
+  "suites": [
+    "tests/test_agent_audit.py",
+    "tests/test_agent_substrate_isolation.py"
+  ],
+  "mutations": [
+    {
+      "name": "A1_audit_accepts_a_tampered_log",
+      "path": "qta_agent/audit.py",
+      "find": "        log.verify().raise_if_bad()",
+      "replace": "        pass",
+      "rationale": "an audit produces a confident answer about a document that may have been rewritten -- worse than refusing"
+    },
+    {
+      "name": "A2_missing_records_not_reported",
+      "path": "qta_agent/audit.py",
+      "find": "            if required not in seen:",
+      "replace": "            if False:",
+      "rationale": "a VERIFIED task with no evidence record reads as fully supported"
+    },
+    {
+      "name": "A3_self_verification_not_flagged",
+      "path": "qta_agent/audit.py",
+      "find": "            if executed_by is not None and executed_by == verified_by:",
+      "replace": "            if False:",
+      "rationale": "a log written outside the gate showing an executor verifying itself passes the audit"
+    },
+    {
+      "name": "A4_redaction_removed",
+      "path": "qta_agent/audit.py",
+      "find": "            out[k] = REDACTED if _looks_secret(k) else redact(v)",
+      "replace": "            out[k] = redact(v)",
+      "rationale": "credential-shaped fields leave the module intact and land in reports"
+    },
+    {
+      "name": "A5_separators_not_flattened",
+      "path": "qta_agent/audit.py",
+      "find": "    flattened = re.sub(r\"[_\\-.:/]+\", \" \", str(key))",
+      "replace": "    flattened = str(key)",
+      "rationale": "bearer_token and api-key slip the net, because _ is a word character"
+    },
+    {
+      "name": "A6_artifact_traced_by_any_string",
+      "path": "qta_agent/audit.py",
+      "find": "        if not is_digest(digest):",
+      "replace": "        if False:",
+      "rationale": "artifacts are traced by name rather than by content"
+    },
+    {
+      "name": "A7_completeness_always_true",
+      "path": "qta_agent/audit.py",
+      "find": "        return not self.gaps",
+      "replace": "        return True",
+      "rationale": "every chain reports as complete, including the ones with holes"
+    }
+  ]
+}

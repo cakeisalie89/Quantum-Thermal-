@@ -45,6 +45,7 @@ rather than a web:
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
 | `tasks.py` | durable work: state that survives the process that started it |
+| `audit.py` | turning the log into answers, and finding provenance holes |
 | `_stage10_tool.py` | the subprocess entry point a governed run executes |
 | `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end |
 

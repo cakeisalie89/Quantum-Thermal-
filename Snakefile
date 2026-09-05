@@ -530,6 +530,17 @@ rule s10_governed:
         assert run.artifacts, "a verified run with no artifacts proves nothing"
         assert gov.log.verify().ok, "the task log does not verify"
 
+        # The audit is part of the production path, not a separate tool. A
+        # chain with a provenance hole fails the build: the transitions were
+        # all permitted, but a hole is indistinguishable from a fabrication
+        # nobody noticed, and a green build must not certify one.
+        from qta_agent.audit import AuditIndex
+
+        explanation = AuditIndex.from_log(gov.log).explain_task(run.task_id)
+        assert explanation.complete, (
+            "the governed run has provenance gaps:\n"
+            + "\n".join(f"  - {g}" for g in explanation.gaps))
+
         Path(output[1]).write_text(json.dumps({
             "task_id": run.task_id,
             "state": run.state.value,
@@ -540,6 +551,7 @@ rule s10_governed:
             "verification": run.reason,
             "automatic_gate_effect": "NONE",
             "scientific_PASS_count": 0,
+            "provenance": explanation.to_record(),
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 

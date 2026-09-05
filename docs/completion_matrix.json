@@ -877,58 +877,80 @@
     {
       "id": "R44",
       "requirement": "Observability sufficient for incident reconstruction",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
-      "production_caller": null,
-      "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
-      "provenance": "none",
-      "failure_semantics": "none",
-      "recovery": "none",
+      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "implementation": [
+        "qta_agent/audit.py"
+      ],
+      "callers": [
+        "Snakefile",
+        "tests/test_agent_audit.py"
+      ],
+      "production_caller": "Snakefile",
+      "persistent_state": "none; a view over the log",
+      "authority_owner": "audit.AuditIndex",
+      "evidence": "every step names actor, action, tool, version and digests",
+      "provenance": "the chain IS the provenance record",
+      "failure_semantics": "refuses an unverified log rather than answering",
+      "recovery": "rebuilt from the log on demand",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "none",
-      "tests": [],
+      "security_boundary": "credential-shaped keys redacted on the way out",
+      "tests": [
+        "tests/test_agent_audit.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_audit.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
       "residual_gaps": [
-        "the log is readable but there is no observability layer, no structured emission, no redaction"
+        "no structured emission to an external sink; the log is the only sink",
+        "no metrics, no sampling, no live view",
+        "redaction is a coarse key-name net and is the second line of defence, not the first"
       ],
       "blocker": null
     },
     {
       "id": "R45",
       "requirement": "Machine-usable audit queries over provenance chains",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
-      "production_caller": null,
+      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "implementation": [
+        "qta_agent/audit.py"
+      ],
+      "callers": [
+        "Snakefile",
+        "tests/test_agent_audit.py"
+      ],
+      "production_caller": "Snakefile",
       "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
+      "authority_owner": "audit.AuditIndex.explain_task",
+      "evidence": "claim -> evidence -> execution -> tool/version -> inputs -> capability -> verifier -> transition -> actor, reconstructed and checked for completeness",
       "provenance": "none",
-      "failure_semantics": "none",
+      "failure_semantics": "a provenance gap fails the governed build",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
       "security_boundary": "none",
-      "tests": [],
+      "tests": [
+        "tests/test_agent_audit.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_audit.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
       "residual_gaps": [
-        "answering 'why is this canonical' means reading raw JSONL"
+        "queries cover the task chain; authority records in store.py have no equivalent explain()",
+        "no query over policy decisions, because the policy engine is skeletal",
+        "no time-range or cross-task queries"
       ],
       "blocker": null
     },

@@ -82,6 +82,10 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_tasks.json
+      - name: mutation matrix -- audit queries and provenance gaps
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_audit.json
       - name: the governed production path actually runs
         # The point of a production caller is that it is exercised. This runs
         # the real Snakemake rule, not a test double, and s10_governed fails
