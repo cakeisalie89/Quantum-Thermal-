@@ -3158,8 +3158,8 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 74446,
-      "sha256": "23cc7154846d3c4d548bead8ab2c32fdae689469245a967761ba30a050363775",
+      "size_bytes": 75148,
+      "sha256": "878720e619a3506a9b5ce8d5ae0e86676e17a647bb67e92e4386942f98e387d6",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3498,6 +3498,27 @@
       "sha256": "d13121eb0d62ab36a046cef25fa76a5a731025ceaceaa55a9ea1b05c2fb0fb1e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "analysis/collect_container_3d.py",
+      "size_bytes": 6018,
+      "sha256": "19eed8e3330a19f6f2e287fe1c1e3c0e564e9339f5a259b1d38705a10cecf8e4",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",
+      "size_bytes": 6398,
+      "sha256": "7d66cb896b08b0110af985ccf3e343fe94ee4f9b8f5396029ed7562a90b1d4d5",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_container_diagnostic_fidelity.py",
+      "size_bytes": 6303,
+      "sha256": "f5e1156eef3c853fbb933843992df614ae219c08c5e493731eba4ade6ce29757",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."
