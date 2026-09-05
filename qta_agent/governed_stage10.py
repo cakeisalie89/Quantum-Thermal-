@@ -78,7 +78,7 @@ from . import actions
 from .agents import (
     AgentDirectory, AgentRole, PrincipalKind, check_separation, identity,
 )
-from .canonical import digest, digest_bytes
+from .canonical import digest
 from . import capability as _cap_actions
 from .capability import Action, CapabilityLedger, issue
 from .context import ContextBuilder, Tier, record_context
@@ -87,6 +87,13 @@ from .evidence import EvidenceStore
 from .execution import Executor, Limits, Outcome
 from .memory import MemoryStore
 from .netauth import NetworkAuthority, socket_guard
+from .readpath import (
+    GovernedReader,
+    ReadDenied,
+    ReadRequest,
+    read_scope,
+)
+from .safeio import SafeIOError, SourceChanged
 from .policy import Effect, PolicyRequest, PolicyStore, document, rule
 from .scheduler import FailureClass, Scheduler
 from .tasks import (
@@ -99,6 +106,11 @@ from .tools import Determinism, Field_, Registry, SideEffect, ToolSpec
 #: Stage-10 workspace guard permits, so the two agree by construction rather
 #: than by two lists that must be kept in step.
 WORKSPACE_PREFIX = "verification/stage10"
+
+#: Logical name of the root governed reads are confined to. Read scopes are
+#: namespaced by it, so a grant to read under this root cannot be spent
+#: against a differently-rooted reader that happens to share a relative path.
+READ_ROOT_ID = "repo"
 
 #: The policy this path publishes and runs under. A real document with real
 #: rules, not an identifier: the decision it produces names its digest.
@@ -494,6 +506,21 @@ class GovernedStage10:
                     expires_after_seq=lease.expires_after_seq,
                     issued_wall_time=time.time())
         self.capabilities.issue(cap, actor="scheduler")
+
+        # A SEPARATE grant, for the verifier, to READ what the worker wrote.
+        # Separate because reading and writing are separate authorities and
+        # because the verifier is a different actor: the executor's grant
+        # must not be what lets the check on its work happen. It is minted
+        # here so it is in the log before the read that needs it, and it
+        # expires with the same lease.
+        read_cap_id = f"cap-read-{uuid.uuid4().hex[:8]}"
+        read_cap = issue(capability_id=read_cap_id, subject=verifier,
+                         action=Action.READ_PATHS, task_id=task_id,
+                         scope=read_scope(READ_ROOT_ID, WORKSPACE_PREFIX),
+                         issued_seq=self.log.verify().head_seq + 1,
+                         expires_after_seq=lease.expires_after_seq,
+                         issued_wall_time=time.time())
+        self.capabilities.issue(read_cap, actor="scheduler")
         # Projected back out of the log. If the issuance were not recorded,
         # or were recorded with different terms, the executor would be
         # checking against something that does not exist.
@@ -589,7 +616,9 @@ class GovernedStage10:
 
         # Independent verification: a different actor, re-deriving the digests
         # from the files rather than trusting the ones just recorded.
-        ok, why = self._verify_artifacts(artifacts)
+        ok, why = self._verify_artifacts(
+            artifacts, verifier=verifier, task_id=task_id,
+            capability_id=read_cap_id)
         dst = TaskState.VERIFIED if ok else TaskState.REJECTED
         task = self._move(task, dst, verifier, TaskRole.VERIFIER, note=why)
 
@@ -735,26 +764,63 @@ class GovernedStage10:
                                  "artifacts": dict(sorted(artifacts.items()))})
         return artifacts
 
-    def _verify_artifacts(self, artifacts: dict) -> tuple:
-        """Re-derive each digest from the file on disk.
+    def _verify_artifacts(self, artifacts: dict, *,
+                          verifier: str = VERIFIER_ID,
+                          task_id: str = "",
+                          capability_id: str = "") -> tuple:
+        """Re-derive each digest from disk, through a GOVERNED read.
 
         Deliberately not "does the evidence store still hold that digest" --
         that would confirm the store's own bookkeeping. The question is
         whether the bytes the task cited are still the bytes on disk, which is
         what a later reader following the provenance would want to know.
+
+        WHY THIS READ IN PARTICULAR IS GOVERNED
+
+        It used to be ``path.is_file()`` and then ``path.read_bytes()``. That
+        is the shape this whole subsystem exists to remove: between the two
+        calls the name can become a symlink pointing anywhere, or a FIFO,
+        which would have hung verification indefinitely rather than failing
+        it. And this is the verification step -- the one place whose whole
+        job is to be harder to fool than the code that produced the result.
+
+        Reading through :class:`~qta_agent.readpath.GovernedReader` binds the
+        read to an inode, refuses symlinks and special files, checks a
+        capability the verifier actually holds, records every attempt, and
+        passes the cited digest as the expectation so the identity of the
+        bytes is checked by the same call that fetches them.
         """
         if not artifacts:
             return False, ("the run produced no artifacts; a completion with "
                            "nothing to point at is not verifiable")
-        for rel, dg in sorted(artifacts.items()):
-            path = self.root / rel
-            if not path.is_file():
-                return False, f"cited artifact {rel} is no longer on disk"
-            if digest_bytes(path.read_bytes()) != dg:
-                return False, (
-                    f"artifact {rel} no longer hashes to the digest the task "
-                    "cited")
-            if not self.evidence.contains(dg):
-                return False, f"artifact {rel} is not resolvable as evidence"
-        return True, (f"{len(artifacts)} artifact(s) re-derived from disk and "
-                      "resolvable in the evidence store")
+        caps = self.capabilities.in_force(self.log.verify().head_seq)
+        with GovernedReader(self.log, root_id=READ_ROOT_ID,
+                            root_path=self.root, capabilities=caps) as reader:
+            for rel, dg in sorted(artifacts.items()):
+                req = ReadRequest(actor=verifier, task_id=task_id,
+                                  root_id=READ_ROOT_ID, resource=rel,
+                                  purpose="verification")
+                try:
+                    reader.read(req, capability_id=capability_id,
+                                expect_digest=dg,
+                                require_unique_link=True)
+                except FileNotFoundError:
+                    return False, f"cited artifact {rel} is no longer on disk"
+                except SourceChanged:
+                    return False, (
+                        f"artifact {rel} no longer hashes to the digest the "
+                        "task cited")
+                except ReadDenied as exc:
+                    return False, (
+                        f"the verifier is not authorized to read {rel}: "
+                        f"{exc}")
+                except (SafeIOError, OSError) as exc:
+                    return False, (
+                        f"cited artifact {rel} could not be read safely: "
+                        f"{exc}")
+                if not self.evidence.contains(dg):
+                    return False, (
+                        f"artifact {rel} is not resolvable as evidence")
+        return True, (f"{len(artifacts)} artifact(s) re-derived from disk "
+                      "through the governed read boundary and resolvable in "
+                      "the evidence store")

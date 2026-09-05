@@ -126,16 +126,16 @@
   {
    "name": "G6_artifacts_not_reverified",
    "path": "qta_agent/governed_stage10.py",
-   "find": "            if digest_bytes(path.read_bytes()) != dg:",
-   "replace": "            if False:",
-   "rationale": "verification passes on bytes that are no longer the cited bytes"
+   "find": "                    reader.read(req, capability_id=capability_id,\n                                expect_digest=dg,\n                                require_unique_link=True)",
+   "replace": "                    reader.read(req, capability_id=capability_id,\n                                require_unique_link=True)",
+   "rationale": "verification confirms a file EXISTS rather than that it is the file the task cited, so a completion can be verified against substituted bytes"
   },
   {
    "name": "G7_missing_artifact_accepted",
    "path": "qta_agent/governed_stage10.py",
-   "find": "            if not path.is_file():",
-   "replace": "            if False:",
-   "rationale": "a cited artifact that is gone still verifies"
+   "find": "                except FileNotFoundError:\n                    return False, f\"cited artifact {rel} is no longer on disk\"",
+   "replace": "                except FileNotFoundError:\n                    pass",
+   "rationale": "a cited artifact that is gone no longer fails verification, so provenance points at nothing and the task is VERIFIED anyway"
   },
   {
    "name": "G8_empty_artifact_set_verifies",

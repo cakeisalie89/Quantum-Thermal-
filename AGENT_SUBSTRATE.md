@@ -34,11 +34,13 @@ rather than a web:
 | Module | Answers |
 |---|---|
 | `canonical.py` | one byte representation, therefore one digest |
+| `safeio.py` | confined reads: symlink-refusing, descriptor-relative, bound to an inode rather than a name |
 | `actions.py` | every durable action name, and which reducer owns it |
 | `events.py` | append-only hash-chained log; the authority history |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
 | `capability.py` | authority as a bounded object, not an ambient flag |
+| `readpath.py` | who may read what: default-deny, capability-checked, every attempt recorded |
 | `tools.py` | tool contracts and a default-deny registry |
 | `execution.py` | kernel-bounded execution; a timeout is not a success |
 | `checkpoint.py` | a cached verification result, never a second truth |
@@ -122,10 +124,11 @@ in turn, and the suite must fail:
 | Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 30 | CI |
 | Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 21 | re-run here |
 | Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | re-run here |
-| Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | CI |
+| Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | re-run here |
 | Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 42 | re-run here |
 | Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 25 | CI |
 | Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 35 | re-run here |
+| Governed reads: confinement at the open, and who may perform one | `tools/mutations/agent_readpath.json` | 21 | re-run here |
 | Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 14 | CI |
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
 | Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
@@ -134,7 +137,7 @@ in turn, and the suite must fail:
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**369 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**390 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -156,6 +159,50 @@ tell damage from an uncommitted edit and it destroyed real work twice before
 that copy existed.
 
 A surviving mutation means a check is unprotected — not that it is redundant.
+
+### Reads had the write side's old defect, and kept it longer
+
+The write side learned this the expensive way: a guard that validated an
+output directory and then let the caller call `write_bytes` on whatever it
+liked was advisory, and a recovered adversarial test proved it by overwriting
+`README.md` and writing `{"status": "PASS"}` into the canonical gate table
+during an ordinary test run. The fix was to move the allowlist to the point of
+the write.
+
+Reads had exactly the same shape and had not been fixed. Every governed read
+was `validate a path string` … later … `open(that string)`, and the gap
+between those two lines is where the file becomes a symlink to somewhere
+else, or a FIFO that never returns, or a different inode entirely. The
+evidence store and the governed *verification* step — the one place whose
+whole job is to be harder to fool than the code that produced the result —
+were both built that way.
+
+`safeio.py` is the primitive. The authorized root is opened once as a
+directory descriptor; every component is opened descriptor-relative with
+`O_NOFOLLOW`, so a symlink anywhere on the path is refused rather than
+followed; `O_NONBLOCK` on the final open means a substituted FIFO is refused
+instead of turning a bounded read into an indefinite hang; the *opened object*
+is `fstat`-ed and must be a regular file within bounds; and an expected digest
+binds the result to content rather than to a name. Once the descriptor exists
+the kernel has bound the operation to an inode, so renaming or replacing the
+name afterwards cannot redirect the read.
+
+`readpath.py` is the authority above it: default-deny, capability-checked,
+with every attempt recorded — permitted or refused — naming the actor, task,
+capability, the resource requested, the `(device, inode)` actually opened and
+the digest of the bytes. Never the bytes: a read is exactly how a secret would
+reach an audit trail.
+
+The split matters. The primitive has to be usable by the evidence store and
+the event log, which read their own storage and have no subject to authorize;
+the capability check belongs above it. That is the same division the write
+side already makes.
+
+**What it does not do** is contain. A process that calls `open()` itself is
+unaffected. `openat2(RESOLVE_BENEATH)` would make confinement a single atomic
+kernel decision rather than a per-component walk, and this Python exposes
+neither it nor `os.RESOLVE_BENEATH` — an unavailable platform primitive, and
+the module says so rather than implying a guarantee it cannot make.
 
 ### The instrument's own blind spots, found twice
 

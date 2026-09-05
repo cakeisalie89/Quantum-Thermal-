@@ -656,3 +656,24 @@ def test_two_writers_storing_identical_bytes_do_not_race_on_a_temp_name(
     leftovers = [p.name for p in (tmp_path / "evidence").rglob("*")
                  if p.is_file() and p.name.endswith(".tmp")]
     assert not leftovers, f"temporary files were left behind: {leftovers}"
+
+
+def test_an_oversized_blob_is_diagnosed_before_it_is_read(tmp_path):
+    """E6, isolated after the read path moved to the confined primitive.
+
+    The store's read bound now lives in ``safeio.read_beneath``, where a
+    pre-read size check and a streaming growth check both raise. Deleting
+    either left the other to fail the test, so the mutation survived while
+    the check it removed was genuinely unprotected. The diagnosis tells them
+    apart: an oversized blob was never growing, and saying it was sends an
+    operator after a race that did not happen.
+    """
+    s = EvidenceStore(tmp_path / "e", max_blob_bytes=32)
+    dg = digest_bytes(b"z" * 8)
+    blob = s._blob_path(dg)
+    blob.parent.mkdir(parents=True, exist_ok=True)
+    blob.write_bytes(b"z" * 200)          # filed under dg, but far too large
+    with pytest.raises(EvidenceTooLarge) as exc:
+        s.get(dg)
+    assert "is 200 bytes, over the 32-byte bound" in str(exc.value)
+    assert "grew" not in str(exc.value)

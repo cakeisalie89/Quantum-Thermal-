@@ -42,6 +42,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_hostile_campaign.py",
     "tests/test_agent_differential.py",
     "tests/test_agent_atomicity.py",
+    "tests/test_agent_readpath.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",
@@ -82,7 +83,15 @@ ALLOWED_IMPORTERS = {
 # authority records it always did, and the task lifecycle, which needs the
 # task transition table. Nothing earlier imports it -- it is a second reader,
 # and second readers belong downstream of everything they read.
-LAYERS = ("canonical", "actions", "events", "evidence", "capability", "tools",
+# `safeio` sits directly after `canonical` because it is a PRIMITIVE: it
+# confines a read to a subtree and refuses unsafe objects, and it must be
+# usable by the evidence store and the event log, which read their own storage
+# and have no subject to authorize. `readpath` is the AUTHORITY above it and
+# needs `capability`, so it sits after that. The split is the same one the
+# write side makes: the allowlist lives in the writer, the capability check
+# lives above it.
+LAYERS = ("canonical", "safeio", "actions", "events", "evidence", "capability",
+          "readpath", "tools",
           "execution", "checkpoint", "authority", "policy", "secrets",
           "netauth", "store", "invalidation", "tasks", "reconstruct",
           "scheduler", "memory", "context", "agents", "audit",

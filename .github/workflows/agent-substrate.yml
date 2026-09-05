@@ -102,6 +102,12 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_tasks.json
+      - name: mutation matrix -- governed reads and TOCTOU confinement
+        # The read boundary. Each mutation removes exactly one thing standing
+        # between an authorized NAME and unauthorized BYTES.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_readpath.json
       - name: mutation matrix -- audit queries and provenance gaps
         run: |
           uv run python tools/mutation_matrix.py \

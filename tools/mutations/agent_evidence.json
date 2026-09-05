@@ -1,160 +1,161 @@
 {
-  "title": "Evidence store, and the authority gate wired to it",
-  "note": "I6 was half a guarantee until this store existed: check() required evidence to LOOK like a digest, so '\"a\" * 64' -- a well-formed digest of nothing -- was accepted. These mutations delete the checks that close that hole and the checks that keep the store from trusting its own directory layout.",
-  "suites": [
-    "tests/test_agent_concurrency.py",
-    "tests/test_agent_evidence.py",
-    "tests/test_agent_substrate.py",
-    "tests/test_agent_substrate_isolation.py",
-    "tests/test_agent_substrate_properties.py"
-  ],
-  "mutations": [
-    {
-      "name": "E1_no_read_verification",
-      "path": "qta_agent/evidence.py",
-      "find": "        if actual != dg:",
-      "replace": "        if False:",
-      "rationale": "the store would hand back whatever bytes sit at the path, which is the whole attack"
-    },
-    {
-      "name": "E2_follow_symlinks_in_store",
-      "path": "qta_agent/evidence.py",
-      "find": "        if stat.S_ISLNK(st.st_mode):\n            raise CorruptEvidence(",
-      "replace": "        if False:\n            raise CorruptEvidence(",
-      "rationale": "a link's target is chosen by whoever can write the directory, not by the digest"
-    },
-    {
-      "name": "E3_read_non_regular_files",
-      "path": "qta_agent/evidence.py",
-      "find": "        if not stat.S_ISREG(st.st_mode):\n            raise CorruptEvidence(",
-      "replace": "        if False:\n            raise CorruptEvidence(",
-      "rationale": "a FIFO planted in the store would block the read forever"
-    },
-    {
-      "name": "E4_accept_any_digest_string",
-      "path": "qta_agent/evidence.py",
-      "find": "    if not is_digest(value):\n        shown",
-      "replace": "    if False:\n        shown",
-      "rationale": "path traversal is impossible only because the digest shape is validated first"
-    },
-    {
-      "name": "E5_no_put_size_bound",
-      "path": "qta_agent/evidence.py",
-      "find": "        if len(content) > self.max_blob_bytes:",
-      "replace": "        if False:",
-      "rationale": "an unbounded put is a memory-exhaustion path"
-    },
-    {
-      "name": "E6_no_read_size_bound",
-      "path": "qta_agent/evidence.py",
-      "find": "        if st.st_size > self.max_blob_bytes:\n            raise EvidenceTooLarge(\n                f\"{dg[:12]}...",
-      "replace": "        if False:\n            raise EvidenceTooLarge(\n                f\"{dg[:12]}...",
-      "rationale": "a bound lowered after content was stored would not be honoured on read"
-    },
-    {
-      "name": "E7_contains_skips_verification",
-      "path": "qta_agent/evidence.py",
-      "find": "        if not verify:",
-      "replace": "        if True:",
-      "rationale": "an unverified containment check answers 'is there a file there', which is the question a tamperer wants asked"
-    },
-    {
-      "name": "E8_put_file_follows_symlink",
-      "path": "qta_agent/evidence.py",
-      "find": "        if stat.S_ISLNK(st.st_mode):\n            raise EvidenceError(",
-      "replace": "        if False:\n            raise EvidenceError(",
-      "rationale": "the bytes of an unrelated file would be stored under a name the caller chose"
-    },
-    {
-      "name": "E9_put_file_reads_non_regular",
-      "path": "qta_agent/evidence.py",
-      "find": "        if not stat.S_ISREG(st.st_mode):\n            raise EvidenceError(",
-      "replace": "        if False:\n            raise EvidenceError(",
-      "rationale": "put_file on a FIFO would hang instead of refusing"
-    },
-    {
-      "name": "E10_put_file_ignores_size_bound",
-      "path": "qta_agent/evidence.py",
-      "find": "        if st.st_size > self.max_blob_bytes:\n            raise EvidenceTooLarge(\n                f\"{p} is",
-      "replace": "        if False:\n            raise EvidenceTooLarge(\n                f\"{p} is",
-      "rationale": "an oversized file would be read entirely into memory before being refused"
-    },
-    {
-      "name": "E11_info_size_from_sidecar",
-      "path": "qta_agent/evidence.py",
-      "find": "        return BlobInfo(dgs, len(content), media_type, first_seen)",
-      "replace": "        return BlobInfo(dgs, int(json.loads(self._meta_path(dgs).read_text())['size']) if self._meta_path(dgs).is_file() else len(content), media_type, first_seen)",
-      "rationale": "an auditor could be told a 40-byte report is 4 GB; the sidecar is as writable as the blob"
-    },
-    {
-      "name": "E12_require_resolvable_never_resolves",
-      "path": "qta_agent/evidence.py",
-      "find": "        if not resolve(val):",
-      "replace": "        if False:",
-      "rationale": "every citation would resolve, so I6 would be syntactic again"
-    },
-    {
-      "name": "E13_put_rewrites_existing_blob",
-      "path": "qta_agent/evidence.py",
-      "find": "        if blob.exists():",
-      "replace": "        if False:",
-      "rationale": "stored evidence would be silently replaced, erasing what a prior citation referred to"
-    },
-    {
-      "name": "E14_meta_overwritten_on_second_put",
-      "path": "qta_agent/evidence.py",
-      "find": "        if meta.exists():\n            # First-seen is first-seen.",
-      "replace": "        if False:\n            # First-seen is first-seen.",
-      "rationale": "first-seen would be restated by any later put, losing when the store learned the evidence"
-    },
-    {
-      "name": "E15_non_bytes_payload_accepted",
-      "path": "qta_agent/evidence.py",
-      "find": "        if not isinstance(content, (bytes, bytearray)):",
-      "replace": "        if False:",
-      "rationale": "a digest would be taken over an undefined byte sequence"
-    },
-    {
-      "name": "E16_verify_store_ignores_stray_names",
-      "path": "qta_agent/evidence.py",
-      "find": "                if not is_digest(candidate):\n                    problems.append(",
-      "replace": "                if False:\n                    problems.append(",
-      "rationale": "a store audit would pass over files it cannot account for"
-    },
-    {
-      "name": "E17_list_digests_yields_stray_names",
-      "path": "qta_agent/evidence.py",
-      "find": "                if is_digest(candidate):\n                    yield candidate",
-      "replace": "                if True:\n                    yield candidate",
-      "rationale": "a caller iterating the store would receive a string it could mistake for a digest"
-    },
-    {
-      "name": "E18_gate_ignores_the_resolver",
-      "path": "qta_agent/authority.py",
-      "find": "    if resolve is not None:",
-      "replace": "    if False:",
-      "rationale": "the gate would accept a fabricated citation even with a store attached"
-    },
-    {
-      "name": "E19_store_skips_creation_time_resolution",
-      "path": "qta_agent/store.py",
-      "find": "        if self.evidence is None:\n            return",
-      "replace": "        if True:\n            return",
-      "rationale": "a fabricated citation would become a permanent hash-chained fact before anyone noticed"
-    },
-    {
-      "name": "E20_store_never_passes_a_resolver",
-      "path": "qta_agent/store.py",
-      "find": "        return None if self.evidence is None else self.evidence.contains",
-      "replace": "        return None",
-      "rationale": "attaching an evidence store would have no effect at all"
-    },
-    {
-      "name": "E21_metadata_temp_name_is_not_unique",
-      "path": "qta_agent/evidence.py",
-      "find": "        fd, tmp_name = tempfile.mkstemp(dir=str(meta.parent),\n                                        prefix=\".meta-\", suffix=\".tmp\")",
-      "replace": "        tmp_name = str(meta.with_suffix(\".tmp\"))\n        fd = os.open(tmp_name, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)",
-      "rationale": "two writers storing identical bytes collide on one temporary file and the second's rename fails, turning a race with no losing side into a crash"
-    }
-  ]
+ "title": "Evidence store, and the authority gate wired to it",
+ "note": "I6 was half a guarantee until this store existed: check() required evidence to LOOK like a digest, so '\"a\" * 64' -- a well-formed digest of nothing -- was accepted. These mutations delete the checks that close that hole and the checks that keep the store from trusting its own directory layout.  E2, E3 and E6 moved to qta_agent/safeio.py when the store's read path was routed through the confined primitive: the checks they delete are the same checks, in the module that now performs them. Leaving them anchored on the removed code would have made them ANCHOR DRIFT -- counted as coverage while testing nothing.",
+ "suites": [
+  "tests/test_agent_concurrency.py",
+  "tests/test_agent_evidence.py",
+  "tests/test_agent_readpath.py",
+  "tests/test_agent_substrate.py",
+  "tests/test_agent_substrate_isolation.py",
+  "tests/test_agent_substrate_properties.py"
+ ],
+ "mutations": [
+  {
+   "name": "E1_no_read_verification",
+   "path": "qta_agent/evidence.py",
+   "find": "                return rr.read(rel, expect_digest=dg).data",
+   "replace": "                return rr.read(rel).data",
+   "rationale": "the store returns whatever is filed under the name without checking it hashes back to it, so the store's LAYOUT becomes the evidence rather than the content"
+  },
+  {
+   "name": "E2_follow_symlinks_in_store",
+   "path": "qta_agent/safeio.py",
+   "find": "        return _openat(cur, parts[-1],\n                       os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,",
+   "replace": "        return _openat(cur, parts[-1],\n                       os.O_RDONLY | os.O_NONBLOCK,",
+   "rationale": "a symlink in the store is followed, so the bytes a digest resolves to are chosen by whoever can write the store directory rather than by the digest"
+  },
+  {
+   "name": "E3_read_non_regular_files",
+   "path": "qta_agent/safeio.py",
+   "find": "        if not stat.S_ISREG(st.st_mode):",
+   "replace": "        if False:",
+   "rationale": "a pipe or device substituted into the store is read as though it were a blob; the evidence store learned this on its write path and the read path relies on this check"
+  },
+  {
+   "name": "E4_accept_any_digest_string",
+   "path": "qta_agent/evidence.py",
+   "find": "    if not is_digest(value):\n        shown",
+   "replace": "    if False:\n        shown",
+   "rationale": "path traversal is impossible only because the digest shape is validated first"
+  },
+  {
+   "name": "E5_no_put_size_bound",
+   "path": "qta_agent/evidence.py",
+   "find": "        if len(content) > self.max_blob_bytes:",
+   "replace": "        if False:",
+   "rationale": "an unbounded put is a memory-exhaustion path"
+  },
+  {
+   "name": "E6_no_read_size_bound",
+   "path": "qta_agent/safeio.py",
+   "find": "        if st.st_size > max_bytes:",
+   "replace": "        if False:",
+   "rationale": "an oversized blob is read without bound, so a citation becomes a way to exhaust memory"
+  },
+  {
+   "name": "E7_contains_skips_verification",
+   "path": "qta_agent/evidence.py",
+   "find": "        if not verify:",
+   "replace": "        if True:",
+   "rationale": "an unverified containment check answers 'is there a file there', which is the question a tamperer wants asked"
+  },
+  {
+   "name": "E8_put_file_follows_symlink",
+   "path": "qta_agent/evidence.py",
+   "find": "        if stat.S_ISLNK(st.st_mode):\n            raise EvidenceError(",
+   "replace": "        if False:\n            raise EvidenceError(",
+   "rationale": "the bytes of an unrelated file would be stored under a name the caller chose"
+  },
+  {
+   "name": "E9_put_file_reads_non_regular",
+   "path": "qta_agent/evidence.py",
+   "find": "        if not stat.S_ISREG(st.st_mode):\n            raise EvidenceError(",
+   "replace": "        if False:\n            raise EvidenceError(",
+   "rationale": "put_file on a FIFO would hang instead of refusing"
+  },
+  {
+   "name": "E10_put_file_ignores_size_bound",
+   "path": "qta_agent/evidence.py",
+   "find": "        if st.st_size > self.max_blob_bytes:\n            raise EvidenceTooLarge(\n                f\"{p} is",
+   "replace": "        if False:\n            raise EvidenceTooLarge(\n                f\"{p} is",
+   "rationale": "an oversized file would be read entirely into memory before being refused"
+  },
+  {
+   "name": "E11_info_size_from_sidecar",
+   "path": "qta_agent/evidence.py",
+   "find": "        return BlobInfo(dgs, len(content), media_type, first_seen)",
+   "replace": "        return BlobInfo(dgs, int(json.loads(self._meta_path(dgs).read_text())['size']) if self._meta_path(dgs).is_file() else len(content), media_type, first_seen)",
+   "rationale": "an auditor could be told a 40-byte report is 4 GB; the sidecar is as writable as the blob"
+  },
+  {
+   "name": "E12_require_resolvable_never_resolves",
+   "path": "qta_agent/evidence.py",
+   "find": "        if not resolve(val):",
+   "replace": "        if False:",
+   "rationale": "every citation would resolve, so I6 would be syntactic again"
+  },
+  {
+   "name": "E13_put_rewrites_existing_blob",
+   "path": "qta_agent/evidence.py",
+   "find": "        if blob.exists():",
+   "replace": "        if False:",
+   "rationale": "stored evidence would be silently replaced, erasing what a prior citation referred to"
+  },
+  {
+   "name": "E14_meta_overwritten_on_second_put",
+   "path": "qta_agent/evidence.py",
+   "find": "        if meta.exists():\n            # First-seen is first-seen.",
+   "replace": "        if False:\n            # First-seen is first-seen.",
+   "rationale": "first-seen would be restated by any later put, losing when the store learned the evidence"
+  },
+  {
+   "name": "E15_non_bytes_payload_accepted",
+   "path": "qta_agent/evidence.py",
+   "find": "        if not isinstance(content, (bytes, bytearray)):",
+   "replace": "        if False:",
+   "rationale": "a digest would be taken over an undefined byte sequence"
+  },
+  {
+   "name": "E16_verify_store_ignores_stray_names",
+   "path": "qta_agent/evidence.py",
+   "find": "                if not is_digest(candidate):\n                    problems.append(",
+   "replace": "                if False:\n                    problems.append(",
+   "rationale": "a store audit would pass over files it cannot account for"
+  },
+  {
+   "name": "E17_list_digests_yields_stray_names",
+   "path": "qta_agent/evidence.py",
+   "find": "                if is_digest(candidate):\n                    yield candidate",
+   "replace": "                if True:\n                    yield candidate",
+   "rationale": "a caller iterating the store would receive a string it could mistake for a digest"
+  },
+  {
+   "name": "E18_gate_ignores_the_resolver",
+   "path": "qta_agent/authority.py",
+   "find": "    if resolve is not None:",
+   "replace": "    if False:",
+   "rationale": "the gate would accept a fabricated citation even with a store attached"
+  },
+  {
+   "name": "E19_store_skips_creation_time_resolution",
+   "path": "qta_agent/store.py",
+   "find": "        if self.evidence is None:\n            return",
+   "replace": "        if True:\n            return",
+   "rationale": "a fabricated citation would become a permanent hash-chained fact before anyone noticed"
+  },
+  {
+   "name": "E20_store_never_passes_a_resolver",
+   "path": "qta_agent/store.py",
+   "find": "        return None if self.evidence is None else self.evidence.contains",
+   "replace": "        return None",
+   "rationale": "attaching an evidence store would have no effect at all"
+  },
+  {
+   "name": "E21_metadata_temp_name_is_not_unique",
+   "path": "qta_agent/evidence.py",
+   "find": "        fd, tmp_name = tempfile.mkstemp(dir=str(meta.parent),\n                                        prefix=\".meta-\", suffix=\".tmp\")",
+   "replace": "        tmp_name = str(meta.with_suffix(\".tmp\"))\n        fd = os.open(tmp_name, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)",
+   "rationale": "two writers storing identical bytes collide on one temporary file and the second's rename fails, turning a race with no losing side into a crash"
+  }
+ ]
 }

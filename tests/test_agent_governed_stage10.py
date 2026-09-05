@@ -81,6 +81,27 @@ def _run(gov, **over):
     return gov.run(**kw)
 
 
+def _read_cap(gov, task_id="t-direct", cap_id="cap-direct-read"):
+    """Mint the read grant verification needs, recorded in the log.
+
+    Verification now reads through the governed boundary, so calling
+    ``_verify_artifacts`` directly needs a real capability. Minting one here
+    keeps these tests about VERIFICATION semantics; the tests that the read
+    boundary refuses an unauthorized verifier live in test_agent_readpath.py
+    and below.
+    """
+    from qta_agent.capability import Action, issue
+    from qta_agent.governed_stage10 import READ_ROOT_ID, WORKSPACE_PREFIX
+    from qta_agent.readpath import read_scope
+
+    cap = issue(capability_id=cap_id, subject=VERIFIER_ID,
+                action=Action.READ_PATHS, task_id=task_id,
+                scope=read_scope(READ_ROOT_ID, WORKSPACE_PREFIX),
+                issued_seq=gov.log.verify().head_seq + 1)
+    gov.capabilities.issue(cap, actor="scheduler")
+    return cap_id
+
+
 # --- the whole chain --------------------------------------------------------
 
 def test_a_governed_run_reaches_verified_through_every_stage(gov):
@@ -235,7 +256,9 @@ def test_a_verified_run_stops_verifying_once_its_artifact_changes(gov):
     run = _run(gov)
     rel = next(iter(run.artifacts))
     (ROOT / rel).write_text('{"value": 999}\n', encoding="utf-8")
-    ok, why = gov._verify_artifacts(run.artifacts)
+    ok, why = gov._verify_artifacts(
+        run.artifacts, task_id=run.task_id,
+        capability_id=_read_cap(gov, run.task_id))
     assert not ok and "no longer hashes" in why
 
 
@@ -243,7 +266,9 @@ def test_a_missing_artifact_fails_verification(gov):
     run = _run(gov)
     rel = next(iter(run.artifacts))
     (ROOT / rel).unlink()
-    ok, why = gov._verify_artifacts(run.artifacts)
+    ok, why = gov._verify_artifacts(
+        run.artifacts, task_id=run.task_id,
+        capability_id=_read_cap(gov, run.task_id))
     assert not ok and "no longer on disk" in why
 
 
@@ -580,7 +605,9 @@ def test_an_artifact_that_is_not_resolvable_as_evidence_fails_verification(gov):
     rel, dg = next(iter(run.artifacts.items()))
     # The file is untouched and still hashes correctly; only the store loses it.
     gov.evidence._blob_path(dg).unlink()
-    ok, why = gov._verify_artifacts(run.artifacts)
+    ok, why = gov._verify_artifacts(
+        run.artifacts, task_id=run.task_id,
+        capability_id=_read_cap(gov, run.task_id))
     assert not ok and "not resolvable as evidence" in why
     assert digest_bytes((ROOT / rel).read_bytes()) == dg, (
         "fixture is wrong: the file must still be correct on disk")
@@ -596,13 +623,22 @@ def test_the_capability_is_scoped_to_exactly_what_the_tool_declared(gov):
     _run(gov)
     issued = [e.payload for e in gov.log.read()
               if e.action == "capability.issue"]
-    assert len(issued) == 1
+    # TWO grants, and the split is the point: the worker may EXECUTE, the
+    # verifier may READ. One grant covering both would mean the executor's
+    # authority is what lets its own work be checked.
+    assert len(issued) == 2, [i["action"] for i in issued]
+    execute = [i for i in issued if i["action"] == "EXECUTE_TOOL"]
+    reads = [i for i in issued if i["action"] == "READ_PATHS"]
+    assert len(execute) == 1 and len(reads) == 1
+
     spec = stage10_registry().get("stage10.emit_artifact")
-    assert tuple(issued[0]["scope"]) == tuple(spec.writable_scope), (
-        f"grant scope {issued[0]['scope']} != declared writable scope "
+    assert tuple(execute[0]["scope"]) == tuple(spec.writable_scope), (
+        f"grant scope {execute[0]['scope']} != declared writable scope "
         f"{list(spec.writable_scope)}")
-    assert issued[0]["tool_id"] == "stage10.emit_artifact"
-    assert issued[0]["action"] == "EXECUTE_TOOL"
+    assert execute[0]["tool_id"] == "stage10.emit_artifact"
+    assert execute[0]["subject"] == WORKER_ID
+    assert reads[0]["subject"] == VERIFIER_ID, (
+        "the read grant belongs to the verifier, not to the executor")
 
 
 def test_a_timed_out_run_never_reaches_completed_or_verified(gov):
@@ -865,9 +901,10 @@ def test_the_executor_checks_against_the_log_not_the_caller_s_own_set(gov):
 
     run = _run(gov)
     assert run.state is TaskState.VERIFIED
-    (ev,) = [e for e in gov.log.read() if e.action == ACT_ISSUE]
+    evs = [e for e in gov.log.read() if e.action == ACT_ISSUE]
     issued = CapabilityLedger(gov.log).load()
-    assert issued.issued_ids() == (ev.payload["capability_id"],)
+    assert set(issued.issued_ids()) == {
+        e.payload["capability_id"] for e in evs}
 
     live = issued.in_force(gov.log.verify().head_seq)
     assert set(live.issued) == set(issued.issued_ids())
@@ -901,7 +938,9 @@ def test_a_revoked_capability_stops_authorizing_without_the_caller_s_help(gov):
     from qta_agent.capability import CapabilityRevoked, Request, Action
 
     run = _run(gov)
-    (cap_id,) = gov.capabilities.issued_ids()
+    cap_id = next(e.payload["capability_id"] for e in gov.log.read()
+                  if e.action == "capability.issue"
+                  and e.payload["action"] == "EXECUTE_TOOL")
     gov.capabilities.revoke(cap_id, actor="owner", reason="rotated")
 
     live = gov.capabilities.in_force(gov.log.verify().head_seq)
@@ -919,7 +958,7 @@ def test_two_grants_cannot_share_an_id_in_the_log(gov, tmp_path):
     )
 
     _run(gov)
-    (cap_id,) = gov.capabilities.issued_ids()
+    cap_id = gov.capabilities.issued_ids()[0]
     other = issue(capability_id=cap_id, subject="mallory",
                   action=Action.WRITE_PATHS, task_id="t",
                   scope=("verification/stage10",), issued_seq=0)
@@ -960,3 +999,128 @@ def test_the_executor_and_src_fallbacks_are_unreachable_differences():
     # across two lines, and failed for a guard that was present.
     assert "claimed_by != task.executed_by" in src
     assert "task.state is not claimed" in src
+
+
+# --- R31: verification reads through the governed boundary ------------------
+
+def test_verification_reads_are_recorded_with_what_was_opened(gov):
+    """A read that decides whether work is VERIFIED is worth an audit trail."""
+    from qta_agent.readpath import ACT_FILE_READ
+
+    run = _run(gov)
+    reads = [e for e in gov.log.read() if e.action == ACT_FILE_READ]
+    assert reads, "verification read nothing through the governed boundary"
+    for ev in reads:
+        p = ev.payload
+        assert p["allowed"] is True
+        assert p["request"]["purpose"] == "verification"
+        assert p["request"]["actor"] == VERIFIER_ID
+        assert p["result"]["identity"]["inode"] > 0
+    digests = {e.payload["result"]["digest"] for e in reads}
+    assert digests == set(run.artifacts.values()), (
+        "the bytes verification read are not the bytes the task cited")
+
+
+def test_a_verifier_without_a_read_grant_cannot_verify(gov):
+    """Default deny reaches the verification step too.
+
+    Verification is a read, and a read nobody authorized is not a check --
+    it is the verifier's own judgement that it was allowed.
+    """
+    run = _run(gov)
+    ok, why = gov._verify_artifacts(
+        run.artifacts, task_id=run.task_id, capability_id="cap-not-issued")
+    assert not ok
+    assert "not authorized" in why
+
+
+def test_an_artifact_replaced_by_a_symlink_fails_verification(gov):
+    """The artifact is swapped for a link to bytes that hash correctly.
+
+    Without the read boundary this passed: the link was followed, the target
+    hashed to the cited digest, and verification confirmed an artifact that
+    was no longer in the workspace at all.
+    """
+    import os
+
+    run = _run(gov)
+    rel = next(iter(run.artifacts))
+    path = ROOT / rel
+    decoy = path.parent / "decoy.json"
+    decoy.write_bytes(path.read_bytes())          # identical content
+    os.unlink(path)
+    os.symlink(decoy, path)
+    try:
+        ok, why = gov._verify_artifacts(
+            run.artifacts, task_id=run.task_id,
+            capability_id=_read_cap(gov, run.task_id))
+        assert not ok
+        assert "safely" in why or "symbolic link" in why
+    finally:
+        os.unlink(path)
+        os.replace(decoy, path)
+
+
+def test_an_artifact_replaced_by_a_fifo_fails_instead_of_hanging(gov):
+    """Verification must not be stoppable by substituting a named pipe."""
+    import os
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tests"))
+    from hangguard import deadline
+
+    run = _run(gov)
+    rel = next(iter(run.artifacts))
+    path = ROOT / rel
+    saved = path.read_bytes()
+    os.unlink(path)
+    os.mkfifo(path)
+    try:
+        with deadline(10.0):
+            ok, why = gov._verify_artifacts(
+                run.artifacts, task_id=run.task_id,
+                capability_id=_read_cap(gov, run.task_id))
+        assert not ok
+        assert "safely" in why
+    finally:
+        os.unlink(path)
+        path.write_bytes(saved)
+
+
+def test_the_read_grant_does_not_authorize_writing(gov):
+    """Separate authorities, asserted rather than assumed."""
+    from qta_agent.capability import Action, CapabilityDenied, Request
+
+    run = _run(gov)
+    read_cap = next(e.payload["capability_id"] for e in gov.log.read()
+                    if e.action == "capability.issue"
+                    and e.payload["action"] == "READ_PATHS")
+    live = gov.capabilities.in_force(gov.log.verify().head_seq)
+    with pytest.raises(CapabilityDenied):
+        live.check(read_cap, Request(
+            actor=VERIFIER_ID, action=Action.WRITE_PATHS,
+            task_id=run.task_id, paths=("verification/stage10/x",)))
+
+
+def test_an_artifact_with_a_second_hard_link_fails_verification(gov):
+    """A governed artifact was written once and should have one name.
+
+    A second hard link is another way to reach the same bytes, and it can
+    live outside the workspace entirely -- so the content verification
+    confirms is reachable by a name no authority ever saw.
+    """
+    import os
+
+    run = _run(gov)
+    rel = next(iter(run.artifacts))
+    path = ROOT / rel
+    alias = path.parent / "alias.json"
+    os.link(path, alias)
+    try:
+        ok, why = gov._verify_artifacts(
+            run.artifacts, task_id=run.task_id,
+            capability_id=_read_cap(gov, run.task_id))
+        assert not ok
+        assert "names" in why or "safely" in why
+    finally:
+        os.unlink(alias)

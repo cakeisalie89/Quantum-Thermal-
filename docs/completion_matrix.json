@@ -96,9 +96,9 @@
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "READ paths are not gated. Writes, execution, egress and secrets are default-deny; nothing mediates which files a governed tool may read, so it can read anything the process can",
+    "READ paths are gated for the governed workflow and the evidence store; reads made by code that does not go through GovernedReader are still ungoverned, and nothing forces a future caller to use it",
     "no external-service authority beyond egress: no per-service identity, quota or contract",
-    "the egress guard is in-process and reversible by code inside the block; it is mediation, not a sandbox"
+    "the egress guard is in-process and reversible by code inside the block; it is mediation, not a sandbox -- and so is the read boundary"
    ],
    "blocker": null
   },
@@ -440,47 +440,49 @@
   {
    "id": "R31",
    "requirement": "Filesystem authority: immutable evidence vs workspace vs canonical outputs",
-   "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+   "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
    "implementation": [
+    "qta_agent/safeio.py",
+    "qta_agent/readpath.py",
     "qta_multiphysics/stack/workspace.py",
     "qta_agent/evidence.py"
    ],
    "callers": [
-    "Snakefile",
     "qta_agent/governed_stage10.py",
-    "qta_multiphysics/stack/fmi_contract.py",
-    "qta_multiphysics/stack/rag_index.py",
-    "qta_multiphysics/stack/vtk_export.py"
+    "qta_agent/evidence.py",
+    "tests/test_agent_readpath.py"
    ],
-   "production_caller": "qta_multiphysics/stack/vtk_export.py",
-   "persistent_state": "content-addressed evidence store; Stage-10 workspace",
-   "authority_owner": "workspace.assert_in_workspace; evidence.EvidenceStore",
-   "evidence": "every read re-hashes; digests are content-addressed",
-   "provenance": "blob digests",
-   "failure_semantics": "fail-closed ValueError/EvidenceError",
+   "production_caller": "qta_agent/governed_stage10.py",
+   "persistent_state": "file.read events: every governed read attempt, permitted or refused, with the identity of the object actually opened",
+   "authority_owner": "safeio.read_beneath for confinement; readpath.GovernedReader for who may read; workspace.assert_in_workspace for writes",
+   "evidence": "the authorized root is opened ONCE as a directory descriptor and every component is opened descriptor-relative with O_NOFOLLOW, so a symlink anywhere on the path is refused rather than followed; O_NONBLOCK on the final open means a substituted FIFO is refused instead of hanging; the OPENED object is fstat-ed and must be a regular file within bounds; and an expected digest binds the result to CONTENT rather than to a name",
+   "provenance": "each read records actor, task, capability, root, requested resource, the (device, inode) actually opened and the digest of the bytes -- never the bytes",
+   "failure_semantics": "default deny: a reader with no capability reads nothing; every refusal names which check refused",
    "recovery": "append-only store; no delete path",
    "retry": "n/a",
    "idempotency": "n/a",
    "cancellation": "n/a",
-   "concurrency": "n/a",
-   "security_boundary": "write allowlist; symlink, FIFO, traversal and size guards",
+   "concurrency": "the descriptor is bound to an inode, so rename, replace or unlink after the open cannot redirect the read",
+   "security_boundary": "confinement enforced at the OPEN, not by validating a string a later caller re-opens. Mediation, not containment: a process that calls open() itself is unaffected",
    "tests": [
-    "tests/test_agent_authority_boundaries.py",
-    "tests/test_agent_evidence.py",
-    "tests/test_stage10_stack.py"
+    "tests/test_agent_readpath.py",
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_evidence.py"
    ],
    "property_tests": [],
    "mutation_tests": [
-    "tools/mutations/stage10_authority.json",
+    "tools/mutations/agent_readpath.json",
     "tools/mutations/agent_evidence.json"
    ],
-   "fuzzing": "none",
+   "fuzzing": "tools/fuzz_substrate.py targets read_path and read_beneath: the path parser and an actual confined read against a real root",
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "READ paths are not gated: nothing mediates which files a governed tool may read",
-    "no TOCTOU handling between resolving a path and writing it; the guard resolves, then the writer opens, and a symlink swapped in between is not caught",
-    "no disk-full injection; permission errors are covered for the evidence store only"
+    "HARD LINKS are not detectable: a name inside the root may be a hard link to content elsewhere on the same filesystem, and O_NOFOLLOW says nothing about it because a hard link is not a link. Where the identity of the bytes matters the caller passes a digest; where it does not, this is a real hole and not a theoretical one",
+    "openat2(RESOLVE_BENEATH) would make confinement a single atomic kernel decision rather than a per-component walk. This Python exposes neither os.openat2 nor os.RESOLVE_BENEATH, so the walk is the strongest form available here -- an unavailable platform primitive, not unfinished engineering",
+    "bind mounts and overlays are not detectable portably: if the root itself is a mount somebody else controls, confinement to it means less than it appears to",
+    "case-insensitive filesystems are out of scope; the targets are case-sensitive and nothing here consults the root's own semantics",
+    "no disk-full injection on the read path (there is nothing to write), and permission-error injection is covered for the evidence store only"
    ],
    "blocker": null
   },

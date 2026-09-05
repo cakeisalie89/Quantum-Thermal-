@@ -81,10 +81,22 @@ Stated plainly, because a report that only lists successes is not a report.
   callable, so the governed path is additive rather than the only route.
 - **The substrate mediates; it does not contain.** The egress guard binds the
   parent process, not the child. The write allowlist lives at the write
-  primitive, not in a kernel sandbox. A subprocess that opens its own socket is
-  not stopped.
-- **Read paths are not gated.** Writes, execution, egress and secrets are
-  default-deny; nothing mediates which files a governed tool may read.
+  primitive, and the read confinement at the open — neither is a kernel
+  sandbox. A subprocess that opens its own socket, or calls `open()` itself,
+  is not stopped. `openat2(RESOLVE_BENEATH)` would make read confinement one
+  atomic kernel decision instead of a per-component walk, and this Python
+  exposes neither `os.openat2` nor `os.RESOLVE_BENEATH`.
+- **Read paths are gated for the governed workflow and the evidence store,
+  and not universally.** *This was previously listed here as ungated; that is
+  no longer accurate and the change is recorded rather than the sentence
+  quietly deleted.* Governed verification and every evidence resolution now go
+  through a confined primitive: the authorized root is opened once as a
+  descriptor, every path component is opened descriptor-relative with
+  `O_NOFOLLOW`, `O_NONBLOCK` means a substituted FIFO is refused instead of
+  hanging, the *opened* object must be a regular file within bounds, and a
+  cited digest binds the result to content rather than to a name. What remains
+  ungoverned is any read made by code that does not go through
+  `GovernedReader`, and nothing forces a future caller to use it.
 - **Separation of duties assumes the parties are distinct.** A compromised
   submitter, worker and verifier acting together are not modelled, and that is
   precisely the assumption that would not survive it.

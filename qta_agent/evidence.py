@@ -53,6 +53,14 @@ from pathlib import Path
 from typing import Iterator
 
 from .canonical import digest_bytes, is_digest
+from .safeio import (
+    NotARegularFile,
+    ReadRoot,
+    ReadTooLarge,
+    SafeIOError,
+    SourceChanged,
+    SymlinkRefused,
+)
 
 #: Refuse rather than truncate. Evidence is reports and manifests; a blob at
 #: this size is a mistake or an attack, and either way the caller should hear
@@ -321,35 +329,50 @@ class EvidenceStore:
         return self._read_verified(_require_digest(dg))
 
     def _read_verified(self, dg: str) -> bytes:
-        blob = self._blob_path(dg)
+        """Resolve a digest to bytes through the confined read primitive.
+
+        THE WINDOW THIS CLOSES
+
+        This used to lstat the blob, check its type and size, and then call
+        ``read_bytes`` on the same PATHNAME. Between those two operations the
+        name could become something else: a symlink the checks had already
+        cleared, or -- worse -- a FIFO, which turns a bounded read into an
+        indefinite hang. The store had learned that lesson on its WRITE path
+        and the read path never got the same treatment.
+
+        ``read_beneath`` opens descriptor-relative from the store root with
+        ``O_NOFOLLOW`` and ``O_NONBLOCK``, validates the OPENED object rather
+        than the name, and binds the read to an inode. The digest is passed
+        as the expectation, so the identity of the bytes is checked by the
+        same call that fetches them.
+        """
+        rel = f"{dg[:_FANOUT]}/{dg[_FANOUT:]}"
         try:
-            st = blob.lstat()
+            with ReadRoot(self.root, max_bytes=self.max_blob_bytes) as rr:
+                return rr.read(rel, expect_digest=dg).data
         except FileNotFoundError:
             raise UnknownEvidence(
                 f"no evidence stored for {dg[:12]}...; a citation is not "
                 "self-validating -- the content must have been "
                 "stored") from None
-        if stat.S_ISLNK(st.st_mode):
+        except SymlinkRefused as exc:
             raise CorruptEvidence(
                 f"{dg[:12]}... is a symlink in the store; refusing to follow "
                 "it, because the link target is chosen by whoever can write "
-                "the directory rather than by the digest")
-        if not stat.S_ISREG(st.st_mode):
+                f"the directory rather than by the digest ({exc})") from None
+        except NotARegularFile as exc:
             raise CorruptEvidence(
-                f"{dg[:12]}... is not a regular file "
-                f"({stat.filemode(st.st_mode)})")
-        if st.st_size > self.max_blob_bytes:
-            raise EvidenceTooLarge(
-                f"{dg[:12]}... is {st.st_size} bytes, over the "
-                f"{self.max_blob_bytes}-byte bound")
-        content = blob.read_bytes()
-        actual = digest_bytes(content)
-        if actual != dg:
+                f"{dg[:12]}... is not a regular file: {exc}") from None
+        except ReadTooLarge as exc:
+            raise EvidenceTooLarge(str(exc)) from None
+        except SourceChanged as exc:
             raise CorruptEvidence(
-                f"stored bytes hash to {actual[:12]}... but are filed under "
-                f"{dg[:12]}...; the store's layout is not evidence of "
-                "anything, so the content is refused")
-        return content
+                f"stored bytes hash to {exc.actual[:12]}... but are filed "
+                f"under {dg[:12]}...; the store's layout is not evidence of "
+                "anything, so the content is refused") from None
+        except SafeIOError as exc:
+            raise CorruptEvidence(
+                f"{dg[:12]}... could not be read safely: {exc}") from None
 
     def contains(self, dg: object, *, verify: bool = True) -> bool:
         """Does this store hold resolvable evidence named ``dg``?

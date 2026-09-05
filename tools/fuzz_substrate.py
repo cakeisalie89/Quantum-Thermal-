@@ -127,6 +127,40 @@ def _evidence_name(data: bytes):
             data.decode("utf-8", "surrogateescape"))
 
 
+
+def _read_path(data: bytes):
+    """Fuzz the governed read boundary's path parser.
+
+    A path is the most attacker-shaped input this package takes: it arrives
+    as a string, it is compared against an authority, and it is then handed
+    to the kernel. Anything it accepts, it accepts on behalf of a reader.
+    """
+    from qta_agent.safeio import split_relative
+
+    return split_relative(data.decode("utf-8", "surrogateescape"))
+
+
+def _read_beneath(data: bytes):
+    """Fuzz an actual confined read against a real, tiny root.
+
+    The parser above says which paths are expressible. This says what
+    happens when one reaches the filesystem: whatever the bytes are, the
+    result must be a refusal or a bounded read, never a hang and never
+    content from outside the root.
+    """
+    import os
+    import tempfile
+
+    from qta_agent.safeio import ReadRoot
+
+    rel = data.decode("utf-8", "surrogateescape")
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "f.txt"), "wb") as fh:
+            fh.write(b"in-root")
+        with ReadRoot(d, max_bytes=4096) as rr:
+            return rr.read(rel)
+
+
 def _record_target(builder):
     def run(data: bytes):
         rec = json.loads(data.decode("utf-8", "surrogateescape"))
@@ -180,6 +214,7 @@ def _targets() -> dict:
     from qta_agent.events import EventLogError
     from qta_agent.evidence import EvidenceError
     from qta_agent.memory import MemoryError_, entry_from_record
+    from qta_agent.safeio import SafeIOError
     from qta_agent.netauth import NetworkError, grant_from_record
     from qta_agent.policy import PolicyError, document_from_record
     from qta_agent.scheduler import SchedulerError, job_from_record
@@ -257,6 +292,12 @@ def _targets() -> dict:
                                  "budget_bytes": 10, "used_bytes": 0,
                                  "policy_identity": "", "policy_digest": "",
                                  "at_seq": 1}).encode()]),
+        "read_path": (_read_path, (SafeIOError,) + common,
+                      [b"a/b.txt", b"../../etc/passwd", b"/etc/passwd",
+                       b"a//b", b"a/./b", b".", b"", b"a\x00b"]),
+        "read_beneath": (_read_beneath,
+                         (SafeIOError, FileNotFoundError) + common,
+                         [b"f.txt", b"../f.txt", b"missing", b"f.txt/x"]),
         "url": (_url_target, (NetworkError,) + common,
                 [b"https://api.example.com/v1",
                  b"https://user@evil.test/", b"http://[::1]:80/x"]),
