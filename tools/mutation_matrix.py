@@ -42,11 +42,28 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import signal
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+#: Written before the first mutation, removed on a clean exit. Its presence at
+#: startup means a previous run died without restoring, so the sources on disk
+#: may still be mutated.
+#:
+#: This exists because it happened. A run was killed by a sandbox timeout
+#: before the signal handler below was added, and left `os.setsid()` replaced
+#: by `pass` in the execution layer. The check afterwards grepped for the
+#: OTHER mutations' markers and reported the tree clean, and the files were
+#: new and untracked so git could not contradict it. The result was a process
+#: group that was never created, so every timeout killed the CALLER's process
+#: group -- the test runner terminated itself, repeatedly, and the cause looked
+#: like a kernel or sandbox problem for as long as the leftover went unnoticed.
+#:
+#: A sidecar turns that silent state into a refusal to start.
+RECOVERY = ROOT / ".mutation-recovery.json"
 
 #: Backstop only. A mutation whose kill mechanism is the harness timing out is
 #: a badly written TEST, not a well-caught mutation: it costs the timeout in
@@ -86,24 +103,53 @@ def _restore(paths: list) -> None:
 
 def run_suite(suites: list, python: str) -> tuple:
     """Return (returncode, [failed test names]). ``-x`` stops at the first."""
+    # start_new_session puts the suite in ITS OWN process group. Without it a
+    # mutant that signals "its" process group signals the HARNESS too -- which
+    # is not hypothetical: mutating away the execution layer's `setsid` makes
+    # every timeout in the suite kill the caller's group, and the caller is
+    # this harness. The run then dies looking like an infrastructure problem
+    # rather than like the mutation doing exactly what it was written to do.
     proc = subprocess.run(
         [python, "-m", "pytest", *suites, "-q", "--no-header", "-x",
          "--tb=no", "-p", "no:randomly"],
-        cwd=str(ROOT), capture_output=True, text=True, timeout=SUITE_TIMEOUT_S)
+        cwd=str(ROOT), capture_output=True, text=True, timeout=SUITE_TIMEOUT_S,
+        start_new_session=True)
     failed = [line.split("::")[-1].split(" ")[0]
-              for line in proc.stdout.splitlines() if line.startswith("FAILED")]
+              for line in proc.stdout.splitlines()
+              if line.startswith("FAILED")]
     return proc.returncode, failed
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("spec", type=Path, help="mutation specification (JSON)")
+    ap.add_argument("spec", type=Path, nargs="?",
+                    help="mutation specification (JSON)")
     ap.add_argument("--python", default=sys.executable,
                     help="interpreter used to run the suite")
     ap.add_argument("--list", action="store_true",
                     help="print the mutations and exit without running them")
+    ap.add_argument("--recover", action="store_true",
+                    help="restore sources from a previous run's recovery file")
     args = ap.parse_args()
 
+    if args.recover:
+        if not RECOVERY.exists():
+            print("nothing to recover; no interrupted run recorded")
+            return 0
+        saved = json.loads(RECOVERY.read_text(encoding="utf-8"))
+        for rel, text in saved.items():
+            path = ROOT / rel
+            if path.read_text(encoding="utf-8") != text:
+                print(f"  restored {rel}")
+                path.write_text(text, encoding="utf-8")
+            else:
+                print(f"  already clean: {rel}")
+        RECOVERY.unlink()
+        print("sources restored from the interrupted run")
+        return 0
+
+    if args.spec is None:
+        ap.error("a mutation specification is required unless --recover")
     spec = json.loads(args.spec.read_text(encoding="utf-8"))
     suites = spec["suites"]
     mutations = spec["mutations"]
@@ -139,6 +185,35 @@ def main() -> int:
     # checked after every mutation, not just the files being mutated.
     baseline_dirty = set(_dirty_tracked_files())
     collateral: dict = {}
+
+    if RECOVERY.exists():
+        print(f"REFUSING TO START: {RECOVERY.name} exists, so a previous run "
+              "died without restoring its sources. They may still be mutated "
+              "-- and a leftover mutation is a DISABLED SAFETY GUARD that no "
+              "test is currently reporting.")
+        print("Restore them with:")
+        print(f"    python3 {Path(__file__).name} --recover")
+        return 3
+    RECOVERY.write_text(json.dumps(original, indent=2), encoding="utf-8")
+
+    # SIGTERM does not run `finally`, so a harness killed by a timeout or a
+    # CI cancellation would leave a MUTATED source on disk -- a disabled safety
+    # guard, committed by whoever ran `git add -A` next. Turning the signal
+    # into an exception makes the restore path run. This came up for real: a
+    # run was SIGTERMed mid-matrix and the sources survived only because the
+    # kill happened to land between mutations.
+    def _restore_and_die(signum, frame):
+        for rel, text in original.items():
+            (ROOT / rel).write_text(text, encoding="utf-8")
+        print(f"\ninterrupted by signal {signum}; sources restored")
+        raise SystemExit(130)
+
+    previous = {}
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            previous[sig] = signal.signal(sig, _restore_and_die)
+        except (ValueError, OSError):          # pragma: no cover - platform
+            pass
 
     results: dict = {}
     try:
@@ -183,6 +258,12 @@ def main() -> int:
     finally:
         for p, src in original.items():
             (ROOT / p).write_text(src, encoding="utf-8")
+        for sig, handler in previous.items():
+            try:
+                signal.signal(sig, handler)
+            except (ValueError, OSError):      # pragma: no cover - platform
+                pass
+        RECOVERY.unlink(missing_ok=True)
 
     # --- 2. restoration is verified, not assumed --------------------------
     drifted = [p for p in paths if _sha(ROOT / p) != before[p]]

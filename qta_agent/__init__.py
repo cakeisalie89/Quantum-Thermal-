@@ -16,6 +16,9 @@ list, so the dependency graph is a line rather than a web:
   canonical      one byte representation, therefore one digest
   events         append-only hash-chained log; the authority history
   evidence       content-addressed store; what a cited digest resolves to
+  capability     authority as a bounded object, not an ambient flag
+  tools          tool contracts and a default-deny registry
+  execution      kernel-bounded execution; a timeout is not a success
   authority      the transition table; what may become canonical
   store          live projection, transactional through the log
   invalidation   transitive consequence of a change
@@ -33,8 +36,8 @@ consumers are its own tests. See ``AGENT_SUBSTRATE.md``.
 from __future__ import annotations
 
 __all__ = [
-    "canonical", "events", "evidence", "authority", "store", "invalidation",
-    "reconstruct",
+    "canonical", "events", "evidence", "capability", "tools", "execution",
+    "checkpoint", "authority", "store", "invalidation", "reconstruct",
 ]
 
 #: Substrate contract version. Bumping this signals that persisted logs or

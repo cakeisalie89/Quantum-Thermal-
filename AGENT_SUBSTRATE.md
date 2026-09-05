@@ -37,6 +37,9 @@ rather than a web:
 | `events.py` | append-only hash-chained log; the authority history |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
+| `capability.py` | authority as a bounded object, not an ambient flag |
+| `tools.py` | tool contracts and a default-deny registry |
+| `execution.py` | kernel-bounded execution; a timeout is not a success |
 | `checkpoint.py` | a cached verification result, never a second truth |
 | `store.py` | live projection, transactional through the log |
 | `invalidation.py` | transitive consequence of a change |
@@ -239,6 +242,69 @@ The projection snapshot is stored as **evidence**: canonical bytes in the
 content-addressed store, pinned by digest from the checkpoint. The two cannot
 drift, because a snapshot whose bytes changed no longer resolves to the digest
 the checkpoint names.
+
+## 6b. Authority is an object, and execution is bounded by the kernel
+
+A boolean `may_write` answers the wrong question. The ones that matter are
+*who*, *for which task*, *with which tool*, *over which paths*, and *until
+when* — and a flag answers none of them. Worse, a flag is ambient: once a
+component holds it, everything that component does inherits it. That is the
+confused deputy in its purest form.
+
+`capability.py` makes a grant a specific bounded object, checked against the
+*request* rather than against the caller's identity. A grant for task T and
+tool X gives nothing for task U or tool Y, so a component tricked into acting
+on someone else's behalf fails closed instead of succeeding.
+
+Three things it deliberately is **not**:
+
+- **Not authentication.** `subject` is a name the issuer chose. What it gives
+  you is that a grant issued *to* that name cannot be used *as* another.
+- **Not a secret.** The digest is derived from public fields; anyone who can
+  read a grant can recompute it. Unforgeability comes from the issuing record
+  in the log — a grant that was never issued does not appear there. A test
+  pins this as a limit so nobody later treats the digest as a bearer token.
+- **Not expressed in wall time.** Expiry is in sequence numbers. A grant that
+  expired "at 10:03" has a different answer depending on whose clock you ask;
+  one that expires after seq 41 reads identically for every reader.
+
+Scope matching is by path **component**. `stage10/probe2` is a string prefix of
+`stage10/probe` and a different directory; a `startswith` check grants the
+sibling. Writing this test found a second, sharper case: a scope of `"."` has
+*empty* `.parts`, so it slips a traversal check and is the parent of every
+relative path — the one scope value that looks narrow and is total.
+
+`tools.py` is default-deny. An unregistered tool does not run — not "runs with
+reduced privileges", not "runs and is logged". The registry is frozen after
+construction, so what may run cannot depend on import order. Determinism and
+side-effect class are *declared*, because whether a re-run difference means
+tampering or just means the tool never promised reproducibility is not
+something a verifier can work out afterwards.
+
+`execution.py` runs tools in a subprocess, because an in-process call cannot be
+bounded: it shares the caller's memory, descriptors, environment and lifetime.
+CPU, address space, output size, process count and wall clock are enforced by
+the kernel against a process the caller does not share, `setsid` puts it in its
+own group so a timeout kills the whole tree rather than orphaning a grandchild,
+and the environment is **replaced** rather than inherited — inheritance is how
+a tool acquires credentials nobody granted it.
+
+Output is capped with `RLIMIT_FSIZE` on real files rather than by a counter on
+a pipe. A counter caps what you *keep*; the kernel caps what is *produced*, and
+the difference is the whole point when the producer is hostile.
+
+Three outcomes are not success, and collapsing any of them into `COMPLETED`
+would be the failure that matters most:
+
+| | |
+|---|---|
+| `TIMED_OUT` | it may have finished one instruction before the deadline; nothing observed it finish |
+| `CANCELLED` | it stopped when asked — retryable, where a rejection is not |
+| `DENIED` | it never ran, and must never be reported as a failed run |
+
+`COMPLETED` means the process exited 0. That is a statement about the process,
+not about the result; whether the output is acceptable is a verification
+question answered elsewhere, deliberately by someone else.
 
 ## 7. Status: built, verified, and not yet driving anything
 

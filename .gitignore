@@ -14,3 +14,4 @@ uv.lock.bak
 
 # Rust extension build artifacts (the optional kernel is built on demand)
 rust/**/target/
+.mutation-recovery.json

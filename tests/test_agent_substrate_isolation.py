@@ -34,6 +34,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_substrate_properties.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
+    "tests/test_agent_execution.py",
     "tests/test_agent_substrate_isolation.py",
 }
 
@@ -41,8 +42,9 @@ ALLOWED_IMPORTERS = {
 #: modules strictly earlier in this tuple, which keeps the graph a line
 #: rather than a web and makes "the log is the truth" structurally true
 #: instead of aspirational.
-LAYERS = ("canonical", "events", "evidence", "checkpoint", "authority",
-          "store", "invalidation", "reconstruct")
+LAYERS = ("canonical", "events", "evidence", "capability", "tools",
+          "execution", "checkpoint", "authority", "store", "invalidation",
+          "reconstruct")
 
 
 def _modules():

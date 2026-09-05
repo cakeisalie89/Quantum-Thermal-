@@ -8,29 +8,42 @@
     {
       "id": "R21",
       "requirement": "Tool execution as a full subsystem: identity, contract, schemas, capability, limits, timeout, cancellation, provenance",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
+      "classification": "LOCALLY_MATURE_BUT_UNINTEGRATED",
+      "implementation": [
+        "qta_agent/tools.py",
+        "qta_agent/execution.py"
+      ],
+      "callers": [
+        "tests/test_agent_execution.py"
+      ],
       "production_caller": null,
-      "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
-      "provenance": "none",
-      "failure_semantics": "none",
-      "recovery": "none",
-      "retry": "n/a",
+      "persistent_state": "none yet; results are returned, not recorded",
+      "authority_owner": "tools.Registry (default deny) + Executor.run",
+      "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, duration and the limits actually applied",
+      "provenance": "tool_id, version and contract digest cited by every result",
+      "failure_semantics": "five outcomes; TIMED_OUT, CANCELLED and DENIED are each distinct from FAILED and none of them is success",
+      "recovery": "none yet: a result is not persisted, so a crash loses it",
+      "retry": "RETRYABLE is TIMED_OUT|CANCELLED; a deterministic rejection is not retryable",
       "idempotency": "n/a",
-      "cancellation": "n/a",
-      "concurrency": "n/a",
-      "security_boundary": "none",
-      "tests": [],
+      "cancellation": "CancellationToken checked before spawn and during the wait",
+      "concurrency": "none",
+      "security_boundary": "registry default-deny; capability checked before execution; kernel rlimits; own process group; replaced environment",
+      "tests": [
+        "tests/test_agent_execution.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_execution.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "no tool registry, contract, executor or provenance capture exists anywhere in the repository"
+        "NO PRODUCTION CALLER: nothing in a real workflow runs a tool through this",
+        "results are not written to the event log, so nothing is durable",
+        "no output-file collection or content-addressing of declared outputs",
+        "no retry executor, no idle timeout, no compensating actions for EXTERNAL side effects",
+        "no network or secret mediation"
       ],
       "blocker": null
     },
@@ -39,7 +52,9 @@
       "requirement": "Default deny for tool, filesystem, network, secret and external-service authority",
       "classification": "PARTIALLY_IMPLEMENTED",
       "implementation": [
-        "qta_multiphysics/stack/workspace.py"
+        "qta_multiphysics/stack/workspace.py",
+        "qta_agent/tools.py",
+        "qta_agent/capability.py"
       ],
       "callers": [
         "qta_multiphysics/stack/vtk_export.py",
@@ -59,47 +74,59 @@
       "security_boundary": "filesystem write allowlist enforced inside the writers",
       "tests": [
         "tests/test_agent_authority_boundaries.py",
-        "tests/test_stage10_stack.py"
+        "tests/test_stage10_stack.py",
+        "tests/test_agent_execution.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/stage10_authority.json"
+        "tools/mutations/stage10_authority.json",
+        "tools/mutations/agent_execution.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "filesystem writes only; no default-deny layer for tools, network, secrets or subprocess environment",
-        "read paths are not gated at all"
+        "filesystem writes and tool execution are default-deny; network, secrets and read paths are not gated at all",
+        "the default-deny tool registry has no production caller"
       ],
       "blocker": null
     },
     {
       "id": "R23",
       "requirement": "Subprocess and process-lifecycle semantics",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
+      "classification": "LOCALLY_MATURE_BUT_UNINTEGRATED",
+      "implementation": [
+        "qta_agent/execution.py"
+      ],
+      "callers": [
+        "tests/test_agent_execution.py"
+      ],
       "production_caller": null,
       "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
+      "authority_owner": "execution.run_bounded",
+      "evidence": "real exit status and signal number recorded separately",
       "provenance": "none",
-      "failure_semantics": "none",
-      "recovery": "none",
+      "failure_semantics": "a signalled death is not an exit status; a timeout is not a failure of the tool and not a success",
+      "recovery": "partial output from a killed process is captured and hashed",
       "retry": "n/a",
       "idempotency": "n/a",
-      "cancellation": "n/a",
+      "cancellation": "terminate the group, grace, then kill",
       "concurrency": "n/a",
-      "security_boundary": "none",
-      "tests": [],
+      "security_boundary": "setsid process group; never signals its own group",
+      "tests": [
+        "tests/test_agent_execution.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_execution.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "nothing in the repository spawns or supervises a subprocess under governance"
+        "execution state is not persisted, so a crashed supervisor loses the run",
+        "no PID/lease record survives the process",
+        "no zombie reaping beyond the immediate child"
       ],
       "blocker": null
     },
@@ -307,29 +334,40 @@
     {
       "id": "R30",
       "requirement": "Capabilities as enforceable authority objects",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
+      "classification": "LOCALLY_MATURE_BUT_UNINTEGRATED",
+      "implementation": [
+        "qta_agent/capability.py"
+      ],
+      "callers": [
+        "tests/test_agent_execution.py",
+        "qta_agent/execution.py"
+      ],
       "production_caller": null,
       "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
-      "provenance": "none",
-      "failure_semantics": "none",
+      "authority_owner": "capability.CapabilitySet.check",
+      "evidence": "every grant names subject, task, tool, scope and expiry",
+      "provenance": "capability_from_record rebuilds a grant from its log payload",
+      "failure_semantics": "fail-closed; distinct exceptions for unknown, revoked, expired and denied",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
-      "cancellation": "n/a",
+      "cancellation": "revocation takes effect immediately",
       "concurrency": "n/a",
-      "security_boundary": "none",
-      "tests": [],
+      "security_boundary": "bounded along subject, task, tool, action, path scope, revocation and expiry; scope matched by path component",
+      "tests": [
+        "tests/test_agent_execution.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_execution.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "no capability object, grant, scope, expiry or revocation exists"
+        "grants are not yet issued or revoked THROUGH the event log, so the issued set is assembled by the caller rather than projected from a verified history",
+        "subject is not authenticated; a grant cannot be used as another name but nothing proves who a name belongs to",
+        "no delegation or attenuation"
       ],
       "blocker": null
     },
@@ -1056,7 +1094,8 @@
         "tests/test_agent_substrate.py",
         "tests/test_agent_evidence.py",
         "tests/test_agent_checkpoint.py",
-        "tests/test_agent_authority_boundaries.py"
+        "tests/test_agent_authority_boundaries.py",
+        "tests/test_agent_execution.py"
       ],
       "property_tests": [],
       "mutation_tests": [],
@@ -1151,7 +1190,8 @@
       "implementation": [
         "qta_multiphysics/stack/workspace.py",
         "qta_multiphysics/stack/rag_index.py",
-        "qta_agent/evidence.py"
+        "qta_agent/evidence.py",
+        "qta_agent/capability.py"
       ],
       "callers": [],
       "production_caller": null,
@@ -1168,19 +1208,21 @@
       "security_boundary": "none",
       "tests": [
         "tests/test_agent_authority_boundaries.py",
-        "tests/test_agent_evidence.py"
+        "tests/test_agent_evidence.py",
+        "tests/test_agent_execution.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/stage10_authority.json",
-        "tools/mutations/agent_evidence.json"
+        "tools/mutations/agent_evidence.json",
+        "tools/mutations/agent_execution.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "covers fabricated evidence, forged retrieval and write escape",
-        "no tests for forbidden tool, sandbox escape, self-approval, stale capability, hidden exit status — those subsystems are absent"
+        "covers fabricated evidence, forged retrieval, write escape, capability reuse across actor/task/tool/scope, revocation and expiry",
+        "no tests for sandbox escape, self-approval or hidden exit status through a durable task, because the task lifecycle does not exist yet"
       ],
       "blocker": null
     },
