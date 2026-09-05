@@ -1171,3 +1171,47 @@ def test_the_replayed_lease_deadline_is_the_one_the_write_path_used(sched,
     sched.report(job_id="j1", worker="worker-a")
     assert sched.get("j1").state is JobState.SUCCEEDED
     assert _reload(tmp_path).get("j1").state is JobState.SUCCEEDED
+
+
+# --- isolating the write path from the replay it now shares rules with ------
+#
+# The two ownership checks above made N6 and N7 -- the SAME two checks in
+# report() -- survive, because transition() calls apply() on the event it
+# just appended, so a deleted write-path check is caught by the replay one.
+#
+# They are not redundant, and the difference is the whole reason the write
+# path exists: it refuses BEFORE the append. With the write-path check gone,
+# report() still raises, but only after the record is a permanent,
+# hash-chained fact -- and the queue can no longer be loaded at all, because
+# every future replay refuses that record forever. A refusal that leaves the
+# log unloadable is not the same refusal.
+#
+# So each test below provokes one check with the other unable to fire, by
+# asserting on the LOG rather than on the exception.
+
+def _events(sched):
+    return sched.log.verify().count
+
+
+def test_a_refused_report_from_a_non_holder_appends_nothing(sched):
+    _dispatched(sched)
+    before = _events(sched)
+    with pytest.raises(JobTransitionError, match="leased to 'worker-a'"):
+        sched.report(job_id="j1", worker="mallory")
+    assert _events(sched) == before, (
+        "the report was refused, but the record reached the log; every "
+        "future load of this queue now refuses that record forever")
+    # And the queue still loads, which is what the append would have cost.
+    assert sched.load().get("j1").state is JobState.DISPATCHED
+
+
+def test_a_refused_report_from_a_lapsed_lease_appends_nothing(sched):
+    _dispatched(sched, lease_seqs=1)
+    for i in range(4):                        # push past the expiry
+        _enqueue(sched, f"filler{i}")
+    before = _events(sched)
+    with pytest.raises(JobTransitionError, match="lapsed"):
+        sched.report(job_id="j1", worker="worker-a")
+    assert _events(sched) == before, (
+        "a late report was refused and still became a permanent record")
+    assert sched.load().get("j1").state is JobState.DISPATCHED

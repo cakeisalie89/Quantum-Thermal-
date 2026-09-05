@@ -165,6 +165,23 @@ jobs:
         # the real Snakemake rule, not a test double, and s10_governed fails
         # the build unless the run reaches VERIFIED.
         run: uv run snakemake --cores 1 s10_governed
+      - name: the read-only auditor answers for that run
+        # Immediately after the governed rule, over the log it just wrote --
+        # a real history, not a fixture built to pass. Each command exits
+        # non-zero on a FINDING, so a provenance gap or a transition the
+        # machine would refuse today fails the build here rather than being
+        # printed into a log nobody reads.
+        #
+        # It also proves the auditor still runs. A committed audit tool that
+        # nothing invokes rots exactly as fast as the API underneath it
+        # changes, and is discovered to be broken during the incident it
+        # exists for.
+        run: |
+          LOG=verification/stage10/governed/task_log.jsonl
+          uv run python tools/audit_log.py "$LOG" verify
+          uv run python tools/audit_log.py "$LOG" gaps
+          uv run python tools/audit_log.py "$LOG" replay
+          uv run python tools/audit_log.py "$LOG" decisions --all
       - name: mutation matrix -- Stage-10 write authority and retrieval trust
         # Guards recovered from the PR #16 corpus, which proved current main had
         # lost them. Kept in this workflow rather than stack-verify because the
