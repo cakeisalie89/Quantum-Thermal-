@@ -467,8 +467,86 @@ rule s10_report:
                      "zero"}, indent=1, sort_keys=True))
         assert dist.get("PASS", 0) == 0
 
+# ---- governed Stage-10 artifact production ---------------------------------
+# The agent substrate's production path. Every other Stage-10 rule calls its
+# adapter directly; this one goes through qta_agent, so the artifact it
+# produces carries a task record, a capability grant, a bounded execution
+# record, content-addressed evidence and an independent verification -- all in
+# a hash-chained log that replays to the same state.
+#
+# It is part of s10_full deliberately. A governed path nobody runs is not a
+# production path, and the point of this rule is that the ordinary Stage-10
+# workflow now exercises the control plane rather than merely being able to.
+#
+# automatic_gate_effect = NONE. It writes one JSON artifact into the Stage-10
+# workspace and cannot reach a gate, a threshold or a canonical output.
+
+rule s10_governed:
+    output:
+        f"{W10}/governed/out/governed_artifact.json",
+        f"{W10}/governed/governed_run.json",
+    run:
+        import json
+        from pathlib import Path
+
+        from qta_agent.events import EventLog
+        from qta_agent.evidence import EvidenceStore
+        from qta_agent.governed_stage10 import GovernedStage10
+        from qta_agent.tasks import TaskState
+
+        root = Path(".").resolve()
+        base = root / W10 / "governed"
+        base.mkdir(parents=True, exist_ok=True)
+
+        gov = GovernedStage10(
+            root=root,
+            log=EventLog(base / "task_log.jsonl"),
+            evidence=EvidenceStore(base / "evidence"))
+
+        run = gov.run(
+            tool_id="stage10.emit_artifact",
+            inputs={
+                "out_dir": f"{W10}/governed/out",
+                "name": "governed_artifact.json",
+                "payload": {
+                    "label": "MODEL_ONLY / FORECAST_ONLY",
+                    "automatic_gate_effect": "NONE",
+                    "produced_by": "qta_agent governed Stage-10 path",
+                    "does_not_mean": (
+                        "a governed run proves provenance, not scientific "
+                        "validity; no gate is reachable from here and PASS "
+                        "remains 0"),
+                },
+            },
+            submitter="snakemake",
+            worker="stage10-worker",
+            verifier="stage10-verifier")
+
+        # The rule FAILS if the chain did not complete. A governed path that
+        # reports success on an unverified run is worse than no governed path,
+        # because it launders the absence of verification into a green build.
+        assert run.state is TaskState.VERIFIED, (
+            f"governed run ended {run.state.value}: {run.reason}")
+        assert run.artifacts, "a verified run with no artifacts proves nothing"
+        assert gov.log.verify().ok, "the task log does not verify"
+
+        Path(output[1]).write_text(json.dumps({
+            "task_id": run.task_id,
+            "state": run.state.value,
+            "outcome": run.outcome,
+            "result_digest": run.result_digest,
+            "artifacts": run.artifacts,
+            "log_head_seq": run.log_head_seq,
+            "verification": run.reason,
+            "automatic_gate_effect": "NONE",
+            "scientific_PASS_count": 0,
+        }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 rule s10_full:
-    input: f"{W10}/stage10_stack_report.json"
+    input:
+        f"{W10}/stage10_stack_report.json",
+        f"{W10}/governed/governed_run.json",
 
 
 # ---- opt-in Stage-10 rules (each evaluation is a full 3D solve) ------------

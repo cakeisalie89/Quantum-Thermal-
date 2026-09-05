@@ -14,9 +14,10 @@
         "qta_agent/execution.py"
       ],
       "callers": [
-        "tests/test_agent_execution.py"
+        "tests/test_agent_execution.py",
+        "qta_agent/governed_stage10.py"
       ],
-      "production_caller": null,
+      "production_caller": "Snakefile",
       "persistent_state": "none yet; results are returned, not recorded",
       "authority_owner": "tools.Registry (default deny) + Executor.run",
       "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, duration and the limits actually applied",
@@ -39,9 +40,8 @@
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "NO PRODUCTION CALLER: nothing in a real workflow runs a tool through this",
-        "results are not written to the event log, so nothing is durable",
-        "no output-file collection or content-addressing of declared outputs",
+        "one registered tool, invoked by one workflow",
+        "no output-file collection declared in the contract; the caller captures the directory instead",
         "no retry executor, no idle timeout, no compensating actions for EXTERNAL side effects",
         "no network or secret mediation"
       ],
@@ -101,7 +101,7 @@
       "callers": [
         "tests/test_agent_execution.py"
       ],
-      "production_caller": null,
+      "production_caller": "Snakefile",
       "persistent_state": "none",
       "authority_owner": "execution.run_bounded",
       "evidence": "real exit status and signal number recorded separately",
@@ -133,58 +133,80 @@
     {
       "id": "R24",
       "requirement": "Durable task/job lifecycle with centralized transitions",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
-      "production_caller": null,
-      "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
-      "provenance": "none",
-      "failure_semantics": "none",
-      "recovery": "none",
-      "retry": "n/a",
-      "idempotency": "n/a",
-      "cancellation": "n/a",
-      "concurrency": "n/a",
-      "security_boundary": "none",
-      "tests": [],
+      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "implementation": [
+        "qta_agent/tasks.py"
+      ],
+      "callers": [
+        "qta_agent/governed_stage10.py",
+        "tests/test_agent_governed_stage10.py"
+      ],
+      "production_caller": "Snakefile",
+      "persistent_state": "task state is a projection of the hash-chained log",
+      "authority_owner": "tasks.check + the EDGES table",
+      "evidence": "every transition records the edge's reason",
+      "provenance": "actor and role on every transition record",
+      "failure_semantics": "fail-closed; FAILED, TIMED_OUT and CANCELLED are distinct states, and VERIFIED is reachable only from COMPLETED",
+      "recovery": "projection() replays the log, so state survives the process",
+      "retry": "FAILED and TIMED_OUT have explicit edges back to QUEUED",
+      "idempotency": "not yet: a resubmitted task is a new task",
+      "cancellation": "reachable from every pre-terminal state",
+      "concurrency": "leases; optimistic only, no multi-process test",
+      "security_boundary": "separation of duties between executor and verifier",
+      "tests": [
+        "tests/test_agent_governed_stage10.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_tasks.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "qta_agent.authority governs CLAIM records, not tasks; there is no task state machine, queue or durable job record"
+        "no idempotency keys on task submission",
+        "no scheduler: transitions are driven by the caller, not by a queue",
+        "no concurrent-worker test; leases are exercised single-threaded",
+        "no persistence of in-flight execution state, so a crash mid-execution leaves the task EXECUTING until a scheduler requeues it"
       ],
       "blocker": null
     },
     {
       "id": "R25",
       "requirement": "Leases, ownership and duplicate-execution prevention",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
-      "production_caller": null,
-      "persistent_state": "none",
-      "authority_owner": "none",
+      "classification": "PARTIALLY_IMPLEMENTED",
+      "implementation": [
+        "qta_agent/tasks.py"
+      ],
+      "callers": [
+        "qta_agent/governed_stage10.py"
+      ],
+      "production_caller": "Snakefile",
+      "persistent_state": "lease recorded on the task, expiring by log seq",
+      "authority_owner": "tasks.check (requires_lease edges)",
       "evidence": "none",
       "provenance": "none",
-      "failure_semantics": "none",
-      "recovery": "none",
+      "failure_semantics": "LeaseError for wrong holder, wrong lease id, or lapse",
+      "recovery": "expired_leases() lists stranded work; requeue drops the lease",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
-      "concurrency": "n/a",
+      "concurrency": "single holder; takeover only after expiry",
       "security_boundary": "none",
-      "tests": [],
+      "tests": [
+        "tests/test_agent_governed_stage10.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_tasks.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "no worker model exists, so no lease model exists"
+        "no real concurrent execution, so split-brain is reasoned about rather than tested",
+        "no lease renewal",
+        "the scheduler that would requeue expired leases does not exist"
       ],
       "blocker": null
     },
@@ -342,7 +364,7 @@
         "tests/test_agent_execution.py",
         "qta_agent/execution.py"
       ],
-      "production_caller": null,
+      "production_caller": "Snakefile",
       "persistent_state": "none",
       "authority_owner": "capability.CapabilitySet.check",
       "evidence": "every grant names subject, task, tool, scope and expiry",
@@ -365,7 +387,7 @@
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "grants are not yet issued or revoked THROUGH the event log, so the issued set is assembled by the caller rather than projected from a verified history",
+        "grants are issued through the log by the governed path, but the issued set is still assembled by the caller rather than projected from the log",
         "subject is not authenticated; a grant cannot be used as another name but nothing proves who a name belongs to",
         "no delegation or attenuation"
       ],
@@ -648,13 +670,14 @@
       "classification": "PARTIALLY_IMPLEMENTED",
       "implementation": [
         "qta_agent/events.py",
-        "qta_agent/store.py"
+        "qta_agent/store.py",
+        "qta_agent/tasks.py"
       ],
       "callers": [
         "tests/test_agent_substrate.py",
         "tests/test_agent_checkpoint.py"
       ],
-      "production_caller": null,
+      "production_caller": "Snakefile",
       "persistent_state": "append-only log is the commit point",
       "authority_owner": "EventLog.append",
       "evidence": "hash-chained records",
@@ -668,22 +691,24 @@
       "security_boundary": "none",
       "tests": [
         "tests/test_agent_substrate.py",
-        "tests/test_agent_checkpoint.py"
+        "tests/test_agent_checkpoint.py",
+        "tests/test_agent_governed_stage10.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
         "tools/mutations/agent_substrate.json",
-        "tools/mutations/agent_checkpoint.json"
+        "tools/mutations/agent_checkpoint.json",
+        "tools/mutations/agent_tasks.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "only one crash point is tested (append vs witness)",
-        "no compensating actions for non-rollbackable effects",
-        "no cross-subsystem transaction spanning evidence + log + state"
+        "only one crash point is tested (append vs witness update)",
+        "no compensating actions for non-rollbackable effects; the tool contract declares SideEffect.EXTERNAL but nothing consumes that declaration",
+        "the governed path's steps are individually logged but are not one atomic unit: a crash between the execution record and the COMPLETED transition leaves the task EXECUTING, recoverable but not automatically"
       ],
       "blocker": null
     },
@@ -1095,7 +1120,8 @@
         "tests/test_agent_evidence.py",
         "tests/test_agent_checkpoint.py",
         "tests/test_agent_authority_boundaries.py",
-        "tests/test_agent_execution.py"
+        "tests/test_agent_execution.py",
+        "tests/test_agent_governed_stage10.py"
       ],
       "property_tests": [],
       "mutation_tests": [],
@@ -1191,7 +1217,8 @@
         "qta_multiphysics/stack/workspace.py",
         "qta_multiphysics/stack/rag_index.py",
         "qta_agent/evidence.py",
-        "qta_agent/capability.py"
+        "qta_agent/capability.py",
+        "qta_agent/tasks.py"
       ],
       "callers": [],
       "production_caller": null,
@@ -1209,13 +1236,15 @@
       "tests": [
         "tests/test_agent_authority_boundaries.py",
         "tests/test_agent_evidence.py",
-        "tests/test_agent_execution.py"
+        "tests/test_agent_execution.py",
+        "tests/test_agent_governed_stage10.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/stage10_authority.json",
         "tools/mutations/agent_evidence.json",
-        "tools/mutations/agent_execution.json"
+        "tools/mutations/agent_execution.json",
+        "tools/mutations/agent_tasks.json"
       ],
       "fuzzing": "none",
       "differential": "none",
@@ -1229,29 +1258,42 @@
     {
       "id": "R55",
       "requirement": "Scientific workflow integration with a real production caller",
-      "classification": "ABSENT",
-      "implementation": [],
-      "callers": [],
-      "production_caller": null,
-      "persistent_state": "none",
-      "authority_owner": "none",
-      "evidence": "none",
-      "provenance": "none",
-      "failure_semantics": "none",
-      "recovery": "none",
-      "retry": "n/a",
-      "idempotency": "n/a",
-      "cancellation": "n/a",
-      "concurrency": "n/a",
-      "security_boundary": "none",
-      "tests": [],
+      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "implementation": [
+        "qta_agent/governed_stage10.py",
+        "qta_agent/_stage10_tool.py"
+      ],
+      "callers": [
+        "Snakefile",
+        "tests/test_agent_governed_stage10.py"
+      ],
+      "production_caller": "Snakefile",
+      "persistent_state": "task log + content-addressed artifacts",
+      "authority_owner": "GovernedStage10.run",
+      "evidence": "every produced file hashed into the evidence store; the completion cites those digests",
+      "provenance": "task, capability, execution and evidence records in one hash-chained log",
+      "failure_semantics": "a non-COMPLETED outcome never reaches verification; the Snakemake rule fails the build on an unverified run",
+      "recovery": "projection() replays; a forged transition is re-authorized on replay and refused",
+      "retry": "none at this layer",
+      "idempotency": "none: each run is a new task",
+      "cancellation": "supported by the lifecycle, not yet driven by the rule",
+      "concurrency": "none",
+      "security_boundary": "capability scoped to the task, tool and workspace; bounded subprocess; writes go through the Stage-10 guard",
+      "tests": [
+        "tests/test_agent_governed_stage10.py"
+      ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/agent_tasks.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "THE LARGEST GAP. qta_agent has no production caller; nothing in any scientific workflow is mediated by it. PROMOTED is a state reached in tests and nowhere else."
+        "ONE workflow, of the safest available kind. No solver, gate, manifest or canonical output is mediated by the substrate.",
+        "the ungoverned Stage-10 adapters remain directly callable; the governed path is additive rather than the only route",
+        "no scheduler, no retry, no idempotent resubmission",
+        "verification re-derives digests from disk; it does not re-run the tool or check the result's meaning"
       ],
       "blocker": null
     },

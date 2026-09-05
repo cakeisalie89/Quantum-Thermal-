@@ -44,6 +44,9 @@ rather than a web:
 | `store.py` | live projection, transactional through the log |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
+| `tasks.py` | durable work: state that survives the process that started it |
+| `_stage10_tool.py` | the subprocess entry point a governed run executes |
+| `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end |
 
 **The log is the truth and everything else is derived from it.** A lost
 projection costs time, never authority.
@@ -306,19 +309,80 @@ would be the failure that matters most:
 not about the result; whether the output is acceptable is a verification
 question answered elsewhere, deliberately by someone else.
 
-## 7. Status: built, verified, and not yet driving anything
+## 6c. The production caller
 
-The substrate has **no production caller**. Its only consumers today are its
-own test suites, and `tests/test_agent_substrate_isolation.py` enforces that
-by name: adding a consumer means editing `ALLOWED_IMPORTERS`, which makes the
-addition visible in review rather than incidental.
+Everything above was, until now, a mechanism with no consumer. A governance
+layer that governs nothing is a library, and a library cannot be wrong in the
+way a control plane can — none of these guarantees had ever met a workflow that
+does real work and produces real artifacts.
 
-This is stated plainly because the alternative reading — that a repository
-containing an authority layer is a repository whose claims flow through one —
-is false here and would be the more flattering thing to imply. What exists is
-a verified mechanism. Nothing has been promoted through it, and no existing
-claim, gate, document, or output in this project has been re-derived under it.
+`governed_stage10.py` puts one through the whole chain:
 
-Wiring it to a real workflow is a separate change, and one that has to name
-which claims it governs and who holds each role. Until then, `PROMOTED` is a
-state this code can reach in its tests and nowhere else.
+```
+intent → task record → validation → capability grant → lease
+       → bounded subprocess execution → output capture
+       → content-addressed evidence → provenance binding
+       → independent verification → authority → durable state
+```
+
+all of it appended to the hash-chained log, so "what was this task doing when
+the machine died" is answered by **replay rather than by inference**.
+
+The workflow is Stage-10 artifact generation: real (the Snakefile runs it, it
+writes files somebody reads), safe (`automatic_gate_effect` is NONE, and it
+writes only inside `verification/stage10`), and touching no scientific
+authority.
+
+What keeps it from being cosmetic:
+
+- work runs as a bounded **subprocess**, not an in-process call — the execution
+  record carries a real exit status, which a function call does not have;
+- the capability is minted for *that* task and *that* tool and expires with the
+  lease; the executor refuses without it;
+- every produced file is hashed into the evidence store, and the completion
+  cites those digests — not a summary, not a log line;
+- verification is done by a **different actor** and re-derives the digests from
+  the files on disk, so a completion citing bytes that are no longer there
+  cannot be verified;
+- replay **re-authorizes** every transition, so a forged log entry becomes a
+  permanent record that it was attempted and never becomes state.
+
+### The boundary this crosses, and the one it does not
+
+The bridge imports `qta_multiphysics.stack.workspace`. That direction is
+required — governing a workflow means calling it — and it is allowed only for
+two named modules reaching one named thing, enforced by
+`tests/test_agent_substrate_isolation.py`.
+
+The other direction stays absolutely forbidden. Nothing in the scientific tree
+imports `qta_agent`, and no module here may reach a solver, `metrics.py`,
+`qta_full_sim.py` or an FSM — because that is the direction in which an
+authority verdict could change a computed result.
+
+The bridge writes **through** the Stage-10 write guard rather than around it, so
+a governed run is subject to exactly the same allowlist as an ungoverned one.
+The substrate adds authority; it does not replace the guard already there.
+
+### What a VERIFIED task means, and what it does not
+
+It means a declared tool ran under a bounded environment, produced the bytes it
+says it produced, and a second actor confirmed those bytes are still there.
+That is a statement about **provenance and nothing else**. It is not a claim
+that the result is scientifically correct, that anything was measured, or that
+any gate moved. PASS remains 0, and no gate is reachable from here.
+
+## 7. Status: a production caller exists; most of the system does not yet
+
+`PROMOTED` in the authority state machine is still a state reached only in
+tests — no existing scientific claim, gate, document or canonical output has
+been re-derived under it.
+
+What HAS changed is that `qta_agent` is no longer consumer-less: a real
+Stage-10 run now goes through task lifecycle, capability, bounded execution,
+evidence and independent verification, and its state survives the process that
+produced it.
+
+The honest scope of that: **one workflow, of the safest available kind.** The
+machine-readable status is `docs/completion_matrix.json`, validated on every
+test run by `tools/completion_matrix.py`. It is the authority for what is done
+and what is not, and most rows are still open.

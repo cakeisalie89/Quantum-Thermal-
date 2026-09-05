@@ -44,7 +44,33 @@ ALLOWED_IMPORTERS = {
 #: instead of aspirational.
 LAYERS = ("canonical", "events", "evidence", "capability", "tools",
           "execution", "checkpoint", "authority", "store", "invalidation",
-          "reconstruct")
+          "reconstruct", "tasks", "_stage10_tool", "governed_stage10")
+
+#: The ONLY modules permitted to reach into the scientific tree, and the only
+#: thing they may reach for.
+#:
+#: The direction matters and the two are not symmetric. Science importing the
+#: agent would let a gate depend on an authority verdict, which is the failure
+#: this whole package is built to make impossible -- that stays absolutely
+#: forbidden. The agent importing a workflow is what GOVERNING a workflow
+#: means; a control plane with no reachable production path is a library.
+#:
+#: So the crossing is allowed, named, and narrow: two bridge modules, one
+#: import, and it is the Stage-10 WRITE GUARD rather than any solver. A
+#: governed run is therefore subject to exactly the same write allowlist as an
+#: ungoverned one -- the substrate adds authority, it does not replace the
+#: guard that was already there.
+BRIDGE_MODULES = {
+    "governed_stage10": {"qta_multiphysics"},
+    "_stage10_tool": {"qta_multiphysics"},
+}
+
+#: Reaching any of these from qta_agent would make an authority verdict able
+#: to influence a computed result. Forbidden for EVERY module, bridges too.
+FORBIDDEN_SCIENTIFIC = {
+    "qta_full_sim", "metrics", "runner_3d", "convergence_3d", "uncertainty",
+    "config", "machine_fsm", "mode_sequence_3d", "state_machine_3d",
+}
 
 
 def _modules():
@@ -82,35 +108,79 @@ def _all_imported_names(path: Path) -> set:
 
 # --- the substrate does not reach into the science ---------------------------
 
-def test_no_substrate_module_imports_the_scientific_tree():
-    """The direction that would let the substrate change a computed result."""
-    forbidden = {"qta_multiphysics", "qta_full_sim", "metrics", "runner_3d",
-                 "convergence_3d", "uncertainty", "config"}
+def test_no_substrate_module_reaches_a_solver_or_a_gate():
+    """The direction that would let an authority verdict change a result.
+
+    Absolute, and it applies to the bridge modules too: a bridge may call the
+    Stage-10 write guard, and may not call anything that computes physics.
+    """
     bad = []
     for mod in _modules():
-        hit = _all_imported_names(mod) & forbidden
+        hit = _all_imported_names(mod) & FORBIDDEN_SCIENTIFIC
         if hit:
             bad.append(f"{mod.name}: {sorted(hit)}")
     assert not bad, (
-        "qta_agent must not import the scientific tree; "
-        f"automatic_gate_effect=NONE would be false: {bad}")
+        "qta_agent reached a solver or gate module; automatic_gate_effect="
+        f"NONE would be false: {bad}")
 
 
-def test_the_substrate_imports_only_the_standard_library_and_itself():
-    """No third-party dependency, so the layer cannot fail for supply reasons.
+def test_only_the_declared_bridges_reach_into_the_scientific_tree():
+    """Crossing the boundary is deliberate, named, and narrow.
 
-    An authority layer that stops working when a wheel is unavailable is an
-    authority layer that stops working. Hypothesis appears in its property
-    tests, not in the code under test.
+    A new crossing means editing BRIDGE_MODULES, which puts it in the diff and
+    in review rather than arriving as an incidental import.
     """
     stdlib = set(sys.stdlib_module_names)
     bad = []
     for mod in _modules():
+        allowed = BRIDGE_MODULES.get(mod.stem, set())
+        for name in _all_imported_names(mod):
+            if name in stdlib or name == "qta_agent" or name in allowed:
+                continue
+            bad.append(f"{mod.stem}: {name}")
+    assert not bad, (
+        "a module reached outside the standard library and its own package "
+        f"without being a declared bridge: {bad}")
+
+
+def test_the_core_substrate_is_stdlib_only():
+    """Everything that is NOT a bridge must run with no dependency at all.
+
+    An authority layer that stops working when a wheel is unavailable is an
+    authority layer that stops working. Hypothesis appears in its property
+    tests, not in the code under test. Bridges are exempt by definition --
+    calling a workflow is what they are for.
+    """
+    stdlib = set(sys.stdlib_module_names)
+    bad = []
+    for mod in _modules():
+        if mod.stem in BRIDGE_MODULES:
+            continue
         for name in _all_imported_names(mod):
             if name in stdlib or name == "qta_agent":
                 continue
-            bad.append(f"{mod.name}: {name}")
-    assert not bad, f"non-stdlib dependency in the substrate: {bad}"
+            bad.append(f"{mod.stem}: {name}")
+    assert not bad, f"non-stdlib dependency in the core substrate: {bad}"
+
+
+def test_a_bridge_may_only_reach_the_stage10_write_guard():
+    """Named narrowly: the guard, not the package.
+
+    ``qta_multiphysics`` is a large tree. A bridge that may import any of it
+    could import a solver tomorrow without changing the allowlist, so the
+    permitted SYMBOL is pinned too.
+    """
+    for stem in BRIDGE_MODULES:
+        src = (PKG / f"{stem}.py").read_text(encoding="utf-8")
+        for line in src.splitlines():
+            stripped = line.strip()
+            if "qta_multiphysics" not in stripped:
+                continue
+            if stripped.startswith("#") or stripped.startswith(('"', "'")):
+                continue
+            assert "qta_multiphysics.stack" in stripped, (
+                f"{stem}.py reaches qta_multiphysics outside the stack "
+                f"workspace layer: {stripped}")
 
 
 # --- the science does not reach into the substrate ---------------------------
@@ -134,15 +204,49 @@ def test_nothing_outside_the_package_imports_the_substrate():
         f"{sorted(unexpected)}")
 
 
-def test_the_substrate_is_absent_from_the_gate_pipeline():
-    """A gate must not be computable only when the substrate is importable."""
+def test_no_gate_computing_module_references_the_substrate():
+    """A gate must not be computable only when the substrate is importable.
+
+    The Snakefile is deliberately excluded here and checked separately below:
+    it holds both gate rules and Stage-10 rules, and the governed Stage-10
+    rule referencing qta_agent is the production integration rather than a
+    violation. Everything that actually computes a gate is checked with no
+    exception at all.
+    """
     r = subprocess.run(
         ["git", "-C", str(ROOT), "grep", "-l", "qta_agent", "--",
-         "qta_full_sim.py", "qta_multiphysics/", "Snakefile",
-         "generate_manifest.py"],
+         "qta_full_sim.py", "qta_multiphysics/", "generate_manifest.py"],
         capture_output=True, text=True)
     assert r.stdout.strip() == "", (
-        f"the gate pipeline references qta_agent:\n{r.stdout}")
+        f"a gate-computing module references qta_agent:\n{r.stdout}")
+
+
+def test_the_workflow_touches_the_substrate_only_in_the_governed_rule():
+    """The production integration is confined to one named rule.
+
+    A gate rule that imported qta_agent would make a scientific result depend
+    on whether the authority layer is importable, which is exactly what
+    automatic_gate_effect=NONE denies. Confining the reference to
+    ``s10_governed`` keeps the integration real and keeps that denial true.
+    """
+    raw = (ROOT / "Snakefile").read_text(encoding="utf-8")
+    # Comment lines are stripped first. A block that ends where the next rule
+    # BEGINS also swallows that rule's preceding comments, so the explanation
+    # above s10_governed would otherwise be attributed to whatever rule came
+    # before it -- a false positive that says nothing about the code.
+    text = "\n".join(line for line in raw.splitlines()
+                     if not line.lstrip().startswith("#"))
+    offenders = []
+    for block in text.split("\nrule ")[1:]:
+        name = block.split(":", 1)[0].strip()
+        body = block.split("\n", 1)[1] if "\n" in block else ""
+        if "qta_agent" in body and name != "s10_governed":
+            offenders.append(name)
+    assert not offenders, (
+        f"rules other than s10_governed reference qta_agent: {offenders}")
+    assert "qta_agent" in raw, (
+        "the workflow no longer references the substrate at all, so the "
+        "production path is not being exercised")
 
 
 # --- the declared layering is the real layering ------------------------------
