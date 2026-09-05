@@ -44,7 +44,9 @@ from qta_agent.capability import (  # noqa: E402
 )
 from qta_agent.checkpoint import CheckpointStore  # noqa: E402
 from qta_agent.events import ChainBroken, EventLog  # noqa: E402
-from qta_agent.evidence import EvidenceStore, UnknownEvidence  # noqa: E402
+from qta_agent.evidence import (  # noqa: E402
+    CorruptEvidence, EvidenceStore, UnknownEvidence,
+)
 from qta_agent.policy import PolicyStore  # noqa: E402
 from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
 from qta_agent.scheduler import (  # noqa: E402
@@ -232,16 +234,33 @@ def test_output_that_exists_without_a_completion_record_is_not_completed(
 
 # ---- 7. evidence stored -> corrupted -------------------------------------
 def test_corrupted_evidence_is_detected_on_read_not_trusted(world):
+    """The blob is located through the store's OWN path function.
+
+    Written first as a name-matching search across the tree:
+
+        next(p for p in root.rglob("*")
+             if p.is_file() and dg[8:] in p.name or p.name.endswith(dg[-8:]))
+
+    which parses as ``(is_file and ...) or endswith(...)`` -- so it could
+    return a metadata file, or any file whose name happened to end with those
+    eight characters. Locally it picked the blob; on the hosted runner it
+    picked something else, tampering with a file the read path never touches,
+    and the test reported that corruption was NOT detected. A test that
+    selects its own target by guessing can pass while checking nothing.
+    """
     dg = world.evidence.put(b"a measurement record")
-    blob = next(p for p in (world.root / "evidence").rglob("*")
-                if p.is_file() and dg[8:] in p.name or p.name.endswith(dg[-8:]))
+    blob = world.evidence._blob_path(dg)
+    assert blob.is_file(), "the store's own path function must name the blob"
     original = blob.read_bytes()
+    assert original == b"a measurement record"
+
     blob.write_bytes(original + b" tampered")
     world.reload()
-    with pytest.raises(Exception):
+    with pytest.raises(CorruptEvidence):
         world.evidence.get(dg)
     assert not world.evidence.verify_store().ok
     blob.write_bytes(original)
+    assert world.evidence.get(dg) == original
 
 
 def test_a_record_citing_evidence_that_vanished_cannot_be_promoted(world):

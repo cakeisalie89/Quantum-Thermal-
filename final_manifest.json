@@ -3438,8 +3438,8 @@
     },
     {
       "filename": "tests/test_agent_crash_recovery.py",
-      "size_bytes": 21275,
-      "sha256": "16f33026b784ae57bf75901048e936d2c1a12f65621fc792a6013defc97babd8",
+      "size_bytes": 22079,
+      "sha256": "9efcf8f2cc175d75644b0d5059b919fb7208d803662d7fab3ca16bdbd8e6b941",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3487,8 +3487,8 @@
     },
     {
       "filename": "tests/test_agent_performance.py",
-      "size_bytes": 14467,
-      "sha256": "1878cdefe545101b807dff591976163f95f1fa3fe6ed3ee6f96eec0281a7c6cc",
+      "size_bytes": 16192,
+      "sha256": "92e3e9dfa3107b6f997523b13ebfa88158ddb36ff30f08d88920b940b6bab886",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },

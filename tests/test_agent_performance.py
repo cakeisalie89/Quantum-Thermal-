@@ -48,17 +48,23 @@ from qta_agent.reconstruct import reconstruct  # noqa: E402
 from qta_agent.scheduler import Scheduler, default_policy  # noqa: E402
 from qta_agent.store import AuthorityStore  # noqa: E402
 
-#: The sizes every scaling guard uses. Small enough for CI, far enough apart
-#: that a quadratic factor is unmistakable: 4x the work should cost about 4x
-#: linearly and about 16x quadratically.
-SMALL, LARGE = 150, 600
+#: The sizes every scaling guard uses. Far enough apart that the two cases are
+#: unmistakable: 8x the work costs about 8x linearly and about 64x
+#: quadratically.
+#:
+#: The spread was 4x (150/600) and the discriminator was too narrow to trust:
+#: healthy measured about 2 and the reintroduced quadratic path about 11,
+#: against a ceiling of 10. Widening the spread separates them by an order of
+#: magnitude instead of by a factor of two -- which is the right way to make a
+#: guard robust, rather than moving the ceiling until the noise fits under it.
+SMALL, LARGE = 100, 800
 FACTOR = LARGE / SMALL
 
-#: A linear operation's ratio should land near FACTOR. The ceiling is
-#: deliberately far above it and far below the quadratic value (16), so
-#: ordinary CI noise cannot fail the test and a genuine regression cannot
-#: pass it.
-LINEAR_CEILING = FACTOR * 2.5          # 10.0
+#: A linear operation's ratio should land near FACTOR, or below it where fixed
+#: per-call overhead dominates the small case. The ceiling is far above that
+#: and far below the quadratic value (64), so ordinary CI noise cannot fail
+#: the test and a genuine regression cannot pass it.
+LINEAR_CEILING = FACTOR * 2.5          # 20.0
 #: Below this, timing noise dominates and the ratio means nothing.
 MIN_MEASURABLE_S = 0.02
 
@@ -112,6 +118,31 @@ def _time(fn) -> float:
     return time.perf_counter() - t0
 
 
+#: How many times a build is repeated before its cost is taken. Timing noise
+#: is ONE-SIDED -- a scheduler, a neighbour on the machine or a cold page cache
+#: can only make a run slower -- so the minimum is the robust estimator and the
+#: mean is not.
+REPEATS = 3
+
+
+def _time_min(build, reps: int = REPEATS) -> float:
+    """Best-of-``reps`` seconds for ``build(i)``, which must have side effects.
+
+    ``build`` takes the repetition index so each run can use its own path: the
+    operation under test appends to a file, so repeating it in place would
+    measure something different each time.
+
+    This exists because the first version measured each size ONCE. Locally
+    that gave a ratio near 2; on a shared hosted runner it gave 11.2 against a
+    10.0 ceiling, and the guard failed on noise rather than on a regression.
+    The answer to a noisy measurement is a better estimator, not a looser
+    bound -- widening the ceiling would have made the guard unable to see the
+    regression it exists for.
+    """
+    build(-1)                                   # warm-up, not measured
+    return min(_time(lambda i=i: build(i)) for i in range(reps))
+
+
 # ---- the append path -----------------------------------------------------
 def test_appending_a_history_is_not_quadratic_in_its_length(tmp_path):
     """The measured regression, guarded.
@@ -119,8 +150,8 @@ def test_appending_a_history_is_not_quadratic_in_its_length(tmp_path):
     Before the fix this ratio was about 13 for a 4x size increase. Linear is
     about 4.
     """
-    small = _time(lambda: _fill(tmp_path / "small.jsonl", SMALL))
-    large = _time(lambda: _fill(tmp_path / "large.jsonl", LARGE))
+    small = _time_min(lambda i: _fill(tmp_path / f"small{i}.jsonl", SMALL))
+    large = _time_min(lambda i: _fill(tmp_path / f"large{i}.jsonl", LARGE))
     ratio = _ratio(small, large)
     assert ratio < LINEAR_CEILING, (
         f"appending {LARGE} records cost {ratio:.1f}x appending {SMALL}; "
@@ -143,10 +174,11 @@ def test_per_append_cost_does_not_grow_with_history(tmp_path):
                        payload={"record_id": f"x{i}", "kind": "k",
                                 "proposer": "p"})
 
-    first = _time(lambda: burst(SMALL))
+    burst(20)                                   # warm-up, not measured
+    first = min(_time(lambda: burst(SMALL)) for _ in range(REPEATS))
     for _ in range(3):
         burst(SMALL)
-    last = _time(lambda: burst(SMALL))
+    last = min(_time(lambda: burst(SMALL)) for _ in range(REPEATS))
     ratio = _ratio(first, last)
     assert ratio < 4.0, (
         f"a burst of {SMALL} appends onto a history of {SMALL * 4} cost "
