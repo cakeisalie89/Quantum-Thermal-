@@ -1,270 +1,305 @@
 {
-  "title": "Capabilities, tool contracts, and bounded execution",
-  "note": "Authority here is an OBJECT, not a flag: each mutation removes one dimension a grant is bounded along (subject, task, tool, action, scope, revocation, expiry) or one bound execution is held to (deadline, cancellation, memory, output, process group, environment). The three outcomes that are not success -- TIMED_OUT, CANCELLED, DENIED -- have their own mutations, because collapsing any of them into COMPLETED is the failure that would matter most.",
-  "suites": [
-    "tests/test_agent_execution.py",
-    "tests/test_agent_substrate.py",
-    "tests/test_agent_substrate_isolation.py"
-  ],
-  "mutations": [
-    {
-      "name": "K1_subject_not_checked",
-      "path": "qta_agent/capability.py",
-      "find": "        if cap.subject != req.actor:",
-      "replace": "        if False:",
-      "rationale": "a grant becomes a bearer token any actor can present"
-    },
-    {
-      "name": "K2_task_confinement_removed",
-      "path": "qta_agent/capability.py",
-      "find": "        if cap.task_id != req.task_id:",
-      "replace": "        if False:",
-      "rationale": "a component tricked into acting on another task's behalf succeeds"
-    },
-    {
-      "name": "K3_action_not_checked",
-      "path": "qta_agent/capability.py",
-      "find": "        if cap.action is not req.action:",
-      "replace": "        if False:",
-      "rationale": "a read grant authorizes writes"
-    },
-    {
-      "name": "K4_tool_binding_removed",
-      "path": "qta_agent/capability.py",
-      "find": "        if cap.action is Action.EXECUTE_TOOL and cap.tool_id != req.tool_id:",
-      "replace": "        if False:",
-      "rationale": "a grant for one tool runs any tool"
-    },
-    {
-      "name": "K5_scope_not_enforced",
-      "path": "qta_agent/capability.py",
-      "find": "        outside = [p for p in req.paths if not cap.covers_path(p)]",
-      "replace": "        outside = []",
-      "rationale": "a grant is widened by the request that needs it"
-    },
-    {
-      "name": "K6_revocation_ignored",
-      "path": "qta_agent/capability.py",
-      "find": "        if cap_id in self.revoked:",
-      "replace": "        if False:",
-      "rationale": "withdrawn authority keeps working"
-    },
-    {
-      "name": "K7_expiry_ignored",
-      "path": "qta_agent/capability.py",
-      "find": "        if (cap.expires_after_seq != NEVER_EXPIRES\n                and self.at_seq > cap.expires_after_seq):",
-      "replace": "        if False:",
-      "rationale": "an expired grant never expires"
-    },
-    {
-      "name": "K8_unknown_capability_accepted",
-      "path": "qta_agent/capability.py",
-      "find": "        if cap is None:",
-      "replace": "        if False:",
-      "rationale": "a grant that was never issued authorizes work -- unforgeability gone"
-    },
-    {
-      "name": "K9_root_scope_accepted",
-      "path": "qta_agent/capability.py",
-      "find": "        if not p.parts:",
-      "replace": "        if False:",
-      "rationale": "a scope of '.' silently grants the entire repository"
-    },
-    {
-      "name": "K10_traversal_scope_accepted",
-      "path": "qta_agent/capability.py",
-      "find": "        if any(part in (\"..\", \".\") for part in p.parts):",
-      "replace": "        if False:",
-      "rationale": "a scope escapes the repository"
-    },
-    {
-      "name": "K11_absolute_scope_accepted",
-      "path": "qta_agent/capability.py",
-      "find": "        if p.is_absolute():",
-      "replace": "        if False:",
-      "rationale": "a grant means something different on each host"
-    },
-    {
-      "name": "K12_empty_scope_accepted",
-      "path": "qta_agent/capability.py",
-      "find": "    if not out:",
-      "replace": "    if False:",
-      "rationale": "an empty allowlist is treated as policy, not a mistake"
-    },
-    {
-      "name": "K13_scope_matched_by_string_prefix",
-      "path": "qta_agent/capability.py",
-      "find": "            if target == a or a in target.parents:",
-      "replace": "            if target == a or str(target).startswith(str(a)):",
-      "rationale": "stage10/probe2 is granted by a scope of stage10/probe"
-    },
-    {
-      "name": "K14_backwards_expiry_accepted",
-      "path": "qta_agent/capability.py",
-      "find": "        if expires_after_seq < issued_seq:",
-      "replace": "        if False:",
-      "rationale": "a grant that was never valid is issued"
-    },
-    {
-      "name": "K15_execute_without_tool_id",
-      "path": "qta_agent/capability.py",
-      "find": "    if action is Action.EXECUTE_TOOL and not tool_id:",
-      "replace": "    if False:",
-      "rationale": "a grant to run 'some tool' is a grant to run any tool"
-    },
-    {
-      "name": "T1_registry_is_not_default_deny",
-      "path": "qta_agent/tools.py",
-      "find": "        if not isinstance(tool_id, str) or tool_id not in self._specs:",
-      "replace": "        if False:",
-      "rationale": "an unregistered tool runs; absence of a rule becomes an allow rule"
-    },
-    {
-      "name": "T2_registry_not_frozen",
-      "path": "qta_agent/tools.py",
-      "find": "        if getattr(self, \"_frozen\", False):",
-      "replace": "        if False:",
-      "rationale": "a tool appears at runtime that nobody reviewed"
-    },
-    {
-      "name": "T3_undeclared_fields_accepted",
-      "path": "qta_agent/tools.py",
-      "find": "    if unknown:",
-      "replace": "    if False:",
-      "rationale": "unvalidated content arrives through a contract claiming completeness"
-    },
-    {
-      "name": "T4_bool_passes_as_int",
-      "path": "qta_agent/tools.py",
-      "find": "        if isinstance(v, bool) and f.type_ != \"bool\":",
-      "replace": "        if False:",
-      "rationale": "a flag silently becomes a count"
-    },
-    {
-      "name": "T5_required_fields_optional",
-      "path": "qta_agent/tools.py",
-      "find": "            if f.required:",
-      "replace": "            if False:",
-      "rationale": "a tool runs without an input its contract requires"
-    },
-    {
-      "name": "T6_unversioned_tool_registered",
-      "path": "qta_agent/tools.py",
-      "find": "    if not spec.version or not isinstance(spec.version, str):",
-      "replace": "    if False:",
-      "rationale": "a citation cannot say WHICH tool ran"
-    },
-    {
-      "name": "T7_untimeoutable_tool_registered",
-      "path": "qta_agent/tools.py",
-      "find": "    if not isinstance(spec.timeout_s, (int, float)) or spec.timeout_s <= 0:",
-      "replace": "    if False:",
-      "rationale": "a tool that cannot time out cannot be cancelled"
-    },
-    {
-      "name": "T8_scoped_writes_without_scope",
-      "path": "qta_agent/tools.py",
-      "find": "    if scoped and not spec.writable_scope:",
-      "replace": "    if False:",
-      "rationale": "the scope that makes writes scoped is optional"
-    },
-    {
-      "name": "X1_success_predicate_always_true",
-      "path": "qta_agent/execution.py",
-      "find": "        return self.outcome in SUCCESSFUL",
-      "replace": "        return True",
-      "rationale": "every outcome including TIMED_OUT and DENIED reads as success"
-    },
-    {
-      "name": "X2_successful_set_widened",
-      "path": "qta_agent/execution.py",
-      "find": "SUCCESSFUL: frozenset = frozenset({Outcome.COMPLETED})",
-      "replace": "SUCCESSFUL: frozenset = frozenset({Outcome.COMPLETED, Outcome.TIMED_OUT})",
-      "rationale": "a timed-out run is treated as having produced a usable result"
-    },
-    {
-      "name": "X3_failed_becomes_retryable",
-      "path": "qta_agent/execution.py",
-      "find": "RETRYABLE: frozenset = frozenset({Outcome.TIMED_OUT, Outcome.CANCELLED})",
-      "replace": "RETRYABLE: frozenset = frozenset({Outcome.TIMED_OUT, Outcome.CANCELLED, Outcome.FAILED})",
-      "rationale": "a deterministic rejection is retried until it becomes a load problem"
-    },
-    {
-      "name": "X4_deadline_never_fires",
-      "path": "qta_agent/execution.py",
-      "find": "                if time.time() >= deadline:",
-      "replace": "                if False:",
-      "rationale": "a hung tool runs forever"
-    },
-    {
-      "name": "X5_pre_start_cancellation_ignored",
-      "path": "qta_agent/execution.py",
-      "find": "    if cancel is not None and cancel.cancelled:\n        # Checked before spawning",
-      "replace": "    if False:\n        # Checked before spawning",
-      "rationale": "a cancellation cannot prevent the work it cancelled"
-    },
-    {
-      "name": "X6_mid_run_cancellation_ignored",
-      "path": "qta_agent/execution.py",
-      "find": "                if cancel is not None and cancel.cancelled:\n                    _kill_group(proc, signal.SIGTERM)",
-      "replace": "                if False:\n                    _kill_group(proc, signal.SIGTERM)",
-      "rationale": "cancel has no effect once running"
-    },
-    {
-      "name": "X7_capability_not_checked_before_running",
-      "path": "qta_agent/execution.py",
-      "find": "            capabilities.check(capability_id, Request(",
-      "replace": "            _skip = (Request(",
-      "rationale": "any actor runs any registered tool"
-    },
-    {
-      "name": "X8_environment_inherited",
-      "path": "qta_agent/execution.py",
-      "find": "                stdin=subprocess.DEVNULL, env=dict(env or {}),",
-      "replace": "                stdin=subprocess.DEVNULL, env=None,",
-      "rationale": "the child inherits credentials, proxies and paths nobody granted it"
-    },
-    {
-      "name": "X9_no_process_group",
-      "path": "qta_agent/execution.py",
-      "find": "        os.setsid()",
-      "replace": "        pass",
-      "rationale": "an orphaned grandchild outlives the timeout that killed its parent"
-    },
-    {
-      "name": "X10_no_output_limit",
-      "path": "qta_agent/execution.py",
-      "find": "        resource.setrlimit(resource.RLIMIT_FSIZE,\n                           (limits.output_bytes, limits.output_bytes))",
-      "replace": "        pass",
-      "rationale": "a runaway producer is bounded only by what the reader keeps"
-    },
-    {
-      "name": "X11_no_memory_limit",
-      "path": "qta_agent/execution.py",
-      "find": "        resource.setrlimit(resource.RLIMIT_AS,\n                           (limits.address_space_bytes,\n                            limits.address_space_bytes))",
-      "replace": "        pass",
-      "rationale": "a memory bomb runs to completion"
-    },
-    {
-      "name": "X12_signal_recorded_as_exit_status",
-      "path": "qta_agent/execution.py",
-      "find": "        if rc is not None and rc < 0:",
-      "replace": "        if False:",
-      "rationale": "a signalled death is reported as a negative exit status"
-    },
-    {
-      "name": "X13_temp_output_files_leak",
-      "path": "qta_agent/execution.py",
-      "find": "        for p in (out_path, err_path):\n            p.unlink(missing_ok=True)",
-      "replace": "        pass",
-      "rationale": "every run leaves its stdout and stderr behind"
-    },
-    {
-      "name": "X14_inputs_not_validated",
-      "path": "qta_agent/execution.py",
-      "find": "        spec.validate_inputs(inputs)",
-      "replace": "        pass",
-      "rationale": "a tool runs on inputs its contract rejects"
-    }
-  ]
+ "title": "Capabilities, tool contracts, and bounded execution",
+ "note": "Authority here is an OBJECT, not a flag: each mutation removes one dimension a grant is bounded along (subject, task, tool, action, scope, revocation, expiry) or one bound execution is held to (deadline, cancellation, memory, output, process group, environment). The three outcomes that are not success -- TIMED_OUT, CANCELLED, DENIED -- have their own mutations, because collapsing any of them into COMPLETED is the failure that would matter most.",
+ "suites": [
+  "tests/test_agent_execution.py",
+  "tests/test_agent_substrate.py",
+  "tests/test_agent_substrate_isolation.py"
+ ],
+ "mutations": [
+  {
+   "name": "K1_subject_not_checked",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap.subject != req.actor:",
+   "replace": "        if False:",
+   "rationale": "a grant becomes a bearer token any actor can present"
+  },
+  {
+   "name": "K2_task_confinement_removed",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap.task_id != req.task_id:",
+   "replace": "        if False:",
+   "rationale": "a component tricked into acting on another task's behalf succeeds"
+  },
+  {
+   "name": "K3_action_not_checked",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap.action is not req.action:",
+   "replace": "        if False:",
+   "rationale": "a read grant authorizes writes"
+  },
+  {
+   "name": "K4_tool_binding_removed",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap.action is Action.EXECUTE_TOOL and cap.tool_id != req.tool_id:",
+   "replace": "        if False:",
+   "rationale": "a grant for one tool runs any tool"
+  },
+  {
+   "name": "K5_scope_not_enforced",
+   "path": "qta_agent/capability.py",
+   "find": "        outside = [p for p in req.paths if not cap.covers_path(p)]",
+   "replace": "        outside = []",
+   "rationale": "a grant is widened by the request that needs it"
+  },
+  {
+   "name": "K6_revocation_ignored",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap_id in self.revoked:",
+   "replace": "        if False:",
+   "rationale": "withdrawn authority keeps working"
+  },
+  {
+   "name": "K7_expiry_ignored",
+   "path": "qta_agent/capability.py",
+   "find": "        if (cap.expires_after_seq != NEVER_EXPIRES\n                and self.at_seq > cap.expires_after_seq):",
+   "replace": "        if False:",
+   "rationale": "an expired grant never expires"
+  },
+  {
+   "name": "K8_unknown_capability_accepted",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap is None:",
+   "replace": "        if False:",
+   "rationale": "a grant that was never issued authorizes work -- unforgeability gone"
+  },
+  {
+   "name": "K9_root_scope_accepted",
+   "path": "qta_agent/capability.py",
+   "find": "        if not p.parts:",
+   "replace": "        if False:",
+   "rationale": "a scope of '.' silently grants the entire repository"
+  },
+  {
+   "name": "K10_traversal_scope_accepted",
+   "path": "qta_agent/capability.py",
+   "find": "        if any(part in (\"..\", \".\") for part in p.parts):",
+   "replace": "        if False:",
+   "rationale": "a scope escapes the repository"
+  },
+  {
+   "name": "K11_absolute_scope_accepted",
+   "path": "qta_agent/capability.py",
+   "find": "        if p.is_absolute():",
+   "replace": "        if False:",
+   "rationale": "a grant means something different on each host"
+  },
+  {
+   "name": "K12_empty_scope_accepted",
+   "path": "qta_agent/capability.py",
+   "find": "    if not out:",
+   "replace": "    if False:",
+   "rationale": "an empty allowlist is treated as policy, not a mistake"
+  },
+  {
+   "name": "K13_scope_matched_by_string_prefix",
+   "path": "qta_agent/capability.py",
+   "find": "            if target == a or a in target.parents:",
+   "replace": "            if target == a or str(target).startswith(str(a)):",
+   "rationale": "stage10/probe2 is granted by a scope of stage10/probe"
+  },
+  {
+   "name": "K14_backwards_expiry_accepted",
+   "path": "qta_agent/capability.py",
+   "find": "        if expires_after_seq < issued_seq:",
+   "replace": "        if False:",
+   "rationale": "a grant that was never valid is issued"
+  },
+  {
+   "name": "K15_execute_without_tool_id",
+   "path": "qta_agent/capability.py",
+   "find": "    if action is Action.EXECUTE_TOOL and not tool_id:",
+   "replace": "    if False:",
+   "rationale": "a grant to run 'some tool' is a grant to run any tool"
+  },
+  {
+   "name": "T1_registry_is_not_default_deny",
+   "path": "qta_agent/tools.py",
+   "find": "        if not isinstance(tool_id, str) or tool_id not in self._specs:",
+   "replace": "        if False:",
+   "rationale": "an unregistered tool runs; absence of a rule becomes an allow rule"
+  },
+  {
+   "name": "T2_registry_not_frozen",
+   "path": "qta_agent/tools.py",
+   "find": "        if getattr(self, \"_frozen\", False):",
+   "replace": "        if False:",
+   "rationale": "a tool appears at runtime that nobody reviewed"
+  },
+  {
+   "name": "T3_undeclared_fields_accepted",
+   "path": "qta_agent/tools.py",
+   "find": "    if unknown:",
+   "replace": "    if False:",
+   "rationale": "unvalidated content arrives through a contract claiming completeness"
+  },
+  {
+   "name": "T4_bool_passes_as_int",
+   "path": "qta_agent/tools.py",
+   "find": "        if isinstance(v, bool) and f.type_ != \"bool\":",
+   "replace": "        if False:",
+   "rationale": "a flag silently becomes a count"
+  },
+  {
+   "name": "T5_required_fields_optional",
+   "path": "qta_agent/tools.py",
+   "find": "            if f.required:",
+   "replace": "            if False:",
+   "rationale": "a tool runs without an input its contract requires"
+  },
+  {
+   "name": "T6_unversioned_tool_registered",
+   "path": "qta_agent/tools.py",
+   "find": "    if not spec.version or not isinstance(spec.version, str):",
+   "replace": "    if False:",
+   "rationale": "a citation cannot say WHICH tool ran"
+  },
+  {
+   "name": "T7_untimeoutable_tool_registered",
+   "path": "qta_agent/tools.py",
+   "find": "    if not isinstance(spec.timeout_s, (int, float)) or spec.timeout_s <= 0:",
+   "replace": "    if False:",
+   "rationale": "a tool that cannot time out cannot be cancelled"
+  },
+  {
+   "name": "T8_scoped_writes_without_scope",
+   "path": "qta_agent/tools.py",
+   "find": "    if scoped and not spec.writable_scope:",
+   "replace": "    if False:",
+   "rationale": "the scope that makes writes scoped is optional"
+  },
+  {
+   "name": "X1_success_predicate_always_true",
+   "path": "qta_agent/execution.py",
+   "find": "        return self.outcome in SUCCESSFUL",
+   "replace": "        return True",
+   "rationale": "every outcome including TIMED_OUT and DENIED reads as success"
+  },
+  {
+   "name": "X2_successful_set_widened",
+   "path": "qta_agent/execution.py",
+   "find": "SUCCESSFUL: frozenset = frozenset({Outcome.COMPLETED})",
+   "replace": "SUCCESSFUL: frozenset = frozenset({Outcome.COMPLETED, Outcome.TIMED_OUT})",
+   "rationale": "a timed-out run is treated as having produced a usable result"
+  },
+  {
+   "name": "X3_failed_becomes_retryable",
+   "path": "qta_agent/execution.py",
+   "find": "RETRYABLE: frozenset = frozenset({Outcome.TIMED_OUT, Outcome.CANCELLED})",
+   "replace": "RETRYABLE: frozenset = frozenset({Outcome.TIMED_OUT, Outcome.CANCELLED, Outcome.FAILED})",
+   "rationale": "a deterministic rejection is retried until it becomes a load problem"
+  },
+  {
+   "name": "X4_deadline_never_fires",
+   "path": "qta_agent/execution.py",
+   "find": "                if time.time() >= deadline:",
+   "replace": "                if False:",
+   "rationale": "a hung tool runs forever"
+  },
+  {
+   "name": "X5_pre_start_cancellation_ignored",
+   "path": "qta_agent/execution.py",
+   "find": "    if cancel is not None and cancel.cancelled:\n        # Checked before spawning",
+   "replace": "    if False:\n        # Checked before spawning",
+   "rationale": "a cancellation cannot prevent the work it cancelled"
+  },
+  {
+   "name": "X6_mid_run_cancellation_ignored",
+   "path": "qta_agent/execution.py",
+   "find": "                if cancel is not None and cancel.cancelled:\n                    _kill_group(proc, signal.SIGTERM)",
+   "replace": "                if False:\n                    _kill_group(proc, signal.SIGTERM)",
+   "rationale": "cancel has no effect once running"
+  },
+  {
+   "name": "X7_capability_not_checked_before_running",
+   "path": "qta_agent/execution.py",
+   "find": "            capabilities.check(capability_id, Request(",
+   "replace": "            _skip = (Request(",
+   "rationale": "any actor runs any registered tool"
+  },
+  {
+   "name": "X8_environment_inherited",
+   "path": "qta_agent/execution.py",
+   "find": "                stdin=subprocess.DEVNULL, env=dict(env or {}),",
+   "replace": "                stdin=subprocess.DEVNULL, env=None,",
+   "rationale": "the child inherits credentials, proxies and paths nobody granted it"
+  },
+  {
+   "name": "X9_no_process_group",
+   "path": "qta_agent/execution.py",
+   "find": "        os.setsid()",
+   "replace": "        pass",
+   "rationale": "an orphaned grandchild outlives the timeout that killed its parent"
+  },
+  {
+   "name": "X10_no_output_limit",
+   "path": "qta_agent/execution.py",
+   "find": "        resource.setrlimit(resource.RLIMIT_FSIZE,\n                           (limits.output_bytes, limits.output_bytes))",
+   "replace": "        pass",
+   "rationale": "a runaway producer is bounded only by what the reader keeps"
+  },
+  {
+   "name": "X11_no_memory_limit",
+   "path": "qta_agent/execution.py",
+   "find": "        resource.setrlimit(resource.RLIMIT_AS,\n                           (limits.address_space_bytes,\n                            limits.address_space_bytes))",
+   "replace": "        pass",
+   "rationale": "a memory bomb runs to completion"
+  },
+  {
+   "name": "X12_signal_recorded_as_exit_status",
+   "path": "qta_agent/execution.py",
+   "find": "        if rc is not None and rc < 0:",
+   "replace": "        if False:",
+   "rationale": "a signalled death is reported as a negative exit status"
+  },
+  {
+   "name": "X13_temp_output_files_leak",
+   "path": "qta_agent/execution.py",
+   "find": "        for p in (out_path, err_path):\n            p.unlink(missing_ok=True)",
+   "replace": "        pass",
+   "rationale": "every run leaves its stdout and stderr behind"
+  },
+  {
+   "name": "X14_inputs_not_validated",
+   "path": "qta_agent/execution.py",
+   "find": "        spec.validate_inputs(inputs)",
+   "replace": "        pass",
+   "rationale": "a tool runs on inputs its contract rejects"
+  },
+  {
+   "name": "L1_ledger_ignores_revocation",
+   "path": "qta_agent/capability.py",
+   "find": "            self._revoked.add(cap_id)",
+   "replace": "            pass",
+   "rationale": "a revoked grant keeps working; revocation becomes a log entry with no effect"
+  },
+  {
+   "name": "L2_ledger_accepts_a_reissued_id_with_different_terms",
+   "path": "qta_agent/capability.py",
+   "find": "            if existing is not None and existing.digest() != cap.digest():",
+   "replace": "            if False:",
+   "rationale": "one capability id names two different grants, so nothing citing it can be told apart"
+  },
+  {
+   "name": "L3_ledger_loads_an_unverified_log",
+   "path": "qta_agent/capability.py",
+   "find": "        self.log.verify().raise_if_bad()\n        self._issued = {}",
+   "replace": "        self._issued = {}",
+   "rationale": "grants are projected from a history that may have been rewritten"
+  },
+  {
+   "name": "L4_ledger_issue_does_not_append",
+   "path": "qta_agent/capability.py",
+   "find": "        ev = self.log.append(actor=actor, action=ACT_ISSUE,\n                             target=cap.task_id,\n                             payload={\"task_id\": cap.task_id, **cap.body()})\n        self.apply(ev)\n        return self._issued[cap.capability_id]",
+   "replace": "        self._issued[cap.capability_id] = cap\n        return cap",
+   "rationale": "THE DEFECT THE LEDGER CLOSES: a grant held only in memory authorizes work, and the log never recorded it"
+  },
+  {
+   "name": "L5_ledger_reuses_an_existing_id",
+   "path": "qta_agent/capability.py",
+   "find": "        if cap.capability_id in self._issued:",
+   "replace": "        if False:",
+   "rationale": "issuing over a live id silently replaces a grant others may already be citing"
+  }
+ ]
 }

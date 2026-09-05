@@ -43,9 +43,11 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,10 +98,49 @@ def _dirty_tracked_files() -> list:
                   if line.strip())
 
 
+#: Where content discarded by :func:`_restore` is kept.
+#:
+#: This exists because the harness destroyed real work, twice, in one session.
+#: ``_restore`` is ``git checkout HEAD --``, which is the right way to undo
+#: damage a mutated build did to a tracked file -- and it is indistinguishable
+#: from discarding an uncommitted edit. Anything that becomes dirty DURING a
+#: run looks like collateral damage, so edits made in another window while the
+#: matrix ran were reverted with no way back: a rewritten completion matrix,
+#: and then this file's own previous version of this fix.
+#:
+#: The restore still happens. Leaving a suite-damaged file in place is worse,
+#: because every later mutation then runs against corrupted inputs and the
+#: report says nothing about it. What changes is that the discarded bytes are
+#: KEPT and their location printed, so a false positive costs a copy instead
+#: of the work.
+QUARANTINE = ROOT / ".mutation-quarantine"
+
+
 def _restore(paths: list) -> None:
-    if paths:
-        subprocess.run(["git", "-C", str(ROOT), "checkout", "HEAD", "--",
-                        *paths], capture_output=True, text=True)
+    """Revert tracked files, keeping a copy of what is discarded.
+
+    For collateral damage only -- files the harness did not mutate and holds
+    no original for. The mutated sources are restored from ``original``.
+    """
+    if not paths:
+        return
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    saved = []
+    for rel in paths:
+        src = ROOT / rel
+        if not src.is_file():
+            continue
+        dest = QUARANTINE / stamp / rel
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+            saved.append(dest)
+        except OSError as exc:      # keeping a copy must never block a restore
+            print(f"  WARNING: could not quarantine {rel}: {exc}")
+    if saved:
+        print(f"  discarded content kept under {QUARANTINE.name}/{stamp}/")
+    subprocess.run(["git", "-C", str(ROOT), "checkout", "HEAD", "--",
+                    *paths], capture_output=True, text=True)
 
 
 def run_suite(suites: list, python: str) -> tuple:
@@ -127,7 +168,6 @@ def run_suite(suites: list, python: str) -> tuple:
     keeps the repository's own ``__pycache__`` out of the collateral-damage
     check.
     """
-    import shutil
     import tempfile
 
     cache = tempfile.mkdtemp(prefix="mutation-pycache-")

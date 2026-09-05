@@ -278,3 +278,438 @@ def test_the_audit_is_part_of_the_production_path():
     assert "AuditIndex" in rule
     assert "assert explanation.complete" in rule
     assert "explanation.to_record()" in rule
+    # The policy join and the record audit are on the path too. A decision
+    # that names a digest nobody published is an assertion that a policy
+    # allowed the run, which is what an unauthorized run would also produce.
+    assert "assert decision.complete" in rule
+    assert "index.denials()" in rule
+    assert "index.audit_records()" in rule
+
+
+# --- authority records: the twin of the task chain ---------------------------
+
+def _authority_world(tmp_path):
+    """A store with an evidence-backed record, built the ordinary way."""
+    from qta_agent.authority import Role, State
+    from qta_agent.store import AuthorityStore
+
+    log = EventLog(tmp_path / "auth.jsonl")
+    ev = EvidenceStore(tmp_path / "ev")
+    store = AuthorityStore(log, evidence=ev).load()
+    return log, ev, store, Role, State
+
+
+def _promote(store, ev, Role, State, rid, *, proposer="alice",
+             verifier="bob", promoter="carol", depends_on=()):
+    report = ev.put(f"report for {rid}".encode())
+    store.create(record_id=rid, kind="claim", proposer=proposer,
+                 depends_on=tuple(depends_on))
+    store.transition(record_id=rid, dst=State.UNDER_REVIEW, actor=verifier,
+                     role=Role.VERIFIER)
+    store.transition(record_id=rid, dst=State.VERIFIED, actor=verifier,
+                     role=Role.VERIFIER,
+                     evidence={"verification_report": report})
+    store.transition(record_id=rid, dst=State.PROMOTED, actor=promoter,
+                     role=Role.PROMOTER, policy_id="p1",
+                     evidence={"verification_report": report,
+                               "policy_id": "p1"})
+    return report
+
+
+def _revoke(store, ev, Role, State, rid, *, actor="carol"):
+    reason = ev.put(f"revocation of {rid}".encode())
+    return store.transition(record_id=rid, dst=State.REVOKED, actor=actor,
+                            role=Role.PROMOTER,
+                            evidence={"revocation_reason": reason})
+
+
+def test_an_authority_record_explains_itself(tmp_path):
+    log, ev, store, Role, State = _authority_world(tmp_path)
+    _promote(store, ev, Role, State, "r1")
+
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert exp.outcome == "PROMOTED"
+    assert exp.complete, f"unexpected gaps: {exp.gaps}"
+    assert [s.detail.get("dst") for s in exp.steps
+            if s.action == "record.transition"] == [
+        "UNDER_REVIEW", "VERIFIED", "PROMOTED"]
+    assert set(exp.actors) == {"alice", "bob", "carol"}
+    assert "PROVENANCE GAPS" not in exp.render()
+
+
+def test_an_unknown_record_is_reported_not_invented(tmp_path):
+    log, ev, store, Role, State = _authority_world(tmp_path)
+    _promote(store, ev, Role, State, "r1")
+    exp = AuditIndex.from_log(log).explain_record("nope")
+    assert exp.outcome == "UNKNOWN" and not exp.complete and exp.steps == ()
+
+
+def test_a_task_id_is_not_an_authority_record(gov):
+    """The two explains must not answer each other's questions."""
+    run = _run(gov)
+    idx = AuditIndex.from_log(gov.log)
+    assert idx.explain_record(run.task_id).outcome == "UNKNOWN"
+    assert idx.records() == ()
+
+
+def test_a_discontinuous_history_is_a_gap(tmp_path):
+    """THE point of explain_record.
+
+    ``AuthorityStore`` reads current state before appending, so it cannot
+    write a transition whose src is not the previous dst. A log containing
+    one was written around the store -- and every individual record in it
+    still looks well-formed.
+    """
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="alice", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "alice", "state": "PROPOSED",
+                        "evidence": {}, "depends_on": [], "policy_id": None})
+    # PROPOSED -> UNDER_REVIEW never happened; the history jumps.
+    log.append(actor="bob", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "UNDER_REVIEW",
+                        "dst": "VERIFIED", "role": "VERIFIER",
+                        "evidence": {"verification_report": "a" * 64},
+                        "policy_id": None})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert not exp.complete
+    assert any("was not written through it" in g for g in exp.gaps), exp.gaps
+
+
+def test_an_impossible_edge_is_a_gap(tmp_path):
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="alice", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "alice", "state": "PROPOSED",
+                        "evidence": {}, "depends_on": [], "policy_id": None})
+    log.append(actor="carol", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "PROPOSED",
+                        "dst": "PROMOTED", "role": "PROMOTER",
+                        "evidence": {}, "policy_id": "p1"})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert not exp.complete
+    assert any("not an edge of the authority state machine" in g
+               for g in exp.gaps), exp.gaps
+
+
+def test_self_promotion_in_a_log_is_flagged(tmp_path):
+    """Unreachable through check(); checked anyway, for the same reason."""
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="alice", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "alice", "state": "PROPOSED",
+                        "evidence": {}, "depends_on": [], "policy_id": None})
+    log.append(actor="alice", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "PROPOSED",
+                        "dst": "UNDER_REVIEW", "role": "VERIFIER",
+                        "evidence": {}, "policy_id": None})
+    log.append(actor="alice", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "UNDER_REVIEW",
+                        "dst": "VERIFIED", "role": "VERIFIER",
+                        "evidence": {"verification_report": "a" * 64},
+                        "policy_id": None})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert not exp.complete
+    assert any("requires a distinct actor (I4)" in g for g in exp.gaps), \
+        exp.gaps
+
+
+def test_promotion_without_a_policy_is_a_gap(tmp_path):
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="alice", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "alice", "state": "PROPOSED",
+                        "evidence": {}, "depends_on": [], "policy_id": None})
+    for src, dst, role, actor in (("PROPOSED", "UNDER_REVIEW", "VERIFIER",
+                                   "bob"),
+                                  ("UNDER_REVIEW", "VERIFIED", "VERIFIER",
+                                   "bob"),
+                                  ("VERIFIED", "PROMOTED", "PROMOTER",
+                                   "carol")):
+        log.append(actor=actor, action="record.transition", target="r1",
+                   payload={"record_id": "r1", "src": src, "dst": dst,
+                            "role": role, "policy_id": None,
+                            "evidence": {"verification_report": "a" * 64}})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert any("names no policy (I5)" in g for g in exp.gaps), exp.gaps
+
+
+def test_a_transition_missing_its_required_evidence_is_a_gap(tmp_path):
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="alice", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "alice", "state": "PROPOSED",
+                        "evidence": {}, "depends_on": [], "policy_id": None})
+    log.append(actor="bob", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "PROPOSED",
+                        "dst": "UNDER_REVIEW", "role": "VERIFIER",
+                        "evidence": {}, "policy_id": None})
+    log.append(actor="bob", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "UNDER_REVIEW",
+                        "dst": "VERIFIED", "role": "VERIFIER",
+                        "evidence": {}, "policy_id": None})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert any("requires evidence ['verification_report']" in g
+               for g in exp.gaps), exp.gaps
+
+
+def test_canonical_authority_resting_on_a_withdrawn_dependency_is_a_gap(
+        tmp_path):
+    """The cross-record hole, and the reason this is not redundant.
+
+    ``store.py`` applies one event at a time and never looks at dependents.
+    :mod:`qta_agent.invalidation` cascades ONLY when a caller runs it. So a
+    cascade nobody ran leaves a PROMOTED record resting on a REVOKED one,
+    every individual transition legal, and nothing in the enforcement path
+    able to notice.
+    """
+    log, ev, store, Role, State = _authority_world(tmp_path)
+    _promote(store, ev, Role, State, "base")
+    _promote(store, ev, Role, State, "derived", depends_on=("base",))
+
+    idx = AuditIndex.from_log(log)
+    assert idx.explain_record("derived").complete, \
+        idx.explain_record("derived").gaps
+
+    # Withdraw the foundation, and deliberately do NOT run the cascade.
+    _revoke(store, ev, Role, State, "base")
+
+    idx = AuditIndex.from_log(log)
+    assert idx.explain_record("base").complete, idx.explain_record("base").gaps
+    exp = idx.explain_record("derived")
+    assert not exp.complete
+    assert any("withdrawn foundations" in g for g in exp.gaps), exp.gaps
+
+
+def test_running_the_cascade_closes_that_gap(tmp_path):
+    """The gap must describe a real omission, not merely a shape it dislikes.
+
+    If the auditor flagged the dependency regardless of whether the cascade
+    ran, it would be reporting the design rather than a defect.
+    """
+    from qta_agent.invalidation import apply_invalidation
+
+    log, ev, store, Role, State = _authority_world(tmp_path)
+    _promote(store, ev, Role, State, "base")
+    _promote(store, ev, Role, State, "derived", depends_on=("base",))
+    _revoke(store, ev, Role, State, "base")
+    apply_invalidation(store, "base", reason="dependency revoked")
+
+    exp = AuditIndex.from_log(log).explain_record("derived")
+    assert exp.outcome == "STALE"
+    assert exp.complete, exp.gaps
+
+
+def test_a_dependency_on_something_unrecorded_is_a_gap(tmp_path):
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="alice", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "alice", "state": "PROMOTED",
+                        "evidence": {}, "depends_on": ["ghost"],
+                        "policy_id": "p1"})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert any("never created" in g for g in exp.gaps), exp.gaps
+
+
+def test_transitions_without_a_creation_record_are_a_gap(tmp_path):
+    log = EventLog(tmp_path / "forged.jsonl")
+    log.append(actor="bob", action="record.transition", target="r1",
+               payload={"record_id": "r1", "src": "PROPOSED",
+                        "dst": "UNDER_REVIEW", "role": "VERIFIER",
+                        "evidence": {}, "policy_id": None})
+    exp = AuditIndex.from_log(log).explain_record("r1")
+    assert any("no record.create record" in g for g in exp.gaps), exp.gaps
+
+
+def test_audit_records_puts_the_holes_first(tmp_path):
+    log, ev, store, Role, State = _authority_world(tmp_path)
+    _promote(store, ev, Role, State, "a-clean")
+    _promote(store, ev, Role, State, "z-broken", depends_on=("a-clean",))
+    _revoke(store, ev, Role, State, "a-clean")
+
+    results = AuditIndex.from_log(log).audit_records()
+    assert [e.subject for e in results] == ["z-broken", "a-clean"]
+    assert not results[0].complete and results[1].complete
+
+
+def test_an_added_dependency_is_seen_too(tmp_path):
+    """add_dependency writes a separate record; the audit must join it."""
+    log, ev, store, Role, State = _authority_world(tmp_path)
+    _promote(store, ev, Role, State, "base")
+    _promote(store, ev, Role, State, "derived")
+    store.add_dependency(record_id="derived", depends_on=("base",))
+    _revoke(store, ev, Role, State, "base")
+    exp = AuditIndex.from_log(log).explain_record("derived")
+    assert any("withdrawn foundations" in g for g in exp.gaps), exp.gaps
+
+
+# --- policy decisions: a query, not a chain ---------------------------------
+
+def _policy_world(tmp_path):
+    from qta_agent.policy import (
+        ANY, Effect, PolicyDocument, PolicyRequest, PolicyStore, Rule,
+    )
+
+    log = EventLog(tmp_path / "pol.jsonl")
+    store = PolicyStore(log).load()
+    doc = PolicyDocument(
+        policy_id="p1", version=1, description="test",
+        rules=(Rule(rule_id="deny-danger", effect=Effect.DENY,
+                    actions=("delete",), subjects=(ANY,), roles=(ANY,),
+                    resources=(ANY,), reason="deletion is never permitted"),
+               Rule(rule_id="allow-read", effect=Effect.ALLOW,
+                    actions=("read",), subjects=("alice",), roles=(ANY,),
+                    resources=(ANY,), reason="alice may read")))
+    store.publish(doc, actor="owner")
+    return log, store, doc, PolicyRequest
+
+
+def test_decisions_are_queryable_and_denials_are_recorded(tmp_path):
+    """decide_and_record logs denials so this question has an answer.
+
+    A control plane that records only what it permitted cannot answer 'what
+    did this agent try', which is where an incident starts.
+    """
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    store.decide_and_record(
+        "p1", PolicyRequest(action="read", subject="alice", role="WORKER",
+                            resource="doc-1"), actor="alice")
+    store.decide_and_record(
+        "p1", PolicyRequest(action="delete", subject="alice", role="WORKER",
+                            resource="doc-1"), actor="alice")
+    store.decide_and_record(
+        "p1", PolicyRequest(action="read", subject="mallory", role="WORKER",
+                            resource="doc-1"), actor="mallory")
+
+    idx = AuditIndex.from_log(log)
+    assert len(idx.decisions()) == 3
+    denied = idx.denials()
+    assert len(denied) == 2
+    assert {d.detail["request"]["subject"] for d in denied} == \
+        {"alice", "mallory"}
+    assert any("deletion is never permitted" in d.summary for d in denied)
+    assert any("no rule matched; the default is deny" in d.summary
+               for d in denied)
+
+
+def test_decision_filters_are_exact_and_conjunctive(tmp_path):
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    for subject in ("alice", "alicia"):
+        store.decide_and_record(
+            "p1", PolicyRequest(action="read", subject=subject, role="WORKER",
+                                resource="doc-1"), actor=subject)
+
+    idx = AuditIndex.from_log(log)
+    # 'alice' must not match 'alicia': an auditor who half-matches a subject
+    # gets a confident answer about the wrong principal.
+    assert len(idx.decisions(subject="alice")) == 1
+    assert idx.decisions(subject="alice")[0].detail["allowed"] is True
+    assert len(idx.decisions(subject="alic")) == 0
+    # Conjunctive: both must hold.
+    assert len(idx.decisions(subject="alice", action="delete")) == 0
+    assert len(idx.decisions(policy_id="p1", allowed=False)) == 1
+    assert len(idx.decisions(resource="doc-1")) == 2
+    assert len(idx.decisions(resource="doc-2")) == 0
+
+
+def test_denials_cannot_be_asked_for_allowed_decisions(tmp_path):
+    """denials(allowed=True) must not quietly return permissions."""
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    store.decide_and_record(
+        "p1", PolicyRequest(action="read", subject="alice", role="WORKER",
+                            resource="doc-1"), actor="alice")
+    idx = AuditIndex.from_log(log)
+    assert idx.denials(allowed=True) == ()
+
+
+def test_a_decision_is_joined_to_the_document_that_made_it(tmp_path):
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    d = store.decide_and_record(
+        "p1", PolicyRequest(action="delete", subject="alice", role="WORKER",
+                            resource="doc-1"), actor="alice")
+
+    exp = AuditIndex.from_log(log).explain_decision(d.at_seq)
+    assert exp.outcome == "DENY"
+    assert exp.complete, exp.gaps
+    assert [s.action for s in exp.steps] == ["policy.publish", "policy.decision"]
+    assert doc.digest()[:12] in exp.steps[0].summary
+
+
+def test_a_decision_citing_an_unpublished_policy_digest_is_a_gap(tmp_path):
+    """Two documents with one id and version but different content.
+
+    That is a tampering signature, and only the digest distinguishes them.
+    """
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    d = store.decide_and_record(
+        "p1", PolicyRequest(action="delete", subject="alice", role="WORKER",
+                            resource="doc-1"), actor="alice")
+    # Rewrite the decision's cited digest, then rebuild a well-formed chain
+    # so the LOG verifies and only the join is wrong.
+    kept = [json.loads(line) for line in log.path.read_text().splitlines()]
+    for rec in kept:
+        if rec["action"] == "policy.decision":
+            rec["payload"]["decision"]["policy_digest"] = "f" * 64
+    forged = EventLog(log.path.parent / "forged.jsonl")
+    for rec in kept:
+        forged.append(actor=rec["actor"], action=rec["action"],
+                      target=rec["target"], payload=rec["payload"])
+
+    exp = AuditIndex.from_log(forged).explain_decision(d.at_seq)
+    assert not exp.complete
+    assert any("tampering signature" in g for g in exp.gaps), exp.gaps
+
+
+def test_a_decision_under_a_policy_this_log_never_published_is_a_gap(tmp_path):
+    log = EventLog(tmp_path / "orphan.jsonl")
+    ev = log.append(actor="a", action="policy.decision", target="doc-1",
+                    payload={"decision": {"allowed": True, "policy_id": "ghost",
+                                          "version": 1,
+                                          "policy_digest": "a" * 64,
+                                          "rule_id": "r", "effect": "ALLOW",
+                                          "request": {"subject": "a",
+                                                      "action": "read",
+                                                      "resource": "doc-1"},
+                                          "reason": "because"},
+                             "decision_digest": "b" * 64})
+    exp = AuditIndex.from_log(log).explain_decision(ev.seq)
+    assert not exp.complete
+    assert any("never published" in g for g in exp.gaps), exp.gaps
+
+
+def test_an_absent_decision_is_reported_not_invented(tmp_path):
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    exp = AuditIndex.from_log(log).explain_decision(9999)
+    assert exp.outcome == "UNKNOWN" and not exp.complete and exp.steps == ()
+
+
+def test_policy_versions_are_read_from_the_log_not_the_projection(tmp_path):
+    """The auditor must not depend on the code whose decision is in question."""
+    from qta_agent.policy import ANY, Effect, PolicyDocument, Rule
+
+    log, store, doc, PolicyRequest = _policy_world(tmp_path)
+    v2 = PolicyDocument(
+        policy_id="p1", version=2, description="tightened",
+        rules=(Rule(rule_id="deny-all", effect=Effect.DENY, actions=(ANY,),
+                    subjects=(ANY,), roles=(ANY,), resources=(ANY,)),))
+    store.publish(v2, actor="owner")
+
+    versions = AuditIndex.from_log(log).policy_versions("p1")
+    assert [v for _, v, _ in versions] == [1, 2]
+    assert [dg for _, _, dg in versions] == [doc.digest(), v2.digest()]
+    assert AuditIndex.from_log(log).policy_versions("other") == ()
+
+
+def test_the_governed_run_records_the_decision_that_permitted_it(gov):
+    """The query must work on the production history, not only a fixture."""
+    run = _run(gov)
+    idx = AuditIndex.from_log(gov.log)
+    allowed = idx.decisions(allowed=True)
+    assert allowed, "the governed run recorded no permitting decision"
+    assert any(d.detail["policy_digest"] == run.policy_digest
+               for d in allowed), (
+        "no recorded decision matches the policy digest the run reports")
+    seq = next(d.seq for d in allowed
+               if d.detail["policy_digest"] == run.policy_digest)
+    exp = idx.explain_decision(seq)
+    assert exp.outcome == "ALLOW" and exp.complete, exp.gaps

@@ -23,6 +23,32 @@ indistinguishable from a fabrication that nobody happened to notice.
 Finding that gap is a different job from enforcing the transition, and it is
 one only a reader of the whole history can do.
 
+THE SAME QUESTION, ASKED OF AUTHORITY RECORDS
+
+:meth:`AuditIndex.explain_record` is the twin of :meth:`explain_task` over
+``record.*``. It matters more, not less: a task chain describes work, an
+authority chain describes what the project treats as CANONICAL. The store
+applies one event at a time and never looks backwards, so three holes are
+invisible to it and visible here --
+
+  * a transition whose ``src`` is not the previous transition's ``dst``,
+    which means the history was not written through :class:`AuthorityStore`
+    at all (the store reads current state, so it cannot produce one);
+  * an edge the state machine does not have, or one taken by the record's own
+    proposer where separation of duties is required;
+  * a record still PROMOTED whose dependency is no longer canonical. Nothing
+    in ``store.py`` watches dependents; :mod:`qta_agent.invalidation` cascades
+    only when a caller runs it, so a cascade that was never run leaves
+    canonical authority resting on withdrawn foundations and no single
+    transition is wrong.
+
+POLICY DECISIONS ARE A QUERY, NOT A CHAIN
+
+:meth:`decisions` and :meth:`denials` answer "what did this subject try, and
+what refused it". ``PolicyStore.decide_and_record`` records denials precisely
+so that question has an answer; leaving the records unqueryable would have
+made recording them ceremony.
+
 REDACTION
 
 Audit output is meant to be read, pasted into incident notes, and attached to
@@ -37,6 +63,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .authority import CANONICAL, INITIAL, State, find_edge
 from .canonical import is_digest
 
 #: Patterns that must never leave this module intact. Deliberately coarse: a
@@ -139,6 +166,36 @@ REQUIRED_RECORDS = {
     "FAILED": ("task.create", "task.execution"),
     "TIMED_OUT": ("task.create", "task.execution"),
 }
+
+#: Authority-record and policy action names, spelled once. They are strings
+#: here rather than imports from every writer because an audit reads a
+#: HISTORY: a record written by an older build must still be readable, and
+#: binding these to whatever the current writer happens to call them would
+#: make the reader silently skip records it should be explaining.
+ACT_RECORD_CREATE = "record.create"
+ACT_RECORD_TRANSITION = "record.transition"
+ACT_RECORD_DEPEND = "record.depend"
+ACT_POLICY_PUBLISH = "policy.publish"
+ACT_POLICY_DECISION = "policy.decision"
+
+_RECORD_ACTIONS = (ACT_RECORD_CREATE, ACT_RECORD_TRANSITION,
+                   ACT_RECORD_DEPEND)
+
+#: State names that carry canonical authority, as they appear in the log.
+_CANONICAL_NAMES = frozenset(s.value for s in CANONICAL)
+
+
+def _edge_for(src, dst):
+    """The state-machine edge for two state NAMES, or None.
+
+    Names, because this reads a log. A state a newer build introduced is not
+    an edge this build can vouch for, and returning None makes the caller
+    report that rather than crash on it.
+    """
+    try:
+        return find_edge(State(src), State(dst))
+    except ValueError:
+        return None
 
 
 class AuditIndex:
@@ -260,6 +317,291 @@ class AuditIndex:
                     "state machine forbids this, so a log containing it was "
                     "not written through the gate")
         return tuple(gaps)
+
+    # ---- authority records ---------------------------------------------
+    def records(self) -> tuple:
+        """Every authority record id the history mentions."""
+        return tuple(sorted(
+            {ev.payload.get("record_id") for ev in self.events
+             if ev.action in _RECORD_ACTIONS and ev.payload.get("record_id")}))
+
+    def _record_walks(self) -> dict:
+        """record_id -> (proposer, final state name, declared dependencies).
+
+        Built once per query over the whole history, because the dependency
+        check is cross-record: a record cannot tell from its own events
+        whether the thing it rests on is still canonical.
+        """
+        walks: dict = {}
+        for ev in self.events:
+            p = ev.payload
+            rid = p.get("record_id")
+            if not rid:
+                continue
+            if ev.action == ACT_RECORD_CREATE:
+                walks.setdefault(rid, {"proposer": p.get("proposer"),
+                                       "state": INITIAL.value,
+                                       "depends_on": []})
+                walks[rid]["proposer"] = p.get("proposer")
+                walks[rid]["state"] = p.get("state", INITIAL.value)
+                walks[rid]["depends_on"] += list(p.get("depends_on") or ())
+            elif ev.action == ACT_RECORD_TRANSITION:
+                w = walks.setdefault(rid, {"proposer": None, "state": None,
+                                           "depends_on": []})
+                w["state"] = p.get("dst")
+            elif ev.action == ACT_RECORD_DEPEND:
+                w = walks.setdefault(rid, {"proposer": None, "state": None,
+                                           "depends_on": []})
+                w["depends_on"] += list(p.get("depends_on") or ())
+        return walks
+
+    def explain_record(self, record_id: str) -> Explanation:
+        """Reconstruct an authority record's history and say what is missing.
+
+        The authority twin of :meth:`explain_task`. See the module docstring
+        for why the three checks below are not redundant with the state
+        machine that already permitted every transition.
+        """
+        events = [ev for ev in self._by_target.get(record_id, [])
+                  if ev.action in _RECORD_ACTIONS]
+        if not events:
+            return Explanation(record_id, "UNKNOWN", (),
+                               (f"no authority records for {record_id!r}",),
+                               ())
+
+        steps = []
+        outcome = "UNKNOWN"
+        proposer = None
+        created = False
+        depends_on: list = []
+        for ev in events:
+            p = ev.payload
+            if ev.action == ACT_RECORD_CREATE:
+                created = True
+                proposer = p.get("proposer")
+                outcome = p.get("state", INITIAL.value)
+                depends_on += list(p.get("depends_on") or ())
+                summary = (f"proposed as kind {p.get('kind')!r} in state "
+                           f"{outcome}, citing "
+                           f"{len(p.get('evidence') or {})} evidence key(s)")
+                detail = {k: p.get(k) for k in
+                          ("kind", "proposer", "state", "evidence",
+                           "depends_on", "policy_id")}
+            elif ev.action == ACT_RECORD_TRANSITION:
+                summary = (f"{p.get('src')} -> {p.get('dst')} "
+                           f"as {p.get('role')}")
+                if p.get("stale_reason"):
+                    summary += f"  ({str(p['stale_reason'])[:80]})"
+                outcome = p.get("dst", outcome)
+                detail = {k: p.get(k) for k in
+                          ("src", "dst", "role", "evidence", "policy_id",
+                           "stale_reason", "edge_reason")}
+            else:                                    # ACT_RECORD_DEPEND
+                added = list(p.get("depends_on") or ())
+                depends_on += added
+                summary = f"declared a dependency on {added}"
+                detail = {"depends_on": added}
+            steps.append(Step(ev.seq, ev.wall_time, ev.actor, ev.action,
+                              summary, detail))
+
+        gaps = self._record_gaps(record_id, outcome, steps,
+                                 created=created, proposer=proposer,
+                                 depends_on=depends_on)
+        actors = tuple(sorted({s.actor for s in steps}))
+        return Explanation(record_id, outcome, tuple(steps), gaps, actors)
+
+    def _record_gaps(self, record_id: str, outcome: str, steps: tuple, *,
+                     created: bool, proposer, depends_on: list) -> tuple:
+        """Holes only a reader of the whole history can see."""
+        gaps = []
+        if not created:
+            gaps.append(
+                f"{record_id} has transitions but no {ACT_RECORD_CREATE} "
+                "record: its origin, proposer and initial evidence are "
+                "unrecorded, so nothing establishes what was claimed")
+
+        # A connected walk from PROPOSED. The store reads current state
+        # before appending, so it CANNOT produce a discontinuity; one in the
+        # log means the history was written around the store.
+        expected = INITIAL.value if created else None
+        for s in steps:
+            if s.action != ACT_RECORD_TRANSITION:
+                continue
+            src, dst = s.detail.get("src"), s.detail.get("dst")
+            if expected is not None and src != expected:
+                gaps.append(
+                    f"seq {s.seq}: transition claims to start at {src!r} but "
+                    f"the record was at {expected!r}; the store reads current "
+                    "state before appending, so this history was not written "
+                    "through it")
+            expected = dst
+            edge = _edge_for(src, dst)
+            if edge is None:
+                gaps.append(
+                    f"seq {s.seq}: {src} -> {dst} is not an edge of the "
+                    "authority state machine; no transition through check() "
+                    "could have produced it")
+                continue
+            if edge.requires_distinct_actor and proposer is not None \
+                    and s.actor == proposer:
+                gaps.append(
+                    f"seq {s.seq}: {s.actor!r} proposed {record_id} and also "
+                    f"performed {src} -> {dst}, which requires a distinct "
+                    "actor (I4); the state machine forbids this, so a log "
+                    "containing it was not written through the gate")
+            if dst == State.PROMOTED.value and not (
+                    s.detail.get("policy_id")
+                    or (s.detail.get("evidence") or {}).get("policy_id")):
+                gaps.append(
+                    f"seq {s.seq}: promotion of {record_id} names no policy "
+                    "(I5); nothing records under which rules it became "
+                    "canonical")
+            missing = sorted(edge.requires_evidence
+                             - set(s.detail.get("evidence") or {}))
+            # policy_id may be carried on the record rather than repeated in
+            # the transition's evidence; the dedicated check above covers it.
+            missing = [m for m in missing
+                       if not (m == "policy_id" and s.detail.get("policy_id"))]
+            if missing:
+                gaps.append(
+                    f"seq {s.seq}: {src} -> {dst} requires evidence "
+                    f"{missing}, and the record does not carry it (I6)")
+
+        # The cross-record hole. Nothing in store.py watches dependents.
+        if outcome in _CANONICAL_NAMES and depends_on:
+            walks = self._record_walks()
+            for dep in sorted(set(depends_on)):
+                w = walks.get(dep)
+                if w is None:
+                    gaps.append(
+                        f"{record_id} is {outcome} but depends on {dep!r}, "
+                        "which this history never created: canonical "
+                        "authority resting on something unrecorded")
+                elif w["state"] not in _CANONICAL_NAMES:
+                    gaps.append(
+                        f"{record_id} is still {outcome} while its dependency "
+                        f"{dep!r} is {w['state']}; invalidation cascades only "
+                        "when a caller runs it, so this is canonical "
+                        "authority resting on withdrawn foundations and no "
+                        "single transition is wrong")
+        return tuple(gaps)
+
+    def audit_records(self) -> tuple:
+        """Explain every authority record. Gaps first."""
+        return tuple(sorted((self.explain_record(r) for r in self.records()),
+                            key=lambda e: (e.complete, e.subject)))
+
+    # ---- policy ---------------------------------------------------------
+    def decisions(self, *, subject: str | None = None,
+                  action: str | None = None, resource: str | None = None,
+                  policy_id: str | None = None,
+                  allowed: bool | None = None) -> tuple:
+        """Recorded policy decisions, oldest first, narrowed by any filter.
+
+        Every filter is exact-match and conjunctive. Substring or pattern
+        matching is deliberately absent: an auditor who half-matches a
+        subject gets a confident answer about the wrong principal.
+        """
+        out = []
+        for ev in self.events:
+            if ev.action != ACT_POLICY_DECISION:
+                continue
+            d = ev.payload.get("decision") or {}
+            req = d.get("request") or {}
+            if subject is not None and req.get("subject") != subject:
+                continue
+            if action is not None and req.get("action") != action:
+                continue
+            if resource is not None and req.get("resource") != resource:
+                continue
+            if policy_id is not None and d.get("policy_id") != policy_id:
+                continue
+            if allowed is not None and bool(d.get("allowed")) != allowed:
+                continue
+            out.append(Step(
+                ev.seq, ev.wall_time, ev.actor, ev.action,
+                f"{'ALLOW' if d.get('allowed') else 'DENY'} "
+                f"{req.get('action')} on {req.get('resource')!r} for "
+                f"{req.get('subject')!r} under "
+                f"{d.get('policy_id')}@{d.get('version')} "
+                f"[{d.get('rule_id') or 'no rule'}]: {d.get('reason')}",
+                {**d, "decision_digest": ev.payload.get("decision_digest")}))
+        return tuple(out)
+
+    def denials(self, **filters) -> tuple:
+        """What was refused. The query an incident starts with."""
+        filters.pop("allowed", None)
+        return self.decisions(allowed=False, **filters)
+
+    def policy_versions(self, policy_id: str) -> tuple:
+        """``(seq, version, digest)`` per publication, oldest first.
+
+        Read from the log rather than from :class:`PolicyStore` on purpose:
+        an auditor asking which document decided must not depend on a
+        projection built by the same code whose decision is in question.
+        """
+        out = []
+        for ev in self.events:
+            if ev.action != ACT_POLICY_PUBLISH:
+                continue
+            doc = ev.payload.get("document") or {}
+            if doc.get("policy_id") != policy_id:
+                continue
+            out.append((ev.seq, doc.get("version"),
+                        ev.payload.get("policy_digest")))
+        return tuple(out)
+
+    def explain_decision(self, at_seq: int) -> Explanation:
+        """One decision, joined to the document version that made it.
+
+        The join is the point. A decision record names a policy digest; the
+        publication record holds the document. Checking that the digest
+        matches a version this log actually published is what distinguishes
+        a decision from an assertion that one was made.
+        """
+        ev = next((e for e in self.events
+                   if e.seq == at_seq and e.action == ACT_POLICY_DECISION),
+                  None)
+        if ev is None:
+            return Explanation(f"decision@{at_seq}", "UNKNOWN", (),
+                               (f"no policy decision at seq {at_seq}",), ())
+        d = ev.payload.get("decision") or {}
+        steps = [s for s in self.decisions() if s.seq == at_seq]
+        gaps = []
+        published = self.policy_versions(d.get("policy_id") or "")
+        match = [(seq, ver, dg) for seq, ver, dg in published
+                 if dg == d.get("policy_digest")]
+        for seq, ver, dg in published:
+            if dg == d.get("policy_digest"):
+                doc_ev = next(e for e in self.events if e.seq == seq)
+                steps.insert(0, Step(
+                    seq, doc_ev.wall_time, doc_ev.actor, doc_ev.action,
+                    f"published {d.get('policy_id')} version {ver} "
+                    f"({dg[:12]}), the document that decided",
+                    {"policy_digest": dg, "version": ver}))
+        if not published:
+            gaps.append(
+                f"the decision cites policy {d.get('policy_id')!r}, which "
+                "this log never published: the rules it was decided under "
+                "are not in the history")
+        elif not match:
+            gaps.append(
+                f"the decision cites policy digest "
+                f"{str(d.get('policy_digest'))[:12]}, which matches no "
+                f"version of {d.get('policy_id')!r} in this log "
+                f"(published: {[v for _, v, _ in published]}); two documents "
+                "with one id and version but different content is a "
+                "tampering signature")
+        elif match[0][1] != d.get("version"):
+            gaps.append(
+                f"the decision claims version {d.get('version')} but the "
+                f"document with that digest was published as version "
+                f"{match[0][1]}")
+        return Explanation(
+            f"decision@{at_seq}",
+            "ALLOW" if d.get("allowed") else "DENY",
+            tuple(steps), tuple(gaps),
+            tuple(sorted({s.actor for s in steps})))
 
     def trace_artifact(self, digest: str) -> tuple:
         """Which tasks claim to have produced these bytes.

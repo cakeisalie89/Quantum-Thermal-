@@ -747,3 +747,80 @@ def test_the_governed_environment_allowlist_is_enforced_not_described(gov):
     from qta_agent.governed_stage10 import GOVERNED_ENV_KEYS
     assert set(env) == set(GOVERNED_ENV_KEYS)
     assert env["OPENBLAS_NUM_THREADS"] == "1"
+
+
+def test_the_executor_checks_against_the_log_not_the_caller_s_own_set(gov):
+    """A grant that was never recorded does not exist.
+
+    The governed path used to append an issuance event AND separately build
+    ``CapabilitySet(issued={cap_id: cap})`` from the same local variable. The
+    event was decorative: the executor checked against whatever the caller
+    had in hand, so a caller that skipped the append would have been
+    authorized anyway. The set is now projected from the log.
+    """
+    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+
+    run = _run(gov)
+    assert run.state is TaskState.VERIFIED
+    (ev,) = [e for e in gov.log.read() if e.action == ACT_ISSUE]
+    issued = CapabilityLedger(gov.log).load()
+    assert issued.issued_ids() == (ev.payload["capability_id"],)
+
+    live = issued.in_force(gov.log.verify().head_seq)
+    assert set(live.issued) == set(issued.issued_ids())
+    assert live.revoked == frozenset()
+
+
+def test_a_capability_the_log_never_recorded_authorizes_nothing(gov,
+                                                                monkeypatch):
+    """The failure mode the projection exists to prevent.
+
+    The denial surfaces as an execution OUTCOME rather than an exception --
+    ``DENIED`` is one of the outcomes the executor is built to return, so the
+    refusal is recorded rather than thrown away. What matters is that the run
+    does not reach VERIFIED and that no process was started.
+    """
+    from qta_agent.capability import CapabilityLedger
+
+    def skip_the_record(self, cap, *, actor):
+        # The caller mints a grant and never records it in the log.
+        return cap
+
+    monkeypatch.setattr(CapabilityLedger, "issue", skip_the_record)
+    run = _run(gov)
+    assert run.state is not TaskState.VERIFIED
+    assert run.outcome == "DENIED", run.reason
+    assert "was ever issued" in run.reason, run.reason
+    assert run.artifacts == {}
+
+
+def test_a_revoked_capability_stops_authorizing_without_the_caller_s_help(gov):
+    from qta_agent.capability import CapabilityRevoked, Request, Action
+
+    run = _run(gov)
+    (cap_id,) = gov.capabilities.issued_ids()
+    gov.capabilities.revoke(cap_id, actor="owner", reason="rotated")
+
+    live = gov.capabilities.in_force(gov.log.verify().head_seq)
+    with pytest.raises(CapabilityRevoked):
+        live.check(cap_id, Request(actor=WORKER_ID,
+                                   action=Action.EXECUTE_TOOL,
+                                   task_id=run.task_id,
+                                   tool_id="stage10.emit_artifact",
+                                   paths=("verification/stage10",)))
+
+
+def test_two_grants_cannot_share_an_id_in_the_log(gov, tmp_path):
+    from qta_agent.capability import (
+        ACT_ISSUE, Action, CapabilityError, CapabilityLedger, issue,
+    )
+
+    _run(gov)
+    (cap_id,) = gov.capabilities.issued_ids()
+    other = issue(capability_id=cap_id, subject="mallory",
+                  action=Action.WRITE_PATHS, task_id="t",
+                  scope=("verification/stage10",), issued_seq=0)
+    gov.log.append(actor="mallory", action=ACT_ISSUE, target="t",
+                   payload={"task_id": "t", **other.body()})
+    with pytest.raises(CapabilityError, match="issued twice"):
+        CapabilityLedger(gov.log).load()

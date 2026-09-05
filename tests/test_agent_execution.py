@@ -581,3 +581,147 @@ def test_a_very_large_excerpt_is_elided_in_the_middle(env):
              limits=Limits(wall_seconds=30.0))
     assert len(r.stderr_excerpt) < 5000
     assert "chars elided" in r.stderr_excerpt
+
+
+# ---------------------------------------------------------------------------
+# CapabilityLedger: a grant is what the log says, not what the caller holds
+# ---------------------------------------------------------------------------
+
+def _ledger(tmp_path):
+    from qta_agent.capability import CapabilityLedger
+    from qta_agent.events import EventLog
+
+    log = EventLog(tmp_path / "caps.jsonl")
+    return log, CapabilityLedger(log).load()
+
+
+def test_a_grant_the_log_never_recorded_is_not_in_force(tmp_path):
+    """THE defect the ledger closes.
+
+    ``CapabilitySet`` is a decision object: hand it grants and it authorizes.
+    That is right for a checker and wrong for a system, because a caller that
+    assembles the set can put anything in it. Issuing must go through the log
+    or the log record is decorative.
+    """
+    log, ledger = _ledger(tmp_path)
+    cap = _cap()
+    ledger.issue(cap, actor="scheduler")
+
+    assert ledger.issued_ids() == ("c1",)
+    assert [ev.action for ev in log.read()] == ["capability.issue"]
+    # A second ledger, built only from the log, reaches the same verdict.
+    from qta_agent.capability import CapabilityLedger
+    rebuilt = CapabilityLedger(log).load()
+    assert rebuilt.in_force(2).check(
+        "c1", Request(actor="agent-1", action=Action.EXECUTE_TOOL,
+                      task_id="t1", tool_id="probe",
+                      paths=("verification/stage10/probe/x",))
+    ).capability_id == "c1"
+
+    # And one nobody recorded is unknown, however well-formed it is.
+    forged = _cap(capability_id="c2")
+    assert forged.capability_id not in rebuilt.issued_ids()
+    with pytest.raises(CapabilityUnknown):
+        rebuilt.in_force(2).check(
+            "c2", Request(actor="agent-1", action=Action.EXECUTE_TOOL,
+                          task_id="t1", tool_id="probe",
+                          paths=("verification/stage10/probe/x",)))
+
+
+def test_revocation_recorded_in_the_log_stops_a_grant(tmp_path):
+    log, ledger = _ledger(tmp_path)
+    ledger.issue(_cap(), actor="scheduler")
+    ledger.revoke("c1", actor="owner", reason="withdrawn")
+
+    from qta_agent.capability import CapabilityLedger
+    rebuilt = CapabilityLedger(log).load()
+    assert rebuilt.revoked_ids() == ("c1",)
+    with pytest.raises(CapabilityRevoked):
+        rebuilt.in_force(3).check(
+            "c1", Request(actor="agent-1", action=Action.EXECUTE_TOOL,
+                          task_id="t1", tool_id="probe",
+                          paths=("verification/stage10/probe/x",)))
+
+
+def test_revoking_a_grant_that_was_never_issued_is_refused(tmp_path):
+    log, ledger = _ledger(tmp_path)
+    with pytest.raises(CapabilityError, match="no capability"):
+        ledger.revoke("c-nope", actor="owner", reason="withdrawn")
+    assert list(log.read()) == []
+
+
+def test_one_capability_id_cannot_name_two_different_grants(tmp_path):
+    """Two grants sharing an id cannot be told apart by anything citing one."""
+    log, ledger = _ledger(tmp_path)
+    ledger.issue(_cap(), actor="scheduler")
+    with pytest.raises(CapabilityError, match="already exists"):
+        ledger.issue(_cap(tool_id="other"), actor="scheduler")
+
+    # And a log that already contains such a pair is refused on projection,
+    # rather than silently resolving to whichever came last.
+    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+    conflicting = _cap(tool_id="other")
+    log.append(actor="mallory", action=ACT_ISSUE, target="t1",
+               payload={"task_id": "t1", **conflicting.body()})
+    with pytest.raises(CapabilityError, match="issued twice"):
+        CapabilityLedger(log).load()
+
+
+def test_the_same_grant_recorded_twice_is_not_a_conflict(tmp_path):
+    """Byte-identical re-issue is a replay, not two grants.
+
+    Refusing it would make the projection reject a log that a retried append
+    could legitimately produce.
+    """
+    from qta_agent.capability import ACT_ISSUE, CapabilityLedger
+
+    log, ledger = _ledger(tmp_path)
+    cap = _cap()
+    ledger.issue(cap, actor="scheduler")
+    log.append(actor="scheduler", action=ACT_ISSUE, target="t1",
+               payload={"task_id": "t1", **cap.body()})
+    assert CapabilityLedger(log).load().issued_ids() == ("c1",)
+
+
+def test_a_revocation_naming_no_capability_is_refused(tmp_path):
+    from qta_agent.capability import ACT_REVOKE, CapabilityLedger
+
+    log, ledger = _ledger(tmp_path)
+    ledger.issue(_cap(), actor="scheduler")
+    log.append(actor="mallory", action=ACT_REVOKE, target="c1", payload={})
+    with pytest.raises(CapabilityError, match="names no capability"):
+        CapabilityLedger(log).load()
+
+
+def test_the_ledger_refuses_to_project_an_unverified_log(tmp_path):
+    """Grants read out of a history that may have been rewritten are not
+    grants. Fail closed, as every other projection in this package does."""
+    import json
+
+    from qta_agent.capability import CapabilityLedger
+    from qta_agent.events import ChainBroken
+
+    log, ledger = _ledger(tmp_path)
+    ledger.issue(_cap(), actor="scheduler")
+    lines = log.path.read_text().splitlines()
+    rec = json.loads(lines[0])
+    rec["payload"]["tool_id"] = "something-else"
+    lines[0] = json.dumps(rec, sort_keys=True, separators=(",", ":"))
+    log.path.write_text("\n".join(lines) + "\n")
+
+    with pytest.raises(ChainBroken):
+        CapabilityLedger(log).load()
+
+
+def test_the_ledger_skips_foreign_events_without_dropping_unknown_ones(
+        tmp_path):
+    """Several subsystems share one log; that must not make the ledger blind
+    to an action nothing in this package writes."""
+    from qta_agent.capability import CapabilityLedger
+
+    log, ledger = _ledger(tmp_path)
+    log.append(actor="w", action="task.create", target="t1",
+               payload={"task_id": "t1"})
+    ledger.issue(_cap(), actor="scheduler")
+    assert CapabilityLedger(log).load().issued_ids() == ("c1",)
+    assert ledger.apply(log.read()[0]) is False

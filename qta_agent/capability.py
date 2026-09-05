@@ -89,6 +89,11 @@ class Action(str, Enum):
 #: applies; an unexpiring grant is not an unrevocable one.
 NEVER_EXPIRES = -1
 
+#: Event actions this module owns. Constants so a typo cannot create a second,
+#: unread action.
+ACT_ISSUE = "capability.issue"
+ACT_REVOKE = "capability.revoke"
+
 
 def _normalise_scope(paths) -> tuple:
     """Repo-relative POSIX prefixes, sorted, validated, de-duplicated.
@@ -345,3 +350,105 @@ def digest_is_consistent(cap: Capability, claimed: str) -> bool:
     digest is not a bearer token.
     """
     return is_digest(claimed) and cap.digest() == claimed
+
+
+class CapabilityLedger:
+    """The grants in force, PROJECTED from the log rather than asserted.
+
+    WHY THIS EXISTS SEPARATELY FROM :class:`CapabilitySet`
+
+    ``CapabilitySet`` is a decision object: hand it grants and a position and
+    it will authorize or refuse. It does not care where the grants came from,
+    which is right for a checker and wrong for a system -- because a caller
+    that assembles the set can put anything in it. The governed path did
+    exactly that: it appended an issuance event AND separately built
+    ``CapabilitySet(issued={cap_id: cap})`` from the same local variable. The
+    log record was decorative; the executor was checking against whatever the
+    caller had in hand.
+
+    This ledger closes that. The in-force set is built by replaying issuance
+    and revocation events, so a grant that was never recorded does not exist
+    no matter what the caller holds, and a revoked one stops working without
+    the caller having to remember.
+    """
+
+    def __init__(self, log):
+        self.log = log
+        self._issued: dict = {}
+        self._revoked: set = set()
+        self._at_seq = -1
+
+    # ---- projection ----------------------------------------------------
+    def load(self) -> "CapabilityLedger":
+        self.log.verify().raise_if_bad()
+        self._issued = {}
+        self._revoked = set()
+        self._at_seq = -1
+        for ev in self.log.read():
+            self.apply(ev)
+        return self
+
+    def apply(self, ev) -> bool:
+        """Fold one event in. True when it was a capability event."""
+        if ev.action == ACT_ISSUE:
+            cap = capability_from_record(ev.payload)
+            existing = self._issued.get(cap.capability_id)
+            if existing is not None and existing.digest() != cap.digest():
+                raise CapabilityError(
+                    f"seq {ev.seq}: capability {cap.capability_id!r} was "
+                    "issued twice with different terms; two grants sharing "
+                    "an id cannot be told apart by anything that cites one")
+            self._issued[cap.capability_id] = cap
+        elif ev.action == ACT_REVOKE:
+            cap_id = ev.payload.get("capability_id")
+            if not cap_id:
+                raise CapabilityError(
+                    f"seq {ev.seq}: revocation names no capability")
+            self._revoked.add(cap_id)
+        else:
+            return False
+        self._at_seq = ev.seq
+        return True
+
+    # ---- reads ---------------------------------------------------------
+    def in_force(self, at_seq: int | None = None) -> CapabilitySet:
+        """The set to check against, at a log position.
+
+        Expiry is relative to ``at_seq``, so two readers of the same log at
+        the same position reach the same verdict.
+        """
+        return CapabilitySet(
+            issued=dict(self._issued), revoked=frozenset(self._revoked),
+            at_seq=self._at_seq if at_seq is None else at_seq)
+
+    def issued_ids(self) -> tuple:
+        return tuple(sorted(self._issued))
+
+    def revoked_ids(self) -> tuple:
+        return tuple(sorted(self._revoked))
+
+    # ---- writes --------------------------------------------------------
+    def issue(self, cap: Capability, *, actor: str) -> Capability:
+        """Record a grant. It does not exist until this returns."""
+        if not isinstance(cap, Capability):
+            raise CapabilityError(f"expected a Capability, got {cap!r}")
+        if cap.capability_id in self._issued:
+            raise CapabilityError(
+                f"capability {cap.capability_id!r} already exists; reusing an "
+                "id would make two grants indistinguishable in the log")
+        ev = self.log.append(actor=actor, action=ACT_ISSUE,
+                             target=cap.task_id,
+                             payload={"task_id": cap.task_id, **cap.body()})
+        self.apply(ev)
+        return self._issued[cap.capability_id]
+
+    def revoke(self, capability_id: str, *, actor: str,
+               reason: str) -> None:
+        """Withdraw a grant. Takes effect for every later check."""
+        if capability_id not in self._issued:
+            raise CapabilityError(
+                f"no capability {capability_id!r} to revoke")
+        ev = self.log.append(
+            actor=actor, action=ACT_REVOKE, target=capability_id,
+            payload={"capability_id": capability_id, "reason": reason})
+        self.apply(ev)

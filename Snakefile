@@ -568,10 +568,36 @@ rule s10_governed:
         # nobody noticed, and a green build must not certify one.
         from qta_agent.audit import AuditIndex
 
-        explanation = AuditIndex.from_log(gov.log).explain_task(run.task_id)
+        index = AuditIndex.from_log(gov.log)
+        explanation = index.explain_task(run.task_id)
         assert explanation.complete, (
             "the governed run has provenance gaps:\n"
             + "\n".join(f"  - {g}" for g in explanation.gaps))
+
+        # The decision that permitted the run must JOIN to a document this
+        # log published. A decision naming a policy digest nobody published
+        # is an assertion that a policy allowed it, and asserting that is
+        # exactly what an unauthorized run would do.
+        permitting = [d for d in index.decisions(allowed=True)
+                      if d.detail["policy_digest"] == run.policy_digest]
+        assert permitting, (
+            "no recorded policy decision matches the digest this run "
+            "reports; the run claims a policy permitted it and the history "
+            "does not show one")
+        decision = index.explain_decision(permitting[0].seq)
+        assert decision.complete, (
+            "the permitting decision does not join to a published policy:\n"
+            + "\n".join(f"  - {g}" for g in decision.gaps))
+        assert not index.denials(), (
+            "a governed run recorded a policy denial and still reported "
+            f"success: {[d.summary for d in index.denials()]}")
+
+        # Authority records, if this history holds any, must be whole too.
+        record_gaps = [e for e in index.audit_records() if not e.complete]
+        assert not record_gaps, (
+            "authority records with provenance gaps:\n"
+            + "\n".join(f"  - {e.subject}: {g}"
+                         for e in record_gaps for g in e.gaps))
 
         Path(output[1]).write_text(json.dumps({
             "task_id": run.task_id,
@@ -596,6 +622,9 @@ rule s10_governed:
                 "are still there. That is provenance. It is not scientific "
                 "validity, not a measurement, and not a gate."),
             "provenance": explanation.to_record(),
+            "policy_decision": decision.to_record(),
+            "policy_denials": 0,
+            "authority_records_audited": len(index.records()),
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 

@@ -469,3 +469,78 @@ def test_each_mutation_is_restored_before_the_next_one_runs(tmp_path):
     assert _verdicts(proc.stdout) == {"A1": "KILLED", "B1": "KILLED"}, \
         proc.stdout
     assert proc.returncode == 0, proc.stdout
+
+
+# ---- collateral damage is restored, and what it discards is kept ----------
+
+def _git(tmp_path: Path, *args) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(tmp_path), *args],
+                          capture_output=True, text=True, check=True)
+
+
+def _git_project(tmp_path: Path, **kw) -> Path:
+    """A synthetic tree that is a real repository.
+
+    The collateral-damage path is driven entirely by ``git status``, so it is
+    inert in the non-git trees the other tests use. It has to be exercised
+    against a repository or it is not exercised at all.
+    """
+    spec = _project(tmp_path, **kw)
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "t@example.invalid")
+    _git(tmp_path, "config", "user.name", "t")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "base")
+    return spec
+
+
+def test_a_file_a_mutated_build_damaged_is_restored_and_kept(tmp_path):
+    """REGRESSION, and the reason the copy exists.
+
+    The restore is right: leaving a suite-damaged file in place means every
+    later mutation runs against corrupted inputs. But ``git checkout HEAD --``
+    cannot tell damage from an uncommitted edit, and it destroyed real work
+    twice in one session -- a rewritten completion matrix, then the previous
+    version of this very fix, both reverted because they were made while a
+    matrix was running in another window.
+
+    So the harness must still restore, and must no longer be able to lose the
+    bytes it discards.
+    """
+    victim = "pkg/victim.txt"
+    module = MODULE_SRC + "\n\nDAMAGE = False\n"
+    damage = (
+        "from pathlib import Path as _P\n"
+        "DAMAGE = bool((_P(__file__).resolve().parent.parent / 'pkg' /"
+        " 'victim.txt').write_text('clobbered by the suite'))\n")
+    spec = _git_project(
+        tmp_path, module_src=module,
+        mutations=[{"name": "D1_damages_a_tracked_file", "path": "pkg/mod.py",
+                    "find": "DAMAGE = False", "replace": damage.strip(),
+                    "rationale": "the mutated build overwrites a tracked file"}])
+    (tmp_path / victim).write_text("the original contents\n", encoding="utf-8")
+    _git(tmp_path, "add", victim)
+    _git(tmp_path, "commit", "-q", "-m", "victim")
+
+    proc = _run(tmp_path, spec)
+
+    assert "TESTS DAMAGED TRACKED FILES" in proc.stdout, proc.stdout
+    assert victim in proc.stdout, proc.stdout
+    # Restored: the next mutation does not run against corrupted inputs.
+    assert (tmp_path / victim).read_text(encoding="utf-8") == \
+        "the original contents\n"
+    # And the discarded bytes survive somewhere a person can find them.
+    kept = sorted((tmp_path / ".mutation-quarantine").rglob(victim))
+    assert kept, (
+        "the harness discarded a tracked file's contents with no copy; a "
+        "false positive then costs the work rather than a copy")
+    assert kept[0].read_text(encoding="utf-8") == "clobbered by the suite"
+    assert ".mutation-quarantine" in proc.stdout
+
+
+def test_the_quarantine_is_not_written_when_nothing_is_damaged(tmp_path):
+    """It must be evidence of an event, not a directory that always appears."""
+    spec = _git_project(tmp_path)
+    proc = _run(tmp_path, spec)
+    assert "TESTS DAMAGED TRACKED FILES" not in proc.stdout, proc.stdout
+    assert not (tmp_path / ".mutation-quarantine").exists()

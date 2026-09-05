@@ -79,7 +79,8 @@ from .agents import (
     AgentDirectory, AgentRole, PrincipalKind, check_separation, identity,
 )
 from .canonical import digest, digest_bytes
-from .capability import Action, CapabilitySet, issue
+from . import capability as _cap_actions
+from .capability import Action, CapabilityLedger, issue
 from .context import ContextBuilder, Tier, record_context
 from .events import EventLog
 from .evidence import EvidenceStore
@@ -128,13 +129,14 @@ GOVERNED_ENV_KEYS = ("PATH", "PYTHONPATH", "PYTHONHASHSEED",
 
 ACT_TASK_CREATE = "task.create"
 ACT_TASK_TRANSITION = "task.transition"
-ACT_CAP_ISSUE = "capability.issue"
+ACT_CAP_ISSUE = _cap_actions.ACT_ISSUE
+ACT_CAP_REVOKE = _cap_actions.ACT_REVOKE
 ACT_EXECUTION = "task.execution"
 ACT_EVIDENCE = "task.evidence"
 
 #: The actions THIS projection applies or deliberately passes over. Anything
 #: else is another subsystem's (skipped) or unrecognised (refused).
-OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION, ACT_CAP_ISSUE,
+OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
                    ACT_EXECUTION, ACT_EVIDENCE})
 
 
@@ -240,6 +242,10 @@ class GovernedStage10:
         #: and an authority with no grants denies everything -- which is what
         #: the socket guard enforces during execution.
         self.network = NetworkAuthority(self.log).load()
+        #: Grants are PROJECTED from the log, not assembled here. A caller
+        #: that builds its own CapabilitySet can put anything in it, which
+        #: made the issuance event decorative -- see CapabilityLedger.
+        self.capabilities = CapabilityLedger(self.log).load()
         self._bootstrap()
 
     def _bootstrap(self) -> None:
@@ -304,7 +310,7 @@ class GovernedStage10:
                 edge = check(req, task)
                 tasks[p["task_id"]] = apply_transition(
                     task, edge, req, seq=ev.seq, lease=lease)
-            elif ev.action in (ACT_CAP_ISSUE, ACT_EXECUTION, ACT_EVIDENCE):
+            elif ev.action in (ACT_EXECUTION, ACT_EVIDENCE):
                 continue
             else:
                 try:
@@ -423,11 +429,11 @@ class GovernedStage10:
                     issued_seq=head + 1,
                     expires_after_seq=lease.expires_after_seq,
                     issued_wall_time=time.time())
-        self.log.append(actor="scheduler", action=ACT_CAP_ISSUE,
-                        target=task_id, payload={"task_id": task_id,
-                                                 **cap.body()})
-        caps = CapabilitySet(issued={cap_id: cap},
-                             at_seq=self.log.verify().head_seq)
+        self.capabilities.issue(cap, actor="scheduler")
+        # Projected back out of the log. If the issuance were not recorded,
+        # or were recorded with different terms, the executor would be
+        # checking against something that does not exist.
+        caps = self.capabilities.in_force(self.log.verify().head_seq)
 
         # What was available to this run, recorded by digest. The manifest is
         # not the prompt -- nothing here calls a model -- but the question it

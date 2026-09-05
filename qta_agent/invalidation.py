@@ -11,6 +11,13 @@ explicit visited set. Cycles are tolerated rather than rejected at traversal
 time: a dependency cycle is a modelling error worth reporting, but discovering
 one midway through invalidation must not abort the invalidation and leave the
 graph half-marked. :func:`find_cycles` reports them separately.
+
+WHAT INVALIDATION CITES
+
+Marking a record STALE requires ``invalidated_by`` evidence, and evidence is
+referenced by content. :func:`_origin_evidence` therefore STORES the origin
+and reason it cites rather than only hashing them; see its docstring for the
+defect that distinction closes.
 """
 from __future__ import annotations
 
@@ -150,15 +157,48 @@ def apply_invalidation(store, origin: str, *, reason: str,
     dead input.
     """
     plan = plan_invalidation(store.all_records(), origin)
+    cited = _origin_evidence(store, origin, reason)
     for rid in plan.affected:
         why = plan.explain(rid)
         store.transition(
             record_id=rid, dst=State.STALE, actor=actor, role=Role.SYSTEM,
-            evidence={"invalidated_by": _origin_digest(origin, reason)},
+            evidence={"invalidated_by": cited},
             stale_reason=f"{reason}: {why}")
     return plan
 
 
-def _origin_digest(origin: str, reason: str) -> str:
-    from .canonical import digest
-    return digest({"origin": origin, "reason": reason})
+def _origin_evidence(store, origin: str, reason: str) -> str:
+    """The digest cited as ``invalidated_by`` -- STORED, not just computed.
+
+    A DEFECT THIS CLOSES, AND WHY EVERY TEST MISSED IT
+
+    This used to return ``digest({...})`` and store nothing. Against a store
+    with no evidence store attached that works, because :func:`authority.check`
+    only resolves citations when it has a resolver -- and every test of this
+    module used exactly that configuration. Attach an evidence store, which is
+    what the governed path does, and the citation is checked, does not resolve,
+    and the cascade raises on its FIRST transition.
+
+    The consequence was not a cosmetic one. In the only configuration where
+    evidence means anything, dependency invalidation could not run: a record
+    whose foundation had been withdrawn could never be marked STALE, so
+    canonical authority would rest on a withdrawn input with no way to correct
+    it. :meth:`AuditIndex.explain_record` reports that state as a provenance
+    gap; before this fix the gap was unfixable.
+
+    The rule the old code broke is the one this package states everywhere
+    else: a digest is a NAME, and a name that resolves to nothing is an
+    assertion, not evidence. Invalidation was asserting.
+
+    With no evidence store attached the digest is still returned unstored --
+    the store has no resolver, so there is nothing to resolve against, and
+    refusing here would make the state machine untestable without a
+    filesystem for no gain in safety.
+    """
+    from .canonical import canonical_bytes, digest
+
+    body = {"origin": origin, "reason": reason}
+    evidence = getattr(store, "evidence", None)
+    if evidence is None:
+        return digest(body)
+    return evidence.put(canonical_bytes(body), media_type="application/json")

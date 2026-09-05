@@ -361,6 +361,52 @@ def test_the_store_refuses_to_load_a_broken_log(tmp_path):
 # invalidation
 # ---------------------------------------------------------------------------
 
+def test_invalidation_runs_against_an_evidence_backed_store(tmp_path):
+    """REGRESSION. The cascade cited a digest it never stored.
+
+    Every other test in this section builds a store with NO evidence store
+    attached, so ``authority.check`` has no resolver and never asks whether
+    the cited ``invalidated_by`` digest names anything. Attach one -- which is
+    what the governed path does -- and the citation is checked. It did not
+    resolve, so the cascade raised on its first transition and dependency
+    invalidation was unavailable in the only configuration where evidence
+    means anything.
+
+    The failure mode was silent and severe: a record whose foundation had been
+    withdrawn could never be marked STALE, leaving canonical authority resting
+    on a withdrawn input with no way to correct it.
+    """
+    from qta_agent.evidence import EvidenceStore
+
+    ev = EvidenceStore(tmp_path / "blobs")
+    report = ev.put(b"verification report")
+    s = AuthorityStore(EventLog(tmp_path / "ev.jsonl"), evidence=ev).load()
+
+    def promote(rid, deps=()):
+        s.create(record_id=rid, kind="result", proposer="alice",
+                 policy_id="p1", depends_on=deps)
+        s.transition(record_id=rid, dst=State.UNDER_REVIEW, actor="bob",
+                     role=Role.VERIFIER)
+        s.transition(record_id=rid, dst=State.VERIFIED, actor="bob",
+                     role=Role.VERIFIER,
+                     evidence={"verification_report": report})
+        s.transition(record_id=rid, dst=State.PROMOTED, actor="carol",
+                     role=Role.PROMOTER,
+                     evidence={"verification_report": report,
+                               "policy_id": "p1"}, policy_id="p1")
+
+    promote("param")
+    promote("result", ("param",))
+    apply_invalidation(s, "param", reason="bound changed")
+
+    assert s.get("result").state is State.STALE
+    # And the citation it wrote is real: the digest resolves to stored bytes.
+    cited = s.get("result").evidence["invalidated_by"]
+    assert ev.contains(cited), (
+        "the cascade cited a digest that resolves to nothing; a name that "
+        "resolves to nothing is an assertion, not evidence")
+
+
 def test_invalidation_is_transitive_not_just_immediate_children(tmp_path):
     """The classic bug: marking only direct dependents."""
     s = _store(tmp_path)

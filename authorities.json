@@ -1,284 +1,291 @@
 {
-  "registry": "QTA single-source-of-truth authority map",
-  "schema_version": "1.0",
-  "rule": "each concept has exactly one executable authority; every other file is a consumer; documentation mirrors code and never overrides it",
-  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
-  "authorities": {
-    "modes_and_species": {
-      "authority": "qta_multiphysics/mode_sequence_3d.py :: MODES, CANONICAL_ACTIVE, RESIDUAL_ONLY, LEGACY_ALIASES, validate_live_species, assert_no_overlap",
-      "owner": "mode_sequence_3d",
-      "schema_version": "1.0",
-      "semantics": "A=Baseline, B=Carbon-13 Methane Processing (C13_CH4 only), C=Isolation/Recovery, D=He-3/He-4 NV Sensing (He3,He4 only); H2 residual/background only; B and D never overlap",
-      "consumers": [
-        "state_machine_3d",
-        "machine_fsm",
-        "species_accounting_3d",
-        "coupled_mode_solver",
-        "tests/test_mode_species_3d.py",
-        "tests/test_machine_fsm.py"
-      ]
-    },
-    "legal_transitions_states_interlocks": {
-      "authority": "qta_multiphysics/machine_fsm.py :: STATES(32), TRANSITIONS(38), FORBIDDEN(8), INTERLOCKS(18: IL-01..14 canonical + FSM-IL-15..18), MachineFSM",
-      "owner": "machine_fsm",
-      "schema_version": "1.0",
-      "hardware_axes": [
-        "laser",
-        "microwave",
-        "c13_feed",
-        "he_dose",
-        "sense_shutter",
-        "process_port",
-        "cryobaffle",
-        "sc_heat_switch",
-        "upstream_plant",
-        "dilution",
-        "vacuum_pumping",
-        "ivc_valve",
-        "charcoal_regen"
-      ],
-      "canonical_outputs": [
-        "machine_fsm_states.csv",
-        "machine_fsm_transitions.csv",
-        "machine_fsm_interlocks.csv",
-        "machine_fsm_lifecycle_trace.csv",
-        "machine_fsm_summary.json",
-        "machine_fsm_diagram.mmd"
-      ],
-      "consumers": [
-        "runner_3d",
-        "package_consistency_check.py",
-        "MACHINE_FSM.md",
-        "tests/test_machine_fsm.py"
-      ],
-      "note": "design/registry.py + interlock_table.csv carry the engineering-ledger view of IL-01..14; machine_fsm.py holds the executable predicates; wording cross-referenced, values identical"
-    },
-    "device_states_per_mode": {
-      "authority": "qta_multiphysics/state_machine_3d.py :: device_state, DeviceState3D",
-      "owner": "state_machine_3d",
-      "schema_version": "1.0",
-      "consumers": [
-        "mode_sequence_3d",
-        "sources_3d",
-        "machine_fsm (state configs mirror it)",
-        "tests/test_coupled_3d.py"
-      ]
-    },
-    "units_and_physical_parameters": {
-      "authority": "qta_multiphysics/config.py :: MultiphysicsConfig (+ default_config); SI units with per-field comments and validators; qta_multiphysics/units.py for conversions",
-      "owner": "config",
-      "schema_version": "1.0",
-      "parameter_provenance_records": [
-        "assumed_parameters.json",
-        "measured_parameters.json",
-        "assumptions_3d.json",
-        "provenance_3d.json"
-      ],
-      "consumers": [
-        "every solver and runner"
-      ]
-    },
-    "solver_profiles_and_tolerances": {
-      "authority": "qta_multiphysics/config.py :: SolverConfig (rtol=1e-6, atol=1e-9, windows, mode_d_temp_threshold_K=0.050) + qta_full_sim.py profile flags (default | --ci | --deep | --heavy-3d)",
-      "owner": "config + qta_full_sim",
-      "schema_version": "1.0",
-      "profile_semantics": "default = canonical regeneration; --ci = fast test profile (non-canonical outputs); --deep optional; --heavy-3d opt-in (gitignored outputs/heavy_3d)",
-      "consumers": [
-        "INSTALL.md",
-        "package_consistency_check.py"
-      ]
-    },
-    "meshes": {
-      "authority": "qta_multiphysics/runner_3d.py :: CI_MESH(10x10x12), HEAVY_MESH(16x16x20); qta_multiphysics/convergence_3d.py :: REFINED(14x14x18)",
-      "owner": "runner_3d / convergence_3d",
-      "schema_version": "1.0"
-    },
-    "seeds": {
-      "authority": "qta_full_sim.py :: seed=42 (Mode-D MC N=10000; staged MC N=5000; integrated pipeline), qta_multiphysics mc_samples=30; 3D MC seed=12345 (n_samples=120) in qta_multiphysics/uncertainty.py",
-      "owner": "qta_full_sim / uncertainty",
-      "schema_version": "1.0"
-    },
-    "gates": {
-      "authority": "qta_multiphysics/metrics.py + qta_full_sim.py gate assembly -> results_gate_table.csv (83 gates; statuses CONDITIONAL/BLOCKED/UNKNOWN/DERIVED_CHECK; PASS permanently 0; can_PASS_now=NO; measured_in_this_system=false)",
-      "owner": "metrics + qta_full_sim",
-      "schema_version": "1.0",
-      "consumers": [
-        "manuscript_consistency_check.py",
-        "package_consistency_check.py",
-        "GATE_TABLE_README.md",
-        "qta_manuscript_v4.tex"
-      ]
-    },
-    "schemas": {
-      "authority": "deep_design_schema.json, deep_parameter_schema.json (deep layer); coupling ledger vocabulary in qta_multiphysics/coupling_ledger_3d.py :: ALLOWED_STATUSES",
-      "owner": "deep_expdesign / coupling_ledger_3d",
-      "schema_version": "1.0",
-      "migrations": "none required; all records at v1.0"
-    },
-    "canonical_output_paths": {
-      "authority": "repository root = canonical location for every governed output; regeneration target outputs/ is byte-compared to root by package_consistency_check.py Step 2b (exempt: deep_surrogate_readiness.json); final_manifest.json enumerates the governed set",
-      "owner": "package_consistency_check + generate_manifest",
-      "schema_version": "1.0"
-    },
-    "claim_boundary_wording": {
-      "authority": "CLAIMS_BOUNDARY.md (prose) + the machine label constant 'MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM' + per-record fields measured_in_this_system=false / can_PASS_now=NO / hardware_validated=false",
-      "owner": "CLAIMS_BOUNDARY.md + generating modules",
-      "schema_version": "1.0",
-      "enforced_by": [
-        "manuscript_consistency_check.py forbidden-pattern scan",
-        "package_consistency_check.py readiness/eligibility/FSM claim assertions and PASS-token scans"
-      ]
-    },
-    "provenance_records": {
-      "authority": "final_manifest.json (every git-tracked file except the two detached ones, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index). The file count is not restated here: it is whatever the git index holds, and generate_manifest.py --check is the authority on membership.",
-      "owner": "generate_manifest",
-      "schema_version": "1.0",
-      "record_type": "PROVENANCE",
-      "means": "these bytes were present at this SHA-256",
-      "does_not_mean": "that the file is a governed scientific authority; semantic authority is registered in this file and in AUTHORITIES.md, never conferred by manifest membership"
-    },
-    "cryopanel_dynamics": {
-      "authority": "qta_multiphysics/cryopanel_dynamics_3d.py :: PanelInventory, advance_phase (exact Langmuir capture; ASSUMED sticking; PLACEHOLDER 1-ML capacity)",
-      "owner": "cryopanel_dynamics_3d",
-      "schema_version": "1.0",
-      "consumers": [
-        "campaign_state_3d",
-        "falsification_3d",
-        "runner_3d",
-        "tests/test_campaign_3d.py"
-      ]
-    },
-    "campaign_continuity": {
-      "authority": "qta_multiphysics/campaign_state_3d.py :: build_campaign, attach_energy_ledger (schema 1.0; separate API; single-cycle canon untouched)",
-      "owner": "campaign_state_3d",
-      "schema_version": "1.0",
-      "canonical_outputs": [
-        "cryopanel_loading_3d.csv",
-        "energy_ledger_cumulative_3d.csv",
-        "machine_fsm_campaign_trace.csv",
-        "campaign_state_3d.json"
-      ],
-      "consumers": [
-        "runner_3d",
-        "package_consistency_check.py"
-      ]
-    },
-    "campaign_uncertainty": {
-      "authority": "qta_multiphysics/campaign_uncertainty_3d.py :: propagate, DISTRIBUTIONS, EXCLUSIONS (schema 1.0; seed CAMPAIGN_UNC_SEED=20260717; M=120 per the existing 3-D MC convention)",
-      "owner": "campaign_uncertainty_3d",
-      "schema_version": "1.0",
-      "canonical_outputs": [
-        "campaign_uncertainty_3d.json",
-        "campaign_uncertainty_quantiles.csv"
-      ],
-      "consumers": [
-        "runner_3d",
-        "package_consistency_check.py",
-        "tests/test_campaign_uncertainty.py"
-      ],
-      "note": "distributions restricted to authoritative declared ranges/spreads; exclusions machine-readable; marginal (not joint) thermal composition"
-    },
-    "measurement_ingestion": {
-      "authority": "qta_multiphysics/measurement_ingest_3d.py :: QUANTITY_REGISTRY, validate_record, ingest_and_compare (schema 1.0; SYNTHETIC-only; read-only; fail-closed)",
-      "owner": "measurement_ingest_3d",
-      "schema_version": "1.0",
-      "canonical_inputs": [
-        "synthetic_measurements_example.json"
-      ],
-      "canonical_outputs": [
-        "measurement_comparison_3d.json",
-        "measurement_comparison_rows.csv"
-      ],
-      "consumers": [
-        "runner_3d",
-        "package_consistency_check.py",
-        "tests/test_measurement_ingest.py"
-      ],
-      "note": "process quantities phase-locked; residual-gas diagnostics any-mode; HARDWARE refused pending validation-plan governance; band semantics band-relative, never sigma"
-    },
-    "hardware_governance": {
-      "authority": "qta_multiphysics/hardware_governance_3d.py :: DATA_CLASSES, schema_validate_hardware, build_quarantine_report, build_evidence_dossier, append_audit/verify_audit_chain (schema 1.0; read-only; automatic_gate_effect=NONE)",
-      "owner": "hardware_governance_3d",
-      "schema_version": "1.0",
-      "plan_authority": "validation_matrix.csv (experiment ids; repetition requirements UNKNOWN until specified)",
-      "consumers": [
-        "runner_3d (readiness summary only)",
-        "package_consistency_check.py",
-        "tests/test_hardware_governance.py"
-      ],
-      "note": "no hardware data exists; default execution deterministic; raw files outside the source (references + SHA-256 only); human-only review authoring"
-    },
-    "validation_roadmap": {
-      "authority": "experiment_registry.json + experiment_gate_coverage.json + experiment_matrix_coverage.json + campaign_registry.json (built deterministically by build_stage6_registries.py; playbooks rendered by build_stage6_playbooks.py) :: schema 1.0.0",
-      "owner": "stage6_roadmap",
-      "schema_version": "1.0.0",
-      "documents": [
-        "EXPERIMENT_PLAYBOOKS/ (11 x 30 sections)",
-        "raw_data_standard.md",
-        "validation_matrix_update_request.schema.json",
-        "matrix_update_examples/ (1 valid + 4 invalid)"
-      ],
-      "consumers": [
-        "hardware_governance_3d (registry loader + request validator)",
-        "runner_3d (readiness summary)",
-        "package_consistency_check.py",
-        "tests/test_stage6_roadmap.py"
-      ],
-      "note": "planning infrastructure only; not experimental evidence; automatic_gate_effect=NONE; schema 1.0.0 is a compatible extension of the project's MAJOR.MINOR convention for the new Stage-6 record types"
-    },
-    "scientific_stack_adoption": {
-      "authority": "STACK.md (narrative) + stack.json (machine-readable, schema 1.0.0) :: adoption ladder for every non-core stack element (ADOPTED / STAGED / DEFERRED); code is the authority and both mirror it",
-      "owner": "stage10_stack",
-      "schema_version": "1.0.0",
-      "implementation": "qta_multiphysics/stack/ (viz, UQ/MDAO, read-only retrieval, staged FEM, selective Rust, deferred FMI) + rust/qta_kernels (built on demand)",
-      "consumers": [
-        "Snakefile (s10_* rules; s10_full)",
-        "tests/test_stage10_stack.py (asserts the registry matches the code)"
-      ],
-      "note": "additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, and the s10_canonical_untouched rule re-verifies final_manifest.json after the stage runs"
-    },
-    "agent_authority_substrate": {
-      "authority": "qta_agent/authority.py :: the transition table and invariants I1-I6 that decide what may become canonical; qta_agent/events.py :: the append-only hash-chained log that is the only writable record of those decisions; qta_agent/evidence.py :: the content-addressed store that makes a cited digest resolvable, which is what turns I6 from a shape check into an existence check; qta_agent/checkpoint.py :: a cached verification result, never a second source of truth -- every use is reported as weaker than a full verification; qta_agent/canonical.py :: the one byte representation every digest in the layer is taken over",
-      "owner": "agent_substrate",
-      "schema_version": "1.0.0",
-      "implementation": "qta_agent/ -- canonical (serialization), events (log, separate head witness, anchored incremental verification), evidence (content-addressed, self-verifying, append-only), capability (authority as a bounded object), tools (default-deny registry), execution (kernel-bounded subprocesses), checkpoint (cached verification results and projection snapshots), authority (state machine), policy (versioned rule documents, deny-overrides, decisions that name the document digest that decided), secrets (references that travel and values that do not), netauth (egress as a bounded grant, default deny), store (live projection, optimistic concurrency, idempotency keys that record what they completed), invalidation (transitive staleness derived from the transition table), reconstruct (a deliberately separate replay compared against the live projection), tasks (durable work lifecycle), scheduler (the durable queue: readiness, leases, classified retry, cancellation cascade), memory (remembered statements, structurally unable to become evidence), context (what the agent was shown, recorded apart from what is true), audit (turning the log into answers), governed_stage10 (the production caller)",
-      "consumers": [
-        "tests/test_agent_substrate.py (transition table, log integrity, projection, invalidation, reconstruction)",
-        "tests/test_agent_substrate_properties.py (Hypothesis property and stateful testing; invariants asserted on every reachable state)",
-        "tests/test_agent_substrate_isolation.py (automatic_gate_effect=NONE and the declared layering, enforced rather than described)",
-        "tests/test_agent_evidence.py (the store, and the gate wired to it)",
-        "tests/test_agent_checkpoint.py (checkpoints, anchors, snapshots, and the limits of each)"
-      ],
-      "automatic_gate_effect": "NONE",
-      "does_not_mean": "This layer governs how claims ABOUT the project become canonical. It does not govern, compute, or influence any physics. No module in qta_agent/ is imported by the solvers, by qta_full_sim.py, or by metrics.py; it cannot read or write any gate; PASS=0 is unaffected by anything it does. A record reaching PROMOTED here means a claim was proposed, independently verified, and promoted under a recorded policy -- it does not mean a gate passed, that anything was measured, or that hardware exists. Likewise a task reaching VERIFIED on the governed Stage-10 path means a declared tool ran under kernel-enforced bounds with no network authority, produced the bytes it claims, and a SEPARATED registered actor confirmed those bytes are still on disk. That is provenance. It is not scientific validity.",
-      "note": "Enforcement is verified by mutation testing rather than by coverage: each check is deleted in turn and the suite must fail. tools/mutation_matrix.py exits non-zero on a survivor, on an anchor that no longer matches its source, on a source not restored byte-identically, on collateral damage to a tracked file, or on a post-run baseline that no longer passes; it refuses to start against a red baseline OR a non-deterministic one. The harness is itself mutated by tools/mutations/mutation_harness.json, after a defect was found in it: it could run a mutation against the PREVIOUS mutation's cached bytecode whenever both changed the file by the same number of bytes within one mtime second, which reported kills for mutations nothing had tested. A surviving mutation means a check is unprotected, not that it is redundant. Narrative form: AGENT_SUBSTRATE.md; per-requirement status: docs/completion_matrix.json.",
-      "status": "BUILT_AND_VERIFIED_NO_PRODUCTION_CALLER: the substrate has no consumer outside its own test suites, and tests/test_agent_substrate_isolation.py enforces that by name (ALLOWED_IMPORTERS). Nothing has been promoted through it; no existing claim, gate, document, or output in this project has been re-derived under it. PROMOTED is a state this code reaches in its tests and nowhere else. Wiring it to a real workflow is a separate change that must name which claims it governs and who holds each role."
-    }
+ "registry": "QTA single-source-of-truth authority map",
+ "schema_version": "1.0",
+ "rule": "each concept has exactly one executable authority; every other file is a consumer; documentation mirrors code and never overrides it",
+ "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+ "authorities": {
+  "modes_and_species": {
+   "authority": "qta_multiphysics/mode_sequence_3d.py :: MODES, CANONICAL_ACTIVE, RESIDUAL_ONLY, LEGACY_ALIASES, validate_live_species, assert_no_overlap",
+   "owner": "mode_sequence_3d",
+   "schema_version": "1.0",
+   "semantics": "A=Baseline, B=Carbon-13 Methane Processing (C13_CH4 only), C=Isolation/Recovery, D=He-3/He-4 NV Sensing (He3,He4 only); H2 residual/background only; B and D never overlap",
+   "consumers": [
+    "state_machine_3d",
+    "machine_fsm",
+    "species_accounting_3d",
+    "coupled_mode_solver",
+    "tests/test_mode_species_3d.py",
+    "tests/test_machine_fsm.py"
+   ]
   },
-  "competing_sources_record": [
-    {
-      "concept": "root-level module copies",
-      "competitors": [
-        "units.py",
-        "verification.py",
-        "vibration_transfer.py (root, hand-uploaded)"
-      ],
-      "execution_authority": "qta_multiphysics/ package versions; every import in the repository is package-qualified and no module imports the root copies",
-      "evidence": "root and package copies are byte-identical (sha256 equal for all three); a repository-wide import scan finds zero importers of the root copies",
-      "resolution": "RESOLVED. The root copies units.py, verification.py and vibration_transfer.py were deleted under owner authorization after re-confirming, at the commit that removed them, that each was byte-identical to its qta_multiphysics/ counterpart and that a repository-wide scan found zero importers of the root copies. The package versions are the sole remaining copies and are unchanged; execution authority is unaffected because nothing ever imported the root ones.",
-      "status": "RESOLVED_ROOT_COPIES_DELETED",
-      "withdrawn_claim": "A previous version of this record stated: 'root copies removed in Stage1-CP1 (commit 9525e24); numerical consequences: none (byte-identical, unimported)'. The removal never happened -- the files were added by 5586cf1 and are still tracked -- and the cited commit 9525e24 does not exist in this repository. The claim is withdrawn. Retained here so the correction is auditable; this field is historical text, not a citation."
-    },
-    {
-      "concept": "coherence time tau_c",
-      "competitors": [
-        "27.728 us (detection-chain derivation without pulse-fidelity factor)",
-        "292 us (canonical, Mode-D SNR=5.00 definition)"
-      ],
-      "execution_authority": "292 us canonical; 27.728 us marked SUPERSEDED in the gate/manuscript record",
-      "evidence": "cross-check closed in the hardening pass; manuscript checker enforces",
-      "resolution": "historical; resolved before this stage; numerical consequences documented in the gate table reasoning"
-    }
-  ],
-  "unresolved_conflicts": []
+  "legal_transitions_states_interlocks": {
+   "authority": "qta_multiphysics/machine_fsm.py :: STATES(32), TRANSITIONS(38), FORBIDDEN(8), INTERLOCKS(18: IL-01..14 canonical + FSM-IL-15..18), MachineFSM",
+   "owner": "machine_fsm",
+   "schema_version": "1.0",
+   "hardware_axes": [
+    "laser",
+    "microwave",
+    "c13_feed",
+    "he_dose",
+    "sense_shutter",
+    "process_port",
+    "cryobaffle",
+    "sc_heat_switch",
+    "upstream_plant",
+    "dilution",
+    "vacuum_pumping",
+    "ivc_valve",
+    "charcoal_regen"
+   ],
+   "canonical_outputs": [
+    "machine_fsm_states.csv",
+    "machine_fsm_transitions.csv",
+    "machine_fsm_interlocks.csv",
+    "machine_fsm_lifecycle_trace.csv",
+    "machine_fsm_summary.json",
+    "machine_fsm_diagram.mmd"
+   ],
+   "consumers": [
+    "runner_3d",
+    "package_consistency_check.py",
+    "MACHINE_FSM.md",
+    "tests/test_machine_fsm.py"
+   ],
+   "note": "design/registry.py + interlock_table.csv carry the engineering-ledger view of IL-01..14; machine_fsm.py holds the executable predicates; wording cross-referenced, values identical"
+  },
+  "device_states_per_mode": {
+   "authority": "qta_multiphysics/state_machine_3d.py :: device_state, DeviceState3D",
+   "owner": "state_machine_3d",
+   "schema_version": "1.0",
+   "consumers": [
+    "mode_sequence_3d",
+    "sources_3d",
+    "machine_fsm (state configs mirror it)",
+    "tests/test_coupled_3d.py"
+   ]
+  },
+  "units_and_physical_parameters": {
+   "authority": "qta_multiphysics/config.py :: MultiphysicsConfig (+ default_config); SI units with per-field comments and validators; qta_multiphysics/units.py for conversions",
+   "owner": "config",
+   "schema_version": "1.0",
+   "parameter_provenance_records": [
+    "assumed_parameters.json",
+    "measured_parameters.json",
+    "assumptions_3d.json",
+    "provenance_3d.json"
+   ],
+   "consumers": [
+    "every solver and runner"
+   ]
+  },
+  "solver_profiles_and_tolerances": {
+   "authority": "qta_multiphysics/config.py :: SolverConfig (rtol=1e-6, atol=1e-9, windows, mode_d_temp_threshold_K=0.050) + qta_full_sim.py profile flags (default | --ci | --deep | --heavy-3d)",
+   "owner": "config + qta_full_sim",
+   "schema_version": "1.0",
+   "profile_semantics": "default = canonical regeneration; --ci = fast test profile (non-canonical outputs); --deep optional; --heavy-3d opt-in (gitignored outputs/heavy_3d)",
+   "consumers": [
+    "INSTALL.md",
+    "package_consistency_check.py"
+   ]
+  },
+  "meshes": {
+   "authority": "qta_multiphysics/runner_3d.py :: CI_MESH(10x10x12), HEAVY_MESH(16x16x20); qta_multiphysics/convergence_3d.py :: REFINED(14x14x18)",
+   "owner": "runner_3d / convergence_3d",
+   "schema_version": "1.0"
+  },
+  "seeds": {
+   "authority": "qta_full_sim.py :: seed=42 (Mode-D MC N=10000; staged MC N=5000; integrated pipeline), qta_multiphysics mc_samples=30; 3D MC seed=12345 (n_samples=120) in qta_multiphysics/uncertainty.py",
+   "owner": "qta_full_sim / uncertainty",
+   "schema_version": "1.0"
+  },
+  "gates": {
+   "authority": "qta_multiphysics/metrics.py + qta_full_sim.py gate assembly -> results_gate_table.csv (83 gates; statuses CONDITIONAL/BLOCKED/UNKNOWN/DERIVED_CHECK; PASS permanently 0; can_PASS_now=NO; measured_in_this_system=false)",
+   "owner": "metrics + qta_full_sim",
+   "schema_version": "1.0",
+   "consumers": [
+    "manuscript_consistency_check.py",
+    "package_consistency_check.py",
+    "GATE_TABLE_README.md",
+    "qta_manuscript_v4.tex"
+   ]
+  },
+  "schemas": {
+   "authority": "deep_design_schema.json, deep_parameter_schema.json (deep layer); coupling ledger vocabulary in qta_multiphysics/coupling_ledger_3d.py :: ALLOWED_STATUSES",
+   "owner": "deep_expdesign / coupling_ledger_3d",
+   "schema_version": "1.0",
+   "migrations": "none required; all records at v1.0"
+  },
+  "canonical_output_paths": {
+   "authority": "repository root = canonical location for every governed output; regeneration target outputs/ is byte-compared to root by package_consistency_check.py Step 2b (exempt: deep_surrogate_readiness.json); final_manifest.json enumerates the governed set",
+   "owner": "package_consistency_check + generate_manifest",
+   "schema_version": "1.0"
+  },
+  "claim_boundary_wording": {
+   "authority": "CLAIMS_BOUNDARY.md (prose) + the machine label constant 'MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM' + per-record fields measured_in_this_system=false / can_PASS_now=NO / hardware_validated=false",
+   "owner": "CLAIMS_BOUNDARY.md + generating modules",
+   "schema_version": "1.0",
+   "enforced_by": [
+    "manuscript_consistency_check.py forbidden-pattern scan",
+    "package_consistency_check.py readiness/eligibility/FSM claim assertions and PASS-token scans"
+   ]
+  },
+  "provenance_records": {
+   "authority": "final_manifest.json (every git-tracked file except the two detached ones, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index). The file count is not restated here: it is whatever the git index holds, and generate_manifest.py --check is the authority on membership.",
+   "owner": "generate_manifest",
+   "schema_version": "1.0",
+   "record_type": "PROVENANCE",
+   "means": "these bytes were present at this SHA-256",
+   "does_not_mean": "that the file is a governed scientific authority; semantic authority is registered in this file and in AUTHORITIES.md, never conferred by manifest membership"
+  },
+  "cryopanel_dynamics": {
+   "authority": "qta_multiphysics/cryopanel_dynamics_3d.py :: PanelInventory, advance_phase (exact Langmuir capture; ASSUMED sticking; PLACEHOLDER 1-ML capacity)",
+   "owner": "cryopanel_dynamics_3d",
+   "schema_version": "1.0",
+   "consumers": [
+    "campaign_state_3d",
+    "falsification_3d",
+    "runner_3d",
+    "tests/test_campaign_3d.py"
+   ]
+  },
+  "campaign_continuity": {
+   "authority": "qta_multiphysics/campaign_state_3d.py :: build_campaign, attach_energy_ledger (schema 1.0; separate API; single-cycle canon untouched)",
+   "owner": "campaign_state_3d",
+   "schema_version": "1.0",
+   "canonical_outputs": [
+    "cryopanel_loading_3d.csv",
+    "energy_ledger_cumulative_3d.csv",
+    "machine_fsm_campaign_trace.csv",
+    "campaign_state_3d.json"
+   ],
+   "consumers": [
+    "runner_3d",
+    "package_consistency_check.py"
+   ]
+  },
+  "campaign_uncertainty": {
+   "authority": "qta_multiphysics/campaign_uncertainty_3d.py :: propagate, DISTRIBUTIONS, EXCLUSIONS (schema 1.0; seed CAMPAIGN_UNC_SEED=20260717; M=120 per the existing 3-D MC convention)",
+   "owner": "campaign_uncertainty_3d",
+   "schema_version": "1.0",
+   "canonical_outputs": [
+    "campaign_uncertainty_3d.json",
+    "campaign_uncertainty_quantiles.csv"
+   ],
+   "consumers": [
+    "runner_3d",
+    "package_consistency_check.py",
+    "tests/test_campaign_uncertainty.py"
+   ],
+   "note": "distributions restricted to authoritative declared ranges/spreads; exclusions machine-readable; marginal (not joint) thermal composition"
+  },
+  "measurement_ingestion": {
+   "authority": "qta_multiphysics/measurement_ingest_3d.py :: QUANTITY_REGISTRY, validate_record, ingest_and_compare (schema 1.0; SYNTHETIC-only; read-only; fail-closed)",
+   "owner": "measurement_ingest_3d",
+   "schema_version": "1.0",
+   "canonical_inputs": [
+    "synthetic_measurements_example.json"
+   ],
+   "canonical_outputs": [
+    "measurement_comparison_3d.json",
+    "measurement_comparison_rows.csv"
+   ],
+   "consumers": [
+    "runner_3d",
+    "package_consistency_check.py",
+    "tests/test_measurement_ingest.py"
+   ],
+   "note": "process quantities phase-locked; residual-gas diagnostics any-mode; HARDWARE refused pending validation-plan governance; band semantics band-relative, never sigma"
+  },
+  "hardware_governance": {
+   "authority": "qta_multiphysics/hardware_governance_3d.py :: DATA_CLASSES, schema_validate_hardware, build_quarantine_report, build_evidence_dossier, append_audit/verify_audit_chain (schema 1.0; read-only; automatic_gate_effect=NONE)",
+   "owner": "hardware_governance_3d",
+   "schema_version": "1.0",
+   "plan_authority": "validation_matrix.csv (experiment ids; repetition requirements UNKNOWN until specified)",
+   "consumers": [
+    "runner_3d (readiness summary only)",
+    "package_consistency_check.py",
+    "tests/test_hardware_governance.py"
+   ],
+   "note": "no hardware data exists; default execution deterministic; raw files outside the source (references + SHA-256 only); human-only review authoring"
+  },
+  "validation_roadmap": {
+   "authority": "experiment_registry.json + experiment_gate_coverage.json + experiment_matrix_coverage.json + campaign_registry.json (built deterministically by build_stage6_registries.py; playbooks rendered by build_stage6_playbooks.py) :: schema 1.0.0",
+   "owner": "stage6_roadmap",
+   "schema_version": "1.0.0",
+   "documents": [
+    "EXPERIMENT_PLAYBOOKS/ (11 x 30 sections)",
+    "raw_data_standard.md",
+    "validation_matrix_update_request.schema.json",
+    "matrix_update_examples/ (1 valid + 4 invalid)"
+   ],
+   "consumers": [
+    "hardware_governance_3d (registry loader + request validator)",
+    "runner_3d (readiness summary)",
+    "package_consistency_check.py",
+    "tests/test_stage6_roadmap.py"
+   ],
+   "note": "planning infrastructure only; not experimental evidence; automatic_gate_effect=NONE; schema 1.0.0 is a compatible extension of the project's MAJOR.MINOR convention for the new Stage-6 record types"
+  },
+  "scientific_stack_adoption": {
+   "authority": "STACK.md (narrative) + stack.json (machine-readable, schema 1.0.0) :: adoption ladder for every non-core stack element (ADOPTED / STAGED / DEFERRED); code is the authority and both mirror it",
+   "owner": "stage10_stack",
+   "schema_version": "1.0.0",
+   "implementation": "qta_multiphysics/stack/ (viz, UQ/MDAO, read-only retrieval, staged FEM, selective Rust, deferred FMI) + rust/qta_kernels (built on demand)",
+   "consumers": [
+    "Snakefile (s10_* rules; s10_full)",
+    "tests/test_stage10_stack.py (asserts the registry matches the code)"
+   ],
+   "note": "additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, and the s10_canonical_untouched rule re-verifies final_manifest.json after the stage runs"
+  },
+  "agent_authority_substrate": {
+   "authority": "qta_agent/authority.py :: the transition table and invariants I1-I6 that decide what may become canonical; qta_agent/events.py :: the append-only hash-chained log that is the only writable record of those decisions, serialized across processes by an advisory lock; qta_agent/evidence.py :: the content-addressed store that makes a cited digest resolvable, which is what turns I6 from a shape check into an existence check; qta_agent/capability.py :: CapabilityLedger, the grants IN FORCE projected from the log rather than assembled by the caller, so a grant the log never recorded authorizes nothing; qta_agent/checkpoint.py :: a cached verification result, never a second source of truth -- every use is reported as weaker than a full verification; qta_agent/canonical.py :: the one byte representation every digest in the layer is taken over",
+   "owner": "agent_substrate",
+   "schema_version": "1.0.0",
+   "implementation": "qta_agent/ -- canonical (serialization), events (log, separate head witness, anchored incremental verification), evidence (content-addressed, self-verifying, append-only), capability (authority as a bounded object), tools (default-deny registry), execution (kernel-bounded subprocesses), checkpoint (cached verification results and projection snapshots), authority (state machine), policy (versioned rule documents, deny-overrides, decisions that name the document digest that decided), secrets (references that travel and values that do not), netauth (egress as a bounded grant, default deny), store (live projection, optimistic concurrency, idempotency keys that record what they completed), invalidation (transitive staleness derived from the transition table), reconstruct (a deliberately separate replay compared against the live projection), tasks (durable work lifecycle), scheduler (the durable queue: readiness, leases, classified retry, cancellation cascade), memory (remembered statements, structurally unable to become evidence), context (what the agent was shown, recorded apart from what is true), audit (turning the log into answers), governed_stage10 (the production caller)",
+   "consumers": [
+    "tests/test_agent_substrate.py (transition table, log integrity, projection, invalidation, reconstruction)",
+    "tests/test_agent_substrate_properties.py (Hypothesis property and stateful testing; invariants asserted on every reachable state)",
+    "tests/test_agent_substrate_isolation.py (automatic_gate_effect=NONE and the declared layering, enforced rather than described)",
+    "tests/test_agent_evidence.py (the store, and the gate wired to it)",
+    "tests/test_agent_checkpoint.py (checkpoints, anchors, snapshots, and the limits of each)",
+    "tests/test_agent_execution.py (capabilities, tool contracts, bounded execution, and the ledger that makes a grant real)",
+    "tests/test_agent_policy.py, test_agent_scheduler.py, test_agent_netauth.py, test_agent_secrets.py, test_agent_memory.py, test_agent_context.py, test_agent_agents.py (one per subsystem)",
+    "tests/test_agent_audit.py (task chains, authority-record chains, policy decisions, and the provenance holes each can hide)",
+    "tests/test_agent_crash_recovery.py, test_agent_concurrency.py, test_agent_long_horizon.py (what survives a kill, a race, and a restart)",
+    "tests/test_agent_performance.py, test_agent_fuzz.py (asymptotic guards and a committed fuzz regression corpus)",
+    "tests/test_agent_governed_stage10.py (THE PRODUCTION CALLER, end to end)",
+    "Snakefile :: rule s10_governed (the governed run is part of the build; a provenance gap, an unjoinable policy decision or a gapped authority record fails it)"
+   ],
+   "automatic_gate_effect": "NONE",
+   "does_not_mean": "This layer governs how claims ABOUT the project become canonical. It does not govern, compute, or influence any physics. No module in qta_agent/ is imported by the solvers, by qta_full_sim.py, or by metrics.py; it cannot read or write any gate; PASS=0 is unaffected by anything it does. A record reaching PROMOTED here means a claim was proposed, independently verified, and promoted under a recorded policy -- it does not mean a gate passed, that anything was measured, or that hardware exists. Likewise a task reaching VERIFIED on the governed Stage-10 path means a declared tool ran under kernel-enforced bounds with no network authority, produced the bytes it claims, and a SEPARATED registered actor confirmed those bytes are still on disk. That is provenance. It is not scientific validity.",
+   "note": "Enforcement is verified by mutation testing rather than by coverage: each check is deleted in turn and the suite must fail. tools/mutation_matrix.py exits non-zero on a survivor, on an anchor that no longer matches its source, on a source not restored byte-identically, on collateral damage to a tracked file, or on a post-run baseline that no longer passes; it refuses to start against a red baseline OR a non-deterministic one. The harness is itself mutated by tools/mutations/mutation_harness.json, after a defect was found in it: it could run a mutation against the PREVIOUS mutation's cached bytecode whenever both changed the file by the same number of bytes within one mtime second, which reported kills for mutations nothing had tested. A second harness defect was found the same way: its collateral-damage restore is 'git checkout HEAD --', which cannot tell a suite-damaged file from an uncommitted edit, and it destroyed real work twice in one session; the restore still happens and the discarded bytes are now kept under .mutation-quarantine/. A surviving mutation means a check is unprotected, not that it is redundant. Narrative form: AGENT_SUBSTRATE.md; per-requirement status: docs/completion_matrix.json.",
+   "status": "BUILT_AND_VERIFIED_WITH_ONE_PRODUCTION_CALLER: qta_agent/governed_stage10.py is invoked by the Snakefile's s10_governed rule, so the substrate has a consumer that does real work and writes files somebody reads. tests/test_agent_substrate_isolation.py enforces the narrow, named crossing that permits it (two bridge modules reaching one thing, the Stage-10 write guard) and still forbids the other direction absolutely. What has NOT changed: nothing scientific has been promoted through this layer. No existing claim, gate, document, or canonical output has been re-derived under it, and PROMOTED in the authority state machine remains a state reached only in tests. The governed workflow is ONE workflow, of the safest available kind -- artifact generation with automatic_gate_effect=NONE -- and the ungoverned Stage-10 adapters remain directly callable, so the governed path is additive rather than the only route. Governing a claim, a gate or a canonical output is a separate change that must name which claims it governs and who holds each role."
+  }
+ },
+ "competing_sources_record": [
+  {
+   "concept": "root-level module copies",
+   "competitors": [
+    "units.py",
+    "verification.py",
+    "vibration_transfer.py (root, hand-uploaded)"
+   ],
+   "execution_authority": "qta_multiphysics/ package versions; every import in the repository is package-qualified and no module imports the root copies",
+   "evidence": "root and package copies are byte-identical (sha256 equal for all three); a repository-wide import scan finds zero importers of the root copies",
+   "resolution": "RESOLVED. The root copies units.py, verification.py and vibration_transfer.py were deleted under owner authorization after re-confirming, at the commit that removed them, that each was byte-identical to its qta_multiphysics/ counterpart and that a repository-wide scan found zero importers of the root copies. The package versions are the sole remaining copies and are unchanged; execution authority is unaffected because nothing ever imported the root ones.",
+   "status": "RESOLVED_ROOT_COPIES_DELETED",
+   "withdrawn_claim": "A previous version of this record stated: 'root copies removed in Stage1-CP1 (commit 9525e24); numerical consequences: none (byte-identical, unimported)'. The removal never happened -- the files were added by 5586cf1 and are still tracked -- and the cited commit 9525e24 does not exist in this repository. The claim is withdrawn. Retained here so the correction is auditable; this field is historical text, not a citation."
+  },
+  {
+   "concept": "coherence time tau_c",
+   "competitors": [
+    "27.728 us (detection-chain derivation without pulse-fidelity factor)",
+    "292 us (canonical, Mode-D SNR=5.00 definition)"
+   ],
+   "execution_authority": "292 us canonical; 27.728 us marked SUPERSEDED in the gate/manuscript record",
+   "evidence": "cross-check closed in the hardening pass; manuscript checker enforces",
+   "resolution": "historical; resolved before this stage; numerical consequences documented in the gate table reasoning"
+  }
+ ],
+ "unresolved_conflicts": []
 }
