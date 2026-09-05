@@ -1,7 +1,9 @@
 {
  "title": "Durable task lifecycle and the governed production path",
- "note": "These mutations attack the chain that turns a request into a VERIFIED result: the state machine's edges, the lease that makes ownership adjudicable, separation of duties between executor and verifier, and the verification that re-derives digests from disk rather than trusting what was just recorded. G3 is the sharpest: replay must RE-AUTHORIZE every transition, or a forged log entry becomes state simply by being present.",
+ "note": "These mutations attack the chain that turns a request into a VERIFIED result: the state machine's edges, the lease that makes ownership adjudicable, separation of duties between executor and verifier, and the verification that re-derives digests from disk rather than trusting what was just recorded. G3 is the sharpest: replay must RE-AUTHORIZE every transition, or a forged log entry becomes state simply by being present.  TWO MUTATIONS WERE REMOVED AS EQUIVALENT, not because they survived. G13 mutated `src=task.state` to `src=claimed`, and G14 mutated `executed_by=task.executed_by or claimed_by` to the reverse order. Both are unreachable-difference changes: the guards immediately above refuse any transition whose claimed src or claimed executor disagrees with the replay, so by the time either expression is evaluated the two operands are equal. tests/test_agent_governed_stage10.py enumerates every combination and asserts that none differ, so the claim is checked rather than asserted here. An equivalent mutation surviving is not evidence of an unprotected check; leaving it in the spec would have been a permanent false finding. The checks those expressions rest on are G15 and G16, and both are killed.",
  "suites": [
+  "tests/test_agent_atomicity.py",
+  "tests/test_agent_differential.py",
   "tests/test_agent_execution.py",
   "tests/test_agent_governed_stage10.py",
   "tests/test_agent_hostile_campaign.py",
@@ -171,11 +173,18 @@
    "rationale": "THE HOSTILE-CAMPAIGN FINDING: re-authorizing against a starting state the WRITER supplied authorizes nothing, because every pair in the table becomes available to a forger who names a convenient src -- one appended record moved a task out of VERIFIED, a sealed state"
   },
   {
-   "name": "G13_replay_reauthorizes_from_the_claim",
+   "name": "G15_disagreeing_executor_claim_accepted",
    "path": "qta_agent/governed_stage10.py",
-   "find": "                    task_id=p[\"task_id\"], src=task.state,",
-   "replace": "                    task_id=p[\"task_id\"], src=claimed,",
-   "rationale": "the disagreement is reported but the check still runs against the forger's src, so the refusal above becomes the only thing standing between a forged record and state"
+   "find": "                if (claimed_by and task.executed_by\n                        and claimed_by != task.executed_by):",
+   "replace": "                if False:",
+   "rationale": "a transition may name an executor the execution record contradicts, and nothing reports the disagreement"
+  },
+  {
+   "name": "G16_execution_record_does_not_name_the_executor",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                tasks[p[\"task_id\"]] = replace(\n                    task, executed_by=ev.actor,",
+   "replace": "                tasks[p[\"task_id\"]] = replace(\n                    task, executed_by=task.executed_by,",
+   "rationale": "the projection stops learning who ran the tool from the record written by the actor that ran it, and falls back to trusting a later claim"
   }
  ]
 }

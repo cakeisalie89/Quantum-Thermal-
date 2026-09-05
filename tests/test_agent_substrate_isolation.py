@@ -41,6 +41,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_machine_properties.py",
     "tests/test_agent_hostile_campaign.py",
     "tests/test_agent_differential.py",
+    "tests/test_agent_atomicity.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",

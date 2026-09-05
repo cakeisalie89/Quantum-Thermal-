@@ -130,11 +130,11 @@ in turn, and the suite must fail:
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
 | Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
 | Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 30 | re-run here |
-| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 24 | re-run here |
+| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 25 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**368 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**369 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -221,6 +221,43 @@ complaint, because it took the last `dst` it saw — while `projection()` was
 refusing the same records. An auditor that answers with the forged outcome
 tells a reader the attack worked. `explain_task` now makes the same connected-
 walk check `explain_record` already made.
+
+### The separation-of-duties bypass
+
+The second reader found this within minutes of existing, and nothing else
+had.
+
+Separation of duties is the central claim of this package — "an agent that
+verifies its own work has not verified anything" — and it is checked against
+`task.executed_by`. The projection took that value from a transition PAYLOAD:
+a field written by the same actor whose independence was being checked.
+
+So the worker holding the lease could complete its own task while naming a
+fictitious executor, and then verify it as VERIFIER. It worked. One string in
+a payload defeated the property the whole layer exists to hold.
+
+Nothing found it by reading the code, and no isolated test could: every
+individual step was legitimate. The independent replay reads the executor
+from the EXECUTION record, the projection read it from the payload, and
+comparing the two disagreed at exactly the prefix between them — with the
+bypass underneath.
+
+The execution record is the durable statement of who ran the tool. The
+projection now learns the executor from it, and refuses a transition whose
+claim disagrees rather than preferring the claim.
+
+### Two mutations were removed as EQUIVALENT, not because they survived
+
+After that fix, two mutations of the resulting expressions survived. They are
+unreachable-difference changes: the guards immediately above refuse any
+transition whose claimed src or claimed executor disagrees with the replay,
+so by the time either expression evaluates, its operands are equal. An
+equivalent mutation surviving is not evidence of an unprotected check, and
+leaving one in the matrix would be a permanent false finding.
+
+They were removed, and the equivalence is asserted by a test that enumerates
+every combination rather than by a comment nobody re-derives. The checks those
+expressions actually rest on are separate mutations, and both are killed.
 
 ### A second reader, because one reader with a hole says nothing
 

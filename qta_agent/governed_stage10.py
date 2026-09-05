@@ -71,7 +71,7 @@ import os
 import sys
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from . import actions
@@ -326,12 +326,36 @@ class GovernedStage10:
                         "through the gate; applying it would let a forger "
                         "pick any edge in the table by naming a convenient "
                         "src.")
+                # AND THE EXECUTOR COMES FROM THE EXECUTION RECORD.
+                #
+                # Separation of duties is checked against task.executed_by,
+                # and this projection used to take that from a transition
+                # PAYLOAD -- a field the same actor writes. So the worker
+                # holding the lease could complete its own task while naming
+                # a fictitious executor, and then verify it as VERIFIER. It
+                # worked: a differential comparison against reconstruct_tasks
+                # disagreed at exactly the prefix between the execution
+                # record and the completion, and the bypass was underneath.
+                #
+                # The execution record is the durable statement of who ran
+                # the tool. A claim that disagrees with it is refused rather
+                # than preferred.
+                claimed_by = p.get("executed_by")
+                if (claimed_by and task.executed_by
+                        and claimed_by != task.executed_by):
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: the record names {claimed_by!r} as "
+                        f"the executor of {task.task_id!r}, but the execution "
+                        f"record says {task.executed_by!r}. Separation of "
+                        "duties is checked against the executor, so a "
+                        "transition that gets to name one could verify its "
+                        "own work.")
                 req = TaskTransition(
                     task_id=p["task_id"], src=task.state,
                     dst=TaskState(p["dst"]), actor=ev.actor,
                     role=TaskRole(p["role"]), at_seq=ev.seq,
                     lease_id=(lease.lease_id if lease else p.get("lease_id")),
-                    executed_by=p.get("executed_by"),
+                    executed_by=task.executed_by or claimed_by,
                     result_digest=p.get("result_digest"))
                 # Re-authorize on replay. A transition that would be refused
                 # today is not applied, so a forged log entry cannot become
@@ -339,7 +363,18 @@ class GovernedStage10:
                 edge = check(req, task)
                 tasks[p["task_id"]] = apply_transition(
                     task, edge, req, seq=ev.seq, lease=lease)
-            elif ev.action in (ACT_EXECUTION, ACT_EVIDENCE):
+            elif ev.action == ACT_EXECUTION:
+                # WHO RAN IT is recorded here, by the actor that ran it, and
+                # this is where the projection learns it. Skipping this record
+                # and reading the executor out of a later transition payload
+                # is what let a worker verify its own work.
+                task = tasks[p["task_id"]]
+                tasks[p["task_id"]] = replace(
+                    task, executed_by=ev.actor,
+                    result_digest=p.get("result_digest")
+                    or task.result_digest,
+                    updated_seq=ev.seq)
+            elif ev.action == ACT_EVIDENCE:
                 continue
             else:
                 try:

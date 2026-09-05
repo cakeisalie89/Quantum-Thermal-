@@ -318,6 +318,66 @@ def test_a_forged_record_cannot_pick_its_own_starting_state(gov):
         gov.projection()
 
 
+def test_a_worker_cannot_name_a_fictitious_executor_and_verify_its_own_work(
+        gov):
+    """THE SEPARATION-OF-DUTIES BYPASS, found by differential comparison.
+
+    Separation of duties is checked against ``task.executed_by``, and the
+    projection used to take that from a transition PAYLOAD -- a field written
+    by the same actor. So the worker holding the lease could complete its own
+    task while naming a fictitious executor, and then verify it as VERIFIER.
+
+    It worked. "An agent that verifies its own work has not verified
+    anything" is the central claim of this package, and it was defeated by
+    one string in a payload.
+
+    Nothing found it by reading the code. The independent replay reads the
+    executor from the EXECUTION record, the projection read it from the
+    payload, and comparing them disagreed at exactly the prefix between the
+    two -- with the bypass underneath.
+    """
+    run = _run(gov)
+    recs = [json.loads(x) for x in gov.log.path.read_text().splitlines()]
+    cut = next(i for i, r in enumerate(recs)
+               if r["action"] == "task.execution") + 1
+
+    forged = ROOT / WS / "forged"
+    if forged.exists():
+        shutil.rmtree(forged)
+    forged.mkdir(parents=True)
+    log2 = EventLog(forged / "log.jsonl")
+    for r in recs[:cut]:
+        log2.append(actor=r["actor"], action=r["action"], target=r["target"],
+                    payload=r["payload"])
+    lease = next(r["payload"]["lease"] for r in recs
+                 if r["action"] == ACT_TASK_TRANSITION
+                 and r["payload"]["dst"] == "LEASED")
+    dg = next(r["payload"]["result_digest"] for r in recs
+              if r["action"] == ACT_TASK_TRANSITION
+              and r["payload"]["dst"] == "COMPLETED")
+    log2.append(actor=WORKER_ID, action=ACT_TASK_TRANSITION,
+                target=run.task_id,
+                payload={"task_id": run.task_id, "src": "EXECUTING",
+                         "dst": "COMPLETED", "role": "WORKER",
+                         "lease_id": lease["lease_id"],
+                         "executed_by": "ghost-executor",
+                         "result_digest": dg})
+    try:
+        g2 = GovernedStage10(root=ROOT, log=log2, evidence=gov.evidence)
+        with pytest.raises(TaskTransitionError, match="execution record says"):
+            g2.projection()
+    finally:
+        shutil.rmtree(forged)
+
+
+def test_the_projection_learns_the_executor_from_the_execution_record(gov):
+    """Stated as the property, not as one attack."""
+    run = _run(gov)
+    execs = [ev for ev in gov.log.read() if ev.action == "task.execution"]
+    assert len(execs) == 1
+    assert gov.projection().tasks[run.task_id].executed_by == execs[0].actor
+
+
 def test_the_replay_reads_src_from_itself_not_from_the_record(gov):
     """Stated as the property rather than as one attack.
 
@@ -867,3 +927,36 @@ def test_two_grants_cannot_share_an_id_in_the_log(gov, tmp_path):
                    payload={"task_id": "t", **other.body()})
     with pytest.raises(CapabilityError, match="issued twice"):
         CapabilityLedger(gov.log).load()
+
+
+def test_the_executor_and_src_fallbacks_are_unreachable_differences():
+    """Why two mutations were REMOVED from the spec rather than left surviving.
+
+    The projection writes ``src=task.state`` and
+    ``executed_by=task.executed_by or claimed_by``. Reversing either operand
+    order changes nothing, because the guards immediately above refuse any
+    transition whose claim disagrees with the replay -- so by the time the
+    expression runs, the operands are equal.
+
+    An equivalent mutation surviving is not evidence of an unprotected check,
+    and leaving one in the matrix would be a permanent false finding. This
+    enumerates the combinations so the claim is CHECKED rather than asserted
+    in a spec comment nobody re-derives.
+    """
+    differing = []
+    for recorded in (None, "worker", "ghost"):
+        for claimed in (None, "worker", "ghost"):
+            if claimed and recorded and claimed != recorded:
+                continue                    # refused before either is read
+            if (recorded or claimed) != (claimed or recorded):
+                differing.append((recorded, claimed))
+    assert not differing, differing
+
+    # And the guard that makes them unreachable is really there.
+    src = (ROOT / "qta_agent" / "governed_stage10.py").read_text(
+        encoding="utf-8")
+    # Matched on fragments that survive the f-string line breaks: the first
+    # version of this check searched for a sentence the source only contains
+    # across two lines, and failed for a guard that was present.
+    assert "claimed_by != task.executed_by" in src
+    assert "task.state is not claimed" in src

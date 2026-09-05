@@ -772,48 +772,48 @@
   {
    "id": "R39",
    "requirement": "Transactions across real workflows",
-   "classification": "PARTIALLY_IMPLEMENTED",
+   "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
    "implementation": [
     "qta_agent/events.py",
     "qta_agent/store.py",
-    "qta_agent/tasks.py"
+    "qta_agent/tasks.py",
+    "qta_agent/governed_stage10.py"
    ],
    "callers": [
-    "tests/test_agent_substrate.py",
-    "tests/test_agent_checkpoint.py"
+    "tests/test_agent_atomicity.py",
+    "tests/test_agent_crash_recovery.py"
    ],
    "production_caller": "Snakefile",
    "persistent_state": "append-only log is the commit point",
    "authority_owner": "EventLog.append",
    "evidence": "hash-chained records",
    "provenance": "none",
-   "failure_semantics": "fail-closed; refuses to append to a broken chain",
-   "recovery": "crash between append and witness update is recoverable",
+   "failure_semantics": "the enforcement projection refuses a history it cannot authorize rather than handing back a partial state; the independent replay records the problem and continues, so one bad record does not hide the rest",
+   "recovery": "every prefix of a governed run is swept: the chain still verifies, the projection either succeeds or refuses, the two readers agree, and no prefix yields a VERIFIED task without the execution and evidence records behind it. Each state a crash can leave a task in has a named recovery, and a state with no entry fails the test",
    "retry": "n/a",
-   "idempotency": "idempotency keys bound to the record they completed",
+   "idempotency": "idempotency keys on the scheduler; the log's append is the commit point, so a crash before it leaves no trace and a crash after it leaves a durable record the next load replays",
    "cancellation": "n/a",
    "concurrency": "optimistic concurrency via expected_revision",
    "security_boundary": "none",
    "tests": [
-    "tests/test_agent_substrate.py",
-    "tests/test_agent_checkpoint.py",
-    "tests/test_agent_governed_stage10.py"
+    "tests/test_agent_atomicity.py",
+    "tests/test_agent_crash_recovery.py",
+    "tests/test_agent_differential.py"
    ],
    "property_tests": [
     "tests/test_agent_substrate_properties.py"
    ],
    "mutation_tests": [
-    "tools/mutations/agent_substrate.json",
-    "tools/mutations/agent_checkpoint.json",
-    "tools/mutations/agent_tasks.json"
+    "tools/mutations/agent_tasks.json",
+    "tools/mutations/agent_substrate.json"
    ],
    "fuzzing": "none",
    "differential": "none",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "crash points tested: append vs witness update, a worker killed mid-execution, and a truncated trailing line. Not every boundary in the governed sequence has an injected crash",
-    "no compensating actions for non-rollbackable effects; the tool contract declares SideEffect.EXTERNAL and nothing consumes it",
-    "the governed path's steps are individually logged but are not one atomic unit: a crash between the execution record and the COMPLETED transition leaves the task EXECUTING, recoverable but not automatically"
+    "the governed path is NOT one atomic unit and there is no two-phase commit. What is established instead is that every PREFIX is a state recovery handles, and which prefixes produce each state",
+    "a crash between the execution record and the COMPLETED transition still leaves the task EXECUTING. The lease lapses and the scheduler requeues the WORK, but nothing automatically resolves the task RECORD -- the sweep pins down exactly which prefixes do this rather than leaving it as prose",
+    "no compensating actions for non-rollbackable effects; the tool contract declares SideEffect.EXTERNAL and nothing consumes that declaration"
    ],
    "blocker": null
   },
