@@ -592,6 +592,20 @@ rule s10_governed:
             "a governed run recorded a policy denial and still reported "
             f"success: {[d.summary for d in index.denials()]}")
 
+        # A SECOND reader of the same bytes, sharing no reducer with the
+        # projection above. Two implementations that agree is differential
+        # evidence; one implementation with a hole says nothing at all, and
+        # the task projection is where a hole was actually found.
+        from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
+
+        recon = reconstruct_tasks(gov.log)
+        divergences = compare_tasks(gov.projection(), recon)
+        assert not divergences, (
+            "the live projection and an independent replay disagree:\n"
+            + "\n".join(f"  - {d}" for d in divergences))
+        assert not recon.unauthorized, recon.unauthorized
+        assert not recon.anomalies, recon.anomalies
+
         # Authority records, if this history holds any, must be whole too.
         record_gaps = [e for e in index.audit_records() if not e.complete]
         assert not record_gaps, (
@@ -625,6 +639,11 @@ rule s10_governed:
             "policy_decision": decision.to_record(),
             "policy_denials": 0,
             "authority_records_audited": len(index.records()),
+            "independent_replay": {
+                "agrees": True, "divergences": 0,
+                "events_replayed": recon.events_replayed,
+                "tasks_verified": list(recon.verified_ids()),
+            },
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 

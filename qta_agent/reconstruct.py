@@ -1,4 +1,4 @@
-"""Independent reconstruction of authority state from the event log alone.
+"""Independent reconstruction of durable state from the event log alone.
 
 This module exists to answer one question without trusting the running
 system: *given only the log, what is canonical?*
@@ -24,6 +24,22 @@ Every transition is re-authorized against the state machine during replay. An
 event that the machine would refuse today is reported rather than applied --
 which is how a log written by a compromised or older writer, or under a since
 changed policy, becomes visible instead of being silently absorbed.
+
+TWO MACHINES, THE SAME TREATMENT
+
+:func:`reconstruct` covers authority records. :func:`reconstruct_tasks` covers
+the task lifecycle, and it exists for a reason that is not symmetry: the task
+projection is the one on the PRODUCTION path, and it is the one that turned
+out to re-authorize forged records against a starting state the record itself
+declared. A second implementation is the defence against that class -- not
+because the second one is more careful, but because two readers that disagree
+say so, and a single reader with a hole says nothing at all.
+
+The two replays differ in what they do about a refusal, and deliberately.
+``governed_stage10.projection`` is ENFORCEMENT: it raises, because a reader
+that cannot tell which records went through the gate must not hand back a
+state. This module is DIAGNOSIS: it records the problem and keeps going, so
+one bad record does not hide the twenty after it.
 """
 from __future__ import annotations
 
@@ -39,6 +55,23 @@ from .authority import (
     check,
 )
 from .events import EventLog
+from .tasks import (
+    INITIAL as TASK_INITIAL,
+)
+from .tasks import (
+    TERMINAL as TASK_TERMINAL,
+)
+from .tasks import (
+    Lease,
+    Task,
+    TaskRole,
+    TaskState,
+    TaskTransition,
+    TaskTransitionError,
+)
+from .tasks import (
+    check as task_check,
+)
 
 
 @dataclass
@@ -189,6 +222,209 @@ class Divergence:
     def __str__(self) -> str:
         return (f"{self.record_id}.{self.field_name}: live={self.live!r} "
                 f"reconstructed={self.reconstructed!r}")
+
+
+@dataclass
+class TaskReconstruction:
+    """The task lifecycle as a second reader sees it."""
+    #: task_id -> plain dict of reconstructed fields
+    tasks: dict = field(default_factory=dict)
+    #: Transitions the machine would refuse if replayed today.
+    unauthorized: list = field(default_factory=list)
+    #: Structural problems that did not stop replay.
+    anomalies: list = field(default_factory=list)
+    events_replayed: int = 0
+    foreign_events: int = 0
+    head_seq: int = -1
+    head_hash: str = ""
+
+    def states(self) -> dict:
+        return {tid: t["state"] for tid, t in sorted(self.tasks.items())}
+
+    def verified_ids(self) -> tuple:
+        return tuple(sorted(tid for tid, t in self.tasks.items()
+                            if t["state"] == TaskState.VERIFIED.value))
+
+
+def reconstruct_tasks(log: EventLog, *,
+                      reauthorize: bool = True) -> TaskReconstruction:
+    """Replay the task lifecycle from the log alone. Never raises on content.
+
+    A SECOND implementation, in plain dictionaries, sharing no reducer with
+    ``governed_stage10.projection``. See the module docstring for why that
+    duplication is the point rather than an oversight.
+    """
+    report = log.verify()
+    report.raise_if_bad()
+    out = TaskReconstruction(head_seq=report.head_seq,
+                             head_hash=report.head_hash)
+    tasks: dict = {}
+    owned = {"task.create", "task.transition", "task.execution",
+             "task.evidence"}
+
+    for ev in log.read():
+        out.events_replayed += 1
+        action = ev.action
+        if action not in owned:
+            kind = actions.classify(action, mine=owned)
+            if kind == actions.UNKNOWN:
+                out.anomalies.append(
+                    f"seq {ev.seq}: unknown action {action!r}; no module in "
+                    "this package writes it, so this reconstruction cannot "
+                    "say what it meant")
+            else:
+                out.foreign_events += 1
+            continue
+        p = ev.payload
+        tid = p.get("task_id", ev.target)
+
+        if action == "task.create":
+            if tid in tasks:
+                out.anomalies.append(
+                    f"seq {ev.seq}: task {tid!r} created twice; the second "
+                    "record would silently replace the first one's history")
+                continue
+            tasks[tid] = {
+                "task_id": tid, "tool_id": p.get("tool_id"),
+                "submitter": p.get("submitter"),
+                "inputs_digest": p.get("inputs_digest"),
+                "state": TASK_INITIAL.value, "revision": 1,
+                "executed_by": None, "result_digest": None,
+                "lease": None, "depends_on": list(p.get("depends_on") or ()),
+                "created_seq": ev.seq, "updated_seq": ev.seq,
+                "artifacts": {}, "history": [(ev.seq, TASK_INITIAL.value)],
+            }
+            continue
+
+        cur = tasks.get(tid)
+        if cur is None:
+            out.anomalies.append(
+                f"seq {ev.seq}: {action} for unknown task {tid!r}; nothing "
+                "records what was being asked for")
+            continue
+
+        if action == "task.evidence":
+            arts = p.get("artifacts") or {}
+            cur["artifacts"].update(arts)
+            continue
+        if action == "task.execution":
+            cur["executed_by"] = ev.actor
+            cur["result_digest"] = p.get("result_digest")
+            continue
+
+        # task.transition
+        claimed = p.get("src")
+        if cur["state"] != claimed:
+            out.anomalies.append(
+                f"seq {ev.seq}: {tid} claims src {claimed} but replay has it "
+                f"in {cur['state']}")
+        lease = None
+        if p.get("lease"):
+            try:
+                lease = Lease(**p["lease"])
+            except TypeError:
+                out.anomalies.append(
+                    f"seq {ev.seq}: {tid} carries a lease record this build "
+                    "cannot interpret")
+        if reauthorize:
+            # From the state THIS replay reached, never from the claim. A
+            # forger who names a convenient src would otherwise have every
+            # pair in the table available, which is exactly the defect the
+            # production projection had.
+            probe = Task(
+                task_id=tid, tool_id=cur["tool_id"] or "",
+                submitter=cur["submitter"] or "",
+                inputs_digest=cur["inputs_digest"] or "",
+                state=TaskState(cur["state"]), revision=cur["revision"],
+                lease=_lease_of(cur) or lease,
+                executed_by=cur["executed_by"],
+                result_digest=cur["result_digest"])
+            try:
+                task_check(TaskTransition(
+                    task_id=tid, src=TaskState(cur["state"]),
+                    dst=TaskState(p["dst"]), actor=ev.actor,
+                    role=TaskRole(p["role"]), at_seq=ev.seq,
+                    lease_id=(p.get("lease_id")
+                              or (probe.lease.lease_id if probe.lease
+                                  else None)),
+                    executed_by=cur["executed_by"],
+                    result_digest=p.get("result_digest")), probe)
+            except (TaskTransitionError, ValueError, KeyError) as exc:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} "
+                    f"would be refused today: {exc}")
+                # Do NOT apply. Presence in the log is not authority.
+                continue
+
+        # The lease follows the task, not the record. Only the move INTO
+        # LEASED carries one; the moves that need it afterwards cite its id
+        # and rely on the task still holding it. Replacing the lease on every
+        # transition drops it at the next step and then refuses the
+        # completion -- which is what this replay did until the differential
+        # test compared it against the live projection and disagreed.
+        dst = TaskState(p["dst"])
+        if dst is TaskState.LEASED:
+            cur["lease"] = dict(p["lease"]) if p.get("lease") else None
+        elif dst is TaskState.QUEUED or dst in TASK_TERMINAL:
+            # Requeued or finished work holds nothing: a lease that outlives
+            # the work it owned is a lease somebody else has to wait out.
+            cur["lease"] = None
+        cur["state"] = p["dst"]
+        cur["revision"] += 1
+        cur["updated_seq"] = ev.seq
+        if p.get("result_digest") is not None:
+            cur["result_digest"] = p["result_digest"]
+        if p.get("executed_by") is not None:
+            cur["executed_by"] = p["executed_by"]
+        cur["history"].append((ev.seq, p["dst"]))
+
+    out.tasks = tasks
+    return out
+
+
+def _lease_of(cur: dict):
+    """Rebuild the lease this replay is currently holding, if any."""
+    raw = cur.get("lease")
+    if not raw:
+        return None
+    try:
+        return Lease(**raw)
+    except TypeError:                      # pragma: no cover - malformed
+        return None
+
+
+def compare_tasks(projection, recon: TaskReconstruction) -> tuple:
+    """Diff the live task projection against the independent replay.
+
+    Empty means two implementations reading the same bytes reached the same
+    verdict. Anything else is a divergence one of them has to answer for.
+    """
+    diffs: list = []
+    live = dict(projection.tasks)
+    for tid in sorted(set(live) | set(recon.tasks)):
+        if tid not in live:
+            diffs.append(Divergence(tid, "<presence>", "ABSENT", "present"))
+            continue
+        if tid not in recon.tasks:
+            diffs.append(Divergence(tid, "<presence>", "present", "ABSENT"))
+            continue
+        lv, rc = live[tid], recon.tasks[tid]
+        for name, lval, rval in (
+            ("state", lv.state.value, rc["state"]),
+            ("tool_id", lv.tool_id, rc["tool_id"]),
+            ("submitter", lv.submitter, rc["submitter"]),
+            ("inputs_digest", lv.inputs_digest, rc["inputs_digest"]),
+            ("executed_by", lv.executed_by, rc["executed_by"]),
+            ("result_digest", lv.result_digest, rc["result_digest"]),
+            # The lease is state, not decoration. A replay that keeps a
+            # finished task's lease says the work is still owned by a worker
+            # that has stopped, and nothing else in this diff would notice.
+            ("lease", lv.lease.to_record() if lv.lease else None,
+             rc["lease"]),
+        ):
+            if lval != rval:
+                diffs.append(Divergence(tid, name, lval, rval))
+    return tuple(diffs)
 
 
 def compare(store, recon: Reconstruction) -> tuple:

@@ -1373,17 +1373,23 @@
   {
    "id": "R53",
    "requirement": "Differential testing across independent implementations",
-   "classification": "PARTIALLY_IMPLEMENTED",
+   "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
    "implementation": [
     "qta_agent/reconstruct.py"
    ],
-   "callers": [],
-   "production_caller": null,
+   "callers": [
+    "Snakefile",
+    "tests/test_agent_differential.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_crash_recovery.py",
+    "tests/test_agent_long_horizon.py"
+   ],
+   "production_caller": "Snakefile",
    "persistent_state": "none",
-   "authority_owner": "none",
-   "evidence": "none",
+   "authority_owner": "reconstruct.compare / compare_tasks -- neither implementation is the authority; a disagreement is a finding one of them must answer for",
+   "evidence": "TWO differential pairs, each a second implementation in plain dictionaries sharing no reducer with the live projection: authority records (reconstruct/compare) and the task lifecycle (reconstruct_tasks/compare_tasks). Both re-authorize from the state THEY replayed, and both are asserted by the governed Snakemake rule",
    "provenance": "none",
-   "failure_semantics": "none",
+   "failure_semantics": "the enforcement projection RAISES on a record it cannot authorize; the reconstruction RECORDS it and continues, so one bad record does not hide the twenty after it. The difference is deliberate and stated",
    "recovery": "none",
    "retry": "n/a",
    "idempotency": "n/a",
@@ -1391,7 +1397,9 @@
    "concurrency": "n/a",
    "security_boundary": "none",
    "tests": [
-    "tests/test_agent_substrate.py"
+    "tests/test_agent_differential.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_crash_recovery.py"
    ],
    "property_tests": [
     "tests/test_agent_substrate_properties.py"
@@ -1400,11 +1408,12 @@
     "tools/mutations/agent_substrate.json"
    ],
    "fuzzing": "none",
-   "differential": "stateful Hypothesis machine compares both on every step",
+   "differential": "authority records and the task lifecycle; a divergence names the field, not merely the fact",
    "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
    "residual_gaps": [
-    "one differential pair; no numerical differential testing",
-    "no tolerated-difference register"
+    "no NUMERICAL differential testing, and no tolerated-difference register. Everything compared here is exact: states, digests, identities. A scientific result compared across two implementations would need a declared tolerance, and nothing in this package has one",
+    "the scheduler, policy, memory, agent and capability projections have no second implementation. The two that do are the two that decide what is canonical and what work was verified; the others are compared only against a fresh replay of themselves, which shares their reducer and so cannot see a shared misunderstanding",
+    "an empty diff is evidence, not proof: both implementations could share a mistake the log cannot reveal"
    ],
    "blocker": null
   },

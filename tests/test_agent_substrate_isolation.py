@@ -40,6 +40,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_substrate_properties.py",
     "tests/test_agent_machine_properties.py",
     "tests/test_agent_hostile_campaign.py",
+    "tests/test_agent_differential.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",
@@ -76,9 +77,13 @@ ALLOWED_IMPORTERS = {
 #: modules strictly earlier in this tuple, which keeps the graph a line
 #: rather than a web and makes "the log is the truth" structurally true
 #: instead of aspirational.
+# `reconstruct` sits after `tasks` because it now replays BOTH machines: the
+# authority records it always did, and the task lifecycle, which needs the
+# task transition table. Nothing earlier imports it -- it is a second reader,
+# and second readers belong downstream of everything they read.
 LAYERS = ("canonical", "actions", "events", "evidence", "capability", "tools",
           "execution", "checkpoint", "authority", "policy", "secrets",
-          "netauth", "store", "invalidation", "reconstruct", "tasks",
+          "netauth", "store", "invalidation", "tasks", "reconstruct",
           "scheduler", "memory", "context", "agents", "audit",
           "_stage10_tool", "governed_stage10")
 

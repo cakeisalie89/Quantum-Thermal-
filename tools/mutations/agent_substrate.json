@@ -3,6 +3,7 @@
  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that.",
  "suites": [
   "tests/test_agent_concurrency.py",
+  "tests/test_agent_differential.py",
   "tests/test_agent_substrate.py",
   "tests/test_agent_substrate_isolation.py",
   "tests/test_agent_substrate_properties.py"
@@ -144,8 +145,8 @@
   {
    "name": "M20_reconstruct_without_verifying",
    "path": "qta_agent/reconstruct.py",
-   "find": "    report.raise_if_bad()",
-   "replace": "    pass",
+   "find": "    report = log.verify()\n    report.raise_if_bad()\n\n    out = Reconstruction(",
+   "replace": "    report = log.verify()\n\n    out = Reconstruction(",
    "rationale": "differential verification would run against a corrupt log and agree"
   },
   {
@@ -175,6 +176,48 @@
    "find": "        if fcntl is None:                       # pragma: no cover - non-POSIX\n            raise EventLogError(",
    "replace": "        if False:\n            raise EventLogError(",
    "rationale": "a platform without advisory locking silently gets the unlocked append that corrupts the chain"
+  },
+  {
+   "name": "M25_task_replay_trusts_the_records_src",
+   "path": "qta_agent/reconstruct.py",
+   "find": "        if cur[\"state\"] != claimed:\n            out.anomalies.append(\n                f\"seq {ev.seq}: {tid} claims src {claimed} but replay has it \"",
+   "replace": "        if False:\n            out.anomalies.append(\n                f\"seq {ev.seq}: {tid} claims src {claimed} but replay has it \"",
+   "rationale": "the SECOND reader stops noticing a forged starting state, so the only remaining detector of that class is the projection that already had the hole"
+  },
+  {
+   "name": "M26_task_replay_applies_unauthorized_records",
+   "path": "qta_agent/reconstruct.py",
+   "find": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {exc}\")\n                # Do NOT apply. Presence in the log is not authority.\n                continue",
+   "replace": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {exc}\")",
+   "rationale": "a transition the machine forbids becomes state in the independent replay, so the two readers agree on a history neither should accept"
+  },
+  {
+   "name": "M27_task_replay_drops_the_lease_each_transition",
+   "path": "qta_agent/reconstruct.py",
+   "find": "        if dst is TaskState.LEASED:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
+   "replace": "        if True:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
+   "rationale": "the replay loses the lease at the step after LEASED and then refuses every completion, so it diverges from the live projection on every healthy run"
+  },
+  {
+   "name": "M28_task_replay_keeps_a_finished_tasks_lease",
+   "path": "qta_agent/reconstruct.py",
+   "find": "        elif dst is TaskState.QUEUED or dst in TASK_TERMINAL:",
+   "replace": "        elif False:",
+   "rationale": "a lease outlives the work it owned, so requeued work is still owned by a worker that finished"
+  },
+  {
+   "name": "M29_task_replay_skips_unknown_actions",
+   "path": "qta_agent/reconstruct.py",
+   "find": "            if kind == actions.UNKNOWN:\n                out.anomalies.append(\n                    f\"seq {ev.seq}: unknown action {action!r}; no module in \"",
+   "replace": "            if False:\n                out.anomalies.append(\n                    f\"seq {ev.seq}: unknown action {action!r}; no module in \"",
+   "rationale": "a record from a newer schema is silently dropped, so the reconstruction is confidently wrong about a history it could not read"
+  },
+  {
+   "name": "M30_task_replay_without_verifying",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    report = log.verify()\n    report.raise_if_bad()\n    out = TaskReconstruction(",
+   "replace": "    report = log.verify()\n    out = TaskReconstruction(",
+   "rationale": "a second opinion about a document that may have been rewritten is not a second opinion; the differential would then compare two readings of tampered bytes"
   }
  ]
 }

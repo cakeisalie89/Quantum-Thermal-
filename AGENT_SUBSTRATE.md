@@ -129,12 +129,12 @@ in turn, and the suite must fail:
 | Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 14 | CI |
 | Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 41 | re-run here |
 | Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 25 | CI |
-| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 24 | re-run here |
+| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 30 | re-run here |
 | Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 24 | re-run here |
 | The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
 | Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
 
-**362 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+**368 mutations across 15 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
 single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
 
 Re-run any of them with:
@@ -221,6 +221,29 @@ complaint, because it took the last `dst` it saw — while `projection()` was
 refusing the same records. An auditor that answers with the forged outcome
 tells a reader the attack worked. `explain_task` now makes the same connected-
 walk check `explain_record` already made.
+
+### A second reader, because one reader with a hole says nothing
+
+`reconstruct.py` was already a second implementation of the authority-record
+replay, written in plain dictionaries and sharing no reducer with
+`AuthorityStore`. It now does the same for the TASK lifecycle, and that
+addition is not symmetry: the task projection is the one on the production
+path, and it is the one that turned out to re-authorize forged records against
+a starting state the record itself declared. Every one of its own tests passed
+over that hole. A second reader is the defence against the class — not because
+it is more careful, but because two readers that disagree say so.
+
+Writing it found a defect in the new reader immediately: it dropped the lease
+at the step after `LEASED`, so it refused every completion and diverged from
+the live projection on every healthy run. The comparison caught that in its
+first execution, which is the point.
+
+The two differ in what they do about a refusal, deliberately.
+`governed_stage10.projection` is ENFORCEMENT and raises, because a reader that
+cannot tell which records went through the gate must not hand back a state.
+`reconstruct_tasks` is DIAGNOSIS and records the problem and keeps going, so
+one bad record does not hide the twenty after it. The governed Snakemake rule
+asserts both, so a divergence fails the build.
 
 ### What property testing found that mutation testing could not
 
