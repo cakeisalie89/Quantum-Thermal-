@@ -1,0 +1,501 @@
+"""Versioned policy: rules that can be read, digested, and dated.
+
+WHY ``policy_id`` WAS NOT A POLICY
+
+The authority state machine has always required an explicit ``policy_id`` on
+promotion (I5). That closed one hole -- a promotion could not happen with
+nothing named as its basis -- and left a larger one open: the id named
+nothing. There was no document, no version, no rule set, and no record of
+what the policy had said. "Which policy allowed this?" was answerable only as
+a string; "what did that policy permit?" was not answerable at all.
+
+This module makes the identity resolve to content:
+
+  * a :class:`PolicyDocument` is an immutable, ordered set of rules with a
+    version and a content digest;
+  * publishing one is an event, so the sequence of policies is part of the
+    same hash-chained history as the decisions they governed;
+  * evaluating a request yields a :class:`Decision` that names the document
+    digest, the rule that decided, and why -- so the reason survives the
+    process that produced it.
+
+DENY OVERRIDES, AND THE DEFAULT IS DENY
+
+Evaluation collects every rule that matches the request. If any of them denies,
+the request is denied and the first such rule is named. Otherwise, if any rule
+allows, it is allowed. If nothing matches, it is denied.
+
+Deny-overrides rather than first-match is deliberate. Under first-match, a
+carve-out written to forbid something can be silently defeated by an earlier
+broad grant, and the mistake is invisible because both rules are individually
+correct. Under deny-overrides, adding a prohibition cannot be undone by
+ordering.
+
+NO EMPTY MATCH SETS
+
+Every match field must be a non-empty tuple, and "any" must be spelled
+:data:`ANY` rather than left blank. An empty field is refused at construction.
+The asymmetry is the reason: an empty field on an ALLOW rule grants nothing
+and is merely useless, while an empty field on a DENY rule forbids nothing and
+quietly re-permits whatever the rule was written to stop. Refusing both keeps
+a truncated or half-edited rule from being the dangerous one.
+
+POLICY IS NOT RETROACTIVE
+
+:meth:`PolicyStore.in_force_at` returns the document that was published at or
+before a log position -- not the newest one. A decision made at seq 40 was
+governed by the policy in force at seq 40, and re-evaluating it under today's
+rules would answer a different question than the one an auditor is asking.
+Todays's rules govern today's requests; that is what makes I5 mean anything.
+
+VERSIONS ARE GAP-FREE
+
+A document's version must be exactly one more than the previous version of the
+same ``policy_id``. Skipping a version would make "which policy governed seq
+N" ambiguous in exactly the case where it matters -- when someone is looking
+for the version that is missing.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+
+from .canonical import digest
+
+#: Explicit wildcard. Must be written out; a blank field is refused.
+ANY = "*"
+
+#: Event actions. Constants so a typo cannot create a second, unread action.
+ACT_POLICY_PUBLISH = "policy.publish"
+ACT_POLICY_DECISION = "policy.decision"
+
+#: A published document larger than this is refused. A policy nobody can read
+#: is not inspectable, and an unbounded one is a memory bomb on every replay.
+MAX_RULES = 512
+
+
+class PolicyError(Exception):
+    """Base class. Every failure here is fail-closed."""
+
+
+class PolicyDenied(PolicyError):
+    """The policy in force does not permit this request."""
+
+
+class UnknownPolicy(PolicyError):
+    """No such policy was ever published, or none at the requested position."""
+
+
+class PolicyVersionError(PolicyError):
+    """A publication would break the version sequence."""
+
+
+class Effect(str, Enum):
+    """What a matching rule does.
+
+    ``str`` mixin so it serializes canonically.
+    """
+
+    ALLOW = "ALLOW"
+    DENY = "DENY"
+
+
+def _match_field(values, what: str) -> tuple:
+    """Validate one match field: non-empty, all non-empty strings, sorted."""
+    if isinstance(values, str):
+        # A bare string would iterate character by character and produce a
+        # rule matching single letters. Refused rather than wrapped, because
+        # guessing the author's intent is how a rule ends up meaning
+        # something nobody wrote.
+        raise PolicyError(
+            f"{what} must be a sequence of strings, not the bare string "
+            f"{values!r}")
+    try:
+        items = list(values)
+    except TypeError as exc:
+        raise PolicyError(f"{what} is not iterable: {exc}") from exc
+    # Type-check BEFORE sorting. ``sorted`` on a mixed list raises TypeError
+    # about comparison, which names the wrong problem and sends whoever reads
+    # it looking for an ordering bug.
+    for v in items:
+        if not isinstance(v, str) or not v:
+            raise PolicyError(
+                f"{what} entry must be a non-empty str, got {v!r}")
+    out = tuple(sorted(set(items)))
+    if not out:
+        raise PolicyError(
+            f"{what} is empty; write {ANY!r} if you mean 'any'. An empty "
+            "match set on a DENY rule forbids nothing, which is the opposite "
+            "of what such a rule is written for.")
+    return out
+
+
+@dataclass(frozen=True)
+class PolicyRequest:
+    """What is being asked, described independently of who is asking.
+
+    Mirrors :class:`~qta_agent.capability.Request`: the evaluation compares a
+    described request against described rules, and cannot consult the caller.
+    """
+
+    action: str
+    subject: str
+    role: str
+    resource: str
+    task_id: str = ""
+    #: Diagnostic only. Never consulted by :meth:`Rule.matches` -- adding a
+    #: match on free-form attributes would make the rule language open-ended,
+    #: and an open-ended rule language is an interpreter with an audience.
+    attributes: dict = field(default_factory=dict)
+
+    def to_record(self) -> dict:
+        return {"action": self.action, "subject": self.subject,
+                "role": self.role, "resource": self.resource,
+                "task_id": self.task_id,
+                "attributes": dict(sorted(self.attributes.items()))}
+
+
+@dataclass(frozen=True)
+class Rule:
+    """One ordered, total, side-effect-free decision over a request."""
+
+    rule_id: str
+    effect: Effect
+    actions: tuple
+    subjects: tuple
+    roles: tuple
+    resources: tuple
+    reason: str = ""
+
+    def matches(self, req: PolicyRequest) -> bool:
+        """Every field must match. Conjunctive; there is no partial match."""
+        return (_hit(self.actions, req.action)
+                and _hit(self.subjects, req.subject)
+                and _hit(self.roles, req.role)
+                and _hit(self.resources, req.resource))
+
+    def body(self) -> dict:
+        return {"rule_id": self.rule_id, "effect": self.effect.value,
+                "actions": list(self.actions), "subjects": list(self.subjects),
+                "roles": list(self.roles), "resources": list(self.resources),
+                "reason": self.reason}
+
+
+def _hit(allowed: tuple, value: str) -> bool:
+    return ANY in allowed or value in allowed
+
+
+def rule(*, rule_id: str, effect: Effect, actions, subjects, roles,
+         resources, reason: str = "") -> Rule:
+    """Construct a rule, validating everything that cannot be fixed later."""
+    if not isinstance(rule_id, str) or not rule_id:
+        raise PolicyError("rule_id must be a non-empty str")
+    if not isinstance(effect, Effect):
+        raise PolicyError(f"effect must be an Effect, got {effect!r}")
+    return Rule(rule_id=rule_id, effect=effect,
+                actions=_match_field(actions, "actions"),
+                subjects=_match_field(subjects, "subjects"),
+                roles=_match_field(roles, "roles"),
+                resources=_match_field(resources, "resources"),
+                reason=str(reason))
+
+
+@dataclass(frozen=True)
+class PolicyDocument:
+    """An immutable, versioned rule set. Its digest is its identity."""
+
+    policy_id: str
+    version: int
+    rules: tuple
+    description: str = ""
+
+    def body(self) -> dict:
+        return {"policy_id": self.policy_id, "version": self.version,
+                "rules": [r.body() for r in self.rules],
+                "description": self.description}
+
+    def digest(self) -> str:
+        return digest(self.body())
+
+    @property
+    def identity(self) -> str:
+        """``policy_id@version``. Human-facing; the digest is the identity."""
+        return f"{self.policy_id}@{self.version}"
+
+    def evaluate(self, req: PolicyRequest) -> "Decision":
+        """Deny-overrides evaluation. Total: always returns a Decision."""
+        matched = [r for r in self.rules if r.matches(req)]
+        denies = [r for r in matched if r.effect is Effect.DENY]
+        if denies:
+            r = denies[0]
+            return Decision(
+                allowed=False, policy_id=self.policy_id, version=self.version,
+                policy_digest=self.digest(), rule_id=r.rule_id,
+                effect=Effect.DENY, request=req.to_record(),
+                reason=r.reason or f"denied by rule {r.rule_id}")
+        allows = [r for r in matched if r.effect is Effect.ALLOW]
+        if allows:
+            r = allows[0]
+            return Decision(
+                allowed=True, policy_id=self.policy_id, version=self.version,
+                policy_digest=self.digest(), rule_id=r.rule_id,
+                effect=Effect.ALLOW, request=req.to_record(),
+                reason=r.reason or f"allowed by rule {r.rule_id}")
+        return Decision(
+            allowed=False, policy_id=self.policy_id, version=self.version,
+            policy_digest=self.digest(), rule_id=None, effect=Effect.DENY,
+            request=req.to_record(),
+            reason="no rule matched; the default is deny")
+
+
+def document(*, policy_id: str, version: int, rules,
+             description: str = "") -> PolicyDocument:
+    """Construct a document, validating shape and rule-id uniqueness."""
+    if not isinstance(policy_id, str) or not policy_id:
+        raise PolicyError("policy_id must be a non-empty str")
+    if (not isinstance(version, int) or isinstance(version, bool)
+            or version < 1):
+        raise PolicyError(
+            f"version must be an int >= 1, got {version!r}; version 0 would "
+            "be indistinguishable from 'unset'")
+    rules = tuple(rules)
+    if not rules:
+        raise PolicyError(
+            "a policy with no rules denies everything by default and is "
+            "refused rather than published; an empty rule set is almost "
+            "always a serialization failure, not an intent")
+    if len(rules) > MAX_RULES:
+        raise PolicyError(
+            f"{len(rules)} rules exceeds the {MAX_RULES}-rule bound")
+    seen = set()
+    for r in rules:
+        if not isinstance(r, Rule):
+            raise PolicyError(f"rules must be Rule instances, got {r!r}")
+        if r.rule_id in seen:
+            raise PolicyError(
+                f"duplicate rule_id {r.rule_id!r}; a decision naming it would "
+                "not identify which rule decided")
+        seen.add(r.rule_id)
+    return PolicyDocument(policy_id=policy_id, version=version, rules=rules,
+                          description=str(description))
+
+
+def document_from_record(rec: dict) -> PolicyDocument:
+    """Rebuild a document from a log payload, validating its shape.
+
+    Used by the projection and by any independent reconstruction, so a
+    malformed record fails identically in both rather than being tolerated by
+    whichever one happens to be more forgiving.
+    """
+    if not isinstance(rec, dict):
+        raise PolicyError(f"policy record is {type(rec).__name__}")
+    try:
+        raw_rules = rec["rules"]
+        if not isinstance(raw_rules, list):
+            raise PolicyError("policy record 'rules' must be a list")
+        rules = []
+        for rr in raw_rules:
+            if not isinstance(rr, dict):
+                raise PolicyError(
+                    f"rule record is {type(rr).__name__}, not an object")
+            unknown = set(rr) - {"rule_id", "effect", "actions", "subjects",
+                                 "roles", "resources", "reason"}
+            if unknown:
+                # An unrecognised field could be a condition this reader does
+                # not evaluate. Applying the rule anyway would apply a
+                # narrower rule than the author wrote.
+                raise PolicyError(
+                    f"rule {rr.get('rule_id')!r} carries unknown fields "
+                    f"{sorted(unknown)}; refusing to evaluate a rule this "
+                    "version does not fully understand")
+            rules.append(rule(
+                rule_id=rr["rule_id"], effect=Effect(rr["effect"]),
+                actions=rr["actions"], subjects=rr["subjects"],
+                roles=rr["roles"], resources=rr["resources"],
+                reason=rr.get("reason", "")))
+        return document(policy_id=rec["policy_id"], version=rec["version"],
+                        rules=tuple(rules),
+                        description=rec.get("description", ""))
+    except KeyError as exc:
+        raise PolicyError(f"policy record missing {exc}") from exc
+    except ValueError as exc:
+        raise PolicyError(f"policy record is invalid: {exc}") from exc
+
+
+@dataclass(frozen=True)
+class Decision:
+    """Why a request was permitted or refused, in a form that outlives it.
+
+    Carries the policy digest rather than only the id, so a reader can tell
+    whether the document they are looking at is the one that decided. Two
+    policies with the same id and version but different content are a
+    tampering signature, and only the digest makes them distinguishable.
+    """
+
+    allowed: bool
+    policy_id: str
+    version: int
+    policy_digest: str
+    rule_id: str | None
+    effect: Effect
+    request: dict
+    reason: str
+    #: Log position the decision was made at, set when it is recorded.
+    at_seq: int = -1
+
+    def to_record(self) -> dict:
+        return {"allowed": self.allowed, "policy_id": self.policy_id,
+                "version": self.version, "policy_digest": self.policy_digest,
+                "rule_id": self.rule_id, "effect": self.effect.value,
+                "request": self.request, "reason": self.reason,
+                "at_seq": self.at_seq}
+
+    def digest(self) -> str:
+        """Content digest, EXCLUDING ``at_seq``.
+
+        The same decision reached at two positions is the same decision; the
+        position is where it was recorded, not part of what was decided.
+        """
+        rec = self.to_record()
+        rec.pop("at_seq")
+        return digest(rec)
+
+    @property
+    def identity(self) -> str:
+        return f"{self.policy_id}@{self.version}"
+
+    def raise_if_denied(self) -> "Decision":
+        if not self.allowed:
+            raise PolicyDenied(
+                f"{self.identity} denied {self.request.get('action')!r} on "
+                f"{self.request.get('resource')!r} for "
+                f"{self.request.get('subject')!r}: {self.reason}")
+        return self
+
+
+class PolicyStore:
+    """Published policies as a projection of the log. Fail closed."""
+
+    def __init__(self, log):
+        self.log = log
+        #: policy_id -> list of (seq, PolicyDocument), version-ordered.
+        self._published: dict = {}
+        self._loaded_through = -1
+
+    # ---- projection ----------------------------------------------------
+    def load(self) -> "PolicyStore":
+        self.log.verify().raise_if_bad()
+        self._published = {}
+        self._loaded_through = -1
+        for ev in self.log.read():
+            self.apply(ev)
+        return self
+
+    def apply(self, ev) -> bool:
+        """Fold one event in. Returns True when it was a policy event.
+
+        Returns rather than raising on a foreign action, because this store is
+        one reducer among several over a shared log and must not claim that
+        another subsystem's event is unknown.
+        """
+        if ev.action == ACT_POLICY_PUBLISH:
+            doc = document_from_record(ev.payload["document"])
+            claimed = ev.payload.get("policy_digest")
+            if claimed != doc.digest():
+                raise PolicyError(
+                    f"seq {ev.seq}: policy record claims digest "
+                    f"{str(claimed)[:12]} but its content hashes to "
+                    f"{doc.digest()[:12]}")
+            history = self._published.setdefault(doc.policy_id, [])
+            expected = history[-1][1].version + 1 if history else 1
+            if doc.version != expected:
+                raise PolicyVersionError(
+                    f"seq {ev.seq}: {doc.policy_id!r} version {doc.version} "
+                    f"follows version {expected - 1}; versions must be "
+                    "gap-free so 'which policy governed seq N' is answerable")
+            history.append((ev.seq, doc))
+            self._loaded_through = ev.seq
+            return True
+        if ev.action == ACT_POLICY_DECISION:
+            self._loaded_through = ev.seq
+            return True
+        return False
+
+    # ---- reads ---------------------------------------------------------
+    def in_force(self, policy_id: str) -> PolicyDocument:
+        """The newest published version of ``policy_id``."""
+        history = self._published.get(policy_id)
+        if not history:
+            raise UnknownPolicy(
+                f"no policy {policy_id!r} has been published; an unpublished "
+                "policy authorizes nothing")
+        return history[-1][1]
+
+    def in_force_at(self, policy_id: str, at_seq: int) -> PolicyDocument:
+        """The version published at or before ``at_seq``.
+
+        This is what makes a historical decision re-checkable: an auditor
+        asking why seq 40 was permitted gets the rules that were in force at
+        seq 40, not the ones written afterwards.
+        """
+        if not isinstance(at_seq, int) or isinstance(at_seq, bool):
+            raise PolicyError(f"at_seq must be an int, got {at_seq!r}")
+        history = self._published.get(policy_id)
+        if not history:
+            raise UnknownPolicy(f"no policy {policy_id!r} has been published")
+        candidates = [d for seq, d in history if seq <= at_seq]
+        if not candidates:
+            raise UnknownPolicy(
+                f"policy {policy_id!r} was first published at seq "
+                f"{history[0][0]}, after {at_seq}; nothing governed that "
+                "position and the default is deny")
+        return candidates[-1]
+
+    def versions(self, policy_id: str) -> tuple:
+        """``(seq, version, digest)`` for every publication, oldest first."""
+        return tuple((seq, d.version, d.digest())
+                     for seq, d in self._published.get(policy_id, ()))
+
+    def policy_ids(self) -> tuple:
+        return tuple(sorted(self._published))
+
+    # ---- writes --------------------------------------------------------
+    def publish(self, doc: PolicyDocument, *, actor: str) -> PolicyDocument:
+        """Append a new version. Refuses gaps, reuse and silent edits."""
+        if not isinstance(doc, PolicyDocument):
+            raise PolicyError(f"expected a PolicyDocument, got {doc!r}")
+        history = self._published.get(doc.policy_id, [])
+        expected = history[-1][1].version + 1 if history else 1
+        if doc.version != expected:
+            raise PolicyVersionError(
+                f"{doc.policy_id!r} is at version {expected - 1}; the next "
+                f"publication must be version {expected}, not {doc.version}")
+        ev = self.log.append(
+            actor=actor, action=ACT_POLICY_PUBLISH, target=doc.policy_id,
+            payload={"document": doc.body(), "policy_digest": doc.digest()})
+        self.apply(ev)
+        return doc
+
+    def evaluate(self, policy_id: str, req: PolicyRequest, *,
+                 at_seq: int | None = None) -> Decision:
+        """Decide ``req`` under the policy in force. Never raises on denial."""
+        doc = (self.in_force(policy_id) if at_seq is None
+               else self.in_force_at(policy_id, at_seq))
+        return doc.evaluate(req)
+
+    def decide_and_record(self, policy_id: str, req: PolicyRequest, *,
+                          actor: str, target: str = "") -> Decision:
+        """Evaluate and append the decision, so the reason outlives the run.
+
+        Denials are recorded too. A control plane that logs only what it
+        permitted cannot answer "what did this agent try", which is the
+        question an incident starts with.
+        """
+        decision = self.evaluate(policy_id, req)
+        ev = self.log.append(
+            actor=actor, action=ACT_POLICY_DECISION,
+            target=target or req.resource,
+            payload={"decision": decision.to_record(),
+                     "decision_digest": decision.digest()})
+        self.apply(ev)
+        return Decision(**{**decision.__dict__, "at_seq": ev.seq})

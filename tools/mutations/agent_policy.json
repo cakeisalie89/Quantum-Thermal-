@@ -1,0 +1,108 @@
+{
+  "title": "Versioned policy: rules that decide, and decisions that survive",
+  "note": "The policy layer is what makes 'which rules allowed this' answerable. Each mutation here removes one property that answer depends on: deny-overrides, the default-deny fallthrough, conjunctive matching, gap-free versioning, non-retroactivity, and the refusal to publish a document whose content does not match its claimed digest. P4 is the sharpest -- if in_force_at returns today's policy, every historical decision is re-judged under rules that did not exist when it was made, and I5 means nothing.",
+  "suites": [
+    "tests/test_agent_policy.py",
+    "tests/test_agent_scheduler.py"
+  ],
+  "mutations": [
+    {
+      "name": "P1_deny_does_not_override",
+      "path": "qta_agent/policy.py",
+      "find": "        denies = [r for r in matched if r.effect is Effect.DENY]",
+      "replace": "        denies = []",
+      "rationale": "a prohibition is defeated by any earlier broad grant; carve-outs stop carving"
+    },
+    {
+      "name": "P2_no_match_falls_open",
+      "path": "qta_agent/policy.py",
+      "find": "        return Decision(\n            allowed=False, policy_id=self.policy_id, version=self.version,\n            policy_digest=self.digest(), rule_id=None, effect=Effect.DENY,",
+      "replace": "        return Decision(\n            allowed=True, policy_id=self.policy_id, version=self.version,\n            policy_digest=self.digest(), rule_id=None, effect=Effect.ALLOW,",
+      "rationale": "the default becomes allow; a policy that matches nothing permits everything"
+    },
+    {
+      "name": "P3_matching_is_disjunctive",
+      "path": "qta_agent/policy.py",
+      "find": "        return (_hit(self.actions, req.action)\n                and _hit(self.subjects, req.subject)\n                and _hit(self.roles, req.role)\n                and _hit(self.resources, req.resource))",
+      "replace": "        return (_hit(self.actions, req.action)\n                or _hit(self.subjects, req.subject)\n                or _hit(self.roles, req.role)\n                or _hit(self.resources, req.resource))",
+      "rationale": "a rule about one actor applies to every action, role and resource"
+    },
+    {
+      "name": "P4_policy_becomes_retroactive",
+      "path": "qta_agent/policy.py",
+      "find": "        candidates = [d for seq, d in history if seq <= at_seq]",
+      "replace": "        candidates = [d for seq, d in history]",
+      "rationale": "a historical decision is re-judged under rules written after it; I5 collapses"
+    },
+    {
+      "name": "P5_version_gaps_accepted",
+      "path": "qta_agent/policy.py",
+      "find": "            if doc.version != expected:\n                raise PolicyVersionError(\n                    f\"seq {ev.seq}: {doc.policy_id!r} version {doc.version} \"",
+      "replace": "            if False:\n                raise PolicyVersionError(\n                    f\"seq {ev.seq}: {doc.policy_id!r} version {doc.version} \"",
+      "rationale": "a version can be skipped or backdated, so 'which policy governed seq N' becomes ambiguous"
+    },
+    {
+      "name": "P6_publish_version_not_checked",
+      "path": "qta_agent/policy.py",
+      "find": "        if doc.version != expected:\n            raise PolicyVersionError(\n                f\"{doc.policy_id!r} is at version {expected - 1}; the next \"",
+      "replace": "        if False:\n            raise PolicyVersionError(\n                f\"{doc.policy_id!r} is at version {expected - 1}; the next \"",
+      "rationale": "a version can be republished with different content under the same number"
+    },
+    {
+      "name": "P7_document_digest_not_verified",
+      "path": "qta_agent/policy.py",
+      "find": "            if claimed != doc.digest():",
+      "replace": "            if False:",
+      "rationale": "a rewritten policy document passes as the one whose digest was cited"
+    },
+    {
+      "name": "P8_empty_match_field_means_any",
+      "path": "qta_agent/policy.py",
+      "find": "    if not out:\n        raise PolicyError(\n            f\"{what} is empty; write {ANY!r} if you mean 'any'.",
+      "replace": "    if False:\n        raise PolicyError(\n            f\"{what} is empty; write {ANY!r} if you mean 'any'.",
+      "rationale": "a truncated DENY rule silently stops prohibiting"
+    },
+    {
+      "name": "P9_bare_string_match_accepted",
+      "path": "qta_agent/policy.py",
+      "find": "    if isinstance(values, str):",
+      "replace": "    if False:",
+      "rationale": "actions=\"act\" becomes the character set {a,c,t} and matches nothing the author meant"
+    },
+    {
+      "name": "P10_unknown_rule_fields_ignored",
+      "path": "qta_agent/policy.py",
+      "find": "            if unknown:",
+      "replace": "            if False:",
+      "rationale": "a rule carrying a condition this reader cannot evaluate is applied as a broader rule than written"
+    },
+    {
+      "name": "P11_duplicate_rule_ids_allowed",
+      "path": "qta_agent/policy.py",
+      "find": "        if r.rule_id in seen:",
+      "replace": "        if False:",
+      "rationale": "a decision naming a rule no longer identifies which rule decided"
+    },
+    {
+      "name": "P12_denial_not_raised",
+      "path": "qta_agent/policy.py",
+      "find": "        if not self.allowed:\n            raise PolicyDenied(",
+      "replace": "        if False:\n            raise PolicyDenied(",
+      "rationale": "raise_if_denied stops refusing; every caller that relies on it fails open"
+    },
+    {
+      "name": "P13_decisions_not_recorded",
+      "path": "qta_agent/policy.py",
+      "find": "            payload={\"decision\": decision.to_record(),\n                     \"decision_digest\": decision.digest()})",
+      "replace": "            payload={\"decision\": {},\n                     \"decision_digest\": \"\"})",
+      "rationale": "the recorded decision stops carrying what was decided, so an auditor reading the log learns only that something happened"
+    },
+    {
+      "name": "P14_empty_rule_set_published",
+      "path": "qta_agent/policy.py",
+      "find": "    if not rules:\n        raise PolicyError(",
+      "replace": "    if False:\n        raise PolicyError(",
+      "rationale": "a document that lost its rules in serialization is published as a policy that denies everything"
+    }
+  ]
+}

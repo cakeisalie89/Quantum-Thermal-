@@ -9,10 +9,12 @@
 # PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
 # immutable 40-hex commit object.
 #
-# SCOPE, so a green badge is not over-read: this job lints qta_agent/, runs
-# the four agent test suites, and runs both mutation matrices. It does NOT run
-# the full pytest suite, does NOT run package_consistency_check.py, and does
-# NOT execute any solver.
+# SCOPE, so a green badge is not over-read: this job lints qta_agent/ and the
+# tooling, runs every agent test suite plus the mutation harness's own suite,
+# validates the completion matrix, runs twelve mutation matrices -- including
+# one over the harness itself -- and executes the governed Stage-10 rule. It
+# does NOT run the full pytest suite, does NOT run package_consistency_check.py,
+# and does NOT execute any solver.
 #
 # What this proves: the authority layer's enforcement points are load-bearing
 # -- each one is deleted in turn and the suite must fail -- and the layer is
@@ -31,6 +33,9 @@ on:
       - "tests/test_agent_*.py"
       - "tools/mutation_matrix.py"
       - "tools/mutations/**"
+      - "tests/test_mutation_harness.py"
+      - "docs/completion_matrix.json"
+      - "tools/completion_matrix.py"
       - "AGENT_SUBSTRATE.md"
       - "authorities.json"
       - ".github/workflows/agent-substrate.yml"
@@ -51,13 +56,17 @@ jobs:
       - name: lint the substrate and the guarded Stage-10 modules
         # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
         # project's 79-column setting like any other non-legacy module.
-        run: uv run ruff check qta_agent qta_multiphysics/stack tests/test_agent_*.py
+        run: |
+          uv run ruff check qta_agent qta_multiphysics/stack \
+            tests/test_agent_*.py tests/test_mutation_harness.py \
+            tools/mutation_matrix.py tools/completion_matrix.py
       - name: completion matrix is self-consistent
         # The matrix is a self-assessment; this is what stops it drifting.
         run: uv run python tools/completion_matrix.py
       - name: agent test suites
         run: |
           uv run python -m pytest tests/test_agent_*.py \
+            tests/test_mutation_harness.py \
             tests/test_stage10_stack.py -q
       - name: mutation matrix -- substrate
         # Non-zero exit on a survivor, an anchor that no longer matches, or a
@@ -86,6 +95,48 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_audit.json
+      - name: mutation matrix -- versioned policy
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_policy.json
+      - name: mutation matrix -- durable scheduling
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_scheduler.json
+      - name: mutation matrix -- network authority
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_netauth.json
+      - name: mutation matrix -- secret handling
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_secrets.json
+      - name: mutation matrix -- memory and context
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_memory_context.json
+      - name: mutation matrix -- multi-agent identity and human escalation
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_agents.json
+      - name: mutation matrix -- the harness itself
+        # Every claim that an enforcement point is load-bearing is produced by
+        # this harness. A defect in it is not a wrong number in a table: it is
+        # an unprotected check certified as protected. One was found -- the
+        # harness could run a mutation against the PREVIOUS mutation's cached
+        # bytecode whenever both changed the file by the same number of bytes
+        # within one second -- so the instrument is now mutated with its own
+        # machinery. This step is slow because each mutation runs a suite that
+        # itself runs the harness; that cost is the point.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/mutation_harness.json
+      - name: mutation matrix -- shared-log action ownership
+        # The registry that lets several reducers project one log without
+        # either silently dropping a foreign event or refusing to share.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_actions.json
       - name: the governed production path actually runs
         # The point of a production caller is that it is exercised. This runs
         # the real Snakemake rule, not a test double, and s10_governed fails

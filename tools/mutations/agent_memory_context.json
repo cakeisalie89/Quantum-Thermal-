@@ -1,0 +1,185 @@
+{
+  "title": "Memory and context: influence without authority, and a view that is not state",
+  "note": "Both modules exist to keep one thing from becoming another. Memory must never become evidence; a context must never become the record. The mutations that matter are the ones that erase the distinction quietly -- Y5, where an invalidated source stops making what was derived from it stale, and X3, where mandatory material is dropped to make a prompt fit, so a decision is made without the policy that governed it and nothing says so.",
+  "suites": [
+    "tests/test_agent_memory.py",
+    "tests/test_agent_context.py"
+  ],
+  "mutations": [
+    {
+      "name": "Y1_fabricated_evidence_citation_accepted",
+      "path": "qta_agent/memory.py",
+      "find": "                if not self.evidence.contains(src):",
+      "replace": "                if False:",
+      "rationale": "an entry citing evidence that does not exist reads to a later auditor exactly like one that does"
+    },
+    {
+      "name": "Y2_duplicate_write_replaces_silently",
+      "path": "qta_agent/memory.py",
+      "find": "            if entry.memory_id in self._entries:\n                raise MemoryError_(",
+      "replace": "            if False:\n                raise MemoryError_(",
+      "rationale": "a remembered statement is replaced with nothing recording that it changed"
+    },
+    {
+      "name": "Y3_anyone_may_retract_anyone_s_memory",
+      "path": "qta_agent/memory.py",
+      "find": "        if entry.author != actor:",
+      "replace": "        if False:",
+      "rationale": "withdrawing someone else's statement becomes indistinguishable from withdrawing your own"
+    },
+    {
+      "name": "Y4_stale_entries_stay_current",
+      "path": "qta_agent/memory.py",
+      "find": "        return tuple(sorted((e for e in self._entries.values()\n                             if e.is_current), key=lambda e: e.memory_id))",
+      "replace": "        return tuple(sorted(self._entries.values(),\n                            key=lambda e: e.memory_id))",
+      "rationale": "a reader filtering on current gets retracted and superseded entries back"
+    },
+    {
+      "name": "Y5_invalidation_does_not_reach_derived_entries",
+      "path": "qta_agent/memory.py",
+      "find": "        frontier = list(self.derived_from(source))",
+      "replace": "        frontier = []",
+      "rationale": "a conclusion outlives the measurement it was drawn from, and nothing says so"
+    },
+    {
+      "name": "Y6_invalidation_does_not_reach_summaries",
+      "path": "qta_agent/memory.py",
+      "find": "            frontier.extend(\n                e.memory_id for e in self._entries.values()\n                if mid in e.summarizes or mid in e.derived_from)",
+      "replace": "            frontier.extend([])",
+      "rationale": "compressing something that stopped being true leaves the compression current"
+    },
+    {
+      "name": "Y7_late_entry_from_an_invalidated_source_is_born_current",
+      "path": "qta_agent/memory.py",
+      "find": "            if any(s in self._invalidated for s in entry.derived_from):",
+      "replace": "            if False:",
+      "rationale": "an entry written after its source was withdrawn is briefly current, and briefly is long enough to be read"
+    },
+    {
+      "name": "Y8_summary_need_not_name_its_sources",
+      "path": "qta_agent/memory.py",
+      "find": "        if not summarizes:\n            raise MemoryError_(",
+      "replace": "        if False:\n            raise MemoryError_(",
+      "rationale": "an assertion is filed under a reassuring name"
+    },
+    {
+      "name": "Y9_summary_of_a_nonexistent_entry_accepted",
+      "path": "qta_agent/memory.py",
+      "find": "            if other not in self._entries:",
+      "replace": "            if False:",
+      "rationale": "a summary points at nothing, so 'what did this compress' has no answer"
+    },
+    {
+      "name": "Y10_unknown_entry_fields_projected",
+      "path": "qta_agent/memory.py",
+      "find": "    unknown = set(rec) - known\n    if unknown:\n        raise MemoryError_(",
+      "replace": "    unknown = set(rec) - known\n    if False:\n        raise MemoryError_(",
+      "rationale": "an entry written by a newer version is projected with fields this reader drops"
+    },
+    {
+      "name": "Y11_empty_or_oversized_entries_accepted",
+      "path": "qta_agent/memory.py",
+      "find": "        if not isinstance(text, str) or not text.strip():",
+      "replace": "        if False:",
+      "rationale": "a record that something was remembered without recording what"
+    },
+    {
+      "name": "Y12_refusal_as_evidence_stops_refusing",
+      "path": "qta_agent/memory.py",
+      "find": "    raise MemoryIsNotEvidence(",
+      "replace": "    return None\n    raise MemoryIsNotEvidence(",
+      "rationale": "the explicit boundary call stops being a boundary"
+    },
+    {
+      "name": "X1_mandatory_tiers_become_droppable",
+      "path": "qta_agent/context.py",
+      "find": "        mandatory = [(p, n) for p, n in sized if p.tier in MANDATORY]\n        discretionary = [(p, n) for p, n in sized if p.tier not in MANDATORY]",
+      "replace": "        mandatory = []\n        discretionary = list(sized)",
+      "rationale": "the owner's instruction and the policy in force are dropped to make a prompt fit"
+    },
+    {
+      "name": "X2_over_budget_mandatory_context_is_silently_truncated",
+      "path": "qta_agent/context.py",
+      "find": "        if need > budget_bytes:\n            raise ContextBudgetError(",
+      "replace": "        if False:\n            raise ContextBudgetError(",
+      "rationale": "a decision made without the policy in force is not a smaller decision, and nothing records the difference"
+    },
+    {
+      "name": "X3_omissions_not_recorded",
+      "path": "qta_agent/context.py",
+      "find": "                omitted.append((p, n, \"did not fit within the context budget\"))",
+      "replace": "                pass",
+      "rationale": "what was available and not shown becomes invisible afterwards"
+    },
+    {
+      "name": "X4_drop_order_becomes_insertion_order",
+      "path": "qta_agent/context.py",
+      "find": "        keepable = sorted(\n            discretionary,\n            key=lambda pair: (rank.get(pair[0].tier, len(DROP_ORDER)),\n                              pair[0].item_id))",
+      "replace": "        keepable = list(reversed(discretionary))",
+      "rationale": "the cut depends on the caller's loop rather than on what the material is worth"
+    },
+    {
+      "name": "X5_a_replaced_source_leaves_no_trace",
+      "path": "qta_agent/context.py",
+      "find": "        for replaced, by in sorted(summarized_by.items()):",
+      "replace": "        for replaced, by in []:",
+      "rationale": "a summary silently becomes the record of what it compressed"
+    },
+    {
+      "name": "X6_summary_need_not_name_a_source_digest",
+      "path": "qta_agent/context.py",
+      "find": "        if summary_of is not None and not is_digest(summary_of):",
+      "replace": "        if False:",
+      "rationale": "an assertion occupies a trusted slot with nothing to check it against"
+    },
+    {
+      "name": "X7_replacement_without_a_source_digest_accepted",
+      "path": "qta_agent/context.py",
+      "find": "        if summarizes_item is not None and summary_of is None:",
+      "replace": "        if False:",
+      "rationale": "an item is replaced by a summary that cannot say what it replaced"
+    },
+    {
+      "name": "X8_secrets_may_enter_the_context",
+      "path": "qta_agent/context.py",
+      "find": "                if redactor.contains_secret(p.text):",
+      "replace": "                if False:",
+      "rationale": "a credential is copied into whatever the model provider retains"
+    },
+    {
+      "name": "X9_manifest_stores_the_prompt",
+      "path": "qta_agent/context.py",
+      "find": "        manifest = ContextManifest(\n            task_id=self.task_id, purpose=self.purpose, items=items,",
+      "replace": "        manifest = ContextManifest(\n            task_id=self.task_id,\n            purpose=self.purpose + \" || \" + \" \".join(\n                p.text for p, _ in chosen),\n            items=items,",
+      "rationale": "the assembled prompt is carried into the manifest, so the authority log becomes where a leaked prompt lives forever, under the log's retention rather than the corpus's"
+    },
+    {
+      "name": "X10_duplicate_item_ids_accepted",
+      "path": "qta_agent/context.py",
+      "find": "        if item_id in self._ids:",
+      "replace": "        if False:",
+      "rationale": "the manifest cannot say which of two items with one id was shown"
+    },
+    {
+      "name": "X11_memory_counts_as_evidence_in_the_answer",
+      "path": "qta_agent/context.py",
+      "find": "                if i.tier in (Tier.TASK_EVIDENCE, Tier.RETRIEVED_EVIDENCE)),\n            \"evidence_withheld\": sorted(",
+      "replace": "                if i.tier in (Tier.TASK_EVIDENCE, Tier.RETRIEVED_EVIDENCE,\n                              Tier.MEMORY, Tier.PRIOR_MODEL_OUTPUT)),\n            \"evidence_withheld\": sorted(",
+      "rationale": "a remembered statement reads to an auditor as something that was checked"
+    },
+    {
+      "name": "X12_unknown_manifest_fields_read",
+      "path": "qta_agent/context.py",
+      "find": "    unknown = set(rec) - known\n    if unknown:\n        raise ContextError(",
+      "replace": "    unknown = set(rec) - known\n    if False:\n        raise ContextError(",
+      "rationale": "a manifest written by a newer version is read with fields this reader drops"
+    },
+    {
+      "name": "X13_context_repr_prints_the_prompt",
+      "path": "qta_agent/context.py",
+      "find": "        return (f\"<Context task={self.manifest.task_id!r} \"\n                f\"items={len(self.manifest.items)} \"\n                f\"omitted={len(self.manifest.omissions)}>\")",
+      "replace": "        return f\"<Context {self.text()!r}>\"",
+      "rationale": "any log line about a context becomes the prompt"
+    }
+  ]
+}

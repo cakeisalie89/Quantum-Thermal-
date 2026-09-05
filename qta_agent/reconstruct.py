@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from . import actions
 from .authority import (
     INITIAL,
     Role,
@@ -50,6 +51,10 @@ class Reconstruction:
     #: Structural problems in the log that did not stop replay.
     anomalies: list = field(default_factory=list)
     events_replayed: int = 0
+    #: Events belonging to another subsystem on the same log. Counted so a
+    #: reader can tell "this reconstruction saw a mixed log and ignored the
+    #: parts that are not authority records" from "this log had 3 events".
+    foreign_events: int = 0
     head_seq: int = -1
     head_hash: str = ""
 
@@ -60,6 +65,12 @@ class Reconstruction:
 
     def states(self) -> dict:
         return {rid: r["state"] for rid, r in self.records.items()}
+
+
+#: Actions this function interprets. Everything else this package writes is
+#: another subsystem's and is counted rather than treated as damage.
+_AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
+                                "record.depend"})
 
 
 def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
@@ -153,9 +164,17 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
             cur["revision"] += 1
             cur["updated_seq"] = ev.seq
 
+        elif actions.classify(action, mine=_AUTHORITY_ACTIONS) \
+                == actions.FOREIGN:
+            # Another subsystem's event. Counted, not applied, and NOT an
+            # anomaly: the authority records this function rebuilds are not
+            # affected by it. What IS an anomaly is the case below.
+            out.foreign_events += 1
         else:
             out.anomalies.append(
-                f"seq {ev.seq}: unknown action {action!r}; not applied")
+                f"seq {ev.seq}: unknown action {action!r}; not applied. "
+                "Nothing in this package writes it, so this reconstruction "
+                "is missing whatever it recorded.")
     return out
 
 

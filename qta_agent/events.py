@@ -39,15 +39,46 @@ Append is: serialize, write, flush, ``fsync``, then update the head pointer.
 A crash mid-append can leave a partial trailing line; :meth:`verify` treats a
 malformed tail as a truncation boundary and reports the last intact record,
 so recovery is possible without discarding history.
+
+CONCURRENT WRITERS
+
+An append is read-then-write: it verifies the chain to learn the head, then
+writes a record linked to it. Two writers doing that at once both read the
+same head and both write a record claiming the same ``seq``, which does not
+merely lose one of them -- it CORRUPTS the log. Every later append then fails
+against a broken chain, so a moment of concurrency ends the log's life.
+
+That is not hypothetical; it was measured. Four processes appending to one log
+produced four records at seq 0, and 56 of the 60 appends afterwards were
+refused against the chain they had broken.
+
+:meth:`append` and :meth:`append_verified` therefore hold an exclusive
+``flock`` on a sidecar lock file across the whole verify-and-write section.
+What that does and does not give you:
+
+  * it serializes every writer that goes through this class, on one host and
+    on a local filesystem;
+  * ``flock`` is ADVISORY -- a process that opens the file and writes to it
+    directly is not stopped, and nothing here can stop it;
+  * ``flock`` semantics over NFS and some network filesystems are unreliable,
+    so a log shared that way is not protected by this;
+  * on a platform without ``fcntl`` the append REFUSES rather than proceeding
+    unlocked, because an unlocked append is the failure above.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
+
+try:                                    # POSIX advisory locking
+    import fcntl
+except ImportError:                     # pragma: no cover - non-POSIX
+    fcntl = None
 
 from .canonical import (
     CANONICAL_FORM_VERSION,
@@ -228,9 +259,59 @@ class Anchor:
 class EventLog:
     """A durable, append-only, hash-chained log stored as JSON Lines."""
 
+    #: Seconds an append will wait for the writer lock before refusing. A
+    #: blocking wait with no bound is indistinguishable from a hang, and "the
+    #: process is stuck" is a much worse thing to debug than "the lock was
+    #: held for 30 seconds by pid N".
+    LOCK_TIMEOUT_S = 30.0
+
     def __init__(self, path: Path | str):
         self.path = Path(path)
         self.head_path = self.path.with_suffix(self.path.suffix + ".head")
+        #: A SIDECAR, not the log itself: the lock must outlive a log that is
+        #: rotated, truncated or not yet created, and locking a file that does
+        #: not exist is not possible.
+        self.lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    @contextlib.contextmanager
+    def exclusive(self):
+        """Hold the writer lock for the whole verify-and-append section.
+
+        Exposed rather than private because a caller performing a multi-event
+        transaction needs the same lock, and reaching for a private method is
+        how a second, subtly different locking discipline gets written.
+        """
+        if fcntl is None:                       # pragma: no cover - non-POSIX
+            raise EventLogError(
+                "appending needs POSIX advisory locking (fcntl), which this "
+                "platform does not provide. Refusing rather than appending "
+                "unlocked: two unlocked writers corrupt the chain rather "
+                "than losing a record.")
+        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(self.lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        deadline = time.monotonic() + self.LOCK_TIMEOUT_S
+        try:
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise EventLogError(
+                            f"could not take the writer lock on "
+                            f"{self.lock_path} within "
+                            f"{self.LOCK_TIMEOUT_S}s; another writer is "
+                            "holding it") from None
+                    time.sleep(0.005)
+            yield
+        finally:
+            # Closing the descriptor releases the flock -- that is the POSIX
+            # guarantee, and it is what makes this safe against an exception
+            # inside the block AND against the process dying. An explicit
+            # LOCK_UN before the close would be a line nothing could ever
+            # observe, which is worse than no line at all: it reads as a
+            # safeguard and defends nothing.
+            os.close(fd)
 
     # ---- reading ------------------------------------------------------
     def __iter__(self) -> Iterator[Event]:
@@ -537,15 +618,16 @@ class EventLog:
         Verifies the existing chain first: appending onto a broken log would
         extend the damage and make the break harder to locate.
         """
-        report = self.verify()
-        if not report.ok:
-            raise ChainBroken(
-                "refusing to append to a broken chain: "
-                + "; ".join(report.problems))
-        ev, _ = self._write_event(
-            report.head_seq, report.head_hash, actor=actor, action=action,
-            target=target, payload=payload, event_id=event_id,
-            wall_time=wall_time)
+        with self.exclusive():
+            report = self.verify()
+            if not report.ok:
+                raise ChainBroken(
+                    "refusing to append to a broken chain: "
+                    + "; ".join(report.problems))
+            ev, _ = self._write_event(
+                report.head_seq, report.head_hash, actor=actor, action=action,
+                target=target, payload=payload, event_id=event_id,
+                wall_time=wall_time)
         return ev
 
     def append_verified(self, anchor: "Anchor", *, actor: str, action: str,
@@ -566,15 +648,16 @@ class EventLog:
         weaker guarantee cannot be selected by accident, and so the default
         stays the strong one.
         """
-        report = self.verify_from(anchor)
-        if not report.ok:
-            raise ChainBroken(
-                "refusing to append to a broken chain: "
-                + "; ".join(report.problems))
-        return self._write_event(
-            report.head_seq, report.head_hash, actor=actor, action=action,
-            target=target, payload=payload, event_id=event_id,
-            wall_time=wall_time)
+        with self.exclusive():
+            report = self.verify_from(anchor)
+            if not report.ok:
+                raise ChainBroken(
+                    "refusing to append to a broken chain: "
+                    + "; ".join(report.problems))
+            return self._write_event(
+                report.head_seq, report.head_hash, actor=actor, action=action,
+                target=target, payload=payload, event_id=event_id,
+                wall_time=wall_time)
 
     def _write_event(self, head_seq: int, head_hash: str, *, actor: str,
                      action: str, target: str, payload: dict | None,

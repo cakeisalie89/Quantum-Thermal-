@@ -92,7 +92,15 @@ class TaskRole(str, Enum):
     SYSTEM = "SYSTEM"
 
 
-#: Nothing leaves these. Recovery means a NEW task, which leaves a trail.
+#: The work is finished. No further PROGRESS is possible from these, and
+#: recovery means a NEW task, which leaves a trail.
+#:
+#: Terminal is not the same as sealed. A finished task can still have a fact
+#: recorded ABOUT it -- VERIFIED -> INVALIDATED says an input changed, which
+#: is a consequence, not a resumption. Conflating the two made that edge
+#: unreachable: it was declared in the table, refused by the guard, and
+#: nothing noticed, because a state machine's dead edges are invisible unless
+#: something asserts they are not there.
 TERMINAL: FrozenSet[TaskState] = frozenset({
     TaskState.VERIFIED, TaskState.REJECTED, TaskState.CANCELLED,
     TaskState.INVALIDATED,
@@ -187,6 +195,12 @@ EDGES: tuple = _edges()
 _BY_PAIR = {(e.src, e.dst): e for e in EDGES}
 INITIAL: TaskState = TaskState.CREATED
 
+#: States with no outgoing edge at all: nothing further may be recorded.
+#: DERIVED from the table rather than written beside it, so the guard and the
+#: table cannot drift apart.
+SEALED: FrozenSet[TaskState] = frozenset(
+    s for s in TaskState if not any(e.src is s for e in EDGES))
+
 
 def find_edge(src: TaskState, dst: TaskState) -> TaskEdge | None:
     return _BY_PAIR.get((src, dst))
@@ -270,14 +284,14 @@ def check(req: TaskTransition, task: Task) -> TaskEdge:
     Returns the edge so the caller records WHY the move was permitted, not
     merely that it was.
     """
-    if req.src in TERMINAL:
-        raise TaskTransitionError(
-            f"{req.src.value} is terminal; task {req.task_id} cannot "
-            "leave it. "
-            "Recovery is a NEW task, which leaves a trail; reviving this one "
-            "would not.")
     edge = find_edge(req.src, req.dst)
     if edge is None:
+        if req.src in TERMINAL:
+            raise TaskTransitionError(
+                f"{req.src.value} is terminal; task {req.task_id} cannot "
+                "leave it. "
+                "Recovery is a NEW task, which leaves a trail; reviving this "
+                "one would not.")
         raise TaskTransitionError(
             f"no edge {req.src.value} -> {req.dst.value}; permitted targets "
             f"are {sorted(s.value for s in allowed_targets(req.src))}")

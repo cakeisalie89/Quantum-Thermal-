@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field, replace
 
+from . import actions
 from .authority import (
     INITIAL,
     Role,
@@ -90,6 +91,11 @@ ACT_CREATE = "record.create"
 ACT_TRANSITION = "record.transition"
 ACT_DEPEND = "record.depend"
 
+#: The actions THIS reducer applies. Everything else on the log is either
+#: another subsystem's business (skipped) or unrecognised (refused) -- see
+#: :mod:`qta_agent.actions` for why those two cases must be told apart.
+OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND})
+
 
 class AuthorityStore:
     """Live projection with transactional mutation through the log."""
@@ -136,11 +142,27 @@ class AuthorityStore:
     def _apply(self, ev: Event) -> None:
         """Fold one event into the projection.
 
-        Deliberately tolerant of nothing: an event the reducer does not
-        understand is an error, not a skip. Silently ignoring an unknown
-        action would let a future writer add authority-relevant events that
-        older readers quietly drop.
+        Tolerant of exactly one thing: another subsystem's event on the same
+        log. An UNRECOGNISED action is still an error, because silently
+        ignoring one would let a future writer add authority-relevant events
+        that older readers quietly drop -- and the state those readers
+        reconstruct would then be confidently wrong.
         """
+        try:
+            kind = actions.require_known(ev.action, mine=OWNED,
+                                         where=f"seq {ev.seq}")
+        except actions.UnknownAction as exc:
+            # Re-raised as this store's own error type. The classification is
+            # shared; the exception contract is not, so a caller that catches
+            # StoreError still catches everything this store refuses.
+            raise StoreError(str(exc)) from exc
+        if kind == actions.FOREIGN:
+            # Another subsystem's event on the shared log. Not this reducer's
+            # business, and refusing it would make one log impossible to
+            # share -- which is exactly what happened before this branch
+            # existed: the authority store raised on 'policy.publish'.
+            self._loaded_through = ev.seq
+            return
         p = ev.payload
         key = p.get("idempotency_key")
         if key:
@@ -171,10 +193,13 @@ class AuthorityStore:
             self._records[rid] = replace(
                 cur, depends_on=merged, revision=cur.revision + 1,
                 updated_seq=ev.seq)
-        else:
+        else:                                   # pragma: no cover - closed
+            # Unreachable: require_known already classified this action as
+            # MINE, and OWNED lists exactly the three handled above. Kept so
+            # that adding a fourth to OWNED without handling it fails loudly.
             raise StoreError(
-                f"seq {ev.seq}: unknown action {ev.action!r}; refusing to "
-                "project a log this reducer does not fully understand")
+                f"seq {ev.seq}: {ev.action!r} is listed as owned by this "
+                "reducer and has no branch handling it")
         self._loaded_through = ev.seq
 
     # ---- snapshotting -------------------------------------------------

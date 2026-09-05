@@ -37,6 +37,15 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_execution.py",
     "tests/test_agent_governed_stage10.py",
     "tests/test_agent_audit.py",
+    "tests/test_agent_policy.py",
+    "tests/test_agent_scheduler.py",
+    "tests/test_agent_netauth.py",
+    "tests/test_agent_secrets.py",
+    "tests/test_agent_memory.py",
+    "tests/test_agent_context.py",
+    "tests/test_agent_agents.py",
+    "tests/test_agent_concurrency.py",
+    "tests/test_agent_crash_recovery.py",
     "tests/test_agent_substrate_isolation.py",
 }
 
@@ -56,10 +65,11 @@ ALLOWED_IMPORTERS = {
 #: modules strictly earlier in this tuple, which keeps the graph a line
 #: rather than a web and makes "the log is the truth" structurally true
 #: instead of aspirational.
-LAYERS = ("canonical", "events", "evidence", "capability", "tools",
-          "execution", "checkpoint", "authority", "store", "invalidation",
-          "reconstruct", "tasks", "audit", "_stage10_tool",
-          "governed_stage10")
+LAYERS = ("canonical", "actions", "events", "evidence", "capability", "tools",
+          "execution", "checkpoint", "authority", "policy", "secrets",
+          "netauth", "store", "invalidation", "reconstruct", "tasks",
+          "scheduler", "memory", "context", "agents", "audit",
+          "_stage10_tool", "governed_stage10")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.

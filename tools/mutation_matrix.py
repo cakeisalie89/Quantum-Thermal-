@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import signal
 import subprocess
 import sys
@@ -102,22 +103,109 @@ def _restore(paths: list) -> None:
 
 
 def run_suite(suites: list, python: str) -> tuple:
-    """Return (returncode, [failed test names]). ``-x`` stops at the first."""
-    # start_new_session puts the suite in ITS OWN process group. Without it a
-    # mutant that signals "its" process group signals the HARNESS too -- which
-    # is not hypothetical: mutating away the execution layer's `setsid` makes
-    # every timeout in the suite kill the caller's group, and the caller is
-    # this harness. The run then dies looking like an infrastructure problem
-    # rather than like the mutation doing exactly what it was written to do.
-    proc = subprocess.run(
-        [python, "-m", "pytest", *suites, "-q", "--no-header", "-x",
-         "--tb=no", "-p", "no:randomly"],
-        cwd=str(ROOT), capture_output=True, text=True, timeout=SUITE_TIMEOUT_S,
-        start_new_session=True)
+    """Return (returncode, [failed test names]). ``-x`` stops at the first.
+
+    THE STALE-BYTECODE TRAP, AND WHY EVERY RUN GETS A PRIVATE CACHE
+
+    CPython invalidates a cached ``.pyc`` on (source mtime, source SIZE). A
+    mutation that swaps ``if cond:`` for ``if False:`` usually changes the
+    file's size -- but two mutations in the same matrix very often change it
+    by the SAME number of bytes, and the matrix applies them seconds apart.
+    When the sizes match and both writes land in the same mtime second, the
+    second mutation runs against the FIRST one's compiled code.
+
+    That is not a cosmetic reporting problem. The report then says a mutation
+    was killed when nothing tested it, which is precisely the false negative
+    this whole harness exists to prevent: an enforcement point with no test
+    behind it, certified as protected. It was found by noticing that a kill
+    was attributed to a test that could not possibly have failed for that
+    reason, and it affected 32 of the 158 mutations then committed.
+
+    ``PYTHONPYCACHEPREFIX`` points every run at a fresh directory, so nothing
+    on disk can be reused across mutations and the compile always starts from
+    the source the harness just wrote. Redirecting rather than deleting also
+    keeps the repository's own ``__pycache__`` out of the collateral-damage
+    check.
+    """
+    import shutil
+    import tempfile
+
+    cache = tempfile.mkdtemp(prefix="mutation-pycache-")
+    env = dict(os.environ)
+    env["PYTHONPYCACHEPREFIX"] = cache
+    try:
+        # start_new_session puts the suite in ITS OWN process group. Without
+        # it a mutant that signals "its" process group signals the HARNESS
+        # too -- which is not hypothetical: mutating away the execution
+        # layer's `setsid` makes every timeout in the suite kill the caller's
+        # group, and the caller is this harness. The run then dies looking
+        # like an infrastructure problem rather than like the mutation doing
+        # exactly what it was written to do.
+        proc = subprocess.run(
+            [python, "-m", "pytest", *suites, "-q", "--no-header", "-x",
+             "--tb=no", "-p", "no:randomly"],
+            cwd=str(ROOT), capture_output=True, text=True,
+            timeout=SUITE_TIMEOUT_S, start_new_session=True, env=env)
+    finally:
+        shutil.rmtree(cache, ignore_errors=True)
     failed = [line.split("::")[-1].split(" ")[0]
               for line in proc.stdout.splitlines()
               if line.startswith("FAILED")]
     return proc.returncode, failed
+
+
+#: Every field a mutation must carry. ``rationale`` is required because a
+#: SURVIVED line prints it, and a survivor whose report cannot say what was
+#: lost is a finding nobody can act on.
+_MUTATION_FIELDS = ("name", "path", "find", "replace", "rationale")
+
+
+def validate_spec(spec) -> list:
+    """Return every structural problem with a specification. Empty is good."""
+    problems: list = []
+    if not isinstance(spec, dict):
+        return [f"specification is {type(spec).__name__}, not an object"]
+    for key in ("title", "suites", "mutations"):
+        if key not in spec:
+            problems.append(f"missing top-level key {key!r}")
+    suites = spec.get("suites")
+    if not isinstance(suites, list) or not suites:
+        problems.append("'suites' must be a non-empty list of test paths")
+    else:
+        for suite in suites:
+            if not isinstance(suite, str) or not suite:
+                problems.append(f"suite entry {suite!r} is not a path")
+            elif not (ROOT / suite).exists():
+                problems.append(f"suite {suite!r} does not exist")
+    mutations = spec.get("mutations")
+    if not isinstance(mutations, list) or not mutations:
+        problems.append("'mutations' must be a non-empty list")
+        return problems
+    seen: set = set()
+    for i, m in enumerate(mutations):
+        where = f"mutation {i}"
+        if not isinstance(m, dict):
+            problems.append(f"{where} is {type(m).__name__}, not an object")
+            continue
+        for field in _MUTATION_FIELDS:
+            if not isinstance(m.get(field), str) or not m.get(field):
+                problems.append(
+                    f"{where} ({m.get('name', '?')}): {field!r} must be a "
+                    "non-empty string")
+        name = m.get("name")
+        if name in seen:
+            problems.append(
+                f"duplicate mutation name {name!r}; a report naming it would "
+                "not say which mutation it describes")
+        seen.add(name)
+        if m.get("find") == m.get("replace"):
+            problems.append(
+                f"{where} ({name}): 'find' and 'replace' are identical, so "
+                "the mutation changes nothing and is killed by nothing")
+        path = m.get("path")
+        if isinstance(path, str) and path and not (ROOT / path).exists():
+            problems.append(f"{where} ({name}): {path!r} does not exist")
+    return problems
 
 
 def main() -> int:
@@ -151,6 +239,17 @@ def main() -> int:
     if args.spec is None:
         ap.error("a mutation specification is required unless --recover")
     spec = json.loads(args.spec.read_text(encoding="utf-8"))
+    problems = validate_spec(spec)
+    if problems:
+        # Checked BEFORE the baseline and before the recovery sidecar exists,
+        # so a typo in a specification can never get as far as writing to a
+        # source file. A KeyError in the middle of the loop fails closed too,
+        # but it fails closed with a traceback, on a tree that has already
+        # been written to once.
+        print(f"refusing to run {args.spec}:")
+        for problem in problems:
+            print(f"  - {problem}")
+        return 2
     suites = spec["suites"]
     mutations = spec["mutations"]
     name_w = max(len(m["name"]) for m in mutations)
@@ -163,9 +262,26 @@ def main() -> int:
     print(f"{spec['title']}\n{'=' * len(spec['title'])}")
     print(f"{len(mutations)} mutations over {len(suites)} suite(s)\n")
 
-    # --- 1. the baseline must be green ------------------------------------
+    # --- 1. the baseline must be green, and STABLY so ---------------------
     rc, failed = run_suite(suites, args.python)
     if rc != 0:
+        # A red baseline is refused; a FLAKY one is refused separately and
+        # loudly. The distinction matters because a baseline that can flake
+        # red can also flake green, and a matrix run on a green flake reports
+        # kills for mutations nothing actually tested. This branch exists
+        # because a baseline went red once, in a suite that then passed on
+        # every one of the next several runs, and an unexplained transient in
+        # the one check that makes every other result meaningful is not
+        # something to run past.
+        rc2, failed2 = run_suite(suites, args.python)
+        if rc2 == 0:
+            print("BASELINE NON-DETERMINISTIC -- refusing.")
+            print(f"The first run failed ({failed}) and an immediate re-run "
+                  "passed.")
+            print("A baseline that can flake red can flake green, and a "
+                  "matrix run on a green flake reports kills for mutations "
+                  "that nothing tested. Fix the flake first.")
+            return 4
         print("BASELINE RED -- mutation results would be meaningless.")
         print("Every mutation would 'fail the suite' for this pre-existing")
         print(f"reason and the report would read as a perfect score: {failed}")
@@ -295,8 +411,21 @@ def main() -> int:
                    if f not in baseline_dirty]
     if still_dirty:
         print(f"WORKING TREE LEFT DIRTY: {still_dirty}")
+
+    # --- 3. the baseline must STILL be green ------------------------------
+    # Byte-identical restoration is necessary and not sufficient: a mutation
+    # can leave behind state the source hash cannot see -- a data file a test
+    # wrote, a cache, a directory that now exists. Re-running the baseline
+    # asks the only question that matters, which is whether the tree the
+    # harness hands back still behaves like the one it was given.
+    post_rc, post_failed = run_suite(suites, args.python)
+    if post_rc != 0:
+        print("POST-RUN BASELINE RED -- the matrix left this tree in a state "
+              f"the suite rejects: {post_failed}")
+        print("Restoration was byte-identical but not complete; something "
+              "outside the mutated sources survived the run.")
     return 0 if not (survived or anchors or drifted or collateral
-                     or still_dirty) else 1
+                     or still_dirty or post_rc) else 1
 
 
 if __name__ == "__main__":

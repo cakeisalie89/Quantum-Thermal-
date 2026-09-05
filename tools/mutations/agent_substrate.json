@@ -2,9 +2,10 @@
   "title": "Agent substrate: state machine, log, projection, invalidation, reconstruction",
   "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that.",
   "suites": [
+    "tests/test_agent_concurrency.py",
     "tests/test_agent_substrate.py",
-    "tests/test_agent_substrate_properties.py",
-    "tests/test_agent_substrate_isolation.py"
+    "tests/test_agent_substrate_isolation.py",
+    "tests/test_agent_substrate_properties.py"
   ],
   "mutations": [
     {
@@ -45,8 +46,8 @@
     {
       "name": "M6_append_onto_broken_chain",
       "path": "qta_agent/events.py",
-      "find": "        report = self.verify()\n        if not report.ok:\n            raise ChainBroken(",
-      "replace": "        report = self.verify()\n        if False:\n            raise ChainBroken(",
+      "find": "            report = self.verify()\n            if not report.ok:\n                raise ChainBroken(",
+      "replace": "            report = self.verify()\n            if False:\n                raise ChainBroken(",
       "rationale": "appending onto a broken chain buries the break under valid records"
     },
     {
@@ -146,6 +147,34 @@
       "find": "    report.raise_if_bad()",
       "replace": "    pass",
       "rationale": "differential verification would run against a corrupt log and agree"
+    },
+    {
+      "name": "M21_append_takes_no_writer_lock",
+      "path": "qta_agent/events.py",
+      "find": "                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n                    break",
+      "replace": "                    break",
+      "rationale": "two concurrent writers both read the same head and both write a record claiming the same seq; the log is corrupted rather than a record being lost, and every later append is refused against the damage"
+    },
+    {
+      "name": "M22_lock_wait_is_unbounded",
+      "path": "qta_agent/events.py",
+      "find": "                    if time.monotonic() >= deadline:",
+      "replace": "                    if False:",
+      "rationale": "a blocked append becomes indistinguishable from a hang, which is a much worse thing to debug than a named lock holder"
+    },
+    {
+      "name": "M23_lock_descriptor_leaked",
+      "path": "qta_agent/events.py",
+      "find": "        finally:\n            # Closing the descriptor releases the flock",
+      "replace": "        finally:\n            return  # noqa\n            # Closing the descriptor releases the flock",
+      "rationale": "the descriptor is never closed, so the flock is held for the life of the process and the next writer waits for a holder that has finished"
+    },
+    {
+      "name": "M24_missing_fcntl_appends_unlocked",
+      "path": "qta_agent/events.py",
+      "find": "        if fcntl is None:                       # pragma: no cover - non-POSIX\n            raise EventLogError(",
+      "replace": "        if False:\n            raise EventLogError(",
+      "rationale": "a platform without advisory locking silently gets the unlocked append that corrupts the chain"
     }
   ]
 }

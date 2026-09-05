@@ -34,6 +34,7 @@ rather than a web:
 | Module | Answers |
 |---|---|
 | `canonical.py` | one byte representation, therefore one digest |
+| `actions.py` | every durable action name, and which reducer owns it |
 | `events.py` | append-only hash-chained log; the authority history |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
@@ -41,10 +42,17 @@ rather than a web:
 | `tools.py` | tool contracts and a default-deny registry |
 | `execution.py` | kernel-bounded execution; a timeout is not a success |
 | `checkpoint.py` | a cached verification result, never a second truth |
+| `policy.py` | versioned rule documents, deny-overrides, dated decisions |
+| `secrets.py` | references that travel, values that do not, redaction at the surface |
+| `netauth.py` | egress as a bounded grant; default deny, label-wise hosts |
 | `store.py` | live projection, transactional through the log |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
 | `tasks.py` | durable work: state that survives the process that started it |
+| `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
+| `memory.py` | what the agent remembers, kept structurally apart from evidence |
+| `context.py` | what the agent was shown, recorded apart from what is true |
+| `agents.py` | several agents, role separation, and a human that cannot be simulated |
 | `audit.py` | turning the log into answers, and finding provenance holes |
 | `_stage10_tool.py` | the subprocess entry point a governed run executes |
 | `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end |

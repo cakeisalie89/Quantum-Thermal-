@@ -1,0 +1,254 @@
+{
+  "title": "Network authority: default deny, label-wise hosts, pinned addresses",
+  "note": "An egress allowlist is bypassed by strings, not by exploits. Most of these mutations turn one careful comparison into a careless one -- label matching into string matching, an explicit port into an assumed one, a safe method into any method -- and each turns a specific grant into a general one. W1 is the sharpest: with no grant the answer must be no, and a default-allow here is indistinguishable from having no network authority at all.",
+  "suites": [
+    "tests/test_agent_netauth.py"
+  ],
+  "mutations": [
+    {
+      "name": "W1_no_grant_means_allow",
+      "path": "qta_agent/netauth.py",
+      "find": "        if not candidates:\n            return NetworkDecision(\n                False, \"no egress grant exists; the default is no network\",",
+      "replace": "        if not candidates:\n            return NetworkDecision(\n                True, \"no egress grant exists; the default is no network\",",
+      "rationale": "with no grant the answer becomes yes, which is the same as having no network authority"
+    },
+    {
+      "name": "W2_uncovered_request_allowed",
+      "path": "qta_agent/netauth.py",
+      "find": "        return NetworkDecision(False, last, request=rec)",
+      "replace": "        return NetworkDecision(True, last, request=rec)",
+      "rationale": "a request no grant covers is permitted anyway"
+    },
+    {
+      "name": "W3_host_matching_becomes_a_suffix_compare",
+      "path": "qta_agent/netauth.py",
+      "find": "    return h == p",
+      "replace": "    return host.rstrip(\".\").lower().endswith(pattern.lower())",
+      "rationale": "'evil-api.example.com' passes an allowlist for 'api.example.com'"
+    },
+    {
+      "name": "W4_wildcard_covers_the_apex",
+      "path": "qta_agent/netauth.py",
+      "find": "        return len(h) > len(stem) and h[-len(stem):] == stem",
+      "replace": "        return len(h) >= len(stem) and h[-len(stem):] == stem",
+      "rationale": "granting subdomains silently grants the apex too"
+    },
+    {
+      "name": "W5_bare_wildcard_host_accepted",
+      "path": "qta_agent/netauth.py",
+      "find": "        if h == \"*\":",
+      "replace": "        if False:",
+      "rationale": "a single character grants the entire internet"
+    },
+    {
+      "name": "W6_userinfo_confusion_allowed",
+      "path": "qta_agent/netauth.py",
+      "find": "    if \"@\" in (parts.netloc or \"\"):",
+      "replace": "    if False:",
+      "rationale": "'https://allowed.example@evil.test/' reads as the allowed host and connects elsewhere"
+    },
+    {
+      "name": "W7_missing_port_defaults_silently",
+      "path": "qta_agent/netauth.py",
+      "find": "        if port is None:\n            raise MalformedTarget(\n                f\"scheme {scheme!r} has no default port here and the URL \"",
+      "replace": "        if port is None:\n            port = 443\n        if False:\n            raise MalformedTarget(\n                f\"scheme {scheme!r} has no default port here and the URL \"",
+      "rationale": "an unknown scheme is silently treated as if it were https"
+    },
+    {
+      "name": "W8_port_not_checked",
+      "path": "qta_agent/netauth.py",
+      "find": "        if t.port not in g.ports:",
+      "replace": "        if False:",
+      "rationale": "a grant for 443 covers every port on the host"
+    },
+    {
+      "name": "W9_scheme_not_checked",
+      "path": "qta_agent/netauth.py",
+      "find": "        if t.scheme not in g.schemes:",
+      "replace": "        if False:",
+      "rationale": "a grant for https covers plaintext http, which was the point of naming https"
+    },
+    {
+      "name": "W10_method_not_checked",
+      "path": "qta_agent/netauth.py",
+      "find": "        if t.method not in g.methods:",
+      "replace": "        if False:",
+      "rationale": "a read-only grant performs writes on the far side"
+    },
+    {
+      "name": "W11_unknown_method_assumed_safe",
+      "path": "qta_agent/netauth.py",
+      "find": "    if method not in METHODS:",
+      "replace": "    if False:",
+      "rationale": "a method this layer cannot classify passes as if it were a GET"
+    },
+    {
+      "name": "W12_path_scope_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if not g.covers_path(t.path):",
+      "replace": "        if False:",
+      "rationale": "a grant scoped to /v1 reaches /admin"
+    },
+    {
+      "name": "W13_path_prefix_becomes_a_string_compare",
+      "path": "qta_agent/netauth.py",
+      "find": "            if target == a or a in target.parents:\n                return True\n        return False\n\n\ndef grant(",
+      "replace": "            if (path or \"/\").startswith(allowed):\n                return True\n        return False\n\n\ndef grant(",
+      "rationale": "a grant on /v1 covers /v10, which is a different resource"
+    },
+    {
+      "name": "W14_traversing_path_accepted",
+      "path": "qta_agent/netauth.py",
+      "find": "        if \"..\" in target.parts:\n            return False",
+      "replace": "        if False:\n            return False",
+      "rationale": "a path that climbs out of the granted prefix is accepted"
+    },
+    {
+      "name": "W15_subject_not_checked",
+      "path": "qta_agent/netauth.py",
+      "find": "        if g.subject != req.actor:",
+      "replace": "        if False:",
+      "rationale": "a grant becomes a bearer token any actor can present"
+    },
+    {
+      "name": "W16_task_binding_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if g.task_id != req.task_id:",
+      "replace": "        if False:",
+      "rationale": "a component is tricked into reaching the network on another task's behalf"
+    },
+    {
+      "name": "W17_tool_binding_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if g.tool_id != req.tool_id:",
+      "replace": "        if False:",
+      "rationale": "the grant issued for a schema fetch authorizes any tool"
+    },
+    {
+      "name": "W18_expiry_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if (g.expires_after_seq != NEVER_EXPIRES\n                and self._at_seq > g.expires_after_seq):",
+      "replace": "        if False:",
+      "rationale": "an expired grant keeps working"
+    },
+    {
+      "name": "W19_revocation_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if gid in self._revoked:",
+      "replace": "        if False:",
+      "rationale": "a withdrawn grant still authorizes egress"
+    },
+    {
+      "name": "W20_address_class_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "            if cls.value not in g.address_classes:",
+      "replace": "            if False:",
+      "rationale": "a public-internet grant reaches loopback and the cloud metadata endpoint"
+    },
+    {
+      "name": "W21_pinned_addresses_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "            if g.addresses and addr not in g.addresses:",
+      "replace": "            if False:",
+      "rationale": "a name whose answer changed between the check and the connect is accepted"
+    },
+    {
+      "name": "W22_unspecified_address_classed_as_private",
+      "path": "qta_agent/netauth.py",
+      "find": "    if ip.is_unspecified:\n        return AddressClass.SPECIAL",
+      "replace": "    if False:\n        return AddressClass.SPECIAL",
+      "rationale": "0.0.0.0 is classed as private, so a grant permitting private ranges covers it"
+    },
+    {
+      "name": "W23_socket_guard_allows_unpinned",
+      "path": "qta_agent/netauth.py",
+      "find": "            if g is not None and not g.allow_unpinned_addresses:",
+      "replace": "            if False:",
+      "rationale": "the resolve-then-connect window is left open without anyone having accepted it"
+    },
+    {
+      "name": "W24_socket_guard_ignores_the_pin",
+      "path": "qta_agent/netauth.py",
+      "find": "                if host not in allowed.pinned_addresses:",
+      "replace": "                if False:",
+      "rationale": "the socket layer stops checking the address the connection actually goes to"
+    },
+    {
+      "name": "W25_socket_guard_permits_unauthorized_connects",
+      "path": "qta_agent/netauth.py",
+      "find": "        if not decision.allowed:\n            raise GuardedConnection(\n                f\"connect to {host}:{port} was not authorized: \"",
+      "replace": "        if False:\n            raise GuardedConnection(\n                f\"connect to {host}:{port} was not authorized: \"",
+      "rationale": "a dependency that phones home is no longer stopped"
+    },
+    {
+      "name": "W26_socket_guard_not_removed",
+      "path": "qta_agent/netauth.py",
+      "find": "    finally:\n        socket.socket.connect = original\n        socket.socket.connect_ex = original_ex",
+      "replace": "    socket.socket.connect = original\n    socket.socket.connect_ex = original_ex\n    if False:\n        pass",
+      "rationale": "an exception inside the block leaves every socket in the process patched"
+    },
+    {
+      "name": "W27_unclassifiable_address_waved_through",
+      "path": "qta_agent/netauth.py",
+      "find": "    if isinstance(address, (bytes, str)):",
+      "replace": "    if False:",
+      "rationale": "a UNIX-domain connect passes a guard that cannot reason about it"
+    },
+    {
+      "name": "W28_grant_digest_not_verified",
+      "path": "qta_agent/netauth.py",
+      "find": "                if claimed != g.digest():",
+      "replace": "                if False:",
+      "rationale": "a rewritten grant passes as the one whose digest was recorded"
+    },
+    {
+      "name": "W29_unknown_grant_fields_projected",
+      "path": "qta_agent/netauth.py",
+      "find": "    unknown = set(rec) - known\n    if unknown:\n        raise NetworkError(\n            f\"grant record carries unknown fields {sorted(unknown)};",
+      "replace": "    unknown = set(rec) - known\n    if False:\n        raise NetworkError(\n            f\"grant record carries unknown fields {sorted(unknown)};",
+      "rationale": "a grant written by a newer version is projected with fields this reader drops"
+    },
+    {
+      "name": "W30_grant_id_reuse_allowed",
+      "path": "qta_agent/netauth.py",
+      "find": "        if g.grant_id in self._grants:",
+      "replace": "        if False:",
+      "rationale": "two different grants become indistinguishable in the log"
+    },
+    {
+      "name": "W31_denied_decision_does_not_raise",
+      "path": "qta_agent/netauth.py",
+      "find": "        if not self.allowed:\n            raise NetworkDenied(self.reason)",
+      "replace": "        if False:\n            raise NetworkDenied(self.reason)",
+      "rationale": "raise_if_denied stops refusing; every caller relying on it fails open"
+    },
+    {
+      "name": "W32_denials_not_recorded",
+      "path": "qta_agent/netauth.py",
+      "find": "                        payload={\"request\": req.to_record(),\n                                 \"decision\": decision.to_record()})",
+      "replace": "                        payload={\"request\": {},\n                                 \"decision\": {}})",
+      "rationale": "the audit trail records that something happened but not what was attempted"
+    },
+    {
+      "name": "W33_empty_path_prefix_list_denies_nothing_visibly",
+      "path": "qta_agent/netauth.py",
+      "find": "        if not self.paths:\n            return True",
+      "replace": "        if True:\n            return True",
+      "rationale": "path scoping is disabled entirely while the field still appears in the grant"
+    },
+    {
+      "name": "W34_oversized_url_accepted",
+      "path": "qta_agent/netauth.py",
+      "find": "    if len(url) > MAX_URL_LEN:",
+      "replace": "    if False:",
+      "rationale": "an unbounded destination string is parsed rather than refused"
+    },
+    {
+      "name": "W35_hostless_url_accepted",
+      "path": "qta_agent/netauth.py",
+      "find": "    if not host:\n        raise MalformedTarget(\"target URL has no host\")",
+      "replace": "    if False:\n        raise MalformedTarget(\"target URL has no host\")",
+      "rationale": "a URL with no host reaches host matching with nothing to match"
+    }
+  ]
+}

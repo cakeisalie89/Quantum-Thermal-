@@ -56,6 +56,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import actions
 from .canonical import digest, digest_bytes
 from .capability import Action, CapabilitySet, issue
 from .events import EventLog
@@ -77,6 +78,11 @@ ACT_TASK_TRANSITION = "task.transition"
 ACT_CAP_ISSUE = "capability.issue"
 ACT_EXECUTION = "task.execution"
 ACT_EVIDENCE = "task.evidence"
+
+#: The actions THIS projection applies or deliberately passes over. Anything
+#: else is another subsystem's (skipped) or unrecognised (refused).
+OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION, ACT_CAP_ISSUE,
+                   ACT_EXECUTION, ACT_EVIDENCE})
 
 
 def stage10_registry() -> Registry:
@@ -166,9 +172,21 @@ class GovernedStage10:
             elif ev.action in (ACT_CAP_ISSUE, ACT_EXECUTION, ACT_EVIDENCE):
                 continue
             else:
-                raise ValueError(
-                    f"seq {ev.seq}: unknown action {ev.action!r}; refusing to "
-                    "project a log this reducer does not fully understand")
+                try:
+                    kind = actions.require_known(
+                        ev.action, mine=OWNED, where=f"seq {ev.seq}")
+                except actions.UnknownAction as exc:
+                    # Re-raised as ValueError, this projection's existing
+                    # contract. Sharing the classification must not change
+                    # what callers catch.
+                    raise ValueError(str(exc)) from exc
+                if kind == actions.FOREIGN:
+                    # Another subsystem sharing this log. Skipped here and
+                    # projected by its own reducer.
+                    continue
+                raise ValueError(                # pragma: no cover - closed
+                    f"seq {ev.seq}: {ev.action!r} is listed as owned by this "
+                    "projection and has no branch handling it")
         return TaskProjection(tasks=tasks, at_seq=seq)
 
     # ---- the governed run ----------------------------------------------
