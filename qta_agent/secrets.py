@@ -246,11 +246,35 @@ class Secret:
 
     def reveal(self) -> str:
         """The characters. Re-authorizes first; raises rather than returning
-        an empty string on refusal."""
+        an empty string on refusal.
+
+        This checks the SECRET grant and nothing else. When the value is
+        about to be sent somewhere, use :meth:`reveal_for`, which checks the
+        pairing -- holding a credential and holding egress are two grants,
+        and using one on the other is a third thing neither implies.
+        """
         return self._store._reveal(
             grant_id=self._grant_id, secret_id=self._secret_id,
             actor=self._actor, task_id=self._task_id, tool_id=self._tool_id,
             purpose=self._purpose)
+
+    def reveal_for(self, decision) -> str:
+        """The characters, for one authorized destination. THE COMPOSED
+        OPERATION.
+
+        check_egress_composition existed, was well tested, and had no caller
+        outside its own tests -- so the confused-deputy defence was a
+        function rather than a boundary. This is where it lives now: the
+        pairing is checked BEFORE the value is produced, so a refusal
+        happens without the plaintext ever existing.
+
+        Prefer this wherever a secret is destined for a network call. The
+        value-based check in NetworkAuthority.authorize is the backstop for
+        code that does not.
+        """
+        check_egress_composition(self._store._grants[self._grant_id],
+                                 decision)
+        return self.reveal()
 
     # Every stringification path leads to the placeholder. __format__ matters
     # as much as __str__: f"{secret}" goes through format(), and a class that
@@ -548,6 +572,17 @@ class SecretStore:
         return tuple(dict(a) for a in self._accesses)
 
     # ---- output surfaces -----------------------------------------------
+    def grants_in_force(self) -> tuple:
+        """Every secret grant this store currently holds, revocations aside.
+
+        Exposed so the egress boundary can ask which pairings are authorized
+        without reaching into private state.
+        """
+        return tuple(sorted(
+            (g for gid, g in self._grants.items()
+             if gid not in self._revoked),
+            key=lambda g: g.grant_id))
+
     def redactor(self) -> Redactor:
         """A redactor over every value this store currently holds."""
         r = Redactor()

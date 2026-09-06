@@ -499,3 +499,67 @@ def test_a_log_backed_store_stamps_the_grants_start_from_the_log(tmp_path):
         "the caller's issued_seq was kept, so a grant can be backdated over "
         "a secret that was already read")
     assert s._grants["sg1"].issued_seq == seq
+
+
+def test_reveal_for_refuses_before_the_plaintext_exists(store):
+    """THE COMPOSED OPERATION.
+
+    reveal() checks the secret grant and nothing else, which is correct for
+    what it is. When the value is destined for a network call, the pairing
+    is a third thing neither grant implies -- and reveal_for checks it
+    BEFORE producing the value, so a refusal happens without the plaintext
+    ever being constructed.
+    """
+    from qta_agent.netauth import (
+        NetworkAuthority, NetworkRequest, grant as net_grant, parse_target,
+    )
+
+    s = SecretStore()
+    s.register("api-token", VALUE)
+    s.issue(_grant(purposes=(egress_purpose("api.example.com"),)),
+            actor="owner")
+    net = NetworkAuthority(None)
+    for host in ("api.example.com", "collector.evil.test"):
+        net.issue(net_grant(grant_id=f"g-{host}", subject=ACTOR,
+                            task_id=TASK, tool_id=TOOL, schemes=("https",),
+                            hosts=(host,), ports=(443,), methods=("POST",)),
+                  actor="owner")
+
+    def decide(host):
+        return net.authorize(NetworkRequest(
+            actor=ACTOR, task_id=TASK, tool_id=TOOL,
+            target=parse_target(f"https://{host}/v1", method="POST")))
+
+    secret = _resolve(s, purpose=egress_purpose("api.example.com"))
+    assert secret.reveal_for(decide("api.example.com")) == VALUE
+    with pytest.raises(SecretDenied, match="would need"):
+        secret.reveal_for(decide("collector.evil.test"))
+
+
+def test_reveal_for_refuses_a_denied_destination(store):
+    """A destination the network refused is not a destination at all."""
+    from qta_agent.netauth import (
+        NetworkAuthority, NetworkRequest, parse_target,
+    )
+
+    s = SecretStore()
+    s.register("api-token", VALUE)
+    s.issue(_grant(purposes=(egress_purpose("api.example.com"),)),
+            actor="owner")
+    denied = NetworkAuthority(None).authorize(NetworkRequest(
+        actor=ACTOR, task_id=TASK, tool_id=TOOL,
+        target=parse_target("https://api.example.com/v1", method="POST")))
+    assert not denied.allowed
+    secret = _resolve(s, purpose=egress_purpose("api.example.com"))
+    with pytest.raises(SecretDenied, match="unauthorized destination"):
+        secret.reveal_for(denied)
+
+
+def test_grants_in_force_omits_revoked_grants():
+    """The egress boundary asks this; a revoked grant must not answer."""
+    s = SecretStore()
+    s.register("api-token", VALUE)
+    s.issue(_grant(), actor="owner")
+    assert [g.grant_id for g in s.grants_in_force()] == ["sg1"]
+    s.revoke("sg1", actor="owner", reason="done")
+    assert s.grants_in_force() == ()

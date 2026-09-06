@@ -512,7 +512,7 @@
       "idempotency": "n/a",
       "cancellation": "revocation takes effect at the next authorize call",
       "concurrency": "the socket guard is process-wide for the duration of its block and is removed in a finally",
-      "security_boundary": "label-wise host matching (no prefix/suffix confusion), explicit scheme/port/method/path, separate address classes for loopback and private ranges, address pinning against DNS rebinding, userinfo refusal; the grant's window is closed at both ends and its start is stamped from the log, and a second record naming a live grant_id with different terms is refused rather than silently replacing authority already in force",
+      "security_boundary": "label-wise host matching (no prefix/suffix confusion), explicit scheme/port/method/path, separate address classes for loopback and private ranges, address pinning against DNS rebinding, userinfo refusal; the grant's window is closed at both ends and its start is stamped from the log, and a second record naming a live grant_id with different terms is refused rather than silently replacing authority already in force. A body carrying a registered secret is refused unless a secret grant names egress to that host -- checked by value, because the leak that matters is a credential under an innocent name",
       "tests": [
         "tests/test_agent_netauth.py",
         "tests/test_agent_secrets.py"
@@ -553,10 +553,11 @@
       "idempotency": "n/a",
       "cancellation": "revocation takes effect at the next reveal, not when the last handle is collected",
       "concurrency": "n/a",
-      "security_boundary": "reference/value separation, placeholder rendering through str/repr/format, value-based redaction across every output surface, an explicit egress-composition check against the confused deputy, and a governed tool environment that inherits nothing; a secret grant does not reach backwards over a read that happened before it was issued",
+      "security_boundary": "reference/value separation, placeholder rendering through str/repr/format, value-based redaction across every output surface, an explicit egress-composition check against the confused deputy, and a governed tool environment that inherits nothing; a secret grant does not reach backwards over a read that happened before it was issued. The confused deputy -- a component that legitimately holds a credential for A and legitimately holds egress to B, persuaded to send the first to the second -- is now checked at the BOUNDARY rather than by a function nobody called. check_egress_composition had no caller outside its own tests; it is now reached two ways: Secret.reveal_for(decision) checks the pairing before the plaintext exists, and NetworkAuthority.authorize refuses by VALUE when a body carries a registered secret no grant pairs with that host",
       "tests": [
-        "tests/test_agent_secrets.py",
-        "tests/test_agent_context.py"
+        "tests/test_agent_context.py",
+        "tests/test_agent_netauth.py",
+        "tests/test_agent_secrets.py"
       ],
       "property_tests": [],
       "mutation_tests": [
@@ -569,7 +570,8 @@
         "no secret is resolved on the production path, because nothing there needs one -- the governed tool's environment is BUILT from a declared allowlist rather than inherited, so a credential in os.environ cannot reach it at all",
         "redaction finds the value and the enumerated encodings only; a hashed, encrypted, compressed or split derivative is not detectable and the module says so",
         "zeroing a bytearray does not guarantee no copy remains; str is immutable and the interpreter may have copied it",
-        "no external secret provider integration (file, keyring, cloud)"
+        "no external secret provider integration (file, keyring, cloud)",
+        "the pairing check is mediation: a component holding both grants can still call reveal() and write its own socket, which reaches neither the composed operation nor the egress boundary. The value-based check is the stronger of the two because it does not depend on the caller choosing the safe method, and it still only sees bodies that come through authorize()"
       ],
       "blocker": null
     },

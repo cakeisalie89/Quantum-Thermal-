@@ -277,6 +277,27 @@
       "find": "            g = replace(g, issued_seq=self.log.verify().head_seq + 1)",
       "replace": "            pass",
       "rationale": "the caller chooses where its own egress grant begins"
+    },
+    {
+      "name": "E40_the_egress_body_is_not_checked_for_secrets",
+      "path": "qta_agent/netauth.py",
+      "find": "                refusal = _refuse_secret_pairing(decision, body, secrets)\n                return refusal if refusal is not None else decision",
+      "replace": "                return decision",
+      "rationale": "two individually correct grants compose into exfiltration and nothing in the request path asks"
+    },
+    {
+      "name": "E41_a_body_carrying_a_secret_is_waved_through",
+      "path": "qta_agent/netauth.py",
+      "find": "    if not carries:\n        return None",
+      "replace": "    if True:\n        return None",
+      "rationale": "the value-based detection runs and its answer is discarded"
+    },
+    {
+      "name": "E42_an_unavailable_secret_store_becomes_permission",
+      "path": "qta_agent/netauth.py",
+      "find": "        return replace(decision, allowed=False,\n                       reason=(\"the secret store could not be consulted \"",
+      "replace": "        return None\n        return replace(decision, allowed=False,\n                       reason=(\"the secret store could not be consulted \"",
+      "rationale": "a store that cannot answer turns into a yes, which is the fail-open direction"
     }
   ]
 }

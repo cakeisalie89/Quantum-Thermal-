@@ -78,6 +78,11 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import PurePosixPath
 
+# secrets precedes netauth in the layer order, so this direction is
+# the permitted one. It is what makes the confused-deputy check a
+# boundary rather than a helper nobody calls.
+from .secrets import check_egress_composition
+
 from .canonical import digest
 
 #: Event actions. Constants so a typo cannot create an unread action.
@@ -562,6 +567,42 @@ def grant_from_record(rec: dict) -> EgressGrant:
         raise NetworkError(f"grant record missing {exc}") from exc
 
 
+def _refuse_secret_pairing(decision, body, secrets):
+    """None if the body may go to this destination, else a refusing decision.
+
+    Value-based, deliberately: the leak that matters is a credential under an
+    innocent name, so this asks what the bytes ARE rather than what they are
+    called. A body carrying no registered secret is not this function's
+    business, and a store that was not supplied cannot be consulted.
+    """
+    if body is None or secrets is None:
+        return None
+    try:
+        carries = secrets.redactor().contains_secret(body)
+    except Exception:                        # noqa: BLE001 - never a leak
+        # A store that cannot answer must not turn into permission. It also
+        # must not raise out of a function documented as total.
+        return replace(decision, allowed=False,
+                       reason=("the secret store could not be consulted "
+                               "about this body; refusing rather than "
+                               "assuming it carries nothing"))
+    if not carries:
+        return None
+    host = decision.request.get("target", {}).get("host", "")
+    for g in sorted(secrets.grants_in_force(),
+                    key=lambda x: x.grant_id):
+        try:
+            check_egress_composition(g, decision)
+        except Exception:                    # noqa: BLE001 - try the next
+            continue
+        return None                          # one grant authorizes the pair
+    return replace(decision, allowed=False,
+                   reason=(f"the body carries a registered secret and no "
+                           f"secret grant names egress to {host!r}; holding "
+                           "a credential and holding egress are two grants, "
+                           "and using one on the other is a third thing"))
+
+
 @dataclass(frozen=True)
 class NetworkRequest:
     """What is being attempted, described independently of who is asking."""
@@ -713,13 +754,29 @@ class NetworkAuthority:
 
     # ---- the decision --------------------------------------------------
     def authorize(self, req: NetworkRequest, *,
-                  grant_id: str | None = None) -> NetworkDecision:
+                  grant_id: str | None = None,
+                  body=None, secrets=None) -> NetworkDecision:
         """Decide one egress request. Never raises on denial; total.
 
         With no ``grant_id`` the request is checked against every live grant
         and the first that covers it decides. That is a convenience for
         callers holding several, not a widening: a request covered by none is
         still denied, and each grant is checked in full.
+
+        THE CONFUSED DEPUTY, CHECKED BY VALUE
+        -------------------------------------
+        Pass ``body`` and a ``secrets`` store and the decision also asks
+        whether the bytes about to leave carry a credential this destination
+        may not receive. Neither grant is violated on its own -- that is what
+        makes the pairing the thing worth checking, and what makes checking
+        either half insufficient.
+
+        This is the BACKSTOP for the composed operation
+        (:meth:`Secret.reveal_for`), and it is the stronger of the two
+        because it does not depend on the caller having chosen the safe
+        method: it looks at what is actually in the body. It is still
+        mediation -- a component that builds its own socket never reaches
+        this function at all.
         """
         candidates = ([grant_id] if grant_id is not None
                       else sorted(self._grants))
@@ -733,9 +790,11 @@ class NetworkAuthority:
             ok, why = self._covers(gid, req)
             if ok:
                 g = self._grants[gid]
-                return NetworkDecision(
+                decision = NetworkDecision(
                     True, why, grant_id=gid, grant_digest=g.digest(),
                     request=rec, pinned_addresses=g.addresses)
+                refusal = _refuse_secret_pairing(decision, body, secrets)
+                return refusal if refusal is not None else decision
             last = why
         return NetworkDecision(False, last, request=rec)
 

