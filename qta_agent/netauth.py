@@ -86,6 +86,7 @@ from .secrets import check_egress_composition
 from .canonical import digest
 
 #: Event actions. Constants so a typo cannot create an unread action.
+ACT_SERVICE_REGISTER = "network.service"
 ACT_NET_GRANT = "network.grant"
 ACT_NET_REQUEST = "network.request"
 ACT_NET_RESULT = "network.result"
@@ -109,6 +110,10 @@ METHODS = SAFE_METHODS | MUTATING_METHODS
 #: Longer than any real hostname; refused rather than parsed.
 MAX_HOST_LEN = 253
 MAX_URL_LEN = 8192
+
+#: A service registration larger than this is refused, for the same reason a
+#: policy document is bounded: a contract nobody can read is not a contract.
+MAX_SERVICE_OPERATIONS = 128
 
 
 class NetworkError(Exception):
@@ -350,6 +355,165 @@ def _normalise_paths(paths) -> tuple:
                 "than normalised, because normalising changes the grant")
         out.add(p.as_posix())
     return tuple(sorted(out))
+
+
+class UnknownService(NetworkDenied):
+    """A request names a service nothing registered."""
+
+
+class QuotaExhausted(NetworkDenied):
+    """The service's call budget for this task is spent."""
+
+
+@dataclass(frozen=True)
+class ServiceOperation:
+    """One thing a service can be asked to do. Method plus a path prefix."""
+
+    method: str
+    path: str
+
+    def to_record(self) -> dict:
+        return {"method": self.method, "path": self.path}
+
+
+@dataclass(frozen=True)
+class Service:
+    """An external service as a NAMED party with a contract and a budget.
+
+    WHY A GRANT WAS NOT ENOUGH
+
+    An egress grant answers "may this reach that host, on that scheme, with
+    that method, under that path". That is authority over a NETWORK
+    DESTINATION, and it is the right question when the thing on the other end
+    is anonymous. It is the wrong question when the thing on the other end is
+    a service somebody depends on, because then three more questions matter
+    and a grant could not express any of them:
+
+    * WHICH SERVICE is this, as a name rather than as a hostname? Hosts move,
+      and an incident asking "what did we call, and how much" cannot be
+      answered by re-deriving it from URLs after the fact.
+    * WHAT MAY IT BE ASKED for? A grant covering ``/v1`` covers every
+      operation under it, including ones nobody reviewed. A contract
+      enumerates them.
+    * HOW MUCH? Nothing bounded how many times a governed run could call
+      out. A retry loop against somebody else's rate limit is an outage you
+      caused, and "the grant permitted it" is true and no comfort.
+
+    A service does not REPLACE the grant. Both must permit a request: the
+    grant says the destination is reachable and the service says the
+    operation is contracted and the budget is not spent. Either refusing
+    refuses.
+    """
+
+    service_id: str
+    #: Hosts this service is reachable at. A request to a host no registered
+    #: service claims is anonymous egress and is decided by the grant alone.
+    hosts: tuple
+    #: The operations under contract. Empty is refused: a service with no
+    #: operations permits nothing, and writing it that way is almost always
+    #: a serialization failure rather than an intent.
+    operations: tuple
+    #: Calls permitted PER TASK. Per task rather than per process, because a
+    #: process that restarts should not get a fresh budget for work it was
+    #: already partway through.
+    quota_per_task: int
+    description: str = ""
+
+    def body(self) -> dict:
+        return {"service_id": self.service_id, "hosts": list(self.hosts),
+                "operations": [o.to_record() for o in self.operations],
+                "quota_per_task": self.quota_per_task,
+                "description": self.description}
+
+    def digest(self) -> str:
+        return digest(self.body())
+
+    def covers_host(self, host: str) -> bool:
+        return any(host_matches(p, host) for p in self.hosts)
+
+    def permits(self, method: str, path: str) -> str:
+        """"" when the operation is under contract, else why it is not."""
+        method = (method or "").upper()
+        for op in self.operations:
+            if op.method != method:
+                continue
+            a = PurePosixPath(op.path)
+            try:
+                target = PurePosixPath(path or "/")
+            except (TypeError, ValueError):
+                continue
+            if ".." in target.parts:
+                continue
+            if target == a or a in target.parents:
+                return ""
+        return (f"service {self.service_id!r} has no contracted operation "
+                f"{method} {path!r}; it offers "
+                f"{sorted({o.method + ' ' + o.path for o in self.operations})}"
+                ". A destination being reachable is not the same as an "
+                "operation being agreed")
+
+
+def service(*, service_id: str, hosts, operations, quota_per_task: int,
+            description: str = "") -> Service:
+    """Construct a service registration, validating what cannot be fixed."""
+    if not isinstance(service_id, str) or not service_id:
+        raise NetworkError("service_id must be a non-empty str")
+    ops = tuple(operations)
+    if not ops:
+        raise NetworkError(
+            f"service {service_id!r} declares no operations. A service that "
+            "permits nothing is almost always a serialization failure, and "
+            "registering it would put an empty contract in force")
+    if len(ops) > MAX_SERVICE_OPERATIONS:
+        raise NetworkError(
+            f"service {service_id!r} declares {len(ops)} operations, over "
+            f"the {MAX_SERVICE_OPERATIONS} bound")
+    seen = set()
+    out = []
+    for op in ops:
+        if not isinstance(op, ServiceOperation):
+            raise NetworkError(
+                f"service {service_id!r}: operations must be "
+                f"ServiceOperation, got {op!r}")
+        method = _lower_str(op.method, "method", fold=False).upper()
+        if not op.path.startswith("/"):
+            raise NetworkError(
+                f"service {service_id!r}: operation path {op.path!r} must "
+                "start with '/'; a relative prefix matches by accident")
+        key = (method, op.path)
+        if key in seen:
+            raise NetworkError(
+                f"service {service_id!r}: duplicate operation {method} "
+                f"{op.path}")
+        seen.add(key)
+        out.append(ServiceOperation(method=method, path=op.path))
+    if (not isinstance(quota_per_task, int)
+            or isinstance(quota_per_task, bool) or quota_per_task < 1):
+        raise NetworkError(
+            f"service {service_id!r}: quota_per_task must be an int >= 1, "
+            f"got {quota_per_task!r}. A quota of zero registers a service "
+            "nothing may call, which is a denial wearing a contract's name")
+    return Service(service_id=service_id, hosts=_normalise_hosts(hosts),
+                   operations=tuple(sorted(out, key=lambda o: (o.method,
+                                                               o.path))),
+                   quota_per_task=quota_per_task,
+                   description=str(description))
+
+
+def service_from_record(rec: dict) -> Service:
+    """Rebuild a service from a log payload. Same refusals as construction."""
+    if not isinstance(rec, dict):
+        raise NetworkError(f"service record is {type(rec).__name__}")
+    try:
+        return service(
+            service_id=rec["service_id"], hosts=rec["hosts"],
+            operations=tuple(
+                ServiceOperation(method=o["method"], path=o["path"])
+                for o in rec["operations"]),
+            quota_per_task=rec["quota_per_task"],
+            description=rec.get("description", ""))
+    except (KeyError, TypeError) as exc:
+        raise NetworkError(f"service record is malformed: {exc}") from exc
 
 
 @dataclass(frozen=True)
@@ -632,12 +796,20 @@ class NetworkDecision:
     request: dict = field(default_factory=dict)
     #: Addresses the connection is confined to, when the grant pins any.
     pinned_addresses: tuple = ()
+    #: The registered service this destination belongs to, or None when the
+    #: host is not claimed by one. Recorded so an incident asking "what did
+    #: we call, and how much" has a name to group by rather than a set of
+    #: URLs to re-derive it from.
+    service_id: str | None = None
+    service_digest: str | None = None
 
     def to_record(self) -> dict:
         return {"allowed": self.allowed, "reason": self.reason,
                 "grant_id": self.grant_id, "grant_digest": self.grant_digest,
                 "request": self.request,
-                "pinned_addresses": list(self.pinned_addresses)}
+                "pinned_addresses": list(self.pinned_addresses),
+                "service_id": self.service_id,
+                "service_digest": self.service_digest}
 
     def raise_if_denied(self) -> "NetworkDecision":
         if not self.allowed:
@@ -657,6 +829,11 @@ class NetworkAuthority:
         self.log = log
         self._grants: dict = {}
         self._revoked: set = set()
+        self._services: dict = {}
+        #: (service_id, task_id) -> calls PERMITTED so far. Counted from the
+        #: log rather than from a counter this object owns, so a restart
+        #: does not hand a task a fresh budget for work it had already spent.
+        self._service_calls: dict = {}
         self._at_seq = 0
 
     # ---- projection ----------------------------------------------------
@@ -666,11 +843,44 @@ class NetworkAuthority:
         self.log.verify().raise_if_bad()
         self._grants = {}
         self._revoked = set()
+        self._services = {}
+        self._service_calls = {}
         for ev in self.log.read():
             self.apply(ev)
         return self
 
     def apply(self, ev) -> bool:
+        if ev.action == ACT_SERVICE_REGISTER:
+            svc = service_from_record(ev.payload["service"])
+            claimed = ev.payload.get("service_digest")
+            if claimed != svc.digest():
+                raise NetworkError(
+                    f"seq {ev.seq}: service registration claims digest "
+                    f"{str(claimed)[:12]} but hashes to {svc.digest()[:12]}")
+            existing = self._services.get(svc.service_id)
+            if existing is not None and existing.digest() != svc.digest():
+                # A re-registration with different terms would replace a
+                # contract already in force with one nobody reviewed, and
+                # every decision made under the old one would afterwards read
+                # as though it had been made under the new.
+                raise NetworkError(
+                    f"seq {ev.seq}: service {svc.service_id!r} is registered "
+                    "again with different terms; the contract in force would "
+                    "be replaced by one nobody reviewed")
+            self._services[svc.service_id] = svc
+            self._at_seq = ev.seq
+            return True
+        if ev.action == ACT_NET_REQUEST:
+            # QUOTA IS COUNTED FROM THE LOG. A counter this object owned
+            # would reset on restart, which is the one moment a task most
+            # needs its budget to be the one it had before.
+            p = ev.payload
+            sid, task = p.get("service_id"), p.get("task_id")
+            if sid and p.get("allowed"):
+                key = (sid, task)
+                self._service_calls[key] = self._service_calls.get(key, 0) + 1
+            self._at_seq = ev.seq
+            return True
         if ev.action == ACT_NET_GRANT:
             p = ev.payload
             if p.get("revoke"):
@@ -713,7 +923,58 @@ class NetworkAuthority:
             return True
         return False
 
+    # ---- service reads -------------------------------------------------
+    def service_for(self, host: str) -> "Service | None":
+        """The registered service claiming ``host``, or None.
+
+        None means the host belongs to no service, which is anonymous egress:
+        legitimate, decided by the grant alone, and visibly different in the
+        record from a call to something somebody agreed a contract with.
+        """
+        for svc in sorted(self._services.values(),
+                          key=lambda s: s.service_id):
+            if svc.covers_host(host):
+                return svc
+        return None
+
+    def services(self) -> tuple:
+        return tuple(sorted(self._services, key=str))
+
+    def service(self, service_id: str) -> "Service":
+        svc = self._services.get(service_id)
+        if svc is None:
+            raise UnknownService(
+                f"no service {service_id!r} is registered; an unregistered "
+                "service has no contract and no budget")
+        return svc
+
+    def calls_made(self, service_id: str, task_id: str) -> int:
+        """How much of this task's budget for this service is spent."""
+        return self._service_calls.get((service_id, task_id), 0)
+
     # ---- writes --------------------------------------------------------
+    def register_service(self, svc: "Service", *, actor: str) -> "Service":
+        """Put a service contract in force. It does not exist until this."""
+        if not isinstance(svc, Service):
+            raise NetworkError(f"expected a Service, got {svc!r}")
+        existing = self._services.get(svc.service_id)
+        if existing is not None and existing.digest() != svc.digest():
+            raise NetworkError(
+                f"service {svc.service_id!r} is already registered with "
+                "different terms; changing a contract in force would make "
+                "every decision recorded under the old one read as though it "
+                "had been made under the new")
+        if self.log is not None:
+            ev = self.log.append(
+                actor=actor, action=ACT_SERVICE_REGISTER,
+                target=svc.service_id,
+                payload={"service": svc.body(),
+                         "service_digest": svc.digest()})
+            self.apply(ev)
+        else:
+            self._services[svc.service_id] = svc
+        return self._services[svc.service_id]
+
     def issue(self, g: EgressGrant, *, actor: str) -> EgressGrant:
         if not isinstance(g, EgressGrant):
             raise NetworkError(f"expected an EgressGrant, got {g!r}")
@@ -786,13 +1047,41 @@ class NetworkAuthority:
                 False, "no egress grant exists; the default is no network",
                 request=rec)
         last = "no egress grant covers this request"
+        # THE SERVICE HALF, checked before any grant is consulted.
+        #
+        # Both must permit: the grant says the destination is reachable, the
+        # service says the operation is contracted and the budget is not
+        # spent. Doing this first means a request to a registered service
+        # that is off-contract is refused with the reason that actually
+        # applies, rather than with whichever grant happened not to cover it.
+        svc = self.service_for(req.target.host)
+        if svc is not None:
+            why = svc.permits(req.target.method, req.target.path)
+            if why:
+                return NetworkDecision(
+                    False, why, request=rec, service_id=svc.service_id,
+                    service_digest=svc.digest())
+            used = self._service_calls.get((svc.service_id, req.task_id), 0)
+            if used >= svc.quota_per_task:
+                return NetworkDecision(
+                    False,
+                    f"service {svc.service_id!r} has been called "
+                    f"{used} time(s) for task {req.task_id!r}, at its "
+                    f"{svc.quota_per_task}-call budget. A retry loop against "
+                    "somebody else's rate limit is an outage you caused, and "
+                    "'the grant permitted it' is true and no comfort",
+                    request=rec, service_id=svc.service_id,
+                    service_digest=svc.digest())
+
         for gid in candidates:
             ok, why = self._covers(gid, req)
             if ok:
                 g = self._grants[gid]
                 decision = NetworkDecision(
                     True, why, grant_id=gid, grant_digest=g.digest(),
-                    request=rec, pinned_addresses=g.addresses)
+                    request=rec, pinned_addresses=g.addresses,
+                    service_id=svc.service_id if svc else None,
+                    service_digest=svc.digest() if svc else None)
                 refusal = _refuse_secret_pairing(decision, body, secrets)
                 return refusal if refusal is not None else decision
             last = why
@@ -881,7 +1170,21 @@ class NetworkAuthority:
         self.log.append(actor=actor, action=ACT_NET_REQUEST,
                         target=req.task_id,
                         payload={"request": req.to_record(),
-                                 "decision": decision.to_record()})
+                                 "decision": decision.to_record(),
+                                 # Lifted to the top level because the quota
+                                 # projection reads them on every event, and
+                                 # a projection that has to reach into a
+                                 # nested record to find its own state is one
+                                 # more shape a forged payload can vary.
+                                 "service_id": decision.service_id,
+                                 "task_id": req.task_id,
+                                 "allowed": decision.allowed})
+        # Fold it in so the budget this object reports is the budget the log
+        # holds -- otherwise a caller that records is still working from the
+        # count it had before.
+        if decision.service_id and decision.allowed:
+            key = (decision.service_id, req.task_id)
+            self._service_calls[key] = self._service_calls.get(key, 0) + 1
         return decision
 
     def record_result(self, req: NetworkRequest, *, actor: str,

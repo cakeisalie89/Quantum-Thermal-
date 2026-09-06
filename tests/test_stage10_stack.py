@@ -825,7 +825,11 @@ def _governed_text_files():
     tracked = [f for f in out.split() if f.endswith((".md", ".txt"))]
     return {f for f in tracked
             if not any(part in RAG.EXCLUDED_DIRS
-                       for part in pathlib.Path(f).parts)}
+                       for part in pathlib.Path(f).parts)
+            # Excluded BY NAME as well as by directory. A derived digest and
+            # a git bundle both match *.txt and are neither governed nor
+            # documents; see rag_index.EXCLUDED_FILES for why each is there.
+            and f not in RAG.EXCLUDED_FILES}
 
 
 def test_rag_indexes_every_governed_document():

@@ -67,7 +67,7 @@ def test_the_matrix_does_not_claim_scientific_authority():
     assert "model_only" in blob or "model-only" in blob
 
 
-@pytest.mark.parametrize("row_id", ["R55", "R21"])
+@pytest.mark.parametrize("row_id", ["R55"])
 def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
     """Guards against the matrix being 'closed' without the work.
 
@@ -75,12 +75,38 @@ def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
     directive singles out. If either is ever marked complete, that must be
     because the subsystem exists -- and then this test should be updated in
     the same change that builds it, deliberately.
+
+    R21 WAS closed, and this test fired, which is the mechanism working:
+    closing it required editing this file. It moved to the check below rather
+    than being deleted, because "it was closed on purpose" is a weaker claim
+    than "it was closed with the things closing it requires".
     """
     row = next(r for r in CM.load()["rows"] if r["id"] == row_id)
     if row["classification"] == CM.COMPLETE:
         pytest.fail(
             f"{row_id} is marked complete -- update this test in the change "
             "that completed it, so closing it stays a deliberate act")
+
+
+@pytest.mark.parametrize("row_id", ["R21"])
+def test_a_row_closed_from_the_watchlist_carries_what_closing_it_needed(
+        row_id):
+    """A row that graduated must still show its work, forever.
+
+    Moving a row off the watchlist is a one-line edit. Requiring it to keep
+    naming a production caller, mutation coverage and a stated boundary means
+    that edit cannot be all that happened -- and that a later change quietly
+    hollowing the row out fails here rather than nowhere.
+    """
+    row = next(r for r in CM.load()["rows"] if r["id"] == row_id)
+    assert row["classification"] == CM.COMPLETE, (
+        f"{row_id} left the watchlist and is not complete; put it back")
+    assert row["production_caller"], f"{row_id}: complete with no caller"
+    assert row["mutation_tests"], f"{row_id}: complete with no mutations"
+    assert row["boundaries"], (
+        f"{row_id}: complete to a 'technically defensible limit' that states "
+        "no limit")
+    assert not row["residual_gaps"]
 
 
 # --- the validator's own guards, provoked ----------------------------------

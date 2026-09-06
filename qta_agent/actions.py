@@ -45,6 +45,7 @@ OWNERS: dict = {
     "task.transition": "governed_stage10",
     "task.execution": "governed_stage10",
     "task.evidence": "governed_stage10",
+    "task.compensation": "governed_stage10",
     # qta_agent.capability -- the ledger that makes a grant real
     "capability.issue": "capability",
     "capability.revoke": "capability",
@@ -69,6 +70,7 @@ OWNERS: dict = {
     "agent.escalation.answer": "agents",
     # qta_agent.netauth
     "network.grant": "netauth",
+    "network.service": "netauth",
     "network.request": "netauth",
     "network.result": "netauth",
     # qta_agent.secrets

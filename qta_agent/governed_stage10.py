@@ -77,8 +77,8 @@ from pathlib import Path
 
 from . import actions
 from .agents import (
-    AgentDirectory, AgentError, AgentRole, PrincipalKind, StreamNotifier,
-    check_separation, identity,
+    AgentDirectory, AgentError, AgentRole, EscalationState, PrincipalKind,
+    StreamNotifier, check_separation, identity,
 )
 from .canonical import digest
 from . import capability as _cap_actions
@@ -108,7 +108,7 @@ from .tasks import (
     TaskTransitionError, apply_transition, check,
 )
 from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
-                    ToolSpec)
+                    ToolError, ToolSpec)
 
 #: Where governed Stage-10 work is allowed to write. The same subtree the
 #: Stage-10 workspace guard permits, so the two agree by construction rather
@@ -153,11 +153,17 @@ ACT_CAP_ISSUE = _cap_actions.ACT_ISSUE
 ACT_CAP_REVOKE = _cap_actions.ACT_REVOKE
 ACT_EXECUTION = "task.execution"
 ACT_EVIDENCE = "task.evidence"
+#: A compensating action that was RUN, and the answered escalation that
+#: authorized running it. Separate from task.execution because a
+#: compensation is not an attempt at the work -- it is an attempt to undo it,
+#: and an audit that could not tell them apart would count an undo as a
+#: retry.
+ACT_COMPENSATION = "task.compensation"
 
 #: The actions THIS projection applies or deliberately passes over. Anything
 #: else is another subsystem's (skipped) or unrecognised (refused).
 OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
-                   ACT_EXECUTION, ACT_EVIDENCE})
+                   ACT_EXECUTION, ACT_EVIDENCE, ACT_COMPENSATION})
 
 
 def stage10_policy(version: int = 1) -> "object":
@@ -511,7 +517,13 @@ class GovernedStage10:
                     result_digest=p.get("result_digest")
                     or task.result_digest,
                     updated_seq=ev.seq)
-            elif ev.action == ACT_EVIDENCE:
+            elif ev.action in (ACT_EVIDENCE, ACT_COMPENSATION):
+                # A compensation does not move the task. The task's outcome
+                # was and remains whatever it reached; what a compensation
+                # records is that somebody tried to undo its effect, which is
+                # a fact ABOUT the task rather than a state of it. Folding it
+                # into the state machine would make "was compensated" and
+                # "did not happen" the same answer.
                 continue
             else:
                 try:
@@ -920,6 +932,133 @@ class GovernedStage10:
                            context_digest=context.manifest.digest(),
                            memory_id=memory_id,
                            obligations=receipt)
+
+    # ---- compensation --------------------------------------------------
+    def compensate(self, *, task_id: str, escalation_id: str,
+                   actor: str = "system") -> dict:
+        """Run the declared undo, because a PERSON decided it should run.
+
+        WHY THIS IS NOT AUTOMATIC
+
+        The case a compensation exists for is the case where nobody knows
+        whether the effect happened: a supervisor died between an EXTERNAL
+        action and the record of it. Running the undo automatically would
+        perform an unrequested external action in exactly the situation where
+        there may have been nothing to undo -- the same mistake as an
+        automatic retry, pointed the other way.
+
+        So this refuses unless an escalation for this task has been ANSWERED
+        ``COMPENSATE``, by a human principal who was not the one that raised
+        it. The authority for the action is a decision in the log, and the
+        record cites it.
+
+        WHAT IT DOES AND DOES NOT ESTABLISH
+
+        It runs the compensating tool through the ordinary executor: same
+        contract, same capability, same limits, same provenance. What it
+        cannot establish is that the far side is now in the state the undo
+        intended -- only the far side knows that, and the record says the
+        compensation RAN rather than that it worked.
+        """
+        spec = self.registry.get(self._tool_of(task_id))
+        undo = self.registry.compensator_for(spec.tool_id)
+        if undo is None:
+            raise ToolError(
+                f"{spec.tool_id} declares a compensation and names no tool "
+                f"to perform it: {spec.compensation!r}. That is an operator's "
+                "action, not this system's, and reporting otherwise would be "
+                "the fabrication the declaration exists to avoid")
+        esc = self.agents.escalation(escalation_id)
+        if esc.task_id != task_id:
+            raise AgentError(
+                f"escalation {escalation_id!r} is about task {esc.task_id!r}, "
+                f"not {task_id!r}. An answer given about one piece of work "
+                "does not authorize acting on another")
+        if esc.state is not EscalationState.ANSWERED:
+            raise AgentError(
+                f"escalation {escalation_id!r} is {esc.state.value}; a "
+                "compensation runs because somebody decided it should, and "
+                "nobody has decided yet")
+        if esc.answer != "COMPENSATE":
+            raise AgentError(
+                f"escalation {escalation_id!r} was answered "
+                f"{esc.answer!r}, not 'COMPENSATE'. Running the undo anyway "
+                "would perform an external action the person asked was "
+                "explicitly not to perform")
+
+        # THROUGH THE ORDINARY EXECUTOR. Same contract, same capability,
+        # same limits, same provenance -- a compensation that ran outside all
+        # of that would be a shell command in a runbook wearing this system's
+        # name. The egress guard is applied here too: an undo is still an
+        # unaudited network call if nothing stops it making one.
+        cap_id = self._compensation_capability(task_id, actor)
+        inputs = {"task_id": task_id}
+        undo.validate_inputs(inputs)
+        argv = [sys.executable, "-m", "qta_agent._stage10_tool",
+                json.dumps(inputs, sort_keys=True)]
+        with socket_guard(self.network, actor=actor, task_id=task_id,
+                          tool_id=undo.tool_id):
+            result = self.executor.run(
+                tool_id=undo.tool_id, actor=actor, task_id=task_id,
+                inputs=inputs, argv=argv, cwd=self.root,
+                capabilities=self.capabilities.in_force(
+                    self.log.verify().head_seq),
+                capability_id=cap_id,
+                limits=Limits(wall_seconds=undo.timeout_s),
+                env=self._tool_environment())
+        self.log.append(
+            actor=actor, action=ACT_COMPENSATION, target=task_id,
+            payload={"task_id": task_id,
+                     "compensated_tool": spec.tool_id,
+                     "compensating_tool": undo.tool_id,
+                     "contract_digest": undo.digest(),
+                     "authorized_by_escalation": escalation_id,
+                     "answered_by": esc.answered_by,
+                     "outcome": result.outcome.value,
+                     "exit_status": result.exit_status,
+                     "declared_compensation": spec.compensation})
+        return {"task_id": task_id, "tool_id": undo.tool_id,
+                "outcome": result.outcome.value,
+                "authorized_by_escalation": escalation_id,
+                "answered_by": esc.answered_by,
+                # Said plainly, because the alternative is a report that
+                # reads like confirmation. The undo RAN; whether the far side
+                # is now in the state it intended is not knowable here.
+                "establishes": "the compensating tool ran to this outcome; "
+                               "it does not establish the external system's "
+                               "current state"}
+
+    def _compensation_capability(self, task_id: str, actor: str) -> str:
+        """A grant minted for THIS undo, on THIS task, and nothing else.
+
+        The compensation does not borrow the original run's capability. That
+        grant was for the tool that caused the effect, and reusing it would
+        make "may run the thing" and "may undo the thing" the same authority
+        -- so a component tricked into one would hold the other.
+        """
+        cap_id = f"cap-undo-{uuid.uuid4().hex[:8]}"
+        undo = self.registry.compensator_for(self._tool_of(task_id))
+        head = self.log.verify().head_seq
+        self.capabilities.issue(
+            issue(capability_id=cap_id, subject=actor,
+                  action=Action.EXECUTE_TOOL, task_id=task_id,
+                  tool_id=undo.tool_id, scope=(WORKSPACE_PREFIX,),
+                  issued_seq=head + 1,
+                  # Bounded to this one action. A compensation grant that
+                  # outlived the compensation would be standing authority to
+                  # touch an external system.
+                  expires_after_seq=head + 4,
+                  issued_wall_time=time.time()),
+            actor="scheduler")
+        return cap_id
+
+    def _tool_of(self, task_id: str) -> str:
+        """Which tool a task ran, from the log rather than from a caller."""
+        for ev in self.log.read():
+            if ev.action == ACT_TASK_CREATE and \
+                    ev.payload.get("task_id") == task_id:
+                return ev.payload.get("tool_id", "")
+        raise ValueError(f"no task {task_id!r} in this log")
 
     # ---- recovery ------------------------------------------------------
     def recover(self, *, actor: str = "system") -> tuple:
@@ -1350,6 +1489,24 @@ class GovernedStage10:
                         "captured; the bytes changed between the run and the "
                         "capture, so neither digest describes a stable "
                         "artifact")
+        # A file the contract never named. The write allowlist bounded WHERE
+        # the tool could write and said nothing about WHAT: an extra artifact
+        # inside its own scope passed every check and appeared in no
+        # provenance record.
+        #
+        # This is EVIDENCE_FAILED rather than a warning because the point of
+        # the contract is that the run's outputs are the ones somebody
+        # reviewed. A run that quietly leaves something else behind has a
+        # provenance record that is incomplete, and an incomplete provenance
+        # record is precisely what this subsystem exists to prevent.
+        if result.undeclared_writes:
+            return (f"the tool wrote {len(result.undeclared_writes)} file(s) "
+                    f"its contract never declared: "
+                    f"{list(result.undeclared_writes[:5])}. The writable "
+                    "scope bounds WHERE a tool may write and says nothing "
+                    "about WHAT; a run whose outputs are not the ones the "
+                    "contract named has a provenance record that is missing "
+                    "something")
         return ""
 
     def _verify_artifacts(self, artifacts: dict, *,

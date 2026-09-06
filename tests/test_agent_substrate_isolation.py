@@ -60,6 +60,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_recovery.py",
     "tests/test_agent_second_reader.py",
     "tests/test_agent_audit.py",
+    "tests/test_agent_compensation.py",
     "tests/test_agent_delegation.py",
     "tests/test_agent_policy.py",
     "tests/test_agent_scheduler.py",
@@ -470,3 +471,105 @@ def test_the_narrative_document_mirrors_the_registry():
     for name in LAYERS:
         assert f"`{name}.py`" in doc, (
             f"{name}.py is governed but not described in AGENT_SUBSTRATE.md")
+
+
+# ==========================================================================
+# WHO MAY TOUCH THE FILESYSTEM DIRECTLY
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "READ paths are gated for the governed workflow and the evidence
+#      store; reads made by code that does not go through GovernedReader are
+#      still ungoverned, and nothing forces a future caller to use it"
+#
+# "Nothing forces" is the operative half. GovernedReader records every read
+# with what was opened, refuses a path outside the grant, and re-checks the
+# file has not changed underneath it -- and all of that is worth exactly as
+# much as the next person's memory unless something refuses when a module
+# opens a file itself.
+# ==========================================================================
+
+#: Modules that may call open()/read_text()/read_bytes() directly, and why.
+#: Everything else in the package reads through GovernedReader, and adding a
+#: name here is a deliberate widening of who touches the filesystem.
+IO_LAYER = {
+    # These ARE the storage. GovernedReader is built on top of them, so
+    # routing them through it would be circular.
+    "events": "the append-only log's own file handling",
+    "evidence": "the content-addressed store's own file handling",
+    "checkpoint": "checkpoint files, written atomically and read back",
+    "safeio": "the confinement primitives GovernedReader itself calls",
+    "readpath": "GovernedReader",
+    # The executor reads the stdout and stderr IT created, in a temporary
+    # directory it owns, for a process it started. There is no grant to
+    # check because there is no caller-supplied path.
+    "execution": "its own subprocess capture files",
+    # /proc, for process identity. Not a workspace path and not something a
+    # capability could scope: it is the kernel answering about a pid.
+    "hostid": "/proc, for process identity",
+}
+
+_READ_CALLS = {"read_text", "read_bytes"}
+
+
+def test_only_the_io_layer_opens_files_directly():
+    """A read the substrate makes without a grant is an ungoverned read.
+
+    Checked structurally rather than by convention, because a convention is
+    a thing the next person has to know about and this is a thing the suite
+    refuses.
+    """
+    import ast
+
+    offenders = {}
+    inspected = []
+    for path in sorted((ROOT / "qta_agent").glob("*.py")):
+        if path.stem in IO_LAYER:
+            continue
+        inspected.append(path.stem)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            if isinstance(fn, ast.Name) and fn.id == "open":
+                offenders.setdefault(path.name, []).append(
+                    f"open() at line {node.lineno}")
+            elif isinstance(fn, ast.Attribute) and fn.attr in _READ_CALLS:
+                offenders.setdefault(path.name, []).append(
+                    f"{fn.attr}() at line {node.lineno}")
+
+    # ANTI-VACUITY, ASSERTED IN THE SAME TEST.
+    #
+    # A separate test that only checks the SIZE of the allowlist cannot see a
+    # loop that skips every file: offenders comes back empty, the assertion
+    # below passes, and the guard reports success over zero modules. So this
+    # test states what it examined, and an empty examination is the failure.
+    assert len(inspected) > 10, (
+        f"the read guard examined only {inspected}; a guard that reports "
+        "success over nothing is worse than no guard, because it reads like "
+        "one")
+    assert not offenders, (
+        "these modules read the filesystem without going through "
+        f"GovernedReader: {offenders}. Either route the read through it, or "
+        "add the module to IO_LAYER with a reason -- which is a deliberate "
+        "widening of who may touch the filesystem, and should look like one")
+
+
+def test_the_io_layer_allowlist_is_not_vacuous():
+    """ANTI-VACUITY. An allowlist naming every module would make the check
+    above pass by examining nothing."""
+    modules = {p.stem for p in (ROOT / "qta_agent").glob("*.py")}
+    governed = modules - set(IO_LAYER)
+    assert len(governed) > len(IO_LAYER), (
+        f"{len(IO_LAYER)} of {len(modules)} modules are exempt from the "
+        "read guard; at that ratio the guard is a list of exceptions with a "
+        "test attached")
+
+
+def test_every_io_layer_entry_names_a_module_that_exists():
+    """A stale exemption is an exemption nobody notices is unused."""
+    modules = {p.stem for p in (ROOT / "qta_agent").glob("*.py")}
+    stale = sorted(set(IO_LAYER) - modules)
+    assert not stale, (
+        f"IO_LAYER exempts {stale}, which are not modules in this package")

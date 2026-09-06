@@ -571,3 +571,30 @@ def test_an_allowlist_from_a_future_schema_is_refused(tmp_path):
     with pytest.raises(RAG.CorpusMembershipError) as exc:
         RAG.build_index(root=root)
     assert "schema" in str(exc.value)
+
+
+def test_no_derived_artifact_is_in_the_corpus():
+    """A file the build regenerates cannot be a reviewed document.
+
+    Found the hard way: manifest_hash.txt matched *.txt, so every manifest
+    regeneration made the corpus disagree with its own allowlist -- and the
+    "verbatim span" it offered a reader was sixty-four hex characters.
+    """
+    corpus = set(RAG.corpus_files(ROOT))
+    for name in RAG.EXCLUDED_FILES:
+        assert name not in corpus, (
+            f"{name} is in the retrieval corpus and is {RAG.EXCLUDED_FILES[name]}")
+
+
+def test_every_exclusion_names_a_file_that_exists():
+    """A stale exclusion is one nobody notices is unused."""
+    missing = [n for n in RAG.EXCLUDED_FILES if not (ROOT / n).exists()]
+    assert not missing, (
+        f"EXCLUDED_FILES names {missing}, which are not in the repository")
+
+
+def test_naming_an_excluded_file_explicitly_does_not_admit_it():
+    """The exclusion is not a default a caller can step around."""
+    with pytest.raises(ValueError) as exc:
+        RAG.build_index(root=ROOT, paths=["manifest_hash.txt"])
+    assert "excluded from retrieval" in str(exc.value)

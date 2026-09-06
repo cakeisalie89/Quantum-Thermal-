@@ -225,8 +225,8 @@
     {
       "name": "W32_denials_not_recorded",
       "path": "qta_agent/netauth.py",
-      "find": "                        payload={\"request\": req.to_record(),\n                                 \"decision\": decision.to_record()})",
-      "replace": "                        payload={\"request\": {},\n                                 \"decision\": {}})",
+      "find": "                        payload={\"request\": req.to_record(),\n                                 \"decision\": decision.to_record(),",
+      "replace": "                        payload={\"request\": {},\n                                 \"decision\": {},",
       "rationale": "the audit trail records that something happened but not what was attempted"
     },
     {

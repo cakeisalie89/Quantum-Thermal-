@@ -195,6 +195,18 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_delegation.json
+      - name: mutation matrix -- compensation and undeclared writes
+        # The compensation was prose with four consumers and no performer;
+        # declared-output collection saw only the files the contract named.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_compensation.json
+      - name: mutation matrix -- external service authority
+        # A grant answers "may this reach that host"; a service answers
+        # which service, what may it be asked, and how much.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_service_authority.json
       - name: mutation matrix -- lease renewal
         # Renewal extends possession and must never re-acquire it: a lapsed
         # lease may already have been reconciled away and the work given to

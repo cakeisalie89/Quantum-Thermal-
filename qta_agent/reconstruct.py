@@ -443,6 +443,10 @@ class SubsystemReconstruction:
     contexts: dict = field(default_factory=dict)
     #: The one actor this log permits to mint grants, or None if none yet.
     root_issuer: "str | None" = None
+    #: service_id -> its contract as this reader rebuilt it.
+    services: dict = field(default_factory=dict)
+    #: "service_id/task_id" -> permitted calls counted from the log.
+    service_calls: dict = field(default_factory=dict)
     anomalies: list = field(default_factory=list)
     events_replayed: int = 0
     head_seq: int = -1
@@ -501,6 +505,10 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_memory_write(ev, p, out)
         elif a == "memory.status":
             _sub_memory_status(ev, p, out)
+        elif a == "network.service":
+            _sub_service(ev, p, out)
+        elif a == "network.request":
+            _sub_service_call(ev, p, out)
         elif a == "network.grant":
             _sub_grant(ev, p, out, out.net_grants, "network")
         elif a == "secret.grant":
@@ -947,6 +955,62 @@ def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
                   "body": grant}
 
 
+def _sub_service(ev, p: dict, out) -> None:
+    """A service contract, in this reader's own words.
+
+    The rule restated is that a contract in force may not be replaced by one
+    nobody reviewed: every decision recorded under the old terms would
+    afterwards read as though it had been made under the new.
+    """
+    rec = p.get("service")
+    if not isinstance(rec, dict):
+        _note(out, ev, "network.service carries no service")
+        return
+    sid = rec.get("service_id")
+    if not isinstance(sid, str) or not sid:
+        _note(out, ev, "network.service names no service_id")
+        return
+    prior = out.services.get(sid)
+    if prior is not None:
+        if prior["digest"] != p.get("service_digest"):
+            _note(out, ev, f"service {sid!r} is registered again with "
+                           "different terms; the contract in force would be "
+                           "replaced by one nobody reviewed")
+        return
+    out.services[sid] = {
+        "service_id": sid, "digest": p.get("service_digest"),
+        "hosts": tuple(rec.get("hosts") or ()),
+        "quota_per_task": rec.get("quota_per_task"),
+        "operations": tuple(sorted(
+            f"{o.get('method')} {o.get('path')}"
+            for o in (rec.get("operations") or [])
+            if isinstance(o, dict))),
+        "registered_seq": ev.seq,
+    }
+
+
+def _sub_service_call(ev, p: dict, out) -> None:
+    """Count a PERMITTED call against a service's per-task budget.
+
+    Counted here rather than trusted from the primary, so a budget the
+    scheduler believes is spent and one the log actually shows are two
+    numbers that can be compared. Only ALLOWED calls count: a refusal cost
+    the caller nothing and must not cost it a call it never made.
+    """
+    sid, task = p.get("service_id"), p.get("task_id")
+    if not sid or not p.get("allowed"):
+        return
+    key = f"{sid}/{task}"
+    cur = out.service_calls.get(key, 0)
+    out.service_calls[key] = cur + 1
+    svc = out.services.get(sid)
+    if svc is not None and isinstance(svc.get("quota_per_task"), int) \
+            and out.service_calls[key] > svc["quota_per_task"]:
+        _note(out, ev, f"service {sid!r} has now been called "
+                       f"{out.service_calls[key]} time(s) for task {task!r}, "
+                       f"past its {svc['quota_per_task']}-call budget")
+
+
 def _sub_context(ev, p: dict, out) -> None:
     manifest = p.get("manifest")
     digest_ = p.get("manifest_digest")
@@ -967,7 +1031,7 @@ def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
     out: list = []
     tables = {"jobs": recon.jobs, "capabilities": recon.capabilities,
               "agents": recon.agents, "memory": recon.memory,
-              "net_grants": recon.net_grants,
+              "net_grants": recon.net_grants, "services": recon.services,
               "secret_grants": recon.secret_grants}
     for name, theirs in tables.items():
         mine = primary.get(name)

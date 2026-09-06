@@ -8,7 +8,7 @@
     {
       "id": "R21",
       "requirement": "Tool execution as a full subsystem: identity, contract, schemas, capability, limits, timeout, cancellation, provenance",
-      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/tools.py",
         "qta_agent/execution.py"
@@ -16,51 +16,64 @@
       "callers": [
         "Snakefile",
         "qta_agent/governed_stage10.py",
-        "tests/test_agent_execution.py"
+        "tests/test_agent_execution.py",
+        "tests/test_agent_compensation.py"
       ],
       "production_caller": "qta_agent/governed_stage10.py",
-      "persistent_state": "task.execution events record outcome, tool id, version and contract digest, exit status, signal number, stdout/stderr digests, the digest and resolved path of every DECLARED output file, any declared output not collected and why, the tool's compensating action, the retry decision, the limits applied and the duration",
+      "persistent_state": "task.execution events record outcome, tool id, version and contract digest, exit status, signal number, stdout/stderr digests, the digest and resolved path of every DECLARED output file, any declared output not collected and why, any file inside the tool's writable scope that appeared, changed or vanished WITHOUT being declared, the tool's compensating action, the retry decision, the limits applied and the duration. task.compensation records an undo that RAN and the answered escalation that authorized running it",
       "authority_owner": "tools.Registry (default deny) + Executor.run",
-      "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, a digest per declared output file with the path it resolved to, duration and the limits actually applied",
+      "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, a digest per declared output file with the path it resolved to, the undeclared writes, duration and the limits actually applied",
       "provenance": "tool_id, version and contract digest cited by every result; the contract digest covers the declared output files and the compensation, so two tools that collect different files cannot cite the same digest",
-      "failure_semantics": "five outcomes; TIMED_OUT, CANCELLED and DENIED are each distinct from FAILED and none of them is success. A zero exit that did not produce a declared required output is FAILED, not COMPLETED: exit status describes the process and the contract describes what the process was for. A declared output resolving outside the working directory, or found to be a FIFO or device, is refused rather than hashed or read",
+      "failure_semantics": "five outcomes; TIMED_OUT, CANCELLED and DENIED are each distinct from FAILED and none of them is success. A zero exit that did not produce a declared required output is FAILED. A run that wrote, changed or deleted a file inside its own scope that the contract never named is EVIDENCE_FAILED: the writable scope bounds WHERE a tool may write and says nothing about WHAT, and a run whose outputs are not the ones somebody reviewed has an incomplete provenance record. A declared output resolving outside the working directory, or found to be a FIFO or device, is refused rather than hashed",
       "recovery": "the execution record is durable, so a crash after it is recoverable; a crash before it leaves the job's lease to lapse and scheduler.reconcile returns the work to READY",
       "retry": "RETRYABLE is TIMED_OUT|CANCELLED, and that is NECESSARY rather than sufficient: a tool declaring SideEffect.EXTERNAL is never automatically retryable at any outcome, because a timeout is precisely the case where nothing observed whether the external effect happened. The caller reports UNSAFE_TO_RETRY, which the scheduler treats as final. A deterministic rejection is not retryable",
       "idempotency": "n/a",
       "cancellation": "CancellationToken checked before spawn and during the wait",
       "concurrency": "one execution per job, under an unexpired scheduler lease",
-      "security_boundary": "registry default-deny; capability checked against a log-projected ledger before execution; a declared output whose path is steered out of the workspace by an input is DENIED before the process starts, and one steered out by a symlink the tool wrote is refused at collection; kernel rlimits; own process group; a BUILT environment rather than an inherited one; a default-deny egress guard around the call",
+      "security_boundary": "default deny at the registry; a grant is checked per request rather than held by a component; the compensating tool gets its OWN grant, minted for that task and that tool and expiring immediately, because reusing the run's grant would make 'may run the thing' and 'may undo the thing' one authority",
       "tests": [
         "tests/test_agent_execution.py",
+        "tests/test_agent_compensation.py",
         "tests/test_agent_governed_stage10.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/agent_compensation.json",
         "tools/mutations/agent_execution.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942) and 34010167285 (41ea81f) -- all green, the last two read from the API at job level rather than inferred",
-      "residual_gaps": [
-        "one registered tool, invoked by one workflow",
-        "the executor has no retry loop: retry is the scheduler's -- classified, capped, in seq units. A timed-out attempt is re-dispatched as a new attempt, never re-run in place",
-        "the egress guard binds THIS process, not the child. A subprocess that opens its own socket is not stopped by it; nothing here is containment",
-        "SideEffect.EXTERNAL is consumed at four points -- registration refuses one without a written compensation, retryable is False for it, the caller reports UNSAFE_TO_RETRY, and the compensation travels in the record -- but the compensation is a DECLARATION. Nothing performs it, and no compensating action is automated anywhere in this system",
-        "declared-output collection sees only the files the CONTRACT named. A tool that writes an UNdeclared file inside its scope is not detected by it; the write allowlist is what bounds that, and the two are different questions"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the executor has no retry loop: retry is the SCHEDULER's, classified and capped in sequence units, and a timed-out attempt is re-dispatched as a new attempt rather than re-run in place",
+          "reason": "architectural_by_design",
+          "detail": "an executor that retried would decide, silently and without a lease, how many times an effect may happen. Keeping it in the scheduler is what makes 'how many attempts' a durable, auditable number rather than a loop counter in a process that may not survive"
+        },
+        {
+          "limit": "the egress guard binds THIS process, not the child: a subprocess that opens its own socket is not stopped by it",
+          "reason": "platform_primitive_absent",
+          "detail": "containment needs a network namespace or seccomp, which an unprivileged interpreter cannot install. This is mediation, said rather than implied -- the tool's environment is built from an allowlist rather than inherited, which is the part that IS enforced"
+        },
+        {
+          "limit": "a compensation RUNS and does not establish that the far side is now in the state the undo intended",
+          "reason": "external_system_unreachable",
+          "detail": "only the external system knows its own state, and this environment cannot ask it. The record says the compensating tool ran to a given outcome, and the report says in words that it does not establish more -- because a report that reads like confirmation is the fabrication the whole declaration exists to avoid"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R22",
       "requirement": "Default deny for tool, filesystem, network, secret and external-service authority",
-      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_multiphysics/stack/workspace.py",
         "qta_agent/tools.py",
-        "qta_agent/capability.py",
+        "qta_agent/readpath.py",
         "qta_agent/netauth.py",
-        "qta_agent/secrets.py"
+        "qta_agent/secrets.py",
+        "qta_agent/capability.py"
       ],
       "callers": [
         "qta_agent/governed_stage10.py",
@@ -69,7 +82,7 @@
       ],
       "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "network.grant / network.request / network.result and secret.grant / secret.access events; the governed run holds zero egress grants and the Snakefile asserts it",
-      "authority_owner": "workspace.assert_in_workspace, tools.Registry, netauth.NetworkAuthority.authorize, secrets.SecretStore.resolve",
+      "authority_owner": "tools.Registry for tools, readpath.GovernedReader for reads, netauth.NetworkAuthority for egress AND for per-service contracts and budgets, secrets.SecretStore for credentials",
       "evidence": "refusals are raised AND, for network and secrets, recorded: a control plane that logs only what it permitted cannot answer 'what did this agent try'",
       "provenance": "every network request and secret access names actor, task and purpose",
       "failure_semantics": "fail-closed, with a distinct exception per authority",
@@ -78,30 +91,36 @@
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "filesystem writes allowlisted at the write primitive; tool execution default-deny; egress default-deny with label-wise host matching and address pinning; secrets held by reference and rendered as placeholders",
+      "security_boundary": "default deny everywhere. Reads: a structural test refuses any module in qta_agent that calls open/read_text/read_bytes outside a named I/O layer, so 'nothing forces a future caller to use GovernedReader' is now a rule the suite enforces rather than a convention somebody has to know. External services: a registered service is a NAMED party with an enumerated operation contract and a per-task call budget, and both the service and the egress grant must permit a request -- registering a service widens nothing",
       "tests": [
-        "tests/test_agent_authority_boundaries.py",
-        "tests/test_stage10_stack.py",
-        "tests/test_agent_execution.py",
         "tests/test_agent_netauth.py",
-        "tests/test_agent_secrets.py"
+        "tests/test_agent_readpath.py",
+        "tests/test_agent_secrets.py",
+        "tests/test_agent_substrate_isolation.py",
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/stage10_authority.json",
-        "tools/mutations/agent_execution.json",
+        "tools/mutations/agent_service_authority.json",
         "tools/mutations/agent_netauth.json",
-        "tools/mutations/agent_secrets.json"
+        "tools/mutations/agent_readpath.json"
       ],
       "fuzzing": "tools/fuzz_substrate.py covers netauth grant and target parsing",
-      "differential": "none",
+      "differential": "service contracts and per-task budgets are rebuilt by an independent reader that refuses a replaced contract and counts only PERMITTED calls against a budget",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "READ paths are gated for the governed workflow and the evidence store; reads made by code that does not go through GovernedReader are still ungoverned, and nothing forces a future caller to use it",
-        "no external-service authority beyond egress: no per-service identity, quota or contract",
-        "the egress guard is in-process and reversible by code inside the block; it is mediation, not a sandbox -- and so is the read boundary"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the egress guard is in-process and reversible by code inside the block; so is the read boundary. Both are MEDIATION, not a sandbox",
+          "reason": "platform_primitive_absent",
+          "detail": "kernel containment needs privileges this interpreter does not have. Stated rather than implied at every point it matters, because a reader who assumed containment would draw conclusions the code does not support -- and the structural read guard is what makes the mediation at least unanimous within the package"
+        },
+        {
+          "limit": "a service's quota is enforced by this substrate and not by the far side: a caller that reaches the network some other way is not counted",
+          "reason": "external_system_unreachable",
+          "detail": "a budget the far side agreed to would be the far side's to enforce. What this bounds is what the governed path will do, which is the part that is ours -- and the count is taken from the log, so it survives a restart rather than resetting at the moment a task most needs it not to"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

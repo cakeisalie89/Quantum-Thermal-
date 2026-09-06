@@ -44,6 +44,34 @@ an operator how to undo an effect is not the same as that effect having been
 undone, and a machine that retries on the strength of an unperformed
 compensation performs the external action twice.
 
+A DECLARATION AN OPERATOR CAN ACT ON, AND A TOOL THE SYSTEM CAN RUN
+
+For a long time the compensation was ONLY prose. That is the right thing to
+require -- an operator reading an incident needs a sentence, not a function
+reference -- and it left the row honestly saying "nothing performs it".
+
+A spec may now also name a ``compensating_tool``: a registered tool that
+performs the undo, so the compensation runs through the same contract,
+capability, limits and provenance machinery as anything else rather than
+being a shell command in somebody's runbook. The prose stays REQUIRED and the
+tool stays optional, because not every external effect has an automatable
+undo and a system that pretended otherwise would be worse than one that says
+so.
+
+Two rules keep it from becoming a way to smuggle unreviewed effects:
+
+* the compensating tool must be marked ``is_compensation``, which is the only
+  way an EXTERNAL tool may omit a compensation of its own -- otherwise every
+  undo would need an undo and the regress has no bottom;
+* a compensating tool may not itself name one. A compensation that needs
+  compensating is a design nobody can reason about at the moment they most
+  need to.
+
+Nothing here decides to RUN it. That decision is a human's, and the governed
+path puts it to one as an escalation -- because an automatic compensation for
+an effect that may never have happened is itself an unrequested external
+effect.
+
 OUTPUTS ARE DECLARED BEFORE THE RUN, NOT DISCOVERED AFTER IT
 
 ``output_files`` names the files the tool is contracted to produce, as
@@ -253,10 +281,15 @@ class ToolSpec:
     #: collected -- silence, not a claim that there are none.
     output_files: tuple = ()
     #: What undoes this tool's EXTERNAL effect, in words an operator can act
-    #: on. Required for -- and permitted only on -- SideEffect.EXTERNAL. It
-    #: is a declaration, not an automation: nothing here performs it, and
-    #: having one never makes an automatic retry safe.
+    #: on. Required for -- and permitted only on -- SideEffect.EXTERNAL.
+    #: Having one never makes an automatic retry safe.
     compensation: str = ""
+    #: A registered tool that PERFORMS the undo, or "" when the effect has no
+    #: automatable one. Optional beside the prose, never instead of it.
+    compensating_tool: str = ""
+    #: True when this tool IS an undo. The only way an EXTERNAL tool may omit
+    #: a compensation of its own, and a tool that may not name one.
+    is_compensation: bool = False
     #: Repo-relative prefixes the tool may write. Checked against the
     #: capability at execution time; declaring a scope grants nothing.
     writable_scope: tuple = ()
@@ -277,6 +310,8 @@ class ToolSpec:
             "side_effect": self.side_effect.value,
             "output_files": [f.to_record() for f in self.output_files],
             "compensation": self.compensation,
+            "compensating_tool": self.compensating_tool,
+            "is_compensation": self.is_compensation,
             "writable_scope": list(self.writable_scope),
             "timeout_s": self.timeout_s,
         }
@@ -379,7 +414,32 @@ def _validate_compensation(spec: ToolSpec) -> None:
     """
     if not isinstance(spec.compensation, str):
         raise ToolError(f"{spec.tool_id}: compensation must be a str")
+    if not isinstance(spec.compensating_tool, str):
+        raise ToolError(f"{spec.tool_id}: compensating_tool must be a str")
+    if not isinstance(spec.is_compensation, bool):
+        raise ToolError(f"{spec.tool_id}: is_compensation must be a bool")
     external = spec.side_effect is SideEffect.EXTERNAL
+    if spec.is_compensation:
+        if not external:
+            raise ToolError(
+                f"{spec.tool_id}: is_compensation with side_effect "
+                f"{spec.side_effect.value}. Undoing something this system "
+                "owns is an ordinary scoped write; the flag exists for the "
+                "case where the state belongs to somebody else")
+        if spec.compensating_tool:
+            raise ToolError(
+                f"{spec.tool_id}: is a compensation AND names one. A "
+                "compensation that needs compensating is a design nobody can "
+                "reason about at the moment they most need to")
+        # And it is EXEMPT from the requirement below. That exemption is the
+        # whole reason the flag exists: without it every undo needs an undo
+        # and the regress has no bottom.
+        return
+    if spec.compensating_tool and not external:
+        raise ToolError(
+            f"{spec.tool_id}: names a compensating tool but side_effect is "
+            f"{spec.side_effect.value}. A tool to undo an effect the contract "
+            "says does not happen means one of the two is wrong")
     if external and not spec.compensation.strip():
         raise ToolError(
             f"{spec.tool_id}: declares EXTERNAL side effects and no "
@@ -474,6 +534,39 @@ class Registry:
                 "schema is "
                 "not permission -- absence of a rule is not an allow rule.")
         return self._specs[tool_id]
+
+    def compensator_for(self, tool_id: object) -> ToolSpec | None:
+        """The registered tool that undoes ``tool_id``, or None.
+
+        Resolved HERE rather than at the call site so that a spec naming a
+        compensating tool the registry does not hold fails at the point
+        somebody asks for it, with a message about the contract, instead of
+        as a ToolNotRegistered three frames away that reads like the caller's
+        mistake.
+
+        Returns None for "this effect has no automatable undo", which is a
+        legitimate and common answer -- the prose compensation is still
+        there, and an operator is still the one who acts on it.
+        """
+        spec = self.get(tool_id)
+        if not spec.compensating_tool:
+            return None
+        try:
+            undo = self.get(spec.compensating_tool)
+        except ToolNotRegistered:
+            raise ToolError(
+                f"{spec.tool_id} names {spec.compensating_tool!r} as its "
+                "compensating tool and that tool is not registered. A "
+                "compensation nothing can run is prose wearing a function's "
+                "name, which is worse than prose") from None
+        if not undo.is_compensation:
+            raise ToolError(
+                f"{spec.tool_id} names {undo.tool_id!r} as its compensating "
+                "tool, and that tool is not marked is_compensation. The mark "
+                "is what exempts it from needing an undo of its own, so an "
+                "unmarked one would be an ordinary EXTERNAL tool being run "
+                "for a purpose its own contract does not describe")
+        return undo
 
     def ids(self) -> FrozenSet[str]:
         return frozenset(self._specs)

@@ -251,6 +251,10 @@ class ExecutionResult:
     #: REQUIRED output is what turns a zero exit into FAILED; an optional one
     #: is recorded and changes nothing.
     missing_outputs: dict = field(default_factory=dict)
+    #: Files inside the working directory that appeared, changed or vanished
+    #: and were never named by the contract. Declared-output collection sees
+    #: only what the contract named; this is what sees the rest.
+    undeclared_writes: tuple = ()
     #: The tool's declared compensating action, carried so that an operator
     #: reading a durable record of an EXTERNAL run that did not finish learns
     #: what to do from the record itself.
@@ -309,6 +313,7 @@ class ExecutionResult:
             "output_digests": dict(sorted(self.output_digests.items())),
             "output_paths": dict(sorted(self.output_paths.items())),
             "missing_outputs": dict(sorted(self.missing_outputs.items())),
+            "undeclared_writes": list(self.undeclared_writes),
             "compensation": self.compensation,
             "retryable": self.retryable,
         }
@@ -429,6 +434,96 @@ def _output_size(*paths) -> int:
 _HASH_BLOCK = 1024 * 1024
 
 
+def _inventory(cwd: Path, scopes) -> dict:
+    """``{relative path: (size, mtime_ns, inode)}`` under each writable scope.
+
+    SCOPED, not whole-workspace, and both halves of that matter.
+
+    Cost: the working directory is the repository root on the governed path,
+    so walking it before and after every run would make a bounded execution
+    proportional to how big the checkout is.
+
+    Correctness: a tool may only write inside its declared scope, so that is
+    the only place an undeclared write of ITS can appear. Anything changing
+    elsewhere was somebody else -- the executor's own scratch directory, a
+    concurrent process, the user's editor -- and reporting those as the
+    tool's writes would be an accusation the evidence does not support.
+
+    A tool declaring no writable scope is inventoried nowhere, which is
+    correct: it claims to write nothing, and the write allowlist is what
+    enforces that.
+
+    Deliberately identity rather than content: hashing a workspace before and
+    after every run would make the check cost proportional to what is there
+    rather than to what changed, and the question being asked -- "did a file
+    appear or change that the contract never named" -- is answerable from
+    metadata. A tool that rewrites a file to identical bytes with an
+    identical mtime has, for this purpose, not written it.
+
+    Symlinks are recorded WITHOUT following them, so replacing a file with a
+    link to somewhere else registers as a change rather than as whatever the
+    target happens to look like.
+    """
+    out: dict = {}
+    for scope in scopes:
+        root = cwd / scope
+        if not root.is_dir():
+            continue
+        for dirpath, dirnames, filenames in os.walk(root):
+            # os.walk follows directory symlinks by default, which would make
+            # an inventory of a scope containing a link to / take as long as
+            # the filesystem is large.
+            dirnames[:] = [d for d in dirnames
+                           if not os.path.islink(os.path.join(dirpath, d))]
+            for name in filenames:
+                full = os.path.join(dirpath, name)
+                try:
+                    st = os.stat(full, follow_symlinks=False)
+                except OSError:                      # pragma: no cover
+                    continue
+                # Relative to CWD, not to the scope, so these are the same
+                # strings the declared output paths are expressed in.
+                rel = os.path.relpath(full, cwd)
+                out[rel] = (st.st_size, st.st_mtime_ns, st.st_ino)
+    return out
+
+
+def _undeclared_writes(before: dict, after: dict, declared_paths) -> tuple:
+    """Files that appeared or changed and were never named by the contract.
+
+    WHAT THIS IS FOR, AND WHAT IT IS NOT
+
+    Declared-output collection sees only the files the CONTRACT named, so a
+    tool that writes an UNDECLARED file inside its own scope was invisible to
+    it. That is a different question from the write allowlist, which bounds
+    WHERE a tool may write; this bounds whether what it wrote is what it said
+    it would write.
+
+    Both matter and neither substitutes for the other: the allowlist stops a
+    tool touching somebody else's directory, and this notices a tool
+    producing a file nobody reviewed inside its own. A run that quietly
+    leaves an extra artifact behind is a run whose provenance record is
+    incomplete, and an incomplete provenance record is the failure this whole
+    subsystem exists to prevent.
+
+    DELETIONS ARE REPORTED TOO. A tool that removes a file it did not declare
+    has changed the workspace just as much as one that adds a file, and an
+    inventory that only looked for additions would miss the more destructive
+    half.
+    """
+    named = set(declared_paths)
+    found = []
+    for rel, stamp in sorted(after.items()):
+        if rel in named:
+            continue
+        if before.get(rel) != stamp:
+            found.append(f"{rel}: {'changed' if rel in before else 'created'}")
+    for rel in sorted(before):
+        if rel not in after and rel not in named:
+            found.append(f"{rel}: deleted")
+    return tuple(found)
+
+
 def _collect_outputs(cwd: Path, declared: tuple) -> tuple:
     """Hash each declared output, or say precisely why it was not collected.
 
@@ -511,6 +606,10 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
     testable without constructing a whole spec.
     """
     started = time.time()
+    # BEFORE anything runs, and before the early-return paths below: a
+    # cancelled run wrote nothing, and comparing against an inventory taken
+    # after the fact would call every pre-existing file an undeclared write.
+    before_inventory = _inventory(Path(cwd), spec.writable_scope)
     base = dict(tool_id=spec.tool_id, tool_version=spec.version,
                 tool_digest=spec.digest(), limits=limits.to_record(),
                 determinism=spec.determinism.value,
@@ -645,6 +744,9 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
         # worse by an output it never had the chance to write.
         out_digests, out_paths, missing = _collect_outputs(
             Path(cwd), tuple(collect))
+        undeclared = _undeclared_writes(
+            before_inventory, _inventory(Path(cwd), spec.writable_scope),
+            [rel for _n, rel, _r in collect])
         if outcome is Outcome.COMPLETED:
             unmet = [n for n, _rel, req in collect if req and n in missing]
             if unmet:
@@ -674,7 +776,7 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             stdout_truncated=out_cut, stderr_truncated=err_cut,
             ended_wall=ended, duration_s=ended - started,
             output_digests=out_digests, output_paths=out_paths,
-            missing_outputs=missing,
+            missing_outputs=missing, undeclared_writes=undeclared,
             reason=reason, **base)
     finally:
         if proc is not None and proc.poll() is None:  # pragma: no cover

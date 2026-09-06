@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "e51fca5a06c83c652b874b7cd3136d6ddbdaf68f3f2f0549b49d364523278a50",
+  "entries_digest": "2ec291f3d5770a96ed8d70b2e9ba96d261390e47c54cb73235e4e2974692c693",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -113,10 +113,6 @@
       "sha256": "03ae2cf4da48a951261c7e7d8013ed62d0b18826ac5077421c85004c698e69c9"
     },
     {
-      "path": "QTA_full_history-6.bundle.txt",
-      "sha256": "81a824014e26869828f3fba665b28871735bf6e6587fe07af50ce80ddf3af4a3"
-    },
-    {
       "path": "QTA_stage9_release_verification/RELEASE_POLICY.md",
       "sha256": "ed109d5895b9e051381bd7b0fd028a9586b4e1652c0ebd9a3c30116cf815fbec"
     },
@@ -177,10 +173,6 @@
       "sha256": "929e412bfad5bf73f69f4dc8c0de470f07afbd5ad794108407ddea8d28663593"
     },
     {
-      "path": "deep_dataset_hash.txt",
-      "sha256": "364aefa0833abcd2aaf375a7c4bb3807293e583a2abd1bae8f462e4e1a78e250"
-    },
-    {
       "path": "docs/CORPUS_RECOVERY_TRIAGE.md",
       "sha256": "bc7de2215d82c04bff4323b692f877dabb1326c6fd6bf5a981bfc6a886e7aa4c"
     },
@@ -191,10 +183,6 @@
     {
       "path": "docs/SESSION_REPORT.md",
       "sha256": "140eb20edd1fd24f04d4fdc08ab06b0a37d50cf8f831aa6ca58a849fae87e709"
-    },
-    {
-      "path": "manifest_hash.txt",
-      "sha256": "c547b32a7d32cd910f7326ef39a64ebc2b1f9e167be79eedcb7670367a3ff282"
     },
     {
       "path": "raw_data_standard.md",

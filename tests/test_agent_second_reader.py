@@ -441,3 +441,72 @@ def test_the_second_reader_drops_the_renewal_count_on_requeue(gov):
     assert theirs["lease_renewals"] == 0
     assert theirs["lease_expires_after_seq"] == mine.lease_expires_after_seq
     assert (theirs["lease_holder"] or None) == mine.lease_holder
+
+
+# ==========================================================================
+# SERVICE CONTRACTS AND BUDGETS, read independently
+# ==========================================================================
+
+def _register_service(gov):
+    from qta_agent.netauth import ServiceOperation, service
+    return gov.network.register_service(
+        service(service_id="registrar", hosts=("api.example.com",),
+                operations=(ServiceOperation("POST", "/v1/records"),),
+                quota_per_task=2),
+        actor="scheduler")
+
+
+def test_the_second_reader_rebuilds_a_service_contract(gov):
+    svc = _register_service(gov)
+    recon = reconstruct_subsystems(gov.log)
+    theirs = recon.services["registrar"]
+    assert theirs["digest"] == svc.digest()
+    assert theirs["quota_per_task"] == 2
+    assert theirs["operations"] == ("POST /v1/records",)
+
+
+def test_the_second_reader_refuses_a_re_registration_with_new_terms(gov):
+    from qta_agent.netauth import ACT_SERVICE_REGISTER, ServiceOperation
+    from qta_agent.netauth import service as _service
+    _register_service(gov)
+    wider = _service(service_id="registrar", hosts=("api.example.com",),
+                     operations=(ServiceOperation("POST", "/v1"),),
+                     quota_per_task=10_000)
+    recon = _forge(gov, ACT_SERVICE_REGISTER,
+                   {"service": wider.body(),
+                    "service_digest": wider.digest()}, actor="mallory")
+
+    assert any("nobody reviewed" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert recon.services["registrar"]["quota_per_task"] == 2
+
+
+def test_the_second_reader_counts_the_budget_and_notices_it_passed(gov):
+    """Counted from the log, so a budget the scheduler believes is spent and
+    one the log actually shows are two numbers that can be compared."""
+    from qta_agent.netauth import ACT_NET_REQUEST
+    _register_service(gov)
+    for _ in range(3):
+        gov.log.append(actor="w", action=ACT_NET_REQUEST, target="t1",
+                       payload={"service_id": "registrar", "task_id": "t1",
+                                "allowed": True, "request": {},
+                                "decision": {}})
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.service_calls["registrar/t1"] == 3
+    assert any("past its 2-call budget" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_a_refused_call_does_not_count_against_the_budget(gov):
+    """ANTI-VACUITY. If every recorded request counted, the budget would be
+    spent by attempts that never happened."""
+    from qta_agent.netauth import ACT_NET_REQUEST
+    _register_service(gov)
+    for _ in range(5):
+        gov.log.append(actor="w", action=ACT_NET_REQUEST, target="t1",
+                       payload={"service_id": "registrar", "task_id": "t1",
+                                "allowed": False, "request": {},
+                                "decision": {}})
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.service_calls.get("registrar/t1", 0) == 0
+    assert not [a for a in recon.anomalies if "budget" in a]

@@ -22,8 +22,8 @@ from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.netauth import (  # noqa: E402
     ACT_NET_REQUEST, AddressClass, Direction, EgressGrant, GuardedConnection,
     MalformedTarget, NetworkAuthority, NetworkDenied, NetworkError,
-    NetworkRequest, classify_address, grant, grant_from_record, host_matches,
-    parse_target, socket_guard,
+    NetworkRequest, ServiceOperation, classify_address, grant,
+    grant_from_record, host_matches, parse_target, service, socket_guard,
 )
 
 ACTOR = "agent-worker-1"
@@ -838,3 +838,243 @@ def test_the_composition_check_has_a_production_caller():
     assert production - {"qta_agent/secrets.py"}, (
         "check_egress_composition is only referenced by its own module and "
         f"by tests: {sorted(production)}")
+
+
+# ==========================================================================
+# EXTERNAL SERVICE AUTHORITY
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "no external-service authority beyond egress: no per-service identity,
+#      quota or contract"
+#
+# A grant answers "may this reach that host". That is the right question
+# when the far side is anonymous and the wrong one when it is a service
+# somebody depends on: which service, what may it be asked, and how much.
+# ==========================================================================
+
+def _service(**over):
+    kw = dict(service_id="registrar", hosts=("api.example.com",),
+              operations=(ServiceOperation("GET", "/v1/records"),
+                          ServiceOperation("POST", "/v1/records")),
+              quota_per_task=2)
+    kw.update(over)
+    return service(**kw)
+
+
+def _svc_req(path="/v1/records", method="GET", task_id=TASK):
+    return NetworkRequest(
+        actor=ACTOR, task_id=task_id, tool_id=TOOL,
+        target=parse_target(f"https://api.example.com{path}", method=method))
+
+
+def _served(tmp_path, svc=None, g=None):
+    log = EventLog(tmp_path / "log.jsonl")
+    a = NetworkAuthority(log).load()
+    a.issue(g or _grant(methods=("GET", "POST"), paths=("/v1",)),
+            actor="scheduler")
+    a.register_service(svc or _service(), actor="scheduler")
+    return a
+
+
+def test_a_contracted_operation_is_permitted(tmp_path):
+    a = _served(tmp_path)
+    d = a.authorize(_svc_req())
+    assert d.allowed, d.reason
+    assert d.service_id == "registrar"
+    assert d.service_digest
+
+
+def test_an_uncontracted_operation_is_refused_though_the_grant_covers_it(
+        tmp_path):
+    """THE point. A grant covering /v1 covers every operation under it,
+    including ones nobody reviewed."""
+    a = _served(tmp_path)
+    d = a.authorize(_svc_req(path="/v1/records/7", method="POST"))
+    assert d.allowed, "POST /v1/records/7 is under a contracted prefix"
+
+    d = a.authorize(NetworkRequest(
+        actor=ACTOR, task_id=TASK, tool_id=TOOL,
+        target=parse_target("https://api.example.com/v1/admin",
+                            method="POST")))
+    assert not d.allowed
+    assert "no contracted operation" in d.reason
+    assert d.service_id == "registrar"
+
+
+def test_a_method_the_contract_omits_is_refused(tmp_path):
+    a = _served(tmp_path, g=_grant(methods=("GET", "POST", "DELETE"),
+                                   paths=("/v1",)))
+    d = a.authorize(_svc_req(method="DELETE"))
+    assert not d.allowed
+    assert "no contracted operation" in d.reason
+
+
+def test_the_quota_is_per_task_and_is_spent(tmp_path):
+    """A retry loop against somebody else's rate limit is an outage you
+    caused, and 'the grant permitted it' is true and no comfort."""
+    a = _served(tmp_path)
+    for _ in range(2):
+        d = a.authorize(_svc_req())
+        assert d.allowed
+        a.record(_svc_req(), d, actor=ACTOR)
+
+    d = a.authorize(_svc_req())
+    assert not d.allowed
+    assert "budget" in d.reason
+    assert a.calls_made("registrar", TASK) == 2
+
+
+def test_another_task_has_its_own_budget(tmp_path):
+    a = _served(tmp_path)
+    # A second grant, because a grant is confined to ONE task -- so without
+    # this the second task is refused by the grant and the test would pass
+    # while proving nothing about the quota.
+    a.issue(_grant(grant_id="g2", task_id="task-2",
+                   methods=("GET", "POST"), paths=("/v1",)),
+            actor="scheduler")
+    for _ in range(2):
+        a.record(_svc_req(), a.authorize(_svc_req()), actor=ACTOR)
+    assert not a.authorize(_svc_req()).allowed
+
+    other = _svc_req(task_id="task-2")
+    assert a.authorize(other).allowed, (
+        "one task exhausting a service stopped every other task using it")
+
+
+def test_a_refused_call_does_not_spend_the_budget(tmp_path):
+    """Otherwise a mistake costs a task the calls it never made."""
+    a = _served(tmp_path)
+    bad = NetworkRequest(
+        actor=ACTOR, task_id=TASK, tool_id=TOOL,
+        target=parse_target("https://api.example.com/v1/admin", method="POST"))
+    for _ in range(5):
+        a.record(bad, a.authorize(bad), actor=ACTOR)
+    assert a.calls_made("registrar", TASK) == 0
+    assert a.authorize(_svc_req()).allowed
+
+
+def test_the_budget_survives_a_restart(tmp_path):
+    """Counted from the LOG. A counter this object owned would reset on
+    restart, which is the one moment a task most needs its budget to be the
+    one it had before."""
+    a = _served(tmp_path)
+    for _ in range(2):
+        a.record(_svc_req(), a.authorize(_svc_req()), actor=ACTOR)
+
+    revived = NetworkAuthority(EventLog(tmp_path / "log.jsonl")).load()
+    assert revived.calls_made("registrar", TASK) == 2
+    assert not revived.authorize(_svc_req()).allowed
+
+
+def test_a_host_no_service_claims_is_decided_by_the_grant_alone(tmp_path):
+    """Anonymous egress stays legitimate, and visibly different in the
+    record from a call to something somebody agreed a contract with."""
+    a = _served(tmp_path, g=_grant(hosts=("api.example.com", "other.test"),
+                                   methods=("GET",), paths=("/v1",)))
+    d = a.authorize(NetworkRequest(
+        actor=ACTOR, task_id=TASK, tool_id=TOOL,
+        target=parse_target("https://other.test/v1/x")))
+    assert d.allowed
+    assert d.service_id is None
+
+
+def test_the_service_and_the_grant_must_BOTH_permit(tmp_path):
+    """Registering a service does not widen anything."""
+    a = _served(tmp_path, g=_grant(methods=("GET",), paths=("/v1/records",)))
+    d = a.authorize(_svc_req(path="/v1/records", method="POST"))
+    assert not d.allowed, (
+        "the service contract permitted POST and the grant did not; "
+        "registering a service must not widen a grant")
+
+
+def test_a_service_with_no_operations_is_refused():
+    """An empty contract permits nothing and is almost always a
+    serialization failure rather than an intent."""
+    with pytest.raises(NetworkError) as exc:
+        service(service_id="s", hosts=("h.test",), operations=(),
+                quota_per_task=1)
+    assert "declares no operations" in str(exc.value)
+
+
+def test_a_quota_of_zero_is_refused():
+    """A denial wearing a contract's name."""
+    with pytest.raises(NetworkError) as exc:
+        service(service_id="s", hosts=("h.test",),
+                operations=(ServiceOperation("GET", "/x"),),
+                quota_per_task=0)
+    assert "denial wearing a contract" in str(exc.value)
+
+
+def test_re_registering_a_service_with_different_terms_is_refused(tmp_path):
+    """Every decision recorded under the old contract would afterwards read
+    as though it had been made under the new one."""
+    a = _served(tmp_path)
+    with pytest.raises(NetworkError) as exc:
+        a.register_service(_service(quota_per_task=99), actor="scheduler")
+    assert "already registered with different terms" in str(exc.value)
+
+
+def test_a_forged_service_registration_fails_on_replay(tmp_path):
+    from qta_agent.netauth import ACT_SERVICE_REGISTER
+    a = _served(tmp_path)
+    svc = _service(quota_per_task=10_000)
+    a.log.append(actor="mallory", action=ACT_SERVICE_REGISTER,
+                 target="registrar",
+                 payload={"service": svc.body(),
+                          "service_digest": svc.digest()})
+    with pytest.raises(NetworkError) as exc:
+        NetworkAuthority(EventLog(tmp_path / "log.jsonl")).load()
+    assert "nobody reviewed" in str(exc.value)
+
+
+def test_a_service_record_whose_digest_disagrees_is_refused(tmp_path):
+    from qta_agent.netauth import ACT_SERVICE_REGISTER
+    log = EventLog(tmp_path / "log.jsonl")
+    svc = _service()
+    log.append(actor="mallory", action=ACT_SERVICE_REGISTER, target="s",
+               payload={"service": {**svc.body(), "quota_per_task": 9999},
+                        "service_digest": svc.digest()})
+    with pytest.raises(NetworkError) as exc:
+        NetworkAuthority(log).load()
+    assert "hashes to" in str(exc.value)
+
+
+def test_service_operation_paths_match_by_component(tmp_path):
+    """/v1/records does not cover /v1/records-admin.
+
+    Named for the SERVICE contract rather than for the grant: the grant has
+    a test of this shape already, and giving both the same name meant only
+    the second was ever collected.
+    """
+    svc = _service(operations=(ServiceOperation("GET", "/v1/records"),))
+    assert svc.permits("GET", "/v1/records/7") == ""
+    assert "no contracted operation" in svc.permits("GET", "/v1/records-admin")
+
+
+def test_a_traversal_in_the_path_is_refused(tmp_path):
+    svc = _service()
+    assert "no contracted operation" in svc.permits(
+        "GET", "/v1/records/../admin")
+
+
+def test_a_refused_call_does_not_spend_the_budget_on_replay(tmp_path):
+    """ISOLATED from the in-memory path, which masked it.
+
+    ``record`` keeps its own count so a caller that just recorded sees the
+    right number immediately. That count is not what survives a restart --
+    ``apply`` rebuilds it from the log -- and a guard present in one and
+    missing from the other is exactly the shape that passes every test until
+    a process comes back.
+    """
+    a = _served(tmp_path)
+    bad = NetworkRequest(
+        actor=ACTOR, task_id=TASK, tool_id=TOOL,
+        target=parse_target("https://api.example.com/v1/admin", method="POST"))
+    for _ in range(5):
+        a.record(bad, a.authorize(bad), actor=ACTOR)
+
+    revived = NetworkAuthority(EventLog(tmp_path / "log.jsonl")).load()
+    assert revived.calls_made("registrar", TASK) == 0, (
+        "refused calls were counted against the budget on replay")
+    assert revived.authorize(_svc_req()).allowed
