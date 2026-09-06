@@ -1,6 +1,6 @@
 {
   "title": "Capabilities, tool contracts, and bounded execution",
-  "note": "Authority here is an OBJECT, not a flag: each mutation removes one dimension a grant is bounded along (subject, task, tool, action, scope, revocation, expiry) or one bound execution is held to (deadline, cancellation, memory, output, process group, environment). The three outcomes that are not success -- TIMED_OUT, CANCELLED, DENIED -- have their own mutations, because collapsing any of them into COMPLETED is the failure that would matter most.",
+  "note": "Authority here is an OBJECT, not a flag: each mutation removes one dimension a grant is bounded along (subject, task, tool, action, scope, revocation, expiry) or one bound execution is held to (deadline, cancellation, memory, output, process group, environment). The three outcomes that are not success -- TIMED_OUT, CANCELLED, DENIED -- have their own mutations, because collapsing any of them into COMPLETED is the failure that would matter most. Declared OUTPUTS are the second authority object here: the contract names the file before anything runs, so 'exited 0 and wrote nothing' is a failure and a path that leaves the workspace is refused rather than hashed. SideEffect.EXTERNAL is the third: it costs a retry, and a mutation that gives the retry back is the whole difference between a classification and a label.",
   "suites": [
     "tests/test_agent_execution.py",
     "tests/test_agent_substrate.py",
@@ -342,6 +342,97 @@
       "find": "            base[\"pid\"] = proc.pid",
       "replace": "            base[\"pid\"] = None",
       "rationale": "a supervisor that dies mid-run leaves an orphan nothing can name"
+    },
+    {
+      "name": "X27_a_missing_declared_output_is_still_a_completion",
+      "path": "qta_agent/execution.py",
+      "find": "            unmet = [n for n, _rel, req in collect if req and n in missing]",
+      "replace": "            unmet = []",
+      "rationale": "a tool that exits 0 having produced nothing reports COMPLETED, and the contract's declaration stops costing anything"
+    },
+    {
+      "name": "X28_an_optional_output_is_treated_as_required",
+      "path": "qta_agent/execution.py",
+      "find": "            unmet = [n for n, _rel, req in collect if req and n in missing]",
+      "replace": "            unmet = [n for n, _rel, req in collect if n in missing]",
+      "rationale": "the required flag stops meaning anything in the other direction: a run that satisfied its contract is failed for an output the contract said may be absent"
+    },
+    {
+      "name": "X29_a_declared_output_outside_the_workspace_is_hashed",
+      "path": "qta_agent/execution.py",
+      "find": "        if real != root and root not in real.parents:",
+      "replace": "        if False:",
+      "rationale": "a symlink written by the tool makes any file on the host this run's recorded output"
+    },
+    {
+      "name": "X30_the_declared_output_is_read_through_the_symlink",
+      "path": "qta_agent/execution.py",
+      "find": "        target = cwd / rel\n        try:\n            real = Path(os.path.realpath(target))",
+      "replace": "        target = cwd / rel\n        try:\n            real = Path(target)",
+      "rationale": "containment is decided on the un-resolved path, so a symlink inside the workspace pointing out of it passes the boundary check"
+    },
+    {
+      "name": "X31_a_fifo_in_place_of_an_output_is_read",
+      "path": "qta_agent/execution.py",
+      "find": "        if not stat.S_ISREG(st.st_mode):",
+      "replace": "        if False:",
+      "rationale": "collection blocks forever on a FIFO instead of refusing it; a hang rather than a failure"
+    },
+    {
+      "name": "X32_an_external_tool_becomes_retryable",
+      "path": "qta_agent/execution.py",
+      "find": "        return self.side_effect != SideEffect.EXTERNAL.value",
+      "replace": "        return True",
+      "rationale": "a timed-out tool that may already have changed state nobody here owns is retried, performing the external action a second time"
+    },
+    {
+      "name": "X33_the_declared_output_path_is_not_recorded",
+      "path": "qta_agent/execution.py",
+      "find": "        paths[name] = rel",
+      "replace": "        pass",
+      "rationale": "the record says what was hashed and not what it was hashed from, so no later reader can check the digest against the file"
+    },
+    {
+      "name": "X34_a_traversing_input_raises_instead_of_being_classified",
+      "path": "qta_agent/execution.py",
+      "find": "        try:\n            collect = spec.resolve_outputs(inputs)\n        except ToolContractViolation as exc:",
+      "replace": "        try:\n            collect = spec.resolve_outputs(inputs)\n        except ZeroDivisionError as exc:",
+      "rationale": "the most security-relevant refusal escapes the classification path, leaving the job's lease to lapse into a retry of an input that can only be refused again"
+    },
+    {
+      "name": "X35_an_input_may_relocate_a_declared_output",
+      "path": "qta_agent/tools.py",
+      "find": "            if \"..\" in parts or rel.startswith(\"/\"):",
+      "replace": "            if False:",
+      "rationale": "out_dir='../../etc' places a declared output anywhere the process can write"
+    },
+    {
+      "name": "X36_an_external_tool_needs_no_compensation",
+      "path": "qta_agent/tools.py",
+      "find": "    if external and not spec.compensation.strip():",
+      "replace": "    if False:",
+      "rationale": "a tool whose external effect nobody wrote down how to undo is registered, and the gap is found after the effect has happened"
+    },
+    {
+      "name": "X37_an_output_template_may_name_an_undeclared_input",
+      "path": "qta_agent/tools.py",
+      "find": "            if f is None:",
+      "replace": "            if False:",
+      "rationale": "a template that cannot resolve is registered, and the contract fails at the moment a result was expected rather than at review"
+    },
+    {
+      "name": "X38_an_absolute_output_path_is_accepted",
+      "path": "qta_agent/tools.py",
+      "find": "    if tmpl.startswith(\"/\"):",
+      "replace": "    if False:",
+      "rationale": "the contract names a path the workspace does not bound"
+    },
+    {
+      "name": "X39_the_declaration_is_left_out_of_the_contract_digest",
+      "path": "qta_agent/tools.py",
+      "find": "            \"output_files\": [f.to_record() for f in self.output_files],",
+      "replace": "            \"output_files\": [],",
+      "rationale": "two tools that collect different files cite the same digest, so a citation stops identifying what ran"
     }
   ]
 }

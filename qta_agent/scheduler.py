@@ -161,6 +161,12 @@ class FailureClass(str, Enum):
     EVIDENCE_FAILED = "EVIDENCE_FAILED"
     #: An independent verifier rejected the result.
     VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    #: The attempt may have changed state this system does not own, so it
+    #: must not be repeated. Distinct from PERMANENT, which says the same
+    #: inputs will fail the same way: this one may well succeed on a retry,
+    #: and that is exactly the problem -- it would perform the external
+    #: action a second time. A compensating action is a human's to run.
+    UNSAFE_TO_RETRY = "UNSAFE_TO_RETRY"
 
 
 #: The only classes a retry may follow. Everything else is permanent, and the

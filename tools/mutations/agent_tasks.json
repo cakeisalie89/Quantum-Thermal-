@@ -199,6 +199,34 @@
       "find": "    if (req.executed_by and task.executed_by\n            and req.executed_by != task.executed_by):",
       "replace": "    if False:",
       "rationale": "the executor is what verification must differ from, so a record that can rename it picks its own counterparty"
+    },
+    {
+      "name": "G23_the_two_observers_are_never_compared",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        drift = self._check_declared_outputs(result, artifacts)",
+      "replace": "        drift = \"\"",
+      "rationale": "the window between the run ending and the capture sweeping is unwatched, which is where an artifact would be swapped"
+    },
+    {
+      "name": "G24_a_changed_artifact_is_accepted_if_it_is_still_there",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if found != dg:",
+      "replace": "            if False:",
+      "rationale": "the file existing at capture time is treated as the file being unchanged; only a deletion is caught"
+    },
+    {
+      "name": "G25_an_external_effect_goes_back_into_the_retry_queue",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if failure in SCHED_RETRYABLE and not result.retryable:",
+      "replace": "            if False:",
+      "rationale": "a timed-out tool that may already have changed state nobody here owns is retried; SideEffect.EXTERNAL goes back to being a label"
+    },
+    {
+      "name": "G26_the_contract_stops_declaring_the_file_it_produces",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            output_files=(OutputFile(\"artifact\", \"{out_dir}/{name}\"),),",
+      "replace": "            output_files=(),",
+      "rationale": "nothing is collected by the executor, so the only observer of the artifact is the sweep that runs afterwards and there is nothing to compare it against"
     }
   ]
 }

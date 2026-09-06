@@ -19,17 +19,17 @@
         "tests/test_agent_execution.py"
       ],
       "production_caller": "qta_agent/governed_stage10.py",
-      "persistent_state": "task.execution events record outcome, tool id, version and contract digest, exit status, signal number, stdout/stderr digests, the limits applied and the duration",
+      "persistent_state": "task.execution events record outcome, tool id, version and contract digest, exit status, signal number, stdout/stderr digests, the digest and resolved path of every DECLARED output file, any declared output not collected and why, the tool's compensating action, the retry decision, the limits applied and the duration",
       "authority_owner": "tools.Registry (default deny) + Executor.run",
-      "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, duration and the limits actually applied",
-      "provenance": "tool_id, version and contract digest cited by every result",
-      "failure_semantics": "five outcomes; TIMED_OUT, CANCELLED and DENIED are each distinct from FAILED and none of them is success",
+      "evidence": "ExecutionResult carries tool digest, exit status, signal, stdout/stderr digests and byte counts, a digest per declared output file with the path it resolved to, duration and the limits actually applied",
+      "provenance": "tool_id, version and contract digest cited by every result; the contract digest covers the declared output files and the compensation, so two tools that collect different files cannot cite the same digest",
+      "failure_semantics": "five outcomes; TIMED_OUT, CANCELLED and DENIED are each distinct from FAILED and none of them is success. A zero exit that did not produce a declared required output is FAILED, not COMPLETED: exit status describes the process and the contract describes what the process was for. A declared output resolving outside the working directory, or found to be a FIFO or device, is refused rather than hashed or read",
       "recovery": "the execution record is durable, so a crash after it is recoverable; a crash before it leaves the job's lease to lapse and scheduler.reconcile returns the work to READY",
-      "retry": "RETRYABLE is TIMED_OUT|CANCELLED; a deterministic rejection is not retryable",
+      "retry": "RETRYABLE is TIMED_OUT|CANCELLED, and that is NECESSARY rather than sufficient: a tool declaring SideEffect.EXTERNAL is never automatically retryable at any outcome, because a timeout is precisely the case where nothing observed whether the external effect happened. The caller reports UNSAFE_TO_RETRY, which the scheduler treats as final. A deterministic rejection is not retryable",
       "idempotency": "n/a",
       "cancellation": "CancellationToken checked before spawn and during the wait",
       "concurrency": "one execution per job, under an unexpired scheduler lease",
-      "security_boundary": "registry default-deny; capability checked against a log-projected ledger before execution; kernel rlimits; own process group; a BUILT environment rather than an inherited one; a default-deny egress guard around the call",
+      "security_boundary": "registry default-deny; capability checked against a log-projected ledger before execution; a declared output whose path is steered out of the workspace by an input is DENIED before the process starts, and one steered out by a symlink the tool wrote is refused at collection; kernel rlimits; own process group; a BUILT environment rather than an inherited one; a default-deny egress guard around the call",
       "tests": [
         "tests/test_agent_execution.py",
         "tests/test_agent_governed_stage10.py"
@@ -40,13 +40,13 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942) and 34010167285 (41ea81f) -- all green, the last two read from the API at job level rather than inferred",
       "residual_gaps": [
         "one registered tool, invoked by one workflow",
-        "no output-file collection declared in the contract; the caller captures the directory instead",
-        "retry is the scheduler's -- classified, capped, in seq units. The executor has no retry loop and no idle timeout: a tool that writes one byte a minute runs to its wall bound",
-        "the contract declares SideEffect.EXTERNAL and nothing consumes that declaration; there are no compensating actions",
-        "the egress guard binds THIS process, not the child. A subprocess that opens its own socket is not stopped by it; nothing here is containment"
+        "the executor has no retry loop: retry is the scheduler's -- classified, capped, in seq units. A timed-out attempt is re-dispatched as a new attempt, never re-run in place",
+        "the egress guard binds THIS process, not the child. A subprocess that opens its own socket is not stopped by it; nothing here is containment",
+        "SideEffect.EXTERNAL is consumed at four points -- registration refuses one without a written compensation, retryable is False for it, the caller reports UNSAFE_TO_RETRY, and the compensation travels in the record -- but the compensation is a DECLARATION. Nothing performs it, and no compensating action is automated anywhere in this system",
+        "declared-output collection sees only the files the CONTRACT named. A tool that writes an UNdeclared file inside its scope is not detected by it; the write allowlist is what bounds that, and the two are different questions"
       ],
       "blocker": null
     },

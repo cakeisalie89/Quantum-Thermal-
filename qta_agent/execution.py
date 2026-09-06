@@ -41,12 +41,36 @@ When a tool is killed, whatever it had already written is captured and hashed.
 A killed process that wrote half a file has told you something true about how
 far it got, and discarding that in favour of a clean "failed" throws away the
 only record of where it stopped.
+
+DECLARED OUTPUTS ARE CHECKED, NOT SWEPT UP
+
+When the contract names output files, they are resolved from the validated
+inputs and hashed HERE, and a missing required one turns a zero exit into a
+FAILED execution. Sweeping the working directory instead would let the tool
+decide after the fact what its outputs were, and would make "produced
+nothing" and "produced everything" the same observation.
+
+Each declared path is resolved against the real filesystem and refused if it
+lands outside the working directory -- a symlink is the way a well-formed
+relative path reaches somewhere else, and this is the moment the difference
+is observable.
+
+RETRYING AN EXTERNAL EFFECT IS NOT THIS MODULE'S CALL TO MAKE, SO IT SAYS NO
+
+``retryable`` is False for any tool declaring ``SideEffect.EXTERNAL``,
+whatever the outcome. A timeout means nothing observed the tool finish, which
+is precisely the case where it may already have changed state this system does
+not own; running it again would repeat that. The contract's ``compensation``
+travels in the record so an operator can act, and an operator acting is a
+different thing from this module retrying.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import resource
 import signal
+import stat
 import subprocess
 import tempfile
 import time
@@ -56,7 +80,8 @@ from pathlib import Path
 
 from .canonical import digest_bytes
 from .capability import Action, CapabilityDenied, CapabilitySet, Request
-from .tools import Registry, ToolSpec
+from .tools import (Registry, SideEffect, ToolContractViolation,
+                    ToolSpec)
 
 #: How much of a failing tool's output to carry back for a human to read. A
 #: failure whose cause is only a digest is a failure nobody can diagnose
@@ -112,6 +137,10 @@ SUCCESSFUL: frozenset = frozenset({Outcome.COMPLETED})
 #: Outcomes it is meaningful to retry. FAILED is absent on purpose: a tool
 #: that ran and rejected its input will reject it again, and retrying is how a
 #: deterministic failure becomes a load problem.
+#:
+#: NECESSARY, NOT SUFFICIENT. :attr:`ExecutionResult.retryable` also consults
+#: the tool's declared side effect, because whether an attempt MAY be repeated
+#: is a question about what it touched and not only about how it ended.
 RETRYABLE: frozenset = frozenset({Outcome.TIMED_OUT, Outcome.CANCELLED})
 
 
@@ -204,8 +233,23 @@ class ExecutionResult:
     #: run's own start time is recorded beside them.
     pid: int | None = None
     pgid: int | None = None
-    #: Digests of files the tool declared as outputs, if collected.
+    #: Digests of the files the contract declared as outputs, keyed by the
+    #: contract's own name for each. Empty when the contract declared none --
+    #: which is silence, not a claim that the tool wrote nothing.
     output_digests: dict = field(default_factory=dict)
+    #: Where each declared output resolved to, relative to the working
+    #: directory. Recorded beside the digests because a digest with no path
+    #: says what was hashed and not what was hashed FROM, and the path is
+    #: derived from the inputs rather than fixed by the contract.
+    output_paths: dict = field(default_factory=dict)
+    #: Declared outputs that were not collected, each with why. A missing
+    #: REQUIRED output is what turns a zero exit into FAILED; an optional one
+    #: is recorded and changes nothing.
+    missing_outputs: dict = field(default_factory=dict)
+    #: The tool's declared compensating action, carried so that an operator
+    #: reading a durable record of an EXTERNAL run that did not finish learns
+    #: what to do from the record itself.
+    compensation: str = ""
     #: Bounded excerpts, for a human reading a failure. DELIBERATELY excluded
     #: from :meth:`to_record`, and therefore from the log and from
     #: ``result_digest``: the digests above are the provenance, and putting a
@@ -221,7 +265,23 @@ class ExecutionResult:
 
     @property
     def retryable(self) -> bool:
-        return self.outcome in RETRYABLE
+        """Whether repeating this attempt is permitted, not merely sensible.
+
+        Two questions, and both must pass. How it ended: a deterministic
+        rejection will reject again. And what it touched: a tool declaring
+        ``EXTERNAL`` may already have changed state this system does not own,
+        and a TIMED_OUT run is exactly the case where nothing observed
+        whether it did. Repeating that performs the external action a second
+        time.
+
+        The declared compensation does not unlock this. A written instruction
+        for undoing an effect is not the effect having been undone, and
+        treating it as one is how "we documented the rollback" becomes "we
+        did it twice".
+        """
+        if self.outcome not in RETRYABLE:
+            return False
+        return self.side_effect != SideEffect.EXTERNAL.value
 
     def to_record(self) -> dict:
         return {
@@ -241,6 +301,10 @@ class ExecutionResult:
             "reason": self.reason,
             "pid": self.pid, "pgid": self.pgid,
             "output_digests": dict(sorted(self.output_digests.items())),
+            "output_paths": dict(sorted(self.output_paths.items())),
+            "missing_outputs": dict(sorted(self.missing_outputs.items())),
+            "compensation": self.compensation,
+            "retryable": self.retryable,
         }
 
 
@@ -352,21 +416,100 @@ def _output_size(*paths) -> int:
     return total
 
 
+#: Read in fixed-size blocks so a declared output that turns out to be large
+#: is hashed rather than loaded. The executor may not assume a tool's output
+#: fits in the supervisor's memory -- that assumption is the same mistake as
+#: reading a hostile producer's pipe with a counter.
+_HASH_BLOCK = 1024 * 1024
+
+
+def _collect_outputs(cwd: Path, declared: tuple) -> tuple:
+    """Hash each declared output, or say precisely why it was not collected.
+
+    ``declared`` is ``(name, relative path, required)`` triples already
+    resolved from validated inputs by
+    :meth:`~qta_agent.tools.ToolSpec.resolve_outputs`, which refused any that
+    walked upward as a string. This is the other half: the path is resolved
+    against the REAL filesystem and refused if it lands outside ``cwd``,
+    because a relative path with no ``..`` in it reaches anywhere at all once
+    a symlink is involved, and a tool that wrote the symlink chose where.
+
+    Returns ``(digests, paths, missing)``. Nothing raises: a collection
+    problem is evidence about the run, and turning it into an exception would
+    discard the outcome, the digests and the excerpts that were the reason for
+    running anything.
+    """
+    digests: dict = {}
+    paths: dict = {}
+    missing: dict = {}
+    try:
+        root = Path(os.path.realpath(cwd))
+    except OSError as exc:                           # pragma: no cover
+        return {}, {}, {name: f"working directory unreadable: {exc}"
+                        for name, _rel, _req in declared}
+    for name, rel, _required in declared:
+        paths[name] = rel
+        target = cwd / rel
+        try:
+            real = Path(os.path.realpath(target))
+        except OSError as exc:
+            missing[name] = f"{rel}: path could not be resolved: {exc}"
+            continue
+        if real != root and root not in real.parents:
+            # Not "missing" in the ordinary sense: the file may well exist.
+            # It is outside the boundary, so it is not this run's output.
+            missing[name] = (
+                f"{rel}: resolves to {real}, outside the working directory. "
+                "A declared output that leaves the workspace is refused "
+                "rather than hashed -- the contract named a place, and this "
+                "is not it.")
+            continue
+        try:
+            st = os.stat(real, follow_symlinks=False)
+        except OSError:
+            missing[name] = f"{rel}: not produced"
+            continue
+        if not stat.S_ISREG(st.st_mode):
+            missing[name] = (
+                f"{rel}: is not a regular file. A declared output has to be "
+                "bytes somebody can re-read; a device or a FIFO in its place "
+                "would hang the reader instead of failing it.")
+            continue
+        try:
+            h = hashlib.sha256()
+            with open(real, "rb") as fh:
+                for block in iter(lambda: fh.read(_HASH_BLOCK), b""):
+                    h.update(block)
+        except OSError as exc:
+            missing[name] = f"{rel}: could not be read: {exc}"
+            continue
+        digests[name] = h.hexdigest()
+    return digests, paths, missing
+
+
 def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
                 env: dict | None = None,
-                cancel: CancellationToken | None = None) -> ExecutionResult:
+                cancel: CancellationToken | None = None,
+                collect: tuple = ()) -> ExecutionResult:
     """Run ``argv`` under kernel-enforced limits and classify how it ended.
 
     ``env`` REPLACES the environment rather than extending it. Inheriting the
     caller's environment is how a tool acquires credentials, proxies and paths
     nobody granted it -- the child gets exactly what is passed and nothing
     else.
+
+    ``collect`` is the contract's declared outputs, already resolved to
+    ``(name, relative path, required)`` against validated inputs. Resolution
+    happens in the caller rather than here because it is a contract question
+    and this function's job is the process; passing triples keeps this
+    testable without constructing a whole spec.
     """
     started = time.time()
     base = dict(tool_id=spec.tool_id, tool_version=spec.version,
                 tool_digest=spec.digest(), limits=limits.to_record(),
                 determinism=spec.determinism.value,
-                side_effect=spec.side_effect.value, started_wall=started)
+                side_effect=spec.side_effect.value,
+                compensation=spec.compensation, started_wall=started)
 
     if cancel is not None and cancel.cancelled:
         # Checked before spawning: a cancellation that cannot prevent the work
@@ -482,6 +625,24 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
 
         out, out_size, out_cut = _read_capped(out_path, limits.output_bytes)
         err, err_size, err_cut = _read_capped(err_path, limits.output_bytes)
+
+        # Collected whatever the outcome: a killed tool's half-written
+        # declared output is evidence of where it got to, on exactly the
+        # reasoning that keeps partial stdout. Only the VERDICT below is
+        # conditional -- a run that was already not a success is not made
+        # worse by an output it never had the chance to write.
+        out_digests, out_paths, missing = _collect_outputs(
+            Path(cwd), tuple(collect))
+        if outcome is Outcome.COMPLETED:
+            unmet = [n for n, _rel, req in collect if req and n in missing]
+            if unmet:
+                outcome = Outcome.FAILED
+                detail = "; ".join(f"{n}: {missing[n]}" for n in unmet)
+                reason = (
+                    f"exited 0 without producing {len(unmet)} declared "
+                    f"output(s) -- {detail}. A zero exit describes the "
+                    "process; the contract describes what the process was "
+                    "for, and this run did not satisfy it.")
         ended = time.time()
 
         def _excerpt(raw: bytes) -> str:
@@ -500,6 +661,8 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             stdout_bytes=out_size, stderr_bytes=err_size,
             stdout_truncated=out_cut, stderr_truncated=err_cut,
             ended_wall=ended, duration_s=ended - started,
+            output_digests=out_digests, output_paths=out_paths,
+            missing_outputs=missing,
             reason=reason, **base)
     finally:
         if proc is not None and proc.poll() is None:  # pragma: no cover
@@ -550,9 +713,40 @@ class Executor:
                 started_wall=now, ended_wall=now,
                 determinism=spec.determinism.value,
                 side_effect=spec.side_effect.value,
+                compensation=spec.compensation,
                 reason=f"denied before execution: {exc}")
 
         spec.validate_inputs(inputs)
+        # Resolved AFTER validation and BEFORE the run: the templates are
+        # over inputs, so resolving unvalidated ones would be formatting
+        # whatever arrived, and resolving afterwards would mean a contract
+        # that cannot be satisfied is discovered only once the work is done.
+        #
+        # A refusal here RETURNS rather than raises, unlike validate_inputs
+        # above, and the difference is deliberate. Malformed inputs are the
+        # caller's own bug and should be loud where they were built. A
+        # well-typed input that steers a declared output out of the workspace
+        # is not a bug, it is the request an attacker sends -- and if that
+        # one escaped as an exception it would be the single most
+        # security-relevant refusal that never reached the scheduler, never
+        # got classified, and left the job's lease to lapse into a retry of
+        # an input that can only ever be refused again.
+        #
+        # DENIED, because nothing was attempted. A failed run implies
+        # something ran.
+        try:
+            collect = spec.resolve_outputs(inputs)
+        except ToolContractViolation as exc:
+            now = time.time()
+            return ExecutionResult(
+                outcome=Outcome.DENIED, tool_id=tool_id,
+                tool_version=spec.version, tool_digest=spec.digest(),
+                started_wall=now, ended_wall=now,
+                determinism=spec.determinism.value,
+                side_effect=spec.side_effect.value,
+                compensation=spec.compensation,
+                reason=f"denied before execution: {exc}")
         eff = limits or Limits(wall_seconds=spec.timeout_s)
         return run_bounded(argv, spec=spec, cwd=Path(cwd or self.workspace),
-                           limits=eff, env=env, cancel=cancel)
+                           limits=eff, env=env, cancel=cancel,
+                           collect=collect)

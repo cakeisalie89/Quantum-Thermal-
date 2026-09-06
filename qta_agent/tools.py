@@ -36,11 +36,32 @@ A tool that only writes into its scoped workspace can be rolled back by
 deleting what it wrote. One that mutates external state cannot, and needs a
 compensating action instead. The difference has to be declared, because
 discovering it after a failure is discovering it too late.
+
+That classification is not decorative here. ``EXTERNAL`` cannot be registered
+without a written ``compensation``, and an ``EXTERNAL`` tool is never
+automatically retryable whatever the compensation says -- a sentence telling
+an operator how to undo an effect is not the same as that effect having been
+undone, and a machine that retries on the strength of an unperformed
+compensation performs the external action twice.
+
+OUTPUTS ARE DECLARED BEFORE THE RUN, NOT DISCOVERED AFTER IT
+
+``output_files`` names the files the tool is contracted to produce, as
+templates over its own declared inputs. Collecting them is then a check
+against the contract rather than a sweep of a directory: a tool that exits 0
+having written nothing is caught, and a path that resolves outside the
+workspace is refused instead of hashed.
+
+A directory sweep cannot do either. It reports whatever is there, which means
+the tool decides after the fact what its outputs were, and an empty directory
+and a complete result are the same observation.
 """
 from __future__ import annotations
 
+import string
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import PurePosixPath
 from typing import Callable, FrozenSet, Mapping
 
 from .canonical import digest
@@ -150,6 +171,73 @@ def _check_fields(fields: tuple, value: object, what: str) -> None:
 
 
 @dataclass(frozen=True)
+class OutputFile:
+    """One file the tool is contracted to produce.
+
+    ``path`` is a template over the tool's own declared inputs, so the
+    contract can say "the artifact lands at ``{out_dir}/{name}``" without
+    knowing either value. It is validated at REGISTRATION -- every
+    placeholder must name a declared, required, string input -- so a template
+    that could never resolve is refused before any run rather than at the
+    moment a result was expected.
+
+    ``required`` is the difference between "produces this" and "may produce
+    this". A missing required output turns a zero exit into a FAILED
+    execution, because a tool that exited 0 without producing what it is
+    contracted to produce has not done the thing that was asked, whatever its
+    exit status says.
+    """
+
+    name: str
+    path: str
+    required: bool = True
+
+    def to_record(self) -> dict:
+        return {"name": self.name, "path": self.path,
+                "required": self.required}
+
+
+#: Placeholder syntax a path template may use: a bare ``{field}`` and nothing
+#: else. No conversions, no format specs, no indexing or attribute access --
+#: a filename is not a formatted number, and the richer forms are how a
+#: template stops being reviewable by reading it.
+_FORMATTER = string.Formatter()
+
+
+def _template_fields(spec_id: str, tmpl: str) -> tuple:
+    """Placeholder names in ``tmpl``, or raise if it is not plain."""
+    if not isinstance(tmpl, str) or not tmpl:
+        raise ToolError(f"{spec_id}: an output path must be a non-empty str")
+    if tmpl.startswith("/"):
+        raise ToolError(
+            f"{spec_id}: output path {tmpl!r} is absolute; outputs are named "
+            "relative to the run's working directory, and an absolute path in "
+            "a contract is a path the workspace does not bound")
+    names = []
+    try:
+        parsed = list(_FORMATTER.parse(tmpl))
+    except ValueError as exc:
+        raise ToolError(f"{spec_id}: output path {tmpl!r} is not a valid "
+                        f"template: {exc}") from exc
+    for _literal, field_name, format_spec, conversion in parsed:
+        if field_name is None:
+            continue
+        if format_spec or conversion:
+            raise ToolError(
+                f"{spec_id}: output path {tmpl!r} uses a format spec or "
+                "conversion; a path template substitutes a value and does "
+                "nothing else to it")
+        if not field_name.isidentifier():
+            raise ToolError(
+                f"{spec_id}: output path {tmpl!r} refers to {field_name!r}; "
+                "only a bare {field} naming a declared input is permitted, "
+                "because indexing and attribute access make a contract that "
+                "has to be executed to be understood")
+        names.append(field_name)
+    return tuple(names)
+
+
+@dataclass(frozen=True)
 class ToolSpec:
     """A tool's complete declaration. Hashable, so it can be cited."""
 
@@ -160,6 +248,15 @@ class ToolSpec:
     outputs: tuple = ()
     determinism: Determinism = Determinism.NONDETERMINISTIC
     side_effect: SideEffect = SideEffect.SCOPED_WRITES
+    #: Files the tool is contracted to produce, as templates over its inputs.
+    #: Empty means the contract makes no claim about files, and nothing is
+    #: collected -- silence, not a claim that there are none.
+    output_files: tuple = ()
+    #: What undoes this tool's EXTERNAL effect, in words an operator can act
+    #: on. Required for -- and permitted only on -- SideEffect.EXTERNAL. It
+    #: is a declaration, not an automation: nothing here performs it, and
+    #: having one never makes an automatic retry safe.
+    compensation: str = ""
     #: Repo-relative prefixes the tool may write. Checked against the
     #: capability at execution time; declaring a scope grants nothing.
     writable_scope: tuple = ()
@@ -178,6 +275,8 @@ class ToolSpec:
             "outputs": [f.to_record() for f in self.outputs],
             "determinism": self.determinism.value,
             "side_effect": self.side_effect.value,
+            "output_files": [f.to_record() for f in self.output_files],
+            "compensation": self.compensation,
             "writable_scope": list(self.writable_scope),
             "timeout_s": self.timeout_s,
         }
@@ -191,6 +290,50 @@ class ToolSpec:
 
     def validate_outputs(self, value: object) -> None:
         _check_fields(self.outputs, value, f"{self.tool_id} outputs")
+
+    def resolve_outputs(self, inputs: Mapping) -> tuple:
+        """Declared outputs as ``(name, relative path, required)`` triples.
+
+        Call AFTER :meth:`validate_inputs`. Every placeholder was checked at
+        registration to name a required string input, so the only thing that
+        can go wrong here is being handed inputs that were never validated --
+        which is reported rather than papered over with a default.
+
+        The resolved path is refused if it walks upward. That is a contract
+        question, answered on the string: whether the path ALSO escapes via a
+        symlink is a filesystem question, answered against the real
+        filesystem where the file is collected. Both are needed, and neither
+        substitutes for the other.
+        """
+        if not isinstance(inputs, Mapping):
+            raise ToolContractViolation(
+                f"{self.tool_id}: outputs cannot be resolved against "
+                f"{type(inputs).__name__}; validated inputs are required")
+        resolved = []
+        for out in self.output_files:
+            values = {}
+            for name in _template_fields(self.tool_id, out.path):
+                if name not in inputs:
+                    raise ToolContractViolation(
+                        f"{self.tool_id}: output {out.name!r} needs input "
+                        f"{name!r} to know where it lands, and the inputs do "
+                        "not carry it")
+                value = inputs[name]
+                if not isinstance(value, str):
+                    raise ToolContractViolation(
+                        f"{self.tool_id}: output {out.name!r} needs input "
+                        f"{name!r} as a str, got {type(value).__name__}")
+                values[name] = value
+            rel = out.path.format(**values)
+            parts = PurePosixPath(rel).parts
+            if ".." in parts or rel.startswith("/"):
+                raise ToolContractViolation(
+                    f"{self.tool_id}: output {out.name!r} resolves to "
+                    f"{rel!r}, which leaves the working directory. An "
+                    "input does not "
+                    "get to relocate a declared output.")
+            resolved.append((out.name, rel, out.required))
+        return tuple(resolved)
 
 
 def _validate_spec(spec: ToolSpec) -> None:
@@ -222,6 +365,79 @@ def _validate_spec(spec: ToolSpec) -> None:
     names = [f.name for f in spec.inputs] + [f.name for f in spec.outputs]
     if len(names) != len(set(names)):
         raise ToolError(f"{spec.tool_id}: duplicate field names in contract")
+    _validate_compensation(spec)
+    _validate_output_files(spec)
+
+
+def _validate_compensation(spec: ToolSpec) -> None:
+    """EXTERNAL must say how it is undone; nothing else may claim to be.
+
+    The registry is where this is enforced because a tool whose external
+    effect has no stated compensation is not reviewable, and discovering that
+    after the effect has happened is discovering it too late -- which is the
+    thing this module's docstring says it exists to prevent.
+    """
+    if not isinstance(spec.compensation, str):
+        raise ToolError(f"{spec.tool_id}: compensation must be a str")
+    external = spec.side_effect is SideEffect.EXTERNAL
+    if external and not spec.compensation.strip():
+        raise ToolError(
+            f"{spec.tool_id}: declares EXTERNAL side effects and no "
+            "compensation. External state cannot be rolled back by deleting "
+            "what was written, so the compensating action has to be written "
+            "down by someone who knows it -- refusing here is the last point "
+            "at which that is cheap.")
+    if not external and spec.compensation.strip():
+        raise ToolError(
+            f"{spec.tool_id}: declares a compensation but side_effect is "
+            f"{spec.side_effect.value}. A compensation for an effect the "
+            "contract says does not happen means one of the two is wrong, "
+            "and guessing which would be worse than refusing.")
+
+
+def _validate_output_files(spec: ToolSpec) -> None:
+    """Every declared output must be able to resolve, before anything runs."""
+    if not spec.output_files:
+        return
+    if spec.side_effect is SideEffect.NONE:
+        raise ToolError(
+            f"{spec.tool_id}: declares output files and no side effects; a "
+            "tool that writes a file has an effect, and the contract has to "
+            "agree with itself")
+    declared = {f.name: f for f in spec.inputs}
+    seen = set()
+    for out in spec.output_files:
+        if not isinstance(out, OutputFile):
+            raise ToolError(
+                f"{spec.tool_id}: output_files must hold OutputFile entries, "
+                f"got {type(out).__name__}")
+        if not out.name or not isinstance(out.name, str):
+            raise ToolError(
+                f"{spec.tool_id}: every output file needs a non-empty name; "
+                "an unnamed output cannot be cited by a later reader")
+        if out.name in seen:
+            raise ToolError(
+                f"{spec.tool_id}: duplicate output file name {out.name!r}")
+        seen.add(out.name)
+        for field_name in _template_fields(spec.tool_id, out.path):
+            f = declared.get(field_name)
+            if f is None:
+                raise ToolError(
+                    f"{spec.tool_id}: output {out.name!r} is placed by "
+                    f"{{{field_name}}}, which is not a declared input. A "
+                    "template over something the contract does not describe "
+                    "cannot be checked before the run.")
+            if f.type_ != "str":
+                raise ToolError(
+                    f"{spec.tool_id}: output {out.name!r} is placed by "
+                    f"{{{field_name}}}, declared as {f.type_}; a path "
+                    "component has to be a str")
+            if not f.required:
+                raise ToolError(
+                    f"{spec.tool_id}: output {out.name!r} is placed by "
+                    f"{{{field_name}}}, which is optional. An output whose "
+                    "location depends on a field that may be absent has no "
+                    "location.")
 
 
 class Registry:

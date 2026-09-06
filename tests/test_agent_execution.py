@@ -6,6 +6,7 @@ is an attempt to get authority the caller was not granted.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import signal
 import subprocess
@@ -26,12 +27,12 @@ from qta_agent.capability import (  # noqa: E402
     digest_is_consistent, issue,
 )
 from qta_agent.execution import (  # noqa: E402
-    RETRYABLE, SUCCESSFUL, CancellationToken, Executor, Limits, Outcome,
-    run_bounded,
+    RETRYABLE, SUCCESSFUL, CancellationToken, ExecutionResult, Executor,
+    Limits, Outcome, run_bounded,
 )
 from qta_agent.tools import (  # noqa: E402
-    Determinism, Field_, Registry, SideEffect, ToolContractViolation,
-    ToolError, ToolNotRegistered, ToolSpec,
+    Determinism, Field_, OutputFile, Registry, SideEffect,
+    ToolContractViolation, ToolError, ToolNotRegistered, ToolSpec,
 )
 
 PY = sys.executable
@@ -913,3 +914,302 @@ def test_a_killed_idle_tool_leaves_no_surviving_process_group(env):
             if not parts[2].startswith("Z"):
                 live.append(line.strip())
     assert not live, f"still-running descendants in the group: {live}"
+
+
+# --- declared outputs: checked against a contract, not swept up -------------
+
+def _out_spec(**kw):
+    """A probe whose contract names the file it is supposed to produce."""
+    base = dict(inputs=(Field_("dir", "str"), Field_("name", "str")),
+                output_files=(OutputFile("artifact", "{dir}/{name}"),))
+    base.update(kw)
+    return _spec(**base)
+
+
+def _write(path: str, text: str = "hello") -> list:
+    return [PY, "-c", f"open({path!r},'w').write({text!r})"]
+
+
+def test_a_declared_output_is_hashed_where_the_contract_said_it_would_be(
+        tmp_path):
+    spec = _out_spec()
+    (tmp_path / "d").mkdir()
+    collect = spec.resolve_outputs({"dir": "d", "name": "a.json"})
+    r = run_bounded(_write("d/a.json"), spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0), env={},
+                    collect=collect)
+    assert r.outcome is Outcome.COMPLETED
+    assert r.output_digests["artifact"] == hashlib.sha256(
+        b"hello").hexdigest(), (
+        "the recorded digest must be of the file's actual bytes; a digest "
+        "computed from anything else is a claim about a file rather than the "
+        "file")
+    assert r.output_paths["artifact"] == "d/a.json", (
+        "a digest with no path says what was hashed and not what it was "
+        "hashed from, and the path came from the inputs rather than the "
+        "contract")
+    assert r.to_record()["output_digests"] == r.output_digests
+
+
+def test_exiting_zero_without_the_declared_output_is_not_a_completion(
+        tmp_path):
+    """The contract says what the process was FOR. Exit status does not."""
+    spec = _out_spec()
+    (tmp_path / "d").mkdir()
+    r = run_bounded([PY, "-c", "pass"], spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0), env={},
+                    collect=spec.resolve_outputs({"dir": "d",
+                                                  "name": "gone.json"}))
+    assert r.outcome is Outcome.FAILED
+    assert not r.succeeded
+    assert "artifact" in r.missing_outputs
+    assert "declared output" in r.reason
+    assert "d/gone.json" in r.reason, (
+        "a failure that does not name the file it wanted is a failure "
+        "somebody has to re-run to diagnose")
+
+
+def test_an_optional_declared_output_is_recorded_and_changes_nothing(
+        tmp_path):
+    spec = _out_spec(output_files=(
+        OutputFile("artifact", "{dir}/{name}"),
+        OutputFile("extra", "{dir}/extra.json", required=False),
+    ))
+    (tmp_path / "d").mkdir()
+    r = run_bounded(_write("d/a.json"), spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0), env={},
+                    collect=spec.resolve_outputs({"dir": "d",
+                                                  "name": "a.json"}))
+    assert r.outcome is Outcome.COMPLETED, (
+        "an output declared optional is one the contract says may be absent; "
+        "failing the run for it would make required mean nothing")
+    assert "extra" in r.missing_outputs and "artifact" in r.output_digests
+
+
+def test_a_declared_output_that_is_a_symlink_out_is_refused_not_hashed(
+        tmp_path):
+    """The string had no '..' in it. The filesystem is where that is decided.
+
+    This is the whole reason collection resolves against the real filesystem
+    rather than trusting the resolved relative path: a tool that writes a
+    symlink chooses where its "output" lives, and hashing the target would
+    record a file outside the workspace as this run's product.
+    """
+    spec = _out_spec()
+    (tmp_path / "d").mkdir()
+    outside = tmp_path.parent / "outside-the-workspace.txt"
+    outside.write_text("not this run's output")
+    r = run_bounded([PY, "-c",
+                     f"import os; os.symlink({str(outside)!r}, 'd/a.json')"],
+                    spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0), env={},
+                    collect=spec.resolve_outputs({"dir": "d",
+                                                  "name": "a.json"}))
+    assert r.outcome is Outcome.FAILED
+    assert not r.output_digests, "the file outside the workspace was hashed"
+    assert "outside the working directory" in r.missing_outputs["artifact"]
+
+
+class _CollectorHung(Exception):
+    """Raised by the alarm below. NOT an OSError, deliberately.
+
+    ``_collect_outputs`` catches OSError around its read, and TimeoutError is
+    an OSError in Python -- so an alarm raising one would be swallowed and
+    recorded as "could not be read", turning a hang into a pass. The whole
+    point of this test is that the difference is visible.
+    """
+
+
+def test_a_declared_output_that_is_a_fifo_is_refused_rather_than_read(
+        tmp_path):
+    """Refused, and refused PROMPTLY. The bound is what is being tested.
+
+    Opening a FIFO with no writer blocks in the kernel forever. A test that
+    only asserts the outcome cannot tell "refused" from "still blocked" --
+    it just never finishes, and the mutation harness reported exactly that:
+    the mutation removing the regular-file check was killed by a 300-second
+    global timeout rather than by anything here. A hang is not an assertion.
+
+    So the alarm IS the assertion. If collection has not returned in fifteen
+    seconds it is blocked, which is the failure this guard exists to prevent,
+    and the test says so instead of waiting.
+    """
+    spec = _out_spec()
+    (tmp_path / "d").mkdir()
+
+    def _hung(_signum, _frame):
+        raise _CollectorHung(
+            "collection was still running 15s after a FIFO was put in place "
+            "of a declared output; it is blocked on the open, which is the "
+            "denial of service the regular-file check exists to refuse")
+
+    previous = signal.signal(signal.SIGALRM, _hung)
+    signal.setitimer(signal.ITIMER_REAL, 15.0)
+    try:
+        r = run_bounded([PY, "-c", "import os; os.mkfifo('d/a.json')"],
+                        spec=spec, cwd=tmp_path,
+                        limits=Limits(wall_seconds=20.0), env={},
+                        collect=spec.resolve_outputs({"dir": "d",
+                                                      "name": "a.json"}))
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous)
+
+    assert r.outcome is Outcome.FAILED
+    assert "not a regular file" in r.missing_outputs["artifact"]
+
+
+def test_partial_output_from_a_killed_run_is_still_collected(tmp_path):
+    """Same reasoning that keeps partial stdout: it says where it got to."""
+    spec = _out_spec()
+    (tmp_path / "d").mkdir()
+    r = run_bounded([PY, "-c",
+                     "import time\n"
+                     "open('d/a.json','w').write('half')\n"
+                     "time.sleep(60)\n"],
+                    spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=2.0), env={},
+                    collect=spec.resolve_outputs({"dir": "d",
+                                                  "name": "a.json"}))
+    assert r.outcome is Outcome.TIMED_OUT
+    assert r.output_digests["artifact"] == hashlib.sha256(
+        b"half").hexdigest(), (
+        "a killed tool's partial declared output is evidence of how far it "
+        "got, and discarding it leaves no record of that")
+
+
+def test_a_contract_that_declares_no_outputs_collects_nothing(tmp_path):
+    """Silence, not a claim that the tool wrote nothing."""
+    (tmp_path / "d").mkdir()
+    r = run_bounded(_write("d/a.json"), spec=_spec(), cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0), env={})
+    assert r.outcome is Outcome.COMPLETED
+    assert r.output_digests == {} and r.missing_outputs == {}
+
+
+def test_an_input_cannot_relocate_a_declared_output(tmp_path):
+    spec = _out_spec()
+    with pytest.raises(ToolContractViolation, match="leaves the working"):
+        spec.resolve_outputs({"dir": "d", "name": "../escape.json"})
+    with pytest.raises(ToolContractViolation, match="leaves the working"):
+        spec.resolve_outputs({"dir": "/etc", "name": "passwd"})
+
+
+def test_a_traversing_input_is_denied_and_returned_not_raised(tmp_path):
+    """The most security-relevant refusal must not be the one that escapes.
+
+    An exception out of Executor.run would leave the caller's job dispatched,
+    its lease to lapse, and the work retried -- with an input that can only
+    ever be refused again. It comes back as a result so it can be classified
+    like every other refusal.
+    """
+    spec = _out_spec(tool_id="probe")
+    ex = Executor(Registry([spec]), workspace=tmp_path)
+    r = ex.run(tool_id="probe", actor="agent-1", task_id="t1",
+               capability_id="c1",
+               capabilities=CapabilitySet(issued={"c1": _cap()}, at_seq=2),
+               inputs={"dir": "d", "name": "../escape.json"},
+               argv=[PY, "-c", "pass"], env={})
+    assert r.outcome is Outcome.DENIED, (
+        "DENIED because nothing was attempted; FAILED would imply a run")
+    assert "leaves the working directory" in r.reason
+
+
+# --- SideEffect.EXTERNAL is load-bearing, not a label -----------------------
+
+def test_an_external_tool_cannot_be_registered_without_a_compensation():
+    with pytest.raises(ToolError, match="no compensation"):
+        Registry([_spec(side_effect=SideEffect.EXTERNAL, writable_scope=())])
+
+
+def test_a_compensation_without_an_external_effect_is_refused():
+    with pytest.raises(ToolError, match="declares a compensation"):
+        Registry([_spec(compensation="undo the charge")])
+
+
+def test_an_external_tool_is_never_automatically_retryable():
+    """A written rollback is not a performed one.
+
+    TIMED_OUT is retryable for a scoped tool and must not be for an external
+    one: nothing observed the tool finish, which is exactly the case where it
+    may already have changed state this system does not own.
+    """
+    ext = _spec(side_effect=SideEffect.EXTERNAL, writable_scope=(),
+                compensation="issue a refund for the charge")
+    for outcome in RETRYABLE:
+        scoped = ExecutionResult(outcome=outcome, tool_id="probe",
+                                 tool_version="1.0", tool_digest="d",
+                                 side_effect=SideEffect.SCOPED_WRITES.value)
+        external = ExecutionResult(outcome=outcome, tool_id="probe",
+                                   tool_version="1.0", tool_digest="d",
+                                   side_effect=SideEffect.EXTERNAL.value,
+                                   compensation=ext.compensation)
+        assert scoped.retryable, f"{outcome} is retryable for a scoped tool"
+        assert not external.retryable, (
+            f"{outcome} must not be retryable for a tool that may already "
+            "have changed state nobody here owns")
+        assert not external.succeeded
+
+
+def test_the_compensation_travels_in_the_durable_record():
+    """An operator reading the log learns what to do from the log."""
+    ext = _spec(side_effect=SideEffect.EXTERNAL, writable_scope=(),
+                compensation="issue a refund for the charge")
+    r = run_bounded([PY, "-c", "import time; time.sleep(60)"], spec=ext,
+                    cwd=Path.cwd(), limits=Limits(wall_seconds=1.0), env={})
+    assert r.outcome is Outcome.TIMED_OUT
+    rec = r.to_record()
+    assert rec["compensation"] == "issue a refund for the charge"
+    assert rec["side_effect"] == SideEffect.EXTERNAL.value
+    assert rec["retryable"] is False, (
+        "the decision is recorded, not only derivable; a later reader should "
+        "see what this system concluded and not have to re-derive it under "
+        "whatever rule is current then")
+
+
+# --- output templates are checked at registration, not at run time ----------
+
+@pytest.mark.parametrize("out,match", [
+    (OutputFile("a", "{nope}/x"), "not a declared input"),
+    (OutputFile("a", "{n}/x"), "has to be a str"),
+    (OutputFile("a", "/abs/x"), "is absolute"),
+    (OutputFile("a", "{dir!r}/x"), "format spec or conversion"),
+    (OutputFile("a", "{dir[0]}/x"), "only a bare"),
+    (OutputFile("a", ""), "non-empty str"),
+])
+def test_an_unresolvable_output_template_is_refused_at_registration(
+        out, match):
+    """Before any run, because the alternative is finding out afterwards."""
+    with pytest.raises(ToolError, match=match):
+        Registry([_spec(inputs=(Field_("dir", "str"), Field_("n", "int")),
+                        output_files=(out,))])
+
+
+def test_an_output_placed_by_an_optional_input_has_no_location():
+    with pytest.raises(ToolError, match="which is optional"):
+        Registry([_spec(inputs=(Field_("dir", "str", required=False),),
+                        output_files=(OutputFile("a", "{dir}/x"),))])
+
+
+def test_declaring_output_files_with_no_side_effects_is_incoherent():
+    with pytest.raises(ToolError, match="agree with itself"):
+        Registry([_spec(side_effect=SideEffect.NONE, writable_scope=(),
+                        inputs=(Field_("dir", "str"),),
+                        output_files=(OutputFile("a", "{dir}/x"),))])
+
+
+def test_duplicate_output_names_are_refused():
+    with pytest.raises(ToolError, match="duplicate output file name"):
+        Registry([_spec(inputs=(Field_("dir", "str"),),
+                        output_files=(OutputFile("a", "{dir}/x"),
+                                      OutputFile("a", "{dir}/y")))])
+
+
+def test_the_declaration_is_part_of_the_contract_digest():
+    """Two tools that collect different files are not the same tool."""
+    plain = _spec(inputs=(Field_("dir", "str"),))
+    with_out = _spec(inputs=(Field_("dir", "str"),),
+                     output_files=(OutputFile("a", "{dir}/x"),))
+    assert plain.digest() != with_out.digest(), (
+        "a contract change that a citation cannot distinguish is a citation "
+        "that does not identify what ran")

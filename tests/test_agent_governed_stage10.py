@@ -28,6 +28,9 @@ from qta_agent.governed_stage10 import (  # noqa: E402
 from qta_agent.tasks import (  # noqa: E402
     LeaseError, TaskRole, TaskState, TaskTransitionError,
 )
+from qta_agent.scheduler import (  # noqa: E402
+    FailureClass, JobState,
+)
 from qta_agent.tools import ToolNotRegistered  # noqa: E402
 
 WS = "verification/stage10/_pytest_governed"
@@ -1218,3 +1221,128 @@ def test_an_artifact_with_a_second_hard_link_fails_verification(gov):
         assert "names" in why or "safely" in why
     finally:
         os.unlink(alias)
+
+
+# --- the contract's declared output, and two observers of the same bytes ----
+
+def test_the_declared_output_is_collected_by_the_executor_itself(gov):
+    """Not by a sweep. The contract names the file before anything runs."""
+    run = _run(gov)
+    (ev,) = [e for e in gov.log.read() if e.action == "task.execution"]
+    rec = ev.payload
+    assert rec["output_digests"], (
+        "the contract declares an output file and nothing collected it, "
+        "which is the declaration being decorative again")
+    rel = rec["output_paths"]["artifact"]
+    assert rel.endswith("artifact.json")
+    assert run.artifacts[rel] == rec["output_digests"]["artifact"], (
+        "the executor's digest and the capture's digest are of the same "
+        "file and must agree")
+
+
+def test_a_run_that_produces_nothing_is_not_completed(gov, monkeypatch):
+    """A zero exit with no artifact used to be a COMPLETED run with none."""
+    import qta_agent.governed_stage10 as g10
+
+    real = g10.Executor.run
+
+    def _empty(self, **kw):
+        # Run something that exits 0 and writes nothing, through the real
+        # path, so the outcome is decided by collection and not by a stub.
+        kw["argv"] = [sys.executable, "-c", "pass"]
+        return real(self, **kw)
+
+    monkeypatch.setattr(g10.Executor, "run", _empty)
+    run = _run(gov)
+    assert run.state is TaskState.FAILED
+    assert run.outcome == "FAILED"
+    assert "declared output" in run.reason
+
+
+def test_the_bytes_changing_between_the_run_and_the_capture_is_caught(
+        gov, monkeypatch):
+    """The window an artifact would be swapped in.
+
+    Two independent observers -- the executor when the process ended, the
+    capture when it swept -- of the same file at two moments. Nothing else
+    in this system can see that window, which is the point of comparing them
+    at all rather than comparing a value with itself.
+    """
+    real = type(gov)._capture
+
+    def _tamper(self, out_dir, task_id):
+        for p in sorted(out_dir.rglob("*")):
+            if p.is_file():
+                p.write_text("swapped after the run finished")
+        return real(self, out_dir, task_id)
+
+    monkeypatch.setattr(type(gov), "_capture", _tamper)
+    run = _run(gov)
+    # FAILED rather than REJECTED: no verifier has looked at this result, and
+    # REJECTED is a verifier's verdict on a completed one.
+    assert run.state is TaskState.FAILED
+    assert "changed between the run and the capture" in run.reason
+    assert gov.scheduler.get(run.job_id).state is JobState.FAILED
+
+
+def test_an_external_tool_that_times_out_is_not_retried(gov, monkeypatch):
+    """SideEffect.EXTERNAL costs a retry. That is what consuming it means.
+
+    A TIMED_OUT run of a scoped tool is retryable; the same outcome from a
+    tool that may already have changed state nobody here owns is
+    UNSAFE_TO_RETRY, which the scheduler treats as final.
+    """
+    from qta_agent.execution import Outcome as Out
+    from qta_agent.scheduler import RETRYABLE as SCHED_RETRYABLE
+    from qta_agent.tools import (Determinism, Field_, OutputFile, Registry,
+                                 SideEffect, ToolSpec)
+
+    external = Registry([ToolSpec(
+        tool_id="stage10.emit_artifact", version="1.0.0",
+        summary="an external-effect tool, for the classification only",
+        inputs=(Field_("out_dir", "str"), Field_("name", "str"),
+                Field_("payload", "dict")),
+        outputs=(Field_("path", "str"), Field_("sha256", "str")),
+        output_files=(OutputFile("artifact", "{out_dir}/{name}"),),
+        determinism=Determinism.BYTE_IDENTICAL,
+        side_effect=SideEffect.EXTERNAL,
+        compensation="revoke the published record by its citation id",
+        timeout_s=1.0)])
+    gov.registry = external
+    gov.executor = type(gov.executor)(external, workspace=gov.root)
+
+    # A REAL process, really timed out. The classification under test is
+    # downstream of a genuine TIMED_OUT outcome rather than of a crafted
+    # result, and sleeping thirty seconds against a one-second bound is not
+    # a race.
+    from qta_agent.execution import Limits
+    real_run = type(gov.executor).run
+
+    def _slow(self, **kw):
+        kw["argv"] = [sys.executable, "-c", "import time; time.sleep(30)"]
+        kw["limits"] = Limits(wall_seconds=1.0)
+        return real_run(self, **kw)
+
+    monkeypatch.setattr(type(gov.executor), "run", _slow)
+    run = _run(gov)
+    assert run.outcome == Out.TIMED_OUT.value
+    job = gov.scheduler.get(run.job_id)
+    assert job.state is JobState.FAILED, (
+        "an external effect that may already have happened must not go back "
+        "to RETRY_WAIT")
+    assert FailureClass.UNSAFE_TO_RETRY.value in job.last_failure
+    assert FailureClass.UNSAFE_TO_RETRY not in SCHED_RETRYABLE
+    assert job.attempts == 1, "it was not retried"
+
+
+def test_the_scoped_tool_keeps_its_ordinary_retryable_classification(gov):
+    """The guard above must not have made every failure permanent."""
+    from qta_agent.execution import ExecutionResult, Outcome as Out
+    from qta_agent.tools import SideEffect
+
+    r = ExecutionResult(outcome=Out.TIMED_OUT, tool_id="stage10.emit_artifact",
+                        tool_version="1.0.0", tool_digest="d",
+                        side_effect=SideEffect.SCOPED_WRITES.value)
+    assert r.retryable, (
+        "the production registry's tool is SCOPED_WRITES, so a timeout on it "
+        "is still an ordinary retryable timeout")

@@ -95,12 +95,14 @@ from .readpath import (
 )
 from .safeio import SafeIOError, SourceChanged
 from .policy import Effect, PolicyRequest, PolicyStore, document, rule
-from .scheduler import FailureClass, Scheduler
+from .scheduler import (FailureClass, RETRYABLE as SCHED_RETRYABLE,
+                        Scheduler)
 from .tasks import (
     Lease, Task, TaskProjection, TaskRole, TaskState, TaskTransition,
     TaskTransitionError, apply_transition, check,
 )
-from .tools import Determinism, Field_, Registry, SideEffect, ToolSpec
+from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
+                    ToolSpec)
 
 #: Where governed Stage-10 work is allowed to write. The same subtree the
 #: Stage-10 workspace guard permits, so the two agree by construction rather
@@ -200,6 +202,11 @@ def stage10_registry() -> Registry:
             inputs=(Field_("out_dir", "str"), Field_("name", "str"),
                     Field_("payload", "dict")),
             outputs=(Field_("path", "str"), Field_("sha256", "str")),
+            # The file, declared by the contract rather than discovered by a
+            # sweep. The executor resolves this against the validated inputs
+            # and hashes it, so "exited 0 and wrote nothing" is a FAILED run
+            # here instead of a COMPLETED one with an empty artifact set.
+            output_files=(OutputFile("artifact", "{out_dir}/{name}"),),
             determinism=Determinism.BYTE_IDENTICAL,
             side_effect=SideEffect.SCOPED_WRITES,
             writable_scope=(WORKSPACE_PREFIX,), timeout_s=60.0),
@@ -607,9 +614,20 @@ class GovernedStage10:
             # The scheduler is told too, and it classifies. A timeout is
             # retryable and a non-zero exit is not, which is a decision the
             # scheduler owns rather than one made twice in two places.
+            #
+            # The executor gets the first word, though, because it holds the
+            # fact the scheduler does not: what the tool's contract says it
+            # touched. An outcome that would otherwise be retryable is
+            # reported as UNSAFE_TO_RETRY when the tool declares EXTERNAL
+            # effects -- the run may already have changed state nobody here
+            # owns, and a retry would do it again. This is where
+            # SideEffect.EXTERNAL stops being a label and starts costing a
+            # retry.
             failure = {Outcome.TIMED_OUT: FailureClass.TIMEOUT,
                        Outcome.CANCELLED: FailureClass.CANCELLED,
                        }.get(result.outcome, FailureClass.PERMANENT)
+            if failure in SCHED_RETRYABLE and not result.retryable:
+                failure = FailureClass.UNSAFE_TO_RETRY
             job = self.scheduler.report(job_id=job_id, worker=worker,
                                         failure=failure,
                                         detail=result.reason)
@@ -623,6 +641,36 @@ class GovernedStage10:
 
         # Capture what the tool produced as CONTENT, not as a claim about it.
         artifacts = self._capture(out_dir, task_id)
+
+        # Two independent observers of the same bytes: the executor hashed
+        # each declared output when the process ended, and the sweep above
+        # hashed whatever was on disk afterwards. They must agree, and a
+        # disagreement is not a bookkeeping detail -- it means the file
+        # changed between the run and the capture, which is the window an
+        # artifact would be swapped in.
+        drift = self._check_declared_outputs(result, artifacts)
+        if drift:
+            # FAILED, not REJECTED, and the task machine is what settled it:
+            # REJECTED is reachable only from COMPLETED because it means a
+            # verifier looked at a finished result and refused it. No
+            # verifier has looked yet. What happened here is that the ATTEMPT
+            # did not leave a stable artifact behind, which is the worker's
+            # run failing -- and moving to COMPLETED first to reach REJECTED
+            # would assert a completion whose evidence we already know is
+            # bad.
+            task = self._move(task, TaskState.FAILED, worker,
+                              TaskRole.WORKER, lease_id=lease.lease_id,
+                              note=drift)
+            job = self.scheduler.report(
+                job_id=job_id, worker=worker,
+                failure=FailureClass.EVIDENCE_FAILED, detail=drift)
+            return GovernedRun(task_id, task.state, result.outcome.value,
+                               result_digest, artifacts,
+                               self.log.verify().head_seq, drift,
+                               job_id=job_id, job_state=job.state.value,
+                               policy_identity=decision.identity,
+                               policy_digest=decision.policy_digest,
+                               context_digest=context.manifest.digest())
 
         task = self._move(task, TaskState.COMPLETED, worker, TaskRole.WORKER,
                           lease_id=lease.lease_id, executed_by=worker,
@@ -777,6 +825,37 @@ class GovernedStage10:
                         payload={"task_id": task_id,
                                  "artifacts": dict(sorted(artifacts.items()))})
         return artifacts
+
+    def _check_declared_outputs(self, result, artifacts: dict) -> str:
+        """Agreement between the executor's digests and the capture's.
+
+        The executor hashed each declared output the moment the process
+        ended. ``_capture`` hashed what was on disk when it swept the
+        directory. Same file, two readers, two moments -- so this compares a
+        claim against an independent observation rather than a value against
+        itself, and the only thing it can catch is the file having changed in
+        between, which is the only thing worth catching here.
+
+        Returns an empty string when they agree, or the disagreement.
+        """
+        for name, dg in sorted(result.output_digests.items()):
+            rel = result.output_paths.get(name, name)
+            found = artifacts.get(rel)
+            if found is None:
+                # A declared output the executor hashed and the sweep did not
+                # see: it was removed, or moved, after the run ended.
+                return (f"declared output {name!r} ({rel}) was hashed "
+                        f"at {dg[:12]}... when the tool finished and is not "
+                        "among the captured artifacts; it did not survive "
+                        "to the capture")
+            if found != dg:
+                return (f"declared output {name!r} ({rel}) hashed "
+                        f"{dg[:12]}... when the tool finished and "
+                        f"{found[:12]}... when it was "
+                        "captured; the bytes changed between the run and the "
+                        "capture, so neither digest describes a stable "
+                        "artifact")
+        return ""
 
     def _verify_artifacts(self, artifacts: dict, *,
                           verifier: str = VERIFIER_ID,
