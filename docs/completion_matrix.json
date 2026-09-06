@@ -1184,10 +1184,10 @@
       "production_caller": null,
       "persistent_state": "one shared log carrying scheduler, authority, memory, policy and agent events across the whole trajectory",
       "authority_owner": "the log",
-      "evidence": "a mixed workload of 260 cycles: successes, permanent failures, transient failures with real retries, mid-flight cancellations, post-success invalidations and lapsed leases, with a restart every 40 cycles",
+      "evidence": "a measured trajectory, not an assertion that one ran: 2,617 GOVERNED OPERATIONS -- calls that move durable governed state through a gate, counted by kind and defined in GOVERNED_OPS -- across 2,811 events, 18 restarts of which 10 are crashes, 6 checkpoints and 6 policy versions. The 344 priority ticks used to advance sequence-numbered expiry are counted SEPARATELY and excluded, because a metric that counts a loop can be inflated by spinning. No single operation kind is more than 17% of the run",
       "provenance": "end-of-run invariants are checked against the LOG, not against the projection: every promotion is confirmed to have come from VERIFIED and to have been performed by someone other than the proposer",
       "failure_semantics": "the suite asserts intended end states per job class rather than 'nothing crashed'",
-      "recovery": "six restarts mid-trajectory; a fresh replay must reproduce the live projection's state digest exactly",
+      "recovery": "nine crashes are mid-operation -- the process state is discarded between the two events of one logical operation, with no checkpoint -- and the tenth is a REAL child process sent SIGKILL while appending to the campaign's own log. After each, the chain verifies, the lease is still owned by the worker that held it, the attempt count has not moved, and the trajectory continues over the top",
       "retry": "retried jobs keep their failed attempt visible in the history and reach attempts >= 2",
       "idempotency": "covered by the scheduler suite",
       "cancellation": "cancelled jobs end without a lease holder and never reach SUCCEEDED",
@@ -1205,8 +1205,8 @@
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
         "the trajectory is thousands of events, not millions; a defect that needs a larger scale would still be invisible",
-        "one process throughout: restarts are simulated by discarding projections rather than by exiting",
-        "no policy CHANGE mid-flight that alters what a running job may do, only version bumps"
+        "no policy CHANGE mid-flight that alters what a running job may do, only version bumps",
+        "the campaign runs locally and in the agent-substrate workflow on the same single Python version and OS; nothing tests that a trajectory of this length behaves identically on another interpreter or kernel"
       ],
       "blocker": null
     },

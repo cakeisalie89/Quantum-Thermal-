@@ -395,3 +395,19 @@ def test_a_refused_retraction_never_reaches_the_log(tmp_path):
         "a refused retraction was appended; the write path must refuse "
         "before the record exists")
     assert m.get("m1").status is MemoryStatus.ACTIVE
+
+
+def test_a_memory_write_with_no_entry_is_a_domain_error(tmp_path):
+    """An authority API fails on purpose, or not at all.
+
+    Found by a real killed child process writing a malformed memory.write
+    into a live campaign log: the record was wrong, and the diagnosis the
+    store gave was the single word 'entry'. A raw KeyError here leaks the
+    payload's shape, names no subject, and makes the WHOLE store unloadable
+    rather than refusing the one record that is unreadable.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    log.append(actor="w1", action="memory.write", target="m1",
+               payload={"memory_id": "m1", "text": "wrong shape"})
+    with pytest.raises(MemoryError_, match="carries no entry"):
+        MemoryStore(log).load()

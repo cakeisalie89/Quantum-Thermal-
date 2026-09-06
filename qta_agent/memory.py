@@ -205,6 +205,16 @@ class MemoryStore:
     def apply(self, ev) -> bool:
         p = ev.payload
         if ev.action == ACT_MEMORY_WRITE:
+            if not isinstance(p, dict) or "entry" not in p:
+                # A raw KeyError here leaks the payload's shape and makes the
+                # WHOLE store unloadable with an exception that names no
+                # subject. Found by a killed child process writing a
+                # malformed memory.write into a live log: the record was
+                # wrong, and the diagnosis said 'entry'.
+                raise MemoryError_(
+                    f"seq {ev.seq}: a memory.write from {ev.actor!r} carries "
+                    "no entry; a record this store cannot read is refused "
+                    "rather than projected")
             entry = entry_from_record(p["entry"])
             if entry.memory_id in self._entries:
                 raise MemoryError_(

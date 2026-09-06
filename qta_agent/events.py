@@ -185,6 +185,15 @@ class ChainState:
 
     Held apart from the log precisely so that truncating the log is
     detectable. A log alone cannot prove it is complete.
+
+    WHAT IT BOUNDS, EXACTLY. The witness is written AFTER the append it
+    describes, so it is a lower bound on the history rather than a mirror
+    of it: truncation back to or below the witness's position is detected,
+    and events appended after the last witness update are not covered. A
+    process killed between the two leaves the witness one event behind,
+    which verify() reports as a note rather than a problem -- the safe
+    direction, since the alternative ordering would let the witness claim
+    history the log never received.
     """
     seq: int
     head_hash: str

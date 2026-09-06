@@ -23,7 +23,12 @@ one.
 """
 from __future__ import annotations
 
+import collections
+import os
+import signal
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -60,6 +65,37 @@ CYCLES = 260
 #: Restart every this many cycles. State must not drift across any of them.
 RESTART_EVERY = 40
 
+#: Crash every this many cycles, mid-operation. Coprime-ish with
+#: RESTART_EVERY so crashes and orderly restarts do not always coincide --
+#: a crash that only ever happens immediately after a checkpoint is the
+#: easiest possible crash, and would prove the least.
+CRASH_EVERY = 27
+
+
+#: WHAT COUNTS AS ONE GOVERNED OPERATION.
+#:
+#: Not a loop iteration, not a log append, not a sleep, not a counter bump.
+#: An operation here is a call that moves DURABLE GOVERNED STATE through a
+#: gate: work is admitted, owned, run, judged, withdrawn, remembered, or the
+#: system is restarted and rebuilt from what survived.
+#:
+#: The distinction matters because "2,000 events" and "1,000 governed
+#: operations" are different claims, and only the second says anything about
+#: how much lifecycle the system actually survived. One enqueue writes one
+#: event; one retry cycle writes six and is four operations.
+#:
+#: DELIBERATELY EXCLUDED: the priority ticks used to advance sequence-numbered
+#: expiry. They are a loop whose purpose is to move the clock, and counting
+#: them would let the headline number grow by spinning. They are counted
+#: separately as ``ticks`` so the exclusion is visible rather than silent.
+GOVERNED_OPS = (
+    "evidence.put", "job.enqueue", "job.reconcile", "job.dispatch",
+    "job.report.success", "job.report.failure", "job.cancel",
+    "job.invalidate", "record.create", "record.transition",
+    "memory.remember", "memory.invalidate_source", "policy.publish",
+    "checkpoint", "restart", "crash.recover",
+)
+
 
 class Horizon:
     """A long-running system, rebuildable from its log at any moment."""
@@ -69,10 +105,26 @@ class Horizon:
         self.evidence = EvidenceStore(root / "evidence")
         self.checkpoints = CheckpointStore(root / "checkpoints")
         self.restarts = 0
+        self.crashes = 0
+        self.ops: "collections.Counter[str]" = collections.Counter()
+        self.ticks = 0
         self.reload()
 
-    def reload(self) -> "Horizon":
+    def op(self, kind: str, n: int = 1):
+        """Record one meaningful governed operation. See GOVERNED_OPS."""
+        assert kind in GOVERNED_OPS, f"undeclared operation kind {kind!r}"
+        self.ops[kind] += n
+
+    @property
+    def total_ops(self) -> int:
+        return sum(self.ops.values())
+
+    def reload(self, *, after_crash: bool = False) -> "Horizon":
         self.restarts += 1
+        if hasattr(self, "ops"):
+            self.op("crash.recover" if after_crash else "restart")
+        if after_crash:
+            self.crashes += 1
         self.log = EventLog(self.root / "log.jsonl")
         self.policy = PolicyStore(self.log).load()
         self.sched = Scheduler(self.log, policy=self.policy,
@@ -89,6 +141,8 @@ class Horizon:
             self.sched.set_priority(
                 job_id=tag, priority=9, actor="scheduler", role="SCHEDULER",
                 reason=f"tick {i}")
+        # Counted, and deliberately NOT counted as governed operations.
+        self.ticks += seqs
 
 
 @pytest.fixture(scope="module")
@@ -108,6 +162,7 @@ def horizon(tmp_path_factory):
         "succeeded": set(), "failed": set(), "cancelled": set(),
         "blocked": set(), "invalidated": set(), "promoted": set(),
         "rejected_promotions": 0, "retried": set(),
+        "crash_recovered": set(),
     }
 
     for cycle in range(CYCLES):
@@ -115,61 +170,84 @@ def horizon(tmp_path_factory):
         jid = f"job-{cycle:04d}"
         rid = f"rec-{cycle:04d}"
         dg = h.evidence.put(f"artifact for cycle {cycle}".encode())
+        h.op("evidence.put")
 
         h.sched.enqueue(job_id=jid, work_digest=digest({"cycle": cycle}),
                         submitter="p1", requires_evidence=(dg,))
+        h.op("job.enqueue")
         h.sched.reconcile(resolve=h.evidence.contains)
+        h.op("job.reconcile")
 
         if kind == 0:                                   # plain success
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.report.success')
             h.sched.report(job_id=jid, worker="w1")
             expectations["succeeded"].add(jid)
         elif kind == 1:                                 # permanent failure
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.report.failure')
             h.sched.report(job_id=jid, worker="w1",
                            failure=FailureClass.PERMANENT, detail="bad input")
             expectations["failed"].add(jid)
         elif kind == 2:                                 # transient, retried
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.report.failure')
             h.sched.report(job_id=jid, worker="w1",
                            failure=FailureClass.TRANSIENT, detail="socket")
             h.step_past(backoff_for(1) + 1, jid)
             h.sched.reconcile(resolve=h.evidence.contains)
+            h.op('job.reconcile')
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}b",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.report.success')
             h.sched.report(job_id=jid, worker="w1")
             expectations["succeeded"].add(jid)
             expectations["retried"].add(jid)
         elif kind == 3:                                 # cancelled mid-flight
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.cancel')
             h.sched.cancel(job_id=jid, actor="p1", reason="withdrawn")
             expectations["cancelled"].add(jid)
         elif kind == 4:                                 # succeeded then void
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.report.success')
             h.sched.report(job_id=jid, worker="w1")
+            h.op('job.invalidate')
             h.sched.invalidate(job_id=jid, actor="system",
                                reason="input moved")
             expectations["invalidated"].add(jid)
         else:                                           # lease lapses
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}",
                              lease_seqs=1, resolve=h.evidence.contains)
             h.step_past(3, jid)
             h.sched.reconcile(resolve=h.evidence.contains)
+            h.op('job.reconcile')
+            h.op('job.dispatch')
             h.sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{cycle}c",
                              lease_seqs=200, resolve=h.evidence.contains)
+            h.op('job.report.success')
             h.sched.report(job_id=jid, worker="w1")
             expectations["succeeded"].add(jid)
 
         # An authority record alongside, so both machines share the history.
         h.store.create(record_id=rid, kind="claim", proposer="p1",
                        evidence={"verification_report": dg})
+        h.op("record.create")
         h.store.transition(record_id=rid, dst=State.UNDER_REVIEW, actor="v1",
                            role=Role.VERIFIER)
+        h.op("record.transition")
         if cycle % 3 == 0:
             h.store.transition(record_id=rid, dst=State.VERIFIED, actor="v1",
                                role=Role.VERIFIER,
@@ -178,15 +256,18 @@ def horizon(tmp_path_factory):
                                actor="owner", role=Role.PROMOTER,
                                policy_id="scheduler.default@1",
                                evidence={"policy_id": "scheduler.default@1"})
+            h.op("record.transition", 2)
             expectations["promoted"].add(rid)
 
         # Memory, with a source that is sometimes later withdrawn.
         h.memory.remember(memory_id=f"mem-{cycle:04d}",
                           text=f"cycle {cycle} looked ordinary",
                           author="p1", derived_from=(dg,))
+        h.op("memory.remember")
         if cycle % 7 == 0:
             h.memory.invalidate_source(dg, actor="system",
                                        reason="re-measured")
+            h.op("memory.invalidate_source")
 
         # A policy version every so often, so historical decisions have
         # something to be non-retroactive against.
@@ -197,11 +278,84 @@ def horizon(tmp_path_factory):
                 rules=(rule(rule_id=f"v{version}", effect=Effect.ALLOW,
                             actions=("*",), subjects=("*",), roles=("*",),
                             resources=("*",)),)), actor="owner")
+            h.op("policy.publish")
+
+        # A CRASH IS NOT A RESTART.
+        #
+        # reload() above is an orderly restart: the checkpoint is written
+        # first and every operation of the cycle has completed. This is the
+        # other thing -- the process disappears BETWEEN the two events of one
+        # logical operation, with no checkpoint and nothing flushed by the
+        # caller. Recovery must reach a state the system can continue from,
+        # not merely one it can parse.
+        #
+        # The job is enqueued and dispatched, and the report never happens.
+        # What must survive: the lease is real and owned, the work is not
+        # lost, and nothing about the half-finished attempt reads as success.
+        if cycle % CRASH_EVERY == CRASH_EVERY - 1:
+            cid = f"crash-{cycle:04d}"
+            h.sched.enqueue(job_id=cid, work_digest=digest({"crash": cycle}),
+                            submitter="p1", requires_evidence=(dg,))
+            h.op("job.enqueue")
+            h.sched.reconcile(resolve=h.evidence.contains)
+            h.op("job.reconcile")
+            h.sched.dispatch(job_id=cid, worker="w1", lease_id=f"LC{cycle}",
+                             lease_seqs=200, resolve=h.evidence.contains)
+            h.op("job.dispatch")
+            h.reload(after_crash=True)          # no report, no checkpoint
+            recovered = h.sched.get(cid)
+            assert recovered.state is JobState.DISPATCHED, recovered.state
+            assert recovered.lease_holder == "w1"
+            h.sched.report(job_id=cid, worker="w1")
+            h.op("job.report.success")
+            expectations["succeeded"].add(cid)
+            expectations["crash_recovered"].add(cid)
 
         if cycle % RESTART_EVERY == RESTART_EVERY - 1:
             h.store.checkpoint(h.checkpoints)
+            h.op("checkpoint")
             h.reload()
 
+    # A REAL PROCESS, REALLY KILLED, WRITING TO THIS LOG.
+    #
+    # Every other restart in this suite discards projections inside one
+    # interpreter. That proves state is derived from the log rather than
+    # from memory, which is worth proving -- but it cannot show what
+    # happens when the OS takes the process away between an fsync and the
+    # next statement, because there is no next statement to reach.
+    #
+    # So one segment of the trajectory is written by a child that is sent
+    # SIGKILL while it is appending. The log it was writing is the campaign's
+    # own, and the campaign continues over it afterwards.
+    script = h.root / "worker.py"
+    script.write_text(f'''
+import sys
+sys.path.insert(0, {str(ROOT)!r})
+from qta_agent.events import EventLog
+log = EventLog({str(h.root / "log.jsonl")!r})
+for i in range(4000):
+    log.append(actor="w1", action="memory.write",
+               target=f"killed-{{i}}",
+               payload={{"entry": {{"memory_id": f"killed-{{i}}",
+                                  "text": "written mid-flight",
+                                  "author": "w1", "derived_from": [],
+                                  "status": "ACTIVE", "status_reason": "",
+                                  "created_seq": -1, "updated_seq": -1}}}})
+    sys.stdout.write("x")
+    sys.stdout.flush()
+''', encoding="utf-8")
+    proc = subprocess.Popen([sys.executable, str(script)],
+                            stdout=subprocess.PIPE, start_new_session=True)
+    try:
+        assert proc.stdout.read(1) == b"x", "the child never appended"
+        time.sleep(0.15)
+    finally:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        proc.wait(timeout=10)
+    h.killed_pid = proc.pid
+    h.op("crash.recover")
+    h.crashes += 1
+    h.reload()
     h.expectations = expectations
     return h
 
@@ -213,6 +367,84 @@ def test_the_run_was_long_enough_to_mean_something(horizon):
         f"only {report.count} events; the quadratic defects this suite exists "
         "for did not become obvious until several hundred")
     assert horizon.restarts >= CYCLES // RESTART_EVERY
+
+
+def test_the_campaign_performed_a_thousand_governed_operations(horizon):
+    """THE CLAIM, AND THE METRIC BEHIND IT.
+
+    "2,000 events" and "1,000 governed operations" are different statements,
+    and only the second says anything about how much lifecycle the system
+    survived: one enqueue is one event and one operation, while one retry
+    cycle is six events and four operations.
+
+    So the count here is of calls that move durable governed state through a
+    gate -- see GOVERNED_OPS -- and it deliberately EXCLUDES the priority
+    ticks used to advance sequence-numbered expiry. Those are a loop, and
+    counting them would let this number grow by spinning. They are asserted
+    separately so the exclusion is visible rather than silent.
+    """
+    total = horizon.total_ops
+    assert total >= 1000, (
+        f"only {total} governed operations: {dict(horizon.ops)}")
+    assert horizon.ticks > 0, "the tick loop never ran"
+    assert "tick" not in horizon.ops, (
+        "ticks leaked into the governed-operation count, which is exactly "
+        "the inflation this metric is defined to exclude")
+
+
+def test_the_thousand_operations_were_not_all_the_same_one(horizon):
+    """A thousand enqueues would satisfy a count and prove almost nothing.
+
+    The mixture is the point: work that succeeds, fails, is retried,
+    cancelled, invalidated, promoted, remembered, withdrawn, checkpointed
+    and recovered from a crash.
+    """
+    kinds = {k for k, n in horizon.ops.items() if n > 0}
+    missing = {
+        "job.enqueue", "job.dispatch", "job.report.success",
+        "job.report.failure", "job.cancel", "job.invalidate",
+        "record.create", "record.transition", "memory.remember",
+        "memory.invalidate_source", "policy.publish", "checkpoint",
+        "restart", "crash.recover", "evidence.put",
+    } - kinds
+    assert not missing, f"the trajectory never exercised: {sorted(missing)}"
+    # No single kind may be most of the campaign.
+    top = max(horizon.ops.values())
+    assert top < horizon.total_ops * 0.5, (
+        f"one operation kind is {top}/{horizon.total_ops} of the run")
+
+
+def test_the_campaign_survived_crashes_mid_operation(horizon):
+    """Restarts are orderly; crashes are not.
+
+    Every restart in this suite happens after a checkpoint and after every
+    operation of its cycle finished. A crash happens BETWEEN the two events
+    of one logical operation, with nothing flushed and no checkpoint -- the
+    case where a half-finished attempt could read as success.
+    """
+    assert horizon.crashes >= 5, f"only {horizon.crashes} crashes"
+    recovered = horizon.expectations["crash_recovered"]
+    assert recovered, "no job was carried across a crash"
+    for jid in sorted(recovered):
+        job = horizon.sched.get(jid)
+        assert job.state is JobState.SUCCEEDED, (jid, job.state)
+        # And the attempt that spanned the crash is still one attempt.
+        assert job.attempts == 1, (jid, job.attempts)
+
+
+def test_the_metric_is_documented_where_the_claim_is_made(horizon):
+    """The number is only meaningful with its definition attached.
+
+    Pinned so a later edit cannot raise the headline by widening what
+    counts, which is the easiest way to make this suite dishonest.
+    """
+    import qta_agent  # noqa: F401  - anchors ROOT for the read below
+
+    src = Path(__file__).read_text(encoding="utf-8")
+    assert "WHAT COUNTS AS ONE GOVERNED OPERATION" in src
+    assert "DELIBERATELY EXCLUDED" in src
+    for kind in GOVERNED_OPS:
+        assert f'"{kind}"' in src or f"'{kind}'" in src, kind
 
 
 def test_the_chain_verifies_over_the_whole_history(horizon):
@@ -231,10 +463,30 @@ def test_sequence_numbers_are_unique_and_contiguous(horizon):
 
 
 def test_the_witness_still_agrees_with_the_log(horizon):
+    """The witness is a LOWER BOUND on the history, not a mirror of it.
+
+    This asserted exact equality until a real SIGKILL landed between an
+    append and the witness update, leaving the witness one event behind.
+    The library was already right about that: appending first and
+    witnessing second is the safe order, and _check_witness records a
+    lagging witness as a NOTE while a witness AHEAD of the log is
+    TRUNCATED and a mismatch at the same seq is FORKED.
+
+    So the invariant is directional. A witness that lags cannot hide a
+    truncation below its own position, which is what it exists to catch.
+    """
     witness = horizon.log.head()
     events = horizon.log.read()
-    assert witness.seq == events[-1].seq
-    assert witness.head_hash == events[-1].hash
+    assert witness.seq <= events[-1].seq, (
+        "the witness is AHEAD of the log: records are missing")
+    at = next(e for e in events if e.seq == witness.seq)
+    assert witness.head_hash == at.hash, (
+        "the witness and the log disagree at the witness's own position")
+    report = horizon.log.verify()
+    assert report.ok, report.problems[:3]
+    if witness.seq < events[-1].seq:
+        assert any("witness is behind" in n for n in report.notes), (
+            "a lagging witness must be reported as a note, not passed over")
 
 
 # ---- end-of-run state invariants ----------------------------------------
@@ -383,3 +635,41 @@ def test_no_authority_escalation_happened_anywhere(horizon):
             assert ev.payload["role"] == Role.PROMOTER.value
             assert ev.actor != proposers[rid], (
                 f"{rid} was promoted by its own proposer")
+
+
+def test_a_real_process_was_killed_while_writing_this_log(horizon):
+    """THE RESTART THAT IS NOT SIMULATED.
+
+    Every other restart here discards projections inside one interpreter,
+    which proves state is derived from the log rather than held in memory.
+    It cannot prove anything about the OS removing the process between an
+    fsync and the next statement, because there is no next statement.
+
+    This one was a child process sent SIGKILL mid-append, writing to the
+    campaign's own log. What must hold afterwards: the chain still verifies
+    end to end, the partial write did not corrupt it, and the trajectory
+    continued over the top.
+    """
+    assert getattr(horizon, "killed_pid", None), "no child was killed"
+    report = horizon.log.verify()
+    assert report.ok, report.problems[:3]
+    # The child's appends are in the history and are ordinary events.
+    killed = [ev for ev in horizon.log.read()
+              if str(ev.target).startswith("killed-")]
+    assert killed, "the child died before its first append reached the log"
+    first = killed[0].payload["entry"]["memory_id"]
+    assert horizon.memory.get(first) is not None
+
+
+def test_the_chain_survives_a_partial_write_at_the_kill_point(horizon):
+    """A SIGKILL lands wherever it lands, including mid-line.
+
+    The log's own reader is what has to cope: either the last record is
+    complete and verifies, or it is not there at all. A half-written line
+    that still parses would be the dangerous outcome, and the chain check
+    is what rules it out.
+    """
+    report = horizon.log.verify()
+    assert report.ok and not report.problems
+    seqs = [ev.seq for ev in horizon.log.read()]
+    assert seqs == list(range(len(seqs))), "a gap or duplicate at the tear"
