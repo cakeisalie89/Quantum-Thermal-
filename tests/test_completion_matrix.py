@@ -204,3 +204,53 @@ def test_the_property_claim_guard_still_accepts_real_usage():
 def test_the_property_claim_guard_accepts_a_real_property_suite():
     assert not _problems(
         property_tests=["tests/test_agent_machine_properties.py"])
+
+
+# --- the two ways a row has actually been tempted to overstate itself ------
+
+def test_the_validator_refuses_a_test_as_the_production_caller():
+    """The defect this project hit twice, in two different subsystems.
+
+    check_egress_composition was correct, thoroughly tested and reachable
+    only from its own test file. ExecutionResult.output_digests existed and
+    nothing populated it. In both cases a test was the only caller -- and a
+    test is the easiest thing in the tree to point a row at.
+    """
+    row = _row(production_caller="tests/test_completion_matrix.py",
+               implementation=["tools/completion_matrix.py"])
+    problems = CM.validate({"rows": [row]})
+    assert any("is a test" in p for p in problems), problems
+
+
+def test_a_real_production_caller_is_still_accepted():
+    """The guard must name a real condition, not refuse every row."""
+    row = _row(production_caller="tools/completion_matrix.py",
+               implementation=["tools/completion_matrix.py"])
+    assert not [p for p in CM.validate({"rows": [row]})
+                if "is a test" in p]
+
+
+def test_the_validator_refuses_a_hosted_claim_with_no_run_id():
+    """'green', 'passing' and 'should be fine' are not evidence.
+
+    A run id is a thing a reader can open. This field has drifted before --
+    it once listed only successes while five runs had failed -- and prose
+    is what lets it.
+    """
+    for prose in ("green", "passing on every push", "CI is fine"):
+        problems = CM.validate({"rows": [_row(hosted_ci=prose)]})
+        assert any("names no run id" in p for p in problems), prose
+
+
+def test_a_hosted_claim_citing_a_run_is_accepted():
+    row = _row(hosted_ci="agent-substrate.yml run 34015444218 (success)")
+    assert not [p for p in CM.validate({"rows": [row]})
+                if "run id" in p]
+
+
+def test_none_is_an_honest_hosted_answer():
+    """A row with no hosted coverage should say so, not be forced to invent."""
+    for value in ("none", "n/a", ""):
+        row = _row(hosted_ci=value)
+        assert not [p for p in CM.validate({"rows": [row]})
+                if "run id" in p]

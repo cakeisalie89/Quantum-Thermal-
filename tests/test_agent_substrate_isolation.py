@@ -15,6 +15,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -53,6 +54,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",
     "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_idempotency.py",
     "tests/test_agent_audit.py",
     "tests/test_agent_policy.py",
     "tests/test_agent_scheduler.py",
@@ -69,17 +71,24 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_substrate_isolation.py",
 }
 
-#: NOTE for whoever adds the next test file and sees this pass locally:
-#: the check below uses ``git grep``, which sees TRACKED files only. A new
-#: test importing qta_agent is invisible to it until it is staged, so the
-#: suite goes green locally and red in CI the moment it is committed. That has
-#: happened twice. Run this test after ``git add``, or expect the hosted run
-#: to be the thing that tells you.
+#: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
 #:
-#: Scanning the filesystem instead would fix the surprise and break the
-#: invariant: an untracked scratch file is not part of the repository, so it
-#: cannot make the repository's import graph wrong. The tracked set is the
-#: right question; only the timing is the trap.
+#: It used to be ``git grep``, which sees tracked files only, with a note
+#: saying the tracked set is the right question and only the timing is a
+#: trap. The trap then fired a THIRD time: a new test importing qta_agent was
+#: invisible until it was staged, the suite went green locally, and the tree
+#: that got pushed was red.
+#:
+#: "Tracked" was the wrong set. The right one is what git itself calls the
+#: working tree minus ignored files -- ``--cached --others
+#: --exclude-standard`` -- because an untracked, unignored file is not a
+#: scratch file, it is a file that WILL be part of the repository the moment
+#: anybody commits. That is the same rule generate_manifest.py applies, for
+#: the same reason, and it makes this fail on the machine that introduced the
+#: problem rather than on the runner an hour later.
+#:
+#: An ignored file still cannot make the import graph wrong, which is the
+#: invariant the old note was protecting.
 
 #: A linearization of the dependency graph. Each module may import only
 #: modules strictly earlier in this tuple, which keeps the graph a line
@@ -242,17 +251,77 @@ def test_a_bridge_may_only_reach_the_stage10_write_guard():
 
 # --- the science does not reach into the substrate ---------------------------
 
-def test_nothing_outside_the_package_imports_the_substrate():
-    """The direction that would make a gate depend on an authority verdict.
+def _repository_python_files() -> tuple:
+    """Every .py git considers part of the working tree, ignored ones aside.
 
-    Uses git grep over tracked files so an untracked scratch file cannot make
-    this pass or fail spuriously.
+    ``--cached`` is what is tracked, ``--others --exclude-standard`` is what
+    is untracked and NOT ignored. The union is "what this repository will
+    contain once somebody commits", which is the set every guard here
+    actually means -- see the note at the top of this module for the three
+    times asking a narrower question cost a red push.
     """
     r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-lE",
-         r"^\s*(from|import)\s+qta_agent\b", "--", "*.py"],
+        ["git", "-C", str(ROOT), "ls-files", "--cached", "--others",
+         "--exclude-standard", "--", "*.py"],
         capture_output=True, text=True)
-    importers = {line.strip() for line in r.stdout.splitlines() if line.strip()}
+    return tuple(sorted({ln.strip() for ln in r.stdout.splitlines()
+                         if ln.strip()}))
+
+
+def test_the_importer_scan_sees_a_file_that_is_not_committed_yet():
+    """The blind spot itself, asserted rather than left as a note.
+
+    Three separate pushes went red because ``git grep`` cannot see an
+    untracked file: the guard passed locally, the file was committed, and
+    the runner found the problem. A file that is untracked and NOT ignored
+    is one commit away from being part of the repository, so it has to be in
+    the set this guard asks about.
+    """
+    probe = ROOT / "tools" / "_isolation_scan_probe.py"
+    assert not probe.exists(), "the probe name is already taken"
+    probe.write_text("from qta_agent.canonical import digest  # probe\n")
+    try:
+        assert probe.relative_to(ROOT).as_posix() in \
+            _repository_python_files(), (
+            "an untracked, unignored file is invisible to the scan; the "
+            "blind spot is back")
+    finally:
+        probe.unlink()
+
+
+def test_the_importer_scan_ignores_what_git_ignores():
+    """An ignored file cannot make the repository's import graph wrong.
+
+    This is the invariant the git-grep version was protecting, and it has to
+    survive the fix: widening the set to 'everything on disk' would let a
+    quarantined mutation copy or a scratch directory fail this suite.
+    """
+    ignored_dir = ROOT / ".mutation-quarantine" / "_isolation_probe"
+    ignored_dir.mkdir(parents=True, exist_ok=True)
+    probe = ignored_dir / "x.py"
+    probe.write_text("import qta_agent.store  # probe\n")
+    try:
+        r = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q",
+                            str(probe)], capture_output=True)
+        assert r.returncode == 0, "the probe is not actually ignored by git"
+        assert probe.relative_to(ROOT).as_posix() not in \
+            _repository_python_files()
+    finally:
+        shutil.rmtree(ignored_dir, ignore_errors=True)
+
+
+def test_nothing_outside_the_package_imports_the_substrate():
+    """The direction that would make a gate depend on an authority verdict."""
+    pattern = re.compile(r"^\s*(from|import)\s+qta_agent\b", re.MULTILINE)
+    importers = set()
+    for rel in _repository_python_files():
+        path = ROOT / rel
+        try:
+            body = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:                             # pragma: no cover
+            continue
+        if pattern.search(body):
+            importers.add(rel)
     importers = {p for p in importers if not p.startswith("qta_agent/")}
     unexpected = importers - ALLOWED_IMPORTERS
     assert not unexpected, (

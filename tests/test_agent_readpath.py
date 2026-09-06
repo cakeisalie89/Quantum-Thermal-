@@ -610,3 +610,70 @@ def test_an_ordinary_file_passes_the_unique_link_check(tree):
     with ReadRoot(tree["root"]) as rr:
         res = rr.read("allowed.txt", require_unique_link=True)
     assert res.data == b"allowed content"
+
+
+# --- the alias check must stay opted INTO by the path that needs it --------
+
+def _non_test_references(symbol: str) -> set:
+    """Files outside tests/ that mention ``symbol``.
+
+    Scans the filesystem rather than shelling out to ``git grep``. The git
+    version has a blind spot this repository has already been bitten by:
+    an untracked file is invisible to it, so a caller that has not been
+    committed yet reads as absent and a guard like this one passes for the
+    wrong reason.
+    """
+    found = set()
+    for path in sorted(ROOT.rglob("*.py")):
+        rel = path.relative_to(ROOT).as_posix()
+        if rel.startswith((".venv/", "tests/", "attic/", "build/")):
+            continue
+        try:
+            if symbol in path.read_text(encoding="utf-8", errors="ignore"):
+                found.add(rel)
+        except OSError:                             # pragma: no cover
+            continue
+    return found
+
+
+def test_the_hard_link_check_keeps_a_production_caller():
+    """``require_unique_link`` is opt-IN, so something must opt in.
+
+    A per-call flag nobody passes is the same defect as a function nobody
+    invokes -- the check is written, tested, correct and never reached. The
+    verification step is the caller that needs it: it re-derives an
+    artifact's digest from disk, and a second name for that inode is a
+    second way to change what the digest describes.
+    """
+    refs = _non_test_references("require_unique_link=True")
+    assert refs - {"qta_agent/safeio.py", "qta_agent/readpath.py"}, (
+        "nothing outside tests passes require_unique_link=True, so the "
+        f"alias check never runs in production: {sorted(refs)}")
+
+
+def test_a_hard_linked_artifact_is_refused_by_the_verification_path(tmp_path):
+    """Measured, not asserted from the flag's presence.
+
+    st_nlink is what the kernel will tell us: that the content has another
+    name, not where that name is. For an artifact written once by one tool
+    a count above one is already the answer, and this proves the count is
+    actually consulted on the path that matters.
+    """
+    import os
+
+    from qta_agent.safeio import AliasedFile, ReadRoot
+
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "a.json").write_text("payload")
+    elsewhere = tmp_path / "outside"
+    elsewhere.mkdir()
+    os.link(root / "a.json", elsewhere / "second-name.json")
+    assert os.stat(root / "a.json").st_nlink == 2
+
+    with ReadRoot(root) as r:
+        with pytest.raises(AliasedFile, match="another name"):
+            r.read("a.json", require_unique_link=True)
+        # And the opt-out still reads it: the flag is a choice the caller
+        # makes, which is exactly why the guard above exists.
+        assert r.read("a.json", require_unique_link=False).data == b"payload"

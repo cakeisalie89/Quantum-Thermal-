@@ -481,7 +481,7 @@
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "HARD LINKS are not detectable: a name inside the root may be a hard link to content elsewhere on the same filesystem, and O_NOFOLLOW says nothing about it because a hard link is not a link. Where the identity of the bytes matters the caller passes a digest; where it does not, this is a real hole and not a theoretical one",
+        "HARD LINKS are detected but not LOCATED: st_nlink says the content has another name, never where that name is, and it can sit outside the authorized root entirely. For an artifact written once by one tool a count above one is already the answer, which is why the verification path passes require_unique_link=True -- but the check is OPT-IN per call, so a caller that does not ask does not get it. A structural test asserts the verification path keeps asking",
         "openat2(RESOLVE_BENEATH) would make confinement a single atomic kernel decision rather than a per-component walk. This Python exposes neither os.openat2 nor os.RESOLVE_BENEATH, so the walk is the strongest form available here -- an unavailable platform primitive, not unfinished engineering",
         "bind mounts and overlays are not detectable portably: if the root itself is a mount somebody else controls, confinement to it means less than it appears to",
         "case-insensitive filesystems are out of scope; the targets are case-sensitive and nothing here consults the root's own semantics",
@@ -1577,9 +1577,10 @@
         "authorities.json"
       ],
       "callers": [
-        "tests/test_agent_substrate_isolation.py"
+        "tests/test_agent_substrate_isolation.py",
+        "tests/test_single_source_of_truth.py"
       ],
-      "production_caller": "tests/test_agent_substrate_isolation.py",
+      "production_caller": null,
       "persistent_state": "none",
       "authority_owner": "authorities.json :: agent_authority_substrate",
       "evidence": "automatic_gate_effect=NONE, enforced by import isolation",
@@ -1601,7 +1602,8 @@
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "enforcement is a structural test over the import graph, not a runtime guard, so there is no code path a mutation could delete. The property holds because nothing imports qta_agent, which a test can assert but a mutation cannot attack."
+        "there is NO production caller, and that is the property rather than a gap in it: this row is enforced by an ABSENCE -- nothing in the scientific tree imports qta_agent -- so there is no code path to call and none for a mutation to delete. Naming a test as the production caller (which this row did until the validator started refusing it) claims an integration that does not and should not exist",
+        "a mutation harness replaces existing text, so it cannot express the attack on this property, which would be to ADD an import. The structural test is what stands in for that, and it is asserted over the whole import graph rather than a list of known offenders"
       ],
       "blocker": null
     },
@@ -1635,10 +1637,10 @@
       "mutation_tests": [],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml run 33999164320 (008cbb9) completed with conclusion SUCCESS across all 29 steps, including step 7 (derived-artifact freshness) and step 13 (the agent_tasks matrix). Runs 33992113547 (884cf26) and 33994212787 (467efb7) also succeeded. The failures are recorded rather than omitted: 33995744418 (f5c50e8) failed on the agent_tasks matrix for the G18 survivor, since fixed and confirmed dead on the runner by run 63; and 33997735547, 33997922862, 33998171857 and 33998895626 each failed in seconds on the freshness step because covered files were committed while regeneration was deferred to the end of a batch. That step exists for exactly that and caught it four times before spending an hour of runner time",
+      "hosted_ci": "agent-substrate.yml: run 34015444218 (3d4c9da) green, and the failure history is kept rather than pruned -- runs 33995744418, 33997735547, 33997922862, 33998171857, 33998895626 and 34000716613 all failed, on the agent_tasks matrix and on derived-artifact freshness. Runs 34009496581 (aa57942), 34010167285 (41ea81f), 34011780850 (eab6dac) and 34012217103 (b8db05a) green",
       "residual_gaps": [
-        "single Python version, single OS: nothing tests that these guarantees hold on another interpreter or another kernel",
-        "agent-substrate.yml runs the agent suites, all sixteen mutation matrices, the fuzz campaign and a derived-artifact freshness check on every push; the FULL pytest suite and package_consistency_check.py run only in release.yml, so a failure confined to the scientific tests is seen later than it could be",
+        "ONE OS. Every job runs ubuntu-latest, and the process-group, rlimit and O_NOFOLLOW behaviour this substrate depends on is Linux-specific -- these guarantees are not claimed to hold on another kernel, and nothing tests that they do",
+        "the second-interpreter job installs numpy and scipy UNPINNED, because qta_multiphysics/__init__.py eagerly imports the runner and the governed tool's subprocess cannot start without them. So that job tests the authority layer on another interpreter against an unlocked numeric stack; it is not a claim that the SCIENTIFIC results reproduce there, and the project's own pin stays ==3.12.*",
         "container-verify builds a declared image; the sandbox this work is done in cannot build it, so that workflow's result is only ever read, never reproduced locally"
       ],
       "blocker": null

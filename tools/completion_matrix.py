@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -129,6 +130,18 @@ def validate(doc: dict) -> list:
         if pc:
             if not (ROOT / pc).exists():
                 problems.append(f"{rid}: production_caller missing: {pc}")
+            elif pc.startswith(("tests/", "test_")) or "/tests/" in pc:
+                # THE defect this project has hit twice, in two subsystems:
+                # a correct, thoroughly tested function whose only callers
+                # were its own tests, and a result field populated by
+                # nothing. A row whose production caller IS a test is
+                # claiming production integration it does not have, and a
+                # test file is the easiest thing in the tree to point at.
+                problems.append(
+                    f"{rid}: production_caller {pc} is a test. A defence "
+                    "nothing but its own tests invokes is indistinguishable "
+                    "from no defence; name the real caller or say the row "
+                    "has none")
             elif impl:
                 text = (ROOT / pc).read_text(encoding="utf-8",
                                              errors="replace")
@@ -213,6 +226,17 @@ def validate(doc: dict) -> list:
                     problems.append(
                         f"{rid}: {field} names {rel}, which contains no "
                         f"{what}")
+
+        # A hosted-CI claim must cite a RUN, not a mood. "green", "passing"
+        # and "should be fine" are all things this field has been tempted to
+        # say; a run id is a thing somebody can open.
+        hosted = row.get("hosted_ci") or ""
+        if hosted and hosted.lower() not in ("none", "n/a"):
+            if not re.search(r"\b\d{8,}\b", hosted):
+                problems.append(
+                    f"{rid}: hosted_ci says {hosted[:60]!r} but names no run "
+                    "id. A hosted claim with no run behind it is the one "
+                    "kind of evidence a reader cannot check for themselves")
 
         if cls in BLOCKED:
             if not row.get("blocker"):

@@ -9,12 +9,26 @@
 # PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
 # immutable 40-hex commit object.
 #
-# SCOPE, so a green badge is not over-read: this job lints qta_agent/ and the
-# tooling, runs every agent test suite plus the mutation harness's own suite,
-# validates the completion matrix, runs twelve mutation matrices -- including
-# one over the harness itself -- and executes the governed Stage-10 rule. It
-# does NOT run the full pytest suite, does NOT run package_consistency_check.py,
-# and does NOT execute any solver.
+# SCOPE, so a green badge is not over-read: the agent-substrate job lints
+# qta_agent/ and the tooling, runs every agent test suite plus the mutation
+# harness's own suite, validates the completion matrix, runs every mutation
+# matrix -- including one over the harness itself -- and executes the governed
+# Stage-10 rule.
+#
+# Two further jobs run BESIDE it rather than after it, so neither waits an hour
+# behind the mutation matrices:
+#
+#   full-suite          the complete pytest suite and package_consistency_check
+#                       .py, which used to run only in release.yml. A failure
+#                       confined to the scientific tests was therefore seen at
+#                       release time rather than on the push that caused it.
+#   second-interpreter  the agent suites on a DIFFERENT Python. The substrate
+#                       and its tests need only pytest and hypothesis -- every
+#                       other import is stdlib -- so this is possible without
+#                       touching the scientific pin, which stays 3.12 because
+#                       that is what the locked numeric stack resolves for.
+#                       It tests the AUTHORITY LAYER on another interpreter,
+#                       and claims nothing about the solvers.
 #
 # What this proves: the authority layer's enforcement points are load-bearing
 # -- each one is deleted in turn and the suite must fail -- and the layer is
@@ -207,3 +221,58 @@ jobs:
       - name: the substrate did not touch the canonical tree
         run: |
           uv run python generate_manifest.py --check
+
+  full-suite:
+    # Deliberately a separate job. Serialising it behind the mutation matrices
+    # would mean the cheapest, broadest signal in this workflow arrives last.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --all-groups
+      - name: package consistency
+        run: uv run python package_consistency_check.py
+      - name: the FULL pytest suite, not only the agent suites
+        run: uv run python -m pytest tests/ -q
+
+  second-interpreter:
+    # The guarantees under test are pure-Python and stdlib-only. Running them
+    # on another interpreter answers a question the pinned job cannot: whether
+    # any of this depends on 3.12 specifically.
+    #
+    # NOT `uv sync`: the lockfile resolves for 3.12 and would refuse.
+    #
+    # numpy and scipy are here for ONE reason, established by running it:
+    # qta_multiphysics/__init__.py eagerly imports the runner, so the
+    # governed Stage-10 tool -- a stdlib-only module -- cannot be imported
+    # in its subprocess without them. They are installed UNPINNED and
+    # nothing here executes a solver or reads a number out of one; this job
+    # tests the authority layer and claims nothing about the science.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.13"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: a bare environment on Python ${{ matrix.python }}
+        run: |
+          uv venv --python ${{ matrix.python }} .venv-alt
+          uv pip install --python .venv-alt pytest hypothesis \
+            numpy scipy
+      - name: the interpreter is actually the one we asked for
+        run: |
+          .venv-alt/bin/python -c "import sys; \
+            assert sys.version_info[:2] == tuple(int(x) for x in \
+            '${{ matrix.python }}'.split('.')), sys.version; \
+            print(sys.version)"
+      - name: agent suites on Python ${{ matrix.python }}
+        run: .venv-alt/bin/python -m pytest tests/test_agent_*.py -q
