@@ -606,6 +606,33 @@ rule s10_governed:
         assert not recon.unauthorized, recon.unauthorized
         assert not recon.anomalies, recon.anomalies
 
+        # And the same for every OTHER authority subsystem. Until this
+        # existed, the scheduler, policy, capability, agent, memory,
+        # network, secret and context projections were compared only
+        # against a fresh replay of THEMSELVES -- which shares their
+        # reducer, and so cannot see a mistake the two would make together.
+        from qta_agent.reconstruct import (compare_subsystems,
+                                           reconstruct_subsystems)
+
+        subs = reconstruct_subsystems(gov.log)
+        assert not subs.anomalies, (
+            "the second reader found authority anomalies the projections "
+            "did not:\n" + "\n".join(f"  - {a}" for a in subs.anomalies))
+        primary_state = {
+            "jobs": {j.job_id: {"state": j.state.value,
+                                "attempts": j.attempts}
+                     for j in gov.scheduler.all_jobs().values()},
+            "agents": {i.instance_id: {"kind": i.kind.value}
+                       for i in gov.agents.instances()},
+            "memory": {e.memory_id: {"author": e.author,
+                                     "status": e.status.value}
+                       for e in gov.memory.all_entries()},
+        }
+        sub_divergences = compare_subsystems(primary_state, subs)
+        assert not sub_divergences, (
+            "a subsystem projection and its independent reader disagree:\n"
+            + "\n".join(f"  - {d}" for d in sub_divergences))
+
         # Authority records, if this history holds any, must be whole too.
         record_gaps = [e for e in index.audit_records() if not e.complete]
         assert not record_gaps, (
@@ -643,6 +670,16 @@ rule s10_governed:
                 "agrees": True, "divergences": 0,
                 "events_replayed": recon.events_replayed,
                 "tasks_verified": list(recon.verified_ids()),
+                "subsystems_agree": True,
+                "subsystems_covered": sorted(
+                    k for k, v in {
+                        "jobs": subs.jobs, "policies": subs.policies,
+                        "decisions": subs.decisions,
+                        "capabilities": subs.capabilities,
+                        "agents": subs.agents, "memory": subs.memory,
+                        "net_grants": subs.net_grants,
+                        "secret_grants": subs.secret_grants,
+                        "contexts": subs.contexts}.items() if v),
             },
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

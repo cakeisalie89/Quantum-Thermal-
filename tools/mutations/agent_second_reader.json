@@ -1,0 +1,130 @@
+{
+  "title": "The second reader for the subsystems that had none",
+  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure).",
+  "suites": [
+    "tests/test_agent_second_reader.py",
+    "tests/test_agent_differential.py",
+    "tests/test_agent_hostile_campaign.py"
+  ],
+  "mutations": [
+    {
+      "name": "D1_a_job_may_be_born_in_any_state",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if state not in _JOB_INITIAL:",
+      "replace": "    if False:",
+      "rationale": "the second reader accepts a job born SUCCEEDED or DISPATCHED, so the differential check confirms a forged outcome instead of contradicting it"
+    },
+    {
+      "name": "D2_the_initial_job_states_include_a_terminal_one",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_JOB_INITIAL = {\"WAITING\", \"READY\"}",
+      "replace": "_JOB_INITIAL = {\"WAITING\", \"READY\", \"SUCCEEDED\"}",
+      "rationale": "a job that was never run is projected as having succeeded"
+    },
+    {
+      "name": "D3_the_submitter_comes_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if job.get(\"submitter\") != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "a forged enqueue is attributed to whoever it names, and separation of duties is measured from that field"
+    },
+    {
+      "name": "D4_a_job_may_be_enqueued_holding_a_lease",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if job.get(\"lease_holder\") or job.get(\"lease_id\"):",
+      "replace": "    if False:",
+      "rationale": "the enqueue supplies the ownership precondition its own outcome edges will check"
+    },
+    {
+      "name": "D5_a_forged_source_state_is_accepted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"state\"] != src:\n        _note(out, ev, f\"job {jid!r} claims src {src!r} but replay has it \"",
+      "replace": "    if False:\n        _note(out, ev, f\"job {jid!r} claims src {src!r} but replay has it \"",
+      "rationale": "the record chooses the state it is authorized against, which is the forged-source-state class this project has already been bitten by"
+    },
+    {
+      "name": "D6_a_terminal_job_may_be_revived",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"state\"] in _JOB_TERMINAL:",
+      "replace": "    if False:",
+      "rationale": "a finished job is walked back into the queue and re-run, which is how a completed outcome gets replaced"
+    },
+    {
+      "name": "D7_a_capability_may_predate_its_own_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if issued != ev.seq:",
+      "replace": "    if False:",
+      "rationale": "a grant appended late reads as authority in force over everything that already happened"
+    },
+    {
+      "name": "D8_a_capability_id_may_be_reissued",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        _note(out, ev, f\"capability {cid!r} is issued twice with different \"\n                       \"terms; two grants sharing an id cannot be told apart\")\n        return",
+      "replace": "        out.capabilities[cid] = {\"capability_id\": cid, \"subject\": p.get(\"subject\"), \"action\": p.get(\"action\"), \"task_id\": p.get(\"task_id\"), \"tool_id\": p.get(\"tool_id\"), \"scope\": tuple(p.get(\"scope\") or ()), \"issued_seq\": issued, \"expires_after_seq\": p.get(\"expires_after_seq\"), \"revoked_seq\": None, \"body\": {k: v for k, v in p.items() if k != \"task_id\"}}\n        return",
+      "rationale": "a live grant is replaced by one nobody reviewed, and anything citing the id now cites the replacement"
+    },
+    {
+      "name": "D9_an_agent_may_mint_a_human",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if kind == \"HUMAN\" and registrar is not None and \\\n            registrar.get(\"kind\") != \"HUMAN\":",
+      "replace": "    if False:",
+      "rationale": "the second reader accepts an invented human, so the confederate that answers the escalation looks legitimate to both readers"
+    },
+    {
+      "name": "D10_a_memory_entry_names_its_own_author",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if entry.get(\"author\") != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "a note is attributed to whoever the payload names, and authorship is what a conflict comparison rests on"
+    },
+    {
+      "name": "D11_a_retracted_memory_may_be_revived",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"status\"] == \"RETRACTED\" and new != \"RETRACTED\":",
+      "replace": "    if False:",
+      "rationale": "a withdrawn note is un-withdrawn by a forged event; the author never really withdrew it"
+    },
+    {
+      "name": "D12_a_malformed_memory_write_is_projected_anyway",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(entry, dict):\n        _note(out, ev, \"memory.write carries no entry; a record this reader \"",
+      "replace": "    if False:\n        _note(out, ev, \"memory.write carries no entry; a record this reader \"",
+      "rationale": "the reader crashes or silently skips on the payload shape that once made a whole store unloadable with a raw KeyError"
+    },
+    {
+      "name": "D13_a_grant_id_may_be_rebound",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        _note(out, ev, f\"{what} grant {gid!r} is re-issued with different \"\n                       \"terms; the live grant would be replaced by one \"\n                       \"nobody reviewed\")\n        return",
+      "replace": "        table[gid] = {\"grant_id\": gid, \"digest\": p.get(\"grant_digest\"), \"issued_seq\": ev.seq, \"revoked_seq\": None, \"body\": grant}\n        return",
+      "rationale": "an egress or secret grant is silently repointed at another host, and both readers now agree it always pointed there"
+    },
+    {
+      "name": "D14_a_policy_downgrade_is_accepted_silently",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if versions and version is not None and \\\n            versions[-1][\"version\"] is not None and \\\n            version < versions[-1][\"version\"]:",
+      "replace": "    if False:",
+      "rationale": "a superseded rule set is republished and answers questions about the range it was already replaced over"
+    },
+    {
+      "name": "D15_the_comparison_reports_nothing",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                if got != want:\n                    out.append(Divergence(f\"{name}/{key}\", fld, want, got))",
+      "replace": "                if False:\n                    out.append(Divergence(f\"{name}/{key}\", fld, want, got))",
+      "rationale": "the differential check can no longer fail, which makes every agreement it reports meaningless"
+    },
+    {
+      "name": "D16_the_comparison_ignores_a_missing_subsystem",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if a is None:\n                out.append(Divergence(f\"{name}/{key}\", \"presence\", None,\n                                      \"present in the second reader\"))",
+      "replace": "            if a is None:\n                continue\n            if False:\n                out.append(Divergence(f\"{name}/{key}\", \"presence\", None,\n                                      \"present in the second reader\"))",
+      "rationale": "an object one reader holds and the other does not stops being a divergence, so a forged record that only reaches one projection is invisible"
+    },
+    {
+      "name": "D17_the_second_reader_skips_the_scheduler_entirely",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if a == \"scheduler.enqueue\":",
+      "replace": "        if False:",
+      "rationale": "the reader agrees by covering nothing, which is the quieter failure: an empty second projection diffs clean against anything"
+    }
+  ]
+}

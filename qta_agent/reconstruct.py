@@ -413,6 +413,399 @@ def reconstruct_tasks(log: EventLog, *,
     return out
 
 
+@dataclass
+class SubsystemReconstruction:
+    """Authority state of the subsystems that had no second reader.
+
+    WHY THESE ARE HERE AND NOT IN THEIR OWN MODULES
+
+    Because a second reader that lives beside the first, imports the
+    first's enums and calls the first's helpers is not a second reader --
+    it is the same decision run twice, agreeing with itself. This module
+    sits BELOW scheduler, policy, capability, agents, memory, netauth,
+    secrets and context in the declared layering, so it cannot import any
+    of them even by accident. Everything below is plain strings and plain
+    dicts, and every rule is restated rather than called.
+
+    That restatement is the point and also the cost: two implementations
+    can still share a misunderstanding the log cannot reveal, which is why
+    an empty diff is evidence rather than proof.
+    """
+
+    jobs: dict = field(default_factory=dict)
+    policies: dict = field(default_factory=dict)
+    decisions: dict = field(default_factory=dict)
+    capabilities: dict = field(default_factory=dict)
+    agents: dict = field(default_factory=dict)
+    memory: dict = field(default_factory=dict)
+    net_grants: dict = field(default_factory=dict)
+    secret_grants: dict = field(default_factory=dict)
+    contexts: dict = field(default_factory=dict)
+    anomalies: list = field(default_factory=list)
+    events_replayed: int = 0
+    head_seq: int = -1
+
+
+#: Job states a job may be BORN in. Restated here rather than imported: a
+#: forged enqueue naming SUCCEEDED or DISPATCHED is the attack, and a second
+#: reader that asks the scheduler what counts as initial would inherit the
+#: scheduler's answer along with any mistake in it.
+_JOB_INITIAL = {"WAITING", "READY"}
+
+#: Terminal job states. A transition out of one is a revival.
+_JOB_TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
+
+
+def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
+    """Replay every remaining authority subsystem, independently.
+
+    Never raises on content: a hostile history produces findings, not an
+    exception that hides the rest of the log.
+    """
+    report = log.verify()
+    report.raise_if_bad()
+    out = SubsystemReconstruction(head_seq=report.head_seq)
+    for ev in log.read():
+        out.events_replayed += 1
+        p = ev.payload if isinstance(ev.payload, dict) else {}
+        a = ev.action
+        if a == "scheduler.enqueue":
+            _sub_enqueue(ev, p, out)
+        elif a == "scheduler.transition":
+            _sub_job_transition(ev, p, out)
+        elif a == "scheduler.priority":
+            _sub_priority(ev, p, out)
+        elif a == "policy.publish":
+            _sub_policy_publish(ev, p, out)
+        elif a == "policy.decision":
+            _sub_policy_decision(ev, p, out)
+        elif a == "capability.issue":
+            _sub_capability_issue(ev, p, out)
+        elif a == "capability.revoke":
+            _sub_capability_revoke(ev, p, out)
+        elif a == "agent.register":
+            _sub_agent_register(ev, p, out)
+        elif a == "agent.retire":
+            _sub_agent_retire(ev, p, out)
+        elif a == "memory.write":
+            _sub_memory_write(ev, p, out)
+        elif a == "memory.status":
+            _sub_memory_status(ev, p, out)
+        elif a == "network.grant":
+            _sub_grant(ev, p, out, out.net_grants, "network")
+        elif a == "secret.grant":
+            _sub_grant(ev, p, out, out.secret_grants, "secret")
+        elif a == "context.build":
+            _sub_context(ev, p, out)
+    return out
+
+
+def _note(out, ev, text: str) -> None:
+    out.anomalies.append(f"seq {ev.seq}: {text}")
+
+
+def _sub_enqueue(ev, p: dict, out) -> None:
+    job = p.get("job")
+    if not isinstance(job, dict):
+        _note(out, ev, "enqueue carries no job record")
+        return
+    jid = job.get("job_id")
+    if not isinstance(jid, str) or not jid:
+        _note(out, ev, "enqueue names no job_id")
+        return
+    if jid in out.jobs:
+        _note(out, ev, f"job {jid!r} enqueued twice; the second would "
+                       "replace the first one's state and history")
+        return
+    state = job.get("state")
+    if state not in _JOB_INITIAL:
+        # A create introduces WORK, never a verdict. A job born SUCCEEDED
+        # was never run; one born DISPATCHED arrives holding the lease that
+        # the ownership check on its outcome edges would otherwise demand.
+        _note(out, ev, f"job {jid!r} is enqueued directly in {state!r}; an "
+                       "enqueue introduces work, not an outcome")
+        return
+    if job.get("submitter") != ev.actor:
+        _note(out, ev, f"job {jid!r} names submitter "
+                       f"{job.get('submitter')!r} but was appended by "
+                       f"{ev.actor!r}")
+        return
+    if job.get("attempts"):
+        _note(out, ev, f"job {jid!r} is enqueued with "
+                       f"{job.get('attempts')} attempts already spent")
+        return
+    if job.get("lease_holder") or job.get("lease_id"):
+        _note(out, ev, f"job {jid!r} is enqueued already holding a lease")
+        return
+    out.jobs[jid] = {
+        "job_id": jid, "state": state,
+        "work_digest": job.get("work_digest"),
+        "submitter": ev.actor, "priority": job.get("priority"),
+        "attempts": job.get("attempts") or 0,
+        "lease_holder": job.get("lease_holder") or "",
+        "lease_expires_after_seq": job.get("lease_expires_after_seq", -1),
+        "idempotency_key": job.get("idempotency_key"),
+        "enqueued_seq": ev.seq,
+    }
+
+
+def _sub_job_transition(ev, p: dict, out) -> None:
+    jid = p.get("job_id")
+    cur = out.jobs.get(jid)
+    if cur is None:
+        _note(out, ev, f"transition for unknown job {jid!r}")
+        return
+    src, dst = p.get("src"), p.get("dst")
+    if cur["state"] != src:
+        _note(out, ev, f"job {jid!r} claims src {src!r} but replay has it "
+                       f"in {cur['state']!r}")
+        return
+    if cur["state"] in _JOB_TERMINAL:
+        _note(out, ev, f"job {jid!r} leaves terminal state {src!r}")
+        return
+    cur["state"] = dst
+    if "lease_holder" in p:
+        cur["lease_holder"] = p.get("lease_holder") or ""
+    if "lease_expires_after_seq" in p:
+        cur["lease_expires_after_seq"] = p.get("lease_expires_after_seq", -1)
+    if "attempts" in p:
+        cur["attempts"] = p.get("attempts")
+
+
+def _sub_priority(ev, p: dict, out) -> None:
+    jid = p.get("job_id")
+    cur = out.jobs.get(jid)
+    if cur is None:
+        _note(out, ev, f"priority change for unknown job {jid!r}")
+        return
+    cur["priority"] = p.get("priority")
+
+
+def _sub_policy_publish(ev, p: dict, out) -> None:
+    doc = p.get("document")
+    if not isinstance(doc, dict):
+        _note(out, ev, "policy.publish carries no document")
+        return
+    pid = doc.get("policy_id")
+    versions = out.policies.setdefault(pid, [])
+    version = doc.get("version")
+    if any(v["version"] == version for v in versions):
+        _note(out, ev, f"policy {pid!r} publishes version {version!r} twice")
+        return
+    if versions and version is not None and \
+            versions[-1]["version"] is not None and \
+            version < versions[-1]["version"]:
+        # A downgrade republished later would answer questions about the
+        # intervening range with rules that were superseded.
+        _note(out, ev, f"policy {pid!r} publishes version {version!r} after "
+                       f"{versions[-1]['version']!r}")
+        return
+    versions.append({"version": version, "digest": p.get("policy_digest"),
+                     "effective_seq": ev.seq})
+
+
+def _sub_policy_decision(ev, p: dict, out) -> None:
+    d = p.get("decision")
+    if not isinstance(d, dict):
+        _note(out, ev, "policy.decision carries no decision")
+        return
+    out.decisions[ev.seq] = {
+        "allowed": d.get("allowed"), "policy_id": d.get("policy_id"),
+        "policy_digest": d.get("policy_digest"), "actor": ev.actor,
+        "subject": d.get("subject"), "action": d.get("action"),
+    }
+
+
+def _sub_capability_issue(ev, p: dict, out) -> None:
+    cid = p.get("capability_id")
+    if not isinstance(cid, str) or not cid:
+        _note(out, ev, "capability.issue names no capability_id")
+        return
+    issued = p.get("issued_seq")
+    prior = out.capabilities.get(cid)
+    if prior is not None:
+        if prior["body"] == {k: v for k, v in p.items()
+                             if k != "task_id"}:
+            return                          # a retried append of the same
+        _note(out, ev, f"capability {cid!r} is issued twice with different "
+                       "terms; two grants sharing an id cannot be told apart")
+        return
+    if issued != ev.seq:
+        # WHERE a grant starts is the log's to say. One appended at seq 90
+        # claiming seq 5 reads as authority in force for 5..89.
+        _note(out, ev, f"capability {cid!r} claims issued_seq {issued!r} at "
+                       f"seq {ev.seq}; it would predate its own record")
+        return
+    out.capabilities[cid] = {
+        "capability_id": cid, "subject": p.get("subject"),
+        "action": p.get("action"), "task_id": p.get("task_id"),
+        "tool_id": p.get("tool_id"), "scope": tuple(p.get("scope") or ()),
+        "issued_seq": issued,
+        "expires_after_seq": p.get("expires_after_seq"),
+        "revoked_seq": None,
+        "body": {k: v for k, v in p.items() if k != "task_id"},
+    }
+
+
+def _sub_capability_revoke(ev, p: dict, out) -> None:
+    cid = p.get("capability_id")
+    cur = out.capabilities.get(cid)
+    if cur is None:
+        _note(out, ev, f"revoke for unknown capability {cid!r}")
+        return
+    if cur["revoked_seq"] is None:
+        cur["revoked_seq"] = ev.seq
+
+
+def _sub_agent_register(ev, p: dict, out) -> None:
+    ident = p.get("identity")
+    if not isinstance(ident, dict):
+        _note(out, ev, "agent.register carries no identity")
+        return
+    iid = ident.get("instance_id")
+    if not isinstance(iid, str) or not iid:
+        _note(out, ev, "agent.register names no instance_id")
+        return
+    if iid in out.agents:
+        _note(out, ev, f"instance {iid!r} registered twice")
+        return
+    kind = ident.get("kind")
+    by = ev.actor
+    registrar = out.agents.get(by)
+    if kind == "HUMAN" and registrar is not None and \
+            registrar.get("kind") != "HUMAN":
+        # An agent that can mint a HUMAN is one step from answering its own
+        # escalation, which is both halves of the human gate at once.
+        _note(out, ev, f"{by!r} is not HUMAN and registers {iid!r} as HUMAN")
+        return
+    out.agents[iid] = {
+        "instance_id": iid, "agent_id": ident.get("agent_id"),
+        "kind": kind, "roles": tuple(sorted(ident.get("roles") or ())),
+        "registered_by": by, "registered_seq": ev.seq, "retired_seq": None,
+    }
+
+
+def _sub_agent_retire(ev, p: dict, out) -> None:
+    iid = p.get("instance_id")
+    cur = out.agents.get(iid)
+    if cur is None:
+        _note(out, ev, f"retire for unknown instance {iid!r}")
+        return
+    if cur["retired_seq"] is None:
+        cur["retired_seq"] = ev.seq
+
+
+def _sub_memory_write(ev, p: dict, out) -> None:
+    entry = p.get("entry")
+    if not isinstance(entry, dict):
+        _note(out, ev, "memory.write carries no entry; a record this reader "
+                       "cannot read is refused rather than projected")
+        return
+    mid = entry.get("memory_id")
+    if not isinstance(mid, str) or not mid:
+        _note(out, ev, "memory.write names no memory_id")
+        return
+    if mid in out.memory:
+        _note(out, ev, f"memory {mid!r} written twice")
+        return
+    if entry.get("author") != ev.actor:
+        _note(out, ev, f"memory {mid!r} names author {entry.get('author')!r} "
+                       f"but was appended by {ev.actor!r}")
+        return
+    out.memory[mid] = {"memory_id": mid, "author": ev.actor,
+                       "status": entry.get("status") or "ACTIVE",
+                       "written_seq": ev.seq}
+
+
+def _sub_memory_status(ev, p: dict, out) -> None:
+    mid = p.get("memory_id")
+    cur = out.memory.get(mid)
+    if cur is None:
+        _note(out, ev, f"status change for unknown memory {mid!r}")
+        return
+    new = p.get("status")
+    if cur["status"] == "RETRACTED" and new != "RETRACTED":
+        # A withdrawn note that can be un-withdrawn is a note whose author
+        # never really withdrew it.
+        _note(out, ev, f"memory {mid!r} is un-retracted to {new!r}")
+        return
+    cur["status"] = new
+
+
+def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
+    if p.get("revoke"):
+        gid = p.get("grant_id")
+        cur = table.get(gid)
+        if cur is None:
+            _note(out, ev, f"revoke for unknown {what} grant {gid!r}")
+            return
+        if cur["revoked_seq"] is None:
+            cur["revoked_seq"] = ev.seq
+        return
+    grant = p.get("grant")
+    if not isinstance(grant, dict):
+        _note(out, ev, f"{what}.grant carries no grant body")
+        return
+    gid = grant.get("grant_id") or p.get("grant_id")
+    if not isinstance(gid, str) or not gid:
+        _note(out, ev, f"{what} grant names no grant_id")
+        return
+    prior = table.get(gid)
+    if prior is not None:
+        if prior["digest"] == p.get("grant_digest"):
+            return                          # a retried append of the same
+        _note(out, ev, f"{what} grant {gid!r} is re-issued with different "
+                       "terms; the live grant would be replaced by one "
+                       "nobody reviewed")
+        return
+    table[gid] = {"grant_id": gid, "digest": p.get("grant_digest"),
+                  "issued_seq": ev.seq, "revoked_seq": None,
+                  "body": grant}
+
+
+def _sub_context(ev, p: dict, out) -> None:
+    manifest = p.get("manifest")
+    digest_ = p.get("manifest_digest")
+    task = (manifest or {}).get("task_id") if isinstance(manifest, dict) \
+        else None
+    out.contexts.setdefault(task or ev.target, []).append(
+        {"digest": digest_, "seq": ev.seq})
+
+
+def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
+    """Divergences between a primary projection and the second reader.
+
+    ``primary`` is a mapping of subsystem name -> {id: {field: value}},
+    extracted by the caller from the live projections. The extraction is
+    the caller's because reconstruct.py may not import those layers, which
+    is what keeps the two readers independent in the first place.
+    """
+    out: list = []
+    tables = {"jobs": recon.jobs, "capabilities": recon.capabilities,
+              "agents": recon.agents, "memory": recon.memory,
+              "net_grants": recon.net_grants,
+              "secret_grants": recon.secret_grants}
+    for name, theirs in tables.items():
+        mine = primary.get(name)
+        if mine is None:
+            continue
+        for key in sorted(set(mine) | set(theirs)):
+            a, b = mine.get(key), theirs.get(key)
+            if a is None:
+                out.append(Divergence(f"{name}/{key}", "presence", None,
+                                      "present in the second reader"))
+                continue
+            if b is None:
+                out.append(Divergence(f"{name}/{key}", "presence",
+                                      "present in the projection", None))
+                continue
+            for fld, want in sorted(a.items()):
+                got = b.get(fld)
+                if got != want:
+                    out.append(Divergence(f"{name}/{key}", fld, want, got))
+    return tuple(out)
+
+
 def _replay_binding(ev, p: dict, bindings: dict, out) -> None:
     """Project one idempotency.bind, in this reader's own words.
 

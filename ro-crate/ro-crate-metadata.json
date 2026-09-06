@@ -156,10 +156,10 @@
   {
    "@id": "Snakefile",
    "@type": "SoftwareSourceCode",
-   "contentSize": "30026",
+   "contentSize": "32056",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "8d6bdd0ff0f204437735e131fb84ad645bab83a721023dd279d8e17c91ce21ea"
+   "sha256": "45bddad646983cea9c2e6841e4d9ce663052384c4c4b29a9c947bc928eed9c99"
   },
   {
    "@id": "campaign_registry.json",
@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "159924",
+   "contentSize": "161984",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

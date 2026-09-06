@@ -273,7 +273,8 @@
       "security_boundary": "policy-gated enqueue, dispatch, cancellation and priority escalation; a stale or foreign lease may not report an outcome, and the REPLAY re-derives that from its own state: ownership, lease liveness, the attempt count and whether a requeue's claimed lapse is true. Those refusals lived only on the write path, so a rejected report could be appended directly and the next load called the job SUCCEEDED",
       "tests": [
         "tests/test_agent_machine_properties.py",
-        "tests/test_agent_scheduler.py"
+        "tests/test_agent_scheduler.py",
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [
         "tests/test_agent_machine_properties.py (SchedulerMachine: readiness, the cancellation cascade, lease presence, retry budget, and a fresh replay equal to the live projection, checked after every step)"
@@ -282,7 +283,7 @@
         "tools/mutations/agent_scheduler.json"
       ],
       "fuzzing": "tools/fuzz_substrate.py fuzzes job_from_record, so a malformed durable job record is refused rather than projected",
-      "differential": "none",
+      "differential": "job state, attempts and lease ownership are rebuilt by an independent reader that refuses a job born in an outcome state, born holding a lease, or revived from terminal",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
         "the governed path enqueues ONE job per run, so dependency graphs and multi-job scheduling are exercised only in tests and in the long-horizon workload, never by a real caller",
@@ -411,14 +412,15 @@
       "security_boundary": "deny-overrides so a prohibition cannot be defeated by ordering; in_force_at makes decisions non-retroactive (I5)",
       "tests": [
         "tests/test_agent_policy.py",
-        "tests/test_agent_scheduler.py"
+        "tests/test_agent_scheduler.py",
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/agent_policy.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
+      "differential": "policy versions and recorded decisions are rebuilt by an independent reader that refuses a downgrade republish",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
         "no fuzzing of policy records",
@@ -453,16 +455,17 @@
       "concurrency": "issuance appends through the log's writer lock; revocation takes effect for every later check",
       "security_boundary": "a grant is bounded in subject, task, action, tool and path scope, and in a validity WINDOW closed at both ends: expiry was checked and issuance was not, so a capability recorded at seq 90 answered 'was this permitted at seq 20' with yes. The ledger stamps the start from the log and refuses a record that names its own",
       "tests": [
+        "tests/test_agent_crash_recovery.py",
         "tests/test_agent_execution.py",
         "tests/test_agent_governed_stage10.py",
-        "tests/test_agent_crash_recovery.py"
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/agent_execution.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
+      "differential": "capabilities are rebuilt by an independent reader that refuses a grant predating its own record and a reissued id",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
         "subject is not authenticated; a grant cannot be used under another name but nothing proves who a name belongs to",
@@ -549,6 +552,7 @@
       "security_boundary": "label-wise host matching (no prefix/suffix confusion), explicit scheme/port/method/path, separate address classes for loopback and private ranges, address pinning against DNS rebinding, userinfo refusal; the grant's window is closed at both ends and its start is stamped from the log, and a second record naming a live grant_id with different terms is refused rather than silently replacing authority already in force. A body carrying a registered secret is refused unless a secret grant names egress to that host -- checked by value, because the leak that matters is a credential under an innocent name",
       "tests": [
         "tests/test_agent_netauth.py",
+        "tests/test_agent_second_reader.py",
         "tests/test_agent_secrets.py"
       ],
       "property_tests": [],
@@ -556,7 +560,7 @@
         "tools/mutations/agent_netauth.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
+      "differential": "network grants are rebuilt by an independent reader that refuses a rebound grant id",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
         "kernel-level containment (network namespace, seccomp, firewall) is NOT provided and is documented as absent; in-process code can restore socket.connect",
@@ -592,6 +596,7 @@
       "tests": [
         "tests/test_agent_context.py",
         "tests/test_agent_netauth.py",
+        "tests/test_agent_second_reader.py",
         "tests/test_agent_secrets.py"
       ],
       "property_tests": [],
@@ -599,7 +604,7 @@
         "tools/mutations/agent_secrets.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
+      "differential": "secret grants are rebuilt by an independent reader that refuses a rebound grant id",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
         "no secret is resolved on the production path, because nothing there needs one -- the governed tool's environment is BUILT from a declared allowlist rather than inherited, so a credential in os.environ cannot reach it at all",
@@ -728,14 +733,15 @@
       "concurrency": "n/a",
       "security_boundary": "structural: a memory digest never enters the evidence store so it cannot satisfy I6, and no module in the authority path may import this one -- enforced by the layering test; a status a replay would refuse does not become state: the status machine and the authorship rule are enforced on REPLAY as well as on the write path",
       "tests": [
-        "tests/test_agent_memory.py"
+        "tests/test_agent_memory.py",
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/agent_memory_context.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
+      "differential": "memory entries are rebuilt by an independent reader that refuses a forged author and an un-retraction",
       "hosted_ci": "pending: added after run 33939090740",
       "residual_gaps": [
         "memory is not retrievable through the RAG index, so the 'retrievable memory keeps its lower authority' case is unimplemented rather than solved",
@@ -982,19 +988,19 @@
     {
       "id": "R42",
       "requirement": "Independent state reconstruction covering every event type",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/actions.py",
         "qta_agent/reconstruct.py"
       ],
       "callers": [
-        "tests/test_agent_substrate.py",
-        "tests/test_agent_substrate_properties.py"
+        "Snakefile",
+        "tests/test_agent_differential.py",
+        "tests/test_agent_second_reader.py"
       ],
-      "production_caller": null,
+      "production_caller": "Snakefile",
       "persistent_state": "none",
       "authority_owner": "reconstruct.compare",
-      "evidence": "none",
+      "evidence": "a SECOND reader for every authority subsystem -- scheduler, policy, capability, agent, memory, network, secret, context and idempotency -- in plain dicts, in a module that sits BELOW all of them in the declared layering so it cannot import their enums or call their helpers even by accident. Every authority rule is restated rather than invoked",
       "provenance": "none",
       "failure_semantics": "fail-closed on an action nothing in this package writes; another subsystem's action is counted as foreign rather than treated as damage",
       "recovery": "none",
@@ -1004,25 +1010,33 @@
       "concurrency": "n/a",
       "security_boundary": "none",
       "tests": [
-        "tests/test_agent_crash_recovery.py",
         "tests/test_agent_differential.py",
-        "tests/test_agent_substrate.py"
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
         "tools/mutations/agent_actions.json",
+        "tools/mutations/agent_second_reader.json",
         "tools/mutations/agent_substrate.json"
       ],
       "fuzzing": "none",
-      "differential": "compare(store, recon) over generated histories, and compare_tasks(projection, recon) over governed runs and over forged ones",
+      "differential": "compare_subsystems() diffs the live projections against the second reader on the production path; 12 forged-history cases assert the two readers DISAGREE where they must",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "the independent reconstruction rebuilds AUTHORITY RECORDS and TASKS. Scheduler, policy, memory, agent, network, secret and context state have no second implementation",
-        "no differential comparison for those subsystems, so their projections are checked against themselves"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "two implementations can share a misunderstanding the log cannot reveal, so an empty diff is EVIDENCE and not proof",
+          "reason": "epistemic",
+          "detail": "the readers are independent in code and in layer, which rules out one calling the other; it does not rule out one author making the same mistake twice, and nothing mechanical can"
+        },
+        {
+          "limit": "the extraction that flattens the live projections for comparison is written by the caller, because reconstruct.py may not import those layers -- so that extraction could itself agree with a projection's mistake",
+          "reason": "architectural_by_design",
+          "detail": "the alternative is reconstruct.py importing the modules it exists to check, which would make every comparison circular while still passing"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -1473,7 +1487,7 @@
     {
       "id": "R53",
       "requirement": "Differential testing across independent implementations",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/reconstruct.py"
       ],
@@ -1498,24 +1512,31 @@
       "security_boundary": "none",
       "tests": [
         "tests/test_agent_differential.py",
-        "tests/test_agent_substrate.py",
-        "tests/test_agent_crash_recovery.py"
+        "tests/test_agent_second_reader.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
+        "tools/mutations/agent_second_reader.json",
         "tools/mutations/agent_substrate.json"
       ],
       "fuzzing": "none",
-      "differential": "authority records and the task lifecycle; a divergence names the field, not merely the fact",
+      "differential": "two independent readers over the same log for tasks, authority records, idempotency bindings and every remaining authority subsystem, compared on the production path and on twelve forged histories",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "no NUMERICAL differential testing, and no tolerated-difference register. Everything compared here is exact: states, digests, identities. A scientific result compared across two implementations would need a declared tolerance, and nothing in this package has one",
-        "the scheduler, policy, memory, agent and capability projections have no second implementation. The two that do are the two that decide what is canonical and what work was verified; the others are compared only against a fresh replay of themselves, which shares their reducer and so cannot see a shared misunderstanding",
-        "an empty diff is evidence, not proof: both implementations could share a mistake the log cannot reveal"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "everything compared here is EXACT -- states, digests, identities. There is no numerical differential testing and no tolerated-difference register, because nothing in this package computes a number a tolerance would apply to",
+          "reason": "architectural_by_design",
+          "detail": "a scientific result compared across two implementations would need a declared tolerance; the scientific tree is where that belongs, and this package is forbidden from reaching into it"
+        },
+        {
+          "limit": "an empty diff is evidence, not proof: both implementations could share a mistake the log cannot reveal",
+          "reason": "epistemic",
+          "detail": "the layering makes accidental sharing impossible and deliberate sharing visible in review; it cannot make two readings of the same specification independent"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

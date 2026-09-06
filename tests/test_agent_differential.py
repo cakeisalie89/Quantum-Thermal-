@@ -269,6 +269,12 @@ def test_the_differential_is_part_of_the_production_path():
     assert "compare_tasks" in rule
     assert "assert not divergences" in rule
     assert "recon.unauthorized" in rule and "recon.anomalies" in rule
+    # And the reader for every OTHER subsystem, on the same path for the
+    # same reason: one that only tests run is a second reader of nothing.
+    assert "reconstruct_subsystems" in rule
+    assert "compare_subsystems" in rule
+    assert "assert not sub_divergences" in rule
+    assert "subs.anomalies" in rule
 
 
 def test_the_two_readers_agree_about_who_holds_a_lease(gov):
