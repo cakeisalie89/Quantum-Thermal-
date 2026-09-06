@@ -615,25 +615,18 @@ def test_an_ordinary_file_passes_the_unique_link_check(tree):
 # --- the alias check must stay opted INTO by the path that needs it --------
 
 def _non_test_references(symbol: str) -> set:
-    """Files outside tests/ that mention ``symbol``.
+    """Delegates to the ONE module that answers this question.
 
-    Scans the filesystem rather than shelling out to ``git grep``. The git
-    version has a blind spot this repository has already been bitten by:
-    an untracked file is invisible to it, so a caller that has not been
-    committed yet reads as absent and a guard like this one passes for the
-    wrong reason.
+    It was a local rglob here first. Sharing it matters because the
+    question -- "does this defence have a caller that is not its own test"
+    -- has been asked wrongly three times in three different files.
     """
-    found = set()
-    for path in sorted(ROOT.rglob("*.py")):
-        rel = path.relative_to(ROOT).as_posix()
-        if rel.startswith((".venv/", "tests/", "attic/", "build/")):
-            continue
-        try:
-            if symbol in path.read_text(encoding="utf-8", errors="ignore"):
-                found.add(rel)
-        except OSError:                             # pragma: no cover
-            continue
-    return found
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import non_test_references
+
+    return set(non_test_references(symbol))
 
 
 def test_the_hard_link_check_keeps_a_production_caller():

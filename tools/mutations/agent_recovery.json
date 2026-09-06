@@ -1,0 +1,102 @@
+{
+  "title": "Crash recovery: resolving what a dead supervisor left",
+  "note": "Every mutation here either strands work forever or reclaims a lease somebody still holds -- the two failures that sit either side of the same decision. UNKNOWN is the load-bearing case: a record from another host is not evidence the holder is dead, and a mutation that collapses UNKNOWN into GONE puts two workers on one task, which is exactly what a lease exists to prevent. The recovery mutations that move a task FORWARD are the tempting ones: the execution record says the process exited 0, and completing it anyway is a recovery process finishing another party's work under a lease nobody holds. V11 was REMOVED as equivalent rather than left as a false finding: a task cannot reach LEASED or EXECUTING without a lease, because that edge carries requires_lease and replay re-authorizes it, so the branch guarding against it cannot differ. The assumption is asserted by a test rather than left in a comment.",
+  "suites": [
+    "tests/test_agent_recovery.py",
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_crash_recovery.py"
+  ],
+  "mutations": [
+    {
+      "name": "V1_an_unknown_holder_counts_as_gone",
+      "path": "qta_agent/hostid.py",
+      "find": "    if not here or not recorded.host_boot_id:\n        # One side cannot say which boot it is from, so nothing about the\n        # pid is safe to conclude.\n        return UNKNOWN",
+      "replace": "    if not here or not recorded.host_boot_id:\n        return GONE",
+      "rationale": "a record that cannot say which boot it came from authorises a reclaim, so a live holder on another host is declared dead and two workers run one task"
+    },
+    {
+      "name": "V2_a_pid_with_no_start_time_counts_as_alive",
+      "path": "qta_agent/hostid.py",
+      "find": "    if recorded.start_ticks is None:",
+      "replace": "    if False:",
+      "rationale": "an unidentifiable pid is treated as the recorded process, so a REUSED pid keeps a dead holder's lease alive forever"
+    },
+    {
+      "name": "V3_pid_reuse_is_not_detected",
+      "path": "qta_agent/hostid.py",
+      "find": "    return ALIVE if now == recorded.start_ticks else GONE",
+      "replace": "    return ALIVE",
+      "rationale": "any process occupying the number counts as the one that took the lease; the work is stranded behind an impostor"
+    },
+    {
+      "name": "V4_a_reboot_does_not_invalidate_recorded_pids",
+      "path": "qta_agent/hostid.py",
+      "find": "    if here != recorded.host_boot_id:",
+      "replace": "    if False:",
+      "rationale": "pids recorded before a reboot are looked up against the new boot, where the same numbers belong to unrelated processes"
+    },
+    {
+      "name": "V5_the_boot_id_is_invented_when_unavailable",
+      "path": "qta_agent/hostid.py",
+      "find": "    except OSError:                                  # pragma: no cover\n        return \"\"",
+      "replace": "    except OSError:                                  # pragma: no cover\n        return \"synthetic\"",
+      "rationale": "a synthesised id compares unequal across processes on the same boot, so every record looks stale and every recovery becomes a reclaim"
+    },
+    {
+      "name": "V6_stat_is_split_on_whitespace",
+      "path": "qta_agent/hostid.py",
+      "find": "    close = raw.rfind(\")\")",
+      "replace": "    close = raw.find(\")\")",
+      "rationale": "a process whose name contains ')' shifts every later field, so start time is read from the wrong column and a live process looks reused"
+    },
+    {
+      "name": "V7_recovery_never_asks_the_operating_system",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if liveness(ProcessIdentity.from_record(\n                    task.lease.holder_process)) is GONE:",
+      "replace": "            if False:",
+      "rationale": "the sequence number is the only expiry again, so a crashed supervisor's task is stranded forever -- the gap this closes"
+    },
+    {
+      "name": "V8_recovery_reclaims_a_live_lease",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if liveness(ProcessIdentity.from_record(\n                    task.lease.holder_process)) is GONE:",
+      "replace": "            if True:",
+      "rationale": "every in-flight task is reclaimed regardless of who holds it, which is a second worker rather than a recovery"
+    },
+    {
+      "name": "V9_recovery_completes_the_task_from_its_own_record",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            moved = self._move(task, TaskState.QUEUED, actor,\n                               TaskRole.SYSTEM, note=why)",
+      "replace": "            moved = self._move(\n                task,\n                TaskState.COMPLETED if ran else TaskState.QUEUED,\n                actor, TaskRole.SYSTEM, note=why)",
+      "rationale": "a recovery process finishes another party's work under a lease nobody holds, which is the ownership bypass the lease exists to prevent"
+    },
+    {
+      "name": "V10_a_completed_task_is_dragged_back_to_the_queue",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "_RECOVERABLE: frozenset = frozenset({\n    TaskState.LEASED, TaskState.EXECUTING,\n})",
+      "replace": "_RECOVERABLE: frozenset = frozenset({\n    TaskState.LEASED, TaskState.EXECUTING, TaskState.COMPLETED,\n})",
+      "rationale": "work awaiting an independent verifier is requeued and re-run, discarding a finished result rather than having it checked"
+    },
+    {
+      "name": "V12_the_lease_does_not_record_its_holders_process",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                      holder_process=identify().to_record())",
+      "replace": "                      holder_process=None)",
+      "rationale": "nothing later can ask whether the holder is still there, so recovery is back to a sequence number that stopped advancing"
+    },
+    {
+      "name": "V13_recovery_is_not_run_before_a_governed_run",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        self.recover()\n\n        # THE DUPLICATE CHECK COMES FIRST, before a task exists.",
+      "replace": "        # THE DUPLICATE CHECK COMES FIRST, before a task exists.",
+      "rationale": "recovery has no production caller, so the mechanism exists and nothing invokes it -- the defect class this whole row is about"
+    },
+    {
+      "name": "V14_expired_leases_are_no_longer_consulted",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        stranded = list(projection.expired_leases())",
+      "replace": "        stranded = []",
+      "rationale": "the ordinary lapsed-lease case stops being recovered; only the process-liveness path remains, which does not cover a holder on another host"
+    }
+  ]
+}

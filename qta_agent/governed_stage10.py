@@ -68,6 +68,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import sys
 import time
 import uuid
@@ -95,6 +96,8 @@ from .readpath import (
 )
 from .safeio import SafeIOError, SourceChanged
 from .policy import Effect, PolicyRequest, PolicyStore, document, rule
+from .hostid import (ALIVE, GONE, ProcessIdentity, identify,
+                     liveness)
 from .idempotency import (IdempotencyConflict, IdempotencyLedger,
                           request_identity)
 from .scheduler import (FailureClass, RETRYABLE as SCHED_RETRYABLE,
@@ -194,6 +197,39 @@ def stage10_policy(version: int = 1) -> "object":
 #: the attempt stopped, not that it did or did not reach an external effect
 #: on its way, and treating them as settled is how an unrecorded external
 #: action gets reported as "did not happen".
+def _terminate_group(child: ProcessIdentity) -> str:
+    """Signal an orphan's process group, never our own.
+
+    The same guard the executor uses, for the same reason: if the recorded
+    pgid is this process's group, signalling it would kill the supervisor
+    doing the cleanup. That is not hypothetical here -- it happened once
+    from a leftover mutation and presented as the test runner dying with
+    SIGTERM.
+    """
+    pgid = child.pgid
+    if pgid is None or pgid == os.getpgrp():
+        try:
+            os.kill(child.pid, signal.SIGTERM)
+            return f"SIGTERM to pid {child.pid} only (group not usable)"
+        except OSError as exc:
+            return f"could not signal pid {child.pid}: {exc}"
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+        return f"SIGTERM to process group {pgid}"
+    except OSError as exc:
+        return f"could not signal group {pgid}: {exc}"
+
+
+#: Task states a dead supervisor can strand. Each has a SYSTEM-owned edge
+#: back to QUEUED that requires no lease, which is what makes recovery
+#: possible without impersonating the worker that vanished.
+#:
+#: COMPLETED is deliberately absent: it is waiting for a verifier, not
+#: stuck, and moving it would be this system inventing a verdict.
+_RECOVERABLE: frozenset = frozenset({
+    TaskState.LEASED, TaskState.EXECUTING,
+})
+
 EXTERNAL_SETTLED: frozenset = frozenset({
     TaskState.VERIFIED, TaskState.REJECTED, TaskState.INVALIDATED,
 })
@@ -503,6 +539,15 @@ class GovernedStage10:
 
         spec = self.registry.get(tool_id)          # default deny
 
+        # A SUPERVISOR STARTS BY RESOLVING WHAT A DEAD ONE LEFT.
+        #
+        # This is the production caller for recover(). It appends nothing
+        # when nothing is stranded, so the common path costs one projection;
+        # and putting it here rather than in __init__ keeps a constructor
+        # free of durable side effects while still guaranteeing that no run
+        # begins on top of an unresolved predecessor.
+        self.recover()
+
         # THE DUPLICATE CHECK COMES FIRST, before a task exists.
         #
         # It has to. Creating the task and then discovering the key was
@@ -593,7 +638,13 @@ class GovernedStage10:
             resolve=self.evidence.contains)
         lease = Lease(lease_id=lease_id, holder=worker,
                       granted_seq=job.updated_seq,
-                      expires_after_seq=job.lease_expires_after_seq)
+                      expires_after_seq=job.lease_expires_after_seq,
+                      # Recorded by the process that is about to do the
+                      # work, about ITSELF. A later supervisor asks the
+                      # operating system about it rather than guessing from
+                      # a sequence number that stopped advancing when this
+                      # process died.
+                      holder_process=identify().to_record())
         task = self._move(task, TaskState.LEASED, worker, TaskRole.WORKER,
                           lease=lease)
 
@@ -796,6 +847,186 @@ class GovernedStage10:
                            policy_digest=decision.policy_digest,
                            context_digest=context.manifest.digest(),
                            memory_id=memory_id)
+
+    # ---- recovery ------------------------------------------------------
+    def recover(self, *, actor: str = "system") -> tuple:
+        """Resolve task records a dead supervisor left in flight.
+
+        THE GAP THIS CLOSES, stated as it was found: the scheduler
+        reconciles JOBS -- a lapsed lease returns the work to READY -- and
+        nothing reconciled TASKS. A supervisor that died between the
+        execution record and the COMPLETED transition left the task
+        EXECUTING forever, with a lease nobody holds. The state machine had
+        the edges for this from the beginning (EXECUTING -> QUEUED and
+        LEASED -> QUEUED, both owned by SYSTEM and neither requiring a
+        lease) and nothing drove them, which is the same shape as a defence
+        with no caller.
+
+        WHY THE WORK GOES BACK TO THE QUEUE RATHER THAN FORWARD
+
+        A recovered task is NOT completed from its execution record, even
+        when that record says the process exited 0. The COMPLETED edge
+        requires a live lease and the WORKER role, and both are gone: the
+        worker that held the lease is dead, and a recovery process
+        finishing another party's work under a lapsed lease is exactly the
+        ownership bypass the lease exists to prevent. The execution record
+        survives as evidence of the attempt; what it does not do is
+        authorize a transition on behalf of an actor that is no longer
+        there.
+
+        WHAT IT DELIBERATELY LEAVES ALONE
+
+        A task sitting in COMPLETED is not stuck -- it is waiting for an
+        independent verifier, and inventing that verdict is the one thing
+        this whole system exists to refuse. It is reported, not moved.
+
+        Returns one record per action, and appends NOTHING when there is
+        nothing to recover, so a supervisor may call it on every start.
+        """
+        head = self.log.verify().head_seq
+        projection = self.projection()
+        # TaskProjection.expired_leases() has existed since the lifecycle was
+        # written, documented as "the scheduler's input for returning
+        # stranded work to the queue", and had ZERO callers -- not even a
+        # test. That is why this gap existed: the question was implemented
+        # and never asked.
+        stranded = list(projection.expired_leases())
+        seen = {t.task_id for t in stranded}
+        # Two more cases expired_leases() cannot see, both of which end in a
+        # lease that outlives the process holding it.
+        for task in sorted(projection.tasks.values(),
+                           key=lambda t: t.task_id):
+            if task.state not in _RECOVERABLE or task.task_id in seen:
+                continue
+            if task.lease is None:
+                # Should be unreachable: the edges into LEASED and EXECUTING
+                # both carry a lease. Fail closed rather than assume.
+                stranded.append(task)
+                seen.add(task.task_id)
+                continue
+            # THE CASE THE SEQUENCE NUMBER CANNOT DECIDE. The lease has not
+            # lapsed and never will, because the log stopped advancing when
+            # its holder died. Ask the operating system instead.
+            if liveness(ProcessIdentity.from_record(
+                    task.lease.holder_process)) is GONE:
+                stranded.append(task)
+                seen.add(task.task_id)
+
+        actions: list = []
+        for task in stranded:
+            ran = self._execution_record(task.task_id)
+            lapsed = task.lease is None or not task.lease.is_live(head)
+            proc = ProcessIdentity.from_record(
+                task.lease.holder_process) if task.lease else None
+            if lapsed and task.lease is not None:
+                basis = ("its lease lapsed at seq "
+                         f"{task.lease.expires_after_seq}")
+            elif lapsed:
+                basis = "it holds no lease record at all"
+            else:
+                pid = proc.pid if proc else "?"
+                basis = (
+                    f"the process that took it (pid {pid}) no longer exists "
+                    "on this boot, so the sequence-number expiry it was "
+                    "waiting for can never arrive -- the log that would "
+                    "advance it stopped when that process did")
+            why = (
+                f"the supervisor holding lease "
+                f"{task.lease.lease_id if task.lease else 'none'!r} did not "
+                f"finish and {basis}; recovered from durable state at seq "
+                f"{head}. ")
+            why += (
+                f"An execution record exists ({ran['outcome']}), so the tool "
+                "DID run -- it is evidence of the attempt and not authority "
+                "to complete the task under a lease nobody holds."
+                if ran else
+                "No execution record exists, so nothing observed the tool "
+                "run at all.")
+            moved = self._move(task, TaskState.QUEUED, actor,
+                               TaskRole.SYSTEM, note=why)
+            actions.append({
+                "task_id": task.task_id, "from": task.state.value,
+                "to": moved.state.value, "had_execution_record": bool(ran),
+                "lease_lapsed_by_seq": lapsed, "at_seq": head,
+                "holder_process": task.lease.holder_process
+                if task.lease else None,
+                "reason": why,
+            })
+        return tuple(actions)
+
+    def sweep_orphans(self, *, actor: str = "system") -> tuple:
+        """Terminate children a dead supervisor left running. Report the rest.
+
+        The gap this closes said the recorded pid was "diagnostic, not a
+        handle: nothing automatically signals an orphan on the next
+        supervisor's behalf". It could not have been a handle before,
+        because a bare pid cannot say whether the number still belongs to
+        the process that was started -- so acting on it would eventually
+        signal an innocent program that inherited it.
+
+        With the child's boot id and start time in the execution record,
+        the question is answerable, and the answer gates the signal:
+
+          the SUPERVISOR must be GONE    otherwise the run is still live and
+                                         this is not an orphan, it is
+                                         somebody else's work
+          the CHILD must be ALIVE        the same process, on the same boot,
+                                         with the same start time
+          then, and only then            terminate its process group
+
+        Anything short of both answers is REPORTED and left alone. UNKNOWN
+        is not permission: a record from another host says nothing about
+        what is running here.
+        """
+        head = self.log.verify().head_seq
+        projection = self.projection()
+        acted: list = []
+        for task in sorted(projection.tasks.values(),
+                           key=lambda t: t.task_id):
+            if task.state not in _RECOVERABLE:
+                continue
+            holder = ProcessIdentity.from_record(
+                task.lease.holder_process) if task.lease else None
+            lapsed = task.lease is None or not task.lease.is_live(head)
+            if not lapsed and liveness(holder) is not GONE:
+                continue                      # the supervisor may still work
+            ran = self._execution_record(task.task_id)
+            child = ProcessIdentity.from_record(
+                (ran or {}).get("child_process"))
+            state = liveness(child)
+            if state is not ALIVE:
+                acted.append({"task_id": task.task_id, "action": "REPORTED",
+                              "child": (ran or {}).get("child_process"),
+                              "child_liveness": state,
+                              "why": "not provably the process that was "
+                                     "started, so nothing here may signal it"})
+                continue
+            killed = _terminate_group(child)
+            acted.append({"task_id": task.task_id, "action": "TERMINATED",
+                          "child": child.to_record(), "child_liveness": ALIVE,
+                          "signalled": killed,
+                          "why": "its supervisor is gone and this is the same "
+                                 "process that supervisor started"})
+        return tuple(acted)
+
+    def awaiting_verification(self) -> tuple:
+        """Tasks that finished and have nobody to check them.
+
+        Reported rather than resolved. This is the honest shape of a crash
+        between COMPLETED and VERIFIED: the work is done, the verdict is
+        not, and only a different actor may give it.
+        """
+        return tuple(t.task_id for t in
+                     self.projection().in_state(TaskState.COMPLETED))
+
+    def _execution_record(self, task_id: str):
+        """The last task.execution payload for a task, or None."""
+        found = None
+        for ev in self.log.read():
+            if ev.action == ACT_EXECUTION and \
+                    ev.payload.get("task_id") == task_id:
+                found = ev.payload
+        return found
 
     # ---- helpers -------------------------------------------------------
     def _report_duplicate(self, prior, spec) -> GovernedRun:

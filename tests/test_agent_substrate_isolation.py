@@ -25,6 +25,8 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
+from repo_scope import files_matching, repository_files  # noqa: E402
 
 PKG = ROOT / "qta_agent"
 
@@ -55,6 +57,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_execution.py",
     "tests/test_agent_governed_stage10.py",
     "tests/test_agent_idempotency.py",
+    "tests/test_agent_recovery.py",
     "tests/test_agent_audit.py",
     "tests/test_agent_policy.py",
     "tests/test_agent_scheduler.py",
@@ -105,8 +108,8 @@ ALLOWED_IMPORTERS = {
 # needs `capability`, so it sits after that. The split is the same one the
 # write side makes: the allowlist lives in the writer, the capability check
 # lives above it.
-LAYERS = ("canonical", "safeio", "actions", "events", "evidence", "capability",
-          "idempotency", "readpath", "tools",
+LAYERS = ("canonical", "hostid", "safeio", "actions", "events",
+          "evidence", "capability", "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority", "policy", "secrets",
           "netauth", "store", "invalidation", "tasks", "reconstruct",
           "scheduler", "memory", "context", "agents", "audit",
@@ -252,20 +255,13 @@ def test_a_bridge_may_only_reach_the_stage10_write_guard():
 # --- the science does not reach into the substrate ---------------------------
 
 def _repository_python_files() -> tuple:
-    """Every .py git considers part of the working tree, ignored ones aside.
+    """Delegates to the ONE place this question is answered.
 
-    ``--cached`` is what is tracked, ``--others --exclude-standard`` is what
-    is untracked and NOT ignored. The union is "what this repository will
-    contain once somebody commits", which is the set every guard here
-    actually means -- see the note at the top of this module for the three
-    times asking a narrower question cost a red push.
+    It used to be a local helper here. It is shared now because the same
+    question is asked by several guards, each of which got it wrong
+    independently -- see tools/repo_scope.py.
     """
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "--cached", "--others",
-         "--exclude-standard", "--", "*.py"],
-        capture_output=True, text=True)
-    return tuple(sorted({ln.strip() for ln in r.stdout.splitlines()
-                         if ln.strip()}))
+    return repository_files("*.py")
 
 
 def test_the_importer_scan_sees_a_file_that_is_not_committed_yet():
@@ -339,12 +335,12 @@ def test_no_gate_computing_module_references_the_substrate():
     violation. Everything that actually computes a gate is checked with no
     exception at all.
     """
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-l", "qta_agent", "--",
-         "qta_full_sim.py", "qta_multiphysics/", "generate_manifest.py"],
-        capture_output=True, text=True)
-    assert r.stdout.strip() == "", (
-        f"a gate-computing module references qta_agent:\n{r.stdout}")
+    offenders = [f for f in files_matching(r"qta_agent")
+                 if f == "qta_full_sim.py"
+                 or f.startswith("qta_multiphysics/")
+                 or f == "generate_manifest.py"]
+    assert not offenders, (
+        f"a gate-computing module references qta_agent: {offenders}")
 
 
 def test_the_workflow_touches_the_substrate_only_in_the_governed_rule():

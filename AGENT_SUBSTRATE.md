@@ -35,6 +35,7 @@ rather than a web:
 |---|---|
 | `canonical.py` | one byte representation, therefore one digest |
 | `safeio.py` | confined reads: symlink-refusing, descriptor-relative, bound to an inode rather than a name |
+| `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
 | `actions.py` | every durable action name, and which reducer owns it |
 | `events.py` | append-only hash-chained log; the authority history |
 | `authority.py` | the transition table: what may become canonical |
@@ -438,6 +439,16 @@ and the mutation becomes meaningful again and belongs back in the spec. The
 non-retroactivity property itself is P4's, which mutates `in_force_at`
 internally and is killed.
 
+A fourth was removed for a different reason again. `V11` deletes recovery's
+branch for an in-flight task carrying **no lease record at all**. That branch
+is defensive, and the state it defends against cannot occur: the edge into
+`EXECUTING` carries `requires_lease`, and replay re-authorizes every
+transition, so no projection this code produces can hold one. The mutation
+could not differ, so it was removed rather than left as a permanent false
+finding — and what makes the removal re-checkable is a test that asserts the
+edge refuses a lease-less task. Weaken that edge and the test fails, and the
+mutation becomes meaningful again and belongs back in the spec.
+
 ### Survived is not one finding
 
 Re-running the extended matrices left four mutations alive, and they had four
@@ -647,6 +658,46 @@ tool X gives nothing for task U or tool Y, so a component tricked into acting
 on someone else's behalf fails closed instead of succeeding.
 
 Three things it deliberately is **not**:
+
+### A lease expires in sequence numbers, and a dead process stops the clock
+
+`hostid.py` exists because of a deadlock that only appears after a crash.
+
+Lease expiry is measured in **sequence numbers**, which is what makes the
+queue reproducible: replay the log and every deadline falls in the same
+place. The consequence is easy to miss. The thing that advances the sequence
+is the log; the thing that writes the log is the supervisor; and the
+supervisor is the thing that died. So a lease held by a dead process never
+lapses, `expired_leases()` returns nothing, and the work is stranded
+forever in `EXECUTING`.
+
+Wall-clock expiry would fix that and break replay. The alternative is
+**evidence**: ask the operating system whether the process holding the lease
+still exists. A bare pid cannot answer, because pids are reused and a reused
+pid is a different program wearing a dead one's name. Three facts together
+can: the **boot id** (a reboot invalidates every pid at once), the **pid**,
+and the process's **start time in clock ticks** (reuse gives a different
+one).
+
+`liveness()` returns `ALIVE`, `GONE` or `UNKNOWN`, and the third is
+load-bearing. A record from another host, or a kernel that does not publish
+`/proc`, is not evidence that the holder is dead. Treating "I cannot tell"
+as "it is gone" is how two workers end up running one task — the exact
+failure a lease exists to prevent — so only `GONE` authorises a reclaim.
+
+`GovernedStage10.recover()` is the caller. It runs at the start of every
+governed run, appends nothing when nothing is stranded, and moves a
+recovered task to `QUEUED` rather than forward. It does **not** complete a
+task from its own execution record, even when that record says the process
+exited 0: the `COMPLETED` edge requires a live lease and the `WORKER` role,
+and a recovery process finishing another party's work under a lease nobody
+holds is the ownership bypass the lease exists to prevent. The execution
+record survives as evidence of the attempt; what it does not do is authorise
+a transition on behalf of an actor that is no longer there.
+
+A task sitting in `COMPLETED` is left alone. It is not stuck — it is waiting
+for an independent verifier, and inventing that verdict is the one thing
+this system exists to refuse.
 
 ### A key is a namespace, so it needs an owner
 

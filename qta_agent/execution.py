@@ -80,6 +80,7 @@ from pathlib import Path
 
 from .canonical import digest_bytes
 from .capability import Action, CapabilityDenied, CapabilitySet, Request
+from .hostid import identify
 from .tools import (Registry, SideEffect, ToolContractViolation,
                     ToolSpec)
 
@@ -233,6 +234,10 @@ class ExecutionResult:
     #: run's own start time is recorded beside them.
     pid: int | None = None
     pgid: int | None = None
+    #: The child's full identity -- pid, pgid, boot id and start ticks --
+    #: so a LATER supervisor can ask whether it is still that process
+    #: rather than whether something now holds its number.
+    child_process: dict = field(default_factory=dict)
     #: Digests of the files the contract declared as outputs, keyed by the
     #: contract's own name for each. Empty when the contract declared none --
     #: which is silence, not a claim that the tool wrote nothing.
@@ -300,6 +305,7 @@ class ExecutionResult:
             "determinism": self.determinism, "side_effect": self.side_effect,
             "reason": self.reason,
             "pid": self.pid, "pgid": self.pgid,
+            "child_process": dict(self.child_process),
             "output_digests": dict(sorted(self.output_digests.items())),
             "output_paths": dict(sorted(self.output_paths.items())),
             "missing_outputs": dict(sorted(self.missing_outputs.items())),
@@ -535,11 +541,17 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
 
             # Recorded the moment it exists, so a supervisor that dies in
             # the next statement still leaves the child's identity behind.
-            base["pid"] = proc.pid
-            try:
-                base["pgid"] = os.getpgid(proc.pid)
-            except OSError:                  # already gone; not worth failing
-                base["pgid"] = None
+            #
+            # The full identity, not a bare pid. A pid alone cannot answer
+            # "is that still the process I started" -- pids are reused, and
+            # a later supervisor acting on a reused one would signal an
+            # innocent program. Boot id and start time are what make the
+            # number mean something after the process that recorded it is
+            # gone. See qta_agent.hostid.
+            child = identify(proc.pid)
+            base["pid"] = child.pid
+            base["pgid"] = child.pgid
+            base["child_process"] = child.to_record()
 
             deadline = started + limits.wall_seconds
             last_progress = started

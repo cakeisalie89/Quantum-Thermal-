@@ -48,6 +48,7 @@
         "SideEffect.EXTERNAL is consumed at four points -- registration refuses one without a written compensation, retryable is False for it, the caller reports UNSAFE_TO_RETRY, and the compensation travels in the record -- but the compensation is a DECLARATION. Nothing performs it, and no compensating action is automated anywhere in this system",
         "declared-output collection sees only the files the CONTRACT named. A tool that writes an UNdeclared file inside its scope is not detected by it; the write allowlist is what bounds that, and the two are different questions"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -100,14 +101,16 @@
         "no external-service authority beyond egress: no per-service identity, quota or contract",
         "the egress guard is in-process and reversible by code inside the block; it is mediation, not a sandbox -- and so is the read boundary"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R23",
       "requirement": "Subprocess and process-lifecycle semantics",
-      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/execution.py"
+        "qta_agent/execution.py",
+        "qta_agent/hostid.py"
       ],
       "callers": [
         "Snakefile",
@@ -115,39 +118,51 @@
         "tests/test_agent_execution.py"
       ],
       "production_caller": "qta_agent/governed_stage10.py",
-      "persistent_state": "outcome, exit status and signal are durable in the task.execution event; the job's lease and state are durable in scheduler.transition events",
+      "persistent_state": "outcome, exit status and signal are durable in the task.execution event; the job's lease and state are durable in scheduler.transition events; the child's FULL identity -- pid, pgid, boot id and start ticks -- so a later supervisor can ask whether it is still that process rather than whether something now holds its number",
       "authority_owner": "execution.run_bounded",
       "evidence": "real exit status and signal number recorded separately",
       "provenance": "tool id, version and contract digest cited by every result",
       "failure_semantics": "a signalled death is not an exit status; a timeout is not a failure of the tool and not a success; a run is now bounded by IDLENESS as well as by wall time -- a tool that stops producing output is abandoned rather than held to the wall bound, because 'how long may this take' is the wrong question for work that has stopped making progress",
-      "recovery": "partial output from a killed process is captured and hashed; a supervisor crash leaves the lease to lapse and scheduler.reconcile returns the work to READY; the child's pid and process-group id are recorded in the execution record the moment the child exists, so a supervisor that dies mid-run leaves an orphan that something can still name and signal. They are diagnostic and the record says so: a pid identifies only on the host that produced it and only until it is reused, which is why the run's start time sits beside it",
+      "recovery": "GovernedStage10.sweep_orphans() terminates a child left running by a supervisor that is provably gone, and only when the child is provably the same process that supervisor started. Anything short of both answers is reported and left alone",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "terminate the group, grace, then kill",
       "concurrency": "n/a",
       "security_boundary": "setsid process group; never signals its own group",
       "tests": [
-        "tests/test_agent_execution.py"
+        "tests/test_agent_execution.py",
+        "tests/test_agent_recovery.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/agent_execution.json"
+        "tools/mutations/agent_execution.json",
+        "tools/mutations/agent_recovery.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "the recorded pid is diagnostic, not a handle: nothing automatically signals an orphan on the next supervisor's behalf, and a pid is meaningful only on the host that produced it and only until reuse",
-        "the idle bound measures OUTPUT, because that is the only progress signal this executor has. A tool thinking hard and silently is indistinguishable from one that has deadlocked; the wall bound is what covers that case",
-        "descendants are TERMINATED by the process-group kill but not REAPED: a grandchild whose parent is gone becomes a zombie until init collects it, which is measured rather than assumed -- an earlier wording said such a grandchild 'outlives its parent', and what actually survives is a process-table entry, not a running process"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "progress is measured as OUTPUT, so a tool thinking hard and silently is indistinguishable from one that has deadlocked; the wall bound is what covers that case",
+          "reason": "epistemic",
+          "detail": "the executor sees bytes, not intent. Any other progress signal would have to come from the tool, and a tool that can assert its own liveness can assert it while hung"
+        },
+        {
+          "limit": "descendants are TERMINATED by the process-group kill but not REAPED: a grandchild whose parent is gone becomes a zombie until init collects it, so a process-table entry survives while nothing in the group is runnable",
+          "reason": "architectural_by_design",
+          "detail": "reaping a process whose parent has exited is init's job. Measured rather than assumed -- an earlier wording said such a grandchild 'outlives its parent', and what survives is an entry, not a running process"
+        }
       ],
       "blocker": null
     },
     {
       "id": "R24",
       "requirement": "Durable task/job lifecycle with centralized transitions",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
+        "qta_agent/governed_stage10.py",
+        "qta_agent/hostid.py",
         "qta_agent/tasks.py"
       ],
       "callers": [
@@ -161,26 +176,31 @@
       "evidence": "every transition records the edge's reason",
       "provenance": "actor and role on every transition record",
       "failure_semantics": "fail-closed; FAILED, TIMED_OUT and CANCELLED are distinct states, and VERIFIED is reachable only from COMPLETED",
-      "recovery": "projection() replays the log, so state survives the process",
+      "recovery": "GovernedStage10.recover() resolves task records a dead supervisor left, and runs at the start of every governed run. Stranded work returns to QUEUED -- never forward: completing a task from its own execution record would be a recovery process finishing another party's work under a lease nobody holds, which is the ownership bypass the lease exists to prevent. A COMPLETED task is reported, not moved: it awaits an independent verifier and inventing that verdict is what this system refuses",
       "retry": "FAILED and TIMED_OUT have explicit edges back to QUEUED",
-      "idempotency": "not yet: a resubmitted task is a new task",
+      "idempotency": "task-level and owner-scoped: a binding under (submitter, tool, key) is durable before dispatch, so a resubmission returns the first task and starts nothing. Deduplication is at the TASK record, not only at the queue",
       "cancellation": "reachable from every pre-terminal state",
       "concurrency": "leases; optimistic only, no multi-process test",
       "security_boundary": "separation of duties between executor and verifier",
       "tests": [
-        "tests/test_agent_governed_stage10.py"
+        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_recovery.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/agent_recovery.json",
         "tools/mutations/agent_tasks.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "idempotency keys are the SCHEDULER's; task.create carries none, so a resubmission is deduplicated at the queue and not at the task record",
-        "a crash between the execution record and the COMPLETED transition leaves the task EXECUTING: the lease lapses and reconcile requeues the JOB, but nothing automatically resolves the task record",
-        "concurrency is tested across processes on one host; two hosts against shared storage, where advisory locking is a weaker guarantee, is not tested"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "concurrency is exercised across processes on ONE host; two hosts against shared storage, where flock is advisory and weaker, cannot be observed from here",
+          "reason": "environment_single_host",
+          "detail": "the module says what flock does and does not promise over NFS; testing it would need a second machine"
+        }
       ],
       "blocker": null
     },
@@ -224,6 +244,7 @@
         "lease expiry is in sequence numbers, so a lease on an idle log never lapses in wall time -- deterministic, and not what 'expires' suggests",
         "split-brain is tested with real concurrent processes on one host; shared network storage, where flock is weaker, is not tested"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -268,12 +289,13 @@
         "no wall-clock scheduling at all: every deadline, lease and backoff is in sequence numbers. That is what makes the queue reproducible after a restart, and it means a lease on an idle log never lapses in real time",
         "one queue in one process. There is no distributed dispatch, no work stealing, and the advisory lock that serializes writers is a weaker guarantee on shared network storage than on a local filesystem"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R27",
       "requirement": "Agent identity and role authority",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/agents.py",
         "qta_agent/tasks.py"
@@ -305,10 +327,18 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "identity is not authenticated; instance_id is a name the registrar chose",
-        "no cryptographic binding between an instance and the actions attributed to it",
-        "identity is still not authenticated on the production path"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "an instance_id is a NAME the registrar chose, not an authenticated identity: the directory enforces that a name is registered, holds the role it claims, and has not been retired, and it cannot establish who a name belongs to",
+          "reason": "requires_external_identity_authority",
+          "detail": "authentication needs a credential authority -- a PKI, an IdP, a signed token -- that this repository deliberately does not contain, and inventing a signing identity is the fabrication this project refuses. What IS enforced is stated precisely rather than dressed up as authentication"
+        },
+        {
+          "limit": "nothing cryptographically binds an instance to the actions attributed to it; attribution comes from the event's actor field, which the log chains but does not sign",
+          "reason": "requires_external_identity_authority",
+          "detail": "the hash chain makes the RECORD tamper-evident, which is a different property from proving who wrote it"
+        }
       ],
       "blocker": null
     },
@@ -351,6 +381,7 @@
         "no notification channel -- an open escalation is visible by query, not delivered",
         "the governed path raises no escalation, because nothing in a Stage-10 artifact run is a decision a human must make"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -393,6 +424,7 @@
         "no fuzzing of policy records",
         "no obligations/constraints on an ALLOW decision, only a boolean verdict"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -438,6 +470,7 @@
         "no delegation or attenuation",
         "expiry is in sequence numbers, so a grant does not lapse with wall time on an idle log -- deterministic, and not what an operator expects of 'expires'"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -487,6 +520,7 @@
         "case-insensitive filesystems are out of scope; the targets are case-sensitive and nothing here consults the root's own semantics",
         "no disk-full injection on the read path (there is nothing to write), and permission-error injection is covered for the evidence store only"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -529,6 +563,7 @@
         "no fuzzing of URL parsing",
         "ingress is not modelled at all; Direction has one member"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -573,12 +608,13 @@
         "no external secret provider integration (file, keyring, cloud)",
         "the pairing check is mediation: a component holding both grants can still call reveal() and write its own socket, which reaches neither the composed operation nor the egress boundary. The value-based check is the stronger of the two because it does not depend on the caller choosing the safe method, and it still only sees bodies that come through authorize()"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R34",
       "requirement": "Context lifecycle as a controlled subsystem",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/context.py"
       ],
@@ -609,9 +645,18 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "model-output reproducibility is explicitly NOT provided; sampling and model version are not captured",
-        "no token-based budgeting, only bytes -- a byte budget is a proxy for a token budget and the two differ per tokenizer"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "model-output reproducibility is NOT provided: no sampling parameters and no model version are captured, because nothing in this repository invokes a model",
+          "reason": "architectural_by_design",
+          "detail": "context is assembled here and consumed elsewhere. Recording a model version this system never sees would be recording a value somebody handed it"
+        },
+        {
+          "limit": "budgeting is in BYTES, not tokens, and the two differ per tokenizer -- a byte budget is a proxy and the module says so",
+          "reason": "architectural_by_design",
+          "detail": "a token budget needs the tokenizer of the model that will read the context, which is a dependency on a model this package deliberately does not know about"
+        }
       ],
       "blocker": null
     },
@@ -655,6 +700,7 @@
         "corpus membership is git-tracked-file equality, not a signed allowlist",
         "no fuzzing of the index document parser"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -695,12 +741,13 @@
         "memory is not retrievable through the RAG index, so the 'retrievable memory keeps its lower authority' case is unimplemented rather than solved",
         "no bound on total memory size across entries, only per entry"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R37",
       "requirement": "Multi-agent identity, message provenance and conflict handling",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/agents.py"
       ],
@@ -731,9 +778,18 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "no transport: the bus is a projection of one shared log, which assumes every party can write to it",
-        "REQUIRE_HUMAN is unsatisfiable in this repository, by design, because no human decision exists here"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "there is no TRANSPORT: the bus is a projection of one shared log, which assumes every party can write to it",
+          "reason": "architectural_by_design",
+          "detail": "one hash-chained log is what makes message provenance and authority provenance the same history. A transport would add a second ordering that can disagree with it"
+        },
+        {
+          "limit": "REQUIRE_HUMAN is unsatisfiable in this repository, by design, because no decision here is one a human must make",
+          "reason": "architectural_by_design",
+          "detail": "the machinery is exercised in tests; the production path raises no escalation, and manufacturing one to demonstrate the feature would be the artificial wiring this project refuses"
+        }
       ],
       "blocker": null
     },
@@ -776,12 +832,13 @@
         "separation is implementation-level only: same process, same language, same canonical-form module",
         "no separate-process or separate-dependency verifier"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R39",
       "requirement": "Transactions across real workflows",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/store.py",
@@ -798,7 +855,7 @@
       "evidence": "hash-chained records",
       "provenance": "none",
       "failure_semantics": "the enforcement projection refuses a history it cannot authorize rather than handing back a partial state; the independent replay records the problem and continues, so one bad record does not hide the rest",
-      "recovery": "every prefix of a governed run is swept: the chain still verifies, the projection either succeeds or refuses, the two readers agree, and no prefix yields a VERIFIED task without the execution and evidence records behind it. Each state a crash can leave a task in has a named recovery, and a state with no entry fails the test",
+      "recovery": "every PREFIX of a governed run is a state recovery handles, and the atomicity sweep pins which prefix produces which state. The prefix that used to have no answer -- a crash between the execution record and the COMPLETED transition -- is now resolved by recover(), using process liveness when the sequence-number expiry cannot fire",
       "retry": "n/a",
       "idempotency": "idempotency keys on the scheduler; the log's append is the commit point, so a crash before it leaves no trace and a crash after it leaves a durable record the next load replays",
       "cancellation": "n/a",
@@ -807,22 +864,32 @@
       "tests": [
         "tests/test_agent_atomicity.py",
         "tests/test_agent_crash_recovery.py",
-        "tests/test_agent_differential.py"
+        "tests/test_agent_differential.py",
+        "tests/test_agent_recovery.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
-        "tools/mutations/agent_tasks.json",
-        "tools/mutations/agent_substrate.json"
+        "tools/mutations/agent_recovery.json",
+        "tools/mutations/agent_substrate.json",
+        "tools/mutations/agent_tasks.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "the governed path is NOT one atomic unit and there is no two-phase commit. What is established instead is that every PREFIX is a state recovery handles, and which prefixes produce each state",
-        "a crash between the execution record and the COMPLETED transition still leaves the task EXECUTING. The lease lapses and the scheduler requeues the WORK, but nothing automatically resolves the task RECORD -- the sweep pins down exactly which prefixes do this rather than leaving it as prose",
-        "no compensating actions for non-rollbackable effects; the tool contract declares SideEffect.EXTERNAL and nothing consumes that declaration"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the governed path is NOT one atomic unit and there is no two-phase commit; what is established instead is that every prefix is a recoverable state and which prefix yields which",
+          "reason": "architectural_by_design",
+          "detail": "a hash-chained append-only log has no rollback: the alternative to prefix-recoverability would be a second durable store that can disagree with the first"
+        },
+        {
+          "limit": "a compensating action for an EXTERNAL effect is DECLARED and never performed; the declaration is load-bearing at registration, at retry classification and in the record, but nothing here executes it",
+          "reason": "external_system_unreachable",
+          "detail": "performing a compensation needs the external system to participate; automating it locally would be claiming an exactly-once guarantee nothing supports"
+        }
       ],
       "blocker": null
     },
@@ -869,6 +936,7 @@
         "no segmentation or rotation, so full verification is O(n) in history forever",
         "no schema version on an event record, so a newer writer's fields are refused rather than migrated"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -908,6 +976,7 @@
         "no cleanup or retention policy for old checkpoints",
         "concurrent checkpoint-while-appending is untested"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -953,12 +1022,13 @@
         "the independent reconstruction rebuilds AUTHORITY RECORDS and TASKS. Scheduler, policy, memory, agent, network, secret and context state have no second implementation",
         "no differential comparison for those subsystems, so their projections are checked against themselves"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R43",
       "requirement": "Invalidation across every real dependency",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/invalidation.py"
       ],
@@ -989,8 +1059,13 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "dependencies are explicit record-to-record edges only; nothing derives them from real scientific inputs"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "dependencies are explicit record-to-record edges; nothing derives them from real scientific inputs",
+          "reason": "architectural_by_design",
+          "detail": "deriving them would require the agent to read the scientific tree's data model, and the import isolation that keeps a gate from depending on an authority verdict is the property this whole package exists to hold. The edges are declared by whoever asserts the dependency, and the transitive consequence of one changing is complete"
+        }
       ],
       "blocker": null
     },
@@ -1036,6 +1111,7 @@
         "no metrics and no sampling, and the auditor is on-demand over a log at rest rather than a LIVE view: that is the incident-reconstruction case, not the watch-it-happen one",
         "redaction is a coarse key-name net over audit output and is the second line of defence, not the first: the executor builds the child's environment rather than inheriting it, and raw tool output never enters the log"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1082,6 +1158,7 @@
         "no cross-task queries beyond trace_artifact: 'which tasks used this capability' or 'what did this policy version decide' must be assembled by the caller from decisions() and the timeline",
         "the index is built in memory from the whole log; there is no incremental or windowed mode, so audit cost grows with history"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1123,6 +1200,7 @@
         "a crash is modelled by discarding projections rather than by killing the process at every boundary; only the log-append boundary uses a real SIGKILL",
         "no fault injection at the filesystem level (partial fsync, ENOSPC, EIO)"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1165,6 +1243,7 @@
         "no test of two writers on a network filesystem, where flock semantics differ and the module says so",
         "no stress test long enough to surface a rare interleaving"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1208,6 +1287,7 @@
         "no policy CHANGE mid-flight that alters what a running job may do, only version bumps",
         "the campaign runs locally and in the agent-substrate workflow on the same single Python version and OS; nothing tests that a trajectory of this length behaves identically on another interpreter or kernel"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1250,6 +1330,7 @@
         "no tracked history of measurements, so a slow drift across many commits would not be noticed",
         "file-descriptor and child-process leak checks are Linux-only (/proc and ps)"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1288,6 +1369,7 @@
         "no fuzzing of the scheduler or authority state machines as SEQUENCES of operations, only of single records",
         "no mutation matrix over the fuzz harness itself, unlike the mutation harness"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1333,6 +1415,7 @@
         "mutations are hand-written, one per enforcement point. There is no generated operator set, so coverage is as complete as the specification author's imagination and no better",
         "the specs mutate qta_agent, the Stage-10 write guard and the harness itself. The scientific tree has no mutation coverage at all"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1384,6 +1467,7 @@
         "no model checker and no machine-checked proof; the invariants are executable assertions over generated traces",
         "the stateful machines drive one process. Concurrency invariants are tested by real concurrent processes in test_agent_concurrency.py, which is example-based, so interleavings across processes are not explored"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1431,6 +1515,7 @@
         "the scheduler, policy, memory, agent and capability projections have no second implementation. The two that do are the two that decide what is canonical and what work was verified; the others are compared only against a fresh replay of themselves, which shares their reducer and so cannot see a shared misunderstanding",
         "an empty diff is evidence, not proof: both implementations could share a mistake the log cannot reveal"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1480,6 +1565,7 @@
         "no sandbox-escape testing, and there cannot be while the substrate MEDIATES rather than CONTAINS: the egress guard binds this process and not the child, the write allowlist lives at the write primitive rather than in a kernel sandbox, and a subprocess that opens its own socket is not stopped",
         "the attacker is a registered participant. A compromised SUBMITTER, WORKER and VERIFIER acting together are not modelled, and separation of duties is exactly the assumption that would not survive it"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1528,6 +1614,7 @@
         "verification re-derives digests from disk; it does not re-run the tool or check the result's meaning",
         "idempotency here is DUPLICATE SUPPRESSION and durable request identity, NOT end-to-end exactly-once. Exactly-once against an external service needs that service to participate in a transaction or an idempotency protocol; a supervisor that dies between an EXTERNAL effect and the record of it leaves genuine uncertainty, reported as UNCERTAIN with the declared compensation quoted rather than resolved by guessing"
       ],
+      "boundaries": [],
       "blocker": null
     },
     {
@@ -1566,26 +1653,40 @@
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the manifest proves a file's bytes are the bytes recorded; it does not prove they are the RIGHT bytes, and no signature binds the manifest to an identity",
+          "reason": "requires_external_identity_authority",
+          "detail": "manifest_hash.txt is detached so a rewrite of the manifest is visible, but nothing here holds a signing key and inventing one would be the fabrication this project refuses"
+        },
+        {
+          "limit": "membership is decided by what git tracks plus what is untracked and unignored; a file nobody committed and nobody ignored is caught, but git's own index is the authority",
+          "reason": "architectural_by_design",
+          "detail": "the alternative is a second inventory that can disagree with the repository, which is the drift this file exists to prevent"
+        }
+      ],
       "blocker": null
     },
     {
       "id": "R57",
       "requirement": "PASS remains separate from architectural completeness",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/__init__.py",
-        "authorities.json"
+        "authorities.json",
+        "tools/repo_scope.py"
       ],
       "callers": [
         "tests/test_agent_substrate_isolation.py",
-        "tests/test_single_source_of_truth.py"
+        "tests/test_single_source_of_truth.py",
+        "tests/test_repo_contract.py"
       ],
       "production_caller": null,
       "persistent_state": "none",
       "authority_owner": "authorities.json :: agent_authority_substrate",
-      "evidence": "automatic_gate_effect=NONE, enforced by import isolation",
+      "evidence": "automatic_gate_effect=NONE, enforced by an import scan over tracked AND untracked-unignored files -- the set a file joins the moment anybody commits",
       "provenance": "none",
-      "failure_semantics": "the isolation suite fails if qta_agent is imported by the scientific tree",
+      "failure_semantics": "the isolation suite fails if anything outside qta_agent and its allowlisted tests imports the substrate, and it fails on the machine that introduced the importer rather than on a runner an hour later",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1594,35 +1695,51 @@
       "security_boundary": "none",
       "tests": [
         "tests/test_agent_substrate_isolation.py",
-        "tests/test_single_source_of_truth.py"
+        "tests/test_single_source_of_truth.py",
+        "tests/test_repo_contract.py"
       ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/repo_contract.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "there is NO production caller, and that is the property rather than a gap in it: this row is enforced by an ABSENCE -- nothing in the scientific tree imports qta_agent -- so there is no code path to call and none for a mutation to delete. Naming a test as the production caller (which this row did until the validator started refusing it) claims an integration that does not and should not exist",
-        "a mutation harness replaces existing text, so it cannot express the attack on this property, which would be to ADD an import. The structural test is what stands in for that, and it is asserted over the whole import graph rather than a list of known offenders"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "there is no production caller and there must not be: this row is enforced by an ABSENCE -- nothing in the scientific tree imports qta_agent -- so there is no code path to call",
+          "reason": "architectural_by_design",
+          "detail": "the row named a test as its production caller until the validator started refusing that, which is the right refusal: a test is not an operational path. The honest answer is null"
+        },
+        {
+          "limit": "a mutation harness replaces existing text, so it cannot express the attack on this property, which would be to ADD an import",
+          "reason": "architectural_by_design",
+          "detail": "the structural scan stands in for it, asserted over the whole import graph rather than a list of known offenders, and over tracked PLUS untracked-unignored files so a new importer cannot pass by not being committed yet"
+        }
       ],
       "blocker": null
     },
     {
       "id": "R58",
       "requirement": "Hosted CI",
-      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        ".github/workflows/agent-substrate.yml"
+        ".github/workflows/agent-substrate.yml",
+        ".github/workflows/stack-verify.yml",
+        "tools/workflow_contract.py"
       ],
       "callers": [
-        ".github/workflows/stack-verify.yml"
+        ".github/workflows/agent-substrate.yml",
+        ".github/workflows/release.yml",
+        "tests/test_repo_contract.py"
       ],
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "none",
       "authority_owner": "GitHub Actions",
-      "evidence": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "evidence": "the workflow's claims are a CONTRACT checked locally and in CI: three required jobs, five required commands, every mutation spec on disk wired to a step, every action pinned to a 40-hex commit. A row claiming hosted coverage is claiming something about a YAML file, and nothing else here would notice that file changing",
       "provenance": "none",
-      "failure_semantics": "non-zero exit fails the job",
+      "failure_semantics": "tools/workflow_contract.py exits non-zero when a required job, command or mutation spec is missing, or an action is not pinned",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1630,18 +1747,32 @@
       "concurrency": "n/a",
       "security_boundary": "none",
       "tests": [
-        "tests/test_release_workflow_contract.py",
-        "tests/test_bootstrap_workflow_contract.py"
+        "tests/test_repo_contract.py"
       ],
       "property_tests": [],
-      "mutation_tests": [],
+      "mutation_tests": [
+        "tools/mutations/repo_contract.json"
+      ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml: run 34015444218 (3d4c9da) green, and the failure history is kept rather than pruned -- runs 33995744418, 33997735547, 33997922862, 33998171857, 33998895626 and 34000716613 all failed, on the agent_tasks matrix and on derived-artifact freshness. Runs 34009496581 (aa57942), 34010167285 (41ea81f), 34011780850 (eab6dac) and 34012217103 (b8db05a) green",
-      "residual_gaps": [
-        "ONE OS. Every job runs ubuntu-latest, and the process-group, rlimit and O_NOFOLLOW behaviour this substrate depends on is Linux-specific -- these guarantees are not claimed to hold on another kernel, and nothing tests that they do",
-        "the second-interpreter job installs numpy and scipy UNPINNED, because qta_multiphysics/__init__.py eagerly imports the runner and the governed tool's subprocess cannot start without them. So that job tests the authority layer on another interpreter against an unlocked numeric stack; it is not a claim that the SCIENTIFIC results reproduce there, and the project's own pin stays ==3.12.*",
-        "container-verify builds a declared image; the sandbox this work is done in cannot build it, so that workflow's result is only ever read, never reproduced locally"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "ONE OS. Every job runs ubuntu-latest, and the process-group, rlimit, /proc and O_NOFOLLOW behaviour this substrate rests on is Linux-specific; these guarantees are not claimed to hold on another kernel",
+          "reason": "architectural_by_design",
+          "detail": "the enforcement primitives ARE the Linux ones. A macOS or Windows job would not be the same system passing elsewhere, it would be a different system"
+        },
+        {
+          "limit": "the second-interpreter job installs numpy and scipy UNPINNED, so it tests the authority layer on another interpreter against an unlocked numeric stack; it is not a claim that scientific results reproduce there",
+          "reason": "architectural_by_design",
+          "detail": "the project's own requires-python stays ==3.12.* because that is what the locked stack resolves for. The unpinned installs exist only because qta_multiphysics/__init__.py eagerly imports the runner, so the governed tool's subprocess cannot start without them"
+        },
+        {
+          "limit": "container-verify builds a declared image and that build cannot be reproduced here, so its result is read and never re-run locally",
+          "reason": "external_system_unreachable",
+          "detail": "this sandbox cannot pull layer blobs; the workflow's conclusion is read from the API at job level"
+        }
       ],
       "blocker": null
     },
@@ -1681,6 +1812,7 @@
         "that steps 1-3 of container_verify.sh passed in run 33113363458 is an inference from set -euo pipefail ordering, not a reading of their output",
         "the container image ships no git binary and .dockerignore excludes .git, so 48 governance tests that shell out to git fail inside it; this is a packaging gap, and fixing it needs a hosted build because this sandbox cannot pull layer blobs"
       ],
+      "boundaries": [],
       "blocker": null
     }
   ]

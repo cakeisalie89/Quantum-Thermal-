@@ -218,6 +218,19 @@ class Lease:
     holder: str
     granted_seq: int
     expires_after_seq: int
+    #: The OS process that took this lease, when the holder recorded one.
+    #:
+    #: Expiry is in sequence numbers, which is what makes the queue
+    #: reproducible on replay -- and which means a lease held by a process
+    #: that died never lapses, because the thing that advances the sequence
+    #: is the log the dead process was writing to. This is the evidence
+    #: that breaks that deadlock without introducing wall-clock deadlines:
+    #: a recovering supervisor can ask the operating system whether the
+    #: holder is still there. See qta_agent.hostid for why a bare pid is
+    #: not enough to ask with.
+    #:
+    #: Optional, and absent means "cannot say", never "gone".
+    holder_process: dict | None = None
 
     def is_live(self, at_seq: int) -> bool:
         return at_seq <= self.expires_after_seq
@@ -225,7 +238,8 @@ class Lease:
     def to_record(self) -> dict:
         return {"lease_id": self.lease_id, "holder": self.holder,
                 "granted_seq": self.granted_seq,
-                "expires_after_seq": self.expires_after_seq}
+                "expires_after_seq": self.expires_after_seq,
+                "holder_process": self.holder_process}
 
 
 @dataclass(frozen=True)

@@ -68,7 +68,54 @@ REQUIRED = (
     "provenance", "failure_semantics", "recovery", "retry", "idempotency",
     "cancellation", "concurrency", "security_boundary", "tests",
     "property_tests", "mutation_tests", "fuzzing", "differential",
-    "hosted_ci", "residual_gaps", "blocker",
+    "hosted_ci", "residual_gaps", "boundaries", "blocker",
+)
+
+#: WHY A BOUNDARY IS NOT A GAP, and why this vocabulary is closed.
+#:
+#: A residual gap is engineering somebody has not done. A boundary is
+#: something this repository CANNOT do, and saying so is part of the row
+#: rather than an excuse for it -- the classification is literally
+#: "complete to current technically defensible LIMIT", so a complete row
+#: without a stated limit is a row that has not said what it does not claim.
+#:
+#: The obvious abuse is to relabel awkward work as a boundary. The defence
+#: is that every boundary must name a REASON from this closed set, and the
+#: set contains no category an unfinished feature could honestly claim.
+#: "no fuzzing of policy records" is not a platform primitive, not an
+#: unreachable system, not hardware, not an identity authority, not an
+#: epistemic limit of a method, not a design invariant, not a second host
+#: and not a language runtime. It is work, so it stays a gap.
+BOUNDARY_REASONS = {
+    # A kernel or libc facility this interpreter does not expose.
+    "platform_primitive_absent",
+    # A host, service or artifact this environment cannot reach.
+    "external_system_unreachable",
+    # Needs physical apparatus that does not exist here.
+    "requires_hardware",
+    # Needs a credential authority, PKI or human identity provider that
+    # this repository deliberately does not contain.
+    "requires_external_identity_authority",
+    # A limit of the METHOD, not of its implementation: exploration is not
+    # exhaustion, an empty diff is not a proof.
+    "epistemic",
+    # Closing it would violate an invariant this system exists to hold.
+    "architectural_by_design",
+    # One machine, one filesystem: behaviour that only differs across hosts
+    # or on network storage cannot be observed from here.
+    "environment_single_host",
+    # A property of the language runtime itself.
+    "language_runtime",
+}
+
+#: Phrases that describe WORK. None of them belongs in a boundary, whatever
+#: reason is attached, because each names something an engineer could sit
+#: down and do in this repository.
+_WORK_PHRASES = (
+    "no fuzzing", "not fuzzed", "no mutation coverage", "no mutation matrix",
+    "todo", "not yet", "future work", "next session", "should be added",
+    "could be added", "needs to be written", "not implemented",
+    "unimplemented", "no test for", "is untested",
 )
 
 
@@ -238,6 +285,42 @@ def validate(doc: dict) -> list:
                     "id. A hosted claim with no run behind it is the one "
                     "kind of evidence a reader cannot check for themselves")
 
+        # BOUNDARIES: what the row does not claim, and why it cannot.
+        bounds = row.get("boundaries")
+        if bounds is None:
+            bounds = []
+        if not isinstance(bounds, list):
+            problems.append(f"{rid}: boundaries must be a list")
+            bounds = []
+        for i, b in enumerate(bounds):
+            where = f"{rid}: boundary {i + 1}"
+            if not isinstance(b, dict):
+                problems.append(
+                    f"{where} must be an object with 'limit' and 'reason'; a "
+                    "bare sentence can say anything, and the reason is the "
+                    "part that stops a gap wearing a boundary's clothes")
+                continue
+            limit = b.get("limit")
+            if not isinstance(limit, str) or len(limit.strip()) < 40:
+                problems.append(
+                    f"{where}: 'limit' must be a substantive sentence saying "
+                    "what is NOT claimed")
+            reason = b.get("reason")
+            if reason not in BOUNDARY_REASONS:
+                problems.append(
+                    f"{where}: reason {reason!r} is not one of "
+                    f"{sorted(BOUNDARY_REASONS)}. A boundary has to name why "
+                    "no engineering here can close it; if none of these fits, "
+                    "it is a residual gap and belongs in residual_gaps")
+            low = f"{limit} {b.get('detail', '')}".lower()
+            for phrase in _WORK_PHRASES:
+                if phrase in low:
+                    problems.append(
+                        f"{where}: says {phrase!r}, which describes work "
+                        "somebody could do in this repository. That is a "
+                        "residual gap, not a limit of what is possible")
+                    break
+
         if cls in BLOCKED:
             if not row.get("blocker"):
                 problems.append(f"{rid}: {cls} requires a blocker")
@@ -257,6 +340,16 @@ def validate(doc: dict) -> list:
                         f"{rid}: {COMPLETE} claimed with residual "
                         f"gaps listed: "
                         f"{row['residual_gaps']}")
+                if not bounds:
+                    # The classification says "to current technically
+                    # defensible LIMIT". A complete row that names no limit
+                    # has not finished the sentence, and silence is the
+                    # easiest way to overstate a system.
+                    problems.append(
+                        f"{rid}: {COMPLETE} claimed with no boundaries "
+                        "stated. Every row here is complete TO A LIMIT; say "
+                        "what this one does not claim, or the classification "
+                        "is claiming more than the row can support")
     return problems
 
 

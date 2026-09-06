@@ -825,13 +825,16 @@ def test_the_composition_check_has_a_production_caller():
     correct and unreachable. Asserted structurally so it cannot quietly
     return to being test-only.
     """
-    import subprocess
+    import sys as _sys
 
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-l", "check_egress_composition",
-         "--", "*.py"], capture_output=True, text=True)
-    files = {x.strip() for x in r.stdout.splitlines() if x.strip()}
-    production = {f for f in files if not f.startswith("tests/")}
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import non_test_references
+
+    # Asked over tracked AND untracked-unignored files, through the one
+    # module that answers this. git grep sees tracked files only, so a
+    # caller that has not been committed yet reads as absent and this guard
+    # passes for the wrong reason -- which has cost three red pushes.
+    production = set(non_test_references("check_egress_composition"))
     assert production - {"qta_agent/secrets.py"}, (
         "check_egress_composition is only referenced by its own module and "
-        f"by tests: {sorted(files)}")
+        f"by tests: {sorted(production)}")

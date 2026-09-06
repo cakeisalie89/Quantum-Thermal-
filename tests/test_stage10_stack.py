@@ -730,12 +730,16 @@ def test_rust_is_not_presented_as_an_active_scientific_backend():
 
 def test_no_scientific_module_imports_the_rust_kernels():
     """The claim above must stay true, not just be written down."""
-    import subprocess
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-lE", r"^\s*import\s+qta_kernels",
-         "--", "*.py"],
-        capture_output=True, text=True)
-    importers = [f for f in r.stdout.split() if f]
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import files_matching
+
+    # Over tracked AND untracked-unignored files: a new module importing the
+    # Rust kernels would otherwise be invisible to this guard until it was
+    # committed, which is the blind spot that has cost this repository three
+    # red pushes in other guards.
+    importers = list(files_matching(r"^\s*import\s+qta_kernels"))
     assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
         f"unexpected qta_kernels importers: {importers}"
 

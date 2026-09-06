@@ -74,6 +74,10 @@ jobs:
           uv run ruff check qta_agent qta_multiphysics/stack \
             tests/test_agent_*.py tests/test_mutation_harness.py \
             tools/mutation_matrix.py tools/completion_matrix.py
+      - name: the workflow still runs what the matrix says it runs
+        # A row claiming hosted coverage is claiming something about THIS
+        # file, and nothing else here would notice this file changing.
+        run: uv run python tools/workflow_contract.py
       - name: completion matrix is self-consistent
         # The matrix is a self-assessment; this is what stops it drifting.
         run: uv run python tools/completion_matrix.py
@@ -162,6 +166,14 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/mutation_harness.json
+      - name: mutation matrix -- repository scope and the workflow contract
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/repo_contract.json
+      - name: mutation matrix -- crash recovery and process liveness
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_recovery.json
       - name: mutation matrix -- owner-scoped idempotency
         run: |
           uv run python tools/mutation_matrix.py \

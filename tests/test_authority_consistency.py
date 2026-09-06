@@ -136,12 +136,16 @@ def test_no_module_imports_a_root_level_copy():
             assert hashlib.sha256(rp.read_bytes()).hexdigest() == \
                    hashlib.sha256(pp.read_bytes()).hexdigest(), \
                    f"root {f} has diverged from the package copy"
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import files_matching
+
     stems = "|".join(f[:-3] for f in ROOT_DUPLICATES)
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-nE",
-         rf"^\s*(from|import)\s+({stems})\b", "--", "*.py"],
-        capture_output=True, text=True)
-    assert r.stdout.strip() == "", f"root copies are imported:\n{r.stdout}"
+    # Tracked AND untracked-unignored: a new module importing a root copy
+    # would otherwise pass this guard until it was committed.
+    importers = files_matching(rf"^\s*(from|import)\s+({stems})\b")
+    assert not importers, f"root copies are imported: {list(importers)}"
 
 
 # ---------------------------------------- registered authority paths resolve --
