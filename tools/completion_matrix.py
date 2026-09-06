@@ -123,6 +123,50 @@ def load() -> dict:
     return json.loads(MATRIX.read_text(encoding="utf-8"))
 
 
+def _fuzz_targets() -> frozenset:
+    """Target names the fuzz harness registers, read from its source.
+
+    Parsed rather than imported. Importing would run the harness's module
+    body and drag its dependencies into a validator that has no business
+    needing them; the names are string literals in one dict and reading them
+    is exact enough for the question being asked.
+
+    Returns an EMPTY set only when the file is missing, and the caller must
+    treat that as "cannot tell" -- a staleness check that silently passes
+    because it read nothing is the vacuous-success defect this repository
+    already carries once.
+    """
+    src = ROOT / "tools" / "fuzz_substrate.py"
+    if not src.exists():
+        return frozenset()
+    text = src.read_text(encoding="utf-8")
+    block = text.partition("    return {")[2].partition("\n    }")[0]
+    return frozenset(re.findall(r'^\s{8}"([a-z0-9_]+)":', block, re.M))
+
+
+#: Words in a fuzz target's name that are too generic to imply a gap is
+#: stale. "policy" in the gap and a "policy" target is a real collision;
+#: "url" inside "curl" is not.
+def _fuzz_gap_names(gap_low: str, target: str) -> bool:
+    """Does ``gap_low`` claim the absence of fuzzing for ``target``?
+
+    Word-boundary matching on the target's own name parts. A target named
+    ``policy_decision`` is named by a gap mentioning "policy" only when the
+    gap also carries a negation -- checked by the caller, which only reaches
+    here for gaps containing "fuzz".
+    """
+    if not any(neg in gap_low for neg in
+               ("no fuzz", "not fuzz", "never fuzz", "without fuzz")):
+        return False
+    # ANY part, not all of them. "no fuzzing of the index document parser"
+    # names the ``rag_index`` target without saying "rag", and requiring both
+    # halves let exactly that claim stay stale through a first attempt at
+    # this check. A part is at least three characters so a target named
+    # ``job`` still counts while nothing matches on a fragment.
+    parts = [x for x in target.split("_") if len(x) >= 3]
+    return any(re.search(rf"\b{re.escape(x)}", gap_low) for x in parts)
+
+
 def _rank(cls: str) -> int:
     return CLASSES.index(cls) if cls in CLASSES else -1
 
@@ -235,6 +279,27 @@ def validate(doc: dict) -> list:
                         f"qta_agent/{sorted(named)[0]}.py exists; refresh the "
                         "row rather than leaving documentation that has "
                         "stopped being true")
+
+        # STALENESS, SECOND SPECIES. Three rows were found carrying "no
+        # fuzzing of X" while tools/fuzz_substrate.py had a target for X --
+        # a policy-record target, a URL target and an index target, all
+        # already written. The first staleness check only knew about modules
+        # that had appeared; this one knows about coverage that had.
+        #
+        # Same failure mode, and worse in one way: a stale "no fuzzing" claim
+        # keeps a row out of COMPLETE for work that was already done, so the
+        # matrix understates the system while looking rigorous.
+        for gap in row.get("residual_gaps", []):
+            low = gap.lower()
+            if "fuzz" not in low:
+                continue
+            hits = {t for t in _fuzz_targets() if _fuzz_gap_names(low, t)}
+            if hits:
+                problems.append(
+                    f"{rid}: a residual gap says {gap[:60]!r} while "
+                    f"tools/fuzz_substrate.py registers target(s) "
+                    f"{sorted(hits)}. Re-read the harness before writing a "
+                    "coverage gap: an understated row is drift too")
 
         # A row above PARTIALLY_IMPLEMENTED with no gaps and no COMPLETE
         # claim is claiming perfection without saying so.

@@ -59,6 +59,16 @@ from .policy import Effect, PolicyRequest, document, rule
 ACT_ENQUEUE = "scheduler.enqueue"
 ACT_JOB_TRANSITION = "scheduler.transition"
 ACT_PRIORITY = "scheduler.priority"
+#: Extending a live lease. NOT a state transition: the job stays DISPATCHED
+#: and only the lease's end moves, so a DISPATCHED -> DISPATCHED self-loop in
+#: the machine -- which would also permit a silent re-dispatch -- is avoided.
+ACT_LEASE_RENEW = "scheduler.lease_renew"
+
+#: How many times one lease may be extended before the work has to be
+#: reconsidered. A bound, not a policy: without one, a worker that keeps
+#: renewing holds the job forever and the lease stops being a deadline at
+#: all -- which is the failure renewal is most likely to introduce.
+MAX_LEASE_RENEWALS = 16
 
 #: Priorities are bounded and small. 0 is most urgent. An unbounded priority
 #: is a denial-of-service on every other job, and a float one makes ordering
@@ -300,6 +310,9 @@ class Job:
     lease_id: str | None = None
     lease_holder: str | None = None
     lease_expires_after_seq: int = -1
+    #: How many times the current lease has been extended. Reset on every
+    #: dispatch, because a new lease is a new lease.
+    lease_renewals: int = 0
     last_failure: str | None = None
     enqueued_seq: int = -1
     updated_seq: int = -1
@@ -320,6 +333,7 @@ class Job:
             "task_id": self.task_id, "lease_id": self.lease_id,
             "lease_holder": self.lease_holder,
             "lease_expires_after_seq": self.lease_expires_after_seq,
+            "lease_renewals": self.lease_renewals,
             "last_failure": self.last_failure,
             "enqueued_seq": self.enqueued_seq,
             "updated_seq": self.updated_seq, "reason": self.reason,
@@ -450,6 +464,8 @@ class Scheduler:
             edge = check_edge(src, dst, cur.job_id)
             reauthorize_job_edge(cur, dst, p, actor=ev.actor, seq=ev.seq)
             self._jobs[cur.job_id] = _apply_edge(cur, edge, p, seq=ev.seq)
+        elif ev.action == ACT_LEASE_RENEW:
+            self._apply_renewal(ev, p)
         elif ev.action == ACT_PRIORITY:
             cur = self._jobs[p["job_id"]]
             new = int(p["priority"])
@@ -463,6 +479,84 @@ class Scheduler:
             return False
         self._loaded_through = ev.seq
         return True
+
+    def _apply_renewal(self, ev, p: dict) -> None:
+        """Extend a live lease, deciding every term from the replay's state.
+
+        WHY RENEWAL NEEDED A RULE OF ITS OWN
+
+        Without renewal, a lease has to be sized for the worst case: a worker
+        with an hour of work takes an hour-long lease, and a worker that dies
+        in the first minute holds the job for fifty-nine more. Renewal lets
+        the lease be sized for the COMMON case, which is what makes lapse a
+        useful signal rather than a formality.
+
+        It also introduces the one way a lease can stop meaning anything, so
+        each of these is a refusal rather than a validation:
+
+        * a lease that has LAPSED may not be renewed. By then
+          :meth:`reconcile` may already have returned the work to READY and
+          dispatched it elsewhere, and a renewal would restore ownership the
+          scheduler had taken away. Renewal extends possession; it never
+          re-acquires it.
+        * the renewal must come from the holder, and cite the CURRENT
+          ``lease_id``. A worker back from the dead holds an old id, and that
+          is precisely how it is told apart from the live one.
+        * the new end is computed HERE, from ``ev.seq``, and never read from
+          the record. A record that named its own expiry could name any, so
+          the payload carries a REQUEST (``lease_seqs``) and the replay
+          decides what that means from where it is standing.
+        * renewals are counted and bounded. Otherwise a worker holds the job
+          forever by asking often enough, which is the same as no lease.
+        """
+        cur = self._jobs.get(p.get("job_id"))
+        if cur is None:
+            raise SchedulerError(
+                f"seq {ev.seq}: lease renewal names unknown job "
+                f"{p.get('job_id')!r}")
+        if cur.state is not JobState.DISPATCHED:
+            raise JobTransitionError(
+                f"seq {ev.seq}: {cur.job_id!r} is {cur.state.value}; only a "
+                "DISPATCHED job holds a lease that could be renewed")
+        if cur.lease_holder != ev.actor:
+            raise JobTransitionError(
+                f"seq {ev.seq}: {ev.actor!r} renewed a lease held by "
+                f"{cur.lease_holder!r}. Ownership is not something the "
+                "record gets to assert about itself")
+        if p.get("lease_id") != cur.lease_id:
+            raise JobTransitionError(
+                f"seq {ev.seq}: renewal cites lease {p.get('lease_id')!r} and "
+                f"{cur.job_id!r} holds {cur.lease_id!r}. A worker returning "
+                "from the dead carries the old id, and that is how it is "
+                "told apart from the live holder")
+        if not cur.lease_is_live(ev.seq):
+            raise JobTransitionError(
+                f"seq {ev.seq}: lease {cur.lease_id!r} lapsed after seq "
+                f"{cur.lease_expires_after_seq}. A lapsed lease is not "
+                "renewed, it is lost: the work may already be somebody "
+                "else's, and renewal would take it back without saying so")
+        if cur.lease_renewals >= MAX_LEASE_RENEWALS:
+            raise JobTransitionError(
+                f"seq {ev.seq}: lease {cur.lease_id!r} has been renewed "
+                f"{cur.lease_renewals} times, at the {MAX_LEASE_RENEWALS} "
+                "bound. Work that cannot finish inside that many extensions "
+                "needs to be reconsidered rather than held")
+        seqs = p.get("lease_seqs")
+        if not isinstance(seqs, int) or isinstance(seqs, bool) or seqs < 1:
+            raise SchedulerError(
+                f"seq {ev.seq}: lease_seqs must be an int >= 1, got {seqs!r}")
+        new_end = ev.seq + seqs
+        if new_end <= cur.lease_expires_after_seq:
+            raise SchedulerError(
+                f"seq {ev.seq}: renewing to {new_end} would not extend a "
+                f"lease that already runs to {cur.lease_expires_after_seq}; "
+                "a renewal that shortens is a caller misunderstanding what "
+                "it asked for")
+        self._jobs[cur.job_id] = replace(
+            cur, lease_expires_after_seq=new_end,
+            lease_renewals=cur.lease_renewals + 1,
+            revision=cur.revision + 1, updated_seq=ev.seq,
+            reason=f"lease extended to seq {new_end}")
 
     def _reauthorize_enqueue(self, job: Job, ev) -> None:
         """An enqueue record introduces WORK. It does not assert a lifecycle.
@@ -964,7 +1058,28 @@ class Scheduler:
             reason=f"leased to {worker}", lease_id=lease_id,
             lease_holder=worker, task_id=task_id,
             lease_expires_after_seq=at + 1 + lease_seqs,
+            # A new lease starts a new budget. Carrying the count across
+            # dispatches would make a job that has been retried a few times
+            # unrenewable for reasons belonging to a previous worker.
+            lease_renewals=0,
             attempts=job.attempts + 1)
+
+    def renew_lease(self, *, job_id: str, worker: str, lease_id: str,
+                    lease_seqs: int) -> Job:
+        """Extend a live lease the caller holds. Every rule is in the replay.
+
+        This method appends and folds; it does not decide. The checks live in
+        :meth:`_apply_renewal` so that a record written by anything else --
+        a worker appending directly, a hand-edited log -- meets the same
+        refusals. A guard on the write path only stops callers who were not
+        attacking.
+        """
+        ev = self.log.append(
+            actor=worker, action=ACT_LEASE_RENEW, target=job_id,
+            payload={"job_id": job_id, "lease_id": lease_id,
+                     "lease_seqs": lease_seqs})
+        self.apply(ev)
+        return self.get(job_id)
 
     def report(self, *, job_id: str, worker: str,
                failure: FailureClass | None = None, detail: str = "",
@@ -1272,16 +1387,24 @@ def _apply_edge(job: Job, edge: JobEdge, payload: dict, *, seq: int) -> Job:
         if name in payload:
             val = payload[name]
             updates[name] = None if val == "" else val
-    for name in ("lease_expires_after_seq", "backoff_until_seq", "attempts"):
+    for name in ("lease_expires_after_seq", "backoff_until_seq", "attempts",
+                 "lease_renewals"):
         if name in payload:
             updates[name] = int(payload[name])
     if edge.dst in TERMINAL or edge.dst in PENDING:
         # Leaving DISPATCHED always drops the lease. Doing it here rather than
         # trusting each caller to pass the clearing fields is what stops a
         # requeued job from carrying an owner it no longer has.
+        #
+        # The renewal COUNT goes with it. Carrying it across would make a job
+        # that a previous worker had extended to the bound unrenewable by the
+        # next one, for reasons belonging to a lease that no longer exists --
+        # and dispatch's own reset does not cover this, because the fields
+        # this function does not name are the fields it silently drops.
         updates.setdefault("lease_id", None)
         updates.setdefault("lease_holder", None)
         updates.setdefault("lease_expires_after_seq", -1)
+        updates.setdefault("lease_renewals", 0)
     return replace(job, **updates)
 
 
@@ -1337,6 +1460,7 @@ def job_from_record(rec: dict) -> Job:
             task_id=rec.get("task_id"), lease_id=rec.get("lease_id"),
             lease_holder=rec.get("lease_holder"),
             lease_expires_after_seq=rec.get("lease_expires_after_seq", -1),
+            lease_renewals=rec.get("lease_renewals", 0),
             last_failure=rec.get("last_failure"),
             enqueued_seq=rec.get("enqueued_seq", -1),
             updated_seq=rec.get("updated_seq", -1),

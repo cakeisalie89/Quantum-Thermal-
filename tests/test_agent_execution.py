@@ -611,7 +611,12 @@ def test_a_grant_the_log_never_recorded_is_not_in_force(tmp_path):
     ledger.issue(cap, actor="scheduler")
 
     assert ledger.issued_ids() == ("c1",)
-    assert [ev.action for ev in log.read()] == ["capability.issue"]
+    # The root event precedes the first grant. A log whose first grant
+    # has no root behind it is one where anybody may mint, and the
+    # ledger will not produce one -- see CapabilityLedger.issue.
+    assert [ev.action for ev in log.read()] == ["capability.root",
+                                                "capability.issue"]
+    assert ledger.root_issuer() == "scheduler"
     # A second ledger, built only from the log, reaches the same verdict.
     from qta_agent.capability import CapabilityLedger
     rebuilt = CapabilityLedger(log).load()

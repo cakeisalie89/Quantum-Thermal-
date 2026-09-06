@@ -330,3 +330,114 @@ def test_an_object_only_one_reader_holds_is_a_divergence(gov):
     div = compare_subsystems(primary, recon)
     assert any(d.record_id == f"jobs/{real}" and d.field_name == "presence"
                for d in div), div
+
+
+# ==========================================================================
+# LEASE RENEWAL, read by the reader that does not share the scheduler's code
+#
+# A renewal EXTENDS possession. It must never re-acquire it: by the time a
+# lease has lapsed, reconcile may have returned the work to READY and given
+# it to somebody else, and a renewal would take it back leaving a job record
+# that looks entirely ordinary afterwards.
+# ==========================================================================
+
+def _leased_job(gov, *, job_id="j-lease", worker="w1", lease_id="L1",
+                lease_seqs=50):
+    """A real DISPATCHED job with a live lease, through the real scheduler."""
+    s = gov.scheduler
+    s.enqueue(job_id=job_id, work_digest="b" * 64, submitter="sub",
+              resources={"slots": 1})
+    s.reconcile()
+    s.dispatch(job_id=job_id, worker=worker, lease_id=lease_id,
+               lease_seqs=lease_seqs)
+    return s
+
+
+def test_the_second_reader_follows_an_honest_renewal(gov):
+    s = _leased_job(gov)
+    s.renew_lease(job_id="j-lease", worker="w1", lease_id="L1", lease_seqs=80)
+
+    recon = reconstruct_subsystems(gov.log)
+    theirs = recon.jobs["j-lease"]
+    assert theirs["lease_renewals"] == 1
+    assert theirs["lease_expires_after_seq"] == \
+        s.get("j-lease").lease_expires_after_seq
+
+
+def test_the_second_reader_refuses_a_renewal_of_a_lapsed_lease(gov):
+    """The scheduler's write path refuses this, so it is forged directly."""
+    s = _leased_job(gov, lease_seqs=1)
+    for i in range(4):
+        s.enqueue(job_id=f"filler-{i}", work_digest="c" * 64, submitter="sub")
+
+    recon = _forge(gov, "scheduler.lease_renew",
+                   {"job_id": "j-lease", "lease_id": "L1", "lease_seqs": 500},
+                   actor="w1")
+    assert any("lapsed" in a and "not renewed" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.jobs["j-lease"]["lease_renewals"] == 0
+
+
+def test_the_second_reader_refuses_a_renewal_from_a_non_holder(gov):
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.lease_renew",
+                   {"job_id": "j-lease", "lease_id": "L1", "lease_seqs": 500},
+                   actor="mallory")
+    assert any("mallory" in a and "held by" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.jobs["j-lease"]["lease_renewals"] == 0
+
+
+def test_the_second_reader_refuses_a_renewal_citing_a_stale_lease_id(gov):
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.lease_renew",
+                   {"job_id": "j-lease", "lease_id": "L-old",
+                    "lease_seqs": 500}, actor="w1")
+    assert any("cites lease" in a for a in recon.anomalies), recon.anomalies
+    assert recon.jobs["j-lease"]["lease_renewals"] == 0
+
+
+def test_the_second_reader_computes_the_new_end_rather_than_reading_it(gov):
+    """A payload that names its own expiry must not become one.
+
+    ISOLATED from the shortening check on purpose: the request is a real
+    extension, so the only thing that can decide the answer is which of the
+    two numbers the reader uses.
+    """
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.lease_renew",
+                   {"job_id": "j-lease", "lease_id": "L1", "lease_seqs": 90,
+                    "lease_expires_after_seq": 10 ** 9}, actor="w1")
+    assert recon.jobs["j-lease"]["lease_expires_after_seq"] < 10 ** 6
+    assert recon.jobs["j-lease"]["lease_renewals"] == 1
+
+
+def test_the_second_reader_bounds_renewals(gov):
+    s = _leased_job(gov, lease_seqs=10 ** 6)
+    for _ in range(16):
+        s.renew_lease(job_id="j-lease", worker="w1", lease_id="L1",
+                      lease_seqs=10 ** 6)
+    recon = _forge(gov, "scheduler.lease_renew",
+                   {"job_id": "j-lease", "lease_id": "L1",
+                    "lease_seqs": 10 ** 6}, actor="w1")
+    assert any("renewal bound" in a for a in recon.anomalies), recon.anomalies
+    assert recon.jobs["j-lease"]["lease_renewals"] == 16
+
+
+def test_the_second_reader_drops_the_renewal_count_on_requeue(gov):
+    """Both readers must agree after a requeue, or the divergence report is
+    reporting on the readers rather than on the log."""
+    from qta_agent.scheduler import FailureClass
+    s = _leased_job(gov, lease_seqs=10 ** 6)
+    s.renew_lease(job_id="j-lease", worker="w1", lease_id="L1",
+                  lease_seqs=10 ** 6)
+    s.report(job_id="j-lease", worker="w1", failure=FailureClass.TIMEOUT,
+             detail="slow")
+
+    recon = reconstruct_subsystems(gov.log)
+    mine = s.get("j-lease")
+    theirs = recon.jobs["j-lease"]
+    assert mine.lease_renewals == 0
+    assert theirs["lease_renewals"] == 0
+    assert theirs["lease_expires_after_seq"] == mine.lease_expires_after_seq
+    assert (theirs["lease_holder"] or None) == mine.lease_holder

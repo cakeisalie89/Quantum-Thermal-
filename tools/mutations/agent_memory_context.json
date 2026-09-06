@@ -208,6 +208,62 @@
       "find": "            if not isinstance(p, dict) or \"entry\" not in p:",
       "replace": "            if False:",
       "rationale": "a record this store cannot read makes the WHOLE store unloadable with an exception naming no subject; found by a killed child writing a malformed memory.write into a live log"
+    },
+    {
+      "name": "MR1_recall_returns_retracted_entries",
+      "path": "qta_agent/memory.py",
+      "find": "            if not e.is_current and not include_non_current:\n                continue",
+      "replace": "            if False:\n                continue",
+      "rationale": "a search un-withdraws a retracted statement for everybody who searched instead of listing, with no event saying so"
+    },
+    {
+      "name": "MR2_a_hit_reports_itself_as_current_whatever_it_is",
+      "path": "qta_agent/memory.py",
+      "find": "            status=e.status, confidence=e.confidence,",
+      "replace": "            status=MemoryStatus.ACTIVE, confidence=e.confidence,",
+      "rationale": "a caller that asked for non-current results receives one without the reason it is not current -- the label that keeps a hit in its place stops varying"
+    },
+    {
+      "name": "MR3_recall_is_not_deterministic",
+      "path": "qta_agent/memory.py",
+      "find": "        scored.sort(key=lambda t: (-t[0], t[1]))",
+      "replace": "        scored.sort(key=lambda t: -t[0])",
+      "rationale": "two readers of the same log return different orders, so an audit of a run depends on which process ran it"
+    },
+    {
+      "name": "MR4_recall_k_is_unbounded",
+      "path": "qta_agent/memory.py",
+      "find": "        if k > MAX_RECALL:",
+      "replace": "        if False:",
+      "rationale": "the caller's context window becomes somebody else's decision"
+    },
+    {
+      "name": "MR5_an_empty_query_matches_everything",
+      "path": "qta_agent/memory.py",
+      "find": "        terms = _terms(query)\n        if not terms:\n            return ()",
+      "replace": "        terms = _terms(query)\n        if False:\n            return ()",
+      "rationale": "asking nothing returns nothing is the safe answer; the alternative hands a caller the whole store on a typo"
+    },
+    {
+      "name": "MR6_the_total_bound_is_not_enforced",
+      "path": "qta_agent/memory.py",
+      "find": "        self._check_total(memory_id, text)",
+      "replace": "        pass",
+      "rationale": "the per-entry bound alone permits a million small writes, which is a replay-time memory bomb assembled from acceptable pieces"
+    },
+    {
+      "name": "MR7_the_total_bound_counts_dead_entries_too",
+      "path": "qta_agent/memory.py",
+      "find": "        return sum(len(e.text.encode(\"utf-8\"))\n                   for e in self._entries.values() if e.is_current)",
+      "replace": "        return sum(len(e.text.encode(\"utf-8\"))\n                   for e in self._entries.values())",
+      "rationale": "retracting stops freeing the bound, so the only way to keep writing is to lose history -- which is the one thing a log exists to prevent"
+    },
+    {
+      "name": "MR8_the_evidence_label_becomes_a_settable_field",
+      "path": "qta_agent/memory.py",
+      "find": "    evidence_status = \"REMEMBERED_TEXT_NOT_EVIDENCE\"",
+      "replace": "    evidence_status: str = \"REMEMBERED_TEXT_NOT_EVIDENCE\"",
+      "rationale": "a status a caller can choose is a label rather than a property; a construction path could then mint a hit that claims to be evidence"
     }
   ]
 }

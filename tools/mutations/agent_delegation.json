@@ -1,0 +1,154 @@
+{
+  "title": "Who may mint a capability, and what a delegation may not widen",
+  "note": "Every mutation here removes one link in the chain between 'this actor wrote a record' and 'this actor had the authority to'. The ledger recorded the first for a long time and refused to check the second, which is attribution rather than authorization -- so these are the checks that turned issuer_of() from a label into a gate.",
+  "suites": ["tests/test_agent_delegation.py"],
+  "mutations": [
+    {
+      "name": "D1_any_actor_may_mint_once_a_root_exists",
+      "path": "qta_agent/capability.py",
+      "find": "        if ev.actor != self._root:\n            raise NotTheIssuer(",
+      "replace": "        if False:\n            raise NotTheIssuer(",
+      "rationale": "the original defect restored: anyone who can append to the log can grant themselves anything"
+    },
+    {
+      "name": "D2_a_grant_with_no_root_behind_it_is_accepted",
+      "path": "qta_agent/capability.py",
+      "find": "        if self._root is None:\n            raise NotTheIssuer(\n                f\"seq {ev.seq}: capability {cap.capability_id!r} is the \"",
+      "replace": "        if False:\n            raise NotTheIssuer(\n                f\"seq {ev.seq}: capability {cap.capability_id!r} is the \"",
+      "rationale": "a hand-written log that skips the root event mints freely, and skipping it is the cheapest attack there is"
+    },
+    {
+      "name": "D3_a_root_record_may_anoint_a_third_party",
+      "path": "qta_agent/capability.py",
+      "find": "            if issuer != ev.actor:",
+      "replace": "            if issuer != ev.actor and False:",
+      "rationale": "the first writer's real power becomes handing minting authority to anybody, which is the same authority with a step in front of it"
+    },
+    {
+      "name": "D4_a_second_root_replaces_the_first",
+      "path": "qta_agent/capability.py",
+      "find": "            if self._root is not None and self._root != issuer:",
+      "replace": "            if False:",
+      "rationale": "a log with two roots has no root; every grant is mintable by whichever one the reader last folded"
+    },
+    {
+      "name": "D5_a_delegation_may_come_from_someone_who_does_not_hold_it",
+      "path": "qta_agent/capability.py",
+      "find": "            if ev.actor != parent.subject:\n                raise NotTheIssuer(",
+      "replace": "            if False:\n                raise NotTheIssuer(",
+      "rationale": "minting, wearing a chain for cover: parent_id becomes a field an attacker fills in rather than authority they hold"
+    },
+    {
+      "name": "D6_a_delegation_is_not_checked_for_attenuation_at_load",
+      "path": "qta_agent/capability.py",
+      "find": "            why = cap.attenuation_of(parent)\n            if why:\n                raise BadDelegation(f\"seq {ev.seq}: {why}\")",
+      "replace": "            why = cap.attenuation_of(parent)\n            if False:\n                raise BadDelegation(f\"seq {ev.seq}: {why}\")",
+      "rationale": "delegate() checks the writer's path and attackers do not use it; without the reader's check a widening delegation is authority every projection agrees on"
+    },
+    {
+      "name": "D7_a_delegation_may_widen_the_scope",
+      "path": "qta_agent/capability.py",
+      "find": "        outside = [p for p in self.scope if not parent.covers_path(p)]\n        if outside:",
+      "replace": "        outside = [p for p in self.scope if not parent.covers_path(p)]\n        if False:",
+      "rationale": "a child hands out paths its parent was never given"
+    },
+    {
+      "name": "D8_a_delegation_may_outlive_its_parent",
+      "path": "qta_agent/capability.py",
+      "find": "        if parent.expires_after_seq != NEVER_EXPIRES:\n            if (self.expires_after_seq == NEVER_EXPIRES\n                    or self.expires_after_seq > parent.expires_after_seq):",
+      "replace": "        if parent.expires_after_seq != NEVER_EXPIRES:\n            if False:",
+      "rationale": "authority survives its own source, so expiring a grant no longer expires what was delegated from it"
+    },
+    {
+      "name": "D9_a_delegation_may_change_the_action",
+      "path": "qta_agent/capability.py",
+      "find": "        if self.action is not parent.action:",
+      "replace": "        if False:",
+      "rationale": "a READ grant becomes a WRITE grant one delegation later; attenuation would be translation"
+    },
+    {
+      "name": "D10_a_delegation_may_change_the_task",
+      "path": "qta_agent/capability.py",
+      "find": "        if self.task_id != parent.task_id:\n            return (f\"delegation is for task {self.task_id!r} from a parent \"",
+      "replace": "        if False:\n            return (f\"delegation is for task {self.task_id!r} from a parent \"",
+      "rationale": "task confinement is the boundary a component tricked into acting for another task falls closed on"
+    },
+    {
+      "name": "D11_a_revoked_parent_does_not_revoke_its_children",
+      "path": "qta_agent/capability.py",
+      "find": "            if parent_id in self.revoked:\n                raise CapabilityRevoked(",
+      "replace": "            if parent_id in ():\n                raise CapabilityRevoked(",
+      "rationale": "revocation stops at one node and the delegate keeps authority its source lost -- the exact state revocation exists to prevent, and invisible because the leaf is untouched"
+    },
+    {
+      "name": "D12_an_expired_parent_does_not_expire_its_children",
+      "path": "qta_agent/capability.py",
+      "find": "            if (parent.expires_after_seq != NEVER_EXPIRES\n                    and self.at_seq > parent.expires_after_seq):",
+      "replace": "            if False:",
+      "rationale": "the same defect through the other end of the window"
+    },
+    {
+      "name": "D13_a_missing_parent_is_treated_as_no_parent",
+      "path": "qta_agent/capability.py",
+      "find": "            parent = self.issued.get(parent_id)\n            if parent is None:\n                raise CapabilityUnknown(",
+      "replace": "            parent = self.issued.get(parent_id)\n            if parent is None and False:\n                raise CapabilityUnknown(",
+      "rationale": "a CapabilitySet assembled without the parent authorizes the child, so trimming the set is how you strip a chain"
+    },
+    {
+      "name": "D14_the_chain_is_not_walked_at_all",
+      "path": "qta_agent/capability.py",
+      "find": "        self._check_chain(cap)\n        return cap",
+      "replace": "        return cap",
+      "rationale": "attenuation verified once at mint time says nothing about revocation and expiry, which happen afterwards by definition"
+    },
+    {
+      "name": "D15_a_delegation_cycle_is_walked_instead_of_refused",
+      "path": "qta_agent/capability.py",
+      "find": "            if parent_id in seen:",
+      "replace": "            if False:",
+      "rationale": "authority that derives from itself derives from nothing, and the depth bound is a stop rather than an answer"
+    },
+    {
+      "name": "D16_parent_id_is_not_part_of_the_body",
+      "path": "qta_agent/capability.py",
+      "find": "            \"expires_after_seq\": self.expires_after_seq,\n            \"parent_id\": self.parent_id,",
+      "replace": "            \"expires_after_seq\": self.expires_after_seq,",
+      "rationale": "a delegation can be re-parented under a wider grant without changing the digest anything cites"
+    },
+    {
+      "name": "D17_a_capability_may_be_its_own_parent",
+      "path": "qta_agent/capability.py",
+      "find": "    if parent_id == capability_id:",
+      "replace": "    if False:",
+      "rationale": "self-derived authority, caught at construction rather than left for the chain walk"
+    },
+    {
+      "name": "D18_the_second_reader_stops_checking_who_minted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    elif ev.actor != out.root_issuer:\n        _note(out, ev, f\"{ev.actor!r} minted {cid!r}; the root issuer is \"",
+      "replace": "    elif False:\n        _note(out, ev, f\"{ev.actor!r} minted {cid!r}; the root issuer is \"",
+      "rationale": "the independent reader agrees with a forged grant, so a divergence report says the two projections match"
+    },
+    {
+      "name": "D19_the_second_reader_stops_checking_attenuation",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        why = _sub_attenuates(cap, parent)\n        if why:",
+      "replace": "        why = _sub_attenuates(cap, parent)\n        if False:",
+      "rationale": "a widening delegation is recorded by both readers, which is agreement rather than correctness"
+    },
+    {
+      "name": "D20_the_second_readers_prefix_test_is_a_string_test",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        a = tuple(x for x in allowed.split(\"/\") if x)\n        if a and target[:len(a)] == a:",
+      "replace": "        if rel.startswith(allowed):",
+      "rationale": "verification/stage10x is not under verification/stage10, and a string prefix test grants it -- restated here so a mistake in capability.py is visible rather than shared"
+    },
+    {
+      "name": "D21_anointing_is_not_recorded_before_the_first_grant",
+      "path": "qta_agent/capability.py",
+      "find": "        if self._root is None:\n            # TRUST ON FIRST USE, WRITTEN DOWN.",
+      "replace": "        if False:\n            # TRUST ON FIRST USE, WRITTEN DOWN.",
+      "rationale": "the writer stops establishing a root, so the very first honest mint is refused by its own reader: the rule must be enforceable without the caller remembering it"
+    }
+  ]
+}

@@ -22,7 +22,8 @@ from qta_agent.agents import (  # noqa: E402
     ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
     AgentError, AgentRole,
     ConflictError, ConflictRule, EscalationError, EscalationState,
-    IdentityError, INCOMPATIBLE, MessageError, PrincipalKind,
+    IdentityError, INCOMPATIBLE, MessageError, Notifier, PrincipalKind,
+    RecordingNotifier, StreamNotifier,
     check_separation, identity, identity_from_record,
 )
 from qta_agent.canonical import digest  # noqa: E402
@@ -957,3 +958,122 @@ def test_the_registrar_is_derived_when_the_record_names_nobody(dir_,
     assert reloaded.get("x9").registered_by == "p1", (
         "who admitted this principal was left empty rather than taken from "
         "the actor that appended the record")
+
+
+# ==========================================================================
+# ESCALATION DELIVERY
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "no notification channel -- an open escalation is visible by query,
+#      not delivered"
+#
+# For a thing that blocks work until a person acts, "visible to whoever runs
+# the query" means it is not raised, it is filed. The difference matters
+# most in exactly the case escalation exists for: nobody is looking.
+# ==========================================================================
+
+class _Exploding(Notifier):
+    def escalation_raised(self, escalation):
+        raise RuntimeError("the pager is on fire")
+
+
+class _Meddling(Notifier):
+    """A sink that tries to do more than deliver."""
+
+    def __init__(self, directory):
+        self.directory = directory
+
+    def escalation_raised(self, escalation):
+        self.directory.answer(escalation_id=escalation.escalation_id,
+                              answered_by="the-sink", answer="yes",
+                              reason="I decided")
+
+
+def _dir_with_notifier(tmp_path, notifier):
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log, notifier=notifier).load()
+    d.register(identity(agent_id="a1", instance_id="a1-1",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.PROPOSER}), by="system")
+    return d
+
+
+def test_raising_an_escalation_delivers_it(tmp_path):
+    sink = RecordingNotifier()
+    d = _dir_with_notifier(tmp_path, sink)
+
+    d.escalate(escalation_id="e1", task_id="t1", raised_by="a1-1",
+               question="compensate or accept?",
+               options=("COMPENSATE", "ACCEPT"))
+
+    assert [e.escalation_id for e in sink.delivered] == ["e1"]
+    assert sink.delivered[0].question == "compensate or accept?"
+
+
+def test_a_sink_that_raises_does_not_cost_the_escalation(tmp_path):
+    """Losing the record to save the notification is backwards.
+
+    The escalation is durable before the sink is called, so nothing the sink
+    does can undo it. The failure is recorded, because "nobody was told"
+    is a question an operator needs answered.
+    """
+    d = _dir_with_notifier(tmp_path, _Exploding())
+
+    esc = d.escalate(escalation_id="e1", task_id="t1", raised_by="a1-1",
+                     question="compensate or accept?",
+                     options=("COMPENSATE", "ACCEPT"))
+
+    assert esc.escalation_id == "e1"
+    assert d.open_escalations(task_id="t1")[0].escalation_id == "e1"
+    assert d.undelivered() == (("e1", repr(RuntimeError(
+        "the pager is on fire"))),) or d.undelivered()[0][0] == "e1"
+    # And it survives a reload: the log has it, whatever the sink did.
+    assert AgentDirectory(d.log).load().open_escalations(task_id="t1")
+
+
+def test_a_directory_without_a_notifier_still_works(tmp_path):
+    """Delivery is a seam, not a requirement. A caller that files only gets
+    exactly the old behaviour."""
+    d = _dir_with_notifier(tmp_path, None)
+    d.escalate(escalation_id="e1", task_id="t1", raised_by="a1-1",
+               question="q?", options=("a", "b"))
+    assert d.open_escalations(task_id="t1")
+    assert d.undelivered() == ()
+
+
+def test_a_sink_cannot_answer_the_escalation_it_is_handed(tmp_path):
+    """A delivery channel that can answer is a channel that can decide.
+
+    The kind check is what stops it: the sink is not a HUMAN principal, and
+    an escalation exists precisely because the decision was not the
+    software's to make. The attempt is swallowed as a delivery failure, and
+    the escalation stays OPEN.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.notifier = _Meddling(d)
+    d.register(identity(agent_id="a1", instance_id="a1-1",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.PROPOSER}), by="system")
+
+    esc = d.escalate(escalation_id="e1", task_id="t1", raised_by="a1-1",
+                     question="q?", options=("a", "b"))
+
+    assert esc.state is EscalationState.OPEN
+    assert d.escalation("e1").state is EscalationState.OPEN
+    assert d.undelivered() and d.undelivered()[0][0] == "e1"
+
+
+def test_the_stream_notifier_writes_something_an_operator_can_see(tmp_path):
+    import io
+    buf = io.StringIO()
+    d = _dir_with_notifier(tmp_path, StreamNotifier(buf))
+    d.escalate(escalation_id="e1", task_id="t1", raised_by="a1-1",
+               question="compensate or accept?",
+               options=("COMPENSATE", "ACCEPT"))
+
+    line = buf.getvalue()
+    for expected in ("ESCALATION", "e1", "t1", "compensate or accept?",
+                     "COMPENSATE", "a1-1"):
+        assert expected in line, f"{expected!r} missing from {line!r}"

@@ -32,6 +32,25 @@ Become evidence. Satisfy a gate. Stand in for a verification. Assert its own
 confidence into a decision. Override a policy. Those are refused, and each
 refusal has a test named after the attack rather than after the method.
 
+RETRIEVABLE MEMORY KEEPS ITS LOWER AUTHORITY
+
+Memory that cannot be searched is memory nobody uses, so :meth:`recall`
+exists. What it deliberately does NOT do is put memory into the document
+index: the corpus there is an allowlisted set of governed documents, and
+letting an agent's own notes join it would mean an agent could write text
+into the corpus it is later handed back with the retrieval layer's
+provenance on it. That is the attack the corpus allowlist exists to stop, and
+routing memory around it through a shared index would reopen it one import
+away.
+
+So recall is a SEPARATE surface over a separate store, and every hit carries
+the two facts that keep it in its place: ``evidence_status``, which never
+varies, and ``status``, which is the system's view rather than the author's.
+Non-current entries are excluded unless a caller asks for them by name, and
+when included they arrive carrying the status that says why they are not
+current. A retrieval that quietly returned a RETRACTED entry would undo the
+retraction for every reader who searched instead of listing.
+
 STATUS IS NOT CONFIDENCE
 
 ``confidence`` is the author's own estimate and is treated as commentary --
@@ -43,6 +62,7 @@ asking the agent about itself.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from enum import Enum
 
@@ -54,6 +74,21 @@ ACT_MEMORY_STATUS = "memory.status"
 #: An entry longer than this is refused. Memory that nobody can read is not
 #: memory, and an unbounded entry is a replay-time memory bomb.
 MAX_ENTRY_BYTES = 16 * 1024
+
+#: And a bound across ALL entries. The per-entry bound alone stops one large
+#: write and permits a million small ones, which reaches the same place more
+#: slowly: every reader of the log rebuilds the whole store in memory, so an
+#: unbounded total is a replay-time bomb assembled from acceptable pieces.
+#:
+#: Counted over LIVE text only -- retracted and superseded entries keep their
+#: bytes in the log, and must, because the history is the point. What this
+#: bounds is what a projection holds and what a recall has to search.
+MAX_TOTAL_BYTES = 4 * 1024 * 1024
+
+#: How many hits :meth:`MemoryStore.recall` will return at most. Bounded for
+#: the same reason retrieval's k is: an unbounded result set is a way to make
+#: any caller's context window somebody else's decision.
+MAX_RECALL = 50
 
 
 class MemoryError_(Exception):
@@ -267,6 +302,79 @@ class MemoryStore:
         return True
 
     # ---- reads ---------------------------------------------------------
+    def live_bytes(self) -> int:
+        """Bytes of text a projection is holding right now.
+
+        Live only: a retracted or superseded entry keeps its bytes in the log
+        and must, because the history is the point. What this measures is
+        what a reader has to hold and what a recall has to search.
+        """
+        return sum(len(e.text.encode("utf-8"))
+                   for e in self._entries.values() if e.is_current)
+
+    def _check_total(self, memory_id: str, text: str) -> None:
+        """Refuse a write that would put the live store over its bound."""
+        would_be = self.live_bytes() + len(text.encode("utf-8"))
+        if would_be > MAX_TOTAL_BYTES:
+            raise MemoryTooLarge(
+                f"writing {memory_id!r} would put live memory at "
+                f"{would_be} bytes, over the {MAX_TOTAL_BYTES} bound. The "
+                "per-entry bound stops one large write and permits a million "
+                "small ones, which reaches the same place more slowly: every "
+                "reader rebuilds this store in memory. Retract or supersede "
+                "what is no longer current -- both free the bound, and "
+                "neither loses the history")
+
+    def recall(self, query: str, *, k: int = 5,
+               include_non_current: bool = False) -> tuple:
+        """Search memory. Returns :class:`MemoryHit`, never entries.
+
+        A HIT rather than an entry on purpose. An entry is the record; a hit
+        is a search result, and the difference is that a hit carries the two
+        labels that stop it drifting into authority -- ``evidence_status``,
+        which never varies, and ``status``, which is the system's view of
+        whether the entry is still current at all.
+
+        Non-current entries are excluded by default. A retrieval that quietly
+        returned a RETRACTED entry would undo the retraction for everybody
+        who searched instead of listing, which is a way of un-withdrawing a
+        statement without an event saying so. Asking for them is possible and
+        is a deliberate act, and they arrive carrying the status that says
+        why they are not current.
+
+        Ranking is term overlap, tie-broken by ``memory_id`` so two readers
+        of the same log return the same order. This is a small store and a
+        cheap ranker; nothing here pretends to be a search engine.
+        """
+        if not isinstance(k, int) or isinstance(k, bool) or k < 1:
+            raise MemoryError_(f"k must be an int >= 1, got {k!r}")
+        if k > MAX_RECALL:
+            raise MemoryError_(
+                f"k={k} is over the {MAX_RECALL} bound; an unbounded result "
+                "set makes the caller's context window somebody else's "
+                "decision")
+        terms = _terms(query)
+        if not terms:
+            return ()
+        scored = []
+        for e in self._entries.values():
+            if not e.is_current and not include_non_current:
+                continue
+            body = _terms(e.text)
+            matched = terms & body
+            if not matched:
+                continue
+            scored.append((len(matched), e.memory_id, e))
+        # Descending by match count, ascending by id. The id break is what
+        # makes this deterministic, which is what makes two readers of the
+        # same log return the same order.
+        scored.sort(key=lambda t: (-t[0], t[1]))
+        return tuple(MemoryHit(
+            memory_id=e.memory_id, text=e.text, author=e.author,
+            status=e.status, confidence=e.confidence,
+            derived_from=e.derived_from, score=n)
+            for n, _mid, e in scored[:k])
+
     def get(self, memory_id: str) -> MemoryEntry:
         try:
             return self._entries[memory_id]
@@ -298,6 +406,7 @@ class MemoryStore:
         if len(text.encode("utf-8")) > MAX_ENTRY_BYTES:
             raise MemoryError_(
                 f"memory entry is over the {MAX_ENTRY_BYTES}-byte bound")
+        self._check_total(memory_id, text)
         if memory_id in self._entries:
             raise MemoryError_(f"memory {memory_id!r} already exists")
         derived_from = tuple(dict.fromkeys(derived_from))
@@ -410,8 +519,54 @@ class MemoryStore:
 
 
 # ---- the boundary, as a callable refusal --------------------------------
+class MemoryTooLarge(MemoryError_):
+    """The live store would exceed its total bound."""
+
+
 class MemoryIsNotEvidence(MemoryError_):
     """Something tried to use a remembered statement as evidence."""
+
+
+@dataclass(frozen=True)
+class MemoryHit:
+    """One search result. NOT an entry, and deliberately a different type.
+
+    Two labels travel with every hit and neither is optional:
+
+    * ``evidence_status`` never varies. It is a class attribute rather than a
+      field so that no construction path can set it to anything else -- a
+      "status" a caller can choose is a label, not a property.
+    * ``status`` is the system's view of the entry, so a caller that asked
+      for non-current results cannot receive one without also receiving the
+      reason it is not current.
+
+    A hit has no ``digest``. Entries have one and it deliberately does not
+    resolve in the evidence store; a hit does not offer the field at all, so
+    passing one where evidence is expected fails at the attribute rather than
+    three layers later.
+    """
+
+    #: Fixed for every hit, forever. Not a field: not settable.
+    evidence_status = "REMEMBERED_TEXT_NOT_EVIDENCE"
+
+    memory_id: str
+    text: str
+    author: str
+    status: MemoryStatus
+    confidence: str
+    derived_from: tuple
+    #: How many distinct query terms this entry matched.
+    score: int
+
+    @property
+    def is_current(self) -> bool:
+        return self.status is MemoryStatus.ACTIVE
+
+
+def _terms(text: str) -> set:
+    """Lowercased word tokens. Deliberately trivial and deterministic."""
+    return {w for w in re.findall(r"[a-z0-9_]+", str(text).lower())
+            if len(w) > 1}
 
 
 def refuse_as_evidence(entry: MemoryEntry) -> None:

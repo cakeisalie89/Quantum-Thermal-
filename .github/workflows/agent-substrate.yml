@@ -188,6 +188,31 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_actions.json
+      - name: mutation matrix -- capability issuer and delegation
+        # Who may MINT a grant, and what a delegation may not widen. The
+        # ledger recorded who did for a long time and refused to check who
+        # may, which is attribution rather than authorization.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_delegation.json
+      - name: mutation matrix -- lease renewal
+        # Renewal extends possession and must never re-acquire it: a lapsed
+        # lease may already have been reconciled away and the work given to
+        # somebody else.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_lease_renewal.json
+      - name: mutation matrix -- corpus membership
+        # Every guard on a corpus path protected its shape; none protected
+        # the set, so writing a file into the tree made it governed text.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/corpus_allowlist.json
+      - name: the corpus allowlist describes the committed corpus
+        # Adding a governed document without regenerating the allowlist is a
+        # membership change nobody reviewed. This is where that fails.
+        run: |
+          uv run python tools/corpus_allowlist.py
       - name: fuzz the parsers and trust boundaries
         # Two jobs: replay every committed regression input, then run a
         # bounded seeded campaign. A finding fails the build. The campaign is

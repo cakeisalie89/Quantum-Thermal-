@@ -31,6 +31,38 @@ that was never issued does not appear in the log, and
 :meth:`CapabilitySet.check` refuses it. Treating the digest as a bearer token
 would be a mistake, and :func:`check` never does.
 
+WHO MAY ISSUE, AND WHAT A DELEGATION MAY NOT WIDEN
+
+For a long time this module answered "who granted this" and refused to answer
+"who may grant". :meth:`CapabilityLedger.issuer_of` recorded the actor and
+:meth:`CapabilitySet.check` deliberately did not consult it, which is
+attribution rather than authorization -- and it meant any actor able to append
+to the log could mint itself any grant it liked.
+
+Two things close that, and one thing bounds it:
+
+*The root issuer is explicit and unique.* The first grant on a log also
+appends a :data:`ACT_ROOT` record naming its actor. From that position on,
+:meth:`apply` REFUSES an issue record from any other actor -- at load time, in
+both the ledger and any independent reconstruction, so a forged grant is a
+verification failure rather than authority somebody cites.
+
+*Authority flows downward only.* A subject holding a grant may
+:meth:`CapabilityLedger.delegate` a WEAKER one to somebody else. Weaker is
+checked, not asserted: same action, same task, same tool, scope a subset of
+the parent's, expiry no later than the parent's. A delegation that widens any
+of those is refused, and a delegation of a grant the actor does not hold is
+refused before that. :meth:`CapabilitySet.check` then walks the chain, so a
+revoked or expired parent takes its whole subtree with it -- revocation that
+stopped at one node would leave the delegate holding authority its source no
+longer has.
+
+*The root itself is asserted, not authenticated.* Whoever writes first is the
+root. Nothing in this repository can do better, because nothing here can prove
+an actor is who it says it is; that needs an identity authority this build
+deliberately does not contain. What the root DOES buy is that after it exists,
+the set of actors who may mint is one, and every other attempt fails closed.
+
 EXPIRY IS IN SEQUENCE NUMBERS, NOT WALL TIME
 
 The log is ordered by ``seq`` and wall clocks move backwards. A capability that
@@ -73,6 +105,19 @@ class CapabilityNotYetIssued(CapabilityDenied):
     """
 
 
+class NotTheIssuer(CapabilityError):
+    """An actor that is not the root issuer tried to mint a grant.
+
+    Not a :class:`CapabilityDenied`: nobody was refused the USE of a grant.
+    A grant was refused existence, which is a different failure and belongs
+    at load time rather than at check time.
+    """
+
+
+class BadDelegation(CapabilityError):
+    """A delegation would widen the authority it derives from."""
+
+
 class CapabilityUnknown(CapabilityDenied):
     """No such grant was ever issued."""
 
@@ -102,6 +147,14 @@ NEVER_EXPIRES = -1
 #: unread action.
 ACT_ISSUE = "capability.issue"
 ACT_REVOKE = "capability.revoke"
+#: Establishes the one actor permitted to mint grants on this log. Appended
+#: exactly once, alongside the first grant.
+ACT_ROOT = "capability.root"
+
+#: How deep a delegation chain may go. A bound, not a policy: chain walking is
+#: linear in depth on every check, and an unbounded chain is a denial of
+#: service that a delegate can create for everyone else.
+MAX_DELEGATION_DEPTH = 8
 
 
 def _normalise_scope(paths) -> tuple:
@@ -161,6 +214,10 @@ class Capability:
     issued_seq: int
     #: Last seq at which this is valid, or NEVER_EXPIRES.
     expires_after_seq: int
+    #: The grant this was attenuated from, or "" for a root-issued grant.
+    #: Part of body(), so a delegation cannot be re-parented without becoming
+    #: a different capability.
+    parent_id: str = ""
     #: Recorded for humans. Never consulted for a decision.
     issued_wall_time: float = 0.0
 
@@ -174,6 +231,7 @@ class Capability:
             "scope": list(self.scope),
             "issued_seq": self.issued_seq,
             "expires_after_seq": self.expires_after_seq,
+            "parent_id": self.parent_id,
         }
 
     def digest(self) -> str:
@@ -198,6 +256,47 @@ class Capability:
             if target == a or a in target.parents:
                 return True
         return False
+
+    def attenuation_of(self, parent: "Capability") -> str:
+        """"" if this is no wider than ``parent``, else why it is wider.
+
+        Returns a REASON rather than a bool because every caller of this
+        reports the failure, and a bool would make each of them invent its
+        own description of a rule that lives here.
+
+        Scope containment is by prefix coverage rather than set membership:
+        a child may narrow ``a/`` to ``a/b/``, which is not a subset of the
+        parent's literal prefixes but is entirely inside what they cover.
+        """
+        if self.action is not parent.action:
+            return (f"delegation grants {self.action.value} from a parent "
+                    f"that grants {parent.action.value}; a delegation "
+                    "attenuates authority, it does not translate it")
+        if self.task_id != parent.task_id:
+            return (f"delegation is for task {self.task_id!r} from a parent "
+                    f"confined to {parent.task_id!r}; task confinement is the "
+                    "boundary a delegation must not cross")
+        if self.tool_id != parent.tool_id:
+            return (f"delegation names tool {self.tool_id!r} and its parent "
+                    f"names {parent.tool_id!r}")
+        outside = [p for p in self.scope if not parent.covers_path(p)]
+        if outside:
+            return (f"delegation covers {sorted(outside)}, which its parent's "
+                    f"scope {list(parent.scope)} does not; a child cannot "
+                    "hand out what its parent was never given")
+        if parent.expires_after_seq != NEVER_EXPIRES:
+            if (self.expires_after_seq == NEVER_EXPIRES
+                    or self.expires_after_seq > parent.expires_after_seq):
+                return (f"delegation expires after seq "
+                        f"{self.expires_after_seq} and its parent expires "
+                        f"after {parent.expires_after_seq}; a child that "
+                        "outlives its parent is authority that survives its "
+                        "own source")
+        if self.issued_seq < parent.issued_seq:
+            return (f"delegation is issued at seq {self.issued_seq}, before "
+                    f"its parent at {parent.issued_seq}; a grant cannot "
+                    "derive from authority that did not exist yet")
+        return ""
 
 
 @dataclass(frozen=True)
@@ -291,12 +390,73 @@ class CapabilitySet:
                 f"capability {cap_id!r} does not cover {sorted(outside)}; its "
                 f"scope is {list(cap.scope)}. A grant is never widened by the "
                 "request that needs it to be.")
+        self._check_chain(cap)
         return cap
+
+    def _check_chain(self, cap: Capability) -> None:
+        """Every ancestor must still be live at ``at_seq``.
+
+        Attenuation is verified once, when the delegation is recorded, and
+        again by every reader that folds the log. What CANNOT be settled then
+        is whether the parent is still in force NOW: revocation and expiry
+        happen after issuance, by definition.
+
+        So revoking a grant revokes its subtree. The alternative -- checking
+        only the leaf -- would leave a delegate holding authority its source
+        no longer has, which is precisely the state revocation exists to
+        prevent, and it would be invisible because the leaf itself is
+        untouched.
+        """
+        seen = {cap.capability_id}
+        current = cap
+        # MAX + 1 passes, not MAX. A chain of exactly MAX links needs MAX
+        # passes to follow them and one more to SEE the root's empty
+        # parent_id and return. Bounding the walk at MAX made the reader
+        # stricter than the writer, so delegate() would happily mint a
+        # legitimate grant at the limit that no check would ever accept --
+        # authority that exists and cannot be used.
+        for _ in range(MAX_DELEGATION_DEPTH + 1):
+            parent_id = current.parent_id
+            if not parent_id:
+                return
+            if parent_id in seen:
+                # Not reachable through delegate(), which refuses to create
+                # one. Reachable through a hand-written log, which is exactly
+                # what a check is for: a cycle would otherwise spin here
+                # until the depth bound, and a bound is not an answer.
+                raise CapabilityDenied(
+                    f"capability {cap.capability_id!r} sits on a delegation "
+                    f"cycle through {parent_id!r}; authority that derives "
+                    "from itself derives from nothing")
+            seen.add(parent_id)
+            parent = self.issued.get(parent_id)
+            if parent is None:
+                raise CapabilityUnknown(
+                    f"capability {current.capability_id!r} was delegated from "
+                    f"{parent_id!r}, which this log never issued; a chain "
+                    "with a missing link grants nothing")
+            if parent_id in self.revoked:
+                raise CapabilityRevoked(
+                    f"capability {cap.capability_id!r} derives from "
+                    f"{parent_id!r}, which was revoked; revoking a grant "
+                    "revokes what was delegated from it, or revocation would "
+                    "leave the delegate holding what its source lost")
+            if (parent.expires_after_seq != NEVER_EXPIRES
+                    and self.at_seq > parent.expires_after_seq):
+                raise CapabilityExpired(
+                    f"capability {cap.capability_id!r} derives from "
+                    f"{parent_id!r}, which expired after seq "
+                    f"{parent.expires_after_seq}; the log is at {self.at_seq}")
+            current = parent
+        raise CapabilityDenied(
+            f"capability {cap.capability_id!r} sits deeper than "
+            f"{MAX_DELEGATION_DEPTH} delegations; the bound exists so that "
+            "one delegate cannot make every check expensive for everyone")
 
 
 def issue(*, capability_id: str, subject: str, action: Action, task_id: str,
           scope, issued_seq: int, tool_id: str = "",
-          expires_after_seq: int = NEVER_EXPIRES,
+          expires_after_seq: int = NEVER_EXPIRES, parent_id: str = "",
           issued_wall_time: float = 0.0) -> Capability:
     """Construct a grant, validating everything that cannot be fixed later."""
     if not capability_id or not isinstance(capability_id, str):
@@ -329,10 +489,17 @@ def issue(*, capability_id: str, subject: str, action: Action, task_id: str,
                 f"capability would expire at {expires_after_seq}, before it "
                 f"was issued at {issued_seq}; refusing to create a grant that "
                 "was never valid")
+    if parent_id is not None and not isinstance(parent_id, str):
+        raise CapabilityError(f"parent_id must be a str, got {parent_id!r}")
+    if parent_id == capability_id:
+        raise CapabilityError(
+            f"capability {capability_id!r} names itself as its parent; "
+            "authority that derives from itself derives from nothing")
     return Capability(
         capability_id=capability_id, subject=subject, action=action,
         task_id=task_id, tool_id=tool_id, scope=_normalise_scope(scope),
         issued_seq=issued_seq, expires_after_seq=expires_after_seq,
+        parent_id=parent_id or "",
         issued_wall_time=float(issued_wall_time))
 
 
@@ -356,6 +523,7 @@ def capability_from_record(rec: dict) -> Capability:
             tool_id=rec.get("tool_id", ""),
             scope=rec["scope"], issued_seq=rec["issued_seq"],
             expires_after_seq=rec.get("expires_after_seq", NEVER_EXPIRES),
+            parent_id=rec.get("parent_id", ""),
             issued_wall_time=rec.get("issued_wall_time", 0.0))
     except KeyError as exc:
         raise CapabilityError(f"capability record missing {exc}") from exc
@@ -395,7 +563,10 @@ class CapabilityLedger:
     def __init__(self, log):
         self.log = log
         self._issued: dict = {}
+        self._issued_by: dict = {}
         self._revoked: set = set()
+        self._root: str | None = None
+        self._root_seq = -1
         self._at_seq = -1
 
     # ---- projection ----------------------------------------------------
@@ -404,6 +575,8 @@ class CapabilityLedger:
         self._issued = {}
         self._issued_by = {}
         self._revoked = set()
+        self._root = None
+        self._root_seq = -1
         self._at_seq = -1
         for ev in self.log.read():
             self.apply(ev)
@@ -411,6 +584,31 @@ class CapabilityLedger:
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a capability event."""
+        if ev.action == ACT_ROOT:
+            issuer = ev.payload.get("issuer")
+            if not isinstance(issuer, str) or not issuer:
+                raise CapabilityError(
+                    f"seq {ev.seq}: root record names no issuer")
+            if issuer != ev.actor:
+                # The actor of the record is who wrote it. A record that
+                # anoints somebody ELSE is a third party assigning minting
+                # authority, which is the thing this event exists to stop
+                # being possible without a record of its own.
+                raise NotTheIssuer(
+                    f"seq {ev.seq}: {ev.actor!r} anointed {issuer!r} as root "
+                    "issuer. The root is the actor that establishes it; "
+                    "nominating a third party is a delegation, and "
+                    "delegations are capabilities, not roots")
+            if self._root is not None and self._root != issuer:
+                raise NotTheIssuer(
+                    f"seq {ev.seq}: {issuer!r} claims to be root issuer, but "
+                    f"{self._root!r} already is. A log with two roots has no "
+                    "root: every grant would be mintable by whichever one "
+                    "the reader happened to consult")
+            self._root = issuer
+            self._root_seq = ev.seq
+            self._at_seq = ev.seq
+            return True
         if ev.action == ACT_ISSUE:
             cap = capability_from_record(ev.payload)
             existing = self._issued.get(cap.capability_id)
@@ -438,6 +636,7 @@ class CapabilityLedger:
                     "force from where it appears in the log; one that names "
                     "its own start could be backdated over anything already "
                     "done.")
+            self._authorize_mint(ev, cap)
             self._issued[cap.capability_id] = cap
             # WHO granted it. Kept beside the grant rather than inside it,
             # because body() defines the capability's digest and its identity
@@ -456,7 +655,70 @@ class CapabilityLedger:
         self._at_seq = ev.seq
         return True
 
+    def _authorize_mint(self, ev, cap: Capability) -> None:
+        """May ``ev.actor`` bring ``cap`` into existence?
+
+        This is the check :meth:`issuer_of` deliberately was not. It runs at
+        LOAD time, in the projection every reader builds, so a forged grant
+        appended by an arbitrary actor is a verification failure rather than
+        authority somebody cites -- and an independent reconstruction reaches
+        the same verdict because it folds the same records through the same
+        rule.
+
+        Three cases, in order:
+
+        * no root yet -- this record establishes one, and the ledger's writer
+          appends the :data:`ACT_ROOT` event just before it. A log whose
+          first grant carries no root is a log written by something other
+          than this module, and it is refused.
+        * a delegation -- the actor must be the parent's subject, and the
+          child must be an attenuation. Verified here and not only at mint
+          time, because the mint-time path is code and this is the record.
+        * a root mint -- the actor must be the root.
+        """
+        if self._root is None:
+            raise NotTheIssuer(
+                f"seq {ev.seq}: capability {cap.capability_id!r} is the "
+                "first grant on this log and nothing established a root "
+                "issuer before it. Minting authority that answers to nobody "
+                "is the state this check exists to end")
+        if cap.parent_id:
+            parent = self._issued.get(cap.parent_id)
+            if parent is None:
+                raise BadDelegation(
+                    f"seq {ev.seq}: capability {cap.capability_id!r} is "
+                    f"delegated from {cap.parent_id!r}, which this log has "
+                    "not issued at this position")
+            if ev.actor != parent.subject:
+                raise NotTheIssuer(
+                    f"seq {ev.seq}: {ev.actor!r} delegated "
+                    f"{cap.parent_id!r}, which was granted to "
+                    f"{parent.subject!r}. Delegating a grant you do not hold "
+                    "is minting, wearing a chain for cover")
+            why = cap.attenuation_of(parent)
+            if why:
+                raise BadDelegation(f"seq {ev.seq}: {why}")
+            return
+        if ev.actor != self._root:
+            raise NotTheIssuer(
+                f"seq {ev.seq}: {ev.actor!r} minted capability "
+                f"{cap.capability_id!r}, and the root issuer on this log is "
+                f"{self._root!r}. An actor that is neither the root nor "
+                "holding the grant it delegates has no authority to create "
+                "one")
+
     # ---- reads ---------------------------------------------------------
+    def root_issuer(self) -> str | None:
+        """The one actor permitted to mint non-delegated grants, if set.
+
+        ``None`` on a log with no grants yet. Note what this is NOT: proof
+        that the named actor is who it says it is. Whoever wrote first is the
+        root, and nothing here can authenticate that -- see the module
+        docstring. What it buys is that after the root exists, minting is one
+        actor's, and every other attempt fails closed at load time.
+        """
+        return self._root
+
     def in_force(self, at_seq: int | None = None) -> CapabilitySet:
         """The set to check against, at a log position.
 
@@ -485,6 +747,24 @@ class CapabilityLedger:
         return tuple(sorted(self._revoked))
 
     # ---- writes --------------------------------------------------------
+    def anoint(self, *, actor: str) -> str:
+        """Record ``actor`` as this log's root issuer. Once, ever.
+
+        Idempotent for the same actor so a bootstrap that runs twice is not a
+        failure; a DIFFERENT actor is refused, because a log with two roots
+        has no root.
+        """
+        if self._root is not None:
+            if self._root != actor:
+                raise NotTheIssuer(
+                    f"{actor!r} cannot become root issuer: {self._root!r} "
+                    "already is, and minting authority is not shared")
+            return self._root
+        ev = self.log.append(actor=actor, action=ACT_ROOT, target=actor,
+                             payload={"issuer": actor})
+        self.apply(ev)
+        return actor
+
     def issue(self, cap: Capability, *, actor: str) -> Capability:
         """Record a grant. It does not exist until this returns."""
         if not isinstance(cap, Capability):
@@ -493,6 +773,13 @@ class CapabilityLedger:
             raise CapabilityError(
                 f"capability {cap.capability_id!r} already exists; reusing an "
                 "id would make two grants indistinguishable in the log")
+        if self._root is None:
+            # TRUST ON FIRST USE, WRITTEN DOWN. The first mint establishes
+            # the root, as its own event, before the grant. Doing it here
+            # rather than requiring a separate bootstrap call is what keeps
+            # the rule enforceable: a caller cannot forget to establish a
+            # root and leave the log in the state where anyone may mint.
+            self.anoint(actor=actor)
         # Stamped, not accepted: the position a grant starts at is the log's
         # to decide, and a caller that could choose it could backdate one.
         cap = replace(cap, issued_seq=self.log.verify().head_seq + 1)
@@ -501,6 +788,52 @@ class CapabilityLedger:
                              payload={"task_id": cap.task_id, **cap.body()})
         self.apply(ev)
         return self._issued[cap.capability_id]
+
+    def delegate(self, cap: Capability, *, parent_id: str,
+                 actor: str) -> Capability:
+        """Grant somebody a strictly weaker version of a grant you hold.
+
+        ``actor`` must be the parent's subject. That is the whole point: a
+        delegation is the holder passing on part of what it has, and an actor
+        delegating a grant belonging to somebody else is minting with a chain
+        for cover.
+
+        The attenuation rules live on :meth:`Capability.attenuation_of` and
+        are checked twice -- here, so the caller gets a useful error, and in
+        :meth:`_authorize_mint`, so a record written by anything else is
+        refused by every reader that folds the log.
+        """
+        if not isinstance(cap, Capability):
+            raise CapabilityError(f"expected a Capability, got {cap!r}")
+        parent = self._issued.get(parent_id)
+        if parent is None:
+            raise BadDelegation(
+                f"no capability {parent_id!r} to delegate from")
+        if parent_id in self._revoked:
+            raise CapabilityRevoked(
+                f"capability {parent_id!r} was revoked; a revoked grant "
+                "cannot be the source of a new one")
+        if actor != parent.subject:
+            raise NotTheIssuer(
+                f"{actor!r} cannot delegate {parent_id!r}, which was granted "
+                f"to {parent.subject!r}")
+        # Chain length of the CHILD, counted the same way check() walks it:
+        # one link per parent_id followed. A root-issued grant is length 0.
+        depth, walk = 1, parent
+        while walk.parent_id:
+            depth += 1
+            walk = self._issued[walk.parent_id]
+        if depth > MAX_DELEGATION_DEPTH:
+            raise BadDelegation(
+                f"delegating {parent_id!r} would make a chain {depth} deep, "
+                f"past the {MAX_DELEGATION_DEPTH} bound. The bound exists so "
+                "one delegate cannot make every check expensive for everyone")
+        cap = replace(cap, parent_id=parent_id,
+                      issued_seq=self.log.verify().head_seq + 1)
+        why = cap.attenuation_of(parent)
+        if why:
+            raise BadDelegation(why)
+        return self.issue(cap, actor=actor)
 
     def revoke(self, capability_id: str, *, actor: str,
                reason: str) -> None:

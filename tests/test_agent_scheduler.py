@@ -28,8 +28,8 @@ from qta_agent.policy import (  # noqa: E402
 from qta_agent.scheduler import (  # noqa: E402
     AGING_INTERVAL, BACKOFF_BASE_SEQS, CapacityError, DuplicateJob,
     FailureClass, Job, JobState, JobTransitionError, MAX_PRIORITY, RETRYABLE,
-    Scheduler, SchedulerError, TERMINAL, UnknownJob, backoff_for,
-    default_policy, job_from_record,
+    MAX_LEASE_RENEWALS, Scheduler, SchedulerError, TERMINAL, UnknownJob,
+    backoff_for, default_policy, job_from_record,
 )
 
 WORK = digest({"work": 1})
@@ -1536,3 +1536,179 @@ def test_a_raise_is_judged_by_the_policy_of_its_own_day(tmp_path):
                          policy_id="scheduler.default").load()
     assert reloaded.get("j1").priority == 1
     assert reloaded.policy.in_force("scheduler.default").version == 2
+
+
+# ==========================================================================
+# LEASE RENEWAL
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "no lease RENEWAL: a worker holding long work cannot extend, so a
+#      lease must be sized for the worst case rather than the common one"
+#
+# Sizing for the worst case is what made lapse useless: a worker with an
+# hour of work took an hour-long lease, and a worker that died in the first
+# minute held the job for fifty-nine more. Renewal is also the one change
+# that can make a lease stop meaning anything, so every test below is an
+# attempt to use it that way.
+# ==========================================================================
+
+def _leased(sched, *, lease_seqs=6, worker="w1", lease_id="L1"):
+    _enqueue(sched)
+    sched.reconcile()
+    return sched.dispatch(job_id="j1", worker=worker, lease_id=lease_id,
+                          lease_seqs=lease_seqs)
+
+
+def test_the_holder_can_extend_a_live_lease(sched):
+    job = _leased(sched)
+    before = job.lease_expires_after_seq
+
+    job = sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                            lease_seqs=50)
+
+    assert job.lease_expires_after_seq > before
+    assert job.lease_renewals == 1
+    assert job.state is JobState.DISPATCHED
+
+
+def test_a_renewal_replays_to_the_same_state(sched, tmp_path):
+    """The end is computed from the replay's position, so a second reader of
+    the same log has to reach the same number."""
+    job = _leased(sched)
+    job = sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                            lease_seqs=50)
+
+    revived = Scheduler(EventLog(tmp_path / "log.jsonl"),
+                        policy=PolicyStore(EventLog(tmp_path / "log.jsonl")
+                                           ).load(),
+                        policy_id="scheduler.default",
+                        capacity={"slots": 2}).load()
+    assert revived.get("j1").to_record() == job.to_record()
+
+
+def test_a_lapsed_lease_cannot_be_renewed(sched):
+    """THE rule renewal must not break.
+
+    By the time a lease has lapsed, reconcile may already have returned the
+    work to READY and given it to somebody else. Renewal extends possession;
+    it must never re-acquire it.
+    """
+    _leased(sched, lease_seqs=1)
+    for i in range(4):                       # move the log past the lease
+        sched.enqueue(job_id=f"filler-{i}", work_digest=OTHER_WORK,
+                      submitter="sub")
+
+    with pytest.raises(JobTransitionError) as exc:
+        sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                          lease_seqs=50)
+    assert "lapsed" in str(exc.value)
+    assert "not renewed, it is lost" in str(exc.value)
+
+
+def test_a_renewal_from_someone_else_is_refused(sched):
+    _leased(sched)
+    with pytest.raises(JobTransitionError) as exc:
+        sched.renew_lease(job_id="j1", worker="mallory", lease_id="L1",
+                          lease_seqs=50)
+    assert "held by" in str(exc.value)
+
+
+def test_a_renewal_citing_a_stale_lease_id_is_refused(sched):
+    """A worker back from the dead carries the old id.
+
+    It is the same NAME as the live holder -- that is what makes it
+    dangerous -- and the lease id is the only thing that tells the two
+    apart.
+    """
+    _leased(sched, lease_seqs=1)
+    for i in range(4):
+        sched.enqueue(job_id=f"filler-{i}", work_digest=OTHER_WORK,
+                      submitter="sub")
+    sched.reconcile()                        # j1 goes back to READY
+    sched.dispatch(job_id="j1", worker="w1", lease_id="L2", lease_seqs=20)
+
+    with pytest.raises(JobTransitionError) as exc:
+        sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                          lease_seqs=50)
+    assert "old id" in str(exc.value)
+
+
+def test_renewal_is_bounded(sched):
+    """Without a bound, a worker holds the job forever by asking often
+    enough, which is the same as having no lease."""
+    _leased(sched, lease_seqs=200)
+    for i in range(MAX_LEASE_RENEWALS):
+        sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                          lease_seqs=200)
+    assert sched.get("j1").lease_renewals == MAX_LEASE_RENEWALS
+
+    with pytest.raises(JobTransitionError) as exc:
+        sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                          lease_seqs=200)
+    assert "bound" in str(exc.value)
+
+
+def test_a_renewal_that_would_shorten_is_refused(sched):
+    _leased(sched, lease_seqs=500)
+    with pytest.raises(SchedulerError) as exc:
+        sched.renew_lease(job_id="j1", worker="w1", lease_id="L1",
+                          lease_seqs=1)
+    assert "would not extend" in str(exc.value)
+
+
+def test_the_record_does_not_get_to_name_its_own_expiry(sched):
+    """A forged renewal naming a huge expiry must not become one.
+
+    The payload carries a REQUEST. The replay decides what that means from
+    where it is standing, which is the same rule that stops a capability
+    naming its own issued_seq.
+    """
+    from qta_agent.scheduler import ACT_LEASE_RENEW
+    _leased(sched)
+    sched.log.append(actor="w1", action=ACT_LEASE_RENEW, target="j1",
+                     payload={"job_id": "j1", "lease_id": "L1",
+                              "lease_seqs": 40,
+                              "lease_expires_after_seq": 10 ** 9})
+    revived = sched.load()
+    assert revived.get("j1").lease_expires_after_seq < 10 ** 6
+
+
+def test_a_forged_renewal_by_a_non_holder_fails_on_replay(sched, tmp_path):
+    """The write path refuses it, so an attacker appends it directly."""
+    from qta_agent.scheduler import ACT_LEASE_RENEW
+    _leased(sched)
+    sched.log.append(actor="mallory", action=ACT_LEASE_RENEW, target="j1",
+                     payload={"job_id": "j1", "lease_id": "L1",
+                              "lease_seqs": 500})
+    with pytest.raises(JobTransitionError) as exc:
+        sched.load()
+    assert "mallory" in str(exc.value)
+
+
+def test_a_renewal_of_a_job_that_is_not_dispatched_is_refused(sched):
+    from qta_agent.scheduler import ACT_LEASE_RENEW
+    _enqueue(sched)
+    sched.reconcile()
+    sched.log.append(actor="w1", action=ACT_LEASE_RENEW, target="j1",
+                     payload={"job_id": "j1", "lease_id": "L1",
+                              "lease_seqs": 5})
+    with pytest.raises(JobTransitionError) as exc:
+        sched.load()
+    assert "only a DISPATCHED job" in str(exc.value)
+
+
+def test_a_requeued_job_starts_its_renewal_budget_again(sched):
+    """A count carried across dispatches would make one worker's extensions
+    limit the next worker's, for reasons belonging to a lease that no longer
+    exists."""
+    _leased(sched, lease_seqs=200)
+    sched.renew_lease(job_id="j1", worker="w1", lease_id="L1", lease_seqs=300)
+    assert sched.get("j1").lease_renewals == 1
+
+    sched.report(job_id="j1", worker="w1", failure=FailureClass.TIMEOUT,
+                 detail="slow")
+    job = sched.get("j1")
+    assert job.state is not JobState.DISPATCHED
+    assert job.lease_renewals == 0, (
+        "the renewal count survived the lease it belonged to")

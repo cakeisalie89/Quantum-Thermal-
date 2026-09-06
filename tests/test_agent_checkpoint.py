@@ -20,9 +20,10 @@ if ROOT not in sys.path:
 from qta_agent import checkpoint as cp_mod  # noqa: E402
 from qta_agent.authority import Role, State  # noqa: E402
 from qta_agent.canonical import digest  # noqa: E402
+from dataclasses import replace  # noqa: E402
 from qta_agent.checkpoint import (  # noqa: E402
     Checkpoint, CheckpointAheadOfLog, CheckpointCorrupt, CheckpointError,
-    CheckpointMismatch, CheckpointStore,
+    CheckpointMismatch, CheckpointStore, check_against, create,
 )
 from qta_agent.events import ChainBroken, EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
@@ -743,3 +744,185 @@ def test_a_checkpoint_describes_the_position_it_pins(tmp_path):
         EventLog(tmp_path / "log.jsonl"), checkpoints, blobs=evidence,
         evidence=evidence, require_checkpoint=True)
     assert restored.get("r1").state is store.get("r1").state
+
+
+# ==========================================================================
+# RETENTION, and appending while a checkpoint is being taken
+#
+# THE GAPS THESE CLOSE, stated as they were found:
+#
+#     "no cleanup or retention policy for old checkpoints"
+#     "concurrent checkpoint-while-appending is untested"
+#
+# Retention is the interesting half. "Keep the newest N" is the obvious
+# policy and it is unsafe here: the newest checkpoint is not necessarily a
+# usable one, so counting backwards can delete the only point recovery could
+# start from while carefully preserving several that are useless.
+# ==========================================================================
+
+def _many(tmp_path, n=12):
+    """A log with ``n`` checkpoints taken along the way."""
+    log = EventLog(tmp_path / "log.jsonl")
+    store = CheckpointStore(tmp_path / "cp")
+    for i in range(n):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+        store.write(create(log))
+    return log, store
+
+
+def test_pruning_keeps_the_newest_and_removes_the_rest(tmp_path):
+    log, store = _many(tmp_path, n=12)
+    before = store.seqs()
+    assert len(before) == 12
+
+    removed = store.prune(log, keep=4)
+
+    assert sorted(removed) == before[:-4]
+    assert store.seqs() == before[-4:]
+    assert store.latest_usable(log) is not None
+
+
+def test_pruning_below_the_keep_count_removes_nothing(tmp_path):
+    log, store = _many(tmp_path, n=3)
+    assert store.prune(log, keep=8) == ()
+    assert len(store.seqs()) == 3
+
+
+def test_a_keep_of_zero_is_refused(tmp_path):
+    """A retention policy that can empty the store is deletion with a
+    schedule."""
+    log, store = _many(tmp_path, n=3)
+    for bad in (0, -1, True, 1.5, None):
+        with pytest.raises(CheckpointError) as exc:
+            store.prune(log, keep=bad)
+        assert "deletion with a schedule" in str(exc.value)
+    assert len(store.seqs()) == 3
+
+
+def test_pruning_protects_the_newest_USABLE_checkpoint(tmp_path):
+    """THE defect a count-based policy would have.
+
+    Several newer checkpoints describe a log this store no longer has. Under
+    "keep the newest N" they survive and the one recovery could actually
+    start from is deleted -- the store looks healthy and is empty of
+    anything useful.
+    """
+    log, store = _many(tmp_path, n=6)
+    good = store.latest().seq
+
+    # Six more checkpoints for a DIFFERENT log, written into the same store.
+    # They parse; they do not describe this log.
+    other = EventLog(tmp_path / "other.jsonl")
+    for i in range(6):
+        other.append(actor="a", action="record.create", target=f"o{i}",
+                     payload={"record_id": f"o{i}", "state": "DRAFT",
+                              "title": "x", "kind": "note"})
+        cp = create(other)
+        store.write(replace(cp, seq=good + 10 + i,
+                            hash=replace(cp, seq=good + 10 + i
+                                         ).recompute_hash()))
+
+    assert store.latest().seq > good, "the unusable ones are newer"
+    assert store.latest_usable(log).seq == good
+
+    store.prune(log, keep=3)
+
+    assert store.latest_usable(log) is not None, (
+        "pruning deleted the only checkpoint recovery could start from, "
+        "while keeping newer ones that describe a different log")
+    assert store.latest_usable(log).seq == good
+
+
+def test_pruning_refuses_when_nothing_verifies_against_the_log(tmp_path):
+    """Deleting on that basis acts on a conclusion the store cannot support:
+    the LOG may be the thing that is wrong."""
+    log, store = _many(tmp_path, n=10)
+    empty = EventLog(tmp_path / "empty.jsonl")
+    empty.append(actor="a", action="record.create", target="z",
+                 payload={"record_id": "z", "state": "DRAFT",
+                          "title": "x", "kind": "note"})
+
+    with pytest.raises(CheckpointError) as exc:
+        store.prune(empty, keep=2)
+    assert "in doubt" in str(exc.value)
+    assert len(store.seqs()) == 10, "it deleted while refusing"
+
+
+def test_appending_while_a_checkpoint_is_taken_leaves_both_consistent(
+        tmp_path):
+    """A checkpoint names a position; the log keeps moving past it.
+
+    The property is not that the checkpoint is current -- it cannot be -- but
+    that it is never WRONG: whatever position it names, the log's prefix
+    through that position must still verify against it afterwards.
+    """
+    import threading
+
+    log = EventLog(tmp_path / "log.jsonl")
+    store = CheckpointStore(tmp_path / "cp")
+    log.append(actor="a", action="record.create", target="t0",
+               payload={"record_id": "t0", "state": "DRAFT", "title": "x",
+                        "kind": "note"})
+
+    stop = threading.Event()
+    errors: list = []
+
+    def appender():
+        i = 0
+        while not stop.is_set():
+            try:
+                log.append(actor="a", action="record.create",
+                           target=f"w{i}",
+                           payload={"record_id": f"w{i}", "state": "DRAFT",
+                                    "title": "x", "kind": "note"})
+            except Exception as exc:                    # pragma: no cover
+                errors.append(f"append: {exc!r}")
+                return
+            i += 1
+
+    t = threading.Thread(target=appender, daemon=True)
+    t.start()
+    try:
+        taken = []
+        for _ in range(40):
+            try:
+                taken.append(store.write(create(log)) and create(log).seq)
+            except Exception as exc:                    # pragma: no cover
+                errors.append(f"checkpoint: {exc!r}")
+                break
+    finally:
+        stop.set()
+        t.join(timeout=10)
+
+    assert not errors, errors
+    assert taken, "no checkpoint was taken at all"
+
+    # EVERY checkpoint the store holds must still describe this log. A
+    # checkpoint taken against a moving log that later fails to verify is
+    # the failure this test exists to find.
+    audit = store.audit()
+    assert audit.ok, audit.problems
+    for seq in store.seqs():
+        check_against(log, store.read(seq))
+
+
+def test_a_store_below_the_keep_count_is_not_verified_at_all(tmp_path):
+    """Nothing to delete means nothing to decide.
+
+    Isolated from the refusal test above deliberately. Both involve a log
+    nothing verifies against, and they must answer differently: with more
+    checkpoints than the policy keeps, prune has to choose which to delete
+    and cannot, so it refuses. Below the keep count there is no choice to
+    make, and verifying the log to reach that conclusion would turn a
+    no-op into a failure for a store in perfectly good order.
+    """
+    log, store = _many(tmp_path, n=3)
+    empty = EventLog(tmp_path / "empty.jsonl")
+    empty.append(actor="a", action="record.create", target="z",
+                 payload={"record_id": "z", "state": "DRAFT",
+                          "title": "x", "kind": "note"})
+
+    assert store.prune(empty, keep=8) == ()
+    assert len(store.seqs()) == 3

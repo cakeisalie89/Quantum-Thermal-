@@ -271,6 +271,13 @@ def check_against(log: EventLog, cp: Checkpoint) -> None:
             f"{witness.seq}; the log was truncated after the checkpoint")
 
 
+#: How many checkpoints :meth:`CheckpointStore.prune` keeps by position.
+#: More than one because the newest can turn out to describe a log nobody
+#: has; more than two because verifying backwards is cheap and re-deriving a
+#: lost checkpoint is not.
+DEFAULT_KEEP = 8
+
+
 class CheckpointStore:
     """Durable checkpoints, newest wins, nothing overwritten.
 
@@ -367,6 +374,61 @@ class CheckpointStore:
                 continue
             return cp
         return None
+
+    def prune(self, log: EventLog, *, keep: int = DEFAULT_KEEP) -> tuple:
+        """Delete old checkpoints, keeping recovery possible. Returns removed.
+
+        WHY RETENTION IS NOT "KEEP THE NEWEST N"
+
+        That is the obvious policy and it is unsafe here, because the newest
+        checkpoint is not necessarily a usable one. A checkpoint can parse
+        and still describe a log this store no longer has -- that is what
+        :meth:`latest_usable` walks backwards for, and it is the case the
+        whole "nothing is overwritten" design exists to survive.
+
+        So keeping the newest N by NUMBER can delete the only checkpoint
+        recovery could actually start from, while carefully preserving
+        several that are useless. Retention is therefore defined against
+        usability: keep the newest ``keep`` by position AND the newest one
+        that verifies against ``log``, whichever is older.
+
+        Refuses ``keep < 1``. A retention policy that can empty the store is
+        not a retention policy; it is deletion with a schedule.
+        """
+        if not isinstance(keep, int) or isinstance(keep, bool) or keep < 1:
+            raise CheckpointError(
+                f"keep must be an int >= 1, got {keep!r}; a policy that can "
+                "empty the store is deletion with a schedule")
+        present = self.seqs()
+        if len(present) <= keep:
+            return ()
+        protected = set(present[-keep:])
+        usable = self.latest_usable(log)
+        if usable is not None:
+            # The floor. Everything from here up stays, so recovery can start
+            # at the newest usable point no matter how many unusable ones sit
+            # above it.
+            protected.update(x for x in present if x >= usable.seq)
+        else:
+            # NOTHING here describes this log. Deleting on that basis would
+            # be acting on a conclusion this store cannot support -- the log
+            # may be the thing that is wrong -- so refuse rather than tidy.
+            raise CheckpointError(
+                f"no checkpoint in {self.root} verifies against the log, so "
+                "which of them are safe to delete is not a question this can "
+                "answer. Refusing to prune: a store that discards evidence "
+                "while the log is in doubt is the one arrangement worse than "
+                "an oversized store")
+        removed = []
+        for seq in present:
+            if seq in protected:
+                continue
+            try:
+                self._path(seq).unlink()
+            except FileNotFoundError:                   # pragma: no cover
+                continue
+            removed.append(seq)
+        return tuple(removed)
 
     def audit(self) -> "CheckpointAudit":
         """Parse every checkpoint, reporting each failure. Never stops."""

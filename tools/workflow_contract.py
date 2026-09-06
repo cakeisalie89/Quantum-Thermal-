@@ -59,6 +59,10 @@ REQUIRED_COMMANDS = (
      "the complete pytest suite, in full-suite"),
     ("analysis/collect_container_3d.py",
      "the R59 cross-environment comparison, in cross-environment-3d"),
+    ("uv run python tools/corpus_allowlist.py",
+     "the corpus allowlist still describes the committed corpus, so adding "
+     "a governed document without reviewing it into the list fails here "
+     "rather than at some later read"),
 )
 
 

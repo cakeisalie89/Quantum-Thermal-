@@ -50,6 +50,22 @@ TEST_WS = "verification/stage10/pytest"
 TINY_MESH = Grid3DConfig(nx=5, ny=5, nz=6)
 
 
+def _declare_corpus(root):
+    """Write the allowlist for a temporary corpus, as a commit would.
+
+    Retrieval refuses a corpus nobody declared, so every test corpus has to
+    declare itself. That is the mechanism working, not scaffolding around it:
+    a test that could build an index over an undeclared tree would be testing
+    a build the production path cannot do.
+    """
+    import json as _json
+    doc = RAG.allowlist_document(root)
+    out = root / RAG.CORPUS_ALLOWLIST
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return doc
+
+
 @pytest.fixture(scope="module")
 def tiny_result():
     """One small 3D solve shared by the visualization tests (~0.6 s)."""
@@ -438,6 +454,7 @@ def test_stale_index_is_detected(tmp_path):
     root = tmp_path / "corpus"
     root.mkdir()
     (root / "doc.md").write_text("# Heading\nalpha beta gamma\n")
+    _declare_corpus(root)
     index = RAG.build_index(root=root)
     assert index.stale_files() == []
     (root / "doc.md").write_text("# Heading\ndelta epsilon\n")

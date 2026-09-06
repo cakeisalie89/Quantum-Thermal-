@@ -441,6 +441,8 @@ class SubsystemReconstruction:
     net_grants: dict = field(default_factory=dict)
     secret_grants: dict = field(default_factory=dict)
     contexts: dict = field(default_factory=dict)
+    #: The one actor this log permits to mint grants, or None if none yet.
+    root_issuer: "str | None" = None
     anomalies: list = field(default_factory=list)
     events_replayed: int = 0
     head_seq: int = -1
@@ -454,6 +456,10 @@ _JOB_INITIAL = {"WAITING", "READY"}
 
 #: Terminal job states. A transition out of one is a revival.
 _JOB_TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
+
+#: States a job waits in. Reaching one means it is nobody's right now, so
+#: whatever a lease said about ownership has stopped being true.
+_JOB_PENDING = {"RETRY_WAIT", "BLOCKED"}
 
 
 def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
@@ -473,12 +479,16 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_enqueue(ev, p, out)
         elif a == "scheduler.transition":
             _sub_job_transition(ev, p, out)
+        elif a == "scheduler.lease_renew":
+            _sub_lease_renew(ev, p, out)
         elif a == "scheduler.priority":
             _sub_priority(ev, p, out)
         elif a == "policy.publish":
             _sub_policy_publish(ev, p, out)
         elif a == "policy.decision":
             _sub_policy_decision(ev, p, out)
+        elif a == "capability.root":
+            _sub_capability_root(ev, p, out)
         elif a == "capability.issue":
             _sub_capability_issue(ev, p, out)
         elif a == "capability.revoke":
@@ -566,10 +576,79 @@ def _sub_job_transition(ev, p: dict, out) -> None:
     cur["state"] = dst
     if "lease_holder" in p:
         cur["lease_holder"] = p.get("lease_holder") or ""
+    if "lease_id" in p:
+        cur["lease_id"] = p.get("lease_id") or ""
     if "lease_expires_after_seq" in p:
         cur["lease_expires_after_seq"] = p.get("lease_expires_after_seq", -1)
+    if "lease_renewals" in p:
+        cur["lease_renewals"] = p.get("lease_renewals", 0)
     if "attempts" in p:
         cur["attempts"] = p.get("attempts")
+    if dst in _JOB_TERMINAL or dst in _JOB_INITIAL or dst in _JOB_PENDING:
+        # Leaving DISPATCHED drops the lease AND its renewal budget. A count
+        # carried across would limit the next worker for reasons belonging to
+        # a lease that no longer exists.
+        cur["lease_id"] = ""
+        cur["lease_holder"] = ""
+        cur["lease_expires_after_seq"] = -1
+        cur["lease_renewals"] = 0
+
+
+#: A lease may be extended this many times before the work has to be
+#: reconsidered. Restated rather than imported: if the scheduler's bound and
+#: this one drifted apart, the divergence is the finding.
+_MAX_LEASE_RENEWALS = 16
+
+
+def _sub_lease_renew(ev, p: dict, out) -> None:
+    """Extend a live lease, in this reader's own words.
+
+    The rule this exists to check independently is that a renewal EXTENDS
+    possession and never re-acquires it. A lapsed lease may already have been
+    reconciled away and the work given to somebody else, so renewing one
+    would restore ownership the scheduler had taken -- and the job record
+    would look ordinary afterwards.
+
+    The new end is computed from ``ev.seq``, never read from the payload, for
+    the same reason a capability may not name its own issued_seq.
+    """
+    jid = p.get("job_id")
+    cur = out.jobs.get(jid)
+    if cur is None:
+        _note(out, ev, f"lease renewal for unknown job {jid!r}")
+        return
+    if cur["state"] != "DISPATCHED":
+        _note(out, ev, f"job {jid!r} is {cur['state']!r}; only a DISPATCHED "
+                       "job holds a lease that could be renewed")
+        return
+    if cur.get("lease_holder") != ev.actor:
+        _note(out, ev, f"{ev.actor!r} renews a lease held by "
+                       f"{cur.get('lease_holder')!r}")
+        return
+    if p.get("lease_id") != cur.get("lease_id"):
+        _note(out, ev, f"renewal cites lease {p.get('lease_id')!r} and job "
+                       f"{jid!r} holds {cur.get('lease_id')!r}")
+        return
+    end = cur.get("lease_expires_after_seq")
+    if not isinstance(end, int) or ev.seq > end:
+        _note(out, ev, f"lease on {jid!r} lapsed after {end!r} and the log is "
+                       f"at {ev.seq}; a lapsed lease is lost, not renewed")
+        return
+    if cur.get("lease_renewals", 0) >= _MAX_LEASE_RENEWALS:
+        _note(out, ev, f"lease on {jid!r} is at the "
+                       f"{_MAX_LEASE_RENEWALS}-renewal bound")
+        return
+    seqs = p.get("lease_seqs")
+    if not isinstance(seqs, int) or isinstance(seqs, bool) or seqs < 1:
+        _note(out, ev, f"lease_seqs on {jid!r} is {seqs!r}")
+        return
+    new_end = ev.seq + seqs
+    if new_end <= end:
+        _note(out, ev, f"renewing {jid!r} to {new_end} would not extend a "
+                       f"lease running to {end}")
+        return
+    cur["lease_expires_after_seq"] = new_end
+    cur["lease_renewals"] = cur.get("lease_renewals", 0) + 1
 
 
 def _sub_priority(ev, p: dict, out) -> None:
@@ -616,6 +695,81 @@ def _sub_policy_decision(ev, p: dict, out) -> None:
     }
 
 
+def _sub_capability_root(ev, p: dict, out) -> None:
+    """Who may mint. Restated: the writer of the record IS the root.
+
+    A record anointing a third party, or a second root after a first, is the
+    forgery this reducer exists to notice independently of the ledger that
+    would also notice it.
+    """
+    issuer = p.get("issuer")
+    if not isinstance(issuer, str) or not issuer:
+        _note(out, ev, "capability.root names no issuer")
+        return
+    if issuer != ev.actor:
+        _note(out, ev, f"{ev.actor!r} anoints {issuer!r} as root issuer; "
+                       "the root is whoever establishes it, and nominating "
+                       "somebody else is a delegation wearing a root's name")
+        return
+    if out.root_issuer is not None and out.root_issuer != issuer:
+        _note(out, ev, f"{issuer!r} claims root issuer, but "
+                       f"{out.root_issuer!r} already holds it; a log with "
+                       "two roots has no root")
+        return
+    out.root_issuer = issuer
+
+
+def _sub_covers(scope, rel: str) -> bool:
+    """Does one of ``scope``'s prefixes cover ``rel``, by path components?
+
+    Restated rather than imported. A string prefix test would say
+    ``a/stage10x`` is under ``a/stage10``, and this reducer exists so that a
+    mistake in the capability module is visible rather than shared.
+    """
+    if not isinstance(rel, str) or not rel or rel.startswith("/"):
+        return False
+    target = tuple(x for x in rel.split("/") if x)
+    if any(x in ("..", ".") for x in target):
+        return False
+    for allowed in scope or ():
+        if not isinstance(allowed, str):
+            return False
+        a = tuple(x for x in allowed.split("/") if x)
+        if a and target[:len(a)] == a:
+            return True
+    return False
+
+
+def _sub_attenuates(child: dict, parent: dict) -> str:
+    """"" when ``child`` is no wider than ``parent``, else why it is wider."""
+    if child.get("action") != parent.get("action"):
+        return (f"delegation grants {child.get('action')!r} from a parent "
+                f"granting {parent.get('action')!r}")
+    if child.get("task_id") != parent.get("task_id"):
+        return (f"delegation is for task {child.get('task_id')!r} from a "
+                f"parent confined to {parent.get('task_id')!r}")
+    if (child.get("tool_id") or "") != (parent.get("tool_id") or ""):
+        return (f"delegation names tool {child.get('tool_id')!r}, its parent "
+                f"names {parent.get('tool_id')!r}")
+    outside = [x for x in (child.get("scope") or ())
+               if not _sub_covers(parent.get("scope"), x)]
+    if outside:
+        return (f"delegation covers {sorted(outside)}, outside its parent's "
+                f"scope {list(parent.get('scope') or ())}")
+    pexp = parent.get("expires_after_seq")
+    cexp = child.get("expires_after_seq")
+    if pexp != -1:
+        if cexp == -1 or (isinstance(cexp, int) and isinstance(pexp, int)
+                          and cexp > pexp):
+            return (f"delegation expires after {cexp}, its parent after "
+                    f"{pexp}; a child cannot outlive its source")
+    ciss, piss = child.get("issued_seq"), parent.get("issued_seq")
+    if isinstance(ciss, int) and isinstance(piss, int) and ciss < piss:
+        return (f"delegation is issued at {ciss}, before its parent at "
+                f"{piss}")
+    return ""
+
+
 def _sub_capability_issue(ev, p: dict, out) -> None:
     cid = p.get("capability_id")
     if not isinstance(cid, str) or not cid:
@@ -636,15 +790,45 @@ def _sub_capability_issue(ev, p: dict, out) -> None:
         _note(out, ev, f"capability {cid!r} claims issued_seq {issued!r} at "
                        f"seq {ev.seq}; it would predate its own record")
         return
-    out.capabilities[cid] = {
+    cap = {
         "capability_id": cid, "subject": p.get("subject"),
         "action": p.get("action"), "task_id": p.get("task_id"),
         "tool_id": p.get("tool_id"), "scope": tuple(p.get("scope") or ()),
         "issued_seq": issued,
         "expires_after_seq": p.get("expires_after_seq"),
+        "parent_id": p.get("parent_id") or "",
         "revoked_seq": None,
         "body": {k: v for k, v in p.items() if k != "task_id"},
     }
+    # MAY THIS ACTOR MINT? Restated from the same three cases the ledger
+    # applies, and reached without asking it. A grant nobody was authorized
+    # to create is not recorded here at all, so a divergence between the two
+    # readers shows up as a missing capability rather than as agreement.
+    if out.root_issuer is None:
+        _note(out, ev, f"capability {cid!r} is minted with no root issuer "
+                       "established; authority answering to nobody")
+        return
+    parent_id = cap["parent_id"]
+    if parent_id:
+        parent = out.capabilities.get(parent_id)
+        if parent is None:
+            _note(out, ev, f"capability {cid!r} is delegated from "
+                           f"{parent_id!r}, which this log has not issued")
+            return
+        if ev.actor != parent.get("subject"):
+            _note(out, ev, f"{ev.actor!r} delegated {parent_id!r}, granted to "
+                           f"{parent.get('subject')!r}; delegating a grant "
+                           "you do not hold is minting")
+            return
+        why = _sub_attenuates(cap, parent)
+        if why:
+            _note(out, ev, why)
+            return
+    elif ev.actor != out.root_issuer:
+        _note(out, ev, f"{ev.actor!r} minted {cid!r}; the root issuer is "
+                       f"{out.root_issuer!r}")
+        return
+    out.capabilities[cid] = cap
 
 
 def _sub_capability_revoke(ev, p: dict, out) -> None:

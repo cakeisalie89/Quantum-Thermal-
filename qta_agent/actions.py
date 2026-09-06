@@ -48,6 +48,7 @@ OWNERS: dict = {
     # qta_agent.capability -- the ledger that makes a grant real
     "capability.issue": "capability",
     "capability.revoke": "capability",
+    "capability.root": "capability",
     # qta_agent.policy
     "policy.publish": "policy",
     "policy.decision": "policy",
@@ -55,6 +56,7 @@ OWNERS: dict = {
     "scheduler.enqueue": "scheduler",
     "scheduler.transition": "scheduler",
     "scheduler.priority": "scheduler",
+    "scheduler.lease_renew": "scheduler",
     # qta_agent.memory
     "memory.write": "memory",
     "memory.status": "memory",

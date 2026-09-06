@@ -72,12 +72,13 @@ import signal
 import sys
 import time
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from . import actions
 from .agents import (
-    AgentDirectory, AgentRole, PrincipalKind, check_separation, identity,
+    AgentDirectory, AgentError, AgentRole, PrincipalKind, StreamNotifier,
+    check_separation, identity,
 )
 from .canonical import digest
 from . import capability as _cap_actions
@@ -187,7 +188,17 @@ def stage10_policy(version: int = 1) -> "object":
                  actions=("scheduler.enqueue", "scheduler.dispatch",
                           "scheduler.cancel", "stage10.execute"),
                  subjects=("*",), roles=("*",), resources=("*",),
-                 reason="governed Stage-10 work is permitted"),
+                 reason="governed Stage-10 work is permitted",
+                 # CONDITIONAL, not unconditional. This path may run a tool
+                 # provided its declared outputs are all accounted for and
+                 # what it produced is captured as content. Neither condition
+                 # is new behaviour -- both were already done -- but writing
+                 # them as obligations moves them from "the code happens to"
+                 # to "the authorization required it", and
+                 # Decision.raise_if_denied refuses the success report while
+                 # either is outstanding.
+                 obligations=("record_evidence",
+                              "verify_declared_outputs")),
         ))
 
 
@@ -296,6 +307,14 @@ class GovernedRun:
     #: Identity and digest of the policy document that permitted the dispatch.
     policy_identity: str = ""
     policy_digest: str = ""
+    #: ``{obligation: evidence_digest}`` for every condition the ALLOW
+    #: attached. Non-empty only on a VERIFIED run: an outcome that did not
+    #: satisfy the policy's conditions does not get to claim it did.
+    obligations: dict = field(default_factory=dict)
+    #: The escalation raised for this run, if one was. Non-empty only on an
+    #: UNCERTAIN external outcome, which is the one decision on this path
+    #: that is genuinely a person's.
+    escalation_id: str = ""
     #: Digest of the context manifest recorded for the run.
     context_digest: str = ""
     #: The remembered note, which is a note and not a finding.
@@ -316,7 +335,7 @@ class GovernedStage10:
     """Runs Stage-10 work through the substrate. The production entry point."""
 
     def __init__(self, *, root: Path, log: EventLog, evidence: EvidenceStore,
-                 registry: Registry | None = None):
+                 registry: Registry | None = None, notifier=None):
         self.root = Path(root)
         self.log = log
         self.evidence = evidence
@@ -328,7 +347,13 @@ class GovernedStage10:
         # a run a single history rather than several that have to be
         # correlated afterwards.
         self.policy = PolicyStore(self.log).load()
-        self.agents = AgentDirectory(self.log).load()
+        # An escalation on this path blocks work until a person acts, so it
+        # is DELIVERED rather than only filed. stderr because that is where
+        # an operator running the workflow -- or a hosted job's log -- will
+        # actually keep it; the seam is replaceable, and this is the sink
+        # this repository can honestly provide.
+        self.agents = AgentDirectory(
+            self.log, notifier=notifier or StreamNotifier()).load()
         self.scheduler = Scheduler(self.log, policy=self.policy,
                                    policy_id=POLICY_ID,
                                    capacity={"slots": 2}).load()
@@ -822,6 +847,16 @@ class GovernedStage10:
                                policy_digest=decision.policy_digest,
                                context_digest=context.manifest.digest())
 
+        # The first obligation the ALLOW attached is now satisfiable: every
+        # output the contract declared was collected by the executor AND
+        # re-hashed by the capture, and the two agree. The discharge cites
+        # the digest of that agreement, so an auditor asking "what closed
+        # this condition" gets an artifact set rather than a boolean.
+        decision = decision.discharge(
+            "verify_declared_outputs",
+            evidence_digest=digest({"declared": sorted(result.output_digests),
+                                    "captured": artifacts}))
+
         task = self._move(task, TaskState.COMPLETED, worker, TaskRole.WORKER,
                           lease_id=lease.lease_id, executed_by=worker,
                           result_digest=result_digest)
@@ -835,6 +870,14 @@ class GovernedStage10:
         task = self._move(task, dst, verifier, TaskRole.VERIFIER, note=why)
 
         if ok:
+            # The second obligation: the run's products exist in the
+            # content-addressed store and a DIFFERENT actor re-derived their
+            # digests from disk. Discharged only on the verified path,
+            # because a rejected verification is precisely the case where
+            # the evidence was not established.
+            decision = decision.discharge(
+                "record_evidence",
+                evidence_digest=digest(dict(sorted(artifacts.items()))))
             job = self.scheduler.report(job_id=job_id, worker=worker,
                                         detail=why, actor=verifier)
         else:
@@ -842,6 +885,18 @@ class GovernedStage10:
                 job_id=job_id, worker=worker,
                 failure=FailureClass.VERIFICATION_FAILED, detail=why,
                 actor=verifier)
+
+        # THE OBLIGATIONS ARE LOAD-BEARING HERE.
+        #
+        # The receipt is a FIELD of the successful result, not a check before
+        # it. Deleting either discharge above does not remove a call somebody
+        # might not miss -- it makes this line raise PolicyObligationUnmet on
+        # the way to reporting success, because the result cannot be built
+        # without the receipt.
+        #
+        # Only on the verified path: a REJECTED run leaving obligations
+        # outstanding is correct, since it did not do what they required.
+        receipt = decision.completion_receipt() if ok else {}
 
         # A note about the run, filed as a note. It cites the artifacts by
         # digest, and its own digest does not resolve as evidence -- so it can
@@ -863,7 +918,8 @@ class GovernedStage10:
                            policy_identity=decision.identity,
                            policy_digest=decision.policy_digest,
                            context_digest=context.manifest.digest(),
-                           memory_id=memory_id)
+                           memory_id=memory_id,
+                           obligations=receipt)
 
     # ---- recovery ------------------------------------------------------
     def recover(self, *, actor: str = "system") -> tuple:
@@ -1083,8 +1139,44 @@ class GovernedStage10:
         # happened unrecorded.
         settled = state in EXTERNAL_SETTLED
         external = spec.side_effect is SideEffect.EXTERNAL
+        escalation_id = ""
         if external and not settled:
             outcome = "UNCERTAIN"
+            # A DECISION A PERSON MUST MAKE, raised as one.
+            #
+            # The row used to say the governed path raises no escalation
+            # "because nothing in a Stage-10 artifact run is a decision a
+            # human must make". That was true of the successful path and
+            # false of this one. Right here the system knows something it
+            # cannot resolve: an external effect may or may not have
+            # happened, re-running would repeat it, reporting success would
+            # invent a fact, and the tool's compensation is a DECLARATION
+            # that nothing here is authorized to perform. Somebody has to
+            # decide whether to compensate, and it is not this process.
+            #
+            # Best-effort: raising it must not turn an already-honest
+            # UNCERTAIN report into a crash, so a registry that refuses (an
+            # unregistered submitter, say) leaves the report intact and the
+            # escalation absent rather than losing both.
+            escalation_id = f"esc-{prior.task_id[5:]}-external"
+            try:
+                if not any(e.escalation_id == escalation_id
+                           for e in self.agents.open_escalations(
+                               task_id=prior.task_id)):
+                    self.agents.escalate(
+                        escalation_id=escalation_id, task_id=prior.task_id,
+                        raised_by=prior.owner,
+                        question=(
+                            f"task {prior.task_id} ran a tool declaring "
+                            "EXTERNAL side effects and did not reach a "
+                            "settled state. Whether the effect happened is "
+                            "not knowable from here. Its declared "
+                            f"compensating action is: {spec.compensation}. "
+                            "Compensate, or accept the effect as done?"),
+                        options=("COMPENSATE", "ACCEPT_AS_DONE",
+                                 "INVESTIGATE_EXTERNALLY"))
+            except AgentError:
+                escalation_id = ""
             reason = (
                 f"resubmission of {prior.task_id}, which is still "
                 f"{state.value} and ran a tool declaring EXTERNAL "
@@ -1107,7 +1199,8 @@ class GovernedStage10:
             prior.task_id, state, outcome, "", artifacts,
             self.log.verify().head_seq, reason,
             job_id=prior.job_id, job_state=job_state,
-            idempotency_key=prior.key, duplicate_of=prior.task_id)
+            idempotency_key=prior.key, duplicate_of=prior.task_id,
+            escalation_id=escalation_id)
 
     def _artifacts_of(self, task_id: str) -> dict:
         """Artifacts recorded for a task, from the log rather than a cache."""

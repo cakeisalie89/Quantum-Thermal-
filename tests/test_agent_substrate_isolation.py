@@ -60,6 +60,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_recovery.py",
     "tests/test_agent_second_reader.py",
     "tests/test_agent_audit.py",
+    "tests/test_agent_delegation.py",
     "tests/test_agent_policy.py",
     "tests/test_agent_scheduler.py",
     "tests/test_agent_netauth.py",

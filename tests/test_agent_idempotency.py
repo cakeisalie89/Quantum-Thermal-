@@ -693,3 +693,124 @@ def test_a_scoped_tool_that_timed_out_is_an_ordinary_duplicate(gov,
                     idempotency_key="scoped")
     assert again.outcome == "DUPLICATE", (
         "a scoped timeout is not an unresolvable external effect")
+
+
+# ==========================================================================
+# THE ONE DECISION ON THIS PATH THAT IS A PERSON'S
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "the governed path raises no escalation, because nothing in a Stage-10
+#      artifact run is a decision a human must make"
+#
+# True of the successful path and false of this one. An UNCERTAIN external
+# outcome is precisely a decision nothing here can make: re-running repeats
+# an effect that may already have happened, reporting success invents a
+# fact, and the compensation is a DECLARATION nothing is authorized to
+# perform. Somebody has to choose, and it is not this process.
+# ==========================================================================
+
+def _timed_out_external(gov, monkeypatch):
+    from qta_agent.execution import Limits
+
+    _external_gov(gov)
+    real_run = type(gov.executor).run
+
+    def _slow(self, **kw):
+        kw["argv"] = [sys.executable, "-c", "import time; time.sleep(30)"]
+        kw["limits"] = Limits(wall_seconds=1.0)
+        return real_run(self, **kw)
+
+    monkeypatch.setattr(type(gov.executor), "run", _slow)
+    first = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="ext")
+    assert first.state is TaskState.TIMED_OUT
+    return first
+
+
+def test_an_uncertain_external_outcome_raises_an_escalation(gov, monkeypatch):
+    _timed_out_external(gov, monkeypatch)
+
+    again = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="ext")
+
+    assert again.outcome == "UNCERTAIN"
+    assert again.escalation_id, (
+        "the run reported a decision nobody here can make and raised nothing")
+    esc = gov.agents.escalation(again.escalation_id)
+    assert esc.task_id == again.task_id
+    assert set(esc.options) == {"COMPENSATE", "ACCEPT_AS_DONE",
+                                "INVESTIGATE_EXTERNALLY"}
+    assert "revoke the published record" in esc.question, (
+        "the person being asked has to be told what compensating would do")
+
+
+def test_the_escalation_is_delivered_not_only_filed(gov, monkeypatch,
+                                                    tmp_path):
+    """An escalation nobody is told about blocks work silently."""
+    import io
+    from qta_agent.agents import StreamNotifier
+
+    buf = io.StringIO()
+    gov.agents.notifier = StreamNotifier(buf)
+    _timed_out_external(gov, monkeypatch)
+    gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+            idempotency_key="ext")
+
+    assert "ESCALATION" in buf.getvalue()
+
+
+def test_a_settled_external_resubmission_raises_nothing(gov):
+    """Anti-vacuity in the other direction.
+
+    Without this the rule could be 'escalate on every EXTERNAL resubmission',
+    which would make the escalation meaningless by raising it when there is
+    nothing to decide.
+    """
+    _external_gov(gov)
+    first = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="ext")
+    assert first.state is TaskState.VERIFIED
+
+    again = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="ext")
+    assert again.outcome == "DUPLICATE"
+    assert again.escalation_id == ""
+    assert gov.agents.open_escalations(task_id=again.task_id) == ()
+
+
+def test_resubmitting_twice_does_not_raise_two_escalations(gov, monkeypatch):
+    """One unresolved fact is one decision, however often it is reported."""
+    _timed_out_external(gov, monkeypatch)
+    a = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                idempotency_key="ext")
+    b = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                idempotency_key="ext")
+
+    assert a.escalation_id == b.escalation_id
+    assert len(gov.agents.open_escalations(task_id=a.task_id)) == 1
+
+
+def test_the_run_still_reports_when_the_escalation_cannot_be_raised(
+        gov, monkeypatch):
+    """Best-effort, and the report is what must survive.
+
+    A registry that refuses -- an unregistered submitter, say -- must leave
+    the honest UNCERTAIN answer intact rather than turning it into a crash.
+    Losing the report to save the escalation would be the same trade the
+    notifier refuses, one layer up.
+    """
+    from qta_agent.agents import AgentError
+
+    _timed_out_external(gov, monkeypatch)
+
+    def _refuse(**kw):
+        raise AgentError("no such principal")
+
+    monkeypatch.setattr(gov.agents, "escalate", _refuse)
+    again = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="ext")
+
+    assert again.outcome == "UNCERTAIN"
+    assert again.escalation_id == ""
+    assert "NOT KNOWN" in again.reason

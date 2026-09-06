@@ -48,6 +48,28 @@ governed by the policy in force at seq 40, and re-evaluating it under today's
 rules would answer a different question than the one an auditor is asking.
 Todays's rules govern today's requests; that is what makes I5 mean anything.
 
+AN ALLOW WITH AN UNDISCHARGED OBLIGATION IS NOT AN ALLOW
+
+A boolean verdict answers "may this happen" and nothing else. Real control
+planes rarely permit unconditionally: they permit *provided that* the result
+is recorded, *provided that* the output is redacted, *provided that* the
+grant is used once. Writing those conditions in the rule's ``reason`` string
+makes them documentation; writing them as :data:`OBLIGATIONS` makes them
+enforcement.
+
+An ALLOW rule may carry obligations. A decision collects the obligations of
+EVERY matching ALLOW rule -- not only the one named as deciding -- for the
+same reason evaluation is deny-overrides: a condition attached by one rule
+must not be defeated by another rule matching first. The decision starts with
+all of them outstanding, and :meth:`Decision.raise_if_denied` refuses while
+any remain. Discharging one requires naming it and citing a digest of what
+discharged it, so "I did that" is a record rather than a claim.
+
+:class:`PolicyObligationUnmet` is deliberately NOT a subclass of
+:class:`PolicyDenied`. "You may not" and "you have not yet" are different
+answers, and a caller that catches denial should not silently absorb the
+second.
+
 VERSIONS ARE GAP-FREE
 
 A document's version must be exactly one more than the previous version of the
@@ -73,6 +95,27 @@ ACT_POLICY_DECISION = "policy.decision"
 #: is not inspectable, and an unbounded one is a memory bomb on every replay.
 MAX_RULES = 512
 
+#: Conditions an ALLOW may be made subject to. The set is CLOSED for the same
+#: reason the boundary vocabulary is closed: an obligation nothing enforces is
+#: worse than no obligation, because it reads like a control. Every name here
+#: has a discharge site in this repository, and a rule naming anything else is
+#: refused at construction rather than published and ignored.
+OBLIGATIONS = {
+    # The action's result must be written to the content-addressed evidence
+    # store before the ALLOW is considered honoured.
+    "record_evidence",
+    # Any output that will be recorded must pass secret redaction first.
+    "redact_output",
+    # Every output the tool contract declared must have been collected and
+    # digested; a zero exit that produced nothing is not a discharge.
+    "verify_declared_outputs",
+    # The decision authorizes exactly one action. Re-use is a fresh request.
+    "single_use",
+    # An effect that leaves this system must raise a human escalation, because
+    # nothing here can compensate it automatically.
+    "escalate_external_effect",
+}
+
 
 class PolicyError(Exception):
     """Base class. Every failure here is fail-closed."""
@@ -88,6 +131,16 @@ class UnknownPolicy(PolicyError):
 
 class PolicyVersionError(PolicyError):
     """A publication would break the version sequence."""
+
+
+class PolicyObligationUnmet(PolicyError):
+    """The rules permit this, and a condition they attached is outstanding.
+
+    NOT a :class:`PolicyDenied`. A caller written to handle refusal would
+    treat "not yet" as "never" and give up on work it is entitled to do; a
+    caller written to handle refusal by escalating would escalate something
+    that needs no human at all.
+    """
 
 
 class Effect(str, Enum):
@@ -166,6 +219,9 @@ class Rule:
     roles: tuple
     resources: tuple
     reason: str = ""
+    #: Conditions attached to an ALLOW. Always empty on a DENY: a refusal
+    #: cannot be made conditional on the refused party doing something.
+    obligations: tuple = ()
 
     def matches(self, req: PolicyRequest) -> bool:
         """Every field must match. Conjunctive; there is no partial match."""
@@ -178,15 +234,50 @@ class Rule:
         return {"rule_id": self.rule_id, "effect": self.effect.value,
                 "actions": list(self.actions), "subjects": list(self.subjects),
                 "roles": list(self.roles), "resources": list(self.resources),
-                "reason": self.reason}
+                "reason": self.reason, "obligations": list(self.obligations)}
 
 
 def _hit(allowed: tuple, value: str) -> bool:
     return ANY in allowed or value in allowed
 
 
+def _obligations(values, effect: Effect, rule_id: str) -> tuple:
+    """Validate an obligation list: known names only, deduplicated, sorted.
+
+    Sorted because the tuple reaches the document digest, and two rules that
+    attach the same conditions in a different order are the same rule.
+    """
+    if values is None:
+        return ()
+    if isinstance(values, str):
+        raise PolicyError(
+            f"rule {rule_id!r}: obligations must be a sequence of names, not "
+            f"the bare string {values!r}")
+    try:
+        items = list(values)
+    except TypeError as exc:
+        raise PolicyError(
+            f"rule {rule_id!r}: obligations is not iterable: {exc}") from exc
+    for v in items:
+        if not isinstance(v, str) or not v:
+            raise PolicyError(
+                f"rule {rule_id!r}: obligation {v!r} is not a non-empty str")
+        if v not in OBLIGATIONS:
+            raise PolicyError(
+                f"rule {rule_id!r}: unknown obligation {v!r}. The set is "
+                f"closed to {sorted(OBLIGATIONS)}; an obligation with no "
+                "discharge site would read like a control and enforce "
+                "nothing")
+    if items and effect is not Effect.ALLOW:
+        raise PolicyError(
+            f"rule {rule_id!r}: a DENY carries obligations "
+            f"{sorted(set(items))}. A refusal cannot be made conditional on "
+            "the refused party doing something; the request is already over")
+    return tuple(sorted(set(items)))
+
+
 def rule(*, rule_id: str, effect: Effect, actions, subjects, roles,
-         resources, reason: str = "") -> Rule:
+         resources, reason: str = "", obligations=()) -> Rule:
     """Construct a rule, validating everything that cannot be fixed later."""
     if not isinstance(rule_id, str) or not rule_id:
         raise PolicyError("rule_id must be a non-empty str")
@@ -197,7 +288,8 @@ def rule(*, rule_id: str, effect: Effect, actions, subjects, roles,
                 subjects=_match_field(subjects, "subjects"),
                 roles=_match_field(roles, "roles"),
                 resources=_match_field(resources, "resources"),
-                reason=str(reason))
+                reason=str(reason),
+                obligations=_obligations(obligations, effect, rule_id))
 
 
 @dataclass(frozen=True)
@@ -236,11 +328,19 @@ class PolicyDocument:
         allows = [r for r in matched if r.effect is Effect.ALLOW]
         if allows:
             r = allows[0]
+            # Obligations accumulate across EVERY matching ALLOW, not only the
+            # one named as deciding. Taking them from allows[0] alone would
+            # let a broad unconditional grant defeat a narrower conditional
+            # one purely by position -- the same defect deny-overrides exists
+            # to prevent, reappearing one field to the right.
+            attached = sorted({o for a in allows for o in a.obligations})
             return Decision(
                 allowed=True, policy_id=self.policy_id, version=self.version,
                 policy_digest=self.digest(), rule_id=r.rule_id,
                 effect=Effect.ALLOW, request=req.to_record(),
-                reason=r.reason or f"allowed by rule {r.rule_id}")
+                reason=r.reason or f"allowed by rule {r.rule_id}",
+                obligations=tuple(attached),
+                outstanding=tuple(attached))
         return Decision(
             allowed=False, policy_id=self.policy_id, version=self.version,
             policy_digest=self.digest(), rule_id=None, effect=Effect.DENY,
@@ -299,7 +399,8 @@ def document_from_record(rec: dict) -> PolicyDocument:
                 raise PolicyError(
                     f"rule record is {type(rr).__name__}, not an object")
             unknown = set(rr) - {"rule_id", "effect", "actions", "subjects",
-                                 "roles", "resources", "reason"}
+                                 "roles", "resources", "reason",
+                                 "obligations"}
             if unknown:
                 # An unrecognised field could be a condition this reader does
                 # not evaluate. Applying the rule anyway would apply a
@@ -312,7 +413,8 @@ def document_from_record(rec: dict) -> PolicyDocument:
                 rule_id=rr["rule_id"], effect=Effect(rr["effect"]),
                 actions=rr["actions"], subjects=rr["subjects"],
                 roles=rr["roles"], resources=rr["resources"],
-                reason=rr.get("reason", "")))
+                reason=rr.get("reason", ""),
+                obligations=rr.get("obligations", ())))
         return document(policy_id=rec["policy_id"], version=rec["version"],
                         rules=tuple(rules),
                         description=rec.get("description", ""))
@@ -340,6 +442,13 @@ class Decision:
     effect: Effect
     request: dict
     reason: str
+    #: Every condition the matching ALLOW rules attached. Immutable: it is
+    #: what the policy said, and discharging one does not change that.
+    obligations: tuple = ()
+    #: The subset not yet discharged. This is what gates the decision.
+    outstanding: tuple = ()
+    #: obligation name -> digest of whatever discharged it.
+    discharges: tuple = ()
     #: Log position the decision was made at, set when it is recorded.
     at_seq: int = -1
 
@@ -348,7 +457,41 @@ class Decision:
                 "version": self.version, "policy_digest": self.policy_digest,
                 "rule_id": self.rule_id, "effect": self.effect.value,
                 "request": self.request, "reason": self.reason,
+                "obligations": list(self.obligations),
                 "at_seq": self.at_seq}
+
+    def discharge(self, name: str, *, evidence_digest: str) -> "Decision":
+        """Record that ``name`` has been satisfied, citing what satisfied it.
+
+        Returns a NEW decision rather than mutating: the recorded decision is
+        what the policy said, and a discharge is something the caller did
+        afterwards. Collapsing the two would make the log's copy disagree
+        with the object in hand.
+
+        The evidence digest is not verified here -- this module cannot know
+        what an evidence digest for "redact_output" should look like. It is
+        required so that a discharge names something, and so an auditor
+        reading the trail has a thread to pull rather than a bare True.
+        """
+        if name not in self.obligations:
+            raise PolicyError(
+                f"{self.identity} attached no obligation {name!r} to this "
+                f"decision (it attached {sorted(self.obligations) or 'none'});"
+                " discharging one that was never required would let a caller "
+                "satisfy an obligation by inventing it")
+        if not isinstance(evidence_digest, str) or not evidence_digest:
+            raise PolicyError(
+                f"discharging {name!r} requires a non-empty evidence digest; "
+                "a discharge that cites nothing is an assertion")
+        if name not in self.outstanding:
+            raise PolicyError(
+                f"obligation {name!r} is already discharged by "
+                f"{dict(self.discharges)[name][:12]}; discharging it twice "
+                "would let one piece of evidence stand for two actions")
+        return Decision(
+            **{**self.__dict__,
+               "outstanding": tuple(o for o in self.outstanding if o != name),
+               "discharges": self.discharges + ((name, evidence_digest),)})
 
     def digest(self) -> str:
         """Content digest, EXCLUDING ``at_seq``.
@@ -365,12 +508,59 @@ class Decision:
         return f"{self.policy_id}@{self.version}"
 
     def raise_if_denied(self) -> "Decision":
+        """Refuse if the RULES forbid this. Says nothing about obligations.
+
+        Deliberately unchanged and deliberately weak. This is the question
+        asked at authorization time, before the work has happened, when every
+        obligation is outstanding because none of them COULD have been
+        discharged yet. Strengthening it here would make the correct call
+        site fail and teach every caller to route around it.
+
+        The obligations are enforced by :meth:`completion_receipt`, which is
+        structural rather than remembered: the success path cannot build its
+        result without one.
+        """
         if not self.allowed:
             raise PolicyDenied(
                 f"{self.identity} denied {self.request.get('action')!r} on "
                 f"{self.request.get('resource')!r} for "
                 f"{self.request.get('subject')!r}: {self.reason}")
         return self
+
+    def completion_receipt(self) -> dict:
+        """Prove every attached condition was met, or refuse.
+
+        WHY A RECEIPT AND NOT A CHECK
+
+        An obligation enforced by a boolean method the caller must remember
+        to call is enforced by the caller's memory. Deleting the call is
+        invisible, and the guard that can be skipped is not a guard.
+
+        So this returns something the success path NEEDS: the receipt is a
+        field of the run's result, and the result cannot be constructed
+        without asking for it. Removing a discharge does not remove a check
+        somebody might not notice -- it makes the run raise on its way to
+        reporting success.
+
+        Returns ``{obligation: evidence_digest}``, sorted, so the reason each
+        condition is considered met travels with the outcome instead of being
+        an inference about control flow.
+        """
+        if not self.allowed:
+            raise PolicyDenied(
+                f"{self.identity} denied {self.request.get('action')!r}: "
+                f"{self.reason}. A receipt for a refused request would "
+                "certify work that was never authorized")
+        if self.outstanding:
+            raise PolicyObligationUnmet(
+                f"{self.identity} allows {self.request.get('action')!r} on "
+                f"{self.request.get('resource')!r} subject to "
+                f"{sorted(self.obligations)}, and "
+                f"{sorted(self.outstanding)} "
+                f"{'is' if len(self.outstanding) == 1 else 'are'} still "
+                "outstanding. An ALLOW whose conditions are unmet is not an "
+                "ALLOW yet")
+        return dict(sorted(self.discharges))
 
 
 class PolicyStore:
@@ -475,10 +665,18 @@ class PolicyStore:
             raise PolicyError(
                 f"seq {ev.seq}: decision carries a request this build cannot "
                 f"evaluate: {exc}") from None
-        for field_name, replayed_value in (("allowed", replayed.allowed),
-                                           ("effect", replayed.effect.value),
-                                           ("rule_id", replayed.rule_id)):
-            if rec.get(field_name) != replayed_value:
+        for field_name, replayed_value in (
+                ("allowed", replayed.allowed),
+                ("effect", replayed.effect.value),
+                ("rule_id", replayed.rule_id),
+                # An ALLOW recorded with fewer obligations than the rules
+                # attach is the forgery this check exists to catch, one field
+                # further in: the verdict is right, the conditions on it are
+                # not, and every reader downstream repeats the unconditional
+                # version.
+                ("obligations", list(replayed.obligations))):
+            if rec.get(field_name, [] if field_name == "obligations"
+                       else None) != replayed_value:
                 raise PolicyError(
                     f"seq {ev.seq}: the record says {field_name}="
                     f"{rec.get(field_name)!r} for "

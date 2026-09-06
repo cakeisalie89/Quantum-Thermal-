@@ -23,10 +23,10 @@ from qta_agent.canonical import digest  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.memory import (  # noqa: E402
-    ACT_MEMORY_STATUS, ACT_MEMORY_WRITE, MAX_ENTRY_BYTES,
-    MemoryEntry, MemoryError_,
-    MemoryIsNotEvidence, MemoryStatus, MemoryStore, UnknownMemory,
-    entry_from_record, refuse_as_evidence,
+    ACT_MEMORY_STATUS, ACT_MEMORY_WRITE, MAX_ENTRY_BYTES, MAX_RECALL,
+    MemoryEntry, MemoryError_, MemoryHit,
+    MemoryIsNotEvidence, MemoryStatus, MemoryStore, MemoryTooLarge,
+    UnknownMemory, entry_from_record, refuse_as_evidence,
 )
 
 
@@ -411,3 +411,165 @@ def test_a_memory_write_with_no_entry_is_a_domain_error(tmp_path):
                payload={"memory_id": "m1", "text": "wrong shape"})
     with pytest.raises(MemoryError_, match="carries no entry"):
         MemoryStore(log).load()
+
+
+# ==========================================================================
+# RECALL, and the total bound
+#
+# THE GAPS THESE CLOSE, stated as they were found:
+#
+#     "memory is not retrievable through the RAG index, so the 'retrievable
+#      memory keeps its lower authority' case is unimplemented rather than
+#      solved"
+#     "no bound on total memory size across entries, only per entry"
+#
+# The first is solved by NOT putting memory in the document index. That
+# corpus is an allowlisted set of governed documents, and letting an agent's
+# notes join it would let an agent write text into the corpus it is later
+# handed back with the retrieval layer's provenance on it -- exactly what the
+# allowlist exists to stop.
+# ==========================================================================
+
+def test_recall_finds_an_entry_by_its_words(mem):
+    mem.remember(memory_id="m1", author="a",
+                   text="the lattice thermal conductivity forecast diverged")
+    mem.remember(memory_id="m2", author="a",
+                   text="the chamber pressure was nominal")
+
+    hits = mem.recall("thermal conductivity")
+
+    assert [h.memory_id for h in hits] == ["m1"]
+    assert hits[0].evidence_status == "REMEMBERED_TEXT_NOT_EVIDENCE"
+
+
+def test_a_hit_is_not_an_entry_and_offers_no_digest(mem):
+    """A hit that could be passed where evidence is expected fails at the
+    attribute, not three layers later."""
+    mem.remember(memory_id="m1", author="a", text="alpha beta gamma")
+    hit = mem.recall("alpha")[0]
+
+    assert not isinstance(hit, MemoryEntry)
+    assert not hasattr(hit, "digest")
+    with pytest.raises(AttributeError):
+        hit.digest()
+
+
+def test_the_evidence_label_on_a_hit_cannot_be_set(mem):
+    """A status a caller can choose is a label, not a property."""
+    mem.remember(memory_id="m1", author="a", text="alpha beta")
+    hit = mem.recall("alpha")[0]
+    with pytest.raises(Exception):
+        hit.evidence_status = "VERIFIED"
+    assert hit.evidence_status == "REMEMBERED_TEXT_NOT_EVIDENCE"
+    # And it is not a dataclass FIELD, so no construction path can pass it.
+    from dataclasses import fields
+    assert "evidence_status" not in {f.name for f in fields(MemoryHit)}
+
+
+def test_recall_excludes_a_retracted_entry(mem):
+    """THE property. A search that returned it would un-withdraw a statement
+    for everybody who searched instead of listing -- without an event."""
+    mem.remember(memory_id="m1", author="a", text="the forecast diverged")
+    mem.retract("m1", actor="a", reason="wrong")
+
+    assert mem.recall("forecast") == ()
+
+
+def test_recall_excludes_a_superseded_entry(mem):
+    mem.remember(memory_id="m1", author="a", text="the forecast diverged")
+    mem.remember(memory_id="m2", author="a",
+                   text="the forecast converged after all")
+    mem.supersede(old_id="m1", new_id="m2", actor="a", reason="revised")
+
+    assert [h.memory_id for h in mem.recall("forecast")] == ["m2"]
+
+
+def test_asking_for_non_current_entries_returns_them_WITH_their_status(mem):
+    """Possible, deliberate, and never silent about what it handed back."""
+    mem.remember(memory_id="m1", author="a", text="the forecast diverged")
+    mem.retract("m1", actor="a", reason="wrong")
+
+    hits = mem.recall("forecast", include_non_current=True)
+
+    assert [h.memory_id for h in hits] == ["m1"]
+    assert hits[0].status is MemoryStatus.RETRACTED
+    assert not hits[0].is_current
+
+
+def test_recall_is_deterministic_across_readers(mem, tmp_path):
+    """Two readers of the same log must return the same order, or an audit
+    of a run depends on which process ran it."""
+    for i in range(8):
+        mem.remember(memory_id=f"m{i}", author="a",
+                       text="alpha beta gamma delta")
+
+    revived = MemoryStore(EventLog(tmp_path / "log.jsonl")).load()
+    assert [h.memory_id for h in mem.recall("alpha beta", k=8)] == \
+        [h.memory_id for h in revived.recall("alpha beta", k=8)]
+
+
+def test_recall_ranks_by_how_many_query_terms_matched(mem):
+    mem.remember(memory_id="m-one", author="a", text="alpha only")
+    mem.remember(memory_id="m-both", author="a", text="alpha and beta")
+
+    assert [h.memory_id for h in mem.recall("alpha beta")] == \
+        ["m-both", "m-one"]
+    assert mem.recall("alpha beta")[0].score == 2
+
+
+def test_recall_k_is_bounded(mem):
+    mem.remember(memory_id="m1", author="a", text="alpha")
+    for bad in (0, -1, True, 1.5, None):
+        with pytest.raises(MemoryError_):
+            mem.recall("alpha", k=bad)
+    with pytest.raises(MemoryError_) as exc:
+        mem.recall("alpha", k=MAX_RECALL + 1)
+    assert "context window" in str(exc.value)
+
+
+def test_an_empty_query_returns_nothing_rather_than_everything(mem):
+    mem.remember(memory_id="m1", author="a", text="alpha")
+    assert mem.recall("") == ()
+    assert mem.recall("   ") == ()
+
+
+# ---- the total bound ----------------------------------------------------
+
+def test_the_total_bound_refuses_a_write_that_would_cross_it(mem,
+                                                             monkeypatch):
+    """The per-entry bound stops one large write and permits a million small
+    ones, which reaches the same place more slowly."""
+    monkeypatch.setattr("qta_agent.memory.MAX_TOTAL_BYTES", 200)
+    mem.remember(memory_id="m1", author="a", text="x" * 150)
+
+    with pytest.raises(MemoryTooLarge) as exc:
+        mem.remember(memory_id="m2", author="a", text="y" * 100)
+    assert "over the 200 bound" in str(exc.value)
+    assert "m2" not in [e.memory_id for e in mem.all_entries()]
+
+
+def test_the_total_bound_counts_LIVE_text_only(mem, monkeypatch):
+    """Retracting frees the bound and loses no history.
+
+    The log keeps every byte -- that is the point of a log -- and what the
+    bound protects is what a projection has to hold and a recall has to
+    search.
+    """
+    monkeypatch.setattr("qta_agent.memory.MAX_TOTAL_BYTES", 200)
+    mem.remember(memory_id="m1", author="a", text="x" * 150)
+    with pytest.raises(MemoryTooLarge):
+        mem.remember(memory_id="m2", author="a", text="y" * 100)
+
+    mem.retract("m1", actor="a", reason="no longer needed")
+    mem.remember(memory_id="m2", author="a", text="y" * 100)
+
+    assert mem.live_bytes() == 100
+    assert mem.get("m1").text == "x" * 150, "the history was lost"
+
+
+def test_live_bytes_reports_what_a_projection_holds(mem):
+    mem.remember(memory_id="m1", author="a", text="abcde")
+    mem.remember(memory_id="m2", author="a", text="fgh")
+    assert mem.live_bytes() == 8
+    mem.retract("m2", actor="a", reason="withdrawn")
+    assert mem.live_bytes() == 5

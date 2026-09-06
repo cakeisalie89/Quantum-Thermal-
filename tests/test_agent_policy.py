@@ -18,10 +18,12 @@ if str(ROOT) not in sys.path:
 
 from qta_agent.canonical import is_digest  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
+from qta_agent.canonical import digest  # noqa: E402
 from qta_agent.policy import (  # noqa: E402
     ACT_POLICY_DECISION, ACT_POLICY_PUBLISH, ANY, Effect, PolicyDenied,
     PolicyError, PolicyRequest, PolicyStore, PolicyVersionError,
-    UnknownPolicy, document, document_from_record, rule,
+    PolicyObligationUnmet, UnknownPolicy, document, document_from_record,
+    rule,
 )
 
 
@@ -538,3 +540,183 @@ def test_the_reducer_is_only_ever_reached_in_log_order():
     assert not outside, (
         f"{outside} construct a PolicyStore and call apply; check they fold "
         "in log order before trusting the equivalence above")
+
+
+# ==========================================================================
+# OBLIGATIONS
+#
+# THE GAP THESE CLOSE, stated as it was found:
+#
+#     "no obligations/constraints on an ALLOW decision, only a boolean
+#      verdict"
+#
+# A boolean answers "may this happen". Real control planes permit *provided
+# that*, and writing the proviso in a reason string makes it documentation.
+# ==========================================================================
+
+def _oblig_doc(version=1, obligations=("record_evidence",), extra=()):
+    return document(
+        policy_id="p-oblig", version=version,
+        rules=(rule(rule_id="allow-work", effect=Effect.ALLOW,
+                    actions=("work",), subjects=(ANY,), roles=(ANY,),
+                    resources=(ANY,), obligations=obligations),) + tuple(extra))
+
+
+def _owork(action="work", subject="a", role="WORKER", resource="r"):
+    return PolicyRequest(action=action, subject=subject, role=role,
+                         resource=resource)
+
+
+def test_an_allow_carries_the_obligations_its_rules_attached():
+    d = _oblig_doc()
+    dec = d.evaluate(_owork())
+    assert dec.allowed
+    assert dec.obligations == ("record_evidence",)
+    assert dec.outstanding == ("record_evidence",)
+
+
+def test_an_allow_with_an_outstanding_obligation_yields_no_receipt():
+    """The ALLOW is real and the action is not yet authorized."""
+    dec = _oblig_doc().evaluate(_owork())
+    with pytest.raises(PolicyObligationUnmet) as exc:
+        dec.completion_receipt()
+    assert "outstanding" in str(exc.value)
+
+
+def test_unmet_is_not_denied():
+    """Different answers. A caller that catches denial must not absorb this.
+
+    "You may not" makes a caller stop. "You have not yet" makes a caller do
+    the missing thing. Collapsing them tells an operator their policy forbids
+    something it in fact permits.
+    """
+    assert not issubclass(PolicyObligationUnmet, PolicyDenied)
+    dec = _oblig_doc().evaluate(_owork())
+    # raise_if_denied is the AUTHORIZATION-time question and stays silent
+    # here: at that moment nothing could have been discharged yet.
+    assert dec.raise_if_denied() is dec
+
+
+def test_discharging_yields_a_receipt_naming_what_discharged_it():
+    dec = _oblig_doc().evaluate(_owork())
+    done = dec.discharge("record_evidence", evidence_digest="d" * 64)
+    assert done.completion_receipt() == {"record_evidence": "d" * 64}
+    # The original is unchanged: what the policy said is not what the caller
+    # afterwards did.
+    assert dec.outstanding == ("record_evidence",)
+
+
+def test_an_obligation_that_was_never_attached_cannot_be_discharged():
+    """Otherwise a caller satisfies an obligation by inventing it."""
+    dec = _oblig_doc().evaluate(_owork())
+    with pytest.raises(PolicyError) as exc:
+        dec.discharge("single_use", evidence_digest="d" * 64)
+    assert "attached no obligation" in str(exc.value)
+
+
+def test_a_discharge_must_cite_something():
+    dec = _oblig_doc().evaluate(_owork())
+    with pytest.raises(PolicyError) as exc:
+        dec.discharge("record_evidence", evidence_digest="")
+    assert "cites nothing" in str(exc.value)
+
+
+def test_the_same_obligation_cannot_be_discharged_twice():
+    """One piece of evidence must not stand for two actions."""
+    dec = _oblig_doc().evaluate(_owork()).discharge(
+        "record_evidence", evidence_digest="d" * 64)
+    with pytest.raises(PolicyError) as exc:
+        dec.discharge("record_evidence", evidence_digest="e" * 64)
+    assert "already discharged" in str(exc.value)
+
+
+def test_obligations_accumulate_across_every_matching_allow():
+    """THE ordering defect, one field to the right of deny-overrides.
+
+    Taking obligations from the deciding rule alone would let a broad
+    unconditional grant defeat a narrower conditional one purely by
+    position -- and both rules would look individually correct.
+    """
+    broad = rule(rule_id="a-broad", effect=Effect.ALLOW, actions=("work",),
+                 subjects=(ANY,), roles=(ANY,), resources=(ANY,))
+    narrow = rule(rule_id="z-narrow", effect=Effect.ALLOW, actions=("work",),
+                  subjects=(ANY,), roles=(ANY,), resources=("r",),
+                  obligations=("single_use",))
+    d = document(policy_id="p2", version=1, rules=(broad, narrow))
+    dec = d.evaluate(_owork())
+    assert dec.rule_id == "a-broad"          # the broad rule decided
+    assert dec.obligations == ("single_use",)  # the narrow one's condition
+
+
+def test_a_deny_may_not_carry_obligations():
+    """A refusal cannot be conditional on the refused party doing something."""
+    with pytest.raises(PolicyError) as exc:
+        rule(rule_id="d", effect=Effect.DENY, actions=("work",),
+             subjects=(ANY,), roles=(ANY,), resources=(ANY,),
+             obligations=("record_evidence",))
+    assert "already over" in str(exc.value)
+
+
+def test_an_unknown_obligation_is_refused_at_construction():
+    """The vocabulary is closed. An obligation with no discharge site reads
+    like a control and enforces nothing."""
+    with pytest.raises(PolicyError) as exc:
+        rule(rule_id="r", effect=Effect.ALLOW, actions=("work",),
+             subjects=(ANY,), roles=(ANY,), resources=(ANY,),
+             obligations=("please_be_careful",))
+    assert "closed" in str(exc.value)
+
+
+def test_obligations_reach_the_document_digest(tmp_path):
+    """Two documents differing only in a condition are different documents."""
+    a = _oblig_doc(obligations=("record_evidence",))
+    b = _oblig_doc(obligations=("single_use",))
+    assert a.digest() != b.digest()
+
+
+def test_obligations_round_trip_through_a_record():
+    d = _oblig_doc(obligations=("record_evidence", "single_use"))
+    back = document_from_record(d.body())
+    assert back.digest() == d.digest()
+    assert back.rules[0].obligations == ("record_evidence", "single_use")
+
+
+def test_a_recorded_allow_that_understates_its_obligations_is_refused(
+        tmp_path):
+    """THE forgery, one field further in than a forged verdict.
+
+    The recorded decision says ALLOW, names the right rule, cites the right
+    digest -- and drops the condition. Every reader downstream repeats the
+    unconditional version.
+    """
+    from qta_agent.events import EventLog
+    log = EventLog(tmp_path / "p.jsonl")
+    store = PolicyStore(log).load()
+    store.publish(_oblig_doc(), actor="owner")
+    honest = store.decide_and_record("p-oblig", _owork(), actor="a")
+    assert honest.obligations == ("record_evidence",)
+
+    rec = honest.to_record()
+    rec["obligations"] = []
+    rec.pop("at_seq")
+    log.append(actor="attacker", action=ACT_POLICY_DECISION, target="r",
+               payload={"decision": {**rec, "at_seq": -1},
+                        "decision_digest": digest(rec)})
+    with pytest.raises(PolicyError) as exc:
+        PolicyStore(log).load()
+    assert "obligations" in str(exc.value)
+
+
+def test_a_receipt_is_refused_for_a_denied_decision():
+    d = document(policy_id="p3", version=1,
+                 rules=(rule(rule_id="no", effect=Effect.DENY,
+                             actions=(ANY,), subjects=(ANY,), roles=(ANY,),
+                             resources=(ANY,)),))
+    with pytest.raises(PolicyDenied):
+        d.evaluate(_owork()).completion_receipt()
+
+
+def test_an_unconditional_allow_still_yields_an_empty_receipt():
+    """Obligations are opt-in. A rule that attaches none is not broken."""
+    d = _oblig_doc(obligations=())
+    assert d.evaluate(_owork()).completion_receipt() == {}

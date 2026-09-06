@@ -1,0 +1,79 @@
+{
+  "title": "Corpus membership: what retrieval is permitted to quote",
+  "note": "Every guard on a corpus path protected its SHAPE. None protected the SET, so writing a file into the tree made it governed text a reader would be handed with the retrieval layer's provenance on it. These mutations remove one link each between 'this file exists' and 'this file was reviewed into the corpus'.",
+  "suites": [
+    "tests/test_agent_authority_boundaries.py"
+  ],
+  "mutations": [
+    {
+      "name": "C1_undeclared_documents_enter_the_corpus",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    undeclared = sorted(set(found) - set(allowed))\n    if undeclared:",
+      "replace": "    undeclared = sorted(set(found) - set(allowed))\n    if False:",
+      "rationale": "the original defect restored: a document becomes governed text by being created"
+    },
+    {
+      "name": "C2_a_vanished_document_is_not_noticed",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    missing = sorted(set(allowed) - set(found))\n    if missing:",
+      "replace": "    missing = sorted(set(allowed) - set(found))\n    if False:",
+      "rationale": "the reviewed corpus no longer exists and retrieval answers from something else"
+    },
+    {
+      "name": "C3_an_edited_document_is_absorbed_silently",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if hashlib.sha256(raw).hexdigest() != allowed[rel]:\n            changed.append(rel)",
+      "replace": "        if False:\n            changed.append(rel)",
+      "rationale": "the words a governed document is quoted as saying can be changed without review"
+    },
+    {
+      "name": "C4_a_missing_allowlist_reads_as_no_restriction",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        raw = path.read_text(encoding=\"utf-8\")\n    except OSError as exc:\n        raise CorpusMembershipError(",
+      "replace": "        raw = path.read_text(encoding=\"utf-8\")\n    except OSError as exc:\n        return {}\n        raise CorpusMembershipError(",
+      "rationale": "VACUOUS SUCCESS: deleting the allowlist disables the check, so the weakest attack is also the cheapest"
+    },
+    {
+      "name": "C5_an_empty_allowlist_is_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    if not isinstance(entries, list) or not entries:",
+      "replace": "    if not isinstance(entries, list):",
+      "rationale": "a list naming nothing makes every membership check pass by examining nothing"
+    },
+    {
+      "name": "C6_the_allowlists_own_digest_is_not_checked",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    if claimed != actual:\n        raise CorpusMembershipError(\n            f\"corpus allowlist claims entries_digest",
+      "replace": "    if False:\n        raise CorpusMembershipError(\n            f\"corpus allowlist claims entries_digest",
+      "rationale": "an attacker appends their document to the list; nothing makes that a deliberate regeneration"
+    },
+    {
+      "name": "C7_membership_is_checked_only_against_what_the_caller_named",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    assert_corpus_is_allowlisted(root)\n    chunks: list[dict] = []",
+      "replace": "    assert_corpus_is_allowlisted(root, rels)\n    chunks: list[dict] = []",
+      "rationale": "the check becomes optional by argument: pass a subset and the tree's undeclared documents are never looked at"
+    },
+    {
+      "name": "C8_membership_is_not_checked_at_all",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "    assert_corpus_is_allowlisted(root)\n    chunks: list[dict] = []",
+      "replace": "    chunks: list[dict] = []",
+      "rationale": "the mechanism exists and nothing calls it, which is the shape of a defence with no caller"
+    },
+    {
+      "name": "C9_a_duplicate_allowlist_entry_is_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if rel in out:\n            raise CorpusMembershipError(",
+      "replace": "        if False:\n            raise CorpusMembershipError(",
+      "rationale": "two entries for one path, and the later digest silently wins: neither is the one that was reviewed"
+    },
+    {
+      "name": "C10_an_entry_without_a_digest_is_accepted",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "        if not isinstance(sha, str) or len(sha) != 64:",
+      "replace": "        if not isinstance(sha, str) and False:",
+      "rationale": "membership without content becomes name-equality, which is what the allowlist replaced"
+    }
+  ]
+}

@@ -168,6 +168,57 @@ def _record_target(builder):
     return run
 
 
+def _policy_decision(data: bytes):
+    """A recorded VERDICT, not a document.
+
+    document_from_record was already fuzzed. The decision record is the other
+    half and the more dangerous one: it is what an auditor reads to learn why
+    something was permitted, and ``PolicyStore._recheck_decision`` is the only
+    thing standing between a forged ALLOW and every reader downstream
+    repeating it.
+    """
+    from qta_agent.events import EventLog
+    from qta_agent.policy import (
+        ACT_POLICY_DECISION, ANY, Effect, PolicyStore, document, rule,
+    )
+    rec = json.loads(data.decode("utf-8", "surrogateescape"))
+    with tempfile.TemporaryDirectory() as tmp:
+        log = EventLog(Path(tmp) / "log.jsonl")
+        store = PolicyStore(log).load()
+        store.publish(document(
+            policy_id="p", version=1,
+            rules=(rule(rule_id="r", effect=Effect.ALLOW, actions=("act",),
+                        subjects=(ANY,), roles=(ANY,), resources=(ANY,),
+                        obligations=("record_evidence",)),)), actor="owner")
+        log.append(actor="attacker", action=ACT_POLICY_DECISION, target="t",
+                   payload=rec)
+        return PolicyStore(log).load()
+
+
+def _capability_chain(data: bytes):
+    """A grant record folded against a live root issuer.
+
+    capability_from_record covers the SHAPE of a grant. This covers the
+    authority question the shape cannot ask: who minted it, what it claims to
+    derive from, and whether that derivation widens anything.
+    """
+    from qta_agent.capability import (
+        ACT_ISSUE, Action, CapabilityLedger, issue,
+    )
+    from qta_agent.events import EventLog
+    rec = json.loads(data.decode("utf-8", "surrogateescape"))
+    with tempfile.TemporaryDirectory() as tmp:
+        log = EventLog(Path(tmp) / "log.jsonl")
+        led = CapabilityLedger(log).load()
+        led.issue(issue(capability_id="root-cap", subject="holder",
+                        action=Action.READ_PATHS, task_id="t1",
+                        scope=("verification/stage10",), issued_seq=1),
+                  actor="control-plane")
+        log.append(actor="attacker", action=ACT_ISSUE, target="t1",
+                   payload=rec)
+        return CapabilityLedger(log).load()
+
+
 def _url_target(data: bytes):
     from qta_agent.netauth import parse_target
     return parse_target(data.decode("utf-8", "surrogateescape"))
@@ -207,7 +258,9 @@ def _targets() -> dict:
         AgentError, escalation_from_record, identity_from_record,
         message_from_record,
     )
-    from qta_agent.capability import CapabilityError, capability_from_record
+    from qta_agent.capability import (
+        CapabilityError, capability_from_record,
+    )
     from qta_agent.canonical import CanonicalizationError
     from qta_agent.checkpoint import CheckpointError
     from qta_agent.context import ContextError, manifest_from_record
@@ -253,6 +306,27 @@ def _targets() -> dict:
                                   "actions": ["*"], "subjects": ["*"],
                                   "roles": ["*"], "resources": ["*"],
                                   "reason": ""}]}).encode()]),
+        "policy_decision": (
+            _policy_decision, (PolicyError, EventLogError) + common,
+            [json.dumps({
+                "decision": {
+                    "allowed": True, "policy_id": "p", "version": 1,
+                    "policy_digest": "d" * 64, "rule_id": "r",
+                    "effect": "ALLOW",
+                    "request": {"action": "act", "subject": "s",
+                                "role": "WORKER", "resource": "r",
+                                "task_id": "", "attributes": {}},
+                    "reason": "", "obligations": ["record_evidence"],
+                    "at_seq": -1},
+                "decision_digest": "e" * 64}).encode()]),
+        "capability_chain": (
+            _capability_chain, (CapabilityError, EventLogError) + common,
+            [json.dumps({
+                "task_id": "t1", "capability_id": "c2", "subject": "helper",
+                "action": "READ_PATHS", "tool_id": "",
+                "scope": ["verification/stage10"], "issued_seq": 2,
+                "expires_after_seq": -1,
+                "parent_id": "root-cap"}).encode()]),
         "job": (_record_target(job_from_record), (SchedulerError,) + common,
                 [json.dumps({"job_id": "j", "work_digest": "d" * 64,
                              "submitter": "s", "priority": 9,

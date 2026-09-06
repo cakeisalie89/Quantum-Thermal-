@@ -207,7 +207,7 @@
     {
       "id": "R25",
       "requirement": "Leases, ownership and duplicate-execution prevention",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/tasks.py",
         "qta_agent/scheduler.py"
@@ -239,12 +239,19 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "no lease RENEWAL: a worker holding long work cannot extend, so a lease must be sized for the worst case rather than the common one",
-        "lease expiry is in sequence numbers, so a lease on an idle log never lapses in wall time -- deterministic, and not what 'expires' suggests",
-        "split-brain is tested with real concurrent processes on one host; shared network storage, where flock is weaker, is not tested"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "lease expiry is measured in sequence numbers, so a lease on an idle log never lapses in wall time",
+          "reason": "architectural_by_design",
+          "detail": "deterministic, and deliberately not what 'expires' suggests to an operator. Every reader of the same log at the same position reaches the same verdict about who owns what, which a wall clock cannot promise across machines whose clocks disagree. Renewal is what makes the trade affordable: the lease can now be sized for the common case, because a worker with long work extends rather than reserving the worst case up front"
+        },
+        {
+          "limit": "split-brain is tested with real concurrent PROCESSES on one host; shared network storage, where flock is weaker or absent, is not tested",
+          "reason": "environment_single_host",
+          "detail": "the advisory lock that serializes writers is a POSIX flock, and its behaviour over NFS or SMB cannot be observed from one machine with one filesystem. The module says so at the lock rather than only here, because the person who needs to know is reading that code"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -346,9 +353,10 @@
     {
       "id": "R28",
       "requirement": "Human authority and escalation as workflow states",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/agents.py"
+        "qta_agent/agents.py",
+        "qta_agent/governed_stage10.py"
       ],
       "callers": [
         "Snakefile",
@@ -356,19 +364,20 @@
         "tests/test_agent_agents.py"
       ],
       "production_caller": "qta_agent/governed_stage10.py",
-      "persistent_state": "agent.register / agent.retire / agent.message / agent.claim / agent.escalation events; the directory is a projection",
+      "persistent_state": "agent.escalation and agent.escalation.answer events; open escalations are a projection of them. Delivery failures are held in memory and reported by AgentDirectory.undelivered -- deliberately NOT in the log, because whether a pager answered is not part of the authority history",
       "authority_owner": "AgentDirectory.answer -- HUMAN principals only",
-      "evidence": "the answer, the option set it was checked against, and the answerer's reason",
+      "evidence": "an escalation names its task, its question, the closed set of options offered and who raised it; an answer names the human principal who gave it and their reason",
       "provenance": "who raised it, who answered, why, and at which log position",
-      "failure_semantics": "fail-closed and PERMANENTLY so here: an escalation blocks its task until a human answers, and this repository contains no human decision",
-      "recovery": "the directory reloads from the log; a duplicate registration, a duplicate escalation or a redelivery that changes a body each refuse the load",
+      "failure_semantics": "fail-open on DELIVERY and fail-closed on everything else: a sink that raises does not cost an escalation that is already durable, because losing the record to save the notification is backwards. The failure is recorded so 'nobody was told' has an answer",
+      "recovery": "escalations and answers are rebuilt from the log; an undelivered notification is not, and re-raising is the operator's call rather than something a replay should repeat",
       "retry": "n/a",
       "idempotency": "an answered escalation cannot be answered again",
       "cancellation": "only the asker may withdraw",
       "concurrency": "n/a",
-      "security_boundary": "no agent may answer an escalation whatever roles it holds, and no agent may register a HUMAN principal; the bootstrap is a spelled-out constant so granting human authority is greppable",
+      "security_boundary": "only a HUMAN principal may answer, and never the one who raised it. A delivery sink is called AFTER the escalation is durable and cannot answer, write to the log, or mutate the escalation: a channel that can answer is a channel that can decide, and an escalation exists precisely because the decision was not the software's to make",
       "tests": [
-        "tests/test_agent_agents.py"
+        "tests/test_agent_agents.py",
+        "tests/test_agent_idempotency.py"
       ],
       "property_tests": [],
       "mutation_tests": [
@@ -377,18 +386,25 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "a human cannot be authenticated here; PrincipalKind.HUMAN is a property of a registration record and the module says so",
-        "no notification channel -- an open escalation is visible by query, not delivered",
-        "the governed path raises no escalation, because nothing in a Stage-10 artifact run is a decision a human must make"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "a human cannot be AUTHENTICATED here: PrincipalKind.HUMAN is a property of a registration record, so what the answer check enforces is that a principal registered as a person answered, not that a person did",
+          "reason": "requires_external_identity_authority",
+          "detail": "proving that would need an identity provider this repository deliberately does not contain. The module says so at the check rather than only here. What the check DOES buy is that no arrangement of roles substitutes for the registration: an agent holding REVIEWER is still an agent and is refused"
+        },
+        {
+          "limit": "delivery reaches a stream, not a person: there is no address book, mail transport or pager in this repository, and inventing one would be a channel that looks like delivery and reaches nobody",
+          "reason": "external_system_unreachable",
+          "detail": "so delivery is a named seam with a stated contract, and the sinks shipped are the honest ones -- a line on stderr an operator or a hosted job's log actually keeps, and a recorder a test can assert against. The governed path installs the stream sink, so an UNCERTAIN external outcome is visible in the run's own output rather than only to whoever thinks to query"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R29",
       "requirement": "Versioned, inspectable, testable policy engine",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/policy.py",
         "qta_agent/authority.py"
@@ -401,15 +417,15 @@
       "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "policy.publish events; documents are projected from the verified log",
       "authority_owner": "PolicyDocument.evaluate (deny-overrides, default deny) and authority.check (I5)",
-      "evidence": "each Decision carries the deciding document's content digest, not only its id; the governed run publishes stage10.governed, consults it, and records the decision; a DENY rule stops the run before any task record exists",
-      "provenance": "policy.decision events record allowed AND denied requests with the rule that decided, and each is RE-EVALUATED on load against the document in force at that position: a record whose verdict, effect or rule the rules do not produce refuses the load rather than being repeated by every reader downstream",
-      "failure_semantics": "fail-closed: unpublished policy authorizes nothing; no matching rule denies; empty match fields refused at construction",
+      "evidence": "each Decision carries the deciding document's content digest, not only its id; the governed run publishes stage10.governed, consults it, and records the decision; a DENY rule stops the run before any task record exists. An ALLOW may be CONDITIONAL: the decision carries the obligations every matching allow rule attached, and the run's result carries the receipt naming what discharged each one",
+      "provenance": "policy.decision events record allowed AND denied requests with the rule that decided, and each is RE-EVALUATED on load against the document in force at that position: a record whose verdict, effect, rule OR OBLIGATIONS the rules do not produce refuses the load rather than being repeated by every reader downstream. An ALLOW recorded with fewer conditions than its rules attach is the same forgery one field further in",
+      "failure_semantics": "fail-closed: unpublished policy authorizes nothing; no matching rule denies; empty match fields refused at construction. PolicyObligationUnmet is NOT a PolicyDenied: 'you may not' and 'you have not yet' are different answers, and a caller that catches refusal must not absorb the second",
       "recovery": "PolicyStore.load rebuilds every version from the log; a version gap, a document whose content does not match its recorded digest, or a decision the rules of the day would not have reached, refuses the load",
       "retry": "n/a",
       "idempotency": "n/a: publication is versioned, and a version may not be reused",
       "cancellation": "n/a",
       "concurrency": "versions are gap-free and append-ordered; a second writer's publication is refused unless it follows the version it read",
-      "security_boundary": "deny-overrides so a prohibition cannot be defeated by ordering; in_force_at makes decisions non-retroactive (I5)",
+      "security_boundary": "deny-overrides so a prohibition cannot be defeated by ordering; in_force_at makes decisions non-retroactive (I5); obligations accumulate across EVERY matching ALLOW rather than being taken from the rule that decided, so a broad unconditional grant cannot defeat a narrower conditional one by position -- the same defect deny-overrides exists to prevent, one field to the right",
       "tests": [
         "tests/test_agent_policy.py",
         "tests/test_agent_scheduler.py",
@@ -419,22 +435,31 @@
       "mutation_tests": [
         "tools/mutations/agent_policy.json"
       ],
-      "fuzzing": "none",
+      "fuzzing": "tools/fuzz_substrate.py targets 'policy' (document records) and 'policy_decision' (a recorded verdict folded against a live store, so the re-derivation path is what is fuzzed)",
       "differential": "policy versions and recorded decisions are rebuilt by an independent reader that refuses a downgrade republish",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "no fuzzing of policy records",
-        "no obligations/constraints on an ALLOW decision, only a boolean verdict"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "reason": "architectural_by_design",
+          "limit": "evaluation is total and side-effect-free over the fields a request carries",
+          "detail": "It cannot consult the world -- no clock, no quota, no attribute service -- so a rule like 'only during business hours' is unexpressible here. That is what makes a decision at seq 40 re-derivable at seq 4000 by any reader of the same log, which is the property I5 depends on"
+        },
+        {
+          "reason": "epistemic",
+          "limit": "an obligation is discharged by the caller naming it and citing an evidence digest",
+          "detail": "This module requires the discharge to cite SOMETHING an auditor can follow; it cannot verify that the digest is evidence OF the thing the obligation names, because only the discharging subsystem knows what that would look like. The receipt makes the claim checkable by a human, not self-proving"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R30",
       "requirement": "Capabilities as enforceable authority objects",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/capability.py"
+        "qta_agent/capability.py",
+        "qta_agent/reconstruct.py"
       ],
       "callers": [
         "Snakefile",
@@ -444,36 +469,49 @@
       ],
       "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "capability.issue / capability.revoke events; the in-force set is a projection of them, not a caller's variable",
-      "authority_owner": "capability.CapabilityLedger.in_force + CapabilitySet.check",
-      "evidence": "every grant names subject, task, tool, scope and expiry",
-      "provenance": "capability_from_record rebuilds a grant from its log payload; the ledger refuses one id issued twice with different terms",
+      "authority_owner": "capability.CapabilityLedger.in_force + CapabilitySet.check for USE; CapabilityLedger._authorize_mint for EXISTENCE",
+      "evidence": "every grant names subject, task, tool, scope, expiry and the grant it was attenuated from; the root issuer is an event of its own",
+      "provenance": "capability_from_record rebuilds a grant from its log payload; the ledger refuses one id issued twice with different terms; parent_id is part of the digested body, so a delegation cannot be re-parented under a wider grant without becoming a different capability",
       "failure_semantics": "fail-closed; distinct exceptions for unknown, revoked, expired and denied",
-      "recovery": "rebuilt by replaying the log; a lost projection costs time, never authority",
+      "recovery": "rebuilt by replaying the log; a lost projection costs time, never authority. A forged grant or a widening delegation makes the replay FAIL rather than producing authority",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "revocation takes effect immediately",
       "concurrency": "issuance appends through the log's writer lock; revocation takes effect for every later check",
-      "security_boundary": "a grant is bounded in subject, task, action, tool and path scope, and in a validity WINDOW closed at both ends: expiry was checked and issuance was not, so a capability recorded at seq 90 answered 'was this permitted at seq 20' with yes. The ledger stamps the start from the log and refuses a record that names its own",
+      "security_boundary": "a grant is bounded in subject, task, action, tool and path scope, and in a validity WINDOW closed at both ends: expiry was checked and issuance was not, so a capability recorded at seq 90 answered 'was this permitted at seq 20' with yes. The ledger stamps the start from the log and refuses a record that names its own. WHO MAY MINT is now a check rather than a label: the first grant on a log appends a capability.root event naming its actor, and from that position every issue record from any other actor is refused AT LOAD TIME, by the ledger and by the independent reader alike. A holder may delegate a strictly weaker grant -- same action, same task, same tool, scope a subset, expiry no later -- and check() walks the chain, so revoking or expiring a parent takes its whole subtree with it",
       "tests": [
         "tests/test_agent_crash_recovery.py",
+        "tests/test_agent_delegation.py",
         "tests/test_agent_execution.py",
         "tests/test_agent_governed_stage10.py",
         "tests/test_agent_second_reader.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/agent_delegation.json",
         "tools/mutations/agent_execution.json"
       ],
-      "fuzzing": "none",
-      "differential": "capabilities are rebuilt by an independent reader that refuses a grant predating its own record and a reissued id",
+      "fuzzing": "tools/fuzz_substrate.py targets 'capability' (grant shape) and 'capability_chain' (a grant record folded against a live root issuer, so the authority question the shape cannot ask is what is fuzzed)",
+      "differential": "capabilities are rebuilt by an independent reader that refuses a grant predating its own record, a reissued id, a mint by a non-root actor and a delegation that widens anything",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "subject is not authenticated; a grant cannot be used under another name but nothing proves who a name belongs to",
-        "no ISSUER authority: any actor that can write the log can mint a grant. issuer_of() records who did, and is deliberately not consulted by check() -- attribution, not authorization",
-        "no delegation or attenuation",
-        "expiry is in sequence numbers, so a grant does not lapse with wall time on an idle log -- deterministic, and not what an operator expects of 'expires'"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "reason": "requires_external_identity_authority",
+          "limit": "the ROOT is asserted, not authenticated: whoever writes the first grant becomes it",
+          "detail": "Nothing in this repository can do better, because nothing here can prove an actor is who it says it is -- that needs a credential authority or PKI this build deliberately does not contain. What the root buys is that AFTER it exists the set of actors who may mint is one, and every other attempt fails closed in every reader"
+        },
+        {
+          "reason": "requires_external_identity_authority",
+          "limit": "subject is likewise a name the issuer chose",
+          "detail": "A grant made to one name cannot be used under another, which is a real property; that the name belongs to anybody in particular is not something this module can establish"
+        },
+        {
+          "reason": "architectural_by_design",
+          "limit": "expiry is in sequence numbers, so a grant does not lapse with wall time on an idle log",
+          "detail": "Deterministic, and not what an operator expects of 'expires' -- the trade is deliberate: every reader of the same log at the same position reaches the same verdict, which a wall clock cannot promise"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -529,7 +567,7 @@
     {
       "id": "R32",
       "requirement": "Network authority: explicit, auditable egress",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/netauth.py"
       ],
@@ -559,15 +597,22 @@
       "mutation_tests": [
         "tools/mutations/agent_netauth.json"
       ],
-      "fuzzing": "none",
+      "fuzzing": "tools/fuzz_substrate.py targets 'url' (parse_target), 'host_match' (label-wise host matching) and 'egress_grant' (grant records)",
       "differential": "network grants are rebuilt by an independent reader that refuses a rebound grant id",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "kernel-level containment (network namespace, seccomp, firewall) is NOT provided and is documented as absent; in-process code can restore socket.connect",
-        "no fuzzing of URL parsing",
-        "ingress is not modelled at all; Direction has one member"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "kernel-level containment -- network namespace, seccomp, an outbound firewall -- is not provided, and in-process code can restore socket.connect",
+          "reason": "platform_primitive_absent",
+          "detail": "this is MEDIATION, stated rather than implied: the guard is a Python-level replacement of the connect primitive inside a block, and anything running in this interpreter can undo it. Containment needs privileges an unprivileged interpreter does not have. Saying so is part of the row because a reader who assumed a sandbox would draw a conclusion the code does not support"
+        },
+        {
+          "limit": "ingress is not modelled at all: Direction has one member, and nothing here listens",
+          "reason": "architectural_by_design",
+          "detail": "this substrate makes outbound requests and accepts none. A Direction enum with an unused INBOUND member would describe an authority nothing enforces, which is the shape of a control that is really a comment. If something here ever listens, the member and its enforcement arrive together"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -668,50 +713,61 @@
     {
       "id": "R35",
       "requirement": "Read-only evidence retrieval that cannot mutate authority",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_multiphysics/stack/rag_index.py"
+        "qta_multiphysics/stack/rag_index.py",
+        "tools/corpus_allowlist.py"
       ],
       "callers": [
         "Snakefile",
+        "tools/corpus_allowlist.py",
         "tools/fuzz_substrate.py",
         "tests/test_stage10_stack.py",
         "tests/test_agent_authority_boundaries.py"
       ],
       "production_caller": "Snakefile",
-      "persistent_state": "serialized index treated as a cache, verified against source",
-      "authority_owner": "rag_index.load_index",
-      "evidence": "every hit carries path, line range, source digest and evidence_status=RETRIEVED_TEXT_NOT_EVIDENCE",
+      "persistent_state": "docs/corpus_allowlist.json records which documents retrieval may quote, with a content digest per document and a digest over the entries; the serialized index remains a cache verified against source",
+      "authority_owner": "rag_index.assert_corpus_is_allowlisted for MEMBERSHIP; rag_index.load_index for CONTENT",
+      "evidence": "every hit carries path, line range, source digest and evidence_status=RETRIEVED_TEXT_NOT_EVIDENCE; membership is attested by a committed allowlist rather than inferred from a directory walk",
       "provenance": "file_digests + per-chunk source spans",
-      "failure_semantics": "fail-closed ValueError on stale-or-forged index",
-      "recovery": "rebuild from source",
+      "failure_semantics": "fail-closed ValueError on stale-or-forged index; CorpusMembershipError on an undeclared, vanished or edited document. A MISSING allowlist refuses rather than reading as empty: a membership check that passes because it examined nothing is the vacuous-success shape",
+      "recovery": "rebuild from source; regenerate the allowlist with tools/corpus_allowlist.py --write in the commit that changes the corpus",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "path traversal, absolute, symlink, duplicate, excluded-tree, suffix and root-escape guards; k bounded",
+      "security_boundary": "path traversal, absolute, symlink, duplicate, excluded-tree, suffix and root-escape guards; k bounded. Those guard the SHAPE of a path; membership guards the SET, which nothing was asking: a file dropped into the tree passed every shape check and became governed text a reader would be handed with this module's provenance on it. build_index now refuses unless the corpus on disk IS the corpus the allowlist describes -- both directions, and checked against the whole tree rather than against the subset a caller named, so the check cannot be stepped around by passing a different argument",
       "tests": [
         "tests/test_agent_authority_boundaries.py",
         "tests/test_stage10_stack.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/corpus_allowlist.json",
         "tools/mutations/stage10_authority.json"
       ],
-      "fuzzing": "none",
+      "fuzzing": "tools/fuzz_substrate.py target 'rag_index' fuzzes the serialized index document parser",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "corpus membership is git-tracked-file equality, not a signed allowlist",
-        "no fuzzing of the index document parser"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the allowlist is content-addressed and committed, NOT cryptographically signed: it attests what the corpus is and cannot attest who approved it",
+          "reason": "requires_external_identity_authority",
+          "detail": "signing needs a key authority or PKI this repository deliberately does not contain. The review that put the file in a commit is the authority; this mechanism makes divergence from it visible, which is the part that can be enforced from inside the repository"
+        },
+        {
+          "limit": "retrieval returns verbatim spans and states that they are not evidence; it cannot stop a reader from treating a quotation as a finding",
+          "reason": "epistemic",
+          "detail": "evidence_status travels with every hit and the disclaimer is in the result document. What a downstream reader concludes from a governed sentence is outside anything this module can enforce, and claiming otherwise would be the same overreach the label exists to prevent"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R36",
       "requirement": "Durable agent memory separated from evidence and authority",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/memory.py"
       ],
@@ -721,17 +777,17 @@
         "tests/test_agent_memory.py"
       ],
       "production_caller": "qta_agent/governed_stage10.py",
-      "persistent_state": "memory.write / memory.status events; entries are projected from the verified log",
+      "persistent_state": "memory.write and memory.status events; entries and their derived status are a projection of them. The live store is bounded per entry AND in total",
       "authority_owner": "none, deliberately: memory influences proposals and decides nothing",
-      "evidence": "an entry names what it was derived from, and a citation that does not resolve in the evidence store is refused at write time; the governed run files a note citing its artifacts, and the Snakemake rule fails if that note's digest resolves as evidence",
+      "evidence": "an entry names its author, what it was derived from, and the author's own confidence as commentary. A search result is a different type entirely: MemoryHit carries evidence_status=REMEMBERED_TEXT_NOT_EVIDENCE as a class attribute no construction path can set, and the system's status alongside it, and offers no digest field at all",
       "provenance": "author, sources, supersession and the reason for every status change",
-      "failure_semantics": "fail-closed on fabricated citations, duplicate ids, empty or oversized entries, and unknown record fields",
+      "failure_semantics": "fail-closed. recall excludes non-current entries unless asked, because a search that returned a RETRACTED entry would un-withdraw a statement for everybody who searched instead of listing; when asked for, they arrive carrying the status that says why. A write that would cross the total bound is refused with MemoryTooLarge naming what frees it",
       "recovery": "entries reload from the log; a duplicate write refuses the load",
       "retry": "n/a",
       "idempotency": "one write per memory_id; a second is refused rather than replacing the first",
       "cancellation": "retraction by the author only; the text stays in the log and the status changes",
-      "concurrency": "n/a",
-      "security_boundary": "structural: a memory digest never enters the evidence store so it cannot satisfy I6, and no module in the authority path may import this one -- enforced by the layering test; a status a replay would refuse does not become state: the status machine and the authorship rule are enforced on REPLAY as well as on the write path",
+      "concurrency": "recall ranks by term overlap and tie-breaks on memory_id, so two readers of the same log return the same order; an audit of a run does not depend on which process ran it",
+      "security_boundary": "a memory digest does not resolve in the evidence store, no module in the authority path may import this one, and refuse_as_evidence gives the mistake a call site. Retrieval is a SEPARATE surface from the document index on purpose: that corpus is an allowlisted set of governed documents, and letting an agent's own notes join it would let an agent write text into the corpus it is later handed back with the retrieval layer's provenance on it -- the attack the corpus allowlist exists to stop, reopened one import away",
       "tests": [
         "tests/test_agent_memory.py",
         "tests/test_agent_second_reader.py"
@@ -743,11 +799,19 @@
       "fuzzing": "none",
       "differential": "memory entries are rebuilt by an independent reader that refuses a forged author and an un-retraction",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "memory is not retrievable through the RAG index, so the 'retrievable memory keeps its lower authority' case is unimplemented rather than solved",
-        "no bound on total memory size across entries, only per entry"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "ranking is term overlap over a small store, and nothing here is a search engine: a query that shares no literal token with a relevant entry finds nothing",
+          "reason": "architectural_by_design",
+          "detail": "the alternative is embeddings, which would make what a reader is handed depend on a model's judgement rather than on the words in the log -- and this store's whole discipline is that what comes back is verbatim text with its status attached. A ranker that could surface an entry for reasons a reader cannot reconstruct is the wrong trade for memory that is explicitly not evidence"
+        },
+        {
+          "limit": "the total bound protects the LIVE store, and the log keeps every byte ever written",
+          "reason": "architectural_by_design",
+          "detail": "counting retracted and superseded text toward the bound would make 'keep writing' and 'keep history' mutually exclusive, and the history is the point. What the bound protects is what a projection holds in memory and what a recall has to search"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -948,7 +1012,7 @@
     {
       "id": "R41",
       "requirement": "Checkpointing",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/checkpoint.py"
       ],
@@ -956,16 +1020,16 @@
         "qta_agent/store.py"
       ],
       "production_caller": null,
-      "persistent_state": "checkpoint files + snapshot blobs in the evidence store",
+      "persistent_state": "one file per checkpoint, named by seq, written atomically and never overwritten; retention deletes old ones only while keeping recovery possible",
       "authority_owner": "checkpoint.create / CheckpointStore",
       "evidence": "snapshot pinned by content digest",
       "provenance": "full_verification flag travels with the checkpoint",
-      "failure_semantics": "fail-closed; refuses to checkpoint a log that does not verify",
-      "recovery": "latest_usable walks back past unusable checkpoints",
+      "failure_semantics": "fail-closed. A corrupt checkpoint is walked past rather than fatal, and reported by audit(). prune refuses keep < 1, and refuses to prune at all when nothing in the store verifies against the log -- deleting on that basis would act on a conclusion the store cannot support, since the LOG may be the thing that is wrong",
+      "recovery": "latest_usable walks backwards to the newest checkpoint that both parses and describes the log. prune is defined against THAT rather than against recency: keeping the newest N by number can delete the only checkpoint recovery could start from while carefully preserving several that describe a log nobody has",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
-      "concurrency": "n/a",
+      "concurrency": "checkpoints are taken against a log that keeps moving; the property held is not that a checkpoint is current -- it cannot be -- but that it is never WRONG, and every checkpoint in the store still verifies against the log afterwards. Tested with a real appending thread",
       "security_boundary": "none",
       "tests": [
         "tests/test_agent_checkpoint.py"
@@ -977,12 +1041,14 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "self-hash detects corruption, NOT tampering \u2014 no authentication",
-        "no cleanup or retention policy for old checkpoints",
-        "concurrent checkpoint-while-appending is untested"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the self-hash detects CORRUPTION, not tampering: anyone who can rewrite the file can recompute the hash",
+          "reason": "requires_external_identity_authority",
+          "detail": "authentication needs a key authority this repository does not contain, and an HMAC with a key sitting beside the data it authenticates would be a control that reads like one and is not. The message at the check says this, so a reader does not infer more than the hash provides"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

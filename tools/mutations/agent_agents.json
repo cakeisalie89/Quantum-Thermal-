@@ -2,7 +2,8 @@
   "title": "Several agents: identity that cannot be borrowed, a human that cannot be simulated",
   "note": "Two clusters. A1-A6 attack identity and separation: an instance acting in a role it does not hold, or taking a second role that defeats the separation the first one created. A7-A14 attack the human boundary, which is the sharpest thing in this module -- an escalation exists because the decision was not an agent's to make, so A9 (any principal may answer) and A10 (an agent may register a human) each hand the agent the authority the escalation was protecting against. A15-A20 attack message provenance and conflict resolution, where the failure is quieter: a redelivery that rewrites what was said, or a disagreement settled by whichever arrived last.",
   "suites": [
-    "tests/test_agent_agents.py"
+    "tests/test_agent_agents.py",
+    "tests/test_agent_idempotency.py"
   ],
   "mutations": [
     {
@@ -291,6 +292,62 @@
       "find": "            if iid not in self._identities:",
       "replace": "            if False:",
       "rationale": "an authority API fails with an incidental Python exception instead of its domain error"
+    },
+    {
+      "name": "N1_an_escalation_is_filed_but_never_delivered",
+      "path": "qta_agent/agents.py",
+      "find": "        self._notify(raised)\n        return raised",
+      "replace": "        return raised",
+      "rationale": "the original defect restored: an escalation blocking work until a person acts is visible only to whoever runs the query, which in the case escalation exists for is nobody"
+    },
+    {
+      "name": "N2_a_failing_sink_costs_the_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "        except Exception as exc:                        # noqa: BLE001",
+      "replace": "        except ValueError as exc:",
+      "rationale": "losing a durable record because a pager was down; a sink is somebody else's code and nothing it raises makes discarding the escalation right"
+    },
+    {
+      "name": "N3_delivery_happens_before_the_record_is_durable",
+      "path": "qta_agent/agents.py",
+      "find": "        ev = self.log.append(actor=raised_by, action=ACT_ESCALATION,\n                             target=task_id,\n                             payload={\"escalation\": esc.to_record()})",
+      "replace": "        self._notify(esc)\n        ev = self.log.append(actor=raised_by, action=ACT_ESCALATION,\n                             target=task_id,\n                             payload={\"escalation\": esc.to_record()})",
+      "rationale": "a notification for an escalation the log never got: the operator is told about work that is not blocked and no record exists to answer"
+    },
+    {
+      "name": "N4_delivery_failures_are_forgotten",
+      "path": "qta_agent/agents.py",
+      "find": "            self._undelivered.append((esc.escalation_id, repr(exc)))",
+      "replace": "            pass",
+      "rationale": "'nobody was told' stops being a question with an answer, so a broken channel looks exactly like a working one"
+    },
+    {
+      "name": "N5_the_production_path_stops_escalating",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if not any(e.escalation_id == escalation_id\n                           for e in self.agents.open_escalations(\n                               task_id=prior.task_id)):",
+      "replace": "                if False:",
+      "rationale": "the mechanism exists and nothing calls it: an UNCERTAIN external outcome is reported and no decision is ever put to a person"
+    },
+    {
+      "name": "N6_an_escalation_is_raised_on_every_external_resubmission",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if external and not settled:\n            outcome = \"UNCERTAIN\"",
+      "replace": "        if external:\n            outcome = \"UNCERTAIN\"",
+      "rationale": "VACUOUS: escalating when there is nothing to decide makes the escalation mean nothing, which is the failure mode opposite to never raising one"
+    },
+    {
+      "name": "N7_a_resubmission_raises_a_second_escalation",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if not any(e.escalation_id == escalation_id\n                           for e in self.agents.open_escalations(\n                               task_id=prior.task_id)):",
+      "replace": "                if True:",
+      "rationale": "one unresolved fact becomes many decisions, and the second raise fails on the duplicate id, taking the honest report down with it"
+    },
+    {
+      "name": "N8_a_failed_escalation_takes_the_report_with_it",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            except AgentError:\n                escalation_id = \"\"",
+      "replace": "            except ZeroDivisionError:\n                escalation_id = \"\"",
+      "rationale": "losing the honest UNCERTAIN answer to save the escalation: the same trade the notifier refuses, one layer up"
     }
   ]
 }

@@ -50,6 +50,9 @@ MAX_SNIPPET_CHARS = 600
 EXCLUDED_DIRS = ("attic", "verification", ".git", ".venv", "outputs",
                  "release", "__pycache__")
 CORPUS_GLOBS = ("*.md", "*.txt")
+#: The committed record of what the corpus IS. See :func:`load_allowlist`.
+CORPUS_ALLOWLIST = "docs/corpus_allowlist.json"
+ALLOWLIST_SCHEMA_VERSION = 1
 CORPUS_SUFFIXES = tuple(g.lstrip("*") for g in CORPUS_GLOBS)
 
 #: Upper bound on results per query. Retrieval hands verbatim spans to a
@@ -88,6 +91,170 @@ def corpus_files(root: StrPath | None = None) -> list[str]:
                 continue
             out.append(rel.as_posix())
     return sorted(set(out))
+
+
+class CorpusMembershipError(ValueError):
+    """The corpus on disk is not the corpus that was reviewed."""
+
+
+def load_allowlist(root: StrPath | None = None) -> dict:
+    """The committed ``{path: sha256}`` the corpus is checked against.
+
+    WHY MEMBERSHIP NEEDED A RECORD
+
+    Membership used to be "whatever ``*.md`` the walk found outside the
+    excluded trees". Every guard in :func:`_validate_corpus_paths` protected
+    the SHAPE of a path and none of them protected the SET: dropping a file
+    into the tree made it governed text a reader would be handed with this
+    module's provenance on it, and nothing anywhere had to approve that.
+
+    So the corpus is now declared. Adding a document is an edit to a
+    committed file, visible in review, rather than a side effect of creating
+    one.
+
+    WHAT "ATTESTED" MEANS HERE, AND WHAT IT DOES NOT
+
+    Each entry carries the file's content digest, and the allowlist carries a
+    digest of its own entries -- so a silent edit to either the corpus or the
+    list is detectable. It is NOT cryptographically signed: there is no key
+    authority in this repository, so nothing here can establish WHO approved
+    the list, only that what is on disk is what the list describes. The
+    review that put it in the commit is the authority; this is the mechanism
+    that makes divergence from it visible.
+
+    Fails closed on absence. A missing allowlist is not an empty one: an
+    empty allowlist would refuse every document, and a MISSING one read as
+    empty would be the vacuous-success shape -- a membership check that
+    passes because it examined nothing.
+    """
+    import json
+    root = Path(root) if root is not None else repo_root()
+    path = root / CORPUS_ALLOWLIST
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise CorpusMembershipError(
+            f"no corpus allowlist at {CORPUS_ALLOWLIST} ({exc}). Retrieval "
+            "refuses rather than falling back to 'whatever is on disk': that "
+            "fallback is the state this file exists to end") from None
+    try:
+        doc = json.loads(raw)
+    except ValueError as exc:
+        raise CorpusMembershipError(
+            f"corpus allowlist is unparseable: {exc}") from None
+    if not isinstance(doc, dict):
+        raise CorpusMembershipError(
+            f"corpus allowlist is {type(doc).__name__}, not an object")
+    if doc.get("schema_version") != ALLOWLIST_SCHEMA_VERSION:
+        raise CorpusMembershipError(
+            f"corpus allowlist schema {doc.get('schema_version')!r} != "
+            f"{ALLOWLIST_SCHEMA_VERSION!r}")
+    entries = doc.get("entries")
+    if not isinstance(entries, list) or not entries:
+        raise CorpusMembershipError(
+            "corpus allowlist has no entries. An allowlist that names nothing "
+            "would make every membership check pass by examining nothing")
+    out: dict = {}
+    for e in entries:
+        if not isinstance(e, dict):
+            raise CorpusMembershipError(
+                f"allowlist entry is {type(e).__name__}, not an object")
+        rel, sha = e.get("path"), e.get("sha256")
+        if not isinstance(rel, str) or not rel:
+            raise CorpusMembershipError(f"allowlist entry names no path: {e!r}")
+        if not isinstance(sha, str) or len(sha) != 64:
+            raise CorpusMembershipError(
+                f"allowlist entry {rel!r} carries no sha256 digest")
+        if rel in out:
+            raise CorpusMembershipError(
+                f"allowlist names {rel!r} twice; two entries for one path "
+                "cannot both be the one that was reviewed")
+        out[rel] = sha
+    claimed = doc.get("entries_digest")
+    actual = hashlib.sha256(
+        "\n".join(f"{k} {out[k]}" for k in sorted(out)).encode("utf-8")
+    ).hexdigest()
+    if claimed != actual:
+        raise CorpusMembershipError(
+            f"corpus allowlist claims entries_digest {str(claimed)[:12]} and "
+            f"its entries hash to {actual[:12]}; the list was edited without "
+            "being regenerated, and which half is right is not this module's "
+            "guess to make")
+    return out
+
+
+def allowlist_document(root: StrPath | None = None) -> dict:
+    """The allowlist the corpus on disk WOULD produce. Returns; never writes.
+
+    Deliberately returns rather than writing. A library function that could
+    write the allowlist would let production code approve its own corpus,
+    which is the property this whole mechanism exists to hold; writing is
+    ``tools/corpus_allowlist.py --write``, and its output lands in a commit.
+    """
+    root = Path(root) if root is not None else repo_root()
+    rels = corpus_files(root)
+    entries = [{"path": rel,
+                "sha256": hashlib.sha256((root / rel).read_bytes()).hexdigest()}
+               for rel in rels]
+    return {
+        "schema_version": ALLOWLIST_SCHEMA_VERSION,
+        "label": "corpus membership for read-only retrieval",
+        "note": ("A document is retrievable because it appears here, not "
+                 "because it exists. Regenerate with "
+                 "tools/corpus_allowlist.py --write in the same commit that "
+                 "adds or edits the document, so the change is reviewed "
+                 "rather than absorbed. Content-addressed, not signed: this "
+                 "repository has no key authority, so the list attests what "
+                 "the corpus IS and cannot attest who approved it."),
+        "entries_digest": hashlib.sha256(
+            "\n".join(f"{e['path']} {e['sha256']}" for e in entries)
+            .encode("utf-8")).hexdigest(),
+        "entries": entries,
+    }
+
+
+def assert_corpus_is_allowlisted(root: StrPath | None = None,
+                                 rels: Sequence[str] | None = None) -> dict:
+    """The corpus on disk must BE the corpus that was reviewed.
+
+    Both directions, and both matter for different reasons:
+
+    * a file on disk that the list does not name is undeclared governed text,
+      which is the whole attack -- write a document, have it quoted back with
+      provenance nobody granted;
+    * a file the list names that is not on disk (or whose bytes changed) means
+      the reviewed corpus no longer exists, and continuing would retrieve from
+      something other than what was approved.
+
+    Returns the verified ``{path: sha256}`` mapping.
+    """
+    root = Path(root) if root is not None else repo_root()
+    allowed = load_allowlist(root)
+    found = list(rels) if rels is not None else corpus_files(root)
+    undeclared = sorted(set(found) - set(allowed))
+    if undeclared:
+        raise CorpusMembershipError(
+            f"{len(undeclared)} document(s) are in the corpus tree and not in "
+            f"{CORPUS_ALLOWLIST}: {undeclared[:5]}. A file becomes governed "
+            "text by being reviewed into the allowlist, not by being created")
+    missing = sorted(set(allowed) - set(found))
+    if missing:
+        raise CorpusMembershipError(
+            f"{len(missing)} allowlisted document(s) are not in the corpus: "
+            f"{missing[:5]}. The reviewed corpus no longer exists, so what "
+            "retrieval would return is not what was approved")
+    changed = []
+    for rel in sorted(found):
+        raw = (root / rel).read_bytes()
+        if hashlib.sha256(raw).hexdigest() != allowed[rel]:
+            changed.append(rel)
+    if changed:
+        raise CorpusMembershipError(
+            f"{len(changed)} allowlisted document(s) no longer hash to what "
+            f"the allowlist records: {changed[:5]}. Regenerate the allowlist "
+            "in the commit that changes the document, so the change is "
+            "reviewed rather than absorbed")
+    return allowed
 
 
 def _validate_corpus_paths(root: Path, rels: list) -> list:
@@ -306,6 +473,19 @@ def build_index(root: StrPath | None = None,
         rels = _validate_corpus_paths(root, list(paths))
     else:
         rels = corpus_files(root)
+    # MEMBERSHIP, checked here rather than at every call site.
+    #
+    # The shape guards above decide whether a path is safe to read. This
+    # decides whether the document was ever meant to be retrievable, which is
+    # a different question and the one nothing was asking: a file dropped
+    # into the tree passed every shape check and became governed text.
+    #
+    # Checked against the FULL corpus, not against `rels`. A caller naming a
+    # subset is narrowing what it indexes, and a caller naming a subset must
+    # not thereby skip the question of whether the tree contains something
+    # undeclared -- that would make the check optional by argument, which is
+    # the opt-in weakness this repository already carries once.
+    assert_corpus_is_allowlisted(root)
     chunks: list[dict] = []
     digests: dict[str, str] = {}
     for rel in rels:

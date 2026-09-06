@@ -56,6 +56,70 @@ ACT_AGENT_REGISTER = "agent.register"
 ACT_AGENT_RETIRE = "agent.retire"
 ACT_MESSAGE = "agent.message"
 ACT_CLAIM = "agent.claim"
+class Notifier:
+    """Where an escalation goes once it is durable. A contract, not a queue.
+
+    WHY THIS IS AN INTERFACE AND NOT AN IMPLEMENTATION
+
+    "Deliver to a person" is not a thing this repository can do. There is no
+    address book, no mail transport, no pager, and inventing one would be a
+    channel that looks like delivery and reaches nobody -- which is worse
+    than the query-only state it replaced, because at least that state was
+    visible as a gap.
+
+    What CAN be done is to make delivery a named, replaceable seam with a
+    stated contract, and to ship the sinks that are honest here: one that
+    writes a line an operator or a CI job can actually see
+    (:class:`StreamNotifier`), and one that records what it was handed so a
+    test can assert delivery happened (:class:`RecordingNotifier`).
+
+    THE CONTRACT
+
+    * called AFTER the escalation is durable in the log, never before;
+    * may raise: the caller survives it and records the failure. A sink that
+      fails must not cost the escalation, because losing the record to save
+      the notification is backwards;
+    * must not write to the log, mutate the escalation, or answer it. A
+      delivery channel that can answer is a channel that can decide, and an
+      escalation exists precisely because the decision was not the software's
+      to make.
+    """
+
+    def escalation_raised(self, escalation) -> None:
+        raise NotImplementedError
+
+
+class StreamNotifier(Notifier):
+    """Write one line per escalation to a stream. The honest minimum.
+
+    stderr by default, because that is where an operator running the
+    workflow is already looking and where a CI job's log will keep it.
+    """
+
+    def __init__(self, stream=None):
+        self._stream = stream
+
+    def escalation_raised(self, escalation) -> None:
+        import sys
+        stream = self._stream if self._stream is not None else sys.stderr
+        stream.write(
+            f"ESCALATION {escalation.escalation_id} on task "
+            f"{escalation.task_id}: {escalation.question} "
+            f"[{'/'.join(escalation.options)}] raised by "
+            f"{escalation.raised_by}\n")
+        stream.flush()
+
+
+class RecordingNotifier(Notifier):
+    """Keep what it was handed, in order. For tests and for assertions."""
+
+    def __init__(self):
+        self.delivered: list = []
+
+    def escalation_raised(self, escalation) -> None:
+        self.delivered.append(escalation)
+
+
 ACT_ESCALATION = "agent.escalation"
 ACT_ESCALATION_ANSWER = "agent.escalation.answer"
 
@@ -394,12 +458,17 @@ class AgentDirectory:
     not in the log did not participate, whatever it claims about itself.
     """
 
-    def __init__(self, log):
+    def __init__(self, log, *, notifier=None):
         self.log = log
         self._identities: dict = {}
         self._messages: dict = {}
         self._claims: dict = {}
         self._escalations: dict = {}
+        #: Where a raised escalation is DELIVERED, or None to file only.
+        #: See :class:`Notifier` for what a sink must promise.
+        self.notifier = notifier
+        #: ``(escalation_id, error)`` for notifications the sink refused.
+        self._undelivered: list = []
         self._at_seq = -1
 
     # ---- projection ----------------------------------------------------
@@ -821,7 +890,22 @@ class AgentDirectory:
     # ---- escalation ----------------------------------------------------
     def escalate(self, *, escalation_id: str, task_id: str, question: str,
                  raised_by: str, options: tuple) -> Escalation:
-        """Raise a decision that is not the agent's to make."""
+        """Raise a decision that is not the agent's to make, and DELIVER it.
+
+        Raising used to end at the log. An open escalation was visible to
+        anyone who ran a query and to nobody who did not, which for a thing
+        that blocks work until a person acts means it is not raised, it is
+        filed. The difference matters most in exactly the case escalation
+        exists for: nobody is looking.
+
+        So a registered :class:`Notifier` is called for every escalation.
+        Delivery is best-effort BY CONSTRUCTION and the code says so rather
+        than pretending: a sink that raises must not undo an escalation that
+        is already durable in the log, because losing the record to save the
+        notification is backwards. Failures are recorded on the notifier and
+        reported by :meth:`undelivered`, so "nobody was told" is a question
+        with an answer.
+        """
         self.get(raised_by)
         if not question.strip():
             raise EscalationError("an escalation must ask something")
@@ -838,7 +922,33 @@ class AgentDirectory:
                              target=task_id,
                              payload={"escalation": esc.to_record()})
         self.apply(ev)
-        return self._escalations[escalation_id]
+        raised = self._escalations[escalation_id]
+        # DURABLE FIRST, DELIVERED SECOND, and never the other way round.
+        self._notify(raised)
+        return raised
+
+    def _notify(self, esc: Escalation) -> None:
+        """Hand the escalation to the sink, surviving anything it does."""
+        if self.notifier is None:
+            return
+        try:
+            self.notifier.escalation_raised(esc)
+        except Exception as exc:                        # noqa: BLE001
+            # Deliberately broad. A sink is somebody else's code writing to
+            # somebody else's system, and there is no exception it could
+            # raise that would make discarding a recorded escalation the
+            # right answer.
+            self._undelivered.append((esc.escalation_id, repr(exc)))
+
+    def undelivered(self) -> tuple:
+        """``(escalation_id, error)`` for every notification that failed.
+
+        A caller that never asks gets the old behaviour, which is why this
+        exists as a query rather than as a raise: the escalation is already
+        safe, and it is the OPERATOR who needs to know their channel is
+        broken.
+        """
+        return tuple(self._undelivered)
 
     def answer(self, *, escalation_id: str, answered_by: str, answer: str,
                reason: str) -> Escalation:

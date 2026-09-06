@@ -65,8 +65,8 @@
     {
       "name": "P9_bare_string_match_accepted",
       "path": "qta_agent/policy.py",
-      "find": "    if isinstance(values, str):",
-      "replace": "    if False:",
+      "find": "    if isinstance(values, str):\n        # A bare string would iterate character by character and produce a\n        # rule matching single letters. Refused rather than wrapped, because\n        # guessing the author's intent is how a rule ends up meaning\n        # something nobody wrote.\n        raise PolicyError(",
+      "replace": "    if False:\n        # A bare string would iterate character by character and produce a\n        # rule matching single letters. Refused rather than wrapped, because\n        # guessing the author's intent is how a rule ends up meaning\n        # something nobody wrote.\n        raise PolicyError(",
       "rationale": "actions=\"act\" becomes the character set {a,c,t} and matches nothing the author meant"
     },
     {
@@ -86,8 +86,8 @@
     {
       "name": "P12_denial_not_raised",
       "path": "qta_agent/policy.py",
-      "find": "        if not self.allowed:\n            raise PolicyDenied(",
-      "replace": "        if False:\n            raise PolicyDenied(",
+      "find": "        if not self.allowed:\n            raise PolicyDenied(\n                f\"{self.identity} denied {self.request.get('action')!r} on \"",
+      "replace": "        if False:\n            raise PolicyDenied(\n                f\"{self.identity} denied {self.request.get('action')!r} on \"",
       "rationale": "raise_if_denied stops refusing; every caller that relies on it fails open"
     },
     {
@@ -114,15 +114,15 @@
     {
       "name": "P16_the_recorded_verdict_is_not_compared",
       "path": "qta_agent/policy.py",
-      "find": "            if rec.get(field_name) != replayed_value:",
+      "find": "            if rec.get(field_name, [] if field_name == \"obligations\"\n                       else None) != replayed_value:",
       "replace": "            if False:",
       "rationale": "a forged ALLOW under a denying policy loads cleanly"
     },
     {
       "name": "P17_only_the_verdict_is_compared_not_the_rule",
       "path": "qta_agent/policy.py",
-      "find": "        for field_name, replayed_value in ((\"allowed\", replayed.allowed),\n                                           (\"effect\", replayed.effect.value),\n                                           (\"rule_id\", replayed.rule_id)):",
-      "replace": "        for field_name, replayed_value in ((\"allowed\", replayed.allowed),):",
+      "find": "                (\"rule_id\", replayed.rule_id),",
+      "replace": "                (\"allowed\", replayed.allowed),",
       "rationale": "an ALLOW can be attributed to a rule that did not fire, sending an incident reviewer to read the wrong rule"
     },
     {
@@ -138,6 +138,76 @@
       "find": "        if doc.digest() != rec.get(\"policy_digest\"):",
       "replace": "        if False:",
       "rationale": "two documents sharing an id and version stop being distinguishable, which is the tampering signature the digest exists for"
+    },
+    {
+      "name": "P21_obligations_taken_from_the_deciding_rule_only",
+      "path": "qta_agent/policy.py",
+      "find": "            attached = sorted({o for a in allows for o in a.obligations})",
+      "replace": "            attached = sorted(r.obligations)",
+      "rationale": "a condition attached by a narrower rule is defeated by a broad unconditional grant matching first -- deny-overrides' own defect, one field to the right"
+    },
+    {
+      "name": "P22_an_allow_starts_with_nothing_outstanding",
+      "path": "qta_agent/policy.py",
+      "find": "                obligations=tuple(attached),\n                outstanding=tuple(attached))",
+      "replace": "                obligations=tuple(attached),\n                outstanding=())",
+      "rationale": "every obligation is born discharged, so the receipt is issued for work nobody did"
+    },
+    {
+      "name": "P23_the_receipt_ignores_outstanding_obligations",
+      "path": "qta_agent/policy.py",
+      "find": "        if self.outstanding:\n            raise PolicyObligationUnmet(",
+      "replace": "        if False:\n            raise PolicyObligationUnmet(",
+      "rationale": "completion_receipt certifies an ALLOW whose conditions were never met; the production success path stops checking"
+    },
+    {
+      "name": "P24_an_unattached_obligation_can_be_discharged",
+      "path": "qta_agent/policy.py",
+      "find": "        if name not in self.obligations:\n            raise PolicyError(\n                f\"{self.identity} attached no obligation {name!r} to this \"",
+      "replace": "        if False:\n            raise PolicyError(\n                f\"{self.identity} attached no obligation {name!r} to this \"",
+      "rationale": "a caller satisfies an obligation by inventing one"
+    },
+    {
+      "name": "P25_a_discharge_need_not_cite_anything",
+      "path": "qta_agent/policy.py",
+      "find": "        if not isinstance(evidence_digest, str) or not evidence_digest:\n            raise PolicyError(\n                f\"discharging {name!r} requires a non-empty evidence digest; \"",
+      "replace": "        if False:\n            raise PolicyError(\n                f\"discharging {name!r} requires a non-empty evidence digest; \"",
+      "rationale": "a discharge becomes a bare assertion with no thread to pull"
+    },
+    {
+      "name": "P26_one_discharge_covers_two_actions",
+      "path": "qta_agent/policy.py",
+      "find": "        if name not in self.outstanding:\n            raise PolicyError(\n                f\"obligation {name!r} is already discharged by \"",
+      "replace": "        if name not in ():\n            raise PolicyError(\n                f\"obligation {name!r} is already discharged by \"",
+      "rationale": "one piece of evidence stands for every occurrence"
+    },
+    {
+      "name": "P27_a_deny_may_carry_obligations",
+      "path": "qta_agent/policy.py",
+      "find": "    if items and effect is not Effect.ALLOW:",
+      "replace": "    if items and effect is Effect.ALLOW and False:",
+      "rationale": "a refusal becomes conditional on the refused party acting, which is a request that is already over"
+    },
+    {
+      "name": "P28_an_unknown_obligation_is_accepted",
+      "path": "qta_agent/policy.py",
+      "find": "        if v not in OBLIGATIONS:",
+      "replace": "        if v not in OBLIGATIONS and False:",
+      "rationale": "the vocabulary stops being closed, so a rule can attach a condition with no discharge site: a control that enforces nothing"
+    },
+    {
+      "name": "P29_a_recorded_decision_may_understate_its_obligations",
+      "path": "qta_agent/policy.py",
+      "find": "                (\"obligations\", list(replayed.obligations))):",
+      "replace": "                ):",
+      "rationale": "a forged ALLOW keeps the right verdict and drops the conditions; every reader downstream repeats the unconditional version"
+    },
+    {
+      "name": "P30_obligations_are_not_part_of_a_rule_body",
+      "path": "qta_agent/policy.py",
+      "find": "                \"reason\": self.reason, \"obligations\": list(self.obligations)}",
+      "replace": "                \"reason\": self.reason}",
+      "rationale": "two documents differing only in what they require hash identically, so a condition can be edited out without changing the digest anything cites"
     }
   ]
 }

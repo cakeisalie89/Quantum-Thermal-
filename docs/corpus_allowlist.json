@@ -1,0 +1,224 @@
+{
+  "schema_version": 1,
+  "label": "corpus membership for read-only retrieval",
+  "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
+  "entries_digest": "e51fca5a06c83c652b874b7cd3136d6ddbdaf68f3f2f0549b49d364523278a50",
+  "entries": [
+    {
+      "path": "AGENT_SUBSTRATE.md",
+      "sha256": "eabb983d9a4f7cb2a887f8c167fd1d3697a3f93b2359b128e1b607cf7c66a366"
+    },
+    {
+      "path": "AUTHORITIES.md",
+      "sha256": "aa577d937914dfd3820740c9936041497aa1f35f91b3ad84075b35263bf9386b"
+    },
+    {
+      "path": "CLAIMS_BOUNDARY.md",
+      "sha256": "fa60b89e304ed8d2170821fb2b24e783d550669ed4e1b0d9c157008163679333"
+    },
+    {
+      "path": "EVIDENCE_CLOSURE.md",
+      "sha256": "d2dcca43f74cf46fadf5b56f42a462eaccc2440008a26d1963e4a533742e0604"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-N0.md",
+      "sha256": "e7e9c5594017f6edc423982f93a54cf9d5c5cedb5e67c29d8e732a72539d9080"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-N1.md",
+      "sha256": "2865682c6b4892f7f14000db27839a3eeef92983ec004f2c217a966f757eea5f"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-N2.md",
+      "sha256": "f6f354117b0488b1357af58ba468daf5d4f8f79b4d3f2111676fd7ed26378798"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-N3.md",
+      "sha256": "4e1d0364c91b40246064730f4da1db7af4e9becee704aa5344c5cb0fbf5bd40a"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-N4.md",
+      "sha256": "58f0deca26a81b922bd9dee9a28671dac10773644053de68c80dec4d9812d8e0"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-P1.md",
+      "sha256": "3a134c122a9f817ec123740391d30692f221e35458734ca8709416748f00c1bf"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-S1.md",
+      "sha256": "f1196783a9f61578700db5b7073d57ced4e0e25b4df246e95592da4a7fa2741a"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-T1.md",
+      "sha256": "1b23c819d9e7465fa1ea5e8d5ade9814bd6d180a8323a35ee14f5383b1093328"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-T2.md",
+      "sha256": "0e52af538ae812ab7f42ad60d9ad407371da2c68a2e334cdb24d09612a5ad80f"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-V1.md",
+      "sha256": "8afb5c8c4a54135a8856538195eaa5836ad6e5c62c5ec542fc2552d5f298d5d8"
+    },
+    {
+      "path": "EXPERIMENT_PLAYBOOKS/EXP-V2.md",
+      "sha256": "d3dc528a76411bf28b86a5a0c0dacc1737b0ef06f02031b8b091c9afd93335a2"
+    },
+    {
+      "path": "FIRST_VALIDATION_EXPERIMENTS.md",
+      "sha256": "89c5c7525ffa13a98d547446428457b537f7f9bf63a6be03bbbae605496d8f2d"
+    },
+    {
+      "path": "GATE_TABLE_README.md",
+      "sha256": "f74aa7d20c97b55dd9c1dddd3152637c0e3c44f8425679d35df2e3f0cc56d890"
+    },
+    {
+      "path": "GLOSSARY.md",
+      "sha256": "ca7758a5ffaba48cd117938e732f0d801f34ec5a545efa67d516a5c9f9e77ab8"
+    },
+    {
+      "path": "HARDWARE_GOVERNANCE.md",
+      "sha256": "28f34c00429ee857080e746231bfd8ad7e42aaa715cf07cfd30545a897d5f72e"
+    },
+    {
+      "path": "HDF5_DATA_MODEL.md",
+      "sha256": "0e2cea27aa12acc53ebf3c7af915508af61d1ac9885c21cd514523a863c673ab"
+    },
+    {
+      "path": "INSTALL.md",
+      "sha256": "3a0aa169ccc03644193c832fbe2654286a5483c93a1ff4204ff53e20d06af126"
+    },
+    {
+      "path": "MACHINE_FSM.md",
+      "sha256": "0cf2b02b68d0fa61a8f5b05ca555bddcd38f592a07b4fa23c02c0bc47ba280ef"
+    },
+    {
+      "path": "MANIFEST_BOUNDARY.md",
+      "sha256": "2b300a3e03b27c5cc7374bc0d8b72b4073013b274e679d50770c8ca30d7574af"
+    },
+    {
+      "path": "MANUSCRIPT_CHANGELOG.md",
+      "sha256": "0c55f3a4c29af1447fc3abf12a648b823457dcd6349c702ee4e2813e73be4394"
+    },
+    {
+      "path": "MANUSCRIPT_CONSISTENCY_REPORT.md",
+      "sha256": "e3eafa1e52ef0a1fd12b30f73d6d243e98b4d7b4bdca883bd0d81552ec37b462"
+    },
+    {
+      "path": "NUMERICAL_METHODS.md",
+      "sha256": "97b0753ec99aea512bee5e0866087f90c74438be15f418845b46c1aabf3006ba"
+    },
+    {
+      "path": "PHYSICS_INVENTORY.md",
+      "sha256": "03ae2cf4da48a951261c7e7d8013ed62d0b18826ac5077421c85004c698e69c9"
+    },
+    {
+      "path": "QTA_full_history-6.bundle.txt",
+      "sha256": "81a824014e26869828f3fba665b28871735bf6e6587fe07af50ce80ddf3af4a3"
+    },
+    {
+      "path": "QTA_stage9_release_verification/RELEASE_POLICY.md",
+      "sha256": "ed109d5895b9e051381bd7b0fd028a9586b4e1652c0ebd9a3c30116cf815fbec"
+    },
+    {
+      "path": "QTA_stage9_release_verification/VERIFY_INSTRUCTIONS.md",
+      "sha256": "b2aefeffa075772a392a41a42d98388c2da0473866c128bd333e787ddbfc4f3d"
+    },
+    {
+      "path": "README.md",
+      "sha256": "bf36cd8986c58f8436f6b2ee02ad26d38fc31e299e75b4f490a2f198f3693d47"
+    },
+    {
+      "path": "RELEASE_POLICY.md",
+      "sha256": "ed109d5895b9e051381bd7b0fd028a9586b4e1652c0ebd9a3c30116cf815fbec"
+    },
+    {
+      "path": "RELEASE_TRUST_ENFORCEMENT.md",
+      "sha256": "c94b35c178a36170b9013c96481627a83a08698477323b5354d238587ea4813a"
+    },
+    {
+      "path": "RO_CRATE_PROFILE.md",
+      "sha256": "3bb26a2297a212df98b431ca02deb31b394bbfeca5daa800562548defb16b7cf"
+    },
+    {
+      "path": "RUNTIME_RESILIENCE.md",
+      "sha256": "f583cd809061fd983c9cb92118b12be2aea25f05b7c718ffa19e421fbe7906ab"
+    },
+    {
+      "path": "SIGNING_BOOTSTRAP.md",
+      "sha256": "1b2eabe0968a36f6226e8febe165bcdc07318cbc9bab67e130a67e03b99ed5d1"
+    },
+    {
+      "path": "SOURCE_AUDIT_STATUS.md",
+      "sha256": "884aa2f358bbb16d7f4a4af310e580964aac13410d67ba6092f4a3d3be72721b"
+    },
+    {
+      "path": "STACK.md",
+      "sha256": "437c51a4f47aefe36d7da8b5e80507e7421a18dd8dd816e2612a77a71b372650"
+    },
+    {
+      "path": "SUPPLY_CHAIN_THREAT_MODEL.md",
+      "sha256": "7300adc10e7ce332991d61574bc12928aace42b62f53f321ae2b0ac81b17abde"
+    },
+    {
+      "path": "TESTING.md",
+      "sha256": "378f521d8dc01d11dd4b696d7842a1943deb9f12e67d2c53f32650252f4be99e"
+    },
+    {
+      "path": "THERMAL_3D_L3.md",
+      "sha256": "f3b9744370ef442604cd74ae6801a2a37bd61ade00b2adfa4d307f101f9c80dd"
+    },
+    {
+      "path": "VALIDATION_PLAN.md",
+      "sha256": "fbb90d988efb6a5eb040b24c9e498c0d41f19ec6527c136083945dcdd8d21de2"
+    },
+    {
+      "path": "container_verification.md",
+      "sha256": "929e412bfad5bf73f69f4dc8c0de470f07afbd5ad794108407ddea8d28663593"
+    },
+    {
+      "path": "deep_dataset_hash.txt",
+      "sha256": "364aefa0833abcd2aaf375a7c4bb3807293e583a2abd1bae8f462e4e1a78e250"
+    },
+    {
+      "path": "docs/CORPUS_RECOVERY_TRIAGE.md",
+      "sha256": "bc7de2215d82c04bff4323b692f877dabb1326c6fd6bf5a981bfc6a886e7aa4c"
+    },
+    {
+      "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",
+      "sha256": "7d66cb896b08b0110af985ccf3e343fe94ee4f9b8f5396029ed7562a90b1d4d5"
+    },
+    {
+      "path": "docs/SESSION_REPORT.md",
+      "sha256": "140eb20edd1fd24f04d4fdc08ab06b0a37d50cf8f831aa6ca58a849fae87e709"
+    },
+    {
+      "path": "manifest_hash.txt",
+      "sha256": "c547b32a7d32cd910f7326ef39a64ebc2b1f9e167be79eedcb7670367a3ff282"
+    },
+    {
+      "path": "raw_data_standard.md",
+      "sha256": "e452cf87b811460cc4d3ae616334e03e1e200fc39bf2753c561e0cb452ce536d"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "dc10c697e855163faf9e268c69f717eecf040a9e280663c79fc4e838eb30508c"
+    },
+    {
+      "path": "source_audit_status.txt",
+      "sha256": "be80a35f983149ce0aa2b34e3ec74b3c3321d627451463ed11be1007162daffd"
+    },
+    {
+      "path": "stage7_reports/mypy_report.md",
+      "sha256": "41ee998a20ce3f7c495502d60815187bd39343ec8ebcc7532f9747bfeda47fdd"
+    },
+    {
+      "path": "stage7_reports/ruff_report.md",
+      "sha256": "da5422fda176ff761ee55ebb83eacb5e0f0e68bcb494b15390d8b27cc13b66b7"
+    },
+    {
+      "path": "tests/fuzz_corpus/README.md",
+      "sha256": "65b755fa5995ab85c021d11c0ac163de3ee1e80aea312c3dd622298b79695be7"
+    }
+  ]
+}
