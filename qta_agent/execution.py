@@ -126,6 +126,16 @@ class Limits:
     #: Additional tasks (processes AND threads) over current usage. See
     #: DEFAULT_MAX_ADDITIONAL_TASKS for why this cannot be absolute.
     additional_tasks: int = DEFAULT_MAX_ADDITIONAL_TASKS
+    #: Seconds of NO OUTPUT before the run is abandoned, or 0 to rely on the
+    #: wall bound alone.
+    #:
+    #: A wall bound alone answers "how long may this take", which is the
+    #: wrong question for a tool that has stopped making progress: one that
+    #: writes a byte a minute runs to the wall bound and consumes it, and one
+    #: that deadlocks on the first second consumes it too. Idleness is the
+    #: thing an operator actually wants bounded, and it is the only signal
+    #: available here -- this executor sees output, not intent.
+    idle_seconds: float = 0.0
 
     def to_record(self) -> dict:
         return {"wall_seconds": self.wall_seconds,
@@ -133,6 +143,7 @@ class Limits:
                 "address_space_bytes": self.address_space_bytes,
                 "output_bytes": self.output_bytes,
                 "additional_tasks": self.additional_tasks,
+                "idle_seconds": self.idle_seconds,
                 "nproc_baseline": count_user_tasks()}
 
 
@@ -184,6 +195,15 @@ class ExecutionResult:
     side_effect: str = ""
     #: Why it ended this way, in a sentence an operator can act on.
     reason: str = ""
+    #: The child's PID and process-group id, recorded because recovery by
+    #: lease expiry reclaims the WORK and not the PROCESS. A supervisor that
+    #: died mid-run leaves a child nothing else can name; with these an
+    #: operator -- or a later supervisor -- can at least look for it and
+    #: signal the group. They are DIAGNOSTIC: a pid is only meaningful on the
+    #: host that produced it and only until it is reused, which is why the
+    #: run's own start time is recorded beside them.
+    pid: int | None = None
+    pgid: int | None = None
     #: Digests of files the tool declared as outputs, if collected.
     output_digests: dict = field(default_factory=dict)
     #: Bounded excerpts, for a human reading a failure. DELIBERATELY excluded
@@ -219,6 +239,7 @@ class ExecutionResult:
             "duration_s": self.duration_s, "limits": dict(self.limits),
             "determinism": self.determinism, "side_effect": self.side_effect,
             "reason": self.reason,
+            "pid": self.pid, "pgid": self.pgid,
             "output_digests": dict(sorted(self.output_digests.items())),
         }
 
@@ -320,6 +341,17 @@ def _read_capped(path: Path, cap: int) -> tuple:
     return data, size, size > cap
 
 
+def _output_size(*paths) -> int:
+    """Total bytes written so far. Missing files count as zero."""
+    total = 0
+    for p in paths:
+        try:
+            total += p.stat().st_size
+        except OSError:
+            pass
+    return total
+
+
 def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
                 env: dict | None = None,
                 cancel: CancellationToken | None = None) -> ExecutionResult:
@@ -358,13 +390,45 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
                 stdin=subprocess.DEVNULL, env=dict(env or {}),
                 preexec_fn=_apply_limits(limits), close_fds=True)
 
+            # Recorded the moment it exists, so a supervisor that dies in
+            # the next statement still leaves the child's identity behind.
+            base["pid"] = proc.pid
+            try:
+                base["pgid"] = os.getpgid(proc.pid)
+            except OSError:                  # already gone; not worth failing
+                base["pgid"] = None
+
             deadline = started + limits.wall_seconds
+            last_progress = started
+            last_size = 0
             while True:
                 try:
                     proc.wait(timeout=0.05)
                     break
                 except subprocess.TimeoutExpired:
                     pass
+                if limits.idle_seconds > 0:
+                    # Progress is measured as output, because that is the only
+                    # signal this executor has. A tool that is thinking hard
+                    # and silently looks identical to one that has deadlocked,
+                    # and the wall bound is what covers the first case.
+                    size = _output_size(out_path, err_path)
+                    now = time.time()
+                    if size != last_size:
+                        last_size, last_progress = size, now
+                    elif now - last_progress >= limits.idle_seconds:
+                        _kill_group(proc, signal.SIGTERM)
+                        try:
+                            proc.wait(timeout=TERMINATE_GRACE_S)
+                        except subprocess.TimeoutExpired:
+                            _kill_group(proc, signal.SIGKILL)
+                            proc.wait()
+                        outcome = Outcome.TIMED_OUT
+                        reason = (
+                            f"no output for {limits.idle_seconds:g}s; "
+                            "abandoned as idle rather than held until the "
+                            f"{limits.wall_seconds:g}s wall bound")
+                        break
                 if cancel is not None and cancel.cancelled:
                     _kill_group(proc, signal.SIGTERM)
                     try:

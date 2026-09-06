@@ -321,6 +321,27 @@
       "find": "        cap = replace(cap, issued_seq=self.log.verify().head_seq + 1)",
       "replace": "        pass",
       "rationale": "the write path stops stamping, so the position a grant begins at becomes the caller's to choose"
+    },
+    {
+      "name": "X24_the_idle_bound_never_fires",
+      "path": "qta_agent/execution.py",
+      "find": "                    elif now - last_progress >= limits.idle_seconds:",
+      "replace": "                    elif False:",
+      "rationale": "a tool that stops making progress is held to the wall bound, consuming a timeout nothing is using"
+    },
+    {
+      "name": "X25_output_growth_does_not_count_as_progress",
+      "path": "qta_agent/execution.py",
+      "find": "                    if size != last_size:\n                        last_size, last_progress = size, now",
+      "replace": "                    if False:\n                        last_size, last_progress = size, now",
+      "rationale": "a tool that is working steadily is killed as idle, which is the failure that gets an idle bound removed"
+    },
+    {
+      "name": "X26_the_childs_identity_is_not_recorded",
+      "path": "qta_agent/execution.py",
+      "find": "            base[\"pid\"] = proc.pid",
+      "replace": "            base[\"pid\"] = None",
+      "rationale": "a supervisor that dies mid-run leaves an orphan nothing can name"
     }
   ]
 }

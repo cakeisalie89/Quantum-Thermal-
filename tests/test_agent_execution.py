@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -803,3 +804,112 @@ def test_the_ledger_records_who_granted_each_capability(tmp_path):
     ledger.issue(_cap(), actor="scheduler")
     assert ledger.issuer_of("c1") == "scheduler"
     assert ledger.issuer_of("never-issued") is None
+
+
+# --- the child's identity, and the bound that is not the wall clock ---------
+
+def test_an_idle_tool_is_abandoned_without_consuming_the_wall_bound(env):
+    """A wall bound answers "how long may this take", which is the wrong
+    question for a tool that has stopped making progress.
+
+    One that writes a byte a minute runs to the wall bound and consumes it;
+    one that deadlocks in the first second consumes it too. Recovery by
+    lease expiry then waits out a timeout nothing was using.
+    """
+    idle = [PY, "-c", "import sys,time; sys.stdout.write('start'); "
+                      "sys.stdout.flush(); time.sleep(30)"]
+    started = time.time()
+    r = run_bounded(idle, spec=_spec(), cwd=env["ws"],
+                    limits=Limits(wall_seconds=25.0, idle_seconds=2.0),
+                    env={"PATH": "/usr/bin:/bin"})
+    took = time.time() - started
+    assert r.outcome is Outcome.TIMED_OUT, (r.outcome, r.reason)
+    assert "no output for" in r.reason
+    assert took < 12, (
+        f"took {took:.1f}s: the idle bound did not fire and the run was "
+        "held until the wall bound, which is the behaviour this replaces")
+
+
+def test_a_tool_that_keeps_working_is_not_killed_as_idle(env):
+    """The guard must refuse IDLENESS, not slowness.
+
+    Progress is measured as output because that is the only signal this
+    executor has -- a tool thinking hard and silently is indistinguishable
+    from one that has deadlocked, and the wall bound is what covers it.
+    """
+    busy = [PY, "-c", "import sys,time\n"
+                      "for i in range(12):\n"
+                      "    sys.stdout.write('.'); sys.stdout.flush()\n"
+                      "    time.sleep(0.4)\n"]
+    r = run_bounded(busy, spec=_spec(), cwd=env["ws"],
+                    limits=Limits(wall_seconds=25.0, idle_seconds=2.0),
+                    env={"PATH": "/usr/bin:/bin"})
+    assert r.outcome is Outcome.COMPLETED, (r.outcome, r.reason)
+
+
+def test_no_idle_bound_configured_leaves_the_old_behaviour(env):
+    """Zero means "rely on the wall bound", so existing callers are unchanged."""
+    r = run_bounded([PY, "-c", "pass"], spec=_spec(), cwd=env["ws"],
+                    limits=Limits(wall_seconds=10.0),
+                    env={"PATH": "/usr/bin:/bin"})
+    assert r.outcome is Outcome.COMPLETED
+    assert r.limits["idle_seconds"] == 0.0
+
+
+def test_the_childs_identity_is_recorded_for_a_supervisor_that_dies(env):
+    """Recovery by lease expiry reclaims the WORK, not the PROCESS.
+
+    A supervisor that dies mid-run leaves a child nothing else can name.
+    The pid and process-group id are recorded the moment the child exists,
+    so a later operator can at least look for the group and signal it.
+
+    They are DIAGNOSTIC and the record says so: a pid means something only
+    on the host that produced it and only until it is reused, which is why
+    the run's start time sits beside it.
+    """
+    r = run_bounded([PY, "-c", "pass"], spec=_spec(), cwd=env["ws"],
+                    limits=Limits(wall_seconds=10.0),
+                    env={"PATH": "/usr/bin:/bin"})
+    assert isinstance(r.pid, int) and r.pid > 0
+    assert isinstance(r.pgid, int) and r.pgid > 0
+    rec = r.to_record()
+    assert rec["pid"] == r.pid and rec["pgid"] == r.pgid, (
+        "the identity is not in the durable record, so it is not available "
+        "to anyone reading the log after the supervisor is gone")
+    assert rec["started_wall"] > 0, "a pid with no time is not identifying"
+
+
+def test_a_killed_idle_tool_leaves_no_surviving_process_group(env):
+    """The group, not just the child: a grandchild must not outlive the run."""
+    spawner = [PY, "-c",
+               "import subprocess,sys,time\n"
+               "subprocess.Popen([sys.executable,'-c','import time;"
+               "time.sleep(60)'])\n"
+               "sys.stdout.write('spawned'); sys.stdout.flush()\n"
+               "time.sleep(60)\n"]
+    r = run_bounded(spawner, spec=_spec(), cwd=env["ws"],
+                    limits=Limits(wall_seconds=20.0, idle_seconds=2.0),
+                    env={"PATH": "/usr/bin:/bin"})
+    assert r.outcome is Outcome.TIMED_OUT
+    time.sleep(0.5)
+    assert r.pgid, "no group was recorded, so none could be signalled"
+
+    # THE ACCURATE PROPERTY. An earlier version of this asserted that
+    # signalling the group raises ProcessLookupError, and it did not -- not
+    # because a descendant survived, but because a ZOMBIE still occupies a
+    # process-table entry. The grandchild was terminated by the group kill;
+    # what nobody did was reap it, and reaping a process whose parent is gone
+    # is init's job rather than this executor's.
+    #
+    # So the check is that nothing in the group is still RUNNABLE. That is
+    # the containment claim; "no entry remains" is a claim about a different
+    # system's bookkeeping.
+    ps = subprocess.run(["ps", "-o", "pid,pgid,stat", "-e"],
+                        capture_output=True, text=True).stdout
+    live = []
+    for line in ps.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) >= 3 and parts[1] == str(r.pgid):
+            if not parts[2].startswith("Z"):
+                live.append(line.strip())
+    assert not live, f"still-running descendants in the group: {live}"

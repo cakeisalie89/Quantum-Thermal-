@@ -119,8 +119,8 @@
       "authority_owner": "execution.run_bounded",
       "evidence": "real exit status and signal number recorded separately",
       "provenance": "tool id, version and contract digest cited by every result",
-      "failure_semantics": "a signalled death is not an exit status; a timeout is not a failure of the tool and not a success",
-      "recovery": "partial output from a killed process is captured and hashed; a supervisor crash leaves the lease to lapse and scheduler.reconcile returns the work to READY",
+      "failure_semantics": "a signalled death is not an exit status; a timeout is not a failure of the tool and not a success; a run is now bounded by IDLENESS as well as by wall time -- a tool that stops producing output is abandoned rather than held to the wall bound, because 'how long may this take' is the wrong question for work that has stopped making progress",
+      "recovery": "partial output from a killed process is captured and hashed; a supervisor crash leaves the lease to lapse and scheduler.reconcile returns the work to READY; the child's pid and process-group id are recorded in the execution record the moment the child exists, so a supervisor that dies mid-run leaves an orphan that something can still name and signal. They are diagnostic and the record says so: a pid identifies only on the host that produced it and only until it is reused, which is why the run's start time sits beside it",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "terminate the group, grace, then kill",
@@ -137,9 +137,9 @@
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
       "residual_gaps": [
-        "the child's PID is not recorded, so a supervisor that dies mid-run cannot signal the orphan it left. Recovery by lease expiry reclaims the WORK, not the PROCESS",
-        "no idle timeout; only a wall bound",
-        "no zombie reaping beyond the immediate child: a grandchild that outlives its parent is reparented to init, not tracked here"
+        "the recorded pid is diagnostic, not a handle: nothing automatically signals an orphan on the next supervisor's behalf, and a pid is meaningful only on the host that produced it and only until reuse",
+        "the idle bound measures OUTPUT, because that is the only progress signal this executor has. A tool thinking hard and silently is indistinguishable from one that has deadlocked; the wall bound is what covers that case",
+        "descendants are TERMINATED by the process-group kill but not REAPED: a grandchild whose parent is gone becomes a zombie until init collects it, which is measured rather than assumed -- an earlier wording said such a grandchild 'outlives its parent', and what actually survives is a process-table entry, not a running process"
       ],
       "blocker": null
     },
