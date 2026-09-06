@@ -3074,8 +3074,8 @@
     },
     {
       "filename": "tests/test_agent_substrate.py",
-      "size_bytes": 42510,
-      "sha256": "86dc005559df9811de5673ef5021acc4d4a269c0023a178a5b60dc0e4fa78d6c",
+      "size_bytes": 44402,
+      "sha256": "a4a10323479425e5e439cb64168b189a11e4fe9a7a9930606c9e2452ab62b6f2",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3109,8 +3109,8 @@
     },
     {
       "filename": "tools/mutations/agent_substrate.json",
-      "size_bytes": 17570,
-      "sha256": "24fa67ba6b098e0502105577f23b79f0f6da2002e482400d05d977b91db572b8",
+      "size_bytes": 17773,
+      "sha256": "89ca0c5724658aeee31905522a406bf44b6378060a4d33780bc318c6108a979f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3158,8 +3158,8 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 92513,
-      "sha256": "8505200928a6c015c92c1e0a3a65ecdc14192a620b37729e853e3491cb0b0f62",
+      "size_bytes": 92677,
+      "sha256": "e6e4e71ee2420034ba7e3657b167f139bb3e396f9b6738b83fc84795936773bb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3340,8 +3340,8 @@
     },
     {
       "filename": "tests/test_agent_scheduler.py",
-      "size_bytes": 60215,
-      "sha256": "5bb2999b1df684c8c34a070eb4ce11106cc7a7c9b8133c243ebf3660630211c2",
+      "size_bytes": 66275,
+      "sha256": "67a6670a8d1b1b1b91a2f392e081594be2c1732a362a58866a2c9e2210812abb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3410,8 +3410,8 @@
     },
     {
       "filename": "tests/test_agent_agents.py",
-      "size_bytes": 40703,
-      "sha256": "02fecaf1435e00b0df735313bedfdad90e30fcee198243ca7826301411323a4b",
+      "size_bytes": 43378,
+      "sha256": "d45f0f18bc65f71905afb692e9fd340687fe9e4035d879123abd404a88f21e0b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
