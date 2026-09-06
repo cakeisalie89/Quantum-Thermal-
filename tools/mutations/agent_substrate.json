@@ -1,6 +1,6 @@
 {
   "title": "Agent substrate: state machine, log, projection, invalidation, reconstruction",
-  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that.",
+  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that. S38 was REMOVED as equivalent, not because it survived: the guard immediately above the Record construction refuses any create whose claimed proposer differs from ev.actor, UNCONDITIONALLY and with no try/except between the two, so `proposer=ev.actor` and `proposer=p['proposer']` are the same value by the time either runs. Note the contrast with agents.py, where the equivalent-looking M37 is NOT equivalent: that guard is conditional on a registrar being claimed, so an empty one leaves the derivation observable. The equivalence here is asserted by a test over the guard's shape rather than by this sentence.",
   "suites": [
     "tests/test_agent_concurrency.py",
     "tests/test_agent_differential.py",
@@ -267,13 +267,6 @@
       "find": "            if claimed_proposer != ev.actor:",
       "replace": "            if False:",
       "rationale": "separation of duties is measured from the proposer, so a create that names one chooses the party it must differ from"
-    },
-    {
-      "name": "S38_the_projected_proposer_comes_from_the_payload",
-      "path": "qta_agent/store.py",
-      "find": "                record_id=rid, kind=p[\"kind\"], proposer=ev.actor,",
-      "replace": "                record_id=rid, kind=p[\"kind\"], proposer=p[\"proposer\"],",
-      "rationale": "the field separation of duties is measured from is taken from the record rather than the log"
     },
     {
       "name": "S39_a_second_create_replaces_a_live_record",

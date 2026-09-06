@@ -1412,3 +1412,127 @@ def test_an_ordinary_enqueue_still_replays(sched, tmp_path):
     assert reloaded.get("j1").state is JobState.WAITING
     assert reloaded.get("j2").depends_on == ("j1",)
     assert reloaded._keys["k1"][0] == "j1"
+
+
+# --- the four survivors, each isolated from the guard that masked it --------
+
+def test_a_legal_state_that_still_arrives_holding_a_lease_is_refused(
+        sched, tmp_path):
+    """ISOLATES the lease check from the state check above it.
+
+    The first version of this test used state=DISPATCHED, so the STATE guard
+    fired and the lease guard never ran -- and a mutation deleting the lease
+    guard survived every test in this file. WAITING is a legal state to be
+    enqueued in, so only the lease is wrong here.
+    """
+    _forged_enqueue(sched, state=JobState.WAITING.value, lease_id="L",
+                    lease_holder="mallory", lease_expires_after_seq=10 ** 9)
+    with pytest.raises(SchedulerError, match="enqueued already leased"):
+        _reload(tmp_path)
+
+
+def test_replay_re_runs_the_enqueue_policy_gate(tmp_path):
+    """enqueue() consults the policy; so does the replay.
+
+    Otherwise a submitter the policy refuses gets its work into the queue by
+    writing the record itself, which is the whole shape of this class.
+    """
+    from qta_agent.policy import ANY, Effect, document, rule
+
+    log = EventLog(tmp_path / "log.jsonl")
+    pol = PolicyStore(log).load()
+    pol.publish(document(policy_id="scheduler.default", version=1, rules=(
+        rule(rule_id="no-mallory", effect=Effect.DENY,
+             actions=("scheduler.enqueue",), subjects=("mallory",),
+             roles=(ANY,), resources=(ANY,),
+             reason="mallory may not submit work"),
+        rule(rule_id="allow-rest", effect=Effect.ALLOW, actions=(ANY,),
+             subjects=(ANY,), roles=(ANY,), resources=(ANY,)),
+    )), actor="owner")
+    s = Scheduler(log, policy=pol, policy_id="scheduler.default").load()
+    with pytest.raises(PolicyDenied):
+        s.enqueue(job_id="j1", work_digest=WORK, submitter="mallory")
+
+    log.append(actor="mallory", action="scheduler.enqueue", target="j1",
+               payload={"job": {"job_id": "j1", "work_digest": WORK,
+                                "submitter": "mallory", "priority": 5}})
+    log2 = EventLog(tmp_path / "log.jsonl")
+    pol2 = PolicyStore(log2).load()
+    with pytest.raises(SchedulerError, match="refuses to enqueue"):
+        Scheduler(log2, policy=pol2, policy_id="scheduler.default").load()
+
+
+def test_the_priority_gate_matches_on_the_actor_not_a_payload_field(
+        tmp_path):
+    """The subject a policy rule matches on is the event's actor.
+
+    A record that could supply its own subject would pick which rule judges
+    it, which is the same defect as naming your own executor.
+    """
+    from qta_agent.policy import ANY, Effect, document, rule
+
+    log = EventLog(tmp_path / "log.jsonl")
+    pol = PolicyStore(log).load()
+    pol.publish(document(policy_id="scheduler.default", version=1, rules=(
+        rule(rule_id="no-mallory", effect=Effect.DENY,
+             actions=("scheduler.raise_priority",), subjects=("mallory",),
+             roles=(ANY,), resources=(ANY,), reason="not mallory"),
+        rule(rule_id="allow-rest", effect=Effect.ALLOW, actions=(ANY,),
+             subjects=(ANY,), roles=(ANY,), resources=(ANY,)),
+    )), actor="owner")
+    s = Scheduler(log, policy=pol, policy_id="scheduler.default").load()
+    s.enqueue(job_id="j1", work_digest=WORK, submitter="alice",
+              priority=MAX_PRIORITY)
+    # mallory raises it, but names a subject the policy permits.
+    log.append(actor="mallory", action="scheduler.priority", target="j1",
+               payload={"job_id": "j1", "priority": 0, "role": "SUBMITTER",
+                        "subject": "alice", "reason": "urgent"})
+    log2 = EventLog(tmp_path / "log.jsonl")
+    pol2 = PolicyStore(log2).load()
+    with pytest.raises(SchedulerError, match="does not become the queue"):
+        Scheduler(log2, policy=pol2, policy_id="scheduler.default").load()
+
+
+def test_a_raise_is_judged_by_the_policy_of_its_own_day(tmp_path):
+    """in_force_at, not in_force -- and here that difference is REAL.
+
+    The identical mutation in policy.py is equivalent, because that reducer
+    folds its own events in order so only the prefix is loaded when a
+    decision is re-checked. The scheduler's policy store is a SEPARATE
+    projection, already loaded to the end of the log before the queue
+    replays, so in_force yields the newest version and in_force_at yields
+    the one that governed the change. Same edit, opposite verdicts, for a
+    structural reason worth writing down.
+
+    Without this, publishing a stricter policy would make every queue that
+    ever raised a priority unloadable.
+    """
+    from qta_agent.policy import ANY, Effect, document, rule
+
+    def doc(version, extra=()):
+        return document(policy_id="scheduler.default", version=version,
+                        rules=tuple(extra) + (
+                            rule(rule_id="allow", effect=Effect.ALLOW,
+                                 actions=(ANY,), subjects=(ANY,),
+                                 roles=(ANY,), resources=(ANY,)),))
+
+    log = EventLog(tmp_path / "log.jsonl")
+    pol = PolicyStore(log).load()
+    pol.publish(doc(1), actor="owner")
+    s = Scheduler(log, policy=pol, policy_id="scheduler.default").load()
+    s.enqueue(job_id="j1", work_digest=WORK, submitter="alice",
+              priority=MAX_PRIORITY)
+    s.set_priority(job_id="j1", priority=1, actor="alice", role="SUBMITTER",
+                   reason="a real deadline")
+    # A later, stricter edition. It must not re-judge what came before it.
+    pol.publish(doc(2, (rule(rule_id="no-raise", effect=Effect.DENY,
+                             actions=("scheduler.raise_priority",),
+                             subjects=(ANY,), roles=(ANY,), resources=(ANY,),
+                             reason="v2 forbids raises"),)), actor="owner")
+
+    log2 = EventLog(tmp_path / "log.jsonl")
+    pol2 = PolicyStore(log2).load()
+    reloaded = Scheduler(log2, policy=pol2,
+                         policy_id="scheduler.default").load()
+    assert reloaded.get("j1").priority == 1
+    assert reloaded.policy.in_force("scheduler.default").version == 2

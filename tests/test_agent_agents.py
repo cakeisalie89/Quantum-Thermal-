@@ -904,3 +904,56 @@ def test_retiring_an_unregistered_instance_is_a_domain_error(dir_, tmp_path):
                     payload={"instance_id": "nobody", "reason": "tidy up"})
     with pytest.raises(IdentityError, match="never registered"):
         AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+
+
+# --- the two survivors, isolated from what masked them ----------------------
+
+def test_a_refused_claim_never_reaches_the_log(dir_):
+    """DEFENCE IN DEPTH, ISOLATED.
+
+    claim() calls require() BEFORE appending, and the replay checks the same
+    rule after. Adding the replay check made the write-path one survive
+    mutation: with require() gone, claim() still raises -- because apply()
+    raises -- so an exception-shaped assertion cannot tell the two apart.
+
+    They are not redundant, and the difference is the log. The write path
+    refuses before the append; without it the record becomes a permanent,
+    hash-chained fact and the directory can never be loaded again. So this
+    asserts on the LOG, which is the thing that actually differs.
+    """
+    before = len(list(dir_.log.read()))
+    with pytest.raises(IdentityError, match="may not act as VERIFIER"):
+        dir_.claim(claim_id="c1", task_id="t1", subject="answer",
+                   value_digest="a" * 64, by_instance="p1",
+                   role=AgentRole.VERIFIER)
+    assert len(list(dir_.log.read())) == before, (
+        "the refused claim was appended anyway; the write-path check now "
+        "only refuses AFTER making the record permanent, and every future "
+        "load of this directory will refuse the whole history")
+    # And the directory still loads, which is what that would have cost.
+    AgentDirectory(dir_.log).load()
+
+
+def test_the_registrar_is_derived_when_the_record_names_nobody(dir_,
+                                                               tmp_path):
+    """ISOLATES the derivation from the disagreement check beside it.
+
+    Every other test either goes through register() -- which sets
+    registered_by before appending, so the payload already agrees -- or is
+    refused by the HUMAN rule before the assignment runs. A mutation
+    dropping `registered_by=ev.actor` therefore survived all of them.
+
+    A record that names NO registrar is legal (the check is conditional on
+    one being claimed), and it is the case where the derivation is the only
+    thing that decides the answer.
+    """
+    ident = identity(agent_id="x", instance_id="x9",
+                     kind=PrincipalKind.AGENT, roles={AgentRole.EXECUTOR})
+    rec = ident.to_record()
+    rec.pop("registered_by", None)
+    dir_.log.append(actor="p1", action=ACT_AGENT_REGISTER, target="x9",
+                    payload={"identity": rec})
+    reloaded = AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+    assert reloaded.get("x9").registered_by == "p1", (
+        "who admitted this principal was left empty rather than taken from "
+        "the actor that appended the record")

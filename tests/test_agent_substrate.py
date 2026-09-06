@@ -1003,3 +1003,44 @@ def test_an_ordinary_create_still_replays(tmp_path):
     assert reloaded.get("r1").state is State.PROPOSED
     assert reloaded.get("r1").proposer == "alice"
     assert reloaded.get("r2").depends_on == ("r1",)
+
+
+def test_the_create_proposer_guard_makes_its_own_derivation_unobservable():
+    """WHY one mutation was removed as EQUIVALENT rather than left surviving.
+
+    The reducer writes ``proposer=ev.actor``. Replacing that with
+    ``p["proposer"]`` changes nothing, because the guard above it refuses any
+    create whose claimed proposer differs from the actor -- unconditionally,
+    with no try/except in between -- so the two are the same value by the
+    time either runs.
+
+    That is a fact about the guard's SHAPE, so the shape is what this
+    asserts. Make the guard conditional (as the equivalent-looking one in
+    agents.py is, deliberately) and the derivation becomes observable again,
+    this test fails, and the mutation belongs back in the spec.
+
+    The property itself is not untested: the guard has its own mutation, and
+    it is killed.
+    """
+    import ast
+
+    from pathlib import Path as _P
+    src = (_P(ROOT) / "qta_agent" / "store.py").read_text(
+        encoding="utf-8")
+    lines = src.split("\n")
+    guard = [i for i, x in enumerate(lines)
+             if x.strip() == "if claimed_proposer != ev.actor:"]
+    assign = [i for i, x in enumerate(lines)
+              if x.strip() == "record_id=rid, kind=p[\"kind\"], "
+                             "proposer=ev.actor,"]
+    assert len(guard) == 1 and len(assign) == 1, (guard, assign)
+    assert guard[0] < assign[0]
+
+    between = "\n".join(lines[guard[0]:assign[0]])
+    assert "try" not in between and "except" not in between, (
+        "a try/except now sits between the guard and the assignment, so the "
+        "guard can be skipped and the derivation is observable again")
+    # And the guard is a plain `if`, not nested under a truthiness test on
+    # the claim itself -- which is exactly what makes agents.py's version
+    # non-equivalent.
+    assert ast.parse(lines[guard[0]].strip() + "\n    pass")
