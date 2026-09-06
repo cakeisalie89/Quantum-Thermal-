@@ -475,7 +475,30 @@ def test_the_sweep_refuses_to_signal_its_own_process_group(base):
     me = identify()
     assert me.pgid == os.getpgrp(), "premise: our own group"
     result = _terminate_group(me)
-    assert "group not usable" in result, result
+    assert result.startswith("refused:"), result
+    assert "THIS process" in result, result
+
+    # And the group case, with a pid that is not ours but a group that is.
+    # The old code answered this by signalling the bare pid, which is how
+    # the version before this one sent SIGTERM to its own test runner.
+    sibling = ProcessIdentity(pid=os.getppid(), pgid=os.getpgrp(),
+                              host_boot_id=me.host_boot_id,
+                              start_ticks=me.start_ticks)
+    result = _terminate_group(sibling)
+    assert result.startswith("refused:") and "own" in result, result
+
+
+def test_a_record_with_no_process_group_is_refused_rather_than_guessed_at():
+    """No group means nothing to signal. Falling back to the bare pid is
+    what made the previous version kill its caller."""
+    from qta_agent.governed_stage10 import _terminate_group
+
+    me = identify()
+    result = _terminate_group(ProcessIdentity(pid=me.pid + 1, pgid=None,
+                                              host_boot_id=me.host_boot_id,
+                                              start_ticks=1))
+    assert result.startswith("refused:") and "no recorded process group" \
+        in result, result
 
 
 def test_a_child_that_is_not_provably_the_same_process_is_left_alone():

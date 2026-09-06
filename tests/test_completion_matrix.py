@@ -100,7 +100,12 @@ def _row(**over):
         "tests": ["tests/test_agent_scheduler.py"],
         "property_tests": [], "mutation_tests": [], "fuzzing": "none",
         "differential": "none", "hosted_ci": "n/a",
-        "residual_gaps": ["a real remaining gap, stated"], "blocker": None,
+        "residual_gaps": ["a real remaining gap, stated"],
+        # A list, not the "" that `{f: "" for f in REQUIRED}` supplies.
+        # The validator refuses a non-list, correctly, and this helper is
+        # meant to produce a WELL-FORMED row so each test provokes exactly
+        # one guard rather than that one.
+        "boundaries": [], "blocker": None,
     })
     base.update(over)
     return base

@@ -10,8 +10,8 @@
     {
       "name": "W1_the_scope_is_tracked_files_only",
       "path": "tools/repo_scope.py",
-      "find": "        [\"git\", \"-C\", str(base), \"ls-files\", \"--cached\", \"--others\",\n         \"--exclude-standard\", \"--\", pattern],",
-      "replace": "        [\"git\", \"-C\", str(base), \"ls-files\", \"--\", pattern],",
+      "find": "            [\"git\", \"-C\", str(base), \"ls-files\", \"--cached\", \"--others\",\n             \"--exclude-standard\", \"--\", pattern],",
+      "replace": "            [\"git\", \"-C\", str(base), \"ls-files\", \"--\", pattern],",
       "rationale": "the blind spot returns: a new file importing what it must not is invisible until it is committed, so the suite goes green locally and the pushed tree is red -- three times over"
     },
     {

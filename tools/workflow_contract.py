@@ -38,6 +38,11 @@ REQUIRED_JOBS = {
     "full-suite": "the FULL pytest suite and package_consistency_check.py, "
                   "which R58 used to record as release-only",
     "second-interpreter": "the substrate on a Python other than the pin",
+    "cross-environment-3d": "R59: regenerate the 3D outputs on a hosted "
+                            "runner and compare them against the committed "
+                            "copies, emitting the result to the JOB LOG "
+                            "rather than to an artifact whose storage host "
+                            "an egress policy can refuse",
 }
 
 #: Commands that must appear somewhere in agent-substrate.yml.
@@ -52,6 +57,8 @@ REQUIRED_COMMANDS = (
      "package consistency, in full-suite"),
     ("uv run python -m pytest tests/ -q",
      "the complete pytest suite, in full-suite"),
+    ("analysis/collect_container_3d.py",
+     "the R59 cross-environment comparison, in cross-environment-3d"),
 )
 
 

@@ -292,3 +292,46 @@ jobs:
             print(sys.version)"
       - name: agent suites on Python ${{ matrix.python }}
         run: .venv-alt/bin/python -m pytest tests/test_agent_*.py -q
+
+  cross-environment-3d:
+    # R59. The question was never "is there a divergence" -- it was that the
+    # only instrument able to answer had its evidence behind a signed URL on
+    # a storage host some egress policies refuse, so the measurement could
+    # not be read back. The answer is to make the measurement print itself.
+    #
+    # This runs the same collector the container runs, on a THIRD kind of
+    # machine, and emits the comparison as ::QTA-3D-*:: lines that the
+    # job-logs API serves directly. No artifact, no redirect, no host that
+    # can be denied.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --all-groups
+      - name: regenerate the 3D outputs and compare against the committed copies
+        # DIAGNOSTIC. It reports a divergence and never fails on one: a tool
+        # that could fail the build on a byte difference would be a gate,
+        # and nothing here is allowed to be one.
+        run: |
+          uv run python analysis/collect_container_3d.py \
+            "${RUNNER_TEMP}/qta-3d" --emit-summary
+      - name: the diagnostic actually measured something
+        # ANTI-VACUITY. A comparison that regenerated zero files would print
+        # a clean verdict having compared nothing.
+        run: |
+          uv run python - <<'PY'
+          import json, pathlib, sys
+          import os
+          meta = pathlib.Path(os.environ["RUNNER_TEMP"]) / "qta-3d" / "meta"
+          c = json.loads((meta / "comparison.json").read_text())
+          print(json.dumps(c, indent=1, sort_keys=True))
+          if c["regenerated"] < 60:
+              sys.exit(f"only {c['regenerated']} files regenerated; the "
+                       "comparison examined too little to mean anything")
+          print(f"compared {c['regenerated']} files: {c['identical']} "
+                f"identical, {c['differing']} differing")
+          PY

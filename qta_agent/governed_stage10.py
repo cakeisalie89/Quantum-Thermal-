@@ -206,13 +206,30 @@ def _terminate_group(child: ProcessIdentity) -> str:
     from a leftover mutation and presented as the test runner dying with
     SIGTERM.
     """
+    # REFUSED, not "signalled more narrowly". The executor's own kill path
+    # falls back to the bare pid when the group is unusable, and that is
+    # right THERE because the pid is a child it started. Here it is wrong:
+    # the identity comes from a durable record, and a record naming this
+    # process -- or this process's group -- makes the fallback a SIGTERM to
+    # the supervisor doing the cleanup.
+    #
+    # That is not hypothetical. This function shipped with the fallback, its
+    # own test asserted the refusal message, the assertion PASSED, and pytest
+    # then died from the signal the test had just sent it: 25 dots followed
+    # by "Terminated" and exit 143. The same shape as the earlier incident
+    # where a leftover mutation removed os.setsid() and the test runner
+    # mysteriously died with SIGTERM.
+    if child.pid == os.getpid():
+        return ("refused: the record names THIS process; a cleanup that "
+                "signals itself is not a cleanup")
     pgid = child.pgid
-    if pgid is None or pgid == os.getpgrp():
-        try:
-            os.kill(child.pid, signal.SIGTERM)
-            return f"SIGTERM to pid {child.pid} only (group not usable)"
-        except OSError as exc:
-            return f"could not signal pid {child.pid}: {exc}"
+    if pgid is None:
+        return (f"refused: pid {child.pid} has no recorded process group, so "
+                "there is nothing that can be signalled without guessing")
+    if pgid == os.getpgrp():
+        return (f"refused: process group {pgid} is this process's own; "
+                "signalling it would terminate the supervisor doing the "
+                "recovery")
     try:
         os.killpg(pgid, signal.SIGTERM)
         return f"SIGTERM to process group {pgid}"

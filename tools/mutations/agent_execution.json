@@ -339,9 +339,9 @@
     {
       "name": "X26_the_childs_identity_is_not_recorded",
       "path": "qta_agent/execution.py",
-      "find": "            base[\"pid\"] = proc.pid",
-      "replace": "            base[\"pid\"] = None",
-      "rationale": "a supervisor that dies mid-run leaves an orphan nothing can name"
+      "find": "            base[\"child_process\"] = child.to_record()",
+      "replace": "            base[\"child_process\"] = {\"pid\": child.pid}",
+      "rationale": "the child is recorded as a bare pid again, with no boot id and no start time, so a later supervisor cannot tell whether that number is still the process it started -- and acting on it would signal whatever inherited it"
     },
     {
       "name": "X27_a_missing_declared_output_is_still_a_completion",
