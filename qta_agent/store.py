@@ -170,10 +170,63 @@ class AuthorityStore:
             self._applied_keys[key] = p.get("record_id", ev.target)
         if ev.action == ACT_CREATE:
             rid = p["record_id"]
+            # A CREATE INTRODUCES A CLAIM. IT DOES NOT ASSERT A VERDICT.
+            #
+            # This read `state` from the payload, so a single appended line
+            # produced a record born in PROMOTED -- the state that carries
+            # canonical authority and is reachable only from VERIFIED by I1
+            # -- and store.canonical() reported it. The transition reducer
+            # above was hardened to refuse a forged walk to PROMOTED; this
+            # skipped the walk entirely by starting at the destination, so
+            # the state machine was never consulted at all.
+            #
+            # It also replaced an existing record wholesale, which is the
+            # same defect pointed at history instead of at authority: a
+            # second create for a live id reset its state and its evidence.
+            if rid in self._records:
+                raise StoreError(
+                    f"seq {ev.seq}: {rid!r} already exists and this record "
+                    "creates it again; a second create would silently "
+                    "replace the first one's state, evidence and history")
+            claimed_state = p.get("state", INITIAL.value)
+            if claimed_state != INITIAL.value:
+                raise StoreError(
+                    f"seq {ev.seq}: {rid!r} is created directly in "
+                    f"{claimed_state}. A create introduces a claim; every "
+                    f"state after {INITIAL.value} is reached by a transition "
+                    "that is authorized on its own terms.")
+            # The proposer is who the log says wrote this. Separation of
+            # duties is checked against it -- a proposer may not verify its
+            # own record -- so a create that could name one could choose the
+            # party it has to differ from.
+            claimed_proposer = p["proposer"]
+            if claimed_proposer != ev.actor:
+                raise StoreError(
+                    f"seq {ev.seq}: {rid!r} names {claimed_proposer!r} as "
+                    f"its proposer but was appended by {ev.actor!r}; who "
+                    "proposed a record is the log's to say, and separation "
+                    "of duties is measured from it")
+            evidence = dict(p.get("evidence", {}))
+            for k, v in evidence.items():
+                # FORM, not resolution: evidence may legitimately have been
+                # archived since, and requiring it to resolve here would turn
+                # an archival policy into a retroactive authority failure.
+                # Same reasoning as the transition reducer above.
+                if not is_digest(v):
+                    raise StoreError(
+                        f"seq {ev.seq}: evidence {k!r} on {rid!r} is not a "
+                        "sha256 digest, so what was cited could be altered "
+                        "after the fact")
+            for dep in p.get("depends_on", ()):
+                if dep not in self._records:
+                    raise StoreError(
+                        f"seq {ev.seq}: {rid!r} depends on {dep!r}, which "
+                        "nothing has recorded; a record may not depend on "
+                        "something unrecorded")
             self._records[rid] = Record(
-                record_id=rid, kind=p["kind"], proposer=p["proposer"],
-                state=State(p.get("state", INITIAL.value)),
-                revision=1, evidence=dict(p.get("evidence", {})),
+                record_id=rid, kind=p["kind"], proposer=ev.actor,
+                state=INITIAL,
+                revision=1, evidence=evidence,
                 depends_on=tuple(p.get("depends_on", ())),
                 policy_id=p.get("policy_id"),
                 created_seq=ev.seq, updated_seq=ev.seq)
@@ -229,7 +282,20 @@ class AuthorityStore:
                 policy_id=p.get("policy_id", cur.policy_id))
         elif ev.action == ACT_DEPEND:
             rid = p["record_id"]
+            if rid not in self._records:
+                # A raw KeyError leaks the projection's internals and skips
+                # the domain error every other refusal here raises.
+                raise StoreError(
+                    f"seq {ev.seq}: a dependency record names {rid!r}, which "
+                    "was never created")
             cur = self._records[rid]
+            for dep in p["depends_on"]:
+                if dep not in self._records:
+                    raise StoreError(
+                        f"seq {ev.seq}: {rid!r} is made to depend on "
+                        f"{dep!r}, which nothing has recorded; an "
+                        "unsatisfiable dependency is one nothing will ever "
+                        "resolve")
             merged = tuple(dict.fromkeys(
                 cur.depends_on + tuple(p["depends_on"])))
             self._records[rid] = replace(

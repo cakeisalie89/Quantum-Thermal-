@@ -162,9 +162,43 @@ def test_the_validator_refuses_a_path_that_does_not_exist():
 
 def test_the_validator_refuses_property_test_claims_over_files_without_any():
     """A row claiming property testing must name a file that has some."""
-    problems = _problems(property_tests=["tests/test_agent_scheduler.py"])
+    problems = _problems(property_tests=["tests/test_agent_evidence.py"])
     assert any("contains no property-based testing" in p
                for p in problems), problems
+
+
+def test_a_mention_of_hypothesis_is_not_property_test_coverage(tmp_path):
+    """USAGE, not a word.
+
+    The check matched the bare string "hypothesis" anywhere in the file, so
+    a docstring sentence -- "the rule Hypothesis found" -- satisfied a
+    property-testing claim. It happened by accident: that sentence was
+    written into a suite with no property tests in it, and the negative
+    example in this file started passing for the wrong reason.
+
+    A marker a comment can supply is not evidence of coverage.
+    """
+    mention = tmp_path / "test_mentions_only.py"
+    mention.write_text('"""Found by Hypothesis, tested by hand."""\n'
+                       "def test_x():\n    assert True\n")
+    rel = mention.relative_to(CM.ROOT) if str(mention).startswith(
+        str(CM.ROOT)) else None
+    if rel is None:                       # tmp_path is outside the repo
+        body = mention.read_text().lower()
+        assert "hypothesis" in body
+        assert not any(m in body for m in
+                       ("@given", "from hypothesis import",
+                        "import hypothesis", "rulebasedstatemachine"))
+        return
+    problems = _problems(property_tests=[str(rel)])
+    assert any("contains no property-based testing" in p
+               for p in problems), problems
+
+
+def test_the_property_claim_guard_still_accepts_real_usage():
+    """And the tightened marker set must not refuse a genuine suite."""
+    assert not _problems(
+        property_tests=["tests/test_agent_machine_properties.py"])
 
 
 def test_the_property_claim_guard_accepts_a_real_property_suite():

@@ -349,6 +349,97 @@
       "find": "            return self.transition(job_id=job_id, dst=JobState.SUCCEEDED,\n                                   actor=worker, closed_by=who,",
       "replace": "            return self.transition(job_id=job_id, dst=JobState.SUCCEEDED,\n                                   actor=who, closed_by=who,",
       "rationale": "the record's actor stops being the lease holder, so replay cannot re-check ownership on the production path at all"
+    },
+    {
+      "name": "N50_replay_does_not_re_run_the_priority_gate",
+      "path": "qta_agent/scheduler.py",
+      "find": "            self._reauthorize_priority(cur, new, ev)",
+      "replace": "            pass",
+      "rationale": "a job is lifted to the front of the queue by appending the record set_priority refused; starvation is not a state-machine violation so nothing else notices"
+    },
+    {
+      "name": "N51_a_denied_raise_is_applied_anyway",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {job.job_id!r} was raised from \"",
+      "replace": "        if False:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {job.job_id!r} was raised from \"",
+      "rationale": "the policy is consulted and its answer discarded"
+    },
+    {
+      "name": "N52_a_raise_needs_no_reason_on_replay",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not p_reason(ev.payload):",
+      "replace": "        if False:",
+      "rationale": "'why is this urgent' stops being answerable for a raise that arrived as a record"
+    },
+    {
+      "name": "N53_the_priority_gate_uses_todays_policy",
+      "path": "qta_agent/scheduler.py",
+      "find": "                          resource=job.job_id,\n                          task_id=job.task_id or \"\"),\n            at_seq=ev.seq)",
+      "replace": "                          resource=job.job_id,\n                          task_id=job.task_id or \"\"))",
+      "rationale": "a later policy edition re-judges a change made under the rules of its own day"
+    },
+    {
+      "name": "N54_the_priority_subject_is_taken_from_the_payload",
+      "path": "qta_agent/scheduler.py",
+      "find": "                          subject=ev.actor,",
+      "replace": "                          subject=str(ev.payload.get(\"subject\", ev.actor)),",
+      "rationale": "the actor a policy rule matches on becomes a field the record writes"
+    },
+    {
+      "name": "N55_an_enqueue_record_is_not_reauthorized",
+      "path": "qta_agent/scheduler.py",
+      "find": "            self._reauthorize_enqueue(job, ev)",
+      "replace": "            pass",
+      "rationale": "a forged enqueue names any field of a job: born SUCCEEDED, or born DISPATCHED holding a lease that then satisfies the ownership check on the outcome edges"
+    },
+    {
+      "name": "N56_a_job_may_be_enqueued_in_any_state",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.state is not INITIAL:",
+      "replace": "        if False:",
+      "rationale": "work is born finished, or born owned, without a single authorized transition"
+    },
+    {
+      "name": "N57_an_enqueue_may_arrive_holding_a_lease",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if (job.lease_id or job.lease_holder\n                or job.lease_expires_after_seq >= 0):",
+      "replace": "        if False:",
+      "rationale": "a record grants itself the ownership the outcome edges check against"
+    },
+    {
+      "name": "N58_an_enqueue_may_rebind_a_live_idempotency_key",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if prior is not None and prior[1] != job.work_digest:",
+      "replace": "            if False:",
+      "rationale": "a real request is suppressed afterwards as if it were a retry"
+    },
+    {
+      "name": "N59_an_enqueue_may_name_another_submitter",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.submitter != ev.actor:",
+      "replace": "        if False:",
+      "rationale": "who asked for work becomes a field the record writes"
+    },
+    {
+      "name": "N60_an_enqueue_may_preset_its_attempts",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.attempts or job.revision:",
+      "replace": "        if False:",
+      "rationale": "the retry budget is spent or refreshed before the work has run"
+    },
+    {
+      "name": "N61_replay_admits_work_onto_a_dead_dependency",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if self._jobs[dep].state not in CAN_STILL_SUCCEED:",
+      "replace": "            if False:",
+      "rationale": "a job waits forever on work nobody will do, and waiting forever looks exactly like slow"
+    },
+    {
+      "name": "N62_the_enqueue_policy_gate_is_not_re_run",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {decision.identity} refuses to enqueue \"",
+      "replace": "        if False:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {decision.identity} refuses to enqueue \"",
+      "rationale": "a submitter the policy refuses gets its work into the queue by writing the record itself"
     }
   ]
 }

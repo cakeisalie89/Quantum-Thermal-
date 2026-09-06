@@ -186,9 +186,18 @@ def validate(doc: dict) -> list:
                 f"is {COMPLETE}, or something is missing and should be said")
 
         # Claimed coverage must be the kind of coverage it claims to be.
-        for field, marker, what in (
-            ("property_tests", "hypothesis", "property-based testing"),
-            ("fuzzing", "fuzz", "fuzzing"),
+        #
+        # USAGE, not a mention. This matched the bare word "hypothesis"
+        # anywhere in the file, so a docstring sentence like "the rule
+        # Hypothesis found" satisfied a property-testing claim -- and did,
+        # the moment one was written into a suite that has no property tests
+        # at all. A marker a comment can supply is not evidence of coverage.
+        for field, markers, what in (
+            ("property_tests",
+             ("@given", "from hypothesis import", "import hypothesis",
+              "rulebasedstatemachine"),
+             "property-based testing"),
+            ("fuzzing", ("fuzz",), "fuzzing"),
         ):
             value = row.get(field)
             names = value if isinstance(value, list) else (
@@ -200,7 +209,7 @@ def validate(doc: dict) -> list:
                     continue          # prose, not a path; nothing to check
                 body = path.read_text(encoding="utf-8",
                                       errors="replace").lower()
-                if marker not in body:
+                if not any(m in body for m in markers):
                     problems.append(
                         f"{rid}: {field} names {rel}, which contains no "
                         f"{what}")

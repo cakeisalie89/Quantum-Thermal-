@@ -423,6 +423,7 @@ class Scheduler:
                     f"seq {ev.seq}: job {job.job_id!r} enqueued twice; a "
                     "second enqueue would silently replace the first one's "
                     "attempts and lease")
+            self._reauthorize_enqueue(job, ev)
             job = replace(job, enqueued_seq=ev.seq, updated_seq=ev.seq,
                           revision=1)
             self._jobs[job.job_id] = job
@@ -447,6 +448,7 @@ class Scheduler:
             cur = self._jobs[p["job_id"]]
             new = int(p["priority"])
             _require_priority(new)
+            self._reauthorize_priority(cur, new, ev)
             self._jobs[cur.job_id] = replace(
                 cur, priority=new, revision=cur.revision + 1,
                 updated_seq=ev.seq,
@@ -455,6 +457,147 @@ class Scheduler:
             return False
         self._loaded_through = ev.seq
         return True
+
+    def _reauthorize_enqueue(self, job: Job, ev) -> None:
+        """An enqueue record introduces WORK. It does not assert a lifecycle.
+
+        job_from_record validates the shape of a job and nothing else, so a
+        forged enqueue could name any field of one. Three of those were worth
+        a demonstration each:
+
+          * ``state: SUCCEEDED`` -- a job born finished, never leased, never
+            run, never verified.
+          * ``state: DISPATCHED`` with a ``lease_holder`` -- a lease nobody
+            granted, which then satisfies the ownership check on the outcome
+            edges and reopens that fix from underneath. A guard that can be
+            supplied its own precondition is not a guard.
+          * a live ``idempotency_key`` rebound to different work -- exactly
+            what enqueue() refuses because it "would suppress a real request
+            as if it were a retry". Replay OVERWROTE the binding, so the real
+            request is the one that gets refused afterwards.
+
+        So the lifecycle fields are pinned to what enqueue() actually
+        constructs, and the rules it enforces are enforced here as well.
+
+        Capacity is deliberately NOT re-checked: it is a property of the
+        executor doing the replaying, not of the history, and a machine with
+        less capacity than the one that wrote the log must still be able to
+        read it.
+        """
+        if job.submitter != ev.actor:
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} names {job.submitter!r} as "
+                f"its submitter but was appended by {ev.actor!r}; who asked "
+                "for work is the log's to say")
+        if job.state is not INITIAL:
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} is enqueued already in "
+                f"{job.state.value}. An enqueue introduces work; every state "
+                f"after {INITIAL.value} is reached by a transition that is "
+                "authorized on its own terms.")
+        if job.attempts or job.revision:
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} is enqueued with "
+                f"{job.attempts} attempts and revision {job.revision}; work "
+                "that has not run has neither")
+        if (job.lease_id or job.lease_holder
+                or job.lease_expires_after_seq >= 0):
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} is enqueued already "
+                f"leased to {job.lease_holder!r}. Ownership is taken at "
+                "dispatch; a record that arrives holding one has granted "
+                "itself the thing the outcome edges check against.")
+        if not is_digest(job.work_digest):
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} has no work digest; "
+                "without it two enqueues under one key cannot be compared")
+        _require_priority(job.priority)
+        if (not isinstance(job.max_attempts, int)
+                or isinstance(job.max_attempts, bool)
+                or job.max_attempts < 1):
+            raise SchedulerError(
+                f"seq {ev.seq}: job {job.job_id!r} has max_attempts "
+                f"{job.max_attempts!r}; the retry budget must be an int >= 1")
+        if len(job.depends_on) > MAX_DEPENDENCIES:
+            raise SchedulerError(
+                f"seq {ev.seq}: {len(job.depends_on)} dependencies exceeds "
+                f"the {MAX_DEPENDENCIES} bound")
+        for dep in job.depends_on:
+            if dep == job.job_id:
+                raise SchedulerError(
+                    f"seq {ev.seq}: {job.job_id!r} cannot depend on itself")
+            if dep not in self._jobs:
+                raise SchedulerError(
+                    f"seq {ev.seq}: dependency {dep!r} does not exist; a job "
+                    "may not depend on something unrecorded, because nothing "
+                    "would ever satisfy it")
+            if self._jobs[dep].state not in CAN_STILL_SUCCEED:
+                raise SchedulerError(
+                    f"seq {ev.seq}: dependency {dep!r} is "
+                    f"{self._jobs[dep].state.value}, from which SUCCEEDED is "
+                    "unreachable; this job could never become ready and "
+                    "waiting forever looks exactly like slow")
+        if job.idempotency_key:
+            prior = self._keys.get(job.idempotency_key)
+            if prior is not None and prior[1] != job.work_digest:
+                raise SchedulerError(
+                    f"seq {ev.seq}: idempotency key "
+                    f"{job.idempotency_key!r} already enqueued {prior[0]!r} "
+                    f"for work {prior[1][:12]}; rebinding it to "
+                    f"{job.work_digest[:12]} would suppress a real request "
+                    "as if it were a retry")
+        decision = self.policy.evaluate(
+            self.policy_id,
+            PolicyRequest(action="scheduler.enqueue", subject=ev.actor,
+                          role="SUBMITTER", resource=job.job_id,
+                          task_id=job.task_id or ""),
+            at_seq=ev.seq)
+        if not decision.allowed:
+            raise SchedulerError(
+                f"seq {ev.seq}: {decision.identity} refuses to enqueue "
+                f"{job.job_id!r} for {ev.actor!r}: {decision.reason}")
+
+    def _reauthorize_priority(self, job: Job, new: int, ev) -> None:
+        """Re-run the policy gate a RAISE went through. Or raise.
+
+        set_priority refuses a raise the policy denies -- "raising it is a
+        policy decision, not a setter". That refusal lived on the write path
+        alone, so a job could be lifted to the front of the queue by
+        appending the record ``set_priority`` had just rejected. Starvation
+        is not a state machine violation, so nothing else here would notice.
+
+        Evaluated against the document in force AT THIS POSITION, not
+        today's, for the same reason a recorded decision is: the rules that
+        governed the change are the ones that were published when it
+        happened.
+
+        The subject is the event's actor. The role is the record's claim --
+        see the residual gap recorded on R26: nothing binds a scheduler
+        record's declared role to the agent directory, so a policy that
+        distinguishes roles is only as strong as that claim.
+        """
+        if new >= job.priority:
+            return                       # lowering urgency needs no gate
+        if not p_reason(ev.payload):
+            raise SchedulerError(
+                f"seq {ev.seq}: {job.job_id!r} was raised to priority {new} "
+                "with no reason; 'why is this urgent' is the question an "
+                "operator asks first")
+        decision = self.policy.evaluate(
+            self.policy_id,
+            PolicyRequest(action="scheduler.raise_priority",
+                          subject=ev.actor,
+                          role=str(ev.payload.get("role", "")),
+                          resource=job.job_id,
+                          task_id=job.task_id or ""),
+            at_seq=ev.seq)
+        if not decision.allowed:
+            raise SchedulerError(
+                f"seq {ev.seq}: {job.job_id!r} was raised from "
+                f"{job.priority} to {new} by {ev.actor!r}, and "
+                f"{decision.identity} refuses it: {decision.reason}. A "
+                "priority the policy denies does not become the queue's "
+                "order by being written down.")
 
     # ---- reads ---------------------------------------------------------
     def get(self, job_id: str) -> Job:
@@ -1134,6 +1277,11 @@ def _apply_edge(job: Job, edge: JobEdge, payload: dict, *, seq: int) -> Job:
         updates.setdefault("lease_holder", None)
         updates.setdefault("lease_expires_after_seq", -1)
     return replace(job, **updates)
+
+
+def p_reason(payload: dict) -> str:
+    """The stated reason for a priority change, or empty."""
+    return str(payload.get("reason", "") or "")
 
 
 def _require_priority(priority: int) -> None:

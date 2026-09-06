@@ -1215,3 +1215,200 @@ def test_a_refused_report_from_a_lapsed_lease_appends_nothing(sched):
     assert _events(sched) == before, (
         "a late report was refused and still became a permanent record")
     assert sched.load().get("j1").state is JobState.DISPATCHED
+
+
+# --- the priority gate, re-run on replay ------------------------------------
+#
+# set_priority calls the policy for a RAISE -- "raising it is a policy
+# decision, not a setter" -- and that call lived on the write path alone. A
+# job could be lifted to the front of the queue by appending the record
+# set_priority had just refused. Starvation is not a state-machine violation,
+# so nothing else here would have noticed.
+
+def _deny_raises(log):
+    """A policy under which raising priority is refused, everything else is
+    allowed. Published so the gate has something real to consult."""
+    from qta_agent.policy import ANY, Effect, document, rule
+
+    pol = PolicyStore(log).load()
+    pol.publish(document(policy_id="scheduler.default", version=1, rules=(
+        rule(rule_id="no-raise", effect=Effect.DENY,
+             actions=("scheduler.raise_priority",), subjects=(ANY,),
+             roles=(ANY,), resources=(ANY,),
+             reason="urgency is an operator decision"),
+        rule(rule_id="allow-rest", effect=Effect.ALLOW, actions=(ANY,),
+             subjects=(ANY,), roles=(ANY,), resources=(ANY,)),
+    )), actor="owner")
+    return pol
+
+
+def _strict(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    pol = _deny_raises(log)
+    s = Scheduler(log, policy=pol, policy_id="scheduler.default").load()
+    s.enqueue(job_id="j1", work_digest=WORK, submitter="alice",
+              priority=MAX_PRIORITY)
+    return log, s
+
+
+def test_the_write_path_refuses_a_raise_the_policy_denies(tmp_path):
+    """Stated first, so the test below is visibly the same record."""
+    _, s = _strict(tmp_path)
+    with pytest.raises(PolicyDenied, match="raise_priority"):
+        s.set_priority(job_id="j1", priority=0, actor="mallory",
+                       role="WORKER", reason="mine is urgent")
+
+
+def test_and_replay_refuses_it_when_it_arrives_as_a_record(tmp_path):
+    log, s = _strict(tmp_path)
+    log.append(actor="mallory", action="scheduler.priority", target="j1",
+               payload={"job_id": "j1", "priority": 0, "role": "WORKER",
+                        "reason": "mine is urgent"})
+    log2 = EventLog(tmp_path / "log.jsonl")
+    pol2 = PolicyStore(log2).load()
+    with pytest.raises(SchedulerError, match="does not become the queue"):
+        Scheduler(log2, policy=pol2,
+                  policy_id="scheduler.default").load()
+
+
+def test_a_raise_with_no_reason_is_refused_on_replay(tmp_path):
+    """The write path demands one; so does the replay."""
+    log, s = _strict(tmp_path)
+    log.append(actor="mallory", action="scheduler.priority", target="j1",
+               payload={"job_id": "j1", "priority": 0, "role": "WORKER"})
+    log2 = EventLog(tmp_path / "log.jsonl")
+    pol2 = PolicyStore(log2).load()
+    with pytest.raises(SchedulerError, match="no reason"):
+        Scheduler(log2, policy=pol2, policy_id="scheduler.default").load()
+
+
+def test_lowering_urgency_needs_no_gate_and_still_replays(tmp_path):
+    """The guard must refuse a RAISE, not every priority change.
+
+    Deprioritising your own work is not an escalation, and a check that
+    refused it would be removed rather than fixed.
+    """
+    log, s = _strict(tmp_path)
+    s.set_priority(job_id="j1", priority=MAX_PRIORITY - 0, actor="alice",
+                   role="SUBMITTER", reason="can wait")
+    s.enqueue(job_id="j2", work_digest=OTHER_WORK, submitter="alice",
+              priority=3)
+    s.set_priority(job_id="j2", priority=7, actor="alice", role="SUBMITTER",
+                   reason="less urgent than I thought")
+    log2 = EventLog(tmp_path / "log.jsonl")
+    pol2 = PolicyStore(log2).load()
+    reloaded = Scheduler(log2, policy=pol2,
+                         policy_id="scheduler.default").load()
+    assert reloaded.get("j2").priority == 7
+
+
+def test_a_permitted_raise_replays(sched):
+    """And under the default policy, which permits it, a raise survives a
+    reload -- so the gate is refusing the DECISION, not the operation."""
+    _enqueue(sched, "j1", priority=MAX_PRIORITY)
+    sched.set_priority(job_id="j1", priority=1, actor="scheduler",
+                       role="SCHEDULER", reason="a real deadline")
+    assert sched.get("j1").priority == 1
+
+
+# --- an enqueue introduces work; it does not assert a lifecycle -------------
+#
+# job_from_record validates the SHAPE of a job and nothing else, so a forged
+# enqueue could name any field of one. enqueue() never lets a caller pick
+# them: it constructs the Job itself, at the initial state, with no lease and
+# no attempts.
+
+def _forged_enqueue(sched, **over):
+    rec = {"job_id": "forged", "work_digest": WORK, "submitter": "mallory",
+           "priority": 0}
+    rec.update(over)
+    sched.log.append(actor="mallory", action="scheduler.enqueue",
+                     target=rec["job_id"], payload={"job": rec})
+
+
+def test_a_job_cannot_be_enqueued_already_finished(sched, tmp_path):
+    """A job born SUCCEEDED never ran, never held a lease, was never
+    verified -- and anything downstream reading SUCCEEDED as 'this work was
+    done' is reading a fabrication."""
+    _forged_enqueue(sched, state=JobState.SUCCEEDED.value)
+    with pytest.raises(SchedulerError, match="enqueued already in SUCCEEDED"):
+        _reload(tmp_path)
+
+
+def test_a_job_cannot_be_enqueued_already_holding_a_lease(sched, tmp_path):
+    """THE ONE THAT REOPENED AN EARLIER FIX.
+
+    The outcome edges check that the reporter holds the lease. A forged
+    enqueue that arrives already DISPATCHED to mallory supplies that
+    precondition, so mallory can then report on it legitimately. A guard
+    that can be handed its own precondition is not a guard, and this is why
+    the enqueue path had to be closed and not only the report path.
+    """
+    _forged_enqueue(sched, state=JobState.DISPATCHED.value,
+                    lease_id="L-forged", lease_holder="mallory",
+                    lease_expires_after_seq=10 ** 9)
+    with pytest.raises(SchedulerError, match="enqueued already in DISPATCHED"):
+        _reload(tmp_path)
+
+
+def test_a_forged_enqueue_cannot_rebind_a_live_idempotency_key(sched,
+                                                                tmp_path):
+    """enqueue() refuses this because it 'would suppress a real request as
+    if it were a retry'. The replay OVERWROTE the binding, so the real
+    request is the one that gets refused afterwards."""
+    _enqueue(sched, "real", idempotency_key="k1")
+    _forged_enqueue(sched, work_digest=OTHER_WORK, idempotency_key="k1")
+    with pytest.raises(SchedulerError, match="suppress a real request"):
+        _reload(tmp_path)
+
+
+def test_an_enqueue_may_not_name_a_submitter_it_did_not_have(sched, tmp_path):
+    _forged_enqueue(sched, submitter="alice")
+    with pytest.raises(SchedulerError, match="was appended by"):
+        _reload(tmp_path)
+
+
+@pytest.mark.parametrize("over,match", [
+    ({"attempts": 5}, "attempts and revision"),
+    ({"revision": 7}, "attempts and revision"),
+    ({"max_attempts": 0}, "retry budget"),
+    ({"priority": 99}, "outside"),
+    ({"work_digest": "not-a-digest"}, "no work digest"),
+    ({"depends_on": ["forged"]}, "cannot depend on itself"),
+    ({"depends_on": ["nonexistent"]}, "does not exist"),
+])
+def test_replay_refuses_an_enqueue_the_write_path_would_have(sched, tmp_path,
+                                                             over, match):
+    """Each rule enqueue() enforces, provoked one at a time on the replay."""
+    _forged_enqueue(sched, **over)
+    with pytest.raises(SchedulerError, match=match):
+        _reload(tmp_path)
+
+
+def test_replay_refuses_an_enqueue_onto_a_dependency_that_cannot_succeed(
+        sched, tmp_path):
+    """The liveness rule Hypothesis found, enforced on the replay too.
+
+    Waiting forever looks exactly like slow, so a job admitted onto a dead
+    dependency is a defect nothing else reports.
+    """
+    _enqueue(sched, "parent")
+    sched.cancel(job_id="parent", actor="owner", reason="not wanted")
+    _forged_enqueue(sched, depends_on=["parent"])
+    with pytest.raises(SchedulerError, match="unreachable"):
+        _reload(tmp_path)
+
+
+def test_an_ordinary_enqueue_still_replays(sched, tmp_path):
+    """The guard must refuse forgeries, not work.
+
+    Every rule above is enforced on the honest path by enqueue() already, so
+    a check that also refused a real enqueue would make the queue unloadable
+    and be deleted rather than fixed.
+    """
+    _enqueue(sched, "j1", idempotency_key="k1")
+    _enqueue(sched, "j2", depends_on=("j1",))
+    reloaded = _reload(tmp_path)
+    assert reloaded.get("j1").state is JobState.WAITING
+    assert reloaded.get("j2").depends_on == ("j1",)
+    assert reloaded._keys["k1"][0] == "j1"

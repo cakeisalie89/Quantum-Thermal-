@@ -896,3 +896,110 @@ def test_replay_does_not_require_evidence_that_has_since_been_archived(
     ev._blob_path(report).unlink()
     reloaded = AuthorityStore(log, evidence=ev).load()
     assert reloaded.get("r1").state is State.VERIFIED
+
+
+# --- a create introduces a claim; it does not assert a verdict --------------
+#
+# The transition reducer was hardened to refuse a forged walk to PROMOTED.
+# This skipped the walk entirely: record.create read `state` from the payload,
+# so ONE appended line produced a record born in PROMOTED -- the state that
+# carries canonical authority, reachable only from VERIFIED by I1 -- and
+# store.canonical() reported it as canonical authority.
+#
+# The state machine was not defeated. It was never consulted.
+
+def _forged_create(log, **over):
+    rec = {"record_id": "forged", "kind": "claim", "proposer": "mallory"}
+    rec.update(over)
+    log.append(actor="mallory", action="record.create",
+               target=rec["record_id"], payload=rec)
+
+
+def test_a_record_cannot_be_created_directly_in_promoted(tmp_path):
+    log = EventLog(tmp_path / "ev.jsonl")
+    _forged_create(log, state="PROMOTED")
+    with pytest.raises(StoreError, match="created directly in PROMOTED"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+@pytest.mark.parametrize("state", ["VERIFIED", "UNDER_REVIEW", "PROMOTED"])
+def test_no_state_but_the_initial_one_may_be_asserted_at_creation(tmp_path,
+                                                                   state):
+    """Stated over the states worth reaching, not only the worst one."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    _forged_create(log, state=state)
+    with pytest.raises(StoreError, match="created directly in"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_the_forged_record_does_not_reach_canonical(tmp_path):
+    """Asserted as the OUTCOME, because canonical() is the function that
+    answers 'what does this system hold to be true'."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    _forged_create(log, state="PROMOTED")
+    with pytest.raises(StoreError):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_a_create_may_not_name_a_proposer_it_did_not_have(tmp_path):
+    """Separation of duties is measured from the proposer -- a proposer may
+    not verify its own record -- so a create that could name one could choose
+    the party it has to differ from."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    _forged_create(log, proposer="alice")
+    with pytest.raises(StoreError, match="was appended by"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_a_second_create_cannot_replace_a_live_record(tmp_path):
+    """The same defect pointed at history instead of at authority: it reset
+    the first record's state, evidence and revision."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+    log.append(actor="mallory", action="record.create", target="r1",
+               payload={"record_id": "r1", "kind": "claim",
+                        "proposer": "mallory", "state": "PROPOSED"})
+    with pytest.raises(StoreError, match="already exists"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_cited_evidence_must_be_a_digest_at_creation(tmp_path):
+    """FORM, not resolution. Evidence may legitimately have been archived
+    since, and requiring it to resolve on replay would turn an archival
+    policy into a retroactive authority failure -- the same reasoning the
+    transition reducer already carries."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    _forged_create(log, evidence={"report": "trust-me"})
+    with pytest.raises(StoreError, match="not a sha256 digest"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_a_create_may_not_depend_on_something_unrecorded(tmp_path):
+    log = EventLog(tmp_path / "ev.jsonl")
+    _forged_create(log, depends_on=["ghost"])
+    with pytest.raises(StoreError, match="nothing has recorded"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_a_dependency_record_for_an_unknown_record_is_a_domain_error(
+        tmp_path):
+    """An authority API fails on purpose, or not at all."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    log.append(actor="mallory", action="record.depend", target="nobody",
+               payload={"record_id": "nobody", "depends_on": ["x"]})
+    with pytest.raises(StoreError, match="never created"):
+        AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+
+
+def test_an_ordinary_create_still_replays(tmp_path):
+    """The guard must refuse forgeries, not records."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    s = AuthorityStore(log).load()
+    s.create(record_id="r1", kind="claim", proposer="alice")
+    s.create(record_id="r2", kind="claim", proposer="bob",
+             depends_on=("r1",))
+    reloaded = AuthorityStore(EventLog(tmp_path / "ev.jsonl")).load()
+    assert reloaded.get("r1").state is State.PROPOSED
+    assert reloaded.get("r1").proposer == "alice"
+    assert reloaded.get("r2").depends_on == ("r1",)

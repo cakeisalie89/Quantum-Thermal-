@@ -253,6 +253,55 @@
       "find": "        if claimed_by is not None and claimed_by != cur[\"executed_by\"]:",
       "replace": "        if False:",
       "rationale": "the reader stops reporting the field it refuses to apply, so nothing says the record tried"
+    },
+    {
+      "name": "S36_a_record_may_be_created_in_any_state",
+      "path": "qta_agent/store.py",
+      "find": "            if claimed_state != INITIAL.value:",
+      "replace": "            if False:",
+      "rationale": "one appended line produces a record born in PROMOTED and canonical() reports it; the state machine is not defeated, it is never consulted"
+    },
+    {
+      "name": "S37_a_create_may_name_its_own_proposer",
+      "path": "qta_agent/store.py",
+      "find": "            if claimed_proposer != ev.actor:",
+      "replace": "            if False:",
+      "rationale": "separation of duties is measured from the proposer, so a create that names one chooses the party it must differ from"
+    },
+    {
+      "name": "S38_the_projected_proposer_comes_from_the_payload",
+      "path": "qta_agent/store.py",
+      "find": "                record_id=rid, kind=p[\"kind\"], proposer=ev.actor,",
+      "replace": "                record_id=rid, kind=p[\"kind\"], proposer=p[\"proposer\"],",
+      "rationale": "the field separation of duties is measured from is taken from the record rather than the log"
+    },
+    {
+      "name": "S39_a_second_create_replaces_a_live_record",
+      "path": "qta_agent/store.py",
+      "find": "            if rid in self._records:\n                raise StoreError(\n                    f\"seq {ev.seq}: {rid!r} already exists and this record \"",
+      "replace": "            if False:\n                raise StoreError(\n                    f\"seq {ev.seq}: {rid!r} already exists and this record \"",
+      "rationale": "a forged create resets an existing record's state, evidence and revision"
+    },
+    {
+      "name": "S40_cited_evidence_need_not_be_a_digest",
+      "path": "qta_agent/store.py",
+      "find": "                if not is_digest(v):\n                    raise StoreError(\n                        f\"seq {ev.seq}: evidence {k!r} on {rid!r} is not a \"",
+      "replace": "                if False:\n                    raise StoreError(\n                        f\"seq {ev.seq}: evidence {k!r} on {rid!r} is not a \"",
+      "rationale": "what a record cites stops being fixed at the moment of citation"
+    },
+    {
+      "name": "S41_a_create_may_depend_on_something_unrecorded",
+      "path": "qta_agent/store.py",
+      "find": "            for dep in p.get(\"depends_on\", ()):\n                if dep not in self._records:",
+      "replace": "            for dep in p.get(\"depends_on\", ()):\n                if False:",
+      "rationale": "a record depends on something nothing will ever resolve"
+    },
+    {
+      "name": "S42_a_dependency_for_an_unknown_record_raises_a_raw_KeyError",
+      "path": "qta_agent/store.py",
+      "find": "            if rid not in self._records:\n                # A raw KeyError leaks the projection's internals",
+      "replace": "            if False:\n                # A raw KeyError leaks the projection's internals",
+      "rationale": "an authority API fails with an incidental Python exception instead of its domain error"
     }
   ]
 }

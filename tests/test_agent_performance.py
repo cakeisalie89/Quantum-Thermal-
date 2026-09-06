@@ -105,7 +105,7 @@ def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
 def _fill(path: Path, n: int) -> EventLog:
     log = EventLog(path)
     for i in range(n):
-        log.append(actor="a", action="record.create", target=f"r{i}",
+        log.append(actor="p", action="record.create", target=f"r{i}",
                    payload={"record_id": f"r{i}", "kind": "k",
                             "proposer": "p"})
     return log
@@ -170,7 +170,7 @@ def test_per_append_cost_does_not_grow_with_history(tmp_path):
 
     def burst(n):
         for i in range(n):
-            log.append(actor="a", action="record.create", target=f"x{i}",
+            log.append(actor="p", action="record.create", target=f"x{i}",
                        payload={"record_id": f"x{i}", "kind": "k",
                                 "proposer": "p"})
 
@@ -314,11 +314,11 @@ def _open_fds() -> int:
 
 def test_appending_does_not_leak_file_descriptors(tmp_path):
     log = EventLog(tmp_path / "log.jsonl")
-    log.append(actor="a", action="record.create", target="warm",
+    log.append(actor="p", action="record.create", target="warm",
                payload={"record_id": "warm", "kind": "k", "proposer": "p"})
     before = _open_fds()
     for i in range(200):
-        log.append(actor="a", action="record.create", target=f"r{i}",
+        log.append(actor="p", action="record.create", target=f"r{i}",
                    payload={"record_id": f"r{i}", "kind": "k",
                             "proposer": "p"})
     after = _open_fds()

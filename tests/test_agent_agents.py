@@ -18,7 +18,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from qta_agent.agents import (  # noqa: E402
-    ACT_ESCALATION_ANSWER, ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
+    ACT_AGENT_REGISTER, ACT_AGENT_RETIRE, ACT_CLAIM, ACT_ESCALATION_ANSWER,
+    ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
     AgentError, AgentRole,
     ConflictError, ConflictRule, EscalationError, EscalationState,
     IdentityError, INCOMPATIBLE, MessageError, PrincipalKind,
@@ -779,3 +780,127 @@ def test_a_human_asker_cannot_answer_through_the_write_path(tmp_path):
         d.answer(escalation_id="e1", answered_by="alice", answer="yes",
                  reason="answering myself")
     assert len(list(log.read())) == before
+
+
+# --- the registrar is the log's to name, not the record's -------------------
+#
+# register() refuses to let a non-human register a HUMAN, and its own comment
+# says why: "one step from answering its own escalations". That refusal lived
+# on the write path ALONE, so it was advice. The full chain worked end to end:
+# append a forged agent.register naming kind=HUMAN, replay accepts it with
+# registered_by='', and the invented principal then answers an escalation --
+# satisfying both halves of the human gate (is a HUMAN, is not the asker)
+# with a confederate the attacker minted for the purpose.
+
+def _forged_human(d, *, by, iid="ghost-human"):
+    ghost = identity(agent_id="a-human-i-invented", instance_id=iid,
+                     kind=PrincipalKind.HUMAN, roles={AgentRole.REVIEWER})
+    d.log.append(actor=by, action=ACT_AGENT_REGISTER, target=iid,
+                 payload={"identity": ghost.to_record()})
+
+
+def test_the_write_path_refuses_an_agent_registering_a_human(dir_):
+    """Stated first, so the test below is visibly the SAME record arriving
+    by another route."""
+    with pytest.raises(IdentityError, match="may not register a HUMAN"):
+        dir_.register(identity(agent_id="ghost", instance_id="g1",
+                               kind=PrincipalKind.HUMAN,
+                               roles={AgentRole.REVIEWER}), by="p1")
+
+
+def test_and_replay_refuses_the_same_record(dir_, tmp_path):
+    _forged_human(dir_, by="p1")
+    with pytest.raises(IdentityError, match="may not register a HUMAN"):
+        AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+
+
+def test_a_minted_human_cannot_answer_an_escalation(dir_, tmp_path):
+    """THE CHAIN, end to end. This is what the gap actually bought.
+
+    Asserted as the OUTCOME rather than as the refusal, because the refusal
+    is only interesting if it stops this.
+    """
+    dir_.escalate(escalation_id="esc-1", task_id="t1",
+                  question="may this be promoted?", raised_by="p1",
+                  options=("yes", "no"))
+    _forged_human(dir_, by="p1")
+    with pytest.raises(IdentityError, match="may not register a HUMAN"):
+        AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+    # The escalation is still open in the only reader that will load at all.
+    assert dir_.escalation("esc-1").state is EscalationState.OPEN
+
+
+def test_a_human_may_still_register_another_human(dir_):
+    """The guard must refuse the forgery, not the operation.
+
+    A check that also broke the legitimate path would be removed rather than
+    fixed, and then it would be protecting nothing.
+    """
+    _human(dir_, iid="h1", by=BOOTSTRAP)
+    second = dir_.register(identity(agent_id="owner2", instance_id="h2",
+                                    kind=PrincipalKind.HUMAN,
+                                    roles={AgentRole.REVIEWER}), by="h1")
+    assert second.kind is PrincipalKind.HUMAN
+    assert second.registered_by == "h1"
+
+
+def test_a_registration_may_not_name_a_registrar_it_did_not_have(dir_,
+                                                                 tmp_path):
+    """registered_by is derived from the actor, and a disagreeing claim is
+    itself the finding -- the same rule as the executor and the lease."""
+    _human(dir_, iid="h1", by=BOOTSTRAP)
+    ident = identity(agent_id="x", instance_id="x9",
+                     kind=PrincipalKind.AGENT, roles={AgentRole.EXECUTOR})
+    rec = ident.to_record()
+    rec["registered_by"] = "h1"           # a human that did not do this
+    dir_.log.append(actor="p1", action=ACT_AGENT_REGISTER, target="x9",
+                    payload={"identity": rec})
+    with pytest.raises(IdentityError, match="but it was appended by"):
+        AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+
+
+# --- a claim is attributed to whoever recorded it ---------------------------
+
+def test_replay_refuses_a_claim_attributed_to_someone_else(dir_, tmp_path):
+    """claim() calls require(by_instance, role); the replay did neither.
+
+    Claims are what conflict detection compares, so a claim attributable to
+    anyone is a way to manufacture -- or suppress -- a disagreement between
+    two supposedly independent parties.
+    """
+    dir_.log.append(actor="p1", action=ACT_CLAIM, target="t1",
+                    payload={"claim_id": "c1", "task_id": "t1",
+                             "subject": "answer", "value_digest": "a" * 64,
+                             "by_instance": "v1", "role": "VERIFIER"})
+    with pytest.raises(ConflictError, match="was appended by"):
+        AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+
+
+def test_replay_refuses_a_claim_in_a_role_the_instance_does_not_hold(
+        dir_, tmp_path):
+    dir_.log.append(actor="p1", action=ACT_CLAIM, target="t1",
+                    payload={"claim_id": "c1", "task_id": "t1",
+                             "subject": "answer", "value_digest": "a" * 64,
+                             "by_instance": "p1", "role": "VERIFIER"})
+    with pytest.raises(IdentityError, match="may not act as VERIFIER"):
+        AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+
+
+def test_an_honest_claim_still_replays(dir_, tmp_path):
+    dir_.claim(claim_id="c1", task_id="t1", subject="answer",
+               value_digest="a" * 64, by_instance="v1",
+               role=AgentRole.VERIFIER)
+    reloaded = AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
+    (c,) = reloaded.claims_about("t1", "answer")
+    assert c.by_instance == "v1" and c.role is AgentRole.VERIFIER
+
+
+# --- an authority API fails on purpose, or not at all -----------------------
+
+def test_retiring_an_unregistered_instance_is_a_domain_error(dir_, tmp_path):
+    """A raw KeyError leaks the projection's internals and skips the domain
+    error every other refusal in this module raises."""
+    dir_.log.append(actor="system", action=ACT_AGENT_RETIRE, target="nobody",
+                    payload={"instance_id": "nobody", "reason": "tidy up"})
+    with pytest.raises(IdentityError, match="never registered"):
+        AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()

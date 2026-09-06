@@ -423,10 +423,40 @@ class AgentDirectory:
                     f"seq {ev.seq}: instance {ident.instance_id!r} registered "
                     "twice; a second registration could quietly widen the "
                     "roles the first one was given")
+            # THE REGISTRAR IS THE EVENT'S ACTOR, AND THE HUMAN RULE IS
+            # ENFORCED HERE TOO.
+            #
+            # register() refuses to let a non-human register a HUMAN, and
+            # says why: "one step from answering its own escalations". That
+            # refusal lived on the write path alone, so it was advice. A
+            # hostile agent appended the identical record, replay accepted a
+            # HUMAN principal with registered_by='' -- and then answered its
+            # own escalation through the invented confederate, satisfying
+            # both halves of the human gate it was supposed to be stopped by.
+            #
+            # registered_by comes from ev.actor rather than the payload for
+            # the same reason the executor comes from the execution record:
+            # a field the registrant writes cannot establish who admitted it.
+            self._check_may_register(ident, by=ev.actor, seq=ev.seq)
+            claimed_by = p["identity"].get("registered_by", "")
+            if claimed_by and claimed_by != ev.actor:
+                raise IdentityError(
+                    f"seq {ev.seq}: the record says {ident.instance_id!r} was "
+                    f"registered by {claimed_by!r}, but it was appended by "
+                    f"{ev.actor!r}. Who admitted a principal is the log's to "
+                    "say, not the record's.")
             self._identities[ident.instance_id] = replace(
-                ident, registered_seq=ev.seq)
+                ident, registered_by=ev.actor, registered_seq=ev.seq)
         elif ev.action == ACT_AGENT_RETIRE:
             iid = p["instance_id"]
+            if iid not in self._identities:
+                # A raw KeyError here leaks the projection's internals and
+                # skips the domain error every other refusal in this module
+                # raises. An authority API fails on purpose or not at all.
+                raise IdentityError(
+                    f"seq {ev.seq}: retirement names {iid!r}, which was "
+                    "never registered; a record about a principal that does "
+                    "not exist is not a fact about this system")
             self._identities[iid] = replace(self._identities[iid],
                                             retired_seq=ev.seq)
         elif ev.action == ACT_MESSAGE:
@@ -444,11 +474,28 @@ class AgentDirectory:
                 return True
             self._messages[msg.message_id] = replace(msg, sent_seq=ev.seq)
         elif ev.action == ACT_CLAIM:
+            # WHO MADE THE CLAIM IS THE ACTOR, AND THE ROLE IS CHECKED.
+            #
+            # claim() calls require(by_instance, role) -- registered, active,
+            # and actually holding the role. The replay did neither and took
+            # both fields from the payload, so a forged claim could be
+            # attributed to any instance in any role. Claims are what conflict
+            # detection compares, so an attributable-to-anyone claim is a way
+            # to manufacture or suppress a disagreement between two
+            # "independent" parties.
+            claimed_by = p["by_instance"]
+            if claimed_by != ev.actor:
+                raise ConflictError(
+                    f"seq {ev.seq}: claim {p['claim_id']!r} says it was made "
+                    f"by {claimed_by!r} but was appended by {ev.actor!r}; a "
+                    "claim is attributed to the instance that recorded it")
+            role = AgentRole(p["role"])
+            self.require(ev.actor, role, at_seq=ev.seq)
             claim = Claim(claim_id=p["claim_id"], task_id=p["task_id"],
                           subject=p["subject"],
                           value_digest=p["value_digest"],
-                          by_instance=p["by_instance"],
-                          role=AgentRole(p["role"]), claimed_seq=ev.seq)
+                          by_instance=ev.actor,
+                          role=role, claimed_seq=ev.seq)
             if claim.claim_id in self._claims:
                 raise ConflictError(
                     f"seq {ev.seq}: claim {claim.claim_id!r} recorded twice")
@@ -529,28 +576,38 @@ class AgentDirectory:
         return True
 
     # ---- identity ------------------------------------------------------
-    def register(self, ident: AgentIdentity, *, by: str) -> AgentIdentity:
-        """Record a participating instance.
+    def _check_may_register(self, ident: AgentIdentity, *, by: str,
+                            seq: int | None = None) -> None:
+        """May ``by`` admit ``ident``? Or raise.
 
-        Registering a HUMAN principal requires an already-registered human, or
-        the explicit bootstrap sentinel. An agent that could register a human
-        could grant itself human authority in one step, which would make every
-        escalation in the system answerable by the thing it was protecting
-        against.
+        ONE function, called by both the write path and the replay. They had
+        this rule in only one of the two places, and the gap was exploitable
+        end to end -- so the rule lives here and neither caller carries a
+        copy that could drift.
+
+        Registering a HUMAN principal requires an already-registered human,
+        or the explicit bootstrap sentinel. An agent that could register a
+        human could grant itself human authority in one step, which would
+        make every escalation in the system answerable by the thing it was
+        protecting against.
         """
-        if ident.kind is PrincipalKind.HUMAN:
-            if by == BOOTSTRAP:
-                pass
-            else:
-                registrar = self._identities.get(by)
-                if registrar is None or registrar.kind is not \
-                        PrincipalKind.HUMAN:
-                    raise IdentityError(
-                        f"{by!r} may not register a HUMAN principal: only an "
-                        "already-registered human, or the explicit "
-                        f"{BOOTSTRAP!r} bootstrap, can. An agent that could "
-                        "do this would be one step from answering its own "
-                        "escalations.")
+        if ident.kind is not PrincipalKind.HUMAN:
+            return
+        if by == BOOTSTRAP:
+            return
+        registrar = self._identities.get(by)
+        if registrar is None or registrar.kind is not PrincipalKind.HUMAN:
+            where = f"seq {seq}: " if seq is not None else ""
+            raise IdentityError(
+                f"{where}{by!r} may not register a HUMAN principal: only an "
+                "already-registered human, or the explicit "
+                f"{BOOTSTRAP!r} bootstrap, can. An agent that could "
+                "do this would be one step from answering its own "
+                "escalations.")
+
+    def register(self, ident: AgentIdentity, *, by: str) -> AgentIdentity:
+        """Record a participating instance. See :meth:`_check_may_register`."""
+        self._check_may_register(ident, by=by)
         ident = replace(ident, registered_by=by)
         ev = self.log.append(actor=by, action=ACT_AGENT_REGISTER,
                              target=ident.instance_id,
