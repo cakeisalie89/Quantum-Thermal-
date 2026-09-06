@@ -54,6 +54,9 @@ from qta_agent.capability import (  # noqa: E402
     Action, Request, issue,
 )
 from qta_agent.events import EventLog  # noqa: E402
+from qta_agent.idempotency import (  # noqa: E402
+    ACT_BIND, IdempotencyLedger,
+)
 from qta_agent.reconstruct import reconstruct_tasks  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.governed_stage10 import (  # noqa: E402
@@ -153,12 +156,13 @@ def test_00_an_honest_run_gives_the_attacker_something_to_steal(world,
     """The campaign starts from a real success, not from an empty log.
 
     An attacker with nothing to reuse is the easy case. This leaves a genuine
-    verified task, a real artifact digest and a spent capability lying around
-    for the attempts below to try to turn into authority.
+    verified task, a real artifact digest, a spent capability and a live
+    idempotency binding lying around for the attempts below to try to turn
+    into authority.
     """
     run = world.run(tool_id="stage10.emit_artifact", inputs=_inputs(world),
                     submitter=SUBMITTER_ID, worker=WORKER_ID,
-                    verifier=VERIFIER_ID)
+                    verifier=VERIFIER_ID, idempotency_key="nightly")
     assert run.state is TaskState.VERIFIED
     world.honest_run = run
     campaign.append(Attempt("honest run (control)", False,
@@ -479,6 +483,73 @@ def test_20_backdate_a_capability_over_what_it_already_did(world, campaign):
 # ---------------------------------------------------------------------------
 # what the campaign established, asked of the whole history
 # ---------------------------------------------------------------------------
+
+def test_21_steal_an_idempotency_binding_by_guessing_the_key(world,
+                                                             campaign):
+    """The key namespace is the newest thing that could become an authority.
+
+    The honest run bound "nightly" under the submitter's identity. If the
+    binding were global, the hostile agent could ask for that key and be
+    handed the honest task -- its id, its state, its artifacts. Scoping the
+    namespace by owner means the question is never answerable, so this is a
+    positive control on the SHAPE of the lookup rather than on a check that
+    could be forgotten.
+    """
+    honest = world.idempotency.lookup(
+        owner=SUBMITTER_ID, tool_id="stage10.emit_artifact", key="nightly")
+    assert honest is not None, "the honest binding is missing; see test_00"
+
+    # NOT _try. That helper scores a refusal as "it raised", and the defence
+    # here is that the question has no answer rather than that asking it is
+    # an error -- a distinction worth keeping, because a check that raises
+    # can be removed and a namespace that does not collide cannot.
+    stolen = world.idempotency.lookup(
+        owner=HOSTILE, tool_id="stage10.emit_artifact", key="nightly")
+    refused = stolen is None
+    campaign.append(Attempt(
+        "read another actor's task by guessing its key", refused,
+        "the key resolves in the asker's own namespace, so the honest "
+        "binding is not reachable" if refused
+        else f"reached {stolen.task_id}"))
+    assert refused, (
+        "a guessed key reached another actor's binding; the key stopped "
+        "being a name in a namespace and became an authority")
+
+
+def test_22_rebind_a_live_idempotency_key_to_its_own_task(world, campaign):
+    """Not "run someone else's work" -- SUPPRESS it.
+
+    Rebinding the honest key to hostile work means every later resubmission
+    of the honest request resolves to the attacker's task instead. The
+    original never runs again and the caller is told it already did.
+    """
+    honest = world.idempotency.lookup(
+        owner=SUBMITTER_ID, tool_id="stage10.emit_artifact", key="nightly")
+    world.log.append(
+        actor=SUBMITTER_ID, action=ACT_BIND, target="task-hostile",
+        payload={"key": "nightly", "tool_id": "stage10.emit_artifact",
+                 "request_digest": digest({"tool_id": "x", "inputs": {}}),
+                 "task_id": "task-hostile"})
+    assert _try(campaign, "rebind a live idempotency key",
+                lambda: IdempotencyLedger(world.log).load()) is None
+    # And the second reader reaches the same verdict by its own route.
+    recon = reconstruct_tasks(world.log, reauthorize=False)
+    assert any("rebound" in a for a in recon.anomalies)
+    assert recon.bindings[(SUBMITTER_ID, "stage10.emit_artifact",
+                           "nightly")]["task_id"] == honest.task_id
+
+
+def test_23_forge_a_binding_naming_someone_else_as_its_owner(world, campaign):
+    """The owner decides whose namespace is written into."""
+    world.log.append(
+        actor=HOSTILE, action=ACT_BIND, target="task-hostile",
+        payload={"key": "borrowed", "owner": SUBMITTER_ID,
+                 "tool_id": "stage10.emit_artifact",
+                 "request_digest": digest({"tool_id": "x", "inputs": {}}),
+                 "task_id": "task-hostile"})
+    assert _try(campaign, "forge a binding owned by another actor",
+                lambda: IdempotencyLedger(world.log).load()) is None
+
 
 def test_99_the_campaign_gained_nothing_and_the_history_proves_it(world,
                                                                   campaign):

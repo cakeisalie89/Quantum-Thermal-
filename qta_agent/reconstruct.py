@@ -229,6 +229,15 @@ class TaskReconstruction:
     """The task lifecycle as a second reader sees it."""
     #: task_id -> plain dict of reconstructed fields
     tasks: dict = field(default_factory=dict)
+    #: (owner, tool_id, key) -> plain dict of binding fields.
+    #:
+    #: Keyed by the TUPLE, deliberately, rather than by the digest
+    #: IdempotencyLedger uses for the same scope. Sharing that digest would
+    #: make the two readers agree by construction about the one thing worth
+    #: checking independently -- whether two submissions occupy the same
+    #: namespace. A collision or a mis-derived scope on either side shows up
+    #: here as a disagreement instead of being reproduced faithfully.
+    bindings: dict = field(default_factory=dict)
     #: Transitions the machine would refuse if replayed today.
     unauthorized: list = field(default_factory=list)
     #: Structural problems that did not stop replay.
@@ -259,8 +268,9 @@ def reconstruct_tasks(log: EventLog, *,
     out = TaskReconstruction(head_seq=report.head_seq,
                              head_hash=report.head_hash)
     tasks: dict = {}
+    bindings: dict = {}
     owned = {"task.create", "task.transition", "task.execution",
-             "task.evidence"}
+             "task.evidence", "idempotency.bind"}
 
     for ev in log.read():
         out.events_replayed += 1
@@ -276,6 +286,11 @@ def reconstruct_tasks(log: EventLog, *,
                 out.foreign_events += 1
             continue
         p = ev.payload
+
+        if action == "idempotency.bind":
+            _replay_binding(ev, p, bindings, out)
+            continue
+
         tid = p.get("task_id", ev.target)
 
         if action == "task.create":
@@ -394,7 +409,97 @@ def reconstruct_tasks(log: EventLog, *,
         cur["history"].append((ev.seq, p["dst"]))
 
     out.tasks = tasks
+    out.bindings = bindings
     return out
+
+
+def _replay_binding(ev, p: dict, bindings: dict, out) -> None:
+    """Project one idempotency.bind, in this reader's own words.
+
+    Shares no code with :class:`~qta_agent.idempotency.IdempotencyLedger`.
+    The rules are restated rather than imported, because a second reader
+    that calls the first one's reducer is not a second reader -- it is the
+    same decision, run twice, agreeing with itself.
+
+    Records anomalies rather than raising: this module's contract is that a
+    hostile history produces findings, not an exception that hides the rest
+    of the log.
+    """
+    if not isinstance(p, dict):
+        out.anomalies.append(
+            f"seq {ev.seq}: idempotency binding payload is not an object")
+        return
+    key, tool_id = p.get("key"), p.get("tool_id")
+    task_id, request_digest = p.get("task_id"), p.get("request_digest")
+    for name, value in (("key", key), ("tool_id", tool_id),
+                        ("task_id", task_id),
+                        ("request_digest", request_digest)):
+        if not isinstance(value, str) or not value:
+            out.anomalies.append(
+                f"seq {ev.seq}: idempotency binding has no usable {name!r}")
+            return
+    # The owner is the EVENT'S actor. A payload naming its own owner chose
+    # whose namespace to write into.
+    claimed_owner = p.get("owner")
+    if claimed_owner is not None and claimed_owner != ev.actor:
+        out.anomalies.append(
+            f"seq {ev.seq}: binding names owner {claimed_owner!r} but was "
+            f"appended by {ev.actor!r}; a lookup answered for the claimed "
+            "owner would hand one actor another's task")
+        return
+    claimed_seq = p.get("bound_seq")
+    if claimed_seq is not None and claimed_seq != ev.seq:
+        out.anomalies.append(
+            f"seq {ev.seq}: binding claims bound_seq {claimed_seq!r}, which "
+            "backdates the moment a duplicate would first have been caught")
+        return
+
+    scope = (ev.actor, tool_id, key)
+    prior = bindings.get(scope)
+    if prior is not None:
+        if (prior["task_id"] == task_id
+                and prior["request_digest"] == request_digest):
+            return                       # a retried append of the same bind
+        out.anomalies.append(
+            f"seq {ev.seq}: idempotency key {key!r} for {tool_id!r} is "
+            f"rebound from task {prior['task_id']!r} to {task_id!r}; every "
+            "later resubmission of the original request would resolve to "
+            "the new work")
+        return
+    bindings[scope] = {
+        "key": key, "owner": ev.actor, "tool_id": tool_id,
+        "task_id": task_id, "request_digest": request_digest,
+        "job_id": p.get("job_id", ""), "bound_seq": ev.seq,
+    }
+
+
+def compare_bindings(ledger, recon) -> tuple:
+    """Divergences between the ledger's bindings and the second reader's.
+
+    The interesting direction is a binding one reader holds and the other
+    does not: that is a namespace the two disagree about, and the ledger is
+    what decides whether work re-runs.
+    """
+    out: list = []
+    mine = {(b.owner, b.tool_id, b.key): b
+            for b in ledger.bindings().values()}
+    theirs = recon.bindings
+    for scope in sorted(set(mine) | set(theirs)):
+        a, b = mine.get(scope), theirs.get(scope)
+        label = f"{scope[0]}/{scope[1]}/{scope[2]}"
+        if a is None:
+            out.append(Divergence(label, "binding", None, b["task_id"]))
+            continue
+        if b is None:
+            out.append(Divergence(label, "binding", a.task_id, None))
+            continue
+        for fld, x, y in (("task_id", a.task_id, b["task_id"]),
+                          ("request_digest", a.request_digest,
+                           b["request_digest"]),
+                          ("bound_seq", a.bound_seq, b["bound_seq"])):
+            if x != y:
+                out.append(Divergence(label, fld, x, y))
+    return tuple(out)
 
 
 def _lease_of(cur: dict):

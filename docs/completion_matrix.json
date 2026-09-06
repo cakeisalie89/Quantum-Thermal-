@@ -1488,7 +1488,8 @@
       "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
       "implementation": [
         "qta_agent/governed_stage10.py",
-        "qta_agent/_stage10_tool.py"
+        "qta_agent/_stage10_tool.py",
+        "qta_agent/idempotency.py"
       ],
       "callers": [
         "Snakefile",
@@ -1497,31 +1498,35 @@
       ],
       "production_caller": "Snakefile",
       "persistent_state": "task log + content-addressed artifacts",
-      "authority_owner": "GovernedStage10.run",
+      "authority_owner": "GovernedStage10.run, which now also requires the SUBMITTER to be a registered PROPOSER -- it is the policy subject and the owner of a durable key namespace, and an unregistered string held both",
       "evidence": "every produced file hashed into the evidence store; the completion cites those digests",
       "provenance": "task, capability, execution and evidence records in one hash-chained log",
       "failure_semantics": "a non-COMPLETED outcome never reaches verification; the Snakemake rule fails the build on an unverified run",
-      "recovery": "projection() replays; a forged transition is re-authorized on replay and refused",
-      "retry": "none at this layer",
-      "idempotency": "none: each run is a new task",
+      "recovery": "projection() replays; a forged transition is re-authorized on replay and refused. A caller that lost its response reopens the log and resubmits under the same key, and every ledger is rebuilt from durable state alone",
+      "retry": "none at this layer; the scheduler owns retry. A resubmission is not a retry: it reports the first attempt's current state and starts nothing",
+      "idempotency": "durable and OWNER-SCOPED. A binding lives under (submitter, tool_id, key) and its owner comes from the event's actor, never the payload, so a guessed key does not reach another actor's task -- it does not collide at all. Request identity is a digest of the canonical serialization of the tool and inputs. The same submitter resending the same request under the same key gets the first task back with ZERO new events and no second execution; a different request under a live key is refused. The binding is durable BEFORE dispatch, so a crash in between is recoverable as already-submitted",
       "cancellation": "supported by the lifecycle, not yet driven by the rule",
       "concurrency": "none",
-      "security_boundary": "capability scoped to the task, tool and workspace; bounded subprocess; writes go through the Stage-10 guard",
+      "security_boundary": "capability scoped to the task, tool and workspace; bounded subprocess; writes go through the Stage-10 guard; the idempotency namespace is scoped to the submitting identity, and that identity is checked against the agent directory before it can own one",
       "tests": [
-        "tests/test_agent_governed_stage10.py"
+        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_idempotency.py"
       ],
-      "property_tests": [],
+      "property_tests": [
+        "tests/test_agent_idempotency.py"
+      ],
       "mutation_tests": [
-        "tools/mutations/agent_tasks.json"
+        "tools/mutations/agent_tasks.json",
+        "tools/mutations/agent_idempotency.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "differential": "reconstruct.py projects bindings independently, keyed by the (owner, tool, key) TUPLE rather than the ledger's own scope digest, so the two readers cannot agree by construction about the one thing worth checking separately; compare_bindings reports any disagreement",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942), 34010167285 (41ea81f) and 34015444218 (3d4c9da) -- all green, the recent ones read from the API at job level",
       "residual_gaps": [
         "ONE workflow, of the safest available kind. No solver, gate, manifest or canonical output is mediated by the substrate.",
         "the ungoverned Stage-10 adapters remain directly callable; the governed path is additive rather than the only route",
         "verification re-derives digests from disk; it does not re-run the tool or check the result's meaning",
-        "the run is submitted once. Idempotent RESUBMISSION is the scheduler's and is tested there, not exercised by this caller"
+        "idempotency here is DUPLICATE SUPPRESSION and durable request identity, NOT end-to-end exactly-once. Exactly-once against an external service needs that service to participate in a transaction or an idempotency protocol; a supervisor that dies between an EXTERNAL effect and the record of it leaves genuine uncertainty, reported as UNCERTAIN with the declared compensation quoted rather than resolved by guessing"
       ],
       "blocker": null
     },

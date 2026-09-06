@@ -281,6 +281,23 @@ class AuditIndex:
                 arts = p.get("artifacts", {})
                 summary = f"captured {len(arts)} artifact(s) as evidence"
                 detail = {"artifacts": arts}
+            elif ev.action == "idempotency.bind":
+                # The owner is the EVENT'S actor here too. Reporting the
+                # payload's claim would let a forged binding name whoever it
+                # liked as the submitter in the audit trail, which is the
+                # shape that already bit this module once: the auditor read
+                # an attacker-controlled field and told the reader the
+                # attack had worked.
+                summary = (
+                    f"bound idempotency key {p.get('key')!r} for tool "
+                    f"{p.get('tool_id')!r} to request "
+                    f"{str(p.get('request_digest'))[:12]}, owned by "
+                    f"{ev.actor!r}; a later submission of the same request "
+                    "under this key resolves here and does not re-execute")
+                detail = {"key": p.get("key"), "owner": ev.actor,
+                          "tool_id": p.get("tool_id"),
+                          "request_digest": p.get("request_digest"),
+                          "job_id": p.get("job_id")}
             else:
                 summary = f"{ev.action}"
                 detail = dict(p)
@@ -289,8 +306,29 @@ class AuditIndex:
 
         gaps = self._gaps(task_id, outcome, seen_actions, steps,
                           transitions)
+        gaps += self._execution_count_gaps(task_id, steps)
         actors = tuple(sorted({s.actor for s in steps}))
         return Explanation(task_id, outcome, tuple(steps), gaps, actors)
+
+    def _execution_count_gaps(self, task_id: str, steps: tuple) -> tuple:
+        """Did the work run more than once under one task identity?
+
+        This is the question an idempotency claim actually rests on, and it
+        is answerable from the log rather than from the ledger's own
+        bookkeeping: one task, one execution record. A SUPPRESSED duplicate
+        writes nothing -- that is the whole point of suppressing it -- so
+        the evidence for "it did not run twice" is the absence of a second
+        record here, not the presence of a note saying so.
+        """
+        runs = [s for s in steps if s.action == "task.execution"]
+        if len(runs) <= 1:
+            return ()
+        seqs = ", ".join(str(s.seq) for s in runs)
+        return (
+            f"{task_id} has {len(runs)} execution records (seq {seqs}); one "
+            "task identity ran the work more than once, so anything binding "
+            "a key to this task is suppressing duplicates it already let "
+            "through",)
 
     def _gaps(self, task_id: str, outcome: str, seen: set,
               steps: tuple, transitions: list) -> tuple:

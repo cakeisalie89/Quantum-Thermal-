@@ -148,6 +148,10 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/mutation_harness.json
+      - name: mutation matrix -- owner-scoped idempotency
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_idempotency.json
       - name: mutation matrix -- shared-log action ownership
         # The registry that lets several reducers project one log without
         # either silently dropping a foreign event or refusing to share.

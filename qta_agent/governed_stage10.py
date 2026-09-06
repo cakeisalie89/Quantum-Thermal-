@@ -95,6 +95,8 @@ from .readpath import (
 )
 from .safeio import SafeIOError, SourceChanged
 from .policy import Effect, PolicyRequest, PolicyStore, document, rule
+from .idempotency import (IdempotencyConflict, IdempotencyLedger,
+                          request_identity)
 from .scheduler import (FailureClass, RETRYABLE as SCHED_RETRYABLE,
                         Scheduler)
 from .tasks import (
@@ -186,6 +188,17 @@ def stage10_policy(version: int = 1) -> "object":
         ))
 
 
+#: Task states that prove the tool's PROCESS finished. Each is reachable
+#: only through COMPLETED, so reaching one is evidence the execution ran to
+#: the end. Deliberately excludes FAILED, TIMED_OUT and CANCELLED: those say
+#: the attempt stopped, not that it did or did not reach an external effect
+#: on its way, and treating them as settled is how an unrecorded external
+#: action gets reported as "did not happen".
+EXTERNAL_SETTLED: frozenset = frozenset({
+    TaskState.VERIFIED, TaskState.REJECTED, TaskState.INVALIDATED,
+})
+
+
 def stage10_registry() -> Registry:
     """The tools a governed Stage-10 run may invoke. Default-deny by omission.
 
@@ -234,6 +247,16 @@ class GovernedRun:
     context_digest: str = ""
     #: The remembered note, which is a note and not a finding.
     memory_id: str = ""
+    #: The key this submission was bound under, when one was supplied.
+    idempotency_key: str = ""
+    #: Set when this call did NOT do the work: the task the key was already
+    #: bound to, whose state and result are what is being reported.
+    duplicate_of: str = ""
+
+    @property
+    def is_duplicate(self) -> bool:
+        """True when this call reported existing work rather than doing it."""
+        return bool(self.duplicate_of)
 
 
 class GovernedStage10:
@@ -265,6 +288,9 @@ class GovernedStage10:
         #: that builds its own CapabilitySet can put anything in it, which
         #: made the issuance event decorative -- see CapabilityLedger.
         self.capabilities = CapabilityLedger(self.log).load()
+        #: Owner-scoped request identity, so a resubmission after a lost
+        #: response returns the first task instead of starting a second one.
+        self.idempotency = IdempotencyLedger(self.log).load()
         self._bootstrap()
 
     def _bootstrap(self) -> None:
@@ -431,13 +457,25 @@ class GovernedStage10:
     def run(self, *, tool_id: str, inputs: dict,
             submitter: str = SUBMITTER_ID,
             worker: str = WORKER_ID, verifier: str = VERIFIER_ID,
-            lease_seqs: int = LEASE_SEQS) -> GovernedRun:
+            lease_seqs: int = LEASE_SEQS,
+            idempotency_key: str | None = None) -> GovernedRun:
         """Take one unit of work all the way through the control plane.
 
         ``worker`` and ``verifier`` must differ. That is not a style
         preference: the task state machine refuses the COMPLETED -> VERIFIED
         edge when they are the same, so passing one identity for both fails
         here rather than producing a verification that verified nothing.
+
+        ``idempotency_key`` makes the submission resumable. The same
+        submitter resending the same request under the same key gets the
+        FIRST task back and nothing is executed a second time -- which is
+        what a caller needs after a lost response or a supervisor that died
+        with the request in flight. The key is scoped to this submitter and
+        this tool, so it is not a string another actor can guess into.
+
+        This is duplicate suppression and durable request identity. It is
+        not exactly-once execution against anything outside this system;
+        see :mod:`qta_agent.idempotency`.
         """
         if worker == verifier:
             raise ValueError(
@@ -448,6 +486,13 @@ class GovernedStage10:
         # identities actually hold, rather than by comparing two strings. Two
         # runs of one agent are one party here, so a worker that restarts
         # under a new instance id still cannot verify its own work.
+        # The SUBMITTER is checked too, and was not before. Whoever submits
+        # is the subject of the policy decision and -- once submissions can
+        # be bound to a key -- the owner of a durable namespace. An
+        # unregistered string could hold both. A proposer is not an
+        # executor: the role checked here is the one this identity is
+        # actually acting in.
+        self.agents.require(submitter, AgentRole.PROPOSER)
         self.agents.require(worker, AgentRole.EXECUTOR)
         self.agents.require(verifier, AgentRole.VERIFIER)
         separation = check_separation(
@@ -457,6 +502,27 @@ class GovernedStage10:
             raise ValueError(f"refusing to run: {separation.reason}")
 
         spec = self.registry.get(tool_id)          # default deny
+
+        # THE DUPLICATE CHECK COMES FIRST, before a task exists.
+        #
+        # It has to. Creating the task and then discovering the key was
+        # already bound would leave an orphan task per resubmission, and the
+        # whole point is that a resubmission changes nothing. The lookup is
+        # scoped to (submitter, tool, key), so there is no lookup that
+        # reaches another actor's binding -- not "refused", not reachable.
+        request_digest = request_identity(tool_id=tool_id, inputs=inputs)
+        if idempotency_key:
+            prior = self.idempotency.lookup(
+                owner=submitter, tool_id=tool_id, key=idempotency_key)
+            if prior is not None:
+                if prior.request_digest != request_digest:
+                    raise IdempotencyConflict(
+                        f"idempotency key {idempotency_key!r} is already "
+                        f"bound to task {prior.task_id!r} for a different "
+                        "request. A corrected request is a different "
+                        "request and needs a different key.")
+                return self._report_duplicate(prior, spec)
+
         task_id = f"task-{uuid.uuid4().hex[:12]}"
         job_id = f"job-{task_id[5:]}"
         inputs_digest = digest(inputs)
@@ -478,6 +544,22 @@ class GovernedStage10:
                      "submitter": submitter, "inputs_digest": inputs_digest,
                      "depends_on": []})
         task = self.projection().get(task_id)
+
+        # BOUND HERE: after the task exists and BEFORE anything is
+        # dispatched. A crash in between is then recoverable as "already
+        # submitted" rather than re-submitted, which is the case the key
+        # exists for.
+        #
+        # The cost is deliberate: binding before validation means a rejected
+        # request keeps its key. The key names A REQUEST, that request was
+        # rejected, and a corrected one is a different request. Letting the
+        # corrected version in under the same key would mean the key stopped
+        # identifying anything.
+        if idempotency_key:
+            self.idempotency.bind(
+                owner=submitter, tool_id=tool_id, key=idempotency_key,
+                request_digest=request_digest, task_id=task_id,
+                job_id=job_id)
 
         # Validation is a real gate: the contract is checked before anything
         # is scheduled, and a rejection is recorded rather than raised away.
@@ -716,6 +798,78 @@ class GovernedStage10:
                            memory_id=memory_id)
 
     # ---- helpers -------------------------------------------------------
+    def _report_duplicate(self, prior, spec) -> GovernedRun:
+        """Answer a resubmission from durable state. Execute nothing.
+
+        The prior task's CURRENT state is what gets reported, read from the
+        projection rather than from anything the caller supplied -- so a
+        resubmission of work that has since failed reports the failure, and
+        one of work still running reports that it is still running.
+
+        THE EXTERNAL CASE IS NOT RESOLVED HERE, IT IS DECLARED
+
+        If the first attempt reached a tool declaring SideEffect.EXTERNAL
+        and has not reached a terminal state, nobody knows whether the
+        external effect happened: the supervisor may have died between the
+        effect and the record of it. Re-running would repeat it and
+        reporting success would invent a fact. The honest answer is that the
+        outcome is UNCERTAIN, said plainly, with the tool's own compensating
+        action quoted so an operator has something to act on. That is a
+        limit of doing this locally; exactly-once needs the far side to
+        participate.
+        """
+        task = self.projection().get(prior.task_id)
+        state = task.state if task is not None else TaskState.CREATED
+        artifacts = self._artifacts_of(prior.task_id)
+        job_state = ""
+        if prior.job_id:
+            job = self.scheduler.all_jobs().get(prior.job_id)
+            job_state = job.state.value if job is not None else ""
+
+        # SETTLED means "we know the tool's process ran to completion", not
+        # "the task stopped moving". Only VERIFIED, REJECTED and INVALIDATED
+        # are reachable through COMPLETED, so only those three prove the
+        # execution finished. FAILED, TIMED_OUT and CANCELLED do NOT: a
+        # timeout is precisely the case where nothing observed the tool
+        # finish, which is the same case where an external effect may have
+        # happened unrecorded.
+        settled = state in EXTERNAL_SETTLED
+        external = spec.side_effect is SideEffect.EXTERNAL
+        if external and not settled:
+            outcome = "UNCERTAIN"
+            reason = (
+                f"resubmission of {prior.task_id}, which is still "
+                f"{state.value} and ran a tool declaring EXTERNAL "
+                "side effects. Whether the "
+                "external effect happened is NOT KNOWN here: the first "
+                "attempt may have performed it and died before recording "
+                "that. Nothing was re-run, because re-running would perform "
+                "it again, and nothing is being reported as successful, "
+                "because nothing observed it succeed. The tool's declared "
+                f"compensating action is: {spec.compensation}")
+        else:
+            outcome = "DUPLICATE"
+            reason = (
+                f"resubmission of {prior.task_id} under idempotency key "
+                f"{prior.key!r}; the request is identical, so the first "
+                f"submission's state ({state.value}) is what is reported and "
+                "no work was started")
+
+        return GovernedRun(
+            prior.task_id, state, outcome, "", artifacts,
+            self.log.verify().head_seq, reason,
+            job_id=prior.job_id, job_state=job_state,
+            idempotency_key=prior.key, duplicate_of=prior.task_id)
+
+    def _artifacts_of(self, task_id: str) -> dict:
+        """Artifacts recorded for a task, from the log rather than a cache."""
+        found: dict = {}
+        for ev in self.log.read():
+            if ev.action == ACT_EVIDENCE and ev.payload.get("task_id") == \
+                    task_id:
+                found = dict(ev.payload.get("artifacts", {}))
+        return found
+
     def _tool_environment(self) -> dict:
         """The environment a governed tool gets, and nothing else.
 

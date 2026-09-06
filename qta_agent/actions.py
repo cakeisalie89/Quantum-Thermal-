@@ -76,6 +76,8 @@ OWNERS: dict = {
     "context.build": "context",
     # qta_agent.readpath -- every governed read, permitted or refused
     "file.read": "readpath",
+    # qta_agent.idempotency -- durable, owner-scoped request identity
+    "idempotency.bind": "idempotency",
 }
 
 KNOWN: FrozenSet[str] = frozenset(OWNERS)

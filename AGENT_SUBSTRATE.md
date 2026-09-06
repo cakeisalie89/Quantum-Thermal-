@@ -40,6 +40,7 @@ rather than a web:
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
 | `capability.py` | authority as a bounded object, not an ambient flag |
+| `idempotency.py` | durable request identity, scoped to (owner, tool, key) so a guessed string reaches nothing |
 | `readpath.py` | who may read what: default-deny, capability-checked, every attempt recorded |
 | `tools.py` | tool contracts and a default-deny registry |
 | `execution.py` | kernel-bounded execution; a timeout is not a success |
@@ -646,6 +647,39 @@ tool X gives nothing for task U or tool Y, so a component tricked into acting
 on someone else's behalf fails closed instead of succeeding.
 
 Three things it deliberately is **not**:
+
+### A key is a namespace, so it needs an owner
+
+`idempotency.py` exists because the obvious implementation of "don't run this
+twice" has an authority hole in it. One dictionary from key to task means
+whoever guesses the string reads the result — and a caller that resends a
+request after a lost response is exactly the caller who cannot tell whether
+the string is still secret.
+
+The binding is scoped to `(owner, tool_id, key)`, and the owner comes from the
+**event's actor**, never from the payload. Two submitters using the key
+`nightly` therefore have two unrelated bindings; one submitter using it
+against two tools has two unrelated bindings; and there is no lookup an actor
+can perform that reaches another actor's task. The cross-actor case is not
+"refused with a message" — a refusal saying *that key is taken* has already
+told the caller something they had no right to learn — it does not collide at
+all.
+
+Request identity is a digest of the canonical serialization of the tool id
+and the inputs. Not `repr`, not insertion order: two structurally identical
+requests must hash the same in any process, or "the same request" means
+nothing across a restart, which is the only time this subsystem does
+anything.
+
+What it provides is **duplicate suppression and durable request identity**.
+It is not exactly-once execution against anything outside this system, and
+nothing in it should be read that way. A tool declaring
+`SideEffect.EXTERNAL` may have changed state nobody here owns; if the
+supervisor died between that happening and the record of it happening, no
+local bookkeeping recovers the fact. That case is reported as `UNCERTAIN`
+with the tool's declared compensating action quoted, and the work is neither
+re-run nor called successful.
+
 
 - **Not authentication.** `subject` is a name the issuer chose. What it gives
   you is that a grant issued *to* that name cannot be used *as* another.

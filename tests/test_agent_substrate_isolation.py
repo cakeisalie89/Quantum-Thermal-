@@ -97,7 +97,7 @@ ALLOWED_IMPORTERS = {
 # write side makes: the allowlist lives in the writer, the capability check
 # lives above it.
 LAYERS = ("canonical", "safeio", "actions", "events", "evidence", "capability",
-          "readpath", "tools",
+          "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority", "policy", "secrets",
           "netauth", "store", "invalidation", "tasks", "reconstruct",
           "scheduler", "memory", "context", "agents", "audit",
