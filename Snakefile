@@ -483,8 +483,13 @@ rule s10_report:
 
 rule s10_governed:
     output:
-        f"{W10}/governed/out/governed_artifact.json",
-        f"{W10}/governed/governed_run.json",
+        # NAMED, not positional. The report used to be written to output[1],
+        # and adding a second artifact in the middle silently redirected it
+        # to the artifact's path -- the rule "succeeded" and its report was
+        # never written. A name cannot be shifted by an insertion.
+        artifact=f"{W10}/governed/out/governed_artifact.json",
+        summary=f"{W10}/governed/out/governed_summary.json",
+        report=f"{W10}/governed/governed_run.json",
     run:
         import json
         from pathlib import Path
@@ -503,9 +508,17 @@ rule s10_governed:
             log=EventLog(base / "task_log.jsonl"),
             evidence=EvidenceStore(base / "evidence"))
 
-        run = gov.run(
-            tool_id="stage10.emit_artifact",
-            inputs={
+        # A GRAPH, not one job. The scheduler enqueued a single job per run
+        # until now, so dependency graphs and multi-job scheduling were
+        # exercised only in tests -- and a scheduler feature only tests reach
+        # is one nobody is relying on.
+        #
+        # The second step declares the first as a dependency AND requires the
+        # evidence digest it produced, so readiness is decided by
+        # reconcile() against the log rather than by the order this rule
+        # writes the steps in.
+        graph = gov.run_graph([
+            ("artifact", "stage10.emit_artifact", {
                 "out_dir": f"{W10}/governed/out",
                 "name": "governed_artifact.json",
                 "payload": {
@@ -517,7 +530,44 @@ rule s10_governed:
                         "validity; no gate is reachable from here and PASS "
                         "remains 0"),
                 },
-            })
+            }, ()),
+            ("summary", "stage10.emit_artifact", {
+                "out_dir": f"{W10}/governed/out",
+                "name": "governed_summary.json",
+                "payload": {
+                    "label": "MODEL_ONLY / FORECAST_ONLY",
+                    "automatic_gate_effect": "NONE",
+                    "summarises": "governed_artifact.json",
+                    "does_not_mean": (
+                        "a summary of a governed run is still provenance; "
+                        "PASS remains 0"),
+                },
+            }, ("artifact",)),
+        ])
+        by_step = dict(graph)
+        assert set(by_step) == {"artifact", "summary"}, (
+            f"the graph did not run both steps: {sorted(by_step)}")
+        run = by_step["artifact"]
+        summary = by_step["summary"]
+
+        assert summary.state is TaskState.VERIFIED, (
+            f"the dependent step ended {summary.state.value}: "
+            f"{summary.reason}")
+
+        # The dependency is the SCHEDULER's. The summary's job must record
+        # the artifact's job as a prerequisite and the artifact's evidence as
+        # required -- if it did not, the ordering above was this rule's
+        # convention rather than the queue's rule.
+        enqueues = {ev.payload["job"]["job_id"]: ev.payload["job"]
+                    for ev in gov.log.read()
+                    if ev.action == "scheduler.enqueue"}
+        summary_job = enqueues[summary.job_id]
+        assert summary_job["depends_on"] == [run.job_id], (
+            "the dependent step was enqueued without naming its parent; the "
+            "ordering came from this rule, not from the scheduler")
+        assert summary_job["requires_evidence"], (
+            "the dependent step required no evidence from its parent, so it "
+            "would have been ready even if the parent produced nothing")
 
         # The rule FAILS if the chain did not complete. A governed path that
         # reports success on an unverified run is worse than no governed path,
@@ -640,7 +690,7 @@ rule s10_governed:
             + "\n".join(f"  - {e.subject}: {g}"
                          for e in record_gaps for g in e.gaps))
 
-        Path(output[1]).write_text(json.dumps({
+        Path(output.report).write_text(json.dumps({
             "task_id": run.task_id,
             "state": run.state.value,
             "outcome": run.outcome,

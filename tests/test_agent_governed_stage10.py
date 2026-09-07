@@ -23,7 +23,7 @@ from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.governed_stage10 import (  # noqa: E402
     ACT_TASK_TRANSITION, SUBMITTER_ID, VERIFIER_ID, WORKER_ID,
-    GovernedStage10, stage10_registry,
+    GovernedRun, GovernedStage10, stage10_registry,
 )
 from qta_agent.tasks import (  # noqa: E402
     LeaseError, TaskRole, TaskState, TaskTransitionError,
@@ -1346,3 +1346,141 @@ def test_the_scoped_tool_keeps_its_ordinary_retryable_classification(gov):
     assert r.retryable, (
         "the production registry's tool is SCOPED_WRITES, so a timeout on it "
         "is still an ordinary retryable timeout")
+
+
+# ==========================================================================
+# A GRAPH, NOT ONE JOB
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "the governed path enqueues ONE job per run, so dependency graphs and
+#      multi-job scheduling are exercised only in tests and in the
+#      long-horizon workload, never by a real caller"
+#
+# A scheduler feature only tests reach is one nobody is relying on. The
+# property that matters is not that the steps run in order -- a loop can do
+# that -- but that the ORDER IS THE SCHEDULER'S: the dependent job names its
+# parent and requires the evidence the parent produced, so readiness is
+# decided by reconcile() against the log.
+# ==========================================================================
+
+def _step(sid, gov, name, deps=()):
+    return (sid, "stage10.emit_artifact",
+            {"out_dir": gov.out_rel, "name": name,
+             "payload": {"label": "MODEL_ONLY", "step": sid}}, deps)
+
+
+def test_a_graph_runs_every_step(gov):
+    graph = dict(gov.run_graph([
+        _step("a", gov, "a.json"),
+        _step("b", gov, "b.json", ("a",)),
+    ]))
+    assert set(graph) == {"a", "b"}
+    assert all(r.state is TaskState.VERIFIED for r in graph.values())
+
+
+def test_the_dependency_is_the_schedulers_not_the_loops(gov):
+    """THE property. A loop that ordered the work itself would leave the
+    queue with no graph in it at all."""
+    graph = dict(gov.run_graph([
+        _step("a", gov, "a.json"),
+        _step("b", gov, "b.json", ("a",)),
+    ]))
+    enq = {ev.payload["job"]["job_id"]: ev.payload["job"]
+           for ev in gov.log.read() if ev.action == "scheduler.enqueue"}
+
+    assert enq[graph["a"].job_id]["depends_on"] == []
+    assert enq[graph["b"].job_id]["depends_on"] == [graph["a"].job_id]
+
+
+def test_the_dependent_step_requires_the_bytes_its_parent_produced(gov):
+    """Not merely 'the parent job says SUCCEEDED'.
+
+    A job that depended only on a state would be ready even if the parent
+    left nothing behind. Requiring the evidence digest means readiness is
+    about content that resolves.
+    """
+    graph = dict(gov.run_graph([
+        _step("a", gov, "a.json"),
+        _step("b", gov, "b.json", ("a",)),
+    ]))
+    enq = {ev.payload["job"]["job_id"]: ev.payload["job"]
+           for ev in gov.log.read() if ev.action == "scheduler.enqueue"}
+    required = enq[graph["b"].job_id]["requires_evidence"]
+
+    assert required, "the dependent step required no evidence at all"
+    assert set(required) <= set(graph["a"].artifacts.values()), (
+        "the evidence required is not what the parent actually produced")
+
+
+def test_a_step_whose_dependency_failed_is_never_dispatched(gov, monkeypatch):
+    """Running it would execute work against a parent that produced nothing.
+
+    BLOCKED is the honest outcome and it is not a success: the step has no
+    task, no job and no artifacts.
+    """
+    real_run = type(gov).run
+    calls = {"n": 0}
+
+    def _fail_first(self, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return GovernedRun("task-x", TaskState.FAILED, "FAILED", "", {},
+                               self.log.verify().head_seq, "injected")
+        return real_run(self, **kw)
+
+    monkeypatch.setattr(type(gov), "run", _fail_first)
+    graph = dict(gov.run_graph([
+        _step("a", gov, "a.json"),
+        _step("b", gov, "b.json", ("a",)),
+    ]))
+    monkeypatch.undo()
+
+    assert graph["a"].state is TaskState.FAILED
+    assert graph["b"].outcome == "BLOCKED"
+    assert graph["b"].task_id == ""
+    assert "did not succeed" in graph["b"].reason
+    assert calls["n"] == 1, "the dependent step ran anyway"
+
+
+def test_a_graph_with_no_steps_is_refused(gov):
+    with pytest.raises(ValueError) as exc:
+        gov.run_graph([])
+    assert "having run nothing" in str(exc.value)
+
+
+def test_a_dependency_on_a_step_the_graph_lacks_is_refused(gov):
+    with pytest.raises(ValueError) as exc:
+        gov.run_graph([_step("a", gov, "a.json", ("nowhere",))])
+    assert "can never become ready" in str(exc.value)
+
+
+def test_duplicate_step_ids_are_refused(gov):
+    with pytest.raises(ValueError) as exc:
+        gov.run_graph([_step("a", gov, "a.json"),
+                       _step("a", gov, "b.json")])
+    assert "duplicate step ids" in str(exc.value)
+
+
+def test_an_independent_step_still_runs_when_another_fails(gov, monkeypatch):
+    """ANTI-VACUITY. If a failure blocked everything, 'blocked' would carry
+    no information about dependencies at all."""
+    real_run = type(gov).run
+    calls = {"n": 0}
+
+    def _fail_first(self, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return GovernedRun("task-x", TaskState.FAILED, "FAILED", "", {},
+                               self.log.verify().head_seq, "injected")
+        return real_run(self, **kw)
+
+    monkeypatch.setattr(type(gov), "run", _fail_first)
+    graph = dict(gov.run_graph([
+        _step("a", gov, "a.json"),
+        _step("independent", gov, "i.json"),
+    ]))
+    monkeypatch.undo()
+
+    assert graph["a"].state is TaskState.FAILED
+    assert graph["independent"].state is TaskState.VERIFIED

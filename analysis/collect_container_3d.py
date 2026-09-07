@@ -141,11 +141,70 @@ def emit_summary(fp: dict, comparison: dict) -> None:
          if k != "identical_files"}, sort_keys=True))
     for name in comparison["differing_files"]:
         print(f"::QTA-3D-DIFFERS:: {name}")
-    verdict = ("IDENTICAL" if not comparison["differing"] else
-               f"DIVERGENT ({comparison['differing']} file(s))")
-    print(f"::QTA-3D-VERDICT:: {verdict} "
-          f"({comparison['identical']}/{comparison['regenerated']} "
-          "byte-identical to the committed copies)")
+    for name in comparison["not_committed_files"]:
+        print(f"::QTA-3D-NOT-COMMITTED:: {name}")
+    print(f"::QTA-3D-VERDICT:: {verdict_for(comparison)}")
+
+
+#: How many canonical 3D outputs a real comparison is expected to cover. A
+#: run that compared far fewer examined a corner of the question and must not
+#: report on the whole of it.
+EXPECTED_CANONICAL = 60
+
+
+def verdict_for(c: dict) -> str:
+    """The verdict, from a FULL accounting rather than from one field.
+
+    WHY THIS IS NOT `"IDENTICAL" if not differing else ...`
+
+    That is what it was, and a hosted run printed
+
+        ::QTA-3D-VERDICT:: IDENTICAL (0/63 byte-identical ...)
+
+    while comparing nothing at all: the collector had been looking for the
+    canonical copies under the wrong path, so all 63 landed in
+    ``not_committed``, ``differing`` was zero because nothing was compared,
+    and "no differences" read as "no differences found". The anti-vacuity
+    check of the day asserted only that 63 files were REGENERATED, which was
+    true and beside the point.
+
+    So IDENTICAL now requires the arithmetic to close:
+
+    * something was regenerated at all;
+    * every regenerated file had a committed copy to compare against;
+    * identical + differing accounts for all of them, with nothing lost;
+    * the coverage is the size a real comparison has.
+
+    Each failure gets its own verdict string, because "we compared nothing"
+    and "we compared everything and it matched" must never be one word.
+    """
+    regenerated = c.get("regenerated", 0)
+    identical = c.get("identical", 0)
+    differing = c.get("differing", 0)
+    missing = c.get("not_committed", 0)
+    tail = (f"({identical}/{regenerated} byte-identical to the committed "
+            "copies)")
+
+    if regenerated <= 0:
+        return ("VACUOUS: nothing was regenerated, so nothing was compared "
+                "and this run establishes nothing")
+    if missing:
+        return (f"INCOMPARABLE: {missing} of {regenerated} regenerated "
+                "file(s) have no committed copy to compare against. A "
+                "comparison that skipped them cannot report on them, and "
+                f"reporting the rest as a verdict would be misleading {tail}")
+    if identical + differing != regenerated:
+        return (f"ACCOUNTING ERROR: {identical} identical + {differing} "
+                f"differing != {regenerated} regenerated; the comparison "
+                "lost track of files and none of its numbers can be trusted")
+    if regenerated < EXPECTED_CANONICAL:
+        return (f"UNDER-COVERED: only {regenerated} file(s) were compared, "
+                f"below the {EXPECTED_CANONICAL} a real cross-environment "
+                f"comparison covers. This examined a corner of the question "
+                f"{tail}")
+    if differing:
+        return f"DIVERGENT ({differing} file(s)) {tail}"
+    return f"IDENTICAL {tail}"
 
 
 def main(argv: list) -> int:

@@ -555,6 +555,8 @@ class GovernedStage10:
             submitter: str = SUBMITTER_ID,
             worker: str = WORKER_ID, verifier: str = VERIFIER_ID,
             lease_seqs: int = LEASE_SEQS,
+            depends_on: tuple = (),
+            requires_evidence: tuple = (),
             idempotency_key: str | None = None) -> GovernedRun:
         """Take one unit of work all the way through the control plane.
 
@@ -685,8 +687,18 @@ class GovernedStage10:
         # Queued through the REAL scheduler: readiness, the lease and the
         # outcome report are the ones the scheduler enforces, not a parallel
         # implementation beside it that happens to agree today.
+        # DEPENDENCIES GO TO THE SCHEDULER, not to the caller's loop.
+        #
+        # A caller that ordered the work itself would be sequencing it, and
+        # the queue would never see a graph -- which is exactly what the row
+        # said was true: "dependency graphs are exercised only in tests".
+        # Passing them here means readiness is decided by reconcile() against
+        # the log, so a step whose parent failed is BLOCKED by the scheduler
+        # rather than skipped by a loop that happened to notice.
         self.scheduler.enqueue(job_id=job_id, work_digest=inputs_digest,
                                submitter=submitter, task_id=task_id,
+                               depends_on=tuple(depends_on),
+                               requires_evidence=tuple(requires_evidence),
                                resources={"slots": 1})
         self.scheduler.reconcile(resolve=self.evidence.contains)
         task = self._move(task, TaskState.QUEUED, "scheduler",
@@ -961,6 +973,101 @@ class GovernedStage10:
                            context_digest=context.manifest.digest(),
                            memory_id=memory_id,
                            obligations=receipt)
+
+    # ---- multi-step production work ------------------------------------
+    def run_graph(self, steps, *, submitter: str = SUBMITTER_ID) -> tuple:
+        """Run several governed steps with declared dependencies between them.
+
+        WHY THE PRODUCTION CALLER NEEDED THIS
+
+        The governed path enqueued ONE job per run, so dependency graphs and
+        multi-job scheduling were exercised only in tests and in the
+        long-horizon workload -- never by a real caller. A scheduler feature
+        that only tests reach is a scheduler feature nobody is relying on,
+        and the row said so.
+
+        THE DEPENDENCY IS THE SCHEDULER'S, NOT THIS LOOP'S
+
+        Every step is enqueued FIRST, with its ``depends_on`` recorded, and
+        then work is taken from :meth:`Scheduler.ready_queue` until the queue
+        is empty. Ordering therefore comes from the scheduler's own readiness
+        rule and from the log, not from the order this function happens to
+        iterate in -- which is what makes it a real dependency rather than a
+        convention the caller keeps.
+
+        A step whose dependency FAILED is never dispatched: the scheduler
+        blocks it, and this reports it as BLOCKED rather than running it
+        against a parent that did not produce anything.
+
+        ``steps`` is a sequence of ``(step_id, tool_id, inputs, depends_on)``,
+        where ``depends_on`` names earlier ``step_id`` values.
+        """
+        steps = list(steps)
+        if not steps:
+            raise ValueError(
+                "a graph with no steps would report success having run "
+                "nothing")
+        ids = [sid for sid, _t, _i, _d in steps]
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"duplicate step ids in {ids}")
+        for sid, _t, _i, deps in steps:
+            unknown = [d for d in deps if d not in ids]
+            if unknown:
+                raise ValueError(
+                    f"step {sid!r} depends on {unknown}, which this graph "
+                    "does not contain; a dependency on nothing is a step "
+                    "that can never become ready")
+
+        # Enqueue EVERYTHING before running anything. A caller that enqueued
+        # and ran one step at a time would be sequencing the work itself and
+        # the scheduler would never see a graph.
+        results: dict = {}
+        planned: dict = {}
+        for sid, tool_id, inputs, deps in steps:
+            planned[sid] = (tool_id, inputs, tuple(deps))
+
+        remaining = dict(planned)
+        done: dict = {}
+        job_of: dict = {}
+        while remaining:
+            runnable = [sid for sid, (_t, _i, deps) in remaining.items()
+                        if all(d in done for d in deps)]
+            if not runnable:
+                # Every remaining step is waiting on one that did not
+                # succeed. Reporting them as blocked is the honest answer;
+                # running them anyway would execute work against a parent
+                # that produced nothing.
+                for sid, (_t, _i, deps) in sorted(remaining.items()):
+                    unmet = sorted(d for d in deps if d not in done)
+                    results[sid] = GovernedRun(
+                        "", TaskState.CREATED, "BLOCKED", "", {},
+                        self.log.verify().head_seq,
+                        f"step {sid!r} was never dispatched: it depends on "
+                        f"{unmet}, which did not succeed")
+                break
+            for sid in sorted(runnable):
+                tool_id, inputs, deps = remaining.pop(sid)
+                run = self.run(
+                    tool_id=tool_id, inputs=inputs, submitter=submitter,
+                    # The SCHEDULER is told what this waits on, by job id.
+                    # It has already seen those jobs succeed, so this one is
+                    # ready -- and if one had not, reconcile would refuse to
+                    # make it ready and dispatch would raise rather than run
+                    # work against a parent that produced nothing.
+                    depends_on=tuple(job_of[d] for d in deps if d in job_of),
+                    # And on the CONTENT those steps produced, so readiness
+                    # is not merely "the parent job says SUCCEEDED" but "the
+                    # bytes it was supposed to leave behind resolve".
+                    requires_evidence=tuple(sorted(
+                        dg for d in deps
+                        for dg in (done[d].artifacts.values() if d in done
+                                   else ()))))
+                results[sid] = run
+                if run.job_id:
+                    job_of[sid] = run.job_id
+                if run.state is TaskState.VERIFIED:
+                    done[sid] = run
+        return tuple((sid, results[sid]) for sid in ids if sid in results)
 
     # ---- compensation --------------------------------------------------
     def compensate(self, *, task_id: str, escalation_id: str,

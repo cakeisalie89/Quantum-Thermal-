@@ -195,6 +195,12 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_delegation.json
+      - name: mutation matrix -- job graphs and the 3D comparison verdict
+        # A production caller that enqueues a graph rather than one job, and
+        # a verdict that cannot say IDENTICAL without having compared.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_job_graph.json
       - name: mutation matrix -- separate-process verification
         # reconstruct.py keeps its independence by discipline. This runs the
         # same reader where the shortcut is an ImportError instead.
@@ -362,19 +368,40 @@ jobs:
         run: |
           uv run python analysis/collect_container_3d.py \
             "${RUNNER_TEMP}/qta-3d" --emit-summary
-      - name: the diagnostic actually measured something
-        # ANTI-VACUITY. A comparison that regenerated zero files would print
-        # a clean verdict having compared nothing.
+      - name: the diagnostic actually COMPARED something
+        # ANTI-VACUITY, and the previous version of this step was not enough.
+        #
+        # It asserted only that 63 files were REGENERATED. A hosted run then
+        # printed "IDENTICAL (0/63 byte-identical)" while comparing nothing:
+        # the collector was looking for the canonical copies under the wrong
+        # path, so all 63 landed in not_committed, differing was zero because
+        # nothing was compared, and this step passed on a true statement
+        # about the wrong quantity.
+        #
+        # So every number now has to close. Regenerating is not comparing.
         run: |
           uv run python - <<'PY'
-          import json, pathlib, sys
-          import os
+          import json, os, pathlib, sys
           meta = pathlib.Path(os.environ["RUNNER_TEMP"]) / "qta-3d" / "meta"
           c = json.loads((meta / "comparison.json").read_text())
           print(json.dumps(c, indent=1, sort_keys=True))
+          problems = []
           if c["regenerated"] < 60:
-              sys.exit(f"only {c['regenerated']} files regenerated; the "
-                       "comparison examined too little to mean anything")
-          print(f"compared {c['regenerated']} files: {c['identical']} "
-                f"identical, {c['differing']} differing")
+              problems.append(
+                  f"only {c['regenerated']} file(s) regenerated, below 60")
+          if c["not_committed"]:
+              problems.append(
+                  f"{c['not_committed']} regenerated file(s) had no "
+                  "committed copy to compare against, so they were NOT "
+                  f"compared: {c['not_committed_files'][:5]}")
+          if c["identical"] + c["differing"] != c["regenerated"]:
+              problems.append(
+                  f"{c['identical']} identical + {c['differing']} differing "
+                  f"!= {c['regenerated']} regenerated")
+          if problems:
+              sys.exit("the comparison did not measure what it reports on:\n"
+                       + "\n".join("  - " + p for p in problems))
+          print(f"COMPARED {c['regenerated']} files: {c['identical']} "
+                f"identical, {c['differing']} differing, "
+                f"{c['not_committed']} uncompared")
           PY

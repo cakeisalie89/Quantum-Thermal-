@@ -276,9 +276,10 @@
     {
       "id": "R26",
       "requirement": "Scheduling and orchestration",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/scheduler.py"
+        "qta_agent/scheduler.py",
+        "qta_agent/governed_stage10.py"
       ],
       "callers": [
         "Snakefile",
@@ -288,7 +289,7 @@
       "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "scheduler.enqueue / scheduler.transition / scheduler.priority events; the whole queue is a projection",
       "authority_owner": "Scheduler.readiness (dependencies, evidence, capability, capacity, policy) and check_edge",
-      "evidence": "requires_evidence digests must resolve through a caller-supplied resolver before dispatch; the governed Stage-10 run is dispatched through the scheduler and its outcome reported to it; the Snakemake rule fails unless the job reaches SUCCEEDED",
+      "evidence": "the Snakemake rule runs a two-step GRAPH through GovernedStage10.run_graph, and asserts from the log that the dependent step's enqueue names its parent's job id and requires the evidence digest the parent produced -- so the ordering is the scheduler's rather than the rule's convention",
       "provenance": "every readiness verdict, requeue, retry and cancellation is an event carrying its reason",
       "failure_semantics": "eight job states with a derived SEALED set; a permanently FAILED, CANCELLED or INVALIDATED job blocks everything transitively downstream at the moment it finishes, rather than leaving dependents WAITING until reconcile next runs",
       "recovery": "restart reloads the queue from the log; reconcile requeues lapsed leases and is idempotent",
@@ -296,7 +297,7 @@
       "idempotency": "an idempotency key returns the original job for identical work and is refused for different work",
       "cancellation": "cancel cascades transitively by default; a terminal failure cascades to BLOCKED, distinguishing a decision from a failure because an operator responds to the two differently",
       "concurrency": "leases with sequence-number expiry, optimistic revisions, and capacity bounds on concurrent dispatch",
-      "security_boundary": "policy-gated enqueue, dispatch, cancellation and priority escalation; a stale or foreign lease may not report an outcome, and the REPLAY re-derives that from its own state: ownership, lease liveness, the attempt count and whether a requeue's claimed lapse is true. Those refusals lived only on the write path, so a rejected report could be appended directly and the next load called the job SUCCEEDED",
+      "security_boundary": "readiness is decided by reconcile() against the log. A step whose dependency failed is never dispatched: running it would execute work against a parent that produced nothing, and BLOCKED is reported as its own outcome with no task, no job and no artifacts",
       "tests": [
         "tests/test_agent_machine_properties.py",
         "tests/test_agent_scheduler.py",
@@ -306,17 +307,25 @@
         "tests/test_agent_machine_properties.py (SchedulerMachine: readiness, the cancellation cascade, lease presence, retry budget, and a fresh replay equal to the live projection, checked after every step)"
       ],
       "mutation_tests": [
+        "tools/mutations/agent_job_graph.json",
         "tools/mutations/agent_scheduler.json"
       ],
       "fuzzing": "tools/fuzz_substrate.py fuzzes job_from_record, so a malformed durable job record is refused rather than projected",
       "differential": "job state, attempts and lease ownership are rebuilt by an independent reader that refuses a job born in an outcome state, born holding a lease, or revived from terminal",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "the governed path enqueues ONE job per run, so dependency graphs and multi-job scheduling are exercised only in tests and in the long-horizon workload, never by a real caller",
-        "no wall-clock scheduling at all: every deadline, lease and backoff is in sequence numbers. That is what makes the queue reproducible after a restart, and it means a lease on an idle log never lapses in real time",
-        "one queue in one process. There is no distributed dispatch, no work stealing, and the advisory lock that serializes writers is a weaker guarantee on shared network storage than on a local filesystem"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "every deadline, lease and backoff is in SEQUENCE NUMBERS and there is no wall-clock scheduling at all, so a lease on an idle log never lapses in real time",
+          "reason": "architectural_by_design",
+          "detail": "that is what makes the queue reproducible after a restart: two readers of the same log at the same position reach the same verdict about what is ready and who owns what, which a wall clock cannot promise across machines whose clocks disagree. Lease renewal is what makes the trade affordable -- a lease can be sized for the common case instead of the worst"
+        },
+        {
+          "limit": "one queue in one process: no distributed dispatch, no work stealing, and the advisory lock that serializes writers is weaker on shared network storage than on a local filesystem",
+          "reason": "environment_single_host",
+          "detail": "split-brain is tested with real concurrent processes on ONE host, which is the strongest form observable from here. What cannot be observed is flock's behaviour over NFS or SMB, and the module says so at the lock rather than only in this row"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

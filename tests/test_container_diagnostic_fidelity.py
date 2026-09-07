@@ -264,3 +264,126 @@ def test_the_container_installs_git_and_ships_the_repository():
     assert not any(line.strip() == ".git" for line in ignore.splitlines()), (
         ".git is excluded from the build context, so the git binary above "
         "would find no repository")
+
+
+# ==========================================================================
+# THE VERDICT THAT LIED
+#
+# A hosted run printed
+#
+#     ::QTA-3D-VERDICT:: IDENTICAL (0/63 byte-identical ...)
+#
+# while comparing nothing at all. The collector was looking for the canonical
+# copies under the wrong path, so all 63 landed in not_committed, `differing`
+# was zero because nothing was compared, and "no differences" read as "no
+# differences found". The anti-vacuity check of the day asserted only that 63
+# files had been REGENERATED -- true, and about the wrong quantity.
+#
+# Every shape below is one the verdict must never call IDENTICAL.
+# ==========================================================================
+
+def _c(**over):
+    base = {"regenerated": 63, "identical": 63, "differing": 0,
+            "not_committed": 0, "differing_files": [],
+            "not_committed_files": [], "identical_files": []}
+    base.update(over)
+    return base
+
+
+def test_the_exact_shape_that_shipped_is_not_identical():
+    """63 regenerated, 63 uncompared, 0 differing."""
+    import analysis.collect_container_3d as C
+
+    v = C.verdict_for(_c(identical=0, not_committed=63,
+                         not_committed_files=[f"f{i}.json" for i in range(63)]))
+    assert not v.startswith("IDENTICAL")
+    assert v.startswith("INCOMPARABLE")
+    assert "no committed copy" in v
+
+
+def test_comparing_nothing_at_all_is_vacuous():
+    import analysis.collect_container_3d as C
+
+    v = C.verdict_for(_c(regenerated=0, identical=0))
+    assert v.startswith("VACUOUS")
+    assert "establishes nothing" in v
+
+
+def test_numbers_that_do_not_add_up_are_an_accounting_error():
+    """Neither 'it matched' nor 'it differed' is safe to say when the
+    comparison lost track of files."""
+    import analysis.collect_container_3d as C
+
+    v = C.verdict_for(_c(identical=60, differing=1))
+    assert v.startswith("ACCOUNTING ERROR")
+
+
+def test_a_comparison_far_below_the_expected_coverage_says_so():
+    import analysis.collect_container_3d as C
+
+    v = C.verdict_for(_c(regenerated=3, identical=3))
+    assert v.startswith("UNDER-COVERED")
+    assert str(C.EXPECTED_CANONICAL) in v
+
+
+def test_a_real_divergence_is_still_divergent():
+    import analysis.collect_container_3d as C
+
+    v = C.verdict_for(_c(identical=55, differing=8,
+                         differing_files=[f"d{i}.json" for i in range(8)]))
+    assert v.startswith("DIVERGENT (8 file(s))")
+
+
+def test_the_honest_pass_is_still_reachable():
+    """ANTI-VACUITY in the other direction. A verdict that could never say
+    IDENTICAL would be as useless as one that always did."""
+    import analysis.collect_container_3d as C
+
+    assert C.verdict_for(_c()).startswith("IDENTICAL (63/63")
+
+
+def test_uncompared_files_are_named_in_the_log(capsys):
+    """An operator must be able to see WHICH files were not compared,
+    without downloading anything."""
+    import analysis.collect_container_3d as C
+
+    C.emit_summary({}, _c(identical=0, not_committed=2,
+                          not_committed_files=["a.json", "b.json"]))
+    out = capsys.readouterr().out
+    assert "::QTA-3D-NOT-COMMITTED:: a.json" in out
+    assert "::QTA-3D-NOT-COMMITTED:: b.json" in out
+    assert "::QTA-3D-VERDICT:: INCOMPARABLE" in out
+
+
+def test_the_comparison_finds_the_canonical_copies_where_they_live():
+    """THE root cause of the 0/63, tested directly.
+
+    The verdict logic above is worth nothing if the comparison cannot find
+    the committed files: every one would land in not_committed and the run
+    would report INCOMPARABLE forever. This feeds the real committed outputs
+    back in as if they had just been regenerated, so a wrong path shows up
+    here rather than in a hosted job an hour later.
+    """
+    import hashlib
+
+    import analysis.collect_container_3d as C
+
+    outputs = C.REPO_ROOT / "outputs"
+    names = sorted(p.name for p in outputs.iterdir() if p.is_file())
+    assert len(names) >= C.EXPECTED_CANONICAL, (
+        f"only {len(names)} committed outputs; the comparison could not "
+        "reach its expected coverage even in principle")
+
+    inventory = {
+        n: {"sha256": hashlib.sha256((outputs / n).read_bytes()).hexdigest()}
+        for n in names
+    }
+    c = C.compare_with_committed(inventory)
+
+    assert c["not_committed"] == 0, (
+        f"{c['not_committed']} committed file(s) were not found where the "
+        f"comparison looks: {c['not_committed_files'][:5]}. This is exactly "
+        "the defect that produced '0/63 identical' in a hosted run")
+    assert c["identical"] == len(names)
+    assert c["differing"] == 0
+    assert C.verdict_for(c).startswith("IDENTICAL")
