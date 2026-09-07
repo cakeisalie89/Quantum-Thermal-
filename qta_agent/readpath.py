@@ -139,7 +139,7 @@ class GovernedReader:
     def read(self, req: ReadRequest, *, capability_id: str,
              expect_digest: str | None = None,
              max_bytes: int | None = None,
-             require_unique_link: bool = False) -> ReadResult:
+             require_unique_link: bool = True) -> ReadResult:
         """Authorize, read through the confined primitive, record both."""
         try:
             self.authorize(req, capability_id=capability_id)

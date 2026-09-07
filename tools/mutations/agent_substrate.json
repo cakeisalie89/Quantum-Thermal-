@@ -6,7 +6,8 @@
     "tests/test_agent_differential.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_isolation.py",
-    "tests/test_agent_substrate_properties.py"
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_readpath.py"
   ],
   "mutations": [
     {
@@ -295,6 +296,41 @@
       "find": "            if rid not in self._records:\n                # A raw KeyError leaks the projection's internals",
       "replace": "            if False:\n                # A raw KeyError leaks the projection's internals",
       "rationale": "an authority API fails with an incidental Python exception instead of its domain error"
+    },
+    {
+      "name": "F1_a_newer_form_is_reported_as_tampering",
+      "path": "qta_agent/events.py",
+      "find": "    form = rec[\"canonical_form_version\"]\n    if form != CANONICAL_FORM_VERSION:",
+      "replace": "    form = rec[\"canonical_form_version\"]\n    if False:",
+      "rationale": "a record from a newer build dies as 'unhashed extra fields', which tells an operator the log was altered when what happened is that their reader is old -- two problems, two different places to go"
+    },
+    {
+      "name": "F2_the_read_root_only_catches_one_kind_of_refusal",
+      "path": "qta_agent/safeio.py",
+      "find": "            except OSError as exc:\n                # EVERY other refusal too.",
+      "replace": "            except NotADirectoryError as exc:\n                # EVERY other refusal too.",
+      "rationale": "a missing or unreadable read root escapes as a raw OSError past every caller written to handle this module's errors"
+    },
+    {
+      "name": "F3_a_read_that_fails_partway_returns_what_it_got",
+      "path": "qta_agent/safeio.py",
+      "find": "            except OSError as exc:\n                # A read that failed PARTWAY must not return what it got.",
+      "replace": "            except UnicodeError as exc:\n                # A read that failed PARTWAY must not return what it got.",
+      "rationale": "bytes that look like the file and are not, which is the worst outcome available on a read path"
+    },
+    {
+      "name": "F4_hard_link_protection_is_opt_in_again",
+      "path": "qta_agent/safeio.py",
+      "find": "                 require_unique_link: bool = True) -> ReadResult:",
+      "replace": "                 require_unique_link: bool = False) -> ReadResult:",
+      "rationale": "a caller that does not think to ask does not get it, and the caller least likely to think of it is the next one"
+    },
+    {
+      "name": "F5_the_governed_reader_stops_defaulting_it_on",
+      "path": "qta_agent/readpath.py",
+      "find": "             require_unique_link: bool = True) -> ReadResult:",
+      "replace": "             require_unique_link: bool = False) -> ReadResult:",
+      "rationale": "the same regression, one layer up where production reads live"
     }
   ]
 }

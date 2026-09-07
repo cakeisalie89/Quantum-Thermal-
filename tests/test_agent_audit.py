@@ -839,3 +839,162 @@ def test_the_execution_step_detail_never_carries_an_executor_claim():
         "the execution step's detail now carries an executed_by claim; the "
         "audit reads the executor from the record's ACTOR and a payload "
         "field beside it is exactly what that check must not consult")
+
+
+# ==========================================================================
+# RANGE, CROSS-TASK AND WINDOWED QUERIES; METRICS AND A STRUCTURED SINK
+#
+# THE GAPS THESE CLOSE, stated as they were found:
+#
+#     "no time-range queries; the index is position-ordered"
+#     "no cross-task queries beyond trace_artifact"
+#     "the index is built in memory from the whole log; there is no
+#      incremental or windowed mode"
+#     "no structured emission to an external sink; the log is the only sink"
+#     "no metrics and no sampling"
+# ==========================================================================
+
+def _busy_log(tmp_path, n=9):
+    log = EventLog(tmp_path / "busy.jsonl")
+    for i in range(n):
+        log.append(actor=f"a{i % 3}", action="record.create", target=f"r{i}",
+                   payload={"record_id": f"r{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note",
+                            "task_id": f"t{i % 2}", "tool_id": f"tool-{i % 2}"})
+    return log
+
+
+def test_a_position_range_returns_exactly_that_range(tmp_path):
+    idx = AuditIndex.from_log(_busy_log(tmp_path))
+    assert [s.seq for s in idx.between_seq(2, 5)] == [2, 3, 4, 5]
+    assert idx.between_seq(4, 4) and len(idx.between_seq(4, 4)) == 1
+
+
+def test_a_backwards_range_is_refused(tmp_path):
+    idx = AuditIndex.from_log(_busy_log(tmp_path))
+    with pytest.raises(ValueError):
+        idx.between_seq(5, 2)
+    with pytest.raises(ValueError):
+        idx.between_wall(500.0, 100.0)
+
+
+def test_a_wall_clock_range_finds_a_region(tmp_path):
+    idx = AuditIndex.from_log(_busy_log(tmp_path))
+    stamps = sorted(ev.wall_time for ev in idx.events)
+    hits = idx.between_wall(stamps[0], stamps[-1])
+    assert len(hits) == len(idx.events)
+    assert idx.between_wall(0.0, 1.0) == ()
+
+
+def test_a_windowed_index_holds_only_the_window(tmp_path):
+    log = _busy_log(tmp_path)
+    win = AuditIndex.from_log(log, since_seq=3, until_seq=6)
+    assert [ev.seq for ev in win.events] == [3, 4, 5, 6]
+    assert win.window == (3, 6)
+
+
+def test_a_windowed_index_says_that_it_is_one(tmp_path):
+    """An audit that quietly answers about a slice is worse than one that
+    refuses, because the reader cannot tell."""
+    log = _busy_log(tmp_path)
+    assert AuditIndex.from_log(log).window_note() == ""
+    note = AuditIndex.from_log(log, since_seq=2).window_note()
+    assert "covers seq 2" in note
+    assert "were not read" in note
+
+
+def test_a_window_still_verifies_the_whole_chain(tmp_path):
+    """A window narrows what the index HOLDS, never what is checked.
+
+    Skipping verification to save time would make the window a way to audit
+    a rewritten history cheaply, which is the opposite of the point.
+    """
+    log = _busy_log(tmp_path)
+    raw = log.path.read_text(encoding="utf-8").splitlines()
+    raw[0] = raw[0].replace('"r0"', '"TAMPERED"')
+    log.path.write_text("\n".join(raw) + "\n", encoding="utf-8")
+
+    with pytest.raises(Exception):
+        AuditIndex.from_log(log, since_seq=5)
+
+
+def test_an_empty_window_is_refused(tmp_path):
+    log = _busy_log(tmp_path)
+    with pytest.raises(ValueError) as exc:
+        AuditIndex.from_log(log, since_seq=6, until_seq=2)
+    assert "nothing happened" in str(exc.value)
+
+
+def test_cross_task_queries_answer_without_the_caller_assembling_them(
+        tmp_path):
+    idx = AuditIndex.from_log(_busy_log(tmp_path))
+
+    touched = dict(idx.tasks_touched_by("a0"))
+    assert set(touched) == {"t0", "t1"}
+    assert touched["t0"] == ("record.create",)
+
+    uses = idx.tool_uses("tool-1")
+    assert uses and all("tool-1" in s.detail.get("tool_id", "") for s in uses)
+    assert idx.tool_uses("no-such-tool") == ()
+
+
+def test_metrics_are_derived_from_the_log_not_counted_alongside_it(tmp_path):
+    """A counter kept beside the log drifts on a crash and disagrees with
+    the history without anything noticing."""
+    log = _busy_log(tmp_path)
+    idx = AuditIndex.from_log(log)
+    m = idx.metrics()
+
+    assert m["events"] == 9
+    assert m["distinct_actors"] == 3
+    assert m["actions"]["record.create"] == 9
+    assert m["window"] is None
+
+    # Same bytes, second reading: a metric and an explanation cannot tell
+    # different stories, because both are folds of the same events.
+    assert AuditIndex.from_log(log).metrics() == m
+
+
+def test_metrics_over_a_window_say_so(tmp_path):
+    win = AuditIndex.from_log(_busy_log(tmp_path), since_seq=4)
+    assert win.metrics()["window"] == [4, None]
+
+
+def test_the_sink_receives_every_event(tmp_path):
+    import io
+    idx = AuditIndex.from_log(_busy_log(tmp_path))
+    buf = io.StringIO()
+    assert idx.emit(buf) == 9
+    lines = [ln for ln in buf.getvalue().splitlines() if ln.strip()]
+    assert len(lines) == 9
+    assert json.loads(lines[0])["seq"] == 0
+
+
+def test_the_sink_redacts_on_the_way_out(tmp_path):
+    """The second line of defence, and the one that costs least to keep."""
+    import io
+    log = EventLog(tmp_path / "s.jsonl")
+    log.append(actor="a", action="record.create", target="r",
+               payload={"record_id": "r", "state": "DRAFT", "title": "x",
+                        "kind": "note", "api_token": "hunter2-and-then-some"})
+    buf = io.StringIO()
+    AuditIndex.from_log(log).emit(buf)
+    assert "hunter2-and-then-some" not in buf.getvalue()
+    assert "[REDACTED]" in buf.getvalue()
+
+
+def test_a_sink_that_cannot_be_written_to_is_refused(tmp_path):
+    idx = AuditIndex.from_log(_busy_log(tmp_path))
+    with pytest.raises(TypeError) as exc:
+        idx.emit(object())
+    assert "write() method" in str(exc.value)
+
+
+def test_emitting_appends_nothing_to_the_log(tmp_path):
+    """Querying must not mutate authority state."""
+    import io
+    log = _busy_log(tmp_path)
+    before = log.verify().head_seq
+    AuditIndex.from_log(log).emit(io.StringIO())
+    AuditIndex.from_log(log).metrics()
+    assert log.verify().head_seq == before

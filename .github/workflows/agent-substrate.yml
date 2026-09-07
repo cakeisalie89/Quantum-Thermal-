@@ -195,6 +195,12 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_delegation.json
+      - name: mutation matrix -- separate-process verification
+        # reconstruct.py keeps its independence by discipline. This runs the
+        # same reader where the shortcut is an ImportError instead.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_separate_verify.json
       - name: mutation matrix -- compensation and undeclared writes
         # The compensation was prose with four consumers and no performer;
         # declared-output collection saw only the files the contract named.

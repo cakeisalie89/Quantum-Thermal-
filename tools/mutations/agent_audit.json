@@ -168,6 +168,76 @@
       "find": "                        if claimed and claimed != executed_by:",
       "replace": "                        if False:",
       "rationale": "a completion attributing the work to someone who did not do it passes without comment"
+    },
+    {
+      "name": "Q1_a_window_skips_verification",
+      "path": "qta_agent/audit.py",
+      "find": "        log.verify().raise_if_bad()\n        if since_seq is None and until_seq is None:",
+      "replace": "        if since_seq is None and until_seq is None:\n            log.verify().raise_if_bad()\n        if since_seq is None and until_seq is None:",
+      "rationale": "a window becomes a way to audit a rewritten history cheaply, which is the opposite of what narrowing the index is for"
+    },
+    {
+      "name": "Q2_a_windowed_index_does_not_say_it_is_one",
+      "path": "qta_agent/audit.py",
+      "find": "        idx.window = (lo, hi)",
+      "replace": "        pass",
+      "rationale": "an audit quietly answers about a slice and the reader cannot tell, which is worse than refusing"
+    },
+    {
+      "name": "Q3_an_empty_window_is_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "        if hi is not None and hi < lo:",
+      "replace": "        if False:",
+      "rationale": "a backwards window answers every question with 'nothing happened'"
+    },
+    {
+      "name": "Q4_a_position_range_is_off_by_one_at_the_end",
+      "path": "qta_agent/audit.py",
+      "find": "            for ev in self.events if lo <= ev.seq <= hi)",
+      "replace": "            for ev in self.events if lo <= ev.seq < hi)",
+      "rationale": "the last event of a range is silently outside it, so an incident's final action is the one the auditor never sees"
+    },
+    {
+      "name": "Q5_a_backwards_range_is_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "        if hi < lo:\n            raise ValueError(f\"seq range [{lo}, {hi}] ends before it starts\")",
+      "replace": "        if False:\n            raise ValueError(f\"seq range [{lo}, {hi}] ends before it starts\")",
+      "rationale": "an empty answer that reads as 'nothing happened there'"
+    },
+    {
+      "name": "Q6_metrics_are_not_derived_from_the_events",
+      "path": "qta_agent/audit.py",
+      "find": "            by_action[ev.action] = by_action.get(ev.action, 0) + 1",
+      "replace": "            by_action[ev.action] = 1",
+      "rationale": "a metric and an explanation start telling different stories about the same bytes"
+    },
+    {
+      "name": "Q7_the_sink_does_not_redact",
+      "path": "qta_agent/audit.py",
+      "find": "                \"payload\": redact_fn(ev.payload),",
+      "replace": "                \"payload\": ev.payload,",
+      "rationale": "a credential reaches a collector, which is the cost of being wrong about 'a secret should not be there to redact'"
+    },
+    {
+      "name": "Q8_the_sink_accepts_something_that_cannot_be_written_to",
+      "path": "qta_agent/audit.py",
+      "find": "        if not callable(write):",
+      "replace": "        if False:",
+      "rationale": "emission fails as an AttributeError three frames from the caller"
+    },
+    {
+      "name": "Q9_the_sink_drops_events",
+      "path": "qta_agent/audit.py",
+      "find": "            count += 1\n        flush = getattr(sink, \"flush\", None)",
+      "replace": "            break\n        flush = getattr(sink, \"flush\", None)",
+      "rationale": "a partial copy in a collector is worse than none, because it looks complete"
+    },
+    {
+      "name": "Q10_cross_task_tool_queries_match_everything",
+      "path": "qta_agent/audit.py",
+      "find": "            if p.get(\"tool_id\") != tool_id:\n                continue",
+      "replace": "            if False:\n                continue",
+      "rationale": "'which tasks used this tool' answers with every task, which is a confident answer about the wrong thing"
     }
   ]
 }

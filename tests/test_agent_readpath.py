@@ -14,6 +14,7 @@ means the window was entered and survived rather than never reached.
 """
 from __future__ import annotations
 
+import errno
 import os
 import sys
 import threading
@@ -38,8 +39,8 @@ from qta_agent.readpath import (  # noqa: E402
     ACT_FILE_READ, GovernedReader, ReadDenied, ReadRequest, read_scope,
 )
 from qta_agent.safeio import (  # noqa: E402
-    NotARegularFile, PathRefused, ReadRoot, ReadTooLarge, SourceChanged,
-    SymlinkRefused, split_relative,
+    NotARegularFile, PathRefused, ReadRoot, ReadTooLarge, SafeIOError,
+    SourceChanged, SymlinkRefused, split_relative,
 )
 
 ACTOR = "agent-reader"
@@ -600,16 +601,26 @@ def test_a_hard_linked_file_is_refused_when_identity_matters(tree):
     target.write_bytes(b"content with two names")
     os.link(target, tree["base"] / "second-name.txt")   # OUTSIDE the root
     with ReadRoot(tree["root"]) as rr:
-        rr.read("aliased.txt")                          # permitted by default
+        # DEFAULT-ON. This used to be opt-in, so a caller that did not think
+        # to ask did not get it -- and the caller least likely to think of it
+        # is the next one somebody writes.
         with pytest.raises(AliasedFile, match="two names|2 names"):
-            rr.read("aliased.txt", require_unique_link=True)
+            rr.read("aliased.txt")
+        # Relaxing it is still possible and is now the deliberate act.
+        assert rr.read("aliased.txt", require_unique_link=False).data
 
 
 def test_an_ordinary_file_passes_the_unique_link_check(tree):
-    """The check must name a real condition, not refuse everything."""
+    """The check must name a real condition, not refuse everything.
+
+    ANTI-VACUITY for a default-on guard: turning it on for everybody is only
+    an improvement if it still lets ordinary files through. A guard that
+    refused every read would also refuse every aliased one.
+    """
     with ReadRoot(tree["root"]) as rr:
-        res = rr.read("allowed.txt", require_unique_link=True)
-    assert res.data == b"allowed content"
+        assert rr.read("allowed.txt", require_unique_link=True).data == \
+            b"allowed content"
+        assert rr.read("allowed.txt").data == b"allowed content"
 
 
 # --- the alias check must stay opted INTO by the path that needs it --------
@@ -670,3 +681,225 @@ def test_a_hard_linked_artifact_is_refused_by_the_verification_path(tmp_path):
         # And the opt-out still reads it: the flag is a choice the caller
         # makes, which is exactly why the guard above exists.
         assert r.read("a.json", require_unique_link=False).data == b"payload"
+
+
+# ==========================================================================
+# WHAT THE FILESYSTEM DOES WHEN IT REFUSES
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "no disk-full injection on the read path (there is nothing to write),
+#      and permission-error injection is covered for the evidence store only"
+#
+# A read path meets refusals the happy path never does: a directory it may
+# not traverse, a file it may not open, a device that errors mid-read. Each
+# must surface as this module's own error naming the path, not as a raw
+# OSError from three frames down that a caller will not have handled.
+# ==========================================================================
+
+def test_a_directory_that_cannot_be_traversed_is_refused(tree, monkeypatch):
+    """The walk is per-component, so a refusal partway is reachable.
+
+    INJECTED rather than chmod'd. This suite runs as root in CI, and root
+    ignores mode bits -- a chmod-based version of this test passes by
+    doing nothing, which is the vacuous-success shape this project has
+    already been bitten by. Injecting at the syscall reproduces the refusal
+    for any user.
+    """
+    inner = tree["root"] / "locked"
+    inner.mkdir()
+    (inner / "secret.txt").write_bytes(b"x")
+
+    real_open = os.open
+
+    def _refuse_dir(path, flags, *a, **kw):
+        if isinstance(path, str) and path == "locked":
+            raise PermissionError(errno.EACCES, "injected EACCES")
+        return real_open(path, flags, *a, **kw)
+
+    with ReadRoot(tree["root"]) as rr:
+        monkeypatch.setattr(os, "open", _refuse_dir)
+        with pytest.raises(SafeIOError) as exc:
+            rr.read("locked/secret.txt")
+        monkeypatch.undo()
+    assert "locked" in str(exc.value) or "secret.txt" in str(exc.value)
+
+
+def test_a_file_that_cannot_be_opened_is_refused_by_name(tree, monkeypatch):
+    """Named, so an operator knows WHICH read failed."""
+    target = tree["root"] / "unreadable.txt"
+    target.write_bytes(b"content")
+
+    real_open = os.open
+
+    def _refuse_file(path, flags, *a, **kw):
+        if isinstance(path, str) and path == "unreadable.txt":
+            raise PermissionError(errno.EACCES, "injected EACCES")
+        return real_open(path, flags, *a, **kw)
+
+    with ReadRoot(tree["root"]) as rr:
+        monkeypatch.setattr(os, "open", _refuse_file)
+        with pytest.raises(SafeIOError) as exc:
+            rr.read("unreadable.txt")
+        monkeypatch.undo()
+    assert "unreadable.txt" in str(exc.value)
+
+
+@pytest.mark.parametrize("errno_code,name", [
+    (errno.EIO, "EIO"),
+    (errno.ENOSPC, "ENOSPC"),
+    (errno.EACCES, "EACCES"),
+    (errno.EMFILE, "EMFILE"),
+])
+def test_an_os_error_mid_read_surfaces_as_this_modules_error(
+        tree, monkeypatch, errno_code, name):
+    """Injected at the primitive, because that is where the kernel says no.
+
+    The point is not that each errno is handled differently -- they are
+    not -- but that NONE of them escapes as a bare OSError. A caller that
+    catches SafeIOError and gets an OSError instead has an unhandled
+    exception in the middle of a governed read.
+    """
+    real_open = os.open
+
+    def _refuse(path, flags, *a, **kw):
+        if str(path).endswith("allowed.txt"):
+            raise OSError(errno_code, os.strerror(errno_code))
+        return real_open(path, flags, *a, **kw)
+
+    with ReadRoot(tree["root"]) as rr:
+        monkeypatch.setattr(os, "open", _refuse)
+        with pytest.raises(SafeIOError):
+            rr.read("allowed.txt")
+        monkeypatch.undo()
+
+
+def test_a_read_that_fails_partway_does_not_return_partial_bytes(
+        tree, monkeypatch):
+    """A truncated read that returned successfully would be the worst
+    outcome: bytes that look like the file and are not."""
+    real_read = os.read
+    state = {"calls": 0}
+
+    def _fail_after_first(fd, n):
+        state["calls"] += 1
+        if state["calls"] > 1:
+            raise OSError(errno.EIO, "injected mid-read failure")
+        return real_read(fd, min(n, 4))
+
+    big = tree["root"] / "big.txt"
+    big.write_bytes(b"A" * 4096)
+    with ReadRoot(tree["root"]) as rr:
+        monkeypatch.setattr(os, "read", _fail_after_first)
+        with pytest.raises(SafeIOError) as exc:
+            rr.read("big.txt")
+        monkeypatch.undo()
+    assert "discarded" in str(exc.value), (
+        "a partial read must say the bytes it had are being thrown away")
+
+
+def test_the_root_itself_becoming_unopenable_is_refused(tmp_path):
+    missing = tmp_path / "never-existed"
+    with pytest.raises(SafeIOError):
+        with ReadRoot(missing):
+            pass
+
+
+def test_the_primitive_itself_defaults_to_refusing_an_alias(tree):
+    """ISOLATED from ReadRoot, which passes its own default through.
+
+    Two defaults guard this -- read_beneath's and ReadRoot.read's -- and
+    ReadRoot always passes an explicit value, so changing the primitive's
+    default alone is invisible through ReadRoot. Defence in depth masking a
+    hole in one of its layers is still a hole.
+    """
+    from qta_agent.safeio import AliasedFile, read_beneath
+
+    target = tree["root"] / "primitive-alias.txt"
+    target.write_bytes(b"two names")
+    alias = tree["base"] / "elsewhere-primitive.txt"
+    alias.unlink(missing_ok=True)
+    os.link(target, alias)
+
+    fd = os.open(tree["root"], os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(AliasedFile):
+            read_beneath(fd, "primitive-alias.txt")
+        assert read_beneath(fd, "primitive-alias.txt",
+                            require_unique_link=False).data == b"two names"
+    finally:
+        os.close(fd)
+
+
+def test_the_governed_reader_defaults_to_refusing_an_alias(reader, tree):
+    """The layer production reads actually go through.
+
+    ISOLATED from the primitive above for the same reason: each layer has
+    its own default, and a test that only exercises one of them cannot see
+    the other being relaxed.
+    """
+    from qta_agent.safeio import AliasedFile
+
+    target = tree["root"] / "governed-alias.txt"
+    target.write_bytes(b"aliased")
+    alias = tree["base"] / "outside-governed.txt"
+    alias.unlink(missing_ok=True)
+    os.link(target, alias)
+
+    with pytest.raises(AliasedFile):
+        reader.read(_req("governed-alias.txt"), capability_id="cap-read")
+
+
+def test_a_missing_root_is_absent_not_merely_refused(tmp_path):
+    """ABSENT and UNUSABLE are different facts, and callers act on both.
+
+    Found by breaking it: wrapping every OSError from opening the read root
+    turned "the evidence store directory does not exist yet" into a generic
+    refusal, and the store -- which tells UNKNOWN evidence from CORRUPT
+    evidence by catching FileNotFoundError -- began reporting an empty store
+    as corrupt.
+    """
+    from qta_agent.safeio import RootMissing
+
+    missing = tmp_path / "never-existed"
+    with pytest.raises(RootMissing) as exc:
+        with ReadRoot(missing):
+            pass
+    assert "does not exist" in str(exc.value)
+
+    # BOTH catch sites keep working, which is the whole point of the type.
+    with pytest.raises(FileNotFoundError):
+        with ReadRoot(missing):
+            pass
+    with pytest.raises(SafeIOError):
+        with ReadRoot(missing):
+            pass
+
+
+def test_a_root_that_exists_but_cannot_be_opened_is_a_plain_refusal(
+        tmp_path, monkeypatch):
+    """ANTI-VACUITY in the other direction: not every failure is 'absent'.
+
+    If RootMissing were raised for every OSError, a caller distinguishing
+    the two would be told 'nothing is stored' about a store that is there
+    and unreadable -- which is the more alarming case, reported as the
+    calmer one.
+    """
+    from qta_agent.safeio import PathRefused, RootMissing
+
+    root = tmp_path / "root"
+    root.mkdir()
+    real_open = os.open
+
+    def _refuse(path, flags, *a, **kw):
+        if str(path) == str(root):
+            raise PermissionError(errno.EACCES, "injected EACCES")
+        return real_open(path, flags, *a, **kw)
+
+    monkeypatch.setattr(os, "open", _refuse)
+    with pytest.raises(PathRefused) as exc:
+        with ReadRoot(root):
+            pass
+    monkeypatch.undo()
+    assert not isinstance(exc.value, RootMissing)
+    assert "could not be opened" in str(exc.value)

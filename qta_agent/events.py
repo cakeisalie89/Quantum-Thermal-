@@ -143,6 +143,28 @@ class MalformedEvent(EventLogError):
     """A record is unparseable or structurally invalid."""
 
 
+class UnreadableForm(MalformedEvent):
+    """The record is in a canonical form this build does not read.
+
+    A subclass of :class:`MalformedEvent` so every existing caller still
+    fails closed, and a distinct type so a caller that wants to tell "your
+    reader is old" from "this log was altered" can.
+
+    WHY THERE IS NO MIGRATION PATH FOR A NEWER FORM
+
+    Migrating a record means deciding what its fields mean. For a form this
+    build has never seen, that decision is a guess -- and the fields in
+    question are authority-relevant by construction, because everything in
+    the hashed body is. A reader that guessed would produce a confident
+    projection from a record it did not understand, which is the failure
+    mode this whole package exists to prevent.
+
+    So a newer form is refused, and the refusal SAYS it is a newer form. An
+    older form would be migrated by a registered upgrade; none exists,
+    because there has only ever been one form.
+    """
+
+
 class HeadMismatch(EventLogError):
     """The log's head disagrees with an independently recorded head.
 
@@ -257,6 +279,30 @@ def _validate_field_types(rec: dict, where: str) -> None:
                 f"{where}: {name!r} is not a lowercase sha256 digest")
     if rec["seq"] < 0:
         raise MalformedEvent(f"{where}: seq is negative")
+
+    # THE VERSION IS TRIAGED BEFORE THE FIELDS, and the order is the point.
+    #
+    # A record written by a NEWER build carries fields this one has never
+    # heard of. Checked in the other order, it died as "unhashed extra
+    # fields ['provenance_class']" -- which tells an operator the log was
+    # TAMPERED WITH, when what actually happened is that their reader is
+    # old. Those two send a person to completely different places, and the
+    # message is the only thing that decides which.
+    #
+    # It is still a refusal. See UnreadableForm on why a form you cannot
+    # verify is a form you cannot migrate.
+    form = rec["canonical_form_version"]
+    if form != CANONICAL_FORM_VERSION:
+        raise UnreadableForm(
+            f"{where}: this record is canonical form v{form} and this build "
+            f"reads v{CANONICAL_FORM_VERSION}. "
+            + ("A NEWER form: upgrade the reader. This is not corruption and "
+               "not tampering -- the record may be perfectly valid under "
+               "rules this build does not have."
+               if form > CANONICAL_FORM_VERSION else
+               "An OLDER form, and no upgrade to v"
+               f"{CANONICAL_FORM_VERSION} is registered for it."))
+
     unknown = set(rec) - set(_HASHED_FIELDS) - {"hash"}
     if unknown:
         # An unknown field would not be hashed, so it could carry unverified

@@ -52,6 +52,7 @@ rather than a web:
 | `store.py` | live projection, transactional through the log |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
+| `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that refuses the reducers it checks |
 | `tasks.py` | durable work: state that survives the process that started it |
 | `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
 | `memory.py` | what the agent remembers, kept structurally apart from evidence |

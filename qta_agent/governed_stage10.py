@@ -96,6 +96,7 @@ from .readpath import (
     read_scope,
 )
 from .safeio import SafeIOError, SourceChanged
+from .separate_verify import verify_in_separate_process
 from .policy import Effect, PolicyRequest, PolicyStore, document, rule
 from .hostid import (ALIVE, GONE, ProcessIdentity, identify,
                      liveness)
@@ -159,11 +160,16 @@ ACT_EVIDENCE = "task.evidence"
 #: and an audit that could not tell them apart would count an undo as a
 #: retry.
 ACT_COMPENSATION = "task.compensation"
+#: What a process that cannot import these reducers concluded about the log
+#: this run wrote. Recorded whatever it concluded: "the independent verifier
+#: refused" is exactly the fact an auditor must be able to find.
+ACT_SEPARATE_VERIFY = "task.separate_verification"
 
 #: The actions THIS projection applies or deliberately passes over. Anything
 #: else is another subsystem's (skipped) or unrecognised (refused).
 OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
-                   ACT_EXECUTION, ACT_EVIDENCE, ACT_COMPENSATION})
+                   ACT_EXECUTION, ACT_EVIDENCE, ACT_COMPENSATION,
+                   ACT_SEPARATE_VERIFY})
 
 
 def stage10_policy(version: int = 1) -> "object":
@@ -517,7 +523,8 @@ class GovernedStage10:
                     result_digest=p.get("result_digest")
                     or task.result_digest,
                     updated_seq=ev.seq)
-            elif ev.action in (ACT_EVIDENCE, ACT_COMPENSATION):
+            elif ev.action in (ACT_EVIDENCE, ACT_COMPENSATION,
+                               ACT_SEPARATE_VERIFY):
                 # A compensation does not move the task. The task's outcome
                 # was and remains whatever it reached; what a compensation
                 # records is that somebody tried to undo its effect, which is
@@ -878,6 +885,28 @@ class GovernedStage10:
         ok, why = self._verify_artifacts(
             artifacts, verifier=verifier, task_id=task_id,
             capability_id=read_cap_id)
+
+        # AND A SECOND PROCESS, which is a different question.
+        #
+        # The check above asks whether the ARTIFACTS are what the record
+        # says. This asks whether the LOG this run just wrote reconstructs
+        # cleanly when read by something that cannot import the reducers
+        # that wrote it. Both are needed and neither substitutes: an
+        # artifact can be honest in a history that is not, and the reducers
+        # in this interpreter agree with themselves for free.
+        #
+        # A crashed verifier is not a pass. Any non-zero exit, timeout or
+        # unreadable answer refuses the run, and the reason travels with it.
+        if ok:
+            sep = verify_in_separate_process(self.log.path, root=self.root)
+            self.log.append(
+                actor=verifier, action=ACT_SEPARATE_VERIFY, target=task_id,
+                payload={"task_id": task_id, **sep.to_record()})
+            if not sep.ok:
+                ok = False
+                why = (f"independent process verification refused this run: "
+                       f"{sep.reason}")
+
         dst = TaskState.VERIFIED if ok else TaskState.REJECTED
         task = self._move(task, dst, verifier, TaskRole.VERIFIER, note=why)
 

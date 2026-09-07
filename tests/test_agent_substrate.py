@@ -1044,3 +1044,95 @@ def test_the_create_proposer_guard_makes_its_own_derivation_unobservable():
     # the claim itself -- which is exactly what makes agents.py's version
     # non-equivalent.
     assert ast.parse(lines[guard[0]].strip() + "\n    pass")
+
+
+# ==========================================================================
+# A RECORD FROM A FORM THIS BUILD DOES NOT READ
+#
+# THE GAP THIS CLOSES, stated as it was found:
+#
+#     "no schema version on an event record, so a newer writer's fields are
+#      refused rather than migrated"
+#
+# The version was there all along. What was missing is that the refusal said
+# the wrong thing: a v2 record died as "unhashed extra fields
+# ['provenance_class']", which tells an operator their log was TAMPERED WITH
+# when what happened is that their reader is old. Those send a person to
+# completely different places, and the message is the only thing deciding
+# which.
+# ==========================================================================
+
+def _log_with_form(tmp_path, version, extra=None):
+    from qta_agent.events import EventLog as _EL
+
+    path = tmp_path / "formed.jsonl"
+    lg = _EL(path)
+    lg.append(actor="a", action="record.create", target="r",
+              payload={"record_id": "r", "state": "DRAFT", "title": "x",
+                       "kind": "note"})
+    rec = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+    rec["canonical_form_version"] = version
+    if extra:
+        rec.update(extra)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, sort_keys=True) + "\n")
+    return _EL(path)
+
+
+def test_a_newer_form_says_the_reader_is_old_not_that_the_log_is_bad(
+        tmp_path):
+    from qta_agent.events import UnreadableForm
+
+    lg = _log_with_form(tmp_path, 2, {"provenance_class": "v2-invented"})
+    with pytest.raises(UnreadableForm) as exc:
+        list(lg.read())
+    msg = str(exc.value)
+    assert "canonical form v2" in msg
+    assert "upgrade the reader" in msg
+    assert "not corruption and not tampering" in msg
+    assert "unhashed extra fields" not in msg
+
+
+def test_an_older_form_says_no_upgrade_is_registered(tmp_path):
+    from qta_agent.events import UnreadableForm
+
+    lg = _log_with_form(tmp_path, 0)
+    with pytest.raises(UnreadableForm) as exc:
+        list(lg.read())
+    assert "OLDER form" in str(exc.value)
+    assert "no upgrade" in str(exc.value)
+
+
+def test_an_unreadable_form_is_still_a_refusal(tmp_path):
+    """Every existing caller must keep failing closed, so the new type is a
+    MalformedEvent -- a caller that catches the old one is unaffected."""
+    from qta_agent.events import MalformedEvent, UnreadableForm
+
+    assert issubclass(UnreadableForm, MalformedEvent)
+    lg = _log_with_form(tmp_path, 7)
+    with pytest.raises(MalformedEvent):
+        list(lg.read())
+    assert not lg.verify().ok
+
+
+def test_a_genuinely_malformed_record_still_says_malformed(tmp_path):
+    """ANTI-VACUITY. If every refusal became 'wrong form', the new message
+    would be worse than the old one: it would send every operator to the
+    upgrade page, including the one whose log really was altered."""
+    from qta_agent.events import EventLog as _EL
+    from qta_agent.events import MalformedEvent, UnreadableForm
+
+    path = tmp_path / "bad.jsonl"
+    lg = _EL(path)
+    lg.append(actor="a", action="record.create", target="r",
+              payload={"record_id": "r", "state": "DRAFT", "title": "x",
+                       "kind": "note"})
+    rec = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+    rec["smuggled"] = "not hashed, not versioned"
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, sort_keys=True) + "\n")
+
+    with pytest.raises(MalformedEvent) as exc:
+        list(_EL(path).read())
+    assert not isinstance(exc.value, UnreadableForm)
+    assert "unhashed extra fields" in str(exc.value)

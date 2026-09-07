@@ -44,6 +44,9 @@ ALLOWED_IMPORTERS = {
     # writing, and computes no scientific result -- which is the direction
     # this list exists to police.
     "tools/audit_log.py",
+    # The independent verifier. It imports the SECOND reader on purpose and
+    # refuses the primary reducers at runtime -- see its import guard.
+    "tools/independent_verify.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",
@@ -61,6 +64,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_second_reader.py",
     "tests/test_agent_audit.py",
     "tests/test_agent_compensation.py",
+    "tests/test_agent_separate_verify.py",
     "tests/test_agent_delegation.py",
     "tests/test_agent_policy.py",
     "tests/test_agent_scheduler.py",
@@ -115,6 +119,13 @@ LAYERS = ("canonical", "hostid", "safeio", "actions", "events",
           "evidence", "capability", "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority", "policy", "secrets",
           "netauth", "store", "invalidation", "tasks", "reconstruct",
+          # Sits directly above reconstruct and below everything that
+          # consumes a verdict: it spawns the independent verifier and
+          # reads its answer, and imports no reducer of its own. Placed
+          # here rather than at the top because what it must NOT reach is
+          # the scheduler/policy/capability layer -- the same set the
+          # child's import guard refuses at runtime.
+          "separate_verify",
           "scheduler", "memory", "context", "agents", "audit",
           "_stage10_tool", "governed_stage10")
 

@@ -536,7 +536,7 @@
     {
       "id": "R31",
       "requirement": "Filesystem authority: immutable evidence vs workspace vs canonical outputs",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/safeio.py",
         "qta_agent/readpath.py",
@@ -553,34 +553,50 @@
       "authority_owner": "safeio.read_beneath for confinement; readpath.GovernedReader for who may read; workspace.assert_in_workspace for writes",
       "evidence": "the authorized root is opened ONCE as a directory descriptor and every component is opened descriptor-relative with O_NOFOLLOW, so a symlink anywhere on the path is refused rather than followed; O_NONBLOCK on the final open means a substituted FIFO is refused instead of hanging; the OPENED object is fstat-ed and must be a regular file within bounds; and an expected digest binds the result to CONTENT rather than to a name",
       "provenance": "each read records actor, task, capability, root, requested resource, the (device, inode) actually opened and the digest of the bytes -- never the bytes",
-      "failure_semantics": "default deny: a reader with no capability reads nothing; every refusal names which check refused",
+      "failure_semantics": "fail-closed, and every refusal arrives as this module's own error naming the path. A read that fails PARTWAY discards what it had: bytes that look like the file and are not are the worst outcome available on a read path. Opening the read root wraps every OSError, not only NotADirectoryError -- a missing or unreadable root used to escape raw, past every caller written to handle this module's errors",
       "recovery": "append-only store; no delete path",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "the descriptor is bound to an inode, so rename, replace or unlink after the open cannot redirect the read",
-      "security_boundary": "confinement enforced at the OPEN, not by validating a string a later caller re-opens. Mediation, not containment: a process that calls open() itself is unaffected",
+      "security_boundary": "descriptor-relative traversal with O_NOFOLLOW at every component, the OPENED OBJECT checked rather than the pathname that reached it, a regular-file requirement, a size bound, and content binding by expected digest. Hard-link protection is now DEFAULT-ON at both layers: it was opt-in per call, so a caller that did not think to ask did not get it -- and the caller least likely to think of it is the next one somebody writes. Relaxing it is still possible and is now the deliberate act",
       "tests": [
         "tests/test_agent_readpath.py",
+        "tests/test_agent_evidence.py",
         "tests/test_agent_governed_stage10.py",
-        "tests/test_agent_evidence.py"
+        "tests/test_agent_substrate.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/agent_readpath.json",
-        "tools/mutations/agent_evidence.json"
+        "tools/mutations/agent_substrate.json"
       ],
       "fuzzing": "tools/fuzz_substrate.py targets read_path and read_beneath: the path parser and an actual confined read against a real root",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "HARD LINKS are detected but not LOCATED: st_nlink says the content has another name, never where that name is, and it can sit outside the authorized root entirely. For an artifact written once by one tool a count above one is already the answer, which is why the verification path passes require_unique_link=True -- but the check is OPT-IN per call, so a caller that does not ask does not get it. A structural test asserts the verification path keeps asking",
-        "openat2(RESOLVE_BENEATH) would make confinement a single atomic kernel decision rather than a per-component walk. This Python exposes neither os.openat2 nor os.RESOLVE_BENEATH, so the walk is the strongest form available here -- an unavailable platform primitive, not unfinished engineering",
-        "bind mounts and overlays are not detectable portably: if the root itself is a mount somebody else controls, confinement to it means less than it appears to",
-        "case-insensitive filesystems are out of scope; the targets are case-sensitive and nothing here consults the root's own semantics",
-        "no disk-full injection on the read path (there is nothing to write), and permission-error injection is covered for the evidence store only"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "openat2(RESOLVE_BENEATH) would make confinement one atomic kernel decision instead of a per-component walk; this Python exposes neither os.openat2 nor os.RESOLVE_BENEATH",
+          "reason": "platform_primitive_absent",
+          "detail": "the walk with O_NOFOLLOW at every component is the strongest form available here, and it is a walk: each step is atomic and the sequence is not. An attacker who can win a race between two components is not stopped by it, which is why content binding by digest exists alongside"
+        },
+        {
+          "limit": "a hard link is DETECTED and not LOCATED: st_nlink says the content has another name and never where, and that name can sit outside the authorized root entirely",
+          "reason": "platform_primitive_absent",
+          "detail": "the count is the only part the kernel reports. For an artifact written once by one tool a count above one is already the answer, which is why refusing on it is now the default rather than a question a caller has to know to ask"
+        },
+        {
+          "limit": "bind mounts and overlays are not detectable portably: if the root itself is a mount somebody else controls, confinement to it means less than it appears to",
+          "reason": "platform_primitive_absent",
+          "detail": "nothing in this interpreter can ask what a directory really is beneath the mount table, and a check that guessed would be worse than none"
+        },
+        {
+          "limit": "case-insensitive filesystems are out of scope; nothing consults the root's own case semantics",
+          "reason": "architectural_by_design",
+          "detail": "the targets are case-sensitive. A guard that assumed otherwise would refuse valid reads on the platforms this actually runs on, to protect against a platform it does not"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -885,43 +901,55 @@
     {
       "id": "R38",
       "requirement": "Independent verification with real separation",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/reconstruct.py"
+        "qta_agent/reconstruct.py",
+        "qta_agent/separate_verify.py",
+        "tools/independent_verify.py"
       ],
       "callers": [
-        "tests/test_agent_substrate.py",
-        "tests/test_agent_substrate_properties.py"
+        "qta_agent/governed_stage10.py",
+        "tests/test_agent_separate_verify.py"
       ],
-      "production_caller": null,
-      "persistent_state": "none (pure replay)",
-      "authority_owner": "reconstruct.reconstruct",
-      "evidence": "Divergence tuples",
+      "production_caller": "qta_agent/governed_stage10.py",
+      "persistent_state": "task.separate_verification events record what a process that cannot import these reducers concluded about the log this run wrote -- including when it refused, which is exactly the fact an auditor must be able to find",
+      "authority_owner": "separate_verify.verify_in_separate_process; the verdict is the CHILD's",
+      "evidence": "the child reads the log from disk, replays it with the second reader, and answers through one JSON document and an exit status; the parent re-derives nothing",
       "provenance": "none",
-      "failure_semantics": "refuses a broken log",
-      "recovery": "rebuilds state from the log alone",
+      "failure_semantics": "a crashed verifier is NOT a pass. Every non-zero exit, timeout, unreadable answer, missing script and status/verdict disagreement refuses the run, and each says which so an operator can tell 'the log has findings' from 'the verifier died'",
+      "recovery": "the child reads durable bytes only; a lost projection costs nothing",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
-      "concurrency": "n/a",
-      "security_boundary": "none",
+      "concurrency": "bounded by a wall clock, because a verifier that hangs never says no",
+      "security_boundary": "the child installs a meta-path finder that RAISES on every primary reducer before qta_agent is touched, so a future edit reaching for the implementation under test stops the program instead of producing a circular agreement. Separation is enforced rather than kept by discipline",
       "tests": [
-        "tests/test_agent_substrate.py"
+        "tests/test_agent_separate_verify.py",
+        "tests/test_agent_second_reader.py",
+        "tests/test_agent_differential.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
-        "tools/mutations/agent_substrate.json"
+        "tools/mutations/agent_separate_verify.json"
       ],
       "fuzzing": "none",
-      "differential": "reconstruct vs AuthorityStore",
+      "differential": "the same log is read by the in-process second reader AND by a process that cannot import the reducers; disagreement REJECTS the governed run",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "separation is implementation-level only: same process, same language, same canonical-form module",
-        "no separate-process or separate-dependency verifier"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "separation is by PROCESS and by import guard, not by an independently authored implementation or an independently maintained dependency set: both readers are this repository's code, written by the same hand",
+          "reason": "architectural_by_design",
+          "detail": "a genuinely independent implementation would need a second author and a second supply chain, which is an organizational property rather than an engineering one. What IS enforced here is that the second reading cannot reach the first implementation even by accident -- the import guard makes the shortcut an ImportError rather than a code review someone might lose"
+        },
+        {
+          "limit": "the child runs the same interpreter by default; pointing it at a different one is supported and is what the hosted second-interpreter job exercises",
+          "reason": "environment_single_host",
+          "detail": "verify_in_separate_process takes the interpreter as an argument precisely so 'separate dependency set' is testable rather than aspirational, and the hosted job is where a genuinely different interpreter exists to point it at"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -985,7 +1013,7 @@
     {
       "id": "R40",
       "requirement": "Event log at production-operational quality",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py"
       ],
@@ -997,8 +1025,8 @@
       "authority_owner": "EventLog",
       "evidence": "hash chain + head witness",
       "provenance": "actor, action, target, wall_time per record",
-      "failure_semantics": "fail-closed; structured VerifyReport, never a bare bool",
-      "recovery": "corrupt-tail detection; truncation caught by the witness",
+      "failure_semantics": "fail-closed. A record whose canonical form this build does not read is refused as UnreadableForm, which SAYS which direction: a newer form tells the operator to upgrade the reader and states plainly that this is not corruption and not tampering, and an older one says no upgrade is registered. Checked BEFORE the field validation, because in the other order a newer record died as 'unhashed extra fields' -- a message that sends a person looking for an attacker",
+      "recovery": "full replay, replay from an anchor, and replay in a separate process that cannot import these reducers all read the same bytes",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
@@ -1014,18 +1042,29 @@
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
-        "tools/mutations/agent_substrate.json",
-        "tools/mutations/agent_checkpoint.json"
+        "tools/mutations/agent_substrate.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "the writer lock is POSIX advisory: a process that opens the file directly is not stopped, and flock over NFS is unreliable -- both stated in the module",
-        "no segmentation or rotation, so full verification is O(n) in history forever",
-        "no schema version on an event record, so a newer writer's fields are refused rather than migrated"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "a record in a form this build does not read is refused and NOT migrated",
+          "reason": "architectural_by_design",
+          "detail": "migrating means deciding what a field means, and for a form never seen that decision is a guess about something authority-relevant by construction -- everything in the hashed body is. A reader that guessed would produce a confident projection from a record it did not understand, which is the failure this package exists to prevent. UnreadableForm is a MalformedEvent so every existing caller still fails closed, and a distinct type so a caller that wants to tell the two apart can"
+        },
+        {
+          "limit": "the writer lock is a POSIX advisory flock: a process that opens the file directly is not stopped, and flock over NFS is unreliable",
+          "reason": "environment_single_host",
+          "detail": "stated in the module at the lock rather than only here. What the lock buys is that cooperating writers on one filesystem serialize; what it cannot buy is stopping a non-cooperating one, and no advisory lock can"
+        },
+        {
+          "limit": "the log is never segmented or rotated, so its FILE grows without bound",
+          "reason": "architectural_by_design",
+          "detail": "verification cost is already bounded -- verify_from(anchor) checks the tail and checkpoints let a reader start from a verified position, so 'O(n) forever' is not what verification costs. What rotation would bound is storage, and bounding storage on an append-only authority log means discarding history, which is the thing being protected"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -1171,7 +1210,7 @@
     {
       "id": "R44",
       "requirement": "Observability sufficient for incident reconstruction",
-      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/audit.py",
         "tools/audit_log.py"
@@ -1183,17 +1222,17 @@
         "tests/test_agent_audit.py"
       ],
       "production_caller": "Snakefile",
-      "persistent_state": "none; a view over the log",
+      "persistent_state": "the log remains the only thing decided from. A sink is a COPY for somewhere an operator already watches; nothing reads one back, because a second copy that could be cited would be a second history and only one of them has a hash chain",
       "authority_owner": "audit.AuditIndex",
-      "evidence": "every step names actor, action, tool, version and digests; and the queries are a committed COMMAND (tools/audit_log.py) that CI runs over the governed run's own log immediately after the rule writes it, failing the build when the answer is a finding rather than printing it into a log nobody reads",
+      "evidence": "AuditIndex.metrics() folds counts from the same events every explanation comes from, and AuditIndex.emit() writes every event to a structured sink as one JSON object per line",
       "provenance": "the chain IS the provenance record",
       "failure_semantics": "refuses an unverified log rather than answering; the command carries the verdict in its EXIT STATUS -- 0 answered and clean, 1 a finding in the history, 2 the question could not be asked, because 'no such task' and 'this task is broken' are different answers",
       "recovery": "rebuilt from the log on demand",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
-      "concurrency": "n/a",
-      "security_boundary": "credential-shaped keys redacted on the way out",
+      "concurrency": "metrics are DERIVED rather than counted alongside the log. A counter incremented at the point of an event is a second record kept where the log's guarantees do not reach: it drifts on a crash, resets on a restart, and disagrees with the history without anything noticing",
+      "security_boundary": "emission redacts on the way out through the same coarse key-name net, and querying appends nothing: an audit that could mutate authority state would be a control plane wearing a reader's name",
       "tests": [
         "tests/test_agent_audit.py",
         "tests/test_agent_audit_cli.py"
@@ -1205,18 +1244,25 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
-      "residual_gaps": [
-        "no structured emission to an external sink; the log is the only sink",
-        "no metrics and no sampling, and the auditor is on-demand over a log at rest rather than a LIVE view: that is the incident-reconstruction case, not the watch-it-happen one",
-        "redaction is a coarse key-name net over audit output and is the second line of defence, not the first: the executor builds the child's environment rather than inheriting it, and raw tool output never enters the log"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "metrics are O(n) in history and there is no sampling: this is an on-demand fold, not a live counter an operator polls in a loop",
+          "reason": "architectural_by_design",
+          "detail": "the alternative is exactly the drifting side-counter this avoids. A caller wanting a cheap recent view builds a WINDOWED index and asks that -- which is bounded, says it is windowed, and still verifies the whole chain first"
+        },
+        {
+          "limit": "redaction over audit output is a coarse key-name net and is the SECOND line of defence, not the first",
+          "reason": "epistemic",
+          "detail": "the executor builds the child's environment from an allowlist rather than inheriting it, and raw tool output never enters the log, so a secret should not be there to redact. The net runs anyway because the cost of being wrong about that is a credential in a collector, and a net that matches key names cannot recognise a secret that arrived under an innocent one"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R45",
       "requirement": "Machine-usable audit queries over provenance chains",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/audit.py",
         "tools/audit_log.py"
@@ -1230,15 +1276,15 @@
       "production_caller": "Snakefile",
       "persistent_state": "none",
       "authority_owner": "audit.AuditIndex.explain_task / explain_record / explain_decision",
-      "evidence": "task chains: claim -> evidence -> execution -> tool/version -> inputs -> capability -> verifier -> transition -> actor. Authority records: creation -> a connected walk of real edges -> separation of duties -> required evidence -> dependencies still canonical. Decisions: request -> effect -> rule -> the published document whose digest decided",
+      "evidence": "position ranges (between_seq), wall-clock ranges (between_wall), cross-task queries (tasks_using_capability, decisions_by_policy_version, tasks_touched_by, tool_uses), and a WINDOWED index that holds part of the log while still verifying all of it",
       "provenance": "the queries are named, committed and reviewable rather than reachable only by importing the index and writing Python at the time they are needed -- an ad-hoc query written mid-incident is unreviewed code making claims about a history",
-      "failure_semantics": "a provenance gap, an unjoinable policy decision or a gapped authority record fails the governed build",
+      "failure_semantics": "fail-closed: a backwards range or an empty window is refused rather than answered with 'nothing happened', which is the shape a reader cannot distinguish from a real absence",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
-      "security_boundary": "read-only over the verified log; the separation-of-duties gap check takes the executor from the task.execution record's ACTOR, never from a transition payload. It read the payload, so over a history in which one actor executed and verified its own work it reported a clean separation -- an audit that converts 'nobody checked' into 'checked and fine'. The command is read-only, and that is asserted rather than promised: the log is hashed before and after every command and the whole directory compared by mtime, because an auditor is run mid-incident by somebody who is not certain what they are doing and the cost of being wrong is the evidence",
+      "security_boundary": "a windowed index CARRIES its window and says so, because an audit that quietly answers about a slice is worse than one that refuses; and the whole chain is verified before any window is taken, so narrowing the index is never a way to audit a rewritten history cheaply",
       "tests": [
         "tests/test_agent_audit.py",
         "tests/test_agent_audit_cli.py",
@@ -1252,12 +1298,14 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
-      "residual_gaps": [
-        "no time-range queries; the index is position-ordered, and a caller wanting a wall-clock window must filter the timeline itself",
-        "no cross-task queries beyond trace_artifact: 'which tasks used this capability' or 'what did this policy version decide' must be assembled by the caller from decisions() and the timeline",
-        "the index is built in memory from the whole log; there is no incremental or windowed mode, so audit cost grows with history"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "wall-clock ranges find a REGION and are not a basis for reasoning about order: an event's wall time is what the writing machine's clock said, it is not ordered, and two events sharing a stamp have no defined sequence",
+          "reason": "architectural_by_design",
+          "detail": "seq is the log's own order and every reader agrees on it, which is why between_seq is the exact query and between_wall is offered for finding the region to ask about. An incident arrives as a time; the reasoning has to happen in positions"
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

@@ -101,6 +101,33 @@ class SymlinkRefused(SafeIOError):
     """A component of the path is a symbolic link."""
 
 
+class RootMissing(PathRefused, FileNotFoundError):
+    """The read root is not there at all.
+
+    Inherits BOTH, and the reason is a defect this class was written after.
+    Wrapping every OSError from opening the root turned "the store directory
+    does not exist yet" into a generic refusal, and the evidence store --
+    which told UNKNOWN evidence from CORRUPT evidence by catching
+    FileNotFoundError -- began reporting a store that had never been written
+    to as corrupt. Those are different facts and an operator acts on them
+    differently.
+
+    So a caller catching :class:`FileNotFoundError` still sees a missing
+    root, a caller catching :class:`SafeIOError` still sees a refusal, and
+    neither has to know about the other.
+    """
+
+
+class ReadFailed(SafeIOError):
+    """The kernel refused partway through a read that had already begun.
+
+    Distinct from :class:`PathRefused`, which is about reaching the file at
+    all. This is about the file being reachable and the read failing anyway
+    -- a failing disk, a device that errored, a descriptor limit hit
+    mid-stream -- and what matters about it is that no bytes come back.
+    """
+
+
 class NotARegularFile(SafeIOError):
     """The opened object is not a regular file."""
 
@@ -284,7 +311,13 @@ def _is_symlink_at(dir_fd: int, name: str) -> bool:
 def read_beneath(root_fd: int, rel: str, *,
                  max_bytes: int = DEFAULT_MAX_BYTES,
                  expect_digest: str | None = None,
-                 require_unique_link: bool = False) -> ReadResult:
+                 # DEFAULT-ON. This was opt-in per call, which meant a
+                 # caller that did not think to ask did not get it -- and
+                 # the caller most likely not to think of it is a new one.
+                 # A second name for an inode is a second way in whatever
+                 # the caller intended, so the safe answer is the default
+                 # and relaxing it is the deliberate act.
+                 require_unique_link: bool = True) -> ReadResult:
     """Read one regular file beneath ``root_fd``. The whole primitive.
 
     ``expect_digest`` binds the result to CONTENT rather than to a name. It is
@@ -321,7 +354,20 @@ def read_beneath(root_fd: int, rel: str, *,
         chunks: list = []
         total = 0
         while True:
-            chunk = os.read(fd, CHUNK_BYTES)
+            try:
+                chunk = os.read(fd, CHUNK_BYTES)
+            except OSError as exc:
+                # A read that failed PARTWAY must not return what it got.
+                # Bytes that look like the file and are not are the worst
+                # outcome available here, and an OSError escaping raw is how
+                # a caller ends up handling one: it catches SafeIOError, and
+                # gets something else in the middle of a governed read.
+                raise ReadFailed(
+                    f"{rel!r} failed partway through: "
+                    f"{exc.__class__.__name__}: {exc}. {total} byte(s) had "
+                    "been read and are discarded; a truncated read that "
+                    "returned successfully would be indistinguishable from "
+                    "the file") from exc
             if not chunk:
                 break
             total += len(chunk)
@@ -385,6 +431,23 @@ class ReadRoot:
                 raise PathRefused(
                     f"{self.path!r} is not a directory; a read root is a "
                     "subtree, not a file") from None
+            except FileNotFoundError as exc:
+                # ABSENT is its own fact. A caller that tells "nothing has
+                # been stored" from "what is stored is damaged" does it by
+                # catching this, and collapsing it into the general refusal
+                # below made an empty store look corrupt.
+                raise RootMissing(
+                    f"{self.path!r} does not exist, so there is no read root "
+                    "to confine anything to") from exc
+            except OSError as exc:
+                # EVERY other refusal too. This caught NotADirectoryError
+                # alone, so an unreadable root, or a root that vanished
+                # between two sessions, escaped as a raw OSError -- past
+                # every caller written to handle this module's errors, at the
+                # one moment a read root is being established.
+                raise PathRefused(
+                    f"{self.path!r} could not be opened as a read root: "
+                    f"{exc.__class__.__name__}: {exc}") from exc
         return self
 
     def close(self) -> None:
@@ -401,7 +464,7 @@ class ReadRoot:
 
     def read(self, rel: str, *, max_bytes: int | None = None,
              expect_digest: str | None = None,
-             require_unique_link: bool = False) -> ReadResult:
+             require_unique_link: bool = True) -> ReadResult:
         return read_beneath(self.fd, rel, expect_digest=expect_digest,
                             require_unique_link=require_unique_link,
                             max_bytes=self.max_bytes if max_bytes is None
