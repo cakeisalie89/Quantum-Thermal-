@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "31636fd2e1d5288d7349603f3db3826382b224f765bb43a78b30b33388df546b",
+      "sha256": "a3aa018c55fc47c6f263ec7a334caee05465a2ed5eda4a2e4c4bbe120cdd8572",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3557,8 +3557,8 @@
     },
     {
       "filename": "docs/SESSION_REPORT.md",
-      "size_bytes": 11374,
-      "sha256": "140eb20edd1fd24f04d4fdc08ab06b0a37d50cf8f831aa6ca58a849fae87e709",
+      "size_bytes": 12952,
+      "sha256": "3b3cb76ca643fa441262d08554578f22abcc1f5e06633512de4b28e4e61b0c7a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7601,
-      "sha256": "59b425e05bf442baa125516be9c20525400159998fd7c8b30c581f6e928dd8de",
+      "sha256": "b56c88f623225cafe95c628ae6783d61db983c73af50262412a169b17ff186aa",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

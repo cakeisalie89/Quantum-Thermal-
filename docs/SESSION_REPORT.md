@@ -51,6 +51,33 @@ that found it, because the techniques are not interchangeable.
 | **The mutation harness destroyed uncommitted work** — `git checkout` cannot tell suite damage from an edit made while it ran. | It happened, twice |
 | **Four mutations were silently broken** — two anchors matching nothing, one that no longer parsed, one a no-op — each counted as coverage while testing nothing. | A static sweep of every committed spec |
 
+### A repository-state incident, recorded because it is not engineering
+
+Commit `eb2380c1` ("ci: temporary source snapshot for completion run") added
+`.github/workflows/source-snapshot.yml` on top of the verified `951f4fa1`. It
+was **not** produced by Claude Code and is **not** part of this architecture.
+A different assistant, working in an environment that could not clone the
+repository, added a workflow that tarred the tree and uploaded it as an
+artifact so its own session could read the source.
+
+It is recorded here rather than quietly reverted because a reader auditing
+the branch will meet it, and because two things it did NOT do are worth
+stating: it is not a required CI job, and it is not evidence for any row.
+Nothing referenced it — not the completion matrix, not the workflow contract,
+not a production caller, not a mutation spec. It was removed by a forward
+commit rather than by resetting the branch, so the history stays honest about
+having contained it.
+
+One thing it did do: while it was tracked, `test_repository_manifest_is_in_sync`
+failed, because a tracked file the manifest does not cover is exactly what
+that guard exists to catch. The guard worked on a change nobody in this
+project made, which is the only kind of test of it that counts.
+
+There were two earlier commits of the same shape, `de4aae4d` and `637df55b`,
+which added and then removed an earlier snapshot workflow. Their content
+cancelled out — the trees at `cc898b47` and `637df55b` are byte-identical —
+and later valid work was built on top of them, so they remain in ancestry.
+
 The pattern worth keeping: mutation testing asks whether a check that *exists*
 is load-bearing, and cannot ask whether one is *missing*. Property testing and
 a hostile campaign ask the second question. The differential pair asks a third:
