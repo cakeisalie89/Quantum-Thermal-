@@ -1,0 +1,860 @@
+# Agent Authority Substrate — how a claim becomes canonical
+
+MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+
+`qta_agent/` is the authority for how claims *about* this project become
+canonical. It is infrastructure, not science. Read §6 before reading anything
+else into it.
+
+The machine-readable form of this document is
+`authorities.json → authorities.agent_authority_substrate`; the code is the
+authority and this document mirrors it.
+
+## 1. Why this exists
+
+The scientific tree answers *what did the model compute?* Nothing in it
+answers the questions that surround a long-running process and that such a
+process cannot be trusted to answer about itself:
+
+- what is canonical right now, and who made it so?
+- what evidence supports that, and has the evidence changed since?
+- if a parameter moved, what silently stopped being true?
+- if the process died mid-promotion, what is the state?
+- can any of it be rebuilt without trusting the running agent?
+
+Each of those is a question about *authority*, and each has a failure mode
+where the system keeps working and quietly stops being correct. That is the
+class of failure this layer exists to make loud.
+
+## 2. Layering
+
+Each layer depends only on those above it, so the dependency graph is a line
+rather than a web:
+
+| Module | Answers |
+|---|---|
+| `canonical.py` | one byte representation, therefore one digest |
+| `safeio.py` | confined reads: symlink-refusing, descriptor-relative, bound to an inode rather than a name |
+| `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
+| `actions.py` | every durable action name, and which reducer owns it |
+| `events.py` | append-only hash-chained log; the authority history |
+| `authority.py` | the transition table: what may become canonical |
+| `evidence.py` | content-addressed store: what a cited digest resolves to |
+| `capability.py` | authority as a bounded object, not an ambient flag |
+| `idempotency.py` | durable request identity, scoped to (owner, tool, key) so a guessed string reaches nothing |
+| `readpath.py` | who may read what: default-deny, capability-checked, every attempt recorded |
+| `tools.py` | tool contracts and a default-deny registry |
+| `execution.py` | kernel-bounded execution; a timeout is not a success |
+| `checkpoint.py` | a cached verification result, never a second truth |
+| `policy.py` | versioned rule documents, deny-overrides, dated decisions |
+| `secrets.py` | references that travel, values that do not, redaction at the surface |
+| `netauth.py` | egress as a bounded grant; default deny, label-wise hosts |
+| `store.py` | live projection, transactional through the log |
+| `invalidation.py` | transitive consequence of a change |
+| `reconstruct.py` | a *second* implementation, for differential verification |
+| `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that refuses the reducers it checks |
+| `tasks.py` | durable work: state that survives the process that started it |
+| `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
+| `memory.py` | what the agent remembers, kept structurally apart from evidence |
+| `context.py` | what the agent was shown, recorded apart from what is true |
+| `agents.py` | several agents, role separation, and a human that cannot be simulated |
+| `audit.py` | turning the log into answers, and finding provenance holes |
+| `tools/audit_log.py` | those answers as a COMMAND: read-only, fail-closed, and run by CI over the governed run's own log |
+| `_stage10_tool.py` | the subprocess entry point a governed run executes |
+| `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
+
+**The log is the truth and everything else is derived from it.** A lost
+projection costs time, never authority.
+
+## 3. The invariants
+
+`authority.py` is specified as an explicit transition table rather than
+scattered conditionals, so the reachable states are enumerable and the
+forbidden ones are provably unreachable rather than merely unwritten.
+
+| | Invariant | Why |
+|---|---|---|
+| **I1** | `PROMOTED` is reachable only from `VERIFIED` | promotion is the moment a claim becomes canonical; allowing it from `PROPOSED` makes verification optional in practice |
+| **I2** | `REVOKED` and `REJECTED` are terminal | withdrawn authority that can be re-promoted is not withdrawn; recovery requires a NEW record, which leaves a trail |
+| **I3** | `STALE` cannot return to `PROMOTED` directly | a dependency changed, so the prior verification no longer describes the current inputs; the path back runs through `VERIFIED` |
+| **I4** | the proposer may not verify their own record | an agent that can propose and verify has no verification, only a more expensive way to assert |
+| **I5** | policy cannot self-authorize | a transition is evaluated against the policy recorded when it was requested; changing policy does not retroactively bless past transitions |
+| **I6** | every transition requires the evidence its edge declares, **and that evidence must resolve** | see §4 |
+
+## 4. I6 was half a guarantee until the evidence store existed
+
+`check()` originally enforced I6 by requiring each evidence value to be a
+SHA-256 digest. That check is *syntactic*. An agent could promote a record by
+citing `"a" * 64`: a perfectly well-formed digest of nothing at all.
+
+`evidence.py` closes it. A digest is a *name*; the store is what turns a name
+into bytes, and it refuses unless the bytes hash back to the name. With a
+resolver attached, a fabricated citation is rejected at the gate:
+
+```python
+check(req, resolve=store.contains)                  # transition gate
+AuthorityStore(log, evidence=store)                 # also at record creation
+```
+
+Creation-time enforcement matters independently: the log is append-only and
+hash-chained, so a fabricated citation caught only at promotion would already
+be a permanent, unremovable fact.
+
+The resolver is *optional* rather than mandatory, for two reasons that are
+not convenience:
+
+1. the state machine must stay testable without a filesystem;
+2. a replay verifying historical transitions may legitimately run against a
+   store that no longer holds long-expired evidence, and forcing resolution
+   there would turn an archival policy into a retroactive authority failure.
+
+**The store does not trust its own layout.** A blob's path is derived from its
+digest, but the filesystem is not a party to the integrity claim — files can
+be renamed, replaced, or symlinked by anything with write access. Every read
+re-hashes and compares. `contains()` verifies by default; the cheap
+present-but-unchecked answer is available only as an explicit
+`verify=False`, because an unverified containment check answers "is there a
+file at that path", which is the question a tamperer wants asked.
+
+## 5. Verification discipline
+
+Coverage says a line ran. It does not say anything would have noticed if the
+line were deleted. Every enforcement point in this layer is therefore deleted
+in turn, and the suite must fail:
+
+| Matrix | Spec | Mutations | Last measured |
+|---|---|---:|---|
+| Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused | `tools/mutations/agent_actions.json` | 6 | re-run here |
+| Several agents: identity that cannot be borrowed, a human that cannot be simulated | `tools/mutations/agent_agents.json` | 35 | re-run here |
+| Audit queries and provenance-gap detection | `tools/mutations/agent_audit.json` | 23 | re-run here |
+| Checkpointing, incremental verification, and the projection snapshot | `tools/mutations/agent_checkpoint.json` | 23 | re-run here |
+| Evidence store, and the authority gate wired to it | `tools/mutations/agent_evidence.json` | 21 | re-run here |
+| Capabilities, tool contracts, and bounded execution | `tools/mutations/agent_execution.json` | 45 | re-run here |
+| Memory and context: influence without authority, and a view that is not state | `tools/mutations/agent_memory_context.json` | 28 | re-run here |
+| Network authority: default deny, label-wise hosts, pinned addresses | `tools/mutations/agent_netauth.json` | 39 | re-run here |
+| Governed reads: confinement at the open, and who may perform one | `tools/mutations/agent_readpath.json` | 21 | re-run here |
+| Versioned policy: rules that decide, and decisions that survive | `tools/mutations/agent_policy.json` | 19 | re-run here |
+| Durable scheduling: readiness, ownership, retry, cancellation | `tools/mutations/agent_scheduler.json` | 49 | re-run here |
+| Secrets: references that travel, values that do not | `tools/mutations/agent_secrets.json` | 27 | re-run here |
+| Agent substrate: state machine, log, projection, invalidation, reconstruction | `tools/mutations/agent_substrate.json` | 35 | re-run here |
+| Durable task lifecycle and the governed production path | `tools/mutations/agent_tasks.json` | 27 | re-run here |
+| The instrument itself: every check the mutation harness makes | `tools/mutations/mutation_harness.json` | 16 | CI |
+| Stage-10 write authority and retrieval trust (recovered defects) | `tools/mutations/stage10_authority.json` | 15 | CI |
+
+**429 mutations across 16 matrices.** Every one is run by `.github/workflows/agent-substrate.yml` on each push, and a
+single survivor fails the workflow. "Last measured" says where the most recent run was: `re-run here` means this working tree, `CI` means the hosted workflow. A number in this table is a count of MUTATIONS DECLARED, which is a fact about the specification; whether they were killed is a fact about a run, and the workflow is the place that keeps asserting it.
+
+Re-run any of them with:
+
+```
+python3 tools/mutation_matrix.py tools/mutations/agent_substrate.json
+```
+
+The harness exits non-zero on a survivor, on an anchor that no longer matches
+its source (a silently skipped mutation is a mutation that tested nothing),
+and on a source it failed to restore byte-identically. It refuses to start
+against a red baseline: all N mutations would "fail the suite" for the
+pre-existing reason and the report would read as a perfect score. It also
+refuses to start when a previous run died mid-mutation, because a leftover
+mutation is a DISABLED SAFETY GUARD that no test is currently reporting; and
+when it reverts a tracked file a mutated build damaged, it keeps a copy of
+what it discarded under `.mutation-quarantine/`, because `git checkout` cannot
+tell damage from an uncommitted edit and it destroyed real work twice before
+that copy existed.
+
+A surviving mutation means a check is unprotected — not that it is redundant.
+
+### One anti-pattern, found in four reducers
+
+The hostile campaign found that the task replay re-authorized a forged record
+against the starting state the RECORD declared. The fix was local; the lesson
+was not. An event may state what it claims occurred — the replay must decide
+what state actually existed immediately before it, and never let the event
+choose the authority context it is judged against.
+
+Auditing every reducer for the same shape found three more, two of them worse
+than the original:
+
+- **The authority store checked nothing at all.** Not the edge, not the role,
+  not separation of duties, not even the `src` it wrote into its own payload.
+  One appended line moved a record from `UNDER_REVIEW` straight to `PROMOTED`
+  — the state carrying canonical authority, reachable only from `VERIFIED` by
+  I1 — and `store.canonical()` reported it. `reconstruct.py` refused the same
+  log correctly, and that is exactly what hid it: the test asserting "an
+  unauthorized transition in the log is not applied" asked the *independent*
+  reader, while the live projection every caller consults applied it. A second
+  reader is a detector, not a substitute for the first reader being right.
+
+- **An agent could answer its own escalation.** "No arrangement of roles
+  substitutes for a person" is the strongest claim the multi-agent layer
+  makes, and every check enforcing it lived on the write path. The reducer
+  assigned the record's own fields, so one appended line recorded a decision
+  no human made, by the party that raised the question.
+
+- **A retracted memory note could be un-retracted.** A statement its author
+  had withdrawn, presented as current again, in the store that feeds context.
+
+`scheduler.apply` and `reconstruct` already did it correctly, which is where
+the corrected shape came from rather than being invented.
+
+**A note on what defence-in-depth costs.** Adding the replay checks made seven
+write-path mutations survive — the two layers now catch each other. They are
+not redundant: the write path refuses *before* the append, so a forged
+decision never becomes a permanent hash-chained fact, while the replay path
+refuses records that were never offered to the write path at all. Each now has
+a test that provokes it with the other unable to fire, and two of those tests
+were themselves wrong on the first attempt: they used one actor that was both
+an agent and the asker, so the two rules masked each other again.
+
+### The same question, asked about identity instead of state
+
+The sweep above asked, of every reducer: *what decides the state this event is
+judged against?* The follow-up asked it of the other thing a payload names —
+**who**. Separation of duties, lease ownership, and every "was this permitted"
+answer rest on identity fields, and a field the acting party writes is not an
+answer to a question about the acting party.
+
+`scheduler.apply` and `reconstruct` are named above as having already got the
+*state* invariant right. They had, and both were wrong about identity. That is
+the point of asking the second question separately.
+
+- **A task that never ran could name its own executor.** The earlier fix
+  compared a completion's `executed_by` claim against the execution record —
+  *when there was one*. With no `task.execution` event at all there was
+  nothing to disagree with, and the `or claimed_by` fallback supplied the
+  claim. So the cheapest forgery was not to fake an execution but to omit
+  one: a single actor created, leased, "executed", completed and **VERIFIED**
+  its own task, naming a ghost as executor. The production projection, the
+  independent reconstruction and the audit index all agreed with it, and none
+  of them reported anything. Three readers, one hole, because all three read
+  the same field.
+
+- **The audit asked the forger whether the forgery happened.** `_gaps` checks
+  that executor and verifier differ. It exists *only* for a log that did not
+  go through the gate — the state machine forbids it otherwise — and it read
+  the executor from `detail["executed_by"]`. Over a history in which one actor
+  did both jobs, it reported a clean separation of duties. That is worse than
+  no audit: it converts "nobody checked" into "checked and fine".
+
+- **The scheduler's replay never looked at who was reporting.** `report()`
+  refuses an outcome from anyone but the lease holder, and refuses a late one
+  from a holder whose lease has lapsed. Both refusals lived on the write path
+  alone, so they were advice: the rejected worker appends the identical record
+  to the log, and the next process to load the queue folds it in and calls the
+  job SUCCEEDED. The replay now re-derives ownership, lease liveness, the
+  attempt count, and whether a requeue's "the lease lapsed" is *true* — the
+  last one because the requeue edge is the one edge out of `DISPATCHED` that
+  somebody else is meant to take, so it cannot be guarded by actor at all.
+
+- **A recorded policy decision was folded in unread.** The record names its own
+  verdict, its own rule and its own policy version — and carries the whole
+  request, so the verdict is recomputable. It was not recomputed. A forged
+  `policy.decision` claiming `ALLOW` under a rule that does not exist loaded
+  cleanly, and the audit index repeated it verbatim as the reason something
+  was permitted. It is now re-evaluated against the document in force *at that
+  position*, which is the version the decision was made under, not the one
+  written since.
+
+- **Every grant had a window with one end.** Capabilities, egress grants and
+  secret grants all checked expiry and none checked issuance. A grant recorded
+  at seq 90 answered "was this permitted at seq 20?" with yes — and that is
+  precisely the question an incident review asks. A grant written after the
+  fact retroactively covered it. Worse, `issued_seq` was the record's to name:
+  content-binding by digest catches tampering, not a self-consistent lie. The
+  ledgers now **stamp** the start from the log and refuse a record that names
+  its own, and the check is closed at both ends.
+
+Two further findings came out of the same pass rather than from the identity
+question directly: a second egress grant under a live `grant_id` used to
+*overwrite* the first on replay (`issue()` refuses a duplicate id, so that path
+was reachable only by a record written around it — which is the record it
+mattered for), and `capability_id`/`task_id`/`evidence_digest` were checked
+carefully everywhere and needed nothing.
+
+**What this does not establish.** The log's `actor` field is an assertion by
+whoever wrote the record. Checking it raises the bar from "any string in a
+payload" to "the right name, at the right log position, inside a live lease" —
+it is not authentication, and the log file remains the trust boundary it always
+was. Nothing here constrains *who may issue* a grant either: `issuer_of()`
+records the actor a grant is attributable to and is deliberately not consulted
+by `check`. There is no issuer authority in this build, and saying so is more
+useful than a check that reads like one.
+
+### Reads had the write side's old defect, and kept it longer
+
+The write side learned this the expensive way: a guard that validated an
+output directory and then let the caller call `write_bytes` on whatever it
+liked was advisory, and a recovered adversarial test proved it by overwriting
+`README.md` and writing `{"status": "PASS"}` into the canonical gate table
+during an ordinary test run. The fix was to move the allowlist to the point of
+the write.
+
+Reads had exactly the same shape and had not been fixed. Every governed read
+was `validate a path string` … later … `open(that string)`, and the gap
+between those two lines is where the file becomes a symlink to somewhere
+else, or a FIFO that never returns, or a different inode entirely. The
+evidence store and the governed *verification* step — the one place whose
+whole job is to be harder to fool than the code that produced the result —
+were both built that way.
+
+`safeio.py` is the primitive. The authorized root is opened once as a
+directory descriptor; every component is opened descriptor-relative with
+`O_NOFOLLOW`, so a symlink anywhere on the path is refused rather than
+followed; `O_NONBLOCK` on the final open means a substituted FIFO is refused
+instead of turning a bounded read into an indefinite hang; the *opened object*
+is `fstat`-ed and must be a regular file within bounds; and an expected digest
+binds the result to content rather than to a name. Once the descriptor exists
+the kernel has bound the operation to an inode, so renaming or replacing the
+name afterwards cannot redirect the read.
+
+`readpath.py` is the authority above it: default-deny, capability-checked,
+with every attempt recorded — permitted or refused — naming the actor, task,
+capability, the resource requested, the `(device, inode)` actually opened and
+the digest of the bytes. Never the bytes: a read is exactly how a secret would
+reach an audit trail.
+
+The split matters. The primitive has to be usable by the evidence store and
+the event log, which read their own storage and have no subject to authorize;
+the capability check belongs above it. That is the same division the write
+side already makes.
+
+**What it does not do** is contain. A process that calls `open()` itself is
+unaffected. `openat2(RESOLVE_BENEATH)` would make confinement a single atomic
+kernel decision rather than a per-component walk, and this Python exposes
+neither it nor `os.RESOLVE_BENEATH` — an unavailable platform primitive, and
+the module says so rather than implying a guarantee it cannot make.
+
+### The instrument's own blind spots, found twice
+
+Two failure modes of the harness itself came out of a red hosted run, and
+neither was a wrong answer -- both were the harness reporting a kill that had
+not happened:
+
+- **A drifted anchor tests nothing.** An anchor whose text no longer appears
+  in the source mutates nothing at all. The harness reports `ANCHOR DRIFT`
+  and exits non-zero, which is right and expensive: it is found after the
+  matrix has spent its minutes, and only for the spec that was run. Four
+  mutations were silently broken across the committed specs at once -- two
+  matching nothing, one that no longer parsed, one a no-op. Every committed
+  spec is now checked STATICALLY in `tests/test_mutation_harness.py`: each
+  anchor must match exactly once, each replacement must change something, and
+  each mutated source must still parse. It takes about a second over all of
+  them.
+
+- **A mutation "killed by timeout" is a badly written test.** Two mutations
+  -- an unbounded lock wait and a leaked lock descriptor -- were killed only
+  by the harness's 300-second backstop. That counts as a kill while saying
+  nothing about which check was lost, and it cost 600 seconds of wall clock
+  on every hosted run. The cause was on the test side: `pool.map` has no
+  timeout, and nothing bounded a single blocked append. `tests/hangguard.py`
+  now provides one deadline for the whole suite (a second copy is where two
+  deadlines drift), and the two mutations fail in 6 and 31 seconds with a
+  named error instead of 300 with none.
+
+### What a hostile campaign found that isolated tests could not
+
+Every subsystem here already had adversarial tests, and they all passed. What
+they could not answer is the question an operator actually has: given a
+participant that is TRYING, in one world, across a whole run, does anything
+accumulate? `tests/test_agent_hostile_campaign.py` drives one hostile agent
+through sixteen escalating attempts against a single shared log, then asks
+what the whole history shows.
+
+It found the most serious defect in this package to date.
+
+**The replay re-authorized against a starting state the WRITER supplied.**
+`projection()` says, in its own comment, that it re-authorizes so "a forged
+log entry cannot become state simply by being present". It called `check()`
+with `src` read out of the record. That authorizes nothing: every pair in the
+transition table is available to a forger who names a convenient starting
+state. One appended record claiming `EXECUTING -> TIMED_OUT` moved a task out
+of `VERIFIED` — a SEALED state, the thing the machine exists to make
+unreachable.
+
+The existing forgery test missed it by choosing `EXECUTING -> VERIFIED`, which
+is not an edge at all, so the record was refused for a reason that had nothing
+to do with the property being claimed. That is the "passes for the wrong
+reason" shape, sitting in the test guarding the property that matters most.
+
+`scheduler.apply` and `reconstruct.reconstruct` both already compare the
+claimed `src` against the state THEY replayed. The task projection was the odd
+one out, and it is the one on the production path. It now refuses a record
+whose starting state the replay disagrees with, naming the tampering rather
+than silently correcting it.
+
+**And the auditor disagreed with the enforcement path.** With the forged
+record present, `explain_task` reported the task as `TIMED_OUT` and raised no
+complaint, because it took the last `dst` it saw — while `projection()` was
+refusing the same records. An auditor that answers with the forged outcome
+tells a reader the attack worked. `explain_task` now makes the same connected-
+walk check `explain_record` already made.
+
+### The separation-of-duties bypass
+
+The second reader found this within minutes of existing, and nothing else
+had.
+
+Separation of duties is the central claim of this package — "an agent that
+verifies its own work has not verified anything" — and it is checked against
+`task.executed_by`. The projection took that value from a transition PAYLOAD:
+a field written by the same actor whose independence was being checked.
+
+So the worker holding the lease could complete its own task while naming a
+fictitious executor, and then verify it as VERIFIER. It worked. One string in
+a payload defeated the property the whole layer exists to hold.
+
+Nothing found it by reading the code, and no isolated test could: every
+individual step was legitimate. The independent replay reads the executor
+from the EXECUTION record, the projection read it from the payload, and
+comparing the two disagreed at exactly the prefix between them — with the
+bypass underneath.
+
+The execution record is the durable statement of who ran the tool. The
+projection now learns the executor from it, and refuses a transition whose
+claim disagrees rather than preferring the claim.
+
+### Three mutations were removed as EQUIVALENT, not because they survived
+
+After that fix, two mutations of the resulting expressions survived. They are
+unreachable-difference changes: the guards immediately above refuse any
+transition whose claimed src or claimed executor disagrees with the replay,
+so by the time either expression evaluates, its operands are equal. An
+equivalent mutation surviving is not evidence of an unprotected check, and
+leaving one in the matrix would be a permanent false finding.
+
+They were removed, and the equivalence is asserted by a test that enumerates
+every combination rather than by a comment nobody re-derives. The checks those
+expressions actually rest on are separate mutations, and both are killed.
+
+A third joined them later, for a reason worth separating from the first two.
+`_recheck_decision` asks `in_force_at(policy_id, ev.seq)` for the document
+that decided; swapping it for `in_force(policy_id)` is a no-op, because
+`apply` is only ever reached in log order — `load` replays oldest-first and
+both write paths apply the event they just appended — so only versions
+published at or before `ev.seq` have been folded when the re-check runs.
+
+That is a fact about the CALL SITES rather than about the expression, so the
+call sites are what the test asserts: three of them, in `load`, `publish` and
+`decide_and_record`. Add a caller that folds out of order and the test fails,
+and the mutation becomes meaningful again and belongs back in the spec. The
+non-retroactivity property itself is P4's, which mutates `in_force_at`
+internally and is killed.
+
+A fourth was removed for a different reason again. `V11` deletes recovery's
+branch for an in-flight task carrying **no lease record at all**. That branch
+is defensive, and the state it defends against cannot occur: the edge into
+`EXECUTING` carries `requires_lease`, and replay re-authorizes every
+transition, so no projection this code produces can hold one. The mutation
+could not differ, so it was removed rather than left as a permanent false
+finding — and what makes the removal re-checkable is a test that asserts the
+edge refuses a lease-less task. Weaken that edge and the test fails, and the
+mutation becomes meaningful again and belongs back in the spec.
+
+### Survived is not one finding
+
+Re-running the extended matrices left four mutations alive, and they had four
+different causes. Treating "survived" as a single verdict is how a matrix
+becomes a score to improve rather than a question to answer:
+
+| | Cause | Answer |
+|---|---|---|
+| `S27` | **Reachable, untested.** The secret grant's stamp runs only when the store has a log, and every test used a log-less one. | A log-backed test. |
+| `G18` | **Reachable, untested.** Both projections pass `executed_by=task.executed_by`, so the guard in `check()` is unreachable through either — but `check` is a pure public function and a third caller may pass anything. | A direct test of the gate's own contract. |
+| `A22` | **Undetectable at its anchor.** The `task.execution` step's `detail` is built from a fixed key list with no `executed_by`, so preferring it over the actor could not differ. | Re-anchored where the same defect IS observable — and the key list, the only reason the original line was safe, is now asserted. |
+| `P18` | **Equivalent**, as above. | Removed, with the reasoning pinned by a test. |
+
+Two more survived and were neither: `N6` and `N7`, the write-path lease checks
+the new replay checks now also cover. Those are the defence-in-depth cost
+described above, and the isolating tests assert on the LOG rather than the
+exception — with the write-path check gone, `report()` still raises, but only
+after the record is a permanent hash-chained fact and the queue can never be
+loaded again.
+
+### A second reader, because one reader with a hole says nothing
+
+`reconstruct.py` was already a second implementation of the authority-record
+replay, written in plain dictionaries and sharing no reducer with
+`AuthorityStore`. It now does the same for the TASK lifecycle, and that
+addition is not symmetry: the task projection is the one on the production
+path, and it is the one that turned out to re-authorize forged records against
+a starting state the record itself declared. Every one of its own tests passed
+over that hole. A second reader is the defence against the class — not because
+it is more careful, but because two readers that disagree say so.
+
+Writing it found a defect in the new reader immediately: it dropped the lease
+at the step after `LEASED`, so it refused every completion and diverged from
+the live projection on every healthy run. The comparison caught that in its
+first execution, which is the point.
+
+The two differ in what they do about a refusal, deliberately.
+`governed_stage10.projection` is ENFORCEMENT and raises, because a reader that
+cannot tell which records went through the gate must not hand back a state.
+`reconstruct_tasks` is DIAGNOSIS and records the problem and keeps going, so
+one bad record does not hide the twenty after it. The governed Snakemake rule
+asserts both, so a divergence fails the build.
+
+### What property testing found that mutation testing could not
+
+Mutation testing asks whether a check that EXISTS is load-bearing. It cannot
+ask whether a check is MISSING, because there is nothing to delete. The
+Hypothesis state machines in `tests/test_agent_substrate_properties.py` and
+`tests/test_agent_machine_properties.py` drive the real objects through
+generated histories and assert the invariants after every step, which is the
+question mutation testing structurally cannot pose.
+
+Two scheduler defects came out of the second one, both in three steps, both
+asymmetries rather than crashes:
+
+- **A job could be enqueued onto a dependency that can never succeed.**
+  `enqueue` already refused work that would wait forever twice over — for
+  capacity it could never have, and for a dependency nothing had recorded.
+  A parent already `CANCELLED` is the same condition with the same
+  consequence, and was accepted. The set of states from which `SUCCEEDED` is
+  still reachable is now derived from the edge table by backward search, for
+  the same reason `SEALED` is: a list written beside the table is a second
+  place to forget.
+
+- **A terminal failure did not cascade.** `cancel` cascades and says why —
+  "the alternative is a dependent that waits on work nobody will ever do" —
+  and `invalidate` cascades for the same reason. A permanently `FAILED`
+  parent left its dependents `WAITING` until somebody happened to run
+  `reconcile`. That is not a timing detail: a job waiting on a dead parent is
+  indistinguishable from one waiting on a slow parent, so nothing alerts and
+  nobody looks, and a process that dies before the next tick leaves a queue
+  on disk describing work as pending when it is not.
+
+Neither was reachable from any example a person had thought to write, and both
+now have example-based regression tests and mutations of their own.
+
+Five mutations survived the first run of the first matrix. Every one survived
+for the same reason: the tests provoked corruptions that tripped *two* checks
+at once, so deleting either left the other to fail the test. That is the
+"passes for the wrong reason" failure — the suite proved that *something*
+rejected the input, not that the *specific rule* did. The isolating tests at
+the end of `tests/test_agent_substrate.py` each disable exactly one
+invariant's worth of input, leaving every adjacent check satisfied.
+
+Two of those five (the terminal-state guard, and the evidence-presence check)
+turned out to be genuinely redundant with an adjacent check *under the current
+edge table*, and cannot be killed by outcome alone. They are killed by
+asserting **which rule** rejected the request, plus a structural test that
+injects a hypothetical edge out of a terminal state and shows the guard still
+holds. That is the property the guard actually buys: I2 stays true if the
+table grows.
+
+Three mutations survived the first run of the evidence matrix, and none of
+those was redundant:
+
+- re-putting bytes that are already stored **must not silently overwrite what
+  is on disk**. With an intact store both branches write identical bytes, so
+  the idempotency test could not see the difference. With a *tampered* store
+  they differ completely: the guard reports the corruption, while overwriting
+  erases the only evidence that anything was tampered with — during a call
+  the caller believes is a no-op. Silent repair is worse than the corruption,
+  because the corruption is detectable and a self-healing store is not.
+- `list_digests` **must not yield a name that is not a digest**. A stray
+  filename yielded from there would be passed straight back into `get`, where
+  it raises — but the caller would already have reported it as evidence held.
+- the pre-read size check and the streaming one both raise the same
+  exception, so the outcome could not tell them apart. Their *messages*
+  differ, and the streaming one says the file "grew while being read", which
+  for a file that was always too large is false and sends an operator after a
+  race that never happened.
+
+Four survived the first run of the checkpoint matrix, all masked the same way
+— an adjacent check fired on the same fixture. The isolating fixtures each
+leave every other precondition satisfied: a rolled-back head witness on a log
+whose bytes are all still present, an anchor naming a real record's real hash
+at the real offsets and lying only about its position, and an anchor pointing
+at a record whose *stored* hash it faithfully repeats while the record's
+contents no longer produce it.
+
+One further defect surfaced from the matrix rather than from a test: removing
+the store's file-type check made the suite **hang** on a FIFO instead of
+failing, so the mutation was "killed" by a forty-minute harness timeout that
+said nothing about which check was lost. The FIFO tests now bound themselves
+with `SIGALRM` and fail in five seconds, and the harness reports a
+timeout-kill as a defect in the test rather than as a clean result.
+
+The harness also earns its keep on refactors. Extracting the shared
+per-record checks out of `verify()` moved five mutation anchors, and the run
+reported **ANCHOR DRIFT — tested nothing** for each rather than quietly
+scoring them. A mutation whose anchor no longer matches is not a passing
+mutation; it is an absent one.
+
+Beyond the matrices, `reconstruct.py` is a deliberately separate
+implementation — different data structures, and it does not import
+`AuthorityStore` — replayed and compared against the live projection, and
+`tests/test_agent_substrate_properties.py` drives the whole machine under
+Hypothesis with the invariants asserted on every reachable state.
+
+## 6. What this layer does **not** mean
+
+`automatic_gate_effect = NONE`.
+
+No module in `qta_agent/` is imported by the solvers, by `qta_full_sim.py`, or
+by `metrics.py`. It cannot read or write any of the 83 gates. **PASS = 0 is
+unaffected by anything it does.**
+
+A record reaching `PROMOTED` here means a claim was proposed, independently
+verified, and promoted under a recorded policy. It does **not** mean:
+
+- a gate passed;
+- anything was measured;
+- hardware exists, or was validated;
+- an external party certified anything.
+
+The substrate governs the *provenance of assertions*. It has no opinion about
+whether an assertion is physically true, and it never acquires one.
+
+## 6a. Checkpoints cache a verification result, never trust
+
+`EventLog.append` verified the whole chain before every append and
+`AuthorityStore.load` verified it again, so N appends cost O(N²) hashing.
+That is not an abstract concern: verification that grows without bound is
+verification that someone eventually switches off, and the switch-off is
+recorded nowhere. Measured at 400 records, the incremental path is 6.6× faster,
+and the gap widens quadratically.
+
+A checkpoint says: *at seq K the head hash was H, and a full verification
+passed when this was written.* Using it means checking only K+1..N and taking
+0..K on faith. Three rules keep that from becoming a second source of truth:
+
+1. **Every use is recorded as weaker.** `EventLog.verify_from` returns a
+   report with `prefix_verified=False` and `unverified_through=K`;
+   `AuthorityStore.loaded_prefix_verified` says the same about a projection.
+   Nothing in this layer can produce a report claiming a full verification it
+   did not perform.
+2. **The anchor is re-checked, never trusted.** The record at the anchor's
+   byte offset must parse, sit at the claimed seq, carry the claimed hash, and
+   re-hash to it. Byte offsets are a seek shortcut, not a trust input.
+3. **Nothing here authenticates a checkpoint.** Its self-hash catches a
+   truncated write or a bad disk. It catches nothing an adversary does —
+   anyone who can rewrite the file can recompute the hash. A test asserts this
+   *limit* rather than dressing the self-hash up as authentication. Against a
+   hostile filesystem, use `EventLog.verify`, which needs no checkpoint and
+   trusts nothing.
+
+Tampering inside the checkpointed prefix is therefore invisible to the
+incremental check — by construction — and found by the full one. Both halves
+are asserted in one test so the limit cannot be read as a bug in one or a
+guarantee in the other.
+
+The projection snapshot is stored as **evidence**: canonical bytes in the
+content-addressed store, pinned by digest from the checkpoint. The two cannot
+drift, because a snapshot whose bytes changed no longer resolves to the digest
+the checkpoint names.
+
+## 6b. Authority is an object, and execution is bounded by the kernel
+
+A boolean `may_write` answers the wrong question. The ones that matter are
+*who*, *for which task*, *with which tool*, *over which paths*, and *until
+when* — and a flag answers none of them. Worse, a flag is ambient: once a
+component holds it, everything that component does inherits it. That is the
+confused deputy in its purest form.
+
+`capability.py` makes a grant a specific bounded object, checked against the
+*request* rather than against the caller's identity. A grant for task T and
+tool X gives nothing for task U or tool Y, so a component tricked into acting
+on someone else's behalf fails closed instead of succeeding.
+
+Three things it deliberately is **not**:
+
+### A lease expires in sequence numbers, and a dead process stops the clock
+
+`hostid.py` exists because of a deadlock that only appears after a crash.
+
+Lease expiry is measured in **sequence numbers**, which is what makes the
+queue reproducible: replay the log and every deadline falls in the same
+place. The consequence is easy to miss. The thing that advances the sequence
+is the log; the thing that writes the log is the supervisor; and the
+supervisor is the thing that died. So a lease held by a dead process never
+lapses, `expired_leases()` returns nothing, and the work is stranded
+forever in `EXECUTING`.
+
+Wall-clock expiry would fix that and break replay. The alternative is
+**evidence**: ask the operating system whether the process holding the lease
+still exists. A bare pid cannot answer, because pids are reused and a reused
+pid is a different program wearing a dead one's name. Three facts together
+can: the **boot id** (a reboot invalidates every pid at once), the **pid**,
+and the process's **start time in clock ticks** (reuse gives a different
+one).
+
+`liveness()` returns `ALIVE`, `GONE` or `UNKNOWN`, and the third is
+load-bearing. A record from another host, or a kernel that does not publish
+`/proc`, is not evidence that the holder is dead. Treating "I cannot tell"
+as "it is gone" is how two workers end up running one task — the exact
+failure a lease exists to prevent — so only `GONE` authorises a reclaim.
+
+`GovernedStage10.recover()` is the caller. It runs at the start of every
+governed run, appends nothing when nothing is stranded, and moves a
+recovered task to `QUEUED` rather than forward. It does **not** complete a
+task from its own execution record, even when that record says the process
+exited 0: the `COMPLETED` edge requires a live lease and the `WORKER` role,
+and a recovery process finishing another party's work under a lease nobody
+holds is the ownership bypass the lease exists to prevent. The execution
+record survives as evidence of the attempt; what it does not do is authorise
+a transition on behalf of an actor that is no longer there.
+
+A task sitting in `COMPLETED` is left alone. It is not stuck — it is waiting
+for an independent verifier, and inventing that verdict is the one thing
+this system exists to refuse.
+
+### A key is a namespace, so it needs an owner
+
+`idempotency.py` exists because the obvious implementation of "don't run this
+twice" has an authority hole in it. One dictionary from key to task means
+whoever guesses the string reads the result — and a caller that resends a
+request after a lost response is exactly the caller who cannot tell whether
+the string is still secret.
+
+The binding is scoped to `(owner, tool_id, key)`, and the owner comes from the
+**event's actor**, never from the payload. Two submitters using the key
+`nightly` therefore have two unrelated bindings; one submitter using it
+against two tools has two unrelated bindings; and there is no lookup an actor
+can perform that reaches another actor's task. The cross-actor case is not
+"refused with a message" — a refusal saying *that key is taken* has already
+told the caller something they had no right to learn — it does not collide at
+all.
+
+Request identity is a digest of the canonical serialization of the tool id
+and the inputs. Not `repr`, not insertion order: two structurally identical
+requests must hash the same in any process, or "the same request" means
+nothing across a restart, which is the only time this subsystem does
+anything.
+
+What it provides is **duplicate suppression and durable request identity**.
+It is not exactly-once execution against anything outside this system, and
+nothing in it should be read that way. A tool declaring
+`SideEffect.EXTERNAL` may have changed state nobody here owns; if the
+supervisor died between that happening and the record of it happening, no
+local bookkeeping recovers the fact. That case is reported as `UNCERTAIN`
+with the tool's declared compensating action quoted, and the work is neither
+re-run nor called successful.
+
+
+- **Not authentication.** `subject` is a name the issuer chose. What it gives
+  you is that a grant issued *to* that name cannot be used *as* another.
+- **Not a secret.** The digest is derived from public fields; anyone who can
+  read a grant can recompute it. Unforgeability comes from the issuing record
+  in the log — a grant that was never issued does not appear there. A test
+  pins this as a limit so nobody later treats the digest as a bearer token.
+- **Not expressed in wall time.** Expiry is in sequence numbers. A grant that
+  expired "at 10:03" has a different answer depending on whose clock you ask;
+  one that expires after seq 41 reads identically for every reader.
+
+Scope matching is by path **component**. `stage10/probe2` is a string prefix of
+`stage10/probe` and a different directory; a `startswith` check grants the
+sibling. Writing this test found a second, sharper case: a scope of `"."` has
+*empty* `.parts`, so it slips a traversal check and is the parent of every
+relative path — the one scope value that looks narrow and is total.
+
+`tools.py` is default-deny. An unregistered tool does not run — not "runs with
+reduced privileges", not "runs and is logged". The registry is frozen after
+construction, so what may run cannot depend on import order. Determinism and
+side-effect class are *declared*, because whether a re-run difference means
+tampering or just means the tool never promised reproducibility is not
+something a verifier can work out afterwards.
+
+`execution.py` runs tools in a subprocess, because an in-process call cannot be
+bounded: it shares the caller's memory, descriptors, environment and lifetime.
+CPU, address space, output size, process count and wall clock are enforced by
+the kernel against a process the caller does not share, `setsid` puts it in its
+own group so a timeout kills the whole tree rather than orphaning a grandchild,
+and the environment is **replaced** rather than inherited — inheritance is how
+a tool acquires credentials nobody granted it.
+
+Output is capped with `RLIMIT_FSIZE` on real files rather than by a counter on
+a pipe. A counter caps what you *keep*; the kernel caps what is *produced*, and
+the difference is the whole point when the producer is hostile.
+
+Three outcomes are not success, and collapsing any of them into `COMPLETED`
+would be the failure that matters most:
+
+| | |
+|---|---|
+| `TIMED_OUT` | it may have finished one instruction before the deadline; nothing observed it finish |
+| `CANCELLED` | it stopped when asked — retryable, where a rejection is not |
+| `DENIED` | it never ran, and must never be reported as a failed run |
+
+`COMPLETED` means the process exited 0. That is a statement about the process,
+not about the result; whether the output is acceptable is a verification
+question answered elsewhere, deliberately by someone else.
+
+## 6c. The production caller
+
+Everything above was, until now, a mechanism with no consumer. A governance
+layer that governs nothing is a library, and a library cannot be wrong in the
+way a control plane can — none of these guarantees had ever met a workflow that
+does real work and produces real artifacts.
+
+`governed_stage10.py` puts one through the whole chain:
+
+```
+intent → task record → validation → capability grant → lease
+       → bounded subprocess execution → output capture
+       → content-addressed evidence → provenance binding
+       → independent verification → authority → durable state
+```
+
+all of it appended to the hash-chained log, so "what was this task doing when
+the machine died" is answered by **replay rather than by inference**.
+
+The workflow is Stage-10 artifact generation: real (the Snakefile runs it, it
+writes files somebody reads), safe (`automatic_gate_effect` is NONE, and it
+writes only inside `verification/stage10`), and touching no scientific
+authority.
+
+What keeps it from being cosmetic:
+
+- work runs as a bounded **subprocess**, not an in-process call — the execution
+  record carries a real exit status, which a function call does not have;
+- the capability is minted for *that* task and *that* tool and expires with the
+  lease; the executor refuses without it;
+- every produced file is hashed into the evidence store, and the completion
+  cites those digests — not a summary, not a log line;
+- verification is done by a **different actor** and re-derives the digests from
+  the files on disk, so a completion citing bytes that are no longer there
+  cannot be verified;
+- replay **re-authorizes** every transition, so a forged log entry becomes a
+  permanent record that it was attempted and never becomes state.
+
+### The boundary this crosses, and the one it does not
+
+The bridge imports `qta_multiphysics.stack.workspace`. That direction is
+required — governing a workflow means calling it — and it is allowed only for
+two named modules reaching one named thing, enforced by
+`tests/test_agent_substrate_isolation.py`.
+
+The other direction stays absolutely forbidden. Nothing in the scientific tree
+imports `qta_agent`, and no module here may reach a solver, `metrics.py`,
+`qta_full_sim.py` or an FSM — because that is the direction in which an
+authority verdict could change a computed result.
+
+The bridge writes **through** the Stage-10 write guard rather than around it, so
+a governed run is subject to exactly the same allowlist as an ungoverned one.
+The substrate adds authority; it does not replace the guard already there.
+
+### What a VERIFIED task means, and what it does not
+
+It means a declared tool ran under a bounded environment, produced the bytes it
+says it produced, and a second actor confirmed those bytes are still there.
+That is a statement about **provenance and nothing else**. It is not a claim
+that the result is scientifically correct, that anything was measured, or that
+any gate moved. PASS remains 0, and no gate is reachable from here.
+
+## 7. Status: a production caller exists; most of the system does not yet
+
+`PROMOTED` in the authority state machine is still a state reached only in
+tests — no existing scientific claim, gate, document or canonical output has
+been re-derived under it.
+
+What HAS changed is that `qta_agent` is no longer consumer-less: a real
+Stage-10 run now goes through task lifecycle, capability, bounded execution,
+evidence and independent verification, and its state survives the process that
+produced it.
+
+The honest scope of that: **one workflow, of the safest available kind.** The
+machine-readable status is `docs/completion_matrix.json`, validated on every
+test run by `tools/completion_matrix.py`. It is the authority for what is done
+and what is not, and most rows are still open.

@@ -1,0 +1,121 @@
+{
+ "title": "The instrument itself: every check the mutation harness makes",
+ "note": "Every claim that an enforcement point is load-bearing is produced by tools/mutation_matrix.py. If one of ITS checks stops working, the result is not a wrong number in a table -- it is an unprotected security check certified as protected. So the harness is mutated with its own machinery. The outer process has already imported the file, so mutating it on disk affects only the copy each test makes, which is exactly the subject under test. H4 is the sharpest: it reintroduces the stale-bytecode defect, under which a mutation's verdict describes code the harness did not write.",
+ "suites": [
+  "tests/test_mutation_harness.py"
+ ],
+ "mutations": [
+  {
+   "name": "H1_red_baseline_ignored",
+   "path": "tools/mutation_matrix.py",
+   "find": "    rc, failed = run_suite(suites, args.python)\n    if rc != 0:",
+   "replace": "    rc, failed = run_suite(suites, args.python)\n    if False:",
+   "rationale": "a matrix run against an already-failing suite reports every mutation as killed, for the pre-existing reason"
+  },
+  {
+   "name": "H2_flaky_baseline_accepted",
+   "path": "tools/mutation_matrix.py",
+   "find": "        rc2, failed2 = run_suite(suites, args.python)\n        if rc2 == 0:",
+   "replace": "        rc2, failed2 = run_suite(suites, args.python)\n        if False:",
+   "rationale": "a baseline that can flake red can flake green, and a green flake reports kills nothing tested"
+  },
+  {
+   "name": "H3_anchor_drift_becomes_a_skip",
+   "path": "tools/mutation_matrix.py",
+   "find": "            if found != 1:",
+   "replace": "            if found == -1:",
+   "rationale": "a mutation whose anchor no longer matches is silently skipped while still appearing in the report"
+  },
+  {
+   "name": "H4_stale_bytecode_reused",
+   "path": "tools/mutation_matrix.py",
+   "find": "    env[\"PYTHONPYCACHEPREFIX\"] = cache",
+   "replace": "    env.pop(\"PYTHONPYCACHEPREFIX\", None)",
+   "rationale": "a mutation runs against a cached module, so its verdict describes code the harness did not write"
+  },
+  {
+   "name": "H5_bytecode_cache_shared_between_runs",
+   "path": "tools/mutation_matrix.py",
+   "find": "    cache = tempfile.mkdtemp(prefix=\"mutation-pycache-\")",
+   "replace": "    cache = os.path.join(tempfile.gettempdir(), \"mutation-pycache-shared\")\n    os.makedirs(cache, exist_ok=True)",
+   "rationale": "a shared cache reintroduces cross-mutation contamination one level up"
+  },
+  {
+   "name": "H6_specification_not_validated",
+   "path": "tools/mutation_matrix.py",
+   "find": "    problems = validate_spec(spec)\n    if problems:",
+   "replace": "    problems = validate_spec(spec)\n    if False:",
+   "rationale": "a typo in a specification reaches the point where a source file has already been written to"
+  },
+  {
+   "name": "H7_no_op_mutation_accepted",
+   "path": "tools/mutation_matrix.py",
+   "find": "        if m.get(\"find\") == m.get(\"replace\"):",
+   "replace": "        if False:",
+   "rationale": "a mutation that changes nothing is reported as killed by whatever else the suite covers"
+  },
+  {
+   "name": "H8_duplicate_names_accepted",
+   "path": "tools/mutation_matrix.py",
+   "find": "        if name in seen:",
+   "replace": "        if False:",
+   "rationale": "a report naming a mutation no longer says which mutation it describes"
+  },
+  {
+   "name": "H9_missing_mutation_fields_accepted",
+   "path": "tools/mutation_matrix.py",
+   "find": "            if not isinstance(m.get(field), str) or not m.get(field):",
+   "replace": "            if False:",
+   "rationale": "a specification missing 'find' crashes mid-loop on a tree already written to"
+  },
+  {
+   "name": "H10_recovery_sidecar_ignored",
+   "path": "tools/mutation_matrix.py",
+   "find": "    if RECOVERY.exists():",
+   "replace": "    if False:",
+   "rationale": "a run starts on a tree a previous interrupted run may have left mutated, and reports results about it"
+  },
+  {
+   "name": "H11_sources_not_restored",
+   "path": "tools/mutation_matrix.py",
+   "find": "                (ROOT / path).write_text(src, encoding=\"utf-8\")\n                damaged = [f for f in _dirty_tracked_files()",
+   "replace": "                damaged = [f for f in _dirty_tracked_files()",
+   "rationale": "a disabled safety guard is left on disk for whoever runs git add next"
+  },
+  {
+   "name": "H12_post_run_baseline_not_checked",
+   "path": "tools/mutation_matrix.py",
+   "find": "    post_rc, post_failed = run_suite(suites, args.python)",
+   "replace": "    post_rc, post_failed = 0, []",
+   "rationale": "state a mutation left behind that the source hash cannot see is reported as a clean restoration"
+  },
+  {
+   "name": "H13_survivors_do_not_fail_the_run",
+   "path": "tools/mutation_matrix.py",
+   "find": "    return 0 if not (survived or anchors or drifted or collateral\n                     or still_dirty or post_rc) else 1",
+   "replace": "    return 0",
+   "rationale": "an unprotected enforcement point exits green, so CI never sees it"
+  },
+  {
+   "name": "H14_survived_reported_as_killed",
+   "path": "tools/mutation_matrix.py",
+   "find": "            if rc != 0:\n                by = f\"  by {failed[0]}\" if failed else \"\"",
+   "replace": "            if rc == 0 or rc != 0:\n                by = f\"  by {failed[0]}\" if failed else \"\"",
+   "rationale": "every mutation is reported killed regardless of what the suite did"
+  },
+  {
+   "name": "H15_collateral_damage_discarded_without_a_copy",
+   "path": "tools/mutation_matrix.py",
+   "find": "            shutil.copy2(src, dest)\n            saved.append(dest)",
+   "replace": "            saved.append(dest)",
+   "rationale": "the harness reverts a tracked file with git checkout and keeps nothing; an uncommitted edit made while it runs is indistinguishable from damage and is lost"
+  },
+  {
+   "name": "H16_collateral_damage_not_restored",
+   "path": "tools/mutation_matrix.py",
+   "find": "    subprocess.run([\"git\", \"-C\", str(ROOT), \"checkout\", \"HEAD\", \"--\",\n                    *paths], capture_output=True, text=True)",
+   "replace": "    return",
+   "rationale": "a file a mutated build corrupted stays corrupted, so every later mutation runs against damaged inputs and the report says nothing"
+  }
+ ]
+}

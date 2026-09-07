@@ -1,0 +1,336 @@
+{
+  "title": "Agent substrate: state machine, log, projection, invalidation, reconstruction",
+  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that. S38 was REMOVED as equivalent, not because it survived: the guard immediately above the Record construction refuses any create whose claimed proposer differs from ev.actor, UNCONDITIONALLY and with no try/except between the two, so `proposer=ev.actor` and `proposer=p['proposer']` are the same value by the time either runs. Note the contrast with agents.py, where the equivalent-looking M37 is NOT equivalent: that guard is conditional on a registrar being claimed, so an empty one leaves the derivation observable. The equivalence here is asserted by a test over the guard's shape rather than by this sentence.",
+  "suites": [
+    "tests/test_agent_concurrency.py",
+    "tests/test_agent_differential.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_substrate_isolation.py",
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_readpath.py"
+  ],
+  "mutations": [
+    {
+      "name": "M1_no_hash_recompute",
+      "path": "qta_agent/events.py",
+      "find": "        if recomputed != ev.hash:",
+      "replace": "        if False:",
+      "rationale": "a record could be edited in place and still verify"
+    },
+    {
+      "name": "M2_no_chain_link_check",
+      "path": "qta_agent/events.py",
+      "find": "        if ev.prev_hash != prev_hash:",
+      "replace": "        if False:",
+      "rationale": "a record could be spliced in claiming an ancestry it does not have"
+    },
+    {
+      "name": "M3_no_sequence_check",
+      "path": "qta_agent/events.py",
+      "find": "        if ev.seq != expected_seq:",
+      "replace": "        if False:",
+      "rationale": "seq is what gives the log a total order; wall time cannot"
+    },
+    {
+      "name": "M4_ignore_truncation_witness",
+      "path": "qta_agent/events.py",
+      "find": "        if witness.seq > head_seq:",
+      "replace": "        if False:",
+      "rationale": "a prefix of a valid chain is itself a valid chain; only the separate witness can see truncation"
+    },
+    {
+      "name": "M5_allow_unhashed_extra_fields",
+      "path": "qta_agent/events.py",
+      "find": "    if unknown:",
+      "replace": "    if False:",
+      "rationale": "an unhashed field could carry unverified content beside a valid digest"
+    },
+    {
+      "name": "M6_append_onto_broken_chain",
+      "path": "qta_agent/events.py",
+      "find": "            report = self.verify()\n            if not report.ok:\n                raise ChainBroken(",
+      "replace": "            report = self.verify()\n            if False:\n                raise ChainBroken(",
+      "rationale": "appending onto a broken chain buries the break under valid records"
+    },
+    {
+      "name": "M7_allow_terminal_escape",
+      "path": "qta_agent/authority.py",
+      "find": "    if req.src in TERMINAL:",
+      "replace": "    if False:",
+      "rationale": "I2: revoked authority could be resurrected if the edge table ever grows"
+    },
+    {
+      "name": "M8_ignore_missing_edge",
+      "path": "qta_agent/authority.py",
+      "find": "    if edge is None:",
+      "replace": "    if edge is None and False:",
+      "rationale": "any state could reach any other; the transition table would be advisory"
+    },
+    {
+      "name": "M9_ignore_role",
+      "path": "qta_agent/authority.py",
+      "find": "    if req.role not in edge.roles:",
+      "replace": "    if False:",
+      "rationale": "an automatic SYSTEM actor could promote a claim with no human or agent promoter"
+    },
+    {
+      "name": "M10_allow_self_verification",
+      "path": "qta_agent/authority.py",
+      "find": "        if req.actor == req.proposer:",
+      "replace": "        if False:",
+      "rationale": "I4: an agent that proposes and verifies has no verification"
+    },
+    {
+      "name": "M11_skip_evidence_requirement",
+      "path": "qta_agent/authority.py",
+      "find": "    if missing:",
+      "replace": "    if False:",
+      "rationale": "I6: missing evidence would be diagnosed as malformed evidence, sending the caller after a value they never supplied"
+    },
+    {
+      "name": "M12_accept_non_digest_evidence",
+      "path": "qta_agent/authority.py",
+      "find": "        if not is_digest(val):",
+      "replace": "        if False:",
+      "rationale": "I6: evidence could be cited as free text and then changed"
+    },
+    {
+      "name": "M13_promote_without_policy",
+      "path": "qta_agent/authority.py",
+      "find": "    if req.dst is State.PROMOTED and req.policy_id is None:",
+      "replace": "    if False:",
+      "rationale": "I5: a promotion with no policy in force cannot be audited against one"
+    },
+    {
+      "name": "M14_ignore_optimistic_concurrency",
+      "path": "qta_agent/store.py",
+      "find": "        if expected_revision is not None and cur.revision != expected_revision:",
+      "replace": "        if False:",
+      "rationale": "concurrent transitions would silently last-writer-win over authority"
+    },
+    {
+      "name": "M15_skip_unknown_action_guard",
+      "path": "qta_agent/store.py",
+      "find": "        except actions.UnknownAction as exc:\n            # Re-raised as this store's own error type.",
+      "replace": "        except actions.UnknownAction:\n            return\n        if False:\n            # Re-raised as this store's own error type.",
+      "rationale": "the store swallows an action nothing in this package writes and skips the event, so the projection diverges from the log while looking healthy -- the exact failure the FOREIGN/UNKNOWN split was introduced to avoid"
+    },
+    {
+      "name": "M16_load_without_verifying",
+      "path": "qta_agent/store.py",
+      "find": "        self.log.verify().raise_if_bad()",
+      "replace": "        pass",
+      "rationale": "the live projection would be built from a log known to be broken"
+    },
+    {
+      "name": "M17_only_immediate_children",
+      "path": "qta_agent/invalidation.py",
+      "find": "            affected.append(child)\n            queue.append(child)",
+      "replace": "            affected.append(child)",
+      "rationale": "staleness would stop one hop out, leaving canonical records resting on invalidated ones"
+    },
+    {
+      "name": "M18_hardcode_invalidatable",
+      "path": "qta_agent/invalidation.py",
+      "find": "    return frozenset(e.src for e in EDGES if e.dst is State.STALE)",
+      "replace": "    return frozenset({State.VERIFIED, State.PROMOTED, State.PROPOSED})",
+      "rationale": "a hand-maintained copy of the transition table drifts from it; this is the exact defect Hypothesis found"
+    },
+    {
+      "name": "M19_apply_unauthorized_transitions",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                    continue\n            cur[\"state\"] = p[\"dst\"]",
+      "replace": "                    pass\n            cur[\"state\"] = p[\"dst\"]",
+      "rationale": "replay would apply a transition the state machine forbids, so a forged log entry would reconstruct cleanly"
+    },
+    {
+      "name": "M20_reconstruct_without_verifying",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    report = log.verify()\n    report.raise_if_bad()\n\n    out = Reconstruction(",
+      "replace": "    report = log.verify()\n\n    out = Reconstruction(",
+      "rationale": "differential verification would run against a corrupt log and agree"
+    },
+    {
+      "name": "M21_append_takes_no_writer_lock",
+      "path": "qta_agent/events.py",
+      "find": "                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n                    break",
+      "replace": "                    break",
+      "rationale": "two concurrent writers both read the same head and both write a record claiming the same seq; the log is corrupted rather than a record being lost, and every later append is refused against the damage"
+    },
+    {
+      "name": "M22_lock_wait_is_unbounded",
+      "path": "qta_agent/events.py",
+      "find": "                    if time.monotonic() >= deadline:",
+      "replace": "                    if False:",
+      "rationale": "a blocked append becomes indistinguishable from a hang, which is a much worse thing to debug than a named lock holder"
+    },
+    {
+      "name": "M23_lock_descriptor_leaked",
+      "path": "qta_agent/events.py",
+      "find": "        finally:\n            # Closing the descriptor releases the flock",
+      "replace": "        finally:\n            return  # noqa\n            # Closing the descriptor releases the flock",
+      "rationale": "the descriptor is never closed, so the flock is held for the life of the process and the next writer waits for a holder that has finished"
+    },
+    {
+      "name": "M24_missing_fcntl_appends_unlocked",
+      "path": "qta_agent/events.py",
+      "find": "        if fcntl is None:                       # pragma: no cover - non-POSIX\n            raise EventLogError(",
+      "replace": "        if False:\n            raise EventLogError(",
+      "rationale": "a platform without advisory locking silently gets the unlocked append that corrupts the chain"
+    },
+    {
+      "name": "M25_task_replay_trusts_the_records_src",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if cur[\"state\"] != claimed:\n            out.anomalies.append(\n                f\"seq {ev.seq}: {tid} claims src {claimed} but replay has it \"",
+      "replace": "        if False:\n            out.anomalies.append(\n                f\"seq {ev.seq}: {tid} claims src {claimed} but replay has it \"",
+      "rationale": "the SECOND reader stops noticing a forged starting state, so the only remaining detector of that class is the projection that already had the hole"
+    },
+    {
+      "name": "M26_task_replay_applies_unauthorized_records",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {exc}\")\n                # Do NOT apply. Presence in the log is not authority.\n                continue",
+      "replace": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {exc}\")",
+      "rationale": "a transition the machine forbids becomes state in the independent replay, so the two readers agree on a history neither should accept"
+    },
+    {
+      "name": "M27_task_replay_drops_the_lease_each_transition",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if dst is TaskState.LEASED:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
+      "replace": "        if True:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
+      "rationale": "the replay loses the lease at the step after LEASED and then refuses every completion, so it diverges from the live projection on every healthy run"
+    },
+    {
+      "name": "M28_task_replay_keeps_a_finished_tasks_lease",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif dst is TaskState.QUEUED or dst in TASK_TERMINAL:",
+      "replace": "        elif False:",
+      "rationale": "a lease outlives the work it owned, so requeued work is still owned by a worker that finished"
+    },
+    {
+      "name": "M29_task_replay_skips_unknown_actions",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if kind == actions.UNKNOWN:\n                out.anomalies.append(\n                    f\"seq {ev.seq}: unknown action {action!r}; no module in \"",
+      "replace": "            if False:\n                out.anomalies.append(\n                    f\"seq {ev.seq}: unknown action {action!r}; no module in \"",
+      "rationale": "a record from a newer schema is silently dropped, so the reconstruction is confidently wrong about a history it could not read"
+    },
+    {
+      "name": "M30_task_replay_without_verifying",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    report = log.verify()\n    report.raise_if_bad()\n    out = TaskReconstruction(",
+      "replace": "    report = log.verify()\n    out = TaskReconstruction(",
+      "rationale": "a second opinion about a document that may have been rewritten is not a second opinion; the differential would then compare two readings of tampered bytes"
+    },
+    {
+      "name": "M31_store_replay_trusts_the_records_src",
+      "path": "qta_agent/store.py",
+      "find": "            if claimed is not None and claimed != cur.state.value:",
+      "replace": "            if False:",
+      "rationale": "a forged record.transition picks the state it is validated against, so every edge in the table becomes reachable from wherever the record was actually sitting"
+    },
+    {
+      "name": "M32_store_replay_does_not_reauthorize",
+      "path": "qta_agent/store.py",
+      "find": "                check(TransitionRequest(\n                    record_id=rid, src=cur.state, dst=State(p[\"dst\"]),",
+      "replace": "                _unused = (TransitionRequest(\n                    record_id=rid, src=cur.state, dst=State(p[\"dst\"]),",
+      "rationale": "THE DEFECT: presence in the log becomes authority. One appended line moved a record from UNDER_REVIEW to PROMOTED -- the state carrying canonical authority, reachable only from VERIFIED by I1"
+    },
+    {
+      "name": "M33_store_replay_resolves_archived_evidence",
+      "path": "qta_agent/store.py",
+      "find": "                    policy_id=p.get(\"policy_id\") or cur.policy_id))",
+      "replace": "                    policy_id=p.get(\"policy_id\") or cur.policy_id),\n                    resolve=self._resolver)",
+      "rationale": "replaying a historical transition whose evidence has since been archived becomes a retroactive authority failure, turning an archival policy into corruption"
+    },
+    {
+      "name": "S34_the_reconstruction_takes_the_executor_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        # cur[\"executed_by\"] is NOT updated here.",
+      "replace": "        cur[\"executed_by\"] = p.get(\"executed_by\", cur[\"executed_by\"])\n        # cur[\"executed_by\"] is NOT updated here.",
+      "rationale": "the second reader goes back underneath the bypass the first one was fixed for, while still looking like an independent check"
+    },
+    {
+      "name": "S35_a_renamed_executor_is_not_an_anomaly",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if claimed_by is not None and claimed_by != cur[\"executed_by\"]:",
+      "replace": "        if False:",
+      "rationale": "the reader stops reporting the field it refuses to apply, so nothing says the record tried"
+    },
+    {
+      "name": "S36_a_record_may_be_created_in_any_state",
+      "path": "qta_agent/store.py",
+      "find": "            if claimed_state != INITIAL.value:",
+      "replace": "            if False:",
+      "rationale": "one appended line produces a record born in PROMOTED and canonical() reports it; the state machine is not defeated, it is never consulted"
+    },
+    {
+      "name": "S37_a_create_may_name_its_own_proposer",
+      "path": "qta_agent/store.py",
+      "find": "            if claimed_proposer != ev.actor:",
+      "replace": "            if False:",
+      "rationale": "separation of duties is measured from the proposer, so a create that names one chooses the party it must differ from"
+    },
+    {
+      "name": "S39_a_second_create_replaces_a_live_record",
+      "path": "qta_agent/store.py",
+      "find": "            if rid in self._records:\n                raise StoreError(\n                    f\"seq {ev.seq}: {rid!r} already exists and this record \"",
+      "replace": "            if False:\n                raise StoreError(\n                    f\"seq {ev.seq}: {rid!r} already exists and this record \"",
+      "rationale": "a forged create resets an existing record's state, evidence and revision"
+    },
+    {
+      "name": "S40_cited_evidence_need_not_be_a_digest",
+      "path": "qta_agent/store.py",
+      "find": "                if not is_digest(v):\n                    raise StoreError(\n                        f\"seq {ev.seq}: evidence {k!r} on {rid!r} is not a \"",
+      "replace": "                if False:\n                    raise StoreError(\n                        f\"seq {ev.seq}: evidence {k!r} on {rid!r} is not a \"",
+      "rationale": "what a record cites stops being fixed at the moment of citation"
+    },
+    {
+      "name": "S41_a_create_may_depend_on_something_unrecorded",
+      "path": "qta_agent/store.py",
+      "find": "            for dep in p.get(\"depends_on\", ()):\n                if dep not in self._records:",
+      "replace": "            for dep in p.get(\"depends_on\", ()):\n                if False:",
+      "rationale": "a record depends on something nothing will ever resolve"
+    },
+    {
+      "name": "S42_a_dependency_for_an_unknown_record_raises_a_raw_KeyError",
+      "path": "qta_agent/store.py",
+      "find": "            if rid not in self._records:\n                # A raw KeyError leaks the projection's internals",
+      "replace": "            if False:\n                # A raw KeyError leaks the projection's internals",
+      "rationale": "an authority API fails with an incidental Python exception instead of its domain error"
+    },
+    {
+      "name": "F1_a_newer_form_is_reported_as_tampering",
+      "path": "qta_agent/events.py",
+      "find": "    form = rec[\"canonical_form_version\"]\n    if form != CANONICAL_FORM_VERSION:",
+      "replace": "    form = rec[\"canonical_form_version\"]\n    if False:",
+      "rationale": "a record from a newer build dies as 'unhashed extra fields', which tells an operator the log was altered when what happened is that their reader is old -- two problems, two different places to go"
+    },
+    {
+      "name": "F2_the_read_root_only_catches_one_kind_of_refusal",
+      "path": "qta_agent/safeio.py",
+      "find": "            except OSError as exc:\n                # EVERY other refusal too.",
+      "replace": "            except NotADirectoryError as exc:\n                # EVERY other refusal too.",
+      "rationale": "a missing or unreadable read root escapes as a raw OSError past every caller written to handle this module's errors"
+    },
+    {
+      "name": "F3_a_read_that_fails_partway_returns_what_it_got",
+      "path": "qta_agent/safeio.py",
+      "find": "            except OSError as exc:\n                # A read that failed PARTWAY must not return what it got.",
+      "replace": "            except UnicodeError as exc:\n                # A read that failed PARTWAY must not return what it got.",
+      "rationale": "bytes that look like the file and are not, which is the worst outcome available on a read path"
+    },
+    {
+      "name": "F4_hard_link_protection_is_opt_in_again",
+      "path": "qta_agent/safeio.py",
+      "find": "                 require_unique_link: bool = True) -> ReadResult:",
+      "replace": "                 require_unique_link: bool = False) -> ReadResult:",
+      "rationale": "a caller that does not think to ask does not get it, and the caller least likely to think of it is the next one"
+    },
+    {
+      "name": "F5_the_governed_reader_stops_defaulting_it_on",
+      "path": "qta_agent/readpath.py",
+      "find": "             require_unique_link: bool = True) -> ReadResult:",
+      "replace": "             require_unique_link: bool = False) -> ReadResult:",
+      "rationale": "the same regression, one layer up where production reads live"
+    }
+  ]
+}

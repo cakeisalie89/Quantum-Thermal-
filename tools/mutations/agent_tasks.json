@@ -1,0 +1,232 @@
+{
+  "title": "Durable task lifecycle and the governed production path",
+  "note": "These mutations attack the chain that turns a request into a VERIFIED result: the state machine's edges, the lease that makes ownership adjudicable, separation of duties between executor and verifier, and the verification that re-derives digests from disk rather than trusting what was just recorded. G3 is the sharpest: replay must RE-AUTHORIZE every transition, or a forged log entry becomes state simply by being present.  TWO MUTATIONS WERE REMOVED AS EQUIVALENT, not because they survived. G13 mutated `src=task.state` to `src=claimed`, and G14 mutated `executed_by=task.executed_by or claimed_by` to the reverse order. Both are unreachable-difference changes: the guards immediately above refuse any transition whose claimed src or claimed executor disagrees with the replay, so by the time either expression is evaluated the two operands are equal. tests/test_agent_governed_stage10.py enumerates every combination and asserts that none differ, so the claim is checked rather than asserted here. An equivalent mutation surviving is not evidence of an unprotected check; leaving it in the spec would have been a permanent false finding. The checks those expressions rest on are G15 and G16, and both are killed.",
+  "suites": [
+    "tests/test_agent_atomicity.py",
+    "tests/test_agent_differential.py",
+    "tests/test_agent_execution.py",
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_hostile_campaign.py",
+    "tests/test_agent_machine_properties.py",
+    "tests/test_agent_substrate_isolation.py"
+  ],
+  "mutations": [
+    {
+      "name": "Q1_terminal_states_escapable",
+      "path": "qta_agent/tasks.py",
+      "find": "    if req.src in TERMINAL:",
+      "replace": "    if False:",
+      "rationale": "a rejected or cancelled task is revived instead of a new one being created"
+    },
+    {
+      "name": "Q2_missing_edge_ignored",
+      "path": "qta_agent/tasks.py",
+      "find": "    if edge is None:",
+      "replace": "    if False:",
+      "rationale": "any task state reaches any other; the lifecycle becomes advisory"
+    },
+    {
+      "name": "Q3_role_not_checked",
+      "path": "qta_agent/tasks.py",
+      "find": "    if req.role not in edge.roles:",
+      "replace": "    if False:",
+      "rationale": "a worker performs a verifier's transition"
+    },
+    {
+      "name": "Q4_lease_not_required",
+      "path": "qta_agent/tasks.py",
+      "find": "    if edge.requires_lease:",
+      "replace": "    if False:",
+      "rationale": "a worker reports completion for work it never owned"
+    },
+    {
+      "name": "Q5_lease_holder_not_checked",
+      "path": "qta_agent/tasks.py",
+      "find": "        if lease.holder != req.actor:",
+      "replace": "        if False:",
+      "rationale": "any actor reports on another worker's lease"
+    },
+    {
+      "name": "Q6_lapsed_lease_accepted",
+      "path": "qta_agent/tasks.py",
+      "find": "        if not lease.is_live(req.at_seq):",
+      "replace": "        if False:",
+      "rationale": "a worker back from the dead reports success on work someone else redid"
+    },
+    {
+      "name": "Q7_lease_identity_not_checked",
+      "path": "qta_agent/tasks.py",
+      "find": "        if req.lease_id != lease.lease_id:",
+      "replace": "        if False:",
+      "rationale": "a stale lease id is accepted as the current one"
+    },
+    {
+      "name": "Q8_self_verification_allowed",
+      "path": "qta_agent/tasks.py",
+      "find": "        if req.actor == task.executed_by:",
+      "replace": "        if False:",
+      "rationale": "the executor verifies its own work, so verification verifies nothing"
+    },
+    {
+      "name": "Q9_unknown_executor_assumed_distinct",
+      "path": "qta_agent/tasks.py",
+      "find": "        if task.executed_by is None:",
+      "replace": "        if False:",
+      "rationale": "independence is assumed rather than established"
+    },
+    {
+      "name": "Q10_completion_without_a_result",
+      "path": "qta_agent/tasks.py",
+      "find": "    if req.dst is TaskState.COMPLETED and not is_digest(\n            req.result_digest or \"\"):",
+      "replace": "    if False:",
+      "rationale": "a completion with nothing to point at is recorded as a result"
+    },
+    {
+      "name": "Q11_lease_survives_requeue",
+      "path": "qta_agent/tasks.py",
+      "find": "    elif req.dst in (TaskState.QUEUED,) or req.dst in TERMINAL:\n        new_lease = None",
+      "replace": "    elif False:\n        new_lease = None",
+      "rationale": "requeued work keeps the dead worker's lease, so nobody else can take it"
+    },
+    {
+      "name": "G1_worker_may_verify_itself",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if worker == verifier:",
+      "replace": "        if False:",
+      "rationale": "the front door stops enforcing separation of duties"
+    },
+    {
+      "name": "G2_projection_accepts_unknown_actions",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                except actions.UnknownAction as exc:\n                    # Re-raised as ValueError, this projection's existing",
+      "replace": "                except actions.UnknownAction:\n                    continue\n                except actions.UnknownAction as exc:\n                    # Re-raised as ValueError, this projection's existing",
+      "rationale": "the task projection silently skips an action it does not understand, so a task's recovered state omits whatever that event recorded and the projection looks healthy while disagreeing with the log"
+    },
+    {
+      "name": "G3_replay_does_not_reauthorize",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                edge = check(req, task)",
+      "replace": "                edge = find_edge(req.src, req.dst) or _ANY_EDGE",
+      "rationale": "a forged log entry becomes state simply by being present"
+    },
+    {
+      "name": "G4_inputs_not_validated_before_scheduling",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            spec.validate_inputs(inputs)",
+      "replace": "            pass",
+      "rationale": "work is scheduled and executed on inputs the contract rejects"
+    },
+    {
+      "name": "G5_non_completed_outcome_treated_as_success",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if result.outcome is not Outcome.COMPLETED:",
+      "replace": "        if False:",
+      "rationale": "a timed-out or failed run proceeds to evidence capture and verification"
+    },
+    {
+      "name": "G6_artifacts_not_reverified",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                    reader.read(req, capability_id=capability_id,\n                                expect_digest=dg,\n                                require_unique_link=True)",
+      "replace": "                    reader.read(req, capability_id=capability_id,\n                                require_unique_link=True)",
+      "rationale": "verification confirms a file EXISTS rather than that it is the file the task cited, so a completion can be verified against substituted bytes"
+    },
+    {
+      "name": "G7_missing_artifact_accepted",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                except FileNotFoundError:\n                    return False, f\"cited artifact {rel} is no longer on disk\"",
+      "replace": "                except FileNotFoundError:\n                    pass",
+      "rationale": "a cited artifact that is gone no longer fails verification, so provenance points at nothing and the task is VERIFIED anyway"
+    },
+    {
+      "name": "G8_empty_artifact_set_verifies",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if not artifacts:",
+      "replace": "        if False:",
+      "rationale": "a run that produced nothing is verified"
+    },
+    {
+      "name": "G9_evidence_resolution_not_checked",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if not self.evidence.contains(dg):",
+      "replace": "            if False:",
+      "rationale": "an artifact that is not resolvable as evidence still verifies"
+    },
+    {
+      "name": "G10_capability_scope_widened",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                    tool_id=tool_id, scope=(WORKSPACE_PREFIX,),",
+      "replace": "                    tool_id=tool_id, scope=(\"verification\",),",
+      "rationale": "the grant covers more than the workspace the tool declared"
+    },
+    {
+      "name": "G11_registry_bypassed",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        spec = self.registry.get(tool_id)          # default deny",
+      "replace": "        spec = (self.registry.get(tool_id) if tool_id in self.registry\n                else stage10_registry().get('stage10.emit_artifact'))          # default deny",
+      "rationale": "an unregistered tool id silently runs a registered tool instead"
+    },
+    {
+      "name": "G12_replay_trusts_the_records_own_src",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if task.state is not claimed:",
+      "replace": "                if False:",
+      "rationale": "THE HOSTILE-CAMPAIGN FINDING: re-authorizing against a starting state the WRITER supplied authorizes nothing, because every pair in the table becomes available to a forger who names a convenient src -- one appended record moved a task out of VERIFIED, a sealed state"
+    },
+    {
+      "name": "G15_disagreeing_executor_claim_accepted",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if claimed_by and claimed_by != task.executed_by:",
+      "replace": "                if False:",
+      "rationale": "a transition may name an executor the execution record contradicts, and nothing reports the disagreement"
+    },
+    {
+      "name": "G16_execution_record_does_not_name_the_executor",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                tasks[p[\"task_id\"]] = replace(\n                    task, executed_by=ev.actor,",
+      "replace": "                tasks[p[\"task_id\"]] = replace(\n                    task, executed_by=task.executed_by,",
+      "rationale": "the projection stops learning who ran the tool from the record written by the actor that ran it, and falls back to trusting a later claim"
+    },
+    {
+      "name": "G17_a_task_with_no_execution_record_may_name_its_executor",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if claimed_by and claimed_by != task.executed_by:",
+      "replace": "                if (claimed_by and task.executed_by\n                        and claimed_by != task.executed_by):",
+      "rationale": "restores the half the first fix left open: omit the execution record and the claim is unopposed, so one actor completes and verifies its own work"
+    },
+    {
+      "name": "G18_a_transition_may_rename_an_established_executor",
+      "path": "qta_agent/tasks.py",
+      "find": "    if (req.executed_by and task.executed_by\n            and req.executed_by != task.executed_by):",
+      "replace": "    if False:",
+      "rationale": "the executor is what verification must differ from, so a record that can rename it picks its own counterparty"
+    },
+    {
+      "name": "G23_the_two_observers_are_never_compared",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        drift = self._check_declared_outputs(result, artifacts)",
+      "replace": "        drift = \"\"",
+      "rationale": "the window between the run ending and the capture sweeping is unwatched, which is where an artifact would be swapped"
+    },
+    {
+      "name": "G24_a_changed_artifact_is_accepted_if_it_is_still_there",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if found != dg:",
+      "replace": "            if False:",
+      "rationale": "the file existing at capture time is treated as the file being unchanged; only a deletion is caught"
+    },
+    {
+      "name": "G25_an_external_effect_goes_back_into_the_retry_queue",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if failure in SCHED_RETRYABLE and not result.retryable:",
+      "replace": "            if False:",
+      "rationale": "a timed-out tool that may already have changed state nobody here owns is retried; SideEffect.EXTERNAL goes back to being a label"
+    },
+    {
+      "name": "G26_the_contract_stops_declaring_the_file_it_produces",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            output_files=(OutputFile(\"artifact\", \"{out_dir}/{name}\"),),",
+      "replace": "            output_files=(),",
+      "rationale": "nothing is collected by the executor, so the only observer of the artifact is the sweep that runs afterwards and there is nothing to compare it against"
+    }
+  ]
+}

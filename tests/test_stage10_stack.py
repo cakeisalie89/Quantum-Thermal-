@@ -50,6 +50,22 @@ TEST_WS = "verification/stage10/pytest"
 TINY_MESH = Grid3DConfig(nx=5, ny=5, nz=6)
 
 
+def _declare_corpus(root):
+    """Write the allowlist for a temporary corpus, as a commit would.
+
+    Retrieval refuses a corpus nobody declared, so every test corpus has to
+    declare itself. That is the mechanism working, not scaffolding around it:
+    a test that could build an index over an undeclared tree would be testing
+    a build the production path cannot do.
+    """
+    import json as _json
+    doc = RAG.allowlist_document(root)
+    out = root / RAG.CORPUS_ALLOWLIST
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return doc
+
+
 @pytest.fixture(scope="module")
 def tiny_result():
     """One small 3D solve shared by the visualization tests (~0.6 s)."""
@@ -438,6 +454,7 @@ def test_stale_index_is_detected(tmp_path):
     root = tmp_path / "corpus"
     root.mkdir()
     (root / "doc.md").write_text("# Heading\nalpha beta gamma\n")
+    _declare_corpus(root)
     index = RAG.build_index(root=root)
     assert index.stale_files() == []
     (root / "doc.md").write_text("# Heading\ndelta epsilon\n")
@@ -730,12 +747,16 @@ def test_rust_is_not_presented_as_an_active_scientific_backend():
 
 def test_no_scientific_module_imports_the_rust_kernels():
     """The claim above must stay true, not just be written down."""
-    import subprocess
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-lE", r"^\s*import\s+qta_kernels",
-         "--", "*.py"],
-        capture_output=True, text=True)
-    importers = [f for f in r.stdout.split() if f]
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import files_matching
+
+    # Over tracked AND untracked-unignored files: a new module importing the
+    # Rust kernels would otherwise be invisible to this guard until it was
+    # committed, which is the blind spot that has cost this repository three
+    # red pushes in other guards.
+    importers = list(files_matching(r"^\s*import\s+qta_kernels"))
     assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
         f"unexpected qta_kernels importers: {importers}"
 
@@ -804,7 +825,11 @@ def _governed_text_files():
     tracked = [f for f in out.split() if f.endswith((".md", ".txt"))]
     return {f for f in tracked
             if not any(part in RAG.EXCLUDED_DIRS
-                       for part in pathlib.Path(f).parts)}
+                       for part in pathlib.Path(f).parts)
+            # Excluded BY NAME as well as by directory. A derived digest and
+            # a git bundle both match *.txt and are neither governed nor
+            # documents; see rag_index.EXCLUDED_FILES for why each is there.
+            and f not in RAG.EXCLUDED_FILES}
 
 
 def test_rag_indexes_every_governed_document():

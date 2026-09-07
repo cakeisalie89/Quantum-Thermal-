@@ -1,0 +1,353 @@
+{
+  "title": "Several agents: identity that cannot be borrowed, a human that cannot be simulated",
+  "note": "Two clusters. A1-A6 attack identity and separation: an instance acting in a role it does not hold, or taking a second role that defeats the separation the first one created. A7-A14 attack the human boundary, which is the sharpest thing in this module -- an escalation exists because the decision was not an agent's to make, so A9 (any principal may answer) and A10 (an agent may register a human) each hand the agent the authority the escalation was protecting against. A15-A20 attack message provenance and conflict resolution, where the failure is quieter: a redelivery that rewrites what was said, or a disagreement settled by whichever arrived last.",
+  "suites": [
+    "tests/test_agent_agents.py",
+    "tests/test_agent_idempotency.py"
+  ],
+  "mutations": [
+    {
+      "name": "A1_unregistered_instance_may_act",
+      "path": "qta_agent/agents.py",
+      "find": "        except KeyError:\n            raise IdentityError(\n                f\"instance {instance_id!r} is not registered;",
+      "replace": "        except KeyError:\n            return identity(agent_id=instance_id, instance_id=instance_id,\n                            kind=PrincipalKind.AGENT,\n                            roles=set(AgentRole))\n            raise IdentityError(\n                f\"instance {instance_id!r} is not registered;",
+      "rationale": "an instance that never participated acts with every role"
+    },
+    {
+      "name": "A2_role_not_checked",
+      "path": "qta_agent/agents.py",
+      "find": "        if not ident.may(role):",
+      "replace": "        if False:",
+      "rationale": "a proposer performs a verifier's action"
+    },
+    {
+      "name": "A3_retired_instance_may_act",
+      "path": "qta_agent/agents.py",
+      "find": "        if not ident.is_active(seq):\n            raise IdentityError(\n                f\"instance {instance_id!r} was retired after seq \"",
+      "replace": "        if False:\n            raise IdentityError(\n                f\"instance {instance_id!r} was retired after seq \"",
+      "rationale": "a party that has left keeps acting"
+    },
+    {
+      "name": "A4_retirement_takes_effect_one_event_late",
+      "path": "qta_agent/agents.py",
+      "find": "        return self.retired_seq < 0 or at_seq < self.retired_seq",
+      "replace": "        return self.retired_seq < 0 or at_seq <= self.retired_seq",
+      "rationale": "a retired instance acts once more -- at exactly the moment it mattered"
+    },
+    {
+      "name": "A5_incompatible_roles_may_be_held_together",
+      "path": "qta_agent/agents.py",
+      "find": "        if a in role_set and b in role_set:",
+      "replace": "        if False:",
+      "rationale": "one identity executes and verifies, so the second party could not have said no"
+    },
+    {
+      "name": "A6_separation_ignores_the_same_agent",
+      "path": "qta_agent/agents.py",
+      "find": "            if _same_agent(directory, holder, instance_id):",
+      "replace": "            if False:",
+      "rationale": "restarting an agent launders its earlier role on the same task"
+    },
+    {
+      "name": "A7_unknown_party_is_assumed_different",
+      "path": "qta_agent/agents.py",
+      "find": "    except IdentityError:\n        # An unregistered party cannot be shown to be different, so it is\n        # treated as the same. Fail closed.\n        return True",
+      "replace": "    except IdentityError:\n        return False",
+      "rationale": "an unregistered prior role-holder is assumed to be somebody else, which is the assumption that fails open"
+    },
+    {
+      "name": "A8_empty_role_set_registered",
+      "path": "qta_agent/agents.py",
+      "find": "    if not role_set:\n        raise IdentityError(",
+      "replace": "    if False:\n        raise IdentityError(",
+      "rationale": "an identity whose roles were lost in serialization registers as one that can do nothing, silently"
+    },
+    {
+      "name": "A9_any_principal_may_answer_an_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "        ident = self.get(answered_by)\n        if ident.kind is not PrincipalKind.HUMAN:",
+      "replace": "        ident = self.get(answered_by)\n        if False:",
+      "rationale": "an agent answers the question that existed because the decision was not an agent's to make (the WRITE path; A31 covers the same rule on replay, where it was missing entirely)"
+    },
+    {
+      "name": "A10_an_agent_may_register_a_human",
+      "path": "qta_agent/agents.py",
+      "find": "        if registrar is None or registrar.kind is not PrincipalKind.HUMAN:",
+      "replace": "        if False:",
+      "rationale": "one step from an agent granting itself human authority and answering its own escalations"
+    },
+    {
+      "name": "A11_the_asker_may_answer",
+      "path": "qta_agent/agents.py",
+      "find": "        if answered_by == esc.raised_by:",
+      "replace": "        if False:",
+      "rationale": "raising a question and answering it is asking nobody"
+    },
+    {
+      "name": "A12_any_answer_is_accepted",
+      "path": "qta_agent/agents.py",
+      "find": "        if answer not in esc.options:",
+      "replace": "        if False:",
+      "rationale": "an answer that cannot be checked against what was asked is a conversation, not a decision"
+    },
+    {
+      "name": "A13_an_answered_escalation_can_be_answered_again",
+      "path": "qta_agent/agents.py",
+      "find": "        if esc.state is not EscalationState.OPEN:\n            raise EscalationError(\n                f\"escalation {escalation_id!r} is {esc.state.value}; \"",
+      "replace": "        if False:\n            raise EscalationError(\n                f\"escalation {escalation_id!r} is {esc.state.value}; \"",
+      "rationale": "a recorded decision is rewritten afterwards"
+    },
+    {
+      "name": "A14_an_open_escalation_stops_blocking",
+      "path": "qta_agent/agents.py",
+      "find": "        return bool(self.open_escalations(task_id=task_id))",
+      "replace": "        return False",
+      "rationale": "a workflow that should wait for a person proceeds without one"
+    },
+    {
+      "name": "A15_single_option_escalations_accepted",
+      "path": "qta_agent/agents.py",
+      "find": "        if len(opts) < 2:",
+      "replace": "        if False:",
+      "rationale": "a notification blocks a task while offering nothing to decide"
+    },
+    {
+      "name": "A16_answers_need_no_reason",
+      "path": "qta_agent/agents.py",
+      "find": "        if not reason.strip():\n            raise EscalationError(\n                \"an answered escalation must carry a reason;",
+      "replace": "        if False:\n            raise EscalationError(\n                \"an answered escalation must carry a reason;",
+      "rationale": "the record says what was decided and never why"
+    },
+    {
+      "name": "A17_anyone_may_withdraw_an_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "        if esc.raised_by != by:",
+      "replace": "        if False:",
+      "rationale": "a question is withdrawn by the party it was about"
+    },
+    {
+      "name": "A18_redelivery_may_rewrite_a_message",
+      "path": "qta_agent/agents.py",
+      "find": "            if existing.body_digest != body_digest:",
+      "replace": "            if False:",
+      "rationale": "a retrying sender changes what it said by saying it again"
+    },
+    {
+      "name": "A19_forged_redelivery_accepted_on_replay",
+      "path": "qta_agent/agents.py",
+      "find": "                if first.body_digest != msg.body_digest:",
+      "replace": "                if False:",
+      "rationale": "a rewritten message passes replay as if it were the original"
+    },
+    {
+      "name": "A20_message_bodies_carried_inline",
+      "path": "qta_agent/agents.py",
+      "find": "        if not is_digest(body_digest):\n            raise MessageError(",
+      "replace": "        if False:\n            raise MessageError(",
+      "rationale": "the bus becomes a second copy of everything anyone ever said"
+    },
+    {
+      "name": "A21_stale_task_messages_delivered",
+      "path": "qta_agent/agents.py",
+      "find": "            elif msg.task_id in superseded_tasks:",
+      "replace": "            elif False:",
+      "rationale": "a decision is applied to work that no longer exists"
+    },
+    {
+      "name": "A22_messages_to_a_departed_party_are_delivered_to_a_successor",
+      "path": "qta_agent/agents.py",
+      "find": "            elif not ident.is_active(seq):",
+      "replace": "            elif False:",
+      "rationale": "a message addressed to one party is acted on by whoever replaced them"
+    },
+    {
+      "name": "A23_conflicts_resolve_by_arrival_order",
+      "path": "qta_agent/agents.py",
+      "find": "        return Resolution(\n            False, subject, rule, None,\n            f\"{len(values)} conflicting values; REQUIRE_HUMAN means this \"",
+      "replace": "        return Resolution(\n            True, subject, rule, claims[-1].value_digest,\n            f\"{len(values)} conflicting values; REQUIRE_HUMAN means this \"",
+      "rationale": "the outcome depends on scheduling, which is the one input nobody chose"
+    },
+    {
+      "name": "A24_quorum_counts_claims_not_instances",
+      "path": "qta_agent/agents.py",
+      "find": "                by_value.setdefault(c.value_digest, set()).add(c.by_instance)",
+      "replace": "                by_value.setdefault(c.value_digest, []).append(c.claim_id)\n                by_value[c.value_digest] = list(by_value[c.value_digest])",
+      "rationale": "one instance reaches quorum by claiming twice"
+    },
+    {
+      "name": "A25_two_quorum_winners_pass_as_resolved",
+      "path": "qta_agent/agents.py",
+      "find": "            if len(winners) > 1:\n                raise ConflictError(",
+      "replace": "            if False:\n                raise ConflictError(",
+      "rationale": "a rule that selects two answers reports one of them"
+    },
+    {
+      "name": "A26_prefer_role_breaks_ties_inside_the_role",
+      "path": "qta_agent/agents.py",
+      "find": "            if len(pvalues) > 1:\n                return Resolution(\n                    False, subject, rule, None,",
+      "replace": "            if len(pvalues) > 1:\n                return Resolution(\n                    True, subject, rule, sorted(pvalues)[0],",
+      "rationale": "two disagreeing verifiers are reported as agreeing"
+    },
+    {
+      "name": "A27_claims_need_not_be_digests",
+      "path": "qta_agent/agents.py",
+      "find": "        if not is_digest(value_digest):\n            raise ConflictError(",
+      "replace": "        if False:\n            raise ConflictError(",
+      "rationale": "two claims are compared as prose, so agreement depends on wording"
+    },
+    {
+      "name": "A28_claims_need_no_role",
+      "path": "qta_agent/agents.py",
+      "find": "        self.require(by_instance, role)\n        if not is_digest(value_digest):",
+      "replace": "        if not is_digest(value_digest):",
+      "rationale": "an instance claims in a role it does not hold, and PREFER_ROLE then obeys it"
+    },
+    {
+      "name": "A29_duplicate_registration_widens_roles",
+      "path": "qta_agent/agents.py",
+      "find": "            if ident.instance_id in self._identities:\n                raise IdentityError(",
+      "replace": "            if False:\n                raise IdentityError(",
+      "rationale": "a second registration quietly replaces the roles the first one was given"
+    },
+    {
+      "name": "A30_unknown_identity_fields_projected",
+      "path": "qta_agent/agents.py",
+      "find": "    unknown = set(rec) - known\n    if unknown:\n        raise IdentityError(",
+      "replace": "    unknown = set(rec) - known\n    if False:\n        raise IdentityError(",
+      "rationale": "an identity record written by a newer version is projected with fields this reader drops"
+    },
+    {
+      "name": "A31_replay_lets_an_agent_answer_an_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "            if ident.kind is not PrincipalKind.HUMAN:\n                raise EscalationError(\n                    f\"seq {ev.seq}: {answered_by!r} is a \"",
+      "replace": "            if False:\n                raise EscalationError(\n                    f\"seq {ev.seq}: {answered_by!r} is a \"",
+      "rationale": "THE HUMAN GATE, on replay: an agent answers an escalation by appending one line, and 'no arrangement of roles substitutes for a person' becomes a write-path convention"
+    },
+    {
+      "name": "A32_replay_lets_the_asker_answer_itself",
+      "path": "qta_agent/agents.py",
+      "find": "            if answered_by == cur.raised_by:",
+      "replace": "            if False:",
+      "rationale": "the party that raised a question answers it, which is exactly the arrangement an escalation exists to prevent"
+    },
+    {
+      "name": "A33_replay_reopens_an_answered_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "            if cur.state is not EscalationState.OPEN:",
+      "replace": "            if False:",
+      "rationale": "a decision that was already recorded is rewritten by a later appended line"
+    },
+    {
+      "name": "A34_replay_accepts_an_answer_outside_the_options",
+      "path": "qta_agent/agents.py",
+      "find": "            if p.get(\"answer\") not in cur.options:",
+      "replace": "            if False:",
+      "rationale": "an answer that cannot be checked against what was asked is recorded as a decision"
+    },
+    {
+      "name": "A35_replay_lets_anyone_withdraw",
+      "path": "qta_agent/agents.py",
+      "find": "                if ev.actor != cur.raised_by:",
+      "replace": "                if False:",
+      "rationale": "a third party withdraws somebody else's escalation, so a question a human was going to answer simply disappears"
+    },
+    {
+      "name": "M36_replay_does_not_enforce_the_human_registrar_rule",
+      "path": "qta_agent/agents.py",
+      "find": "            self._check_may_register(ident, by=ev.actor, seq=ev.seq)",
+      "replace": "            pass",
+      "rationale": "an agent appends a forged agent.register naming kind=HUMAN and then answers its own escalation through the confederate it minted"
+    },
+    {
+      "name": "M37_the_registrar_comes_from_the_payload",
+      "path": "qta_agent/agents.py",
+      "find": "                ident, registered_by=ev.actor, registered_seq=ev.seq)",
+      "replace": "                ident, registered_seq=ev.seq)",
+      "rationale": "who admitted a principal becomes a field the registrant writes"
+    },
+    {
+      "name": "M38_a_registration_may_name_a_registrar_it_did_not_have",
+      "path": "qta_agent/agents.py",
+      "find": "            if claimed_by and claimed_by != ev.actor:",
+      "replace": "            if False:",
+      "rationale": "the record's claimed registrar is never compared to the actor that appended it"
+    },
+    {
+      "name": "M39_a_claim_may_be_attributed_to_another_instance",
+      "path": "qta_agent/agents.py",
+      "find": "            if claimed_by != ev.actor:\n                raise ConflictError(",
+      "replace": "            if False:\n                raise ConflictError(",
+      "rationale": "a forged claim is attributed to any instance, manufacturing or suppressing a disagreement between independent parties"
+    },
+    {
+      "name": "M40_a_claim_role_is_not_checked_on_replay",
+      "path": "qta_agent/agents.py",
+      "find": "            self.require(ev.actor, role, at_seq=ev.seq)",
+      "replace": "            pass",
+      "rationale": "an instance claims in a role it does not hold, or after it was retired"
+    },
+    {
+      "name": "M41_retiring_an_unknown_instance_raises_a_raw_KeyError",
+      "path": "qta_agent/agents.py",
+      "find": "            if iid not in self._identities:",
+      "replace": "            if False:",
+      "rationale": "an authority API fails with an incidental Python exception instead of its domain error"
+    },
+    {
+      "name": "N1_an_escalation_is_filed_but_never_delivered",
+      "path": "qta_agent/agents.py",
+      "find": "        self._notify(raised)\n        return raised",
+      "replace": "        return raised",
+      "rationale": "the original defect restored: an escalation blocking work until a person acts is visible only to whoever runs the query, which in the case escalation exists for is nobody"
+    },
+    {
+      "name": "N2_a_failing_sink_costs_the_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "        except Exception as exc:                        # noqa: BLE001",
+      "replace": "        except ValueError as exc:",
+      "rationale": "losing a durable record because a pager was down; a sink is somebody else's code and nothing it raises makes discarding the escalation right"
+    },
+    {
+      "name": "N3_delivery_happens_before_the_record_is_durable",
+      "path": "qta_agent/agents.py",
+      "find": "        ev = self.log.append(actor=raised_by, action=ACT_ESCALATION,\n                             target=task_id,\n                             payload={\"escalation\": esc.to_record()})",
+      "replace": "        self._notify(esc)\n        ev = self.log.append(actor=raised_by, action=ACT_ESCALATION,\n                             target=task_id,\n                             payload={\"escalation\": esc.to_record()})",
+      "rationale": "a notification for an escalation the log never got: the operator is told about work that is not blocked and no record exists to answer"
+    },
+    {
+      "name": "N4_delivery_failures_are_forgotten",
+      "path": "qta_agent/agents.py",
+      "find": "            self._undelivered.append((esc.escalation_id, repr(exc)))",
+      "replace": "            pass",
+      "rationale": "'nobody was told' stops being a question with an answer, so a broken channel looks exactly like a working one"
+    },
+    {
+      "name": "N5_the_production_path_stops_escalating",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if not any(e.escalation_id == escalation_id\n                           for e in self.agents.open_escalations(\n                               task_id=prior.task_id)):",
+      "replace": "                if False:",
+      "rationale": "the mechanism exists and nothing calls it: an UNCERTAIN external outcome is reported and no decision is ever put to a person"
+    },
+    {
+      "name": "N6_an_escalation_is_raised_on_every_external_resubmission",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if external and not settled:\n            outcome = \"UNCERTAIN\"",
+      "replace": "        if external:\n            outcome = \"UNCERTAIN\"",
+      "rationale": "VACUOUS: escalating when there is nothing to decide makes the escalation mean nothing, which is the failure mode opposite to never raising one"
+    },
+    {
+      "name": "N7_a_resubmission_raises_a_second_escalation",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if not any(e.escalation_id == escalation_id\n                           for e in self.agents.open_escalations(\n                               task_id=prior.task_id)):",
+      "replace": "                if True:",
+      "rationale": "one unresolved fact becomes many decisions, and the second raise fails on the duplicate id, taking the honest report down with it"
+    },
+    {
+      "name": "N8_a_failed_escalation_takes_the_report_with_it",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            except AgentError:\n                escalation_id = \"\"",
+      "replace": "            except ZeroDivisionError:\n                escalation_id = \"\"",
+      "rationale": "losing the honest UNCERTAIN answer to save the escalation: the same trade the notifier refuses, one layer up"
+    }
+  ]
+}

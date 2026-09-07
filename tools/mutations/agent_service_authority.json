@@ -1,0 +1,105 @@
+{
+  "title": "External services as named parties with contracts and budgets",
+  "note": "An egress grant answers 'may this reach that host'. That is the right question when the far side is anonymous and the wrong one when it is a service somebody depends on, because then which service, what may it be asked, and how much are three questions a grant cannot express. Each mutation here removes one of them.",
+  "suites": ["tests/test_agent_netauth.py", "tests/test_agent_second_reader.py", "tests/test_agent_substrate_isolation.py"],
+  "mutations": [
+    {
+      "name": "V1_an_uncontracted_operation_is_permitted",
+      "path": "qta_agent/netauth.py",
+      "find": "            why = svc.permits(req.target.method, req.target.path)\n            if why:",
+      "replace": "            why = svc.permits(req.target.method, req.target.path)\n            if False:",
+      "rationale": "a grant covering /v1 covers every operation under it, including ones nobody reviewed"
+    },
+    {
+      "name": "V2_the_quota_is_not_enforced",
+      "path": "qta_agent/netauth.py",
+      "find": "            if used >= svc.quota_per_task:",
+      "replace": "            if False:",
+      "rationale": "a retry loop against somebody else's rate limit is an outage you caused"
+    },
+    {
+      "name": "V3_the_quota_is_shared_across_tasks",
+      "path": "qta_agent/netauth.py",
+      "find": "            used = self._service_calls.get((svc.service_id, req.task_id), 0)",
+      "replace": "            used = sum(v for (s, _t), v in self._service_calls.items()\n                       if s == svc.service_id)",
+      "rationale": "one task exhausting a service stops every other task using it, which turns a budget into a global outage switch"
+    },
+    {
+      "name": "V4_a_refused_call_spends_the_budget",
+      "path": "qta_agent/netauth.py",
+      "find": "            if sid and p.get(\"allowed\"):",
+      "replace": "            if sid:",
+      "rationale": "a mistake costs a task the calls it never made, and a caller that gets the path wrong once loses its whole budget"
+    },
+    {
+      "name": "V5_the_budget_resets_on_restart",
+      "path": "qta_agent/netauth.py",
+      "find": "        if ev.action == ACT_NET_REQUEST:\n            # QUOTA IS COUNTED FROM THE LOG.",
+      "replace": "        if False:\n            # QUOTA IS COUNTED FROM THE LOG.",
+      "rationale": "the one moment a task most needs its budget to be the one it had before is the moment a process comes back"
+    },
+    {
+      "name": "V6_registering_a_service_widens_the_grant",
+      "path": "qta_agent/netauth.py",
+      "find": "        for gid in candidates:\n            ok, why = self._covers(gid, req)",
+      "replace": "        if svc is not None:\n            return NetworkDecision(\n                True, \"the service contract permits it\", request=rec,\n                service_id=svc.service_id, service_digest=svc.digest())\n        for gid in candidates:\n            ok, why = self._covers(gid, req)",
+      "rationale": "BOTH must permit; a service that could authorize on its own would be a way to route around every grant by registering a contract"
+    },
+    {
+      "name": "V7_a_contract_in_force_can_be_replaced",
+      "path": "qta_agent/netauth.py",
+      "find": "            if existing is not None and existing.digest() != svc.digest():\n                # A re-registration with different terms would replace a",
+      "replace": "            if False:\n                # A re-registration with different terms would replace a",
+      "rationale": "every decision recorded under the old terms afterwards reads as though it had been made under the new"
+    },
+    {
+      "name": "V8_a_service_registrations_digest_is_not_checked",
+      "path": "qta_agent/netauth.py",
+      "find": "            if claimed != svc.digest():\n                raise NetworkError(\n                    f\"seq {ev.seq}: service registration claims digest \"",
+      "replace": "            if False:\n                raise NetworkError(\n                    f\"seq {ev.seq}: service registration claims digest \"",
+      "rationale": "the contract's content and the digest anything cites stop having to agree"
+    },
+    {
+      "name": "V9_an_empty_contract_may_be_registered",
+      "path": "qta_agent/netauth.py",
+      "find": "    if not ops:\n        raise NetworkError(",
+      "replace": "    if False:\n        raise NetworkError(",
+      "rationale": "an empty operation set is almost always a serialization failure, and registering it puts a contract that permits nothing in force"
+    },
+    {
+      "name": "V10_a_quota_of_zero_is_accepted",
+      "path": "qta_agent/netauth.py",
+      "find": "    if (not isinstance(quota_per_task, int)\n            or isinstance(quota_per_task, bool) or quota_per_task < 1):",
+      "replace": "    if not isinstance(quota_per_task, int):",
+      "rationale": "a denial wearing a contract's name: the service is registered and nothing may ever call it"
+    },
+    {
+      "name": "V11_operation_paths_match_as_strings",
+      "path": "qta_agent/netauth.py",
+      "find": "            if target == a or a in target.parents:\n                return \"\"\n        return (f\"service {self.service_id!r} has no contracted operation \"",
+      "replace": "            if str(target).startswith(str(a)):\n                return \"\"\n        return (f\"service {self.service_id!r} has no contracted operation \"",
+      "rationale": "/v1/records does not cover /v1/records-admin, and a string prefix test grants it"
+    },
+    {
+      "name": "V12_the_second_reader_does_not_count_the_budget",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not sid or not p.get(\"allowed\"):\n        return",
+      "replace": "    if True:\n        return",
+      "rationale": "the budget the scheduler believes is spent and the one the log shows stop being two numbers that can be compared"
+    },
+    {
+      "name": "V13_the_second_reader_accepts_a_replaced_contract",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if prior[\"digest\"] != p.get(\"service_digest\"):",
+      "replace": "        if False:",
+      "rationale": "the independent reader agrees with a substitution the authority refuses"
+    },
+    {
+      "name": "V14_the_read_guard_exempts_everything",
+      "path": "tests/test_agent_substrate_isolation.py",
+      "find": "        if path.stem in IO_LAYER:\n            continue",
+      "replace": "        if True:\n            continue",
+      "rationale": "the guard that forces reads through GovernedReader passes by examining nothing, which is the vacuous-success shape this repository already carries once"
+    }
+  ]
+}

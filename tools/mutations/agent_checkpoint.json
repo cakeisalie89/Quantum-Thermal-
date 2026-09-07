@@ -1,0 +1,202 @@
+{
+  "title": "Checkpointing, incremental verification, and the projection snapshot",
+  "note": "A checkpoint caches a verification RESULT. These mutations delete the checks that keep it from becoming a second source of truth: the anchor is re-hashed rather than trusted, an incremental report is forced to admit it is incremental, and a checkpoint that does not describe the log in front of it is refused rather than used.",
+  "suites": [
+    "tests/test_agent_checkpoint.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_substrate_properties.py",
+    "tests/test_agent_substrate_isolation.py",
+    "tests/test_agent_evidence.py"
+  ],
+  "mutations": [
+    {
+      "name": "C1_checkpoint_a_broken_log",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        if not report.ok:\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
+      "replace": "        if False:\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
+      "rationale": "a checkpoint past a break makes the break invisible to every later verification"
+    },
+    {
+      "name": "C2_skip_checkpoint_self_hash",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        if recomputed != cp.hash:",
+      "replace": "        if False:",
+      "rationale": "an accidentally corrupted checkpoint would be used as if intact"
+    },
+    {
+      "name": "C3_allow_unhashed_checkpoint_fields",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    if unknown:\n        # An unknown field would not be hashed",
+      "replace": "    if False:\n        # An unknown field would not be hashed",
+      "rationale": "an unhashed field could carry unverified content beside a valid digest"
+    },
+    {
+      "name": "C4_ignore_checkpoint_ahead_of_log",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    if cp.next_offset > size:",
+      "replace": "    if False:",
+      "rationale": "a truncated log would keep verifying against a checkpoint covering records that are gone"
+    },
+    {
+      "name": "C5_ignore_witness_behind_checkpoint",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    if witness is not None and witness.seq < cp.seq:",
+      "replace": "    if False:",
+      "rationale": "truncation after the checkpoint would go unnoticed"
+    },
+    {
+      "name": "C6_ignore_canonical_form_drift",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    if cp.canonical_form_version != CANONICAL_FORM_VERSION:",
+      "replace": "    if False:",
+      "rationale": "digests from a different canonical form are not comparable"
+    },
+    {
+      "name": "C7_accept_non_digest_state_pin",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    if state_digest is not None and not is_digest(state_digest):",
+      "replace": "    if False:",
+      "rationale": "a snapshot could be pinned by something that is not a content digest"
+    },
+    {
+      "name": "C8_accept_backwards_offsets",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    if rec[\"record_offset\"] < 0 or rec[\"next_offset\"] <= rec[\"record_offset\"]:",
+      "replace": "    if False:",
+      "rationale": "a seek range that is not forward cannot describe a record"
+    },
+    {
+      "name": "E21_anchor_hash_not_checked",
+      "path": "qta_agent/events.py",
+      "find": "            if anchored.hash != anchor.head_hash:",
+      "replace": "            if False:",
+      "rationale": "an anchor could name any hash and verification would resume anyway"
+    },
+    {
+      "name": "E22_anchor_seq_not_checked",
+      "path": "qta_agent/events.py",
+      "find": "            if anchored.seq != anchor.seq:",
+      "replace": "            if False:",
+      "rationale": "an anchor could claim a position the record does not hold"
+    },
+    {
+      "name": "E23_anchor_record_not_rehashed",
+      "path": "qta_agent/events.py",
+      "find": "            if anchored.recompute_hash() != anchored.hash:",
+      "replace": "            if False:",
+      "rationale": "the record the whole tail chains from would never be re-hashed"
+    },
+    {
+      "name": "E24_anchor_offsets_not_checked",
+      "path": "qta_agent/events.py",
+      "find": "            if anchor.record_offset + len(raw) != anchor.next_offset:",
+      "replace": "            if False:",
+      "rationale": "a rewritten log would be verified from a seek landing mid-record"
+    },
+    {
+      "name": "E25_ignore_anchor_past_end",
+      "path": "qta_agent/events.py",
+      "find": "        if anchor.next_offset > size:",
+      "replace": "        if False:",
+      "rationale": "truncation past the anchor would be silently accepted"
+    },
+    {
+      "name": "E26_anchor_on_unhashable_record",
+      "path": "qta_agent/events.py",
+      "find": "                    if ev.recompute_hash() != ev.hash:\n                        raise ChainBroken(",
+      "replace": "                    if False:\n                        raise ChainBroken(",
+      "rationale": "an anchor would be built on a record that does not hash to its own hash"
+    },
+    {
+      "name": "E27_incremental_claims_full_verification",
+      "path": "qta_agent/events.py",
+      "find": "                            problems, notes, prefix_verified=False,\n                            unverified_through=anchor.seq)",
+      "replace": "                            problems, notes, prefix_verified=True,\n                            unverified_through=-1)",
+      "rationale": "an incremental report would claim a full verification it did not perform"
+    },
+    {
+      "name": "E28_append_verified_ignores_a_broken_tail",
+      "path": "qta_agent/events.py",
+      "find": "            report = self.verify_from(anchor)\n            if not report.ok:",
+      "replace": "            report = self.verify_from(anchor)\n            if False:",
+      "rationale": "the cheap writer would extend a chain it knows is broken"
+    },
+    {
+      "name": "S21_snapshot_drops_idempotency_keys",
+      "path": "qta_agent/store.py",
+      "find": "            \"applied_keys\": dict(sorted(self._applied_keys.items())),",
+      "replace": "            \"applied_keys\": {},",
+      "rationale": "a replayed request would apply twice after a checkpointed load -- the exact failure idempotency keys exist to prevent"
+    },
+    {
+      "name": "S22_restore_without_validating",
+      "path": "qta_agent/store.py",
+      "find": "        if not isinstance(snap, dict) or snap.get(\"snapshot_version\") != 1:",
+      "replace": "        if False:",
+      "rationale": "a snapshot of an unknown shape would be projected as if understood"
+    },
+    {
+      "name": "S23_load_from_ignores_snapshot_position",
+      "path": "qta_agent/store.py",
+      "find": "        if store._loaded_through != cp.seq:",
+      "replace": "        if False:",
+      "rationale": "the tail would be replayed onto a projection describing a different moment"
+    },
+    {
+      "name": "S24_load_from_claims_a_verified_prefix",
+      "path": "qta_agent/store.py",
+      "find": "        store._loaded_prefix_verified = False",
+      "replace": "        store._loaded_prefix_verified = True",
+      "rationale": "a checkpointed load would report the same provenance as a full one"
+    },
+    {
+      "name": "S26_create_checks_existence_before_idempotency",
+      "path": "qta_agent/store.py",
+      "find": "        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")",
+      "replace": "        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                return self.get(record_id)",
+      "rationale": "the original defect: existence-first makes the idempotent branch unreachable, so a retried create raises instead of returning"
+    },
+    {
+      "name": "S25a_key_reuse_guard_on_create",
+      "path": "qta_agent/store.py",
+      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n",
+      "replace": "                return self.get(record_id)\n        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n",
+      "rationale": "a key that completed a request for one record would return a different record from create -- a wrong answer delivered as a success"
+    },
+    {
+      "name": "S25b_key_reuse_guard_on_transition",
+      "path": "qta_agent/store.py",
+      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        cur = self.get(record_id)\n        if expected_revision is not None and cur.revision != expected_revision:\n",
+      "replace": "                return self.get(record_id)\n        cur = self.get(record_id)\n        if expected_revision is not None and cur.revision != expected_revision:\n",
+      "rationale": "the same reuse at the transition call site"
+    },
+    {
+      "name": "K_R1_retention_keeps_the_newest_by_count_only",
+      "path": "qta_agent/checkpoint.py",
+      "find": "            protected.update(x for x in present if x >= usable.seq)",
+      "replace": "            pass",
+      "rationale": "the obvious policy, and the unsafe one: newer checkpoints that describe a log nobody has survive while the only one recovery could start from is deleted"
+    },
+    {
+      "name": "K_R2_retention_can_empty_the_store",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        if not isinstance(keep, int) or isinstance(keep, bool) or keep < 1:",
+      "replace": "        if False:",
+      "rationale": "a retention policy that accepts keep=0 is deletion with a schedule"
+    },
+    {
+      "name": "K_R3_retention_prunes_while_nothing_verifies",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        else:\n            # NOTHING here describes this log.",
+      "replace": "        elif False:\n            # NOTHING here describes this log.",
+      "rationale": "the store discards evidence on the strength of a conclusion it cannot support -- the LOG may be the thing that is wrong"
+    },
+    {
+      "name": "K_R4_retention_deletes_below_the_keep_count",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        if len(present) <= keep:\n            return ()",
+      "replace": "        if False:\n            return ()",
+      "rationale": "a small store is pruned anyway, which is where the protected set is the only thing between a policy and an empty directory"
+    }
+  ]
+}

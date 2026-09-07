@@ -1,0 +1,380 @@
+# Agent authority substrate verification.
+#
+# STATUS: EXECUTED ON A HOSTED RUNNER. Actions runs 33905260267 (head 687c8a2)
+# and 33909571694 (head a3515e7) both completed green. The previous "NOT YET
+# EXECUTED ON A HOSTED RUNNER -- local evidence only" header is retired because
+# it is no longer true; this is an evidence upgrade backed by those runs, not a
+# widening of what the job checks.
+#
+# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
+# immutable 40-hex commit object.
+#
+# SCOPE, so a green badge is not over-read: the agent-substrate job lints
+# qta_agent/ and the tooling, runs every agent test suite plus the mutation
+# harness's own suite, validates the completion matrix, runs every mutation
+# matrix -- including one over the harness itself -- and executes the governed
+# Stage-10 rule.
+#
+# Two further jobs run BESIDE it rather than after it, so neither waits an hour
+# behind the mutation matrices:
+#
+#   full-suite          the complete pytest suite and package_consistency_check
+#                       .py, which used to run only in release.yml. A failure
+#                       confined to the scientific tests was therefore seen at
+#                       release time rather than on the push that caused it.
+#   second-interpreter  the agent suites on a DIFFERENT Python. The substrate
+#                       and its tests need only pytest and hypothesis -- every
+#                       other import is stdlib -- so this is possible without
+#                       touching the scientific pin, which stays 3.12 because
+#                       that is what the locked numeric stack resolves for.
+#                       It tests the AUTHORITY LAYER on another interpreter,
+#                       and claims nothing about the solvers.
+#
+# What this proves: the authority layer's enforcement points are load-bearing
+# -- each one is deleted in turn and the suite must fail -- and the layer is
+# structurally isolated from the scientific tree.
+#
+# What it proves scientifically: NOTHING. automatic_gate_effect = NONE. No
+# module under qta_agent/ is imported by any solver, by qta_full_sim.py, or by
+# metrics.py, and the isolation suite fails if that ever changes. PASS = 0 is
+# unaffected by every result in this workflow.
+name: qta-agent-substrate
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "qta_agent/**"
+      - "tests/test_agent_*.py"
+      - "tools/mutation_matrix.py"
+      - "tools/mutations/**"
+      - "tests/test_mutation_harness.py"
+      - "docs/completion_matrix.json"
+      - "tools/completion_matrix.py"
+      - "AGENT_SUBSTRATE.md"
+      - "authorities.json"
+      - ".github/workflows/agent-substrate.yml"
+  pull_request:
+  workflow_dispatch:
+permissions: {}            # default-deny
+jobs:
+  agent-substrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read       # checkout only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --all-groups
+      - name: lint the substrate and the guarded Stage-10 modules
+        # qta_agent/ is not in ruff's per-file-ignores, so E501 applies at the
+        # project's 79-column setting like any other non-legacy module.
+        run: |
+          uv run ruff check qta_agent qta_multiphysics/stack \
+            tests/test_agent_*.py tests/test_mutation_harness.py \
+            tools/mutation_matrix.py tools/completion_matrix.py
+      - name: the workflow still runs what the matrix says it runs
+        # A row claiming hosted coverage is claiming something about THIS
+        # file, and nothing else here would notice this file changing.
+        run: uv run python tools/workflow_contract.py
+      - name: completion matrix is self-consistent
+        # The matrix is a self-assessment; this is what stops it drifting.
+        run: uv run python tools/completion_matrix.py
+      - name: derived artifacts are in step with their sources
+        # Cheap, and it closes a hole this workflow fell into. A commit
+        # changed the Snakefile without rebuilding the RO-Crate, so the crate
+        # carried a checksum for a file that no longer had it. Nothing on a
+        # push noticed: only release.yml runs the full pytest suite, and the
+        # single test that would have caught it lives there. Both checks
+        # below are seconds of work and fail on drift rather than reporting
+        # it later, to nobody, at release time.
+        run: |
+          uv run python generate_manifest.py --check
+          uv run python ro_crate_tools.py validate
+      - name: agent test suites
+        run: |
+          uv run python -m pytest tests/test_agent_*.py \
+            tests/test_mutation_harness.py \
+            tests/test_stage10_stack.py -q
+      - name: mutation matrix -- substrate
+        # Non-zero exit on a survivor, an anchor that no longer matches, or a
+        # source not restored byte-identical. A red baseline aborts the run
+        # rather than reporting twenty spurious kills.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_substrate.json
+      - name: mutation matrix -- evidence store and gate
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_evidence.json
+      - name: mutation matrix -- checkpointing
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_checkpoint.json
+      - name: mutation matrix -- capabilities, tools and bounded execution
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_execution.json
+      - name: mutation matrix -- task lifecycle and the governed path
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_tasks.json
+      - name: mutation matrix -- governed reads and TOCTOU confinement
+        # The read boundary. Each mutation removes exactly one thing standing
+        # between an authorized NAME and unauthorized BYTES.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_readpath.json
+      - name: mutation matrix -- audit queries and provenance gaps
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_audit.json
+      - name: mutation matrix -- versioned policy
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_policy.json
+      - name: mutation matrix -- durable scheduling
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_scheduler.json
+      - name: mutation matrix -- network authority
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_netauth.json
+      - name: mutation matrix -- secret handling
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_secrets.json
+      - name: mutation matrix -- memory and context
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_memory_context.json
+      - name: mutation matrix -- multi-agent identity and human escalation
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_agents.json
+      - name: mutation matrix -- the harness itself
+        # Every claim that an enforcement point is load-bearing is produced by
+        # this harness. A defect in it is not a wrong number in a table: it is
+        # an unprotected check certified as protected. One was found -- the
+        # harness could run a mutation against the PREVIOUS mutation's cached
+        # bytecode whenever both changed the file by the same number of bytes
+        # within one second -- so the instrument is now mutated with its own
+        # machinery. This step is slow because each mutation runs a suite that
+        # itself runs the harness; that cost is the point.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/mutation_harness.json
+      - name: mutation matrix -- the second reader for every subsystem
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_second_reader.json
+      - name: mutation matrix -- repository scope and the workflow contract
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/repo_contract.json
+      - name: mutation matrix -- crash recovery and process liveness
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_recovery.json
+      - name: mutation matrix -- owner-scoped idempotency
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_idempotency.json
+      - name: mutation matrix -- shared-log action ownership
+        # The registry that lets several reducers project one log without
+        # either silently dropping a foreign event or refusing to share.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_actions.json
+      - name: mutation matrix -- capability issuer and delegation
+        # Who may MINT a grant, and what a delegation may not widen. The
+        # ledger recorded who did for a long time and refused to check who
+        # may, which is attribution rather than authorization.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_delegation.json
+      - name: mutation matrix -- separate-process verification
+        # reconstruct.py keeps its independence by discipline. This runs the
+        # same reader where the shortcut is an ImportError instead.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_separate_verify.json
+      - name: mutation matrix -- compensation and undeclared writes
+        # The compensation was prose with four consumers and no performer;
+        # declared-output collection saw only the files the contract named.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_compensation.json
+      - name: mutation matrix -- external service authority
+        # A grant answers "may this reach that host"; a service answers
+        # which service, what may it be asked, and how much.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_service_authority.json
+      - name: mutation matrix -- lease renewal
+        # Renewal extends possession and must never re-acquire it: a lapsed
+        # lease may already have been reconciled away and the work given to
+        # somebody else.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_lease_renewal.json
+      - name: mutation matrix -- corpus membership
+        # Every guard on a corpus path protected its shape; none protected
+        # the set, so writing a file into the tree made it governed text.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/corpus_allowlist.json
+      - name: the corpus allowlist describes the committed corpus
+        # Adding a governed document without regenerating the allowlist is a
+        # membership change nobody reviewed. This is where that fails.
+        run: |
+          uv run python tools/corpus_allowlist.py
+      - name: fuzz the parsers and trust boundaries
+        # Two jobs: replay every committed regression input, then run a
+        # bounded seeded campaign. A finding fails the build. The campaign is
+        # a floor, not a fuzzing programme -- see tests/fuzz_corpus/README.md.
+        run: |
+          uv run python tools/fuzz_substrate.py --cases 2000
+      - name: the governed production path actually runs
+        # The point of a production caller is that it is exercised. This runs
+        # the real Snakemake rule, not a test double, and s10_governed fails
+        # the build unless the run reaches VERIFIED.
+        run: uv run snakemake --cores 1 s10_governed
+      - name: the read-only auditor answers for that run
+        # Immediately after the governed rule, over the log it just wrote --
+        # a real history, not a fixture built to pass. Each command exits
+        # non-zero on a FINDING, so a provenance gap or a transition the
+        # machine would refuse today fails the build here rather than being
+        # printed into a log nobody reads.
+        #
+        # It also proves the auditor still runs. A committed audit tool that
+        # nothing invokes rots exactly as fast as the API underneath it
+        # changes, and is discovered to be broken during the incident it
+        # exists for.
+        run: |
+          LOG=verification/stage10/governed/task_log.jsonl
+          uv run python tools/audit_log.py "$LOG" verify
+          uv run python tools/audit_log.py "$LOG" gaps
+          uv run python tools/audit_log.py "$LOG" replay
+          uv run python tools/audit_log.py "$LOG" decisions --all
+      - name: mutation matrix -- Stage-10 write authority and retrieval trust
+        # Guards recovered from the PR #16 corpus, which proved current main had
+        # lost them. Kept in this workflow rather than stack-verify because the
+        # harness and its specs live here.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/stage10_authority.json
+      - name: sources are unchanged after mutation testing
+        # The harness verifies this itself by re-hashing; git is the
+        # independent check, because a harness that restores incorrectly
+        # would also report incorrectly.
+        run: |
+          if ! git diff --quiet; then
+            echo "mutation testing left the working tree modified:"
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "working tree clean"
+      - name: the substrate did not touch the canonical tree
+        run: |
+          uv run python generate_manifest.py --check
+
+  full-suite:
+    # Deliberately a separate job. Serialising it behind the mutation matrices
+    # would mean the cheapest, broadest signal in this workflow arrives last.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --all-groups
+      - name: package consistency
+        run: uv run python package_consistency_check.py
+      - name: the FULL pytest suite, not only the agent suites
+        run: uv run python -m pytest tests/ -q
+
+  second-interpreter:
+    # The guarantees under test are pure-Python and stdlib-only. Running them
+    # on another interpreter answers a question the pinned job cannot: whether
+    # any of this depends on 3.12 specifically.
+    #
+    # NOT `uv sync`: the lockfile resolves for 3.12 and would refuse.
+    #
+    # numpy and scipy are here for ONE reason, established by running it:
+    # qta_multiphysics/__init__.py eagerly imports the runner, so the
+    # governed Stage-10 tool -- a stdlib-only module -- cannot be imported
+    # in its subprocess without them. They are installed UNPINNED and
+    # nothing here executes a solver or reads a number out of one; this job
+    # tests the authority layer and claims nothing about the science.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.13"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: a bare environment on Python ${{ matrix.python }}
+        run: |
+          uv venv --python ${{ matrix.python }} .venv-alt
+          uv pip install --python .venv-alt pytest hypothesis \
+            numpy scipy
+      - name: the interpreter is actually the one we asked for
+        run: |
+          .venv-alt/bin/python -c "import sys; \
+            assert sys.version_info[:2] == tuple(int(x) for x in \
+            '${{ matrix.python }}'.split('.')), sys.version; \
+            print(sys.version)"
+      - name: agent suites on Python ${{ matrix.python }}
+        run: .venv-alt/bin/python -m pytest tests/test_agent_*.py -q
+
+  cross-environment-3d:
+    # R59. The question was never "is there a divergence" -- it was that the
+    # only instrument able to answer had its evidence behind a signed URL on
+    # a storage host some egress policies refuse, so the measurement could
+    # not be read back. The answer is to make the measurement print itself.
+    #
+    # This runs the same collector the container runs, on a THIRD kind of
+    # machine, and emits the comparison as ::QTA-3D-*:: lines that the
+    # job-logs API serves directly. No artifact, no redirect, no host that
+    # can be denied.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --all-groups
+      - name: regenerate the 3D outputs and compare against the committed copies
+        # DIAGNOSTIC. It reports a divergence and never fails on one: a tool
+        # that could fail the build on a byte difference would be a gate,
+        # and nothing here is allowed to be one.
+        run: |
+          uv run python analysis/collect_container_3d.py \
+            "${RUNNER_TEMP}/qta-3d" --emit-summary
+      - name: the diagnostic actually measured something
+        # ANTI-VACUITY. A comparison that regenerated zero files would print
+        # a clean verdict having compared nothing.
+        run: |
+          uv run python - <<'PY'
+          import json, pathlib, sys
+          import os
+          meta = pathlib.Path(os.environ["RUNNER_TEMP"]) / "qta-3d" / "meta"
+          c = json.loads((meta / "comparison.json").read_text())
+          print(json.dumps(c, indent=1, sort_keys=True))
+          if c["regenerated"] < 60:
+              sys.exit(f"only {c['regenerated']} files regenerated; the "
+                       "comparison examined too little to mean anything")
+          print(f"compared {c['regenerated']} files: {c['identical']} "
+                f"identical, {c['differing']} differing")
+          PY
