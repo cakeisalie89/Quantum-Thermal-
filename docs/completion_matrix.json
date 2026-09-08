@@ -1575,7 +1575,7 @@
     {
       "id": "R50",
       "requirement": "Fuzzing of parsers and authority boundaries",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "tools/fuzz_substrate.py"
       ],
@@ -1586,9 +1586,9 @@
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "tests/fuzz_corpus/ -- every input that ever produced a finding, replayed on every run",
       "authority_owner": "each target declares which exceptions ARE its refusal",
-      "evidence": "18 targets covering every parser and record decoder in the package; two real defects found in netauth.grant and committed as corpus entries",
+      "evidence": "23 targets covering every parser and record decoder in the package plus the two state machines as sequences; two real defects found in netauth.grant and committed as corpus entries. A campaign now reports what it REACHED -- 2814 lines in qta_agent and 72 (state, operation, outcome) triples at 2000 cases -- and CI fails below a floor, because 'no findings' is the same sentence over a full campaign and an empty one",
       "provenance": "a finding carries the exact bytes, the target, the classification and the campaign seed",
-      "failure_semantics": "ACCEPTED, CRASHED and HUNG are distinguished; a hang is never counted as a pass, on the same rule as the mutation harness",
+      "failure_semantics": "a declared refusal is not a finding; an undeclared exception, a hang against a per-case deadline, and a sequence that leaves a log the system cannot replay are each findings, and the last of those is checked OUTSIDE the loop that tolerates refusals",
       "recovery": "n/a",
       "retry": "n/a",
       "idempotency": "campaigns are seeded and reproducible",
@@ -1599,16 +1599,30 @@
         "tests/test_agent_fuzz.py"
       ],
       "property_tests": [],
-      "mutation_tests": [],
-      "fuzzing": "18 targets; campaigns of 4000 cases across 12 seeds run by hand, 2000 in CI",
+      "mutation_tests": [
+        "tools/mutations/fuzz_harness.json"
+      ],
+      "fuzzing": "tools/fuzz_substrate.py: 23 targets, 2000 cases in CI under line-coverage measurement with a floor, plus a SEQUENCE target that drives the real scheduler and authority state machines through fuzzed programmes of up to 48 operations",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "random mutation only: no coverage feedback, so deep parser states are reached by luck",
-        "no fuzzing of the scheduler or authority state machines as SEQUENCES of operations, only of single records",
-        "no mutation matrix over the fuzz harness itself, unlike the mutation harness"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "coverage FEEDBACK is implemented and does not measurably help on these targets. Measured over eight seeds at two budgets: 300 cases, guided mean 84.8 state transitions against 84.6 unguided; 600 cases, 89.1 against 88.5. A wash.",
+          "reason": "epistemic",
+          "detail": "the reachable set saturates from the declared seeds inside a few hundred cases -- both arms reach the same 1538 lines -- so there is nothing for feedback to steer towards, and no engineering here changes that. It is kept on because it costs nothing measurable and would matter if the target set grew, and the measurement is committed rather than the expectation: the first version of it was WORSE than no guidance, and a three-seed sample that appeared to show a win was noise."
+        },
+        {
+          "limit": "the campaign is 2000 cases in CI. That is a floor under the parsers, not a fuzzing programme, and a defect needing a deeper search is not found by it.",
+          "reason": "epistemic",
+          "detail": "a bounded search does not become exhaustive by being longer, and the honest response to that is the one taken here: state the budget, seed it so a finding reproduces, commit every input that ever produced one, and measure what the campaign reached so a run that stops reaching anything fails instead of reporting the same 'no findings' it reports when healthy."
+        },
+        {
+          "limit": "the sequence target drives ONE process. Interleavings between two processes racing on the same log are not generated here.",
+          "reason": "architectural_by_design",
+          "detail": "a fuzzer chooses an order and runs it; two processes do not have an order to choose, which is what makes their races a different kind of question. That kind is covered by tests/test_agent_cross_process.py, where real processes race and the same replay invariant is asserted -- and where it found three defects. Generating cross-process schedules would need deterministic scheduling of real processes, which is a property of the kernel rather than of this harness."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

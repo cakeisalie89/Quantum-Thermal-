@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import pathlib
 import random
 import signal
 import sys
@@ -159,6 +160,168 @@ def _read_beneath(data: bytes):
             fh.write(b"in-root")
         with ReadRoot(d, max_bytes=4096) as rr:
             return rr.read(rel)
+
+
+#: How many operations one fuzzed sequence may perform. Bounded so a case
+#: stays inside CASE_TIMEOUT_S with room to spare, and so a finding is a
+#: sequence a person can read.
+MAX_SEQUENCE_OPS = 48
+
+#: Job and record identifiers the sequence may name. Small on purpose:
+#: interesting interleavings need operations to COLLIDE, and a fuzzer that
+#: invents a fresh id every time never makes two operations meet.
+SEQUENCE_ARITY = 4
+
+
+def replay_invariants(path) -> int:
+    """Rebuild everything from the log and check what must be true.
+
+    Extracted from the sequence target so it can be TESTED. An invariant
+    inlined in a fuzz target is only ever exercised by inputs the fuzzer
+    happens to generate, so nothing establishes that it can fire at all --
+    and an invariant that cannot fire is indistinguishable from one that
+    holds.
+    """
+    from qta_agent.events import EventLog
+    from qta_agent.policy import PolicyStore
+    from qta_agent.reconstruct import compare, reconstruct
+    from qta_agent.scheduler import JobState, Scheduler
+    from qta_agent.store import AuthorityStore
+
+    report = EventLog(path).verify()
+    if not report.ok:
+        raise AssertionError(
+            "a sequence of legal-and-refused operations left an "
+            f"unverifiable log: {report.problems[:3]}")
+    fresh_log = EventLog(path)
+    rebuilt = Scheduler(fresh_log, policy=PolicyStore(fresh_log).load(),
+                        policy_id="scheduler.default",
+                        capacity={"slots": 4}).load()
+    rebuilt_store = AuthorityStore(fresh_log).load()
+    differences = compare(rebuilt_store, reconstruct(fresh_log))
+    if differences:
+        raise AssertionError(
+            "primary and independent reconstruction disagree after a "
+            f"fuzzed sequence: {differences[:3]}")
+    for job in rebuilt.all_jobs().values():
+        if job.state is JobState.DISPATCHED and not job.lease_holder:
+            raise AssertionError(
+                f"{job.job_id} is DISPATCHED with no lease holder")
+        if job.attempts > job.max_attempts:
+            raise AssertionError(
+                f"{job.job_id} was attempted {job.attempts} times against a "
+                f"budget of {job.max_attempts}")
+    return len(rebuilt.all_jobs())
+
+
+def _scheduler_sequence(data: bytes):
+    """Drive the real state machines through a fuzzed SEQUENCE of operations.
+
+    WHAT THIS TARGETS THAT THE OTHERS DO NOT
+
+    Every target above fuzzes ONE RECORD: bytes in, a parse or a refusal
+    out. That finds a parser that trusts its input, and it cannot find
+    anything about ORDER -- and order is where the interesting defects in
+    this package have actually been. Dispatch before ready. Report from a
+    worker whose lease lapsed. Renew after reconcile requeued the job.
+    Cancel between the two halves of a promotion. None of those is a
+    malformed record; each is a well-formed record in the wrong place.
+
+    THE INVARIANT, WHICH IS THE WHOLE POINT
+
+    Every operation may legitimately be refused, and refusals are not
+    findings -- a fuzzed sequence is mostly illegal moves. What may NEVER
+    happen is that the sequence leaves a log the system cannot rebuild
+    itself from. So the operations run inside a refusal-tolerant loop and
+    the REPLAY runs outside it: a projection is loaded from scratch, an
+    independent reconstruction is compared against it, and anything either
+    of them raises reaches run_case as an undeclared exception.
+
+    That invariant is not hypothetical. A perfectly valid chain that no
+    reducer could replay is the exact defect four concurrent processes
+    produced, and the exact one a badly ordered single-process sequence can
+    produce too.
+    """
+    import tempfile
+
+    from qta_agent.authority import Role, State, TransitionError
+    from qta_agent.canonical import digest
+    from qta_agent.events import EventLog
+    from qta_agent.policy import PolicyError, PolicyStore
+    from qta_agent.scheduler import (
+        FailureClass, Scheduler, SchedulerError, default_policy,
+    )
+    from qta_agent.store import AuthorityStore, StoreError
+
+    if not data:
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        path = pathlib.Path(d) / "log.jsonl"
+        log = EventLog(path)
+        pol = PolicyStore(log).load()
+        pol.publish(default_policy(), actor="owner")
+        sched = Scheduler(log, policy=pol, policy_id="scheduler.default",
+                          capacity={"slots": 4}).load()
+        store = AuthorityStore(log).load()
+
+        # Every refusal the state machines are ENTITLED to make. Written
+        # out rather than caught as Exception: a bare except here would
+        # swallow the AssertionError the invariant below raises, and the
+        # target would report success over a log nobody could replay --
+        # which is the vacuous-verifier defect, inside the fuzzer.
+        refusals = (SchedulerError, StoreError, PolicyError, TransitionError,
+                    ValueError, KeyError, TypeError)
+        ops = data[:MAX_SEQUENCE_OPS]
+        for i, byte in enumerate(ops):
+            which = byte % 10
+            n = (byte // 10) % SEQUENCE_ARITY
+            jid = f"j{n}"
+            rid = f"r{n}"
+            before = None
+            if jid in sched.all_jobs():
+                before = sched.get(jid).state.value
+            outcome = "ok"
+            try:
+                if which == 0:
+                    sched.enqueue(job_id=jid, work_digest=digest({"j": n}),
+                                  submitter="p1")
+                elif which == 1:
+                    sched.reconcile()
+                elif which == 2:
+                    sched.dispatch(job_id=jid, worker=f"w{i % 2}",
+                                   lease_id=f"L{i}", lease_seqs=1 + (i % 5))
+                elif which == 3:
+                    sched.report(job_id=jid, worker=f"w{i % 2}")
+                elif which == 4:
+                    sched.report(job_id=jid, worker=f"w{i % 2}",
+                                 failure=FailureClass.TRANSIENT)
+                elif which == 5:
+                    sched.renew_lease(job_id=jid, worker=f"w{i % 2}",
+                                      lease_id=f"L{i - 1}", lease_seqs=8)
+                elif which == 6:
+                    sched.cancel(job_id=jid, actor="p1", reason="fuzz")
+                elif which == 7:
+                    store.create(record_id=rid, kind="claim", proposer="p1")
+                elif which == 8:
+                    store.transition(record_id=rid, dst=State.UNDER_REVIEW,
+                                     actor="v1", role=Role.VERIFIER)
+                else:
+                    sched.set_priority(job_id=jid, priority=1 + (i % 8),
+                                       actor="scheduler", role="SCHEDULER",
+                                       reason="fuzz")
+            except refusals as exc:
+                outcome = type(exc).__name__      # an illegal move, refused
+            finally:
+                # THE FEEDBACK SIGNAL FOR A STATE MACHINE. Which state the
+                # operation was attempted from, which operation it was, and
+                # whether the machine allowed it. Two sequences that ran the
+                # same lines and attempted different transitions are
+                # different cases, and this is what says so.
+                feature(("sched", before, which, outcome))
+
+        # OUTSIDE the tolerant loop, on purpose. Everything below is the
+        # invariant, and anything it raises is a finding.
+        return replay_invariants(path)
 
 
 def _record_target(builder):
@@ -381,9 +544,135 @@ def _targets() -> dict:
                       [b"a-secret-value-long-enough in a line"]),
         "canonical": (_canonical, (CanonicalizationError,) + common,
                       [b'{"a": 1, "b": [1, 2, {"c": null}]}']),
+        "scheduler_sequence": (
+            _scheduler_sequence, common + (OSError,),
+            [bytes([0, 1, 2, 3]), bytes([0, 1, 2, 5, 1, 2, 3]),
+             bytes([7, 8, 0, 1, 2, 6]), bytes(range(10))]),
         "rag_index": (_rag_index, common + (OSError,),
                       [b'{"schema_version": 1, "chunks": []}']),
     }
+
+
+# ---- coverage feedback ---------------------------------------------------
+#
+# WHY A RANDOM FUZZER PLATEAUS
+#
+# Random mutation reaches a deep parser state by luck, and the luck runs out
+# fast: past the first few branches the probability that an unguided mutation
+# lands on the byte pattern which opens the next one is negligible. So a
+# campaign of ten thousand random cases explores roughly what a campaign of
+# five hundred did, and reports the same "no findings" with the same
+# confidence. R50 named this as the gap it was.
+#
+# Feedback closes it in the standard way: run each case with line coverage
+# on, and KEEP the inputs that reached somewhere new. The next mutation
+# starts from one of those rather than from a seed, so progress compounds.
+#
+# WHY THIS IS AFFORDABLE
+#
+# sys.monitoring (PEP 669) charges only for the code objects that stay
+# instrumented, and the callback returns DISABLE for every file outside
+# qta_agent -- permanently, per instruction. Measured cost on this suite:
+# 1.3x, against roughly 30x for sys.settrace. A tracer nobody can afford to
+# leave on is a tracer that gets switched off.
+
+#: Which sys.monitoring tool slot to claim. 0-5 are free for tools; the
+#: profiler and debugger ids are avoided so a run under either still works.
+_TOOL_ID = 3
+
+#: Inputs kept per target. Bounded because a corpus that grows without limit
+#: makes each later case slower to choose from and the campaign's cost
+#: depend on its own history.
+MAX_CORPUS_PER_TARGET = 64
+
+#: How often a case starts from a DECLARED SEED rather than from something
+#: the campaign kept. See the comment at the selection site: without this
+#: the corpus dilutes the seeds and guided coverage falls below unguided.
+SEED_SHARE = 0.5
+
+
+#: Features a TARGET declares interesting, unioned with line coverage to
+#: form a case's signature.
+#:
+#: WHY LINES ARE NOT ENOUGH FOR A STATE MACHINE
+#:
+#: Line coverage over these parsers saturates in a few hundred random cases:
+#: measured, the sequence target reaches 1538 lines from its seeds alone and
+#: feedback on that signal made coverage very slightly WORSE, because the
+#: kept corpus dilutes the seeds while telling the fuzzer nothing new. The
+#: interesting thing about a sequence is not which lines ran but which
+#: (state, operation, outcome) triples were attempted, and no line coverage
+#: can see the difference between dispatching a READY job and dispatching a
+#: CANCELLED one -- both run the same lines and one of them is the case that
+#: matters.
+_FEATURES: set = set()
+
+
+def feature(item) -> None:
+    """Declare that this case reached something worth keeping an input for."""
+    _FEATURES.add(item)
+
+
+def _take_features() -> frozenset:
+    global _FEATURES
+    out = frozenset(_FEATURES)
+    _FEATURES = set()
+    return out
+
+
+class Coverage:
+    """Line coverage inside ``qta_agent``, collected per case.
+
+    Falls back to collecting NOTHING when sys.monitoring is unavailable or
+    its tool slot is taken -- and says so rather than reporting an empty
+    coverage set as though the code executed nothing, which would make the
+    guidance silently random again.
+    """
+
+    def __init__(self):
+        self.available = False
+        self.reason = ""
+        self._hits: set = set()
+        self._mon = getattr(sys, "monitoring", None)
+        if self._mon is None:                     # pragma: no cover
+            self.reason = "sys.monitoring is not available on this build"
+            return
+        try:
+            self._mon.use_tool_id(_TOOL_ID, "qta-fuzz")
+        except ValueError as exc:                 # pragma: no cover
+            self.reason = f"tool id {_TOOL_ID} is in use: {exc}"
+            return
+        self._mon.register_callback(
+            _TOOL_ID, self._mon.events.LINE, self._line)
+        self.available = True
+
+    def _line(self, code, line):
+        if "qta_agent" not in code.co_filename:
+            # DISABLE is permanent for this instruction until events are
+            # restarted, which is exactly what makes the cost bearable.
+            return self._mon.DISABLE
+        self._hits.add((code.co_filename, line))
+        return None
+
+    def start(self) -> None:
+        if self.available:
+            self._mon.set_events(_TOOL_ID, self._mon.events.LINE)
+
+    def stop(self) -> None:
+        if self.available:
+            self._mon.set_events(_TOOL_ID, 0)
+
+    def take(self) -> frozenset:
+        """The lines hit since the last call, and reset."""
+        hits = frozenset(self._hits)
+        self._hits = set()
+        return hits
+
+    def close(self) -> None:
+        if self.available:
+            self.stop()
+            self._mon.free_tool_id(_TOOL_ID)
+            self.available = False
 
 
 # ---- mutation ------------------------------------------------------------
@@ -465,8 +754,16 @@ def run_case(name: str, fn, declared, data: bytes) -> dict | None:
     return None
 
 
-def campaign(*, cases: int, seed: int, only: str | None = None) -> tuple:
-    """Run a bounded campaign. Returns (findings, cases_run)."""
+def campaign(*, cases: int, seed: int, only: str | None = None,
+             guided: bool = True) -> tuple:
+    """Run a bounded campaign. Returns (findings, cases_run, stats).
+
+    With ``guided``, each case runs under line coverage and any input that
+    reached a line no earlier case reached is kept and mutated from. The
+    corpus starts as the declared seeds, so an unguided run is the same
+    campaign with the feedback switched off -- which is how the two are
+    compared rather than asserted about.
+    """
     rng = random.Random(seed)
     targets = _targets()
     if only:
@@ -477,16 +774,76 @@ def campaign(*, cases: int, seed: int, only: str | None = None) -> tuple:
     findings: list = []
     run = 0
     names = sorted(targets)
-    for i in range(cases):
-        name = names[i % len(names)]
-        fn, declared, seeds = targets[name]
-        data = _mutate(rng, rng.choice(seeds))
-        run += 1
-        found = run_case(name, fn, declared, data)
-        if found is not None:
-            found["seed"] = seed
-            findings.append(found)
-    return findings, run
+    cov = Coverage()
+    corpus = {n: list(targets[n][2]) for n in names}
+    reached: dict = {n: set() for n in names}
+    feats: dict = {n: set() for n in names}
+    kept = 0
+    # Captured BEFORE the close in the finally below, which sets available
+    # to False. Reading it afterwards reported every guided campaign as
+    # unguided -- a status field describing the state of the machinery
+    # rather than the state of the run.
+    measuring = cov.available
+    # Feedback is possible whenever there is ANY signal: line coverage, or a
+    # target's own declared features. A target that reports features can be
+    # guided on a build where sys.monitoring is unavailable.
+    was_guided = bool(guided)
+    unavailable = cov.reason if not measuring else ""
+    try:
+        if measuring:
+            cov.start()
+        for i in range(cases):
+            name = names[i % len(names)]
+            fn, declared, seeds = targets[name]
+            # HALF THE TIME, START FROM A DECLARED SEED.
+            #
+            # The first version of this loop chose uniformly from the whole
+            # corpus, and measured WORSE than no guidance at all: within a
+            # few hundred cases the corpus held ninety mutated inputs and
+            # three seeds, so a valid record was the parent two per cent of
+            # the time and every case was mutating something already broken.
+            # Coverage went DOWN. Keeping the seeds in play is what makes
+            # the feedback compound instead of drift.
+            if corpus[name] and rng.random() >= SEED_SHARE:
+                parent = rng.choice(corpus[name])
+            else:
+                parent = rng.choice(seeds)
+            data = _mutate(rng, parent)
+            run += 1
+            if measuring:
+                cov.take()                        # discard anything pending
+            _take_features()
+            found = run_case(name, fn, declared, data)
+            lines = cov.take() if measuring else frozenset()
+            marks = _take_features()
+            if lines or marks:
+                new_signal = ((lines - reached[name])
+                              | (marks - feats[name]))
+                reached[name] |= lines
+                feats[name] |= marks
+                if new_signal:
+                    # Both signals are MEASURED either way; only the
+                    # feedback is switched off. Measuring one arm and not
+                    # the other would make the comparison between them
+                    # meaningless, which is the whole reason --no-guidance
+                    # exists.
+                    if guided and len(corpus[name]) < MAX_CORPUS_PER_TARGET:
+                        corpus[name].append(data)
+                        kept += 1
+            if found is not None:
+                found["seed"] = seed
+                findings.append(found)
+    finally:
+        cov.close()
+    stats = {
+        "guided": bool(was_guided),
+        "guidance_unavailable": unavailable,
+        "lines_reached": sum(len(v) for v in reached.values()),
+        "features_reached": sum(len(v) for v in feats.values()),
+        "inputs_kept": kept,
+        "targets": len(names),
+    }
+    return findings, run, stats
 
 
 def replay_corpus(corpus: Path) -> list:
@@ -517,6 +874,12 @@ def main() -> int:
     ap.add_argument("--corpus", type=Path,
                     default=ROOT / "tests" / "fuzz_corpus")
     ap.add_argument("--replay-only", action="store_true")
+    ap.add_argument("--no-guidance", action="store_true",
+                    help="run without coverage feedback, for comparison")
+    ap.add_argument("--min-lines", type=int, default=0,
+                    help="fail if the campaign reached fewer lines than this")
+    ap.add_argument("--min-features", type=int, default=0,
+                    help="fail if it reached fewer state transitions")
     ap.add_argument("--save", action="store_true",
                     help="write new findings into the corpus directory")
     args = ap.parse_args()
@@ -534,10 +897,24 @@ def main() -> int:
     if not args.replay_only:
         seed = args.seed if args.seed is not None else random.randrange(2**31)
         print(f"\ncampaign: {args.cases} cases, seed {seed}")
-        findings, run = campaign(cases=args.cases, seed=seed,
-                                 only=args.target)
+        findings, run, stats = campaign(cases=args.cases, seed=seed,
+                                        only=args.target,
+                                        guided=not args.no_guidance)
         print(f"  {run} case(s) run over "
               f"{len(_targets()) if not args.target else 1} target(s)")
+        if stats["guided"]:
+            print(f"  coverage-guided: {stats['lines_reached']} line(s) "
+                  f"and {stats['features_reached']} state-transition "
+                  f"feature(s) reached, {stats['inputs_kept']} input(s) kept")
+        elif stats["lines_reached"] or stats["features_reached"]:
+            print(f"  UNGUIDED: {stats['lines_reached']} line(s) and "
+                  f"{stats['features_reached']} state-transition feature(s) "
+                  "reached, feedback off (measured for comparison only)")
+        elif stats["guidance_unavailable"]:
+            print("  coverage guidance UNAVAILABLE "
+                  f"({stats['guidance_unavailable']}); this campaign was "
+                  "random, and says so rather than reporting guided cases "
+                  "it did not run")
         for f in findings:
             print(f"  {f['kind']:8s} {f['target']}: {f['detail']}")
             if args.save:
@@ -548,6 +925,26 @@ def main() -> int:
                 print(f"           saved as {name}")
         if not findings:
             print("  no findings")
+
+        # THE ANTI-VACUITY FLOOR, AND WHY A FUZZER NEEDS ONE.
+        #
+        # "no findings" is the same sentence whether the campaign exercised
+        # the whole package or nothing at all: a target that raises at
+        # import, a mutation operator that started returning b"", a refusal
+        # tuple widened until every case is "correctly refused" -- each of
+        # those turns this tool into a green tick over an empty run. The
+        # floors make the campaign state how much it actually reached and
+        # fail when that collapses.
+        if args.min_lines and stats["lines_reached"] < args.min_lines:
+            print(f"  FLOOR: reached {stats['lines_reached']} line(s), "
+                  f"below the required {args.min_lines}. A campaign that "
+                  "stopped reaching the code is not a campaign that found "
+                  "nothing")
+            return 1
+        if args.min_features and stats["features_reached"] < args.min_features:
+            print(f"  FLOOR: reached {stats['features_reached']} state "
+                  f"transition(s), below the required {args.min_features}")
+            return 1
 
     return 1 if (regressions or findings) else 0
 

@@ -226,6 +226,13 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_lease_renewal.json
+      - name: mutation matrix -- the fuzz harness itself
+        # A fuzzer reports the same sentence whether it exercised the whole
+        # package or nothing at all, so every guard that tells those apart
+        # is load-bearing and invisible.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/fuzz_harness.json
       - name: mutation matrix -- catching up in O(new)
         # The third quadratic path this repository has recorded. Counted
         # rather than timed: how many times the whole history was read, and
@@ -286,8 +293,17 @@ jobs:
         # Two jobs: replay every committed regression input, then run a
         # bounded seeded campaign. A finding fails the build. The campaign is
         # a floor, not a fuzzing programme -- see tests/fuzz_corpus/README.md.
+        #
+        # The floors are the anti-vacuity check. "No findings" is the same
+        # sentence over a full campaign and an empty one, so the run has to
+        # state how much it reached: a target that raises at import or a
+        # mutation operator that started returning b"" collapses these
+        # numbers long before it stops printing "no findings". Set well
+        # below what a healthy run measures (2814 lines, 72 transitions)
+        # so ordinary variation passes and a collapse does not.
         run: |
-          uv run python tools/fuzz_substrate.py --cases 2000
+          uv run python tools/fuzz_substrate.py --cases 2000 \
+            --min-lines 2200 --min-features 55
       - name: the governed production path actually runs
         # The point of a production caller is that it is exercised. This runs
         # the real Snakemake rule, not a test double, and s10_governed fails
