@@ -850,6 +850,53 @@ def test_pruning_refuses_when_nothing_verifies_against_the_log(tmp_path):
     assert len(store.seqs()) == 10, "it deleted while refusing"
 
 
+def test_a_store_with_nothing_to_prune_does_not_ask_the_harder_question(
+        tmp_path):
+    """Below the keep count there is no pruning decision, so there is no
+    refusal either.
+
+    The two behaviours look independent and are not. `prune` REFUSES when no
+    checkpoint verifies against the log, because deleting on that basis acts
+    on a conclusion the store cannot support. That refusal is right when
+    there is something to delete -- and wrong when there is not: a store
+    holding fewer checkpoints than the retention count has no decision to
+    make, and turning a no-op into an exception would fail every caller that
+    prunes routinely on a young store.
+
+    The early return is what separates them, and it survived a mutation
+    because in the ordinary case it is a pure optimisation: with fewer
+    entries than `keep`, everything is protected and the loop deletes
+    nothing either way. The one case where it is load-bearing is this one,
+    and nothing exercised it.
+    """
+    log, store = _many(tmp_path, n=2)
+    other = EventLog(tmp_path / "other.jsonl")
+    other.append(actor="a", action="record.create", target="z",
+                 payload={"record_id": "z", "state": "DRAFT",
+                          "title": "x", "kind": "note"})
+
+    assert store.latest_usable(other) is None, (
+        "the fixture does not set up the case: something here describes the "
+        "other log, so this would pass without the branch under test")
+
+    removed = store.prune(other, keep=3)
+
+    assert removed == (), removed
+    assert len(store.seqs()) == 2, "it deleted from a store below the floor"
+
+    # AND THE OTHER SIDE, so this cannot pass by prune never refusing at all:
+    # one more checkpoint takes the store above the keep count, and the same
+    # call now refuses rather than guessing.
+    for i in (9, 10):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+        store.write(create(log))
+    assert len(store.seqs()) > 3, store.seqs()
+    with pytest.raises(CheckpointError, match="in doubt"):
+        store.prune(other, keep=3)
+
+
 def test_appending_while_a_checkpoint_is_taken_leaves_both_consistent(
         tmp_path):
     """A checkpoint names a position; the log keeps moving past it.

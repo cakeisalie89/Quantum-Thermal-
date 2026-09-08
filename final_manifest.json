@@ -3123,8 +3123,8 @@
     },
     {
       "filename": "tests/test_agent_checkpoint.py",
-      "size_bytes": 38178,
-      "sha256": "01bfb3fc5687565eeb9dacfc3efaa1bd8a13e1b9015f85387eafc353d0f49035",
+      "size_bytes": 40398,
+      "sha256": "71bec244a0a24676a21a90e6117de8c9b3a651a0f37330232035f2358e478e5a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
