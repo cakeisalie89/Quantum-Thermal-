@@ -725,6 +725,113 @@ def _hostile_worker(args):
     return tag
 
 
+#: Honest operations each worker completes BEFORE the forgery lands.
+OPS_BEFORE_FORGERY = 2
+OPS_PER_WORKER = 6
+HONEST_WORKERS = 3
+
+
+def _wait_for_file(path: Path, what: str) -> None:
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while not path.exists():
+        if time.monotonic() > deadline:
+            raise AssertionError(f"{what} never arrived")
+        time.sleep(0.001)
+
+
+def _honest_worker_staged(args):
+    """Six enqueues, with a rendezvous after the second.
+
+    THE RENDEZVOUS IS THE POINT. The first version of this test released
+    every process at once and slept, hoping the forgery would land in the
+    middle of the honest campaign. On a hosted runner it did not: all
+    eighteen operations finished first, the assertion's own anti-vacuity
+    band was missed, and the suite went red for winning a race rather than
+    for a defect. A test whose PASS depends on timing is a test that will
+    eventually report something untrue in one direction or the other.
+
+    So the interleaving is arranged rather than hoped for: this worker
+    announces that it is underway, waits for the attacker to strike, and
+    only then continues. What it measures is unchanged -- how many honest
+    operations survive -- and the number is now the same on every machine.
+    """
+    path, tag, go, work = args
+    sched = _open_scheduler(path)
+    _wait_for_start(go)
+    done = 0
+    for i in range(OPS_PER_WORKER):
+        if i == OPS_BEFORE_FORGERY:
+            Path(work, f"midway-{tag}").write_text("1", encoding="utf-8")
+            _wait_for_file(Path(work, f"forged-{POISONING_FORGE}"),
+                           "the forgery that poisons the log")
+            # A FRESH READER for the rest, and that is what makes the
+            # number exact.
+            #
+            # An EXISTING reader does not fail on the next operation: it
+            # folds incrementally from an anchor, so it notices the forged
+            # record only when its own fold crosses it -- measured here at
+            # three more operations, and dependent on how the three workers
+            # interleave. That is the real behaviour and it is not a count
+            # a test can assert.
+            #
+            # A reader that starts AFTER the forgery replays from the
+            # beginning and cannot get past it, every time. Same denial,
+            # stated where it is deterministic: this is the participant who
+            # restarts, or the one who arrives late, and neither can work
+            # again.
+            #
+            # It cannot even OPEN: load() replays, the replay hits the
+            # forged record, and the reader never exists. Counted as a
+            # failure of every remaining operation, which is what it is.
+            try:
+                sched = _open_scheduler(path)
+            except Exception:                   # noqa: BLE001 - counted
+                sched = None
+        if sched is None:
+            continue
+        try:
+            sched.enqueue(job_id=f"h{tag}-{i}",
+                          work_digest=digest({"t": tag, "i": i}),
+                          submitter="p1")
+            done += 1
+        except Exception:                       # noqa: BLE001 - counted
+            pass
+    return (tag, done)
+
+
+#: Which forgery actually denies service, and why it is the SECOND one.
+#:
+#: Both attackers write ``j1: READY -> DISPATCHED``. The first is a legal
+#: transition -- j1 really is READY after reconcile -- so it folds cleanly
+#: and nothing notices. It is the second that is impossible, because by then
+#: j1 is DISPATCHED, and that is the record the reducer refuses.
+#:
+#: Waiting on the first one is what made this test report 15 of 18 rather
+#: than the 6 it was arranged to produce: the honest workers resumed after a
+#: forgery that had done nothing, and began failing whenever the real one
+#: happened to land. The subtlety is worth a name.
+POISONING_FORGE = 1
+
+
+def _hostile_worker_staged(args):
+    """Strike once every honest worker is underway, then say so.
+
+    Ordered: the attacker that lands second is the one whose record cannot
+    be applied, so it waits for the first rather than racing it.
+    """
+    path, tag, go, work = args
+    _wait_for_start(go)
+    if tag == 0:
+        for t in range(HONEST_WORKERS):
+            _wait_for_file(Path(work, f"midway-{t}"), f"honest worker {t}")
+    else:
+        _wait_for_file(Path(work, f"forged-{tag - 1}"),
+                       f"forgery {tag - 1}")
+    _forge(path, "READY", "DISPATCHED", "j1", f"mallory-{tag}")
+    Path(work, f"forged-{tag}").write_text("1", encoding="utf-8")
+    return tag
+
+
 def _honest_worker(args):
     """Ordinary work, alongside the attacker."""
     path, tag, go = args
@@ -789,22 +896,36 @@ def test_a_forgery_denies_service_and_that_is_the_choice_that_was_made(
     sched.reconcile()
 
     path = str(tmp_path / "log.jsonl")
-    with mp.get_context("spawn").Pool(5) as pool:
-        honest = pool.map_async(_honest_worker,
-                                [(path, t, _go(tmp_path)) for t in range(3)])
+    work = str(tmp_path)
+    total = HONEST_WORKERS * OPS_PER_WORKER
+    with mp.get_context("spawn").Pool(HONEST_WORKERS + 2) as pool:
+        honest = pool.map_async(
+            _honest_worker_staged,
+            [(path, t, _go(tmp_path), work) for t in range(HONEST_WORKERS)])
         hostile = pool.map_async(
-            _hostile_worker,
-            [(path, t, "READY", _go(tmp_path)) for t in range(2)])
+            _hostile_worker_staged,
+            [(path, t, _go(tmp_path), work) for t in range(2)])
         time.sleep(1.5)
         _release(tmp_path)
         results = honest.get(timeout=PROCESS_DEADLINE_S)
         hostile.get(timeout=PROCESS_DEADLINE_S)
 
     done = sum(d for _, d in results)
-    assert 0 < done < 18, (
-        f"{done} of 18 honest operations completed; the interesting case is "
-        "the middle, and this run was either unaffected by the attacker or "
-        "stopped before it started")
+    assert 0 < done < total, (
+        f"{done} of {total} honest operations completed; the interesting "
+        "case is the middle, and this run was either unaffected by the "
+        "attacker or stopped before it started")
+    # AND THE EXACT NUMBER, because the interleaving is arranged and the
+    # post-forgery reader is a fresh one. Each worker completes its two
+    # pre-forgery enqueues and none of its four afterwards. A band would
+    # pass on any partial denial; this fails if the denial ever becomes
+    # partial, and it fails on every machine at the same number.
+    assert done == HONEST_WORKERS * OPS_BEFORE_FORGERY, (
+        f"{done} honest operations survived, expected "
+        f"{HONEST_WORKERS * OPS_BEFORE_FORGERY}: every worker should "
+        "complete exactly its pre-forgery operations and none after")
+    assert all(d == OPS_BEFORE_FORGERY for _, d in results), (
+        f"the denial did not reach every participant: {sorted(results)}")
 
     report = EventLog(path).verify()
     assert report.ok, report.problems[:3]
