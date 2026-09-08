@@ -175,6 +175,29 @@ choose the authority context it is judged against.
 Auditing every reducer for the same shape found three more, two of them worse
 than the original:
 
+## What separation of duties assumes
+
+The state machine refuses a transition whose actor is the record's own
+proposer, and `agents.py` refuses to register one identity holding both
+EXECUTOR and VERIFIER. Both compare IDENTITIES, which is the only thing a
+process can compare — and it is worth being explicit about what that leaves
+open.
+
+Three registered identities, each holding one role, all operated by the same
+adversary drive a task to VERIFIED. Three colluding service accounts are
+indistinguishable from three independent ones, because distinguishing
+genuinely independent principals from cooperating ones needs an external
+identity authority and this repository deliberately contains none.
+
+What that failure does NOT reach is everything content-addressed: the
+artifact is still the bytes the record names, cited evidence still has to
+exist and hash correctly, the write allowlist still binds the path, egress
+is still refused without a grant, and the history still says which identity
+did which part — so an investigator who later learns the three accounts were
+one person can find every record they touched. The assumption fails with a
+trail rather than silently, and its blast radius is bounded by every other
+guard. `tests/test_agent_collusion.py` is that case, written out.
+
 - **The authority store checked nothing at all.** Not the edge, not the role,
   not separation of duties, not even the `src` it wrote into its own payload.
   One appended line moved a record from `UNDER_REVIEW` straight to `PROMOTED`

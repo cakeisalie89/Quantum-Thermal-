@@ -693,3 +693,146 @@ def test_reconcile_survives_a_job_that_moved_under_its_scan(tmp_path,
     rebuilt = _replayable(tmp_path)
     assert rebuilt.get("j1").lease_holder == "w2"
     assert rebuilt.get("j1").state is JobState.DISPATCHED
+
+
+# ---- a hostile process, racing honest ones -------------------------------
+#
+# R54 said the adversarial campaign was "one shared world in one process",
+# and that a hostile participant racing an honest one is where the advisory
+# lock and the optimistic-concurrency checks would be under real pressure.
+# These are that. The attacker here is a REGISTERED participant with write
+# access to the log file, which is the strongest position a compromised
+# component actually holds.
+
+def _forge(path, src, dst, job_id, actor):
+    """Append a well-formed transition the gate would never have written."""
+    sys.path.insert(0, str(ROOT))
+    from qta_agent.events import EventLog as _EL
+    from qta_agent.scheduler import ACT_JOB_TRANSITION as _ACT
+    _EL(path).append(
+        actor=actor, action=_ACT, target=job_id,
+        payload={"job_id": job_id, "src": src, "dst": dst,
+                 "reason": "forged", "lease_id": "L-mallory",
+                 "lease_holder": actor, "lease_expires_after_seq": 10_000,
+                 "lease_renewals": 0, "attempts": 1})
+
+
+def _hostile_worker(args):
+    """Forge a transition while honest workers are appending."""
+    path, tag, src, go = args
+    _wait_for_start(go)
+    _forge(path, src, "DISPATCHED", "j1", f"mallory-{tag}")
+    return tag
+
+
+def _honest_worker(args):
+    """Ordinary work, alongside the attacker."""
+    path, tag, go = args
+    sched = _open_scheduler(path)
+    _wait_for_start(go)
+    done = 0
+    for i in range(6):
+        try:
+            sched.enqueue(job_id=f"h{tag}-{i}",
+                          work_digest=digest({"t": tag, "i": i}),
+                          submitter="p1")
+            done += 1
+        except Exception:                       # noqa: BLE001 - counted
+            pass
+    return (tag, done)
+
+
+def test_a_forged_record_from_another_process_is_refused_at_replay(tmp_path):
+    """The attacker has the log file. It still cannot make a claim true.
+
+    A forged transition is well-formed, correctly hash-chained (it went
+    through append, like any record) and semantically impossible. The chain
+    check cannot see it -- integrity is not authority -- and the reducer
+    refuses it, which is the division of labour the whole design rests on.
+    """
+    log, sched = _world(tmp_path)
+    sched.enqueue(job_id="j1", work_digest=WORK, submitter="sub")
+    sched.reconcile()
+
+    _run(_hostile_worker,
+         [(str(tmp_path / "log.jsonl"), t, "SUCCEEDED", _go(tmp_path))
+          for t in range(2)], tmp_path, procs=2)
+
+    assert EventLog(tmp_path / "log.jsonl").verify().ok, (
+        "the chain is intact: the attacker used the ordinary append path, "
+        "and integrity was never the thing standing in its way")
+    with pytest.raises(Exception) as caught:
+        _replayable(tmp_path)
+    assert "SUCCEEDED" in str(caught.value) or "READY" in str(caught.value), \
+        caught.value
+
+
+def test_a_forgery_denies_service_and_that_is_the_choice_that_was_made(
+        tmp_path):
+    """The honest consequence, stated rather than discovered later.
+
+    A reducer that refuses an impossible record refuses the LOG it is in, so
+    a component with write access to the shared log can stop every honest
+    participant. Measured: three workers doing six enqueues each completed
+    fifteen of eighteen, and the three that failed did so after the forgery
+    landed.
+
+    That is a deliberate trade and the alternative is worse. Skipping a
+    record the reducer cannot apply would let a forger prune history by
+    writing something unapplicable -- turning an availability attack into an
+    integrity one, which is the direction this system exists to refuse. What
+    is bought for it: everything written before the forgery is intact, the
+    chain still verifies, and the forged record is attributable.
+    """
+    log, sched = _world(tmp_path)
+    sched.enqueue(job_id="j1", work_digest=WORK, submitter="sub")
+    sched.reconcile()
+
+    path = str(tmp_path / "log.jsonl")
+    with mp.get_context("spawn").Pool(5) as pool:
+        honest = pool.map_async(_honest_worker,
+                                [(path, t, _go(tmp_path)) for t in range(3)])
+        hostile = pool.map_async(
+            _hostile_worker,
+            [(path, t, "READY", _go(tmp_path)) for t in range(2)])
+        time.sleep(1.5)
+        _release(tmp_path)
+        results = honest.get(timeout=PROCESS_DEADLINE_S)
+        hostile.get(timeout=PROCESS_DEADLINE_S)
+
+    done = sum(d for _, d in results)
+    assert 0 < done < 18, (
+        f"{done} of 18 honest operations completed; the interesting case is "
+        "the middle, and this run was either unaffected by the attacker or "
+        "stopped before it started")
+
+    report = EventLog(path).verify()
+    assert report.ok, report.problems[:3]
+    landed = {e.payload["job"]["job_id"] for e in EventLog(path).read()
+              if e.action == "scheduler.enqueue"}
+    assert len(landed) == done + 1, (
+        f"{done} operations reported success and {len(landed) - 1} enqueue "
+        "records are in the log; every one that was told it succeeded has "
+        "to be there")
+
+
+def test_the_attacker_is_named_by_the_record_it_wrote(tmp_path):
+    """A forgery that cannot be attributed is worse than one that can.
+
+    The log's actor field is an assertion by whoever wrote the record -- it
+    proves nothing about identity on its own -- and it is still the thing
+    that turns "something impossible is in the log" into "this component
+    wrote it", which is where an incident starts.
+    """
+    log, sched = _world(tmp_path)
+    sched.enqueue(job_id="j1", work_digest=WORK, submitter="sub")
+    sched.reconcile()
+    _run(_hostile_worker,
+         [(str(tmp_path / "log.jsonl"), 0, "SUCCEEDED", _go(tmp_path))],
+         tmp_path, procs=1)
+
+    forged = [e for e in EventLog(tmp_path / "log.jsonl").read()
+              if e.payload.get("reason") == "forged"]
+    assert len(forged) == 1
+    assert forged[0].actor == "mallory-0"
+    assert forged[0].seq >= 0
