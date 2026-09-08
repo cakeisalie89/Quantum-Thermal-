@@ -1689,23 +1689,24 @@
     {
       "id": "R52",
       "requirement": "Machine-checked formal/state-machine invariants",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/authority.py",
-        "qta_agent/tasks.py",
+        "qta_agent/capability.py",
         "qta_agent/scheduler.py",
-        "qta_agent/capability.py"
+        "qta_agent/tasks.py",
+        "tools/model_check.py"
       ],
       "callers": [
         "tests/test_agent_substrate_properties.py",
         "tests/test_agent_machine_properties.py"
       ],
-      "production_caller": null,
+      "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "none",
       "authority_owner": "authority.check, tasks.check, scheduler.check_edge and CapabilitySet.check -- one gate per machine",
-      "evidence": "each machine's edge table is the single description of what is permitted; SEALED and CAN_STILL_SUCCEED are DERIVED from it by search rather than written beside it, so a guard and its table cannot drift apart",
+      "evidence": "each machine's edge table is the single description of what is permitted; SEALED and CAN_STILL_SUCCEED are DERIVED from it by search rather than written beside it, so a guard and its table cannot drift apart. On top of that, tools/model_check.py answers path invariants EXHAUSTIVELY: it derives the permitted-transition graph by interrogating the real gates -- authority.check over 64 state pairs x 4 roles x 2 actor identities x 64 evidence subsets, and scheduler.check_edge over every pair -- and then checks I1, I2, I3, I4, I6, reachability and 'a cancelled job never succeeds' over every path in the result",
       "provenance": "none",
-      "failure_semantics": "a violated invariant fails the suite with the shortest generated sequence that produces it",
+      "failure_semantics": "a violated invariant names the path that violates it. A graph smaller than the declared tables, or a path search that hit its bound, is a failure rather than a clean sheet: every invariant here has the form 'no path does X', and no path does anything in an empty graph",
       "recovery": "none",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1713,29 +1714,44 @@
       "concurrency": "n/a",
       "security_boundary": "none",
       "tests": [
-        "tests/test_agent_substrate_properties.py",
+        "tests/test_agent_cross_process.py",
         "tests/test_agent_machine_properties.py",
-        "tests/test_agent_scheduler.py"
+        "tests/test_agent_scheduler.py",
+        "tests/test_agent_substrate_properties.py",
+        "tests/test_model_check.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py (AuthorityMachine: I1, terminality, no canonical record on a stale dependency, replay agreement)",
         "tests/test_agent_machine_properties.py (SchedulerMachine and LedgerMachine, plus table-level properties over the task machine, the job machine and capability checking)"
       ],
       "mutation_tests": [
+        "tools/mutations/agent_execution.json",
+        "tools/mutations/agent_scheduler.json",
         "tools/mutations/agent_substrate.json",
         "tools/mutations/agent_tasks.json",
-        "tools/mutations/agent_scheduler.json",
-        "tools/mutations/agent_execution.json"
+        "tools/mutations/model_check.json"
       ],
       "fuzzing": "none",
-      "differential": "none",
+      "differential": "the model checker's graph is compared against the declared edge tables: if the two ever disagree the checker has drifted into being a model OF the system rather than a reading of it, which is the usual way a machine-checked claim ends up about a program nobody runs",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "Hypothesis explores, it does not exhaust: a property that survives generated histories is evidence the invariant is not trivially violable, not a proof that it holds",
-        "no model checker and no machine-checked proof; the invariants are executable assertions over generated traces",
-        "the stateful machines drive one process. Concurrency invariants are tested by real concurrent processes in test_agent_concurrency.py, which is example-based, so interleavings across processes are not explored"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "this is a bounded model check, not a proof. Evidence is enumerated over subsets of the keys the edges NAME rather than over arbitrary dictionaries; actors are enumerated as 'is the proposer' and 'is not'; and the scheduler's arithmetic -- attempts, backoff, lease expiry -- lives in its reducer rather than its edge table and is outside the graph.",
+          "reason": "epistemic",
+          "detail": "what is inside the bound is answered exhaustively and is a fact; what is outside it is answered by the property-based machines, the mutation matrices and the cross-process campaign, each of which is a different kind of evidence about the same code. Widening the bound to arbitrary dictionaries would not make it a proof either -- it would make it a larger sample -- and a real proof needs a specification language this repository does not have and a spec nobody has written."
+        },
+        {
+          "limit": "Hypothesis explores and does not exhaust. A property that survives generated histories is evidence the invariant is not trivially violable, not a demonstration that it holds for every history.",
+          "reason": "epistemic",
+          "detail": "this is a property of random testing rather than of these tests, and the response to it is the row's other half: the questions whose state space IS small enough to enumerate are now enumerated, so the two methods cover different halves. Where they overlap they agree, and where they do not, the row says which is which rather than letting the stronger word cover both."
+        },
+        {
+          "limit": "the stateful machines drive one process. Cross-process interleavings are exercised by real concurrent processes in tests/test_agent_cross_process.py, which is example-based and randomized rather than exhaustive.",
+          "reason": "platform_primitive_absent",
+          "detail": "exhaustive exploration of an interleaving needs deterministic control of when each process runs, which the kernel does not offer to a program about other programs; a user-space scheduler would be exploring ITS interleavings rather than the operating system's. What that campaign can do it does, and it earned its place -- three defects, including one that left a perfect hash chain nobody could replay."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

@@ -47,6 +47,12 @@ ALLOWED_IMPORTERS = {
     # The independent verifier. It imports the SECOND reader on purpose and
     # refuses the primary reducers at runtime -- see its import guard.
     "tools/independent_verify.py",
+    # The bounded model checker. It imports the two state machines in order
+    # to INTERROGATE them -- deriving what the real gates permit rather than
+    # re-describing it -- and computes no scientific result. Importing them
+    # is the whole point: a checker that read the tables from a copy would
+    # be the drifting model this one exists to avoid.
+    "tools/model_check.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",
@@ -78,6 +84,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_cross_process.py",
     "tests/test_agent_incremental.py",
     "tests/test_generated_mutations.py",
+    "tests/test_model_check.py",
     "tests/test_agent_crash_recovery.py",
     "tests/test_agent_fault_injection.py",
     "tests/test_agent_fuzz.py",

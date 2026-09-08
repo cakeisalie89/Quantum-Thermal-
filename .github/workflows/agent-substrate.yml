@@ -226,6 +226,19 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_lease_renewal.json
+      - name: bounded exhaustive model check of both state machines
+        # Hypothesis explores; this exhausts. The permitted-transition graph
+        # is DERIVED by interrogating the real gates over every state pair,
+        # role, actor identity and evidence subset, so there is no model to
+        # keep in step with the code.
+        run: |
+          uv run python tools/model_check.py
+      - name: mutation matrix -- the bounded model checker
+        # Every invariant it asserts has the form "no path does X", and an
+        # empty graph satisfies all of them.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/model_check.json
       - name: mutation matrix -- the hardware evidence gate
         # The scientific tree's own guard: what turns an unreviewed hardware
         # claim into evidence. Eight of its eleven checks could be deleted
