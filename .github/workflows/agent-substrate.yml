@@ -396,10 +396,43 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - name: sync environment
         run: uv sync --frozen --all-groups
-      - name: package consistency
-        run: uv run python package_consistency_check.py
       - name: the FULL pytest suite, not only the agent suites
+        # FIRST, and that ordering is the point. The package check below runs
+        # a byte comparison that cannot pass on a runner whose CPU dispatch
+        # differs from the committed outputs' -- see R59 -- and while it ran
+        # first, `set -e` meant the broadest signal in this workflow never
+        # executed at all. The same defect, in a different file, as the 3D
+        # diagnostic that was ordered behind the check it exists to explain.
         run: uv run python -m pytest tests/ -q
+      - name: which dispatch this runner will use
+        # So the failure below says WHY rather than only THAT. OpenBLAS
+        # picks a kernel from the host's CPU flags and numpy picks its own
+        # SIMD loops separately; the committed canonical outputs are the
+        # product of one particular pair, and this prints the pair this
+        # runner has. Reports only -- it gates nothing and cannot fail.
+        run: |
+          uv run python - <<'PY'
+          import sys
+          sys.path.insert(0, ".")
+          import numpy
+          from analysis.collect_container_3d import openblas_runtime_core
+          simd = numpy.show_config(mode="dicts")["SIMD Extensions"]
+          print("openblas runtime kernel:", openblas_runtime_core())
+          print("numpy SIMD found:", simd.get("found"))
+          print(
+              "The committed canonical outputs were produced with the "
+              "SkylakeX kernel and numpy's AVX-512 loops. A runner without "
+              "AVX-512 regenerates 40 of 63 3D outputs byte-identically, "
+              "not 63 -- reproduced on demand by "
+              "tools/blas_kernel_sensitivity.py. If the check that follows "
+              "fails on 'stale root copies', that is the byte gate refusing "
+              "on different hardware, not a change to the outputs.")
+          PY
+      - name: package consistency
+        # Expected RED on a runner whose dispatch differs from the committed
+        # outputs'. It is not silenced, not tolerated and not exempted: the
+        # byte gate is supposed to refuse here, and R59 records why.
+        run: uv run python package_consistency_check.py
 
   second-interpreter:
     # The guarantees under test are pure-Python and stdlib-only. Running them
