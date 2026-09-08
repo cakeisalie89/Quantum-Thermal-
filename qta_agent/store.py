@@ -42,7 +42,7 @@ from .authority import (
     check,
 )
 from .canonical import canonical_bytes, digest, is_digest
-from .events import ChainBroken, Event, EventLog
+from .events import ChainBroken, Event, EventLog, EventLogError
 
 
 class StoreError(Exception):
@@ -119,6 +119,9 @@ class AuthorityStore:
         self._applied_keys: dict = {}
         self._loaded_through: int = -1
         self._loaded_prefix_verified: bool = True
+        #: An anchor at ``_loaded_through``, so catching up costs O(new)
+        #: rather than O(history). See Scheduler for why that matters.
+        self._anchor = None
 
     @property
     def _resolver(self):
@@ -137,9 +140,16 @@ class AuthorityStore:
         self._applied_keys = {}
         self._loaded_through = -1
         self._loaded_prefix_verified = True
+        self._anchor = None
         for ev in self.log.read():
             self._apply(ev)
+        self._reanchor()
         return self
+
+    def _reanchor(self) -> None:
+        """Take an anchor at the position this projection has reached."""
+        self._anchor = (self.log.anchor_at(self._loaded_through)
+                        if self._loaded_through >= 0 else None)
 
     def catch_up(self, *, force: bool = False) -> "AuthorityStore":
         """Fold in everything appended since this projection last read.
@@ -161,21 +171,33 @@ class AuthorityStore:
                 witness = None
             if witness is not None and witness.seq <= self._loaded_through:
                 return self
-        self.log.verify().raise_if_bad()
         self._fold_new()
         return self
 
     def _fold_new(self) -> None:
-        """Fold everything after ``_loaded_through``. Chain assumed verified.
+        """Fold everything this projection has not seen, in O(new).
 
-        Split out for the one caller that has already verified:
-        :meth:`qta_agent.events.EventLog.append_decided` verifies the chain
-        before calling the decision, and verifying again inside it would
-        double the cost of every write while the writer lock is held.
+        Anchored, for the reason given in the scheduler: a full read here
+        made every governed write cost the whole history. Falls back to a
+        full verified read when there is no anchor or the anchor no longer
+        describes the bytes at its offset.
         """
+        if self._anchor is not None:
+            try:
+                events, moved = self.log.advance(self._anchor)
+            except EventLogError:
+                self._anchor = None
+            else:
+                self._anchor = moved
+                for ev in events:
+                    if ev.seq > self._loaded_through:
+                        self._apply(ev)
+                return
+        self.log.verify().raise_if_bad()
         for ev in self.log.read():
             if ev.seq > self._loaded_through:
                 self._apply(ev)
+        self._reanchor()
 
     def _append_decided(self, build):
         """Re-read, rebuild the record and write, all under one lock.
@@ -193,6 +215,10 @@ class AuthorityStore:
 
         ev = self.log.append_decided(under_lock)
         self._apply(ev)
+        # The anchor is NOT updated here, and does not need to be: the fold
+        # inside the lock above already moved it, so it lags this projection
+        # by exactly the one record just written. The next catch-up re-reads
+        # that record and skips it by sequence number, which is O(1).
         return ev
 
     def _apply(self, ev: Event) -> None:

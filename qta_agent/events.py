@@ -667,7 +667,8 @@ class EventLog:
                     f"seq {anchor.seq}: the anchored record does not hash to "
                     "its own stored hash")
 
-            tail = self._read_tail(fh, anchor.next_offset, problems)
+            tail = [ev for ev, _, _ in
+                    self._read_tail(fh, anchor.next_offset, problems)]
 
         prev_hash = anchor.head_hash
         prev_wall = anchored.wall_time
@@ -688,6 +689,44 @@ class EventLog:
                             problems, notes, prefix_verified=False,
                             unverified_through=anchor.seq)
 
+    def advance(self, anchor: "Anchor") -> tuple:
+        """Verify and read what follows ``anchor``; return it and a new one.
+
+        The pair a live projection needs to stay current for O(new) instead
+        of O(history): the records it has not seen, and an anchor at the new
+        head so the next call is just as cheap.
+
+        WHY THIS EXISTS
+
+        Every reducer here re-reads the log before it decides, because a
+        decision made against a stale projection is the defect that leaves a
+        perfect chain nobody can replay. Doing that with a full read made
+        each governed operation cost the whole history: a profile of 120
+        campaign cycles spent 10 of 13 seconds inside read(), and doubling
+        the campaign length quadrupled its wall time. That is the quadratic
+        defect this repository has already recorded twice, in a third place.
+
+        The prefix is TRUSTED, exactly as in :meth:`verify_from` -- which is
+        the same bargain :meth:`append` already makes on every write, and
+        for the same reason. :meth:`load` still verifies in full, so a
+        process that starts fresh checks everything.
+
+        Returns ``(events, anchor)``. When nothing has been appended the
+        anchor comes back unchanged, so a caller can hold it indefinitely.
+        """
+        report = self.verify_from(anchor)
+        if not report.ok:
+            raise ChainBroken(
+                "refusing to advance past a broken chain: "
+                + "; ".join(report.problems))
+        with self.path.open("rb") as fh:
+            tail = self._read_tail(fh, anchor.next_offset, [])
+        if not tail:
+            return [], anchor
+        last, record_offset, next_offset = tail[-1]
+        return ([ev for ev, _, _ in tail],
+                Anchor(last.seq, last.hash, record_offset, next_offset))
+
     def read_from(self, anchor: "Anchor") -> list:
         """Parse the records after ``anchor`` without reading the prefix.
 
@@ -697,12 +736,23 @@ class EventLog:
         verification, or vice versa, by accident.
         """
         with self.path.open("rb") as fh:
-            return self._read_tail(fh, anchor.next_offset, [])
+            return [ev for ev, _, _ in
+                    self._read_tail(fh, anchor.next_offset, [])]
 
     def _read_tail(self, fh, offset: int, problems: list) -> list:
+        """Records after ``offset``, each with the byte range it occupies.
+
+        Returns ``(event, record_offset, next_offset)`` triples. The offsets
+        cost nothing to track here and are the only way to build an anchor
+        at the new head without re-reading the whole log -- which is what
+        :meth:`advance` needs and what keeps a projection's catch-up O(new)
+        instead of O(history).
+        """
         events: list = []
         fh.seek(offset)
+        pos = offset
         for raw in fh:
+            here, pos = pos, pos + len(raw)
             if len(raw) > MAX_EVENT_BYTES:
                 raise MalformedEvent(
                     f"{len(raw)} bytes exceeds the {MAX_EVENT_BYTES}-byte "
@@ -720,7 +770,7 @@ class EventLog:
                 raise MalformedEvent(
                     f"record is {type(rec).__name__}, not an object")
             _validate_field_types(rec, "after anchor")
-            events.append(Event(**rec))
+            events.append((Event(**rec), here, pos))
         return events
 
     def append(self, *, actor: str, action: str, target: str,

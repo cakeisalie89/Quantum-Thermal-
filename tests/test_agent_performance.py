@@ -26,6 +26,7 @@ all, which is the point.
 from __future__ import annotations
 
 import gc
+import json
 import os
 import subprocess
 import sys
@@ -68,6 +69,24 @@ LINEAR_CEILING = FACTOR * 2.5          # 20.0
 #: Below this, timing noise dominates and the ratio means nothing.
 MIN_MEASURABLE_S = 0.02
 
+#: THREE sizes, for the guards that can afford them.
+#:
+#: Two points fit any line. A ratio under a ceiling says "not catastrophic"
+#: and cannot tell linear-with-a-large-constant from mildly superlinear,
+#: because a single ratio has no shape. Three points have a slope, and the
+#: slope is the thing being claimed: 1 is linear, 2 is quadratic, and an
+#: operation drifting towards 1.5 is a regression a ceiling would pass for
+#: years.
+CURVE_SIZES = (100, 400, 1600)
+
+#: Least-squares slope of log(time) against log(size) that a linear
+#: operation may reach. Linear is 1.0; fixed per-call overhead pulls the
+#: measured slope BELOW 1 at these sizes, and noise pushes it around. 1.45
+#: sits well above anything linear has produced here and far below the 2.0
+#: of a quadratic path -- the same discriminator-width argument as the size
+#: spread above.
+EXPONENT_CEILING = 1.45
+
 
 def _ratio(small_s: float, large_s: float) -> float:
     if small_s < MIN_MEASURABLE_S:
@@ -96,10 +115,68 @@ def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
         for _ in range(reps):
             fn()
         dt = time.perf_counter() - t0
-        if dt >= floor or reps >= max_reps:
+        if dt >= floor:
             return dt / reps
+        if reps >= max_reps:
+            # THE ONE HONEST SKIP. Not "this call was fast" -- fast is what
+            # repetition is for -- but "even max_reps of it did not add up
+            # to something this clock can resolve". A number derived from
+            # that is noise wearing a unit.
+            pytest.skip(
+                f"{max_reps} repetitions totalled {dt * 1000:.1f} ms, below "
+                f"the {floor * 1000:.0f} ms this machine can resolve")
         grow = max(2, int(floor / max(dt, 1e-9)) + 1)
         reps = min(max_reps, reps * grow)
+
+
+#: Where a run writes the numbers it measured, when asked to.
+#:
+#: A guard that only ever says pass or fail cannot show a DRIFT: an
+#: operation creeping from n^1.0 to n^1.3 over twenty commits passes every
+#: run and is a different system by the end. tools/performance_baseline.py
+#: sets this, collects what the guards measured, and appends the values to
+#: docs/performance_baseline.json against the commit they came from.
+_PERF_OUT = os.environ.get("QTA_PERF_OUT")
+
+
+def _record(name: str, value: float, ceiling: float) -> None:
+    """Publish one measurement, if this run was asked to collect them."""
+    if not _PERF_OUT:
+        return
+    with open(_PERF_OUT, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"guard": name, "value": round(value, 4),
+                             "ceiling": ceiling}) + "\n")
+
+
+def _exponent(sizes, times) -> float:
+    """The slope of log(time) vs log(size). 1.0 linear, 2.0 quadratic.
+
+    Ordinary least squares over three points. Not a statistical claim --
+    three noisy samples support none -- but a shape claim, and the shape is
+    what separates "this got slower" from "this got slower in a way that
+    will not stop".
+
+    The measurements come from :func:`_per_call`, which repeats until the
+    aggregate clears the clock's resolution and skips when even the
+    repetition cap cannot -- so there is no second noise check here. Adding
+    one on the PER-CALL figure was wrong and skipped all four of these
+    guards on the first run: a 1.7 ms operation measured over 512 calls is
+    a good estimate, not an unmeasurable one.
+    """
+    import math
+
+    xs = [math.log(n) for n in sizes]
+    ys = [math.log(t) for t in times]
+    mx = sum(xs) / len(xs)
+    my = sum(ys) / len(ys)
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    den = sum((x - mx) ** 2 for x in xs)
+    return num / den
+
+
+def _curve(build, sizes=CURVE_SIZES) -> tuple:
+    """Measure ``build(n)`` at each size and return (sizes, times)."""
+    return tuple(sizes), [_per_call(build(n)) for n in sizes]
 
 
 def _fill(path: Path, n: int) -> EventLog:
@@ -381,3 +458,206 @@ def test_the_governed_executor_leaves_no_child_processes(tmp_path):
         capture_output=True, text=True).stdout.strip()
     assert after == before, (
         f"child process count went from {before} to {after}")
+
+
+# ---- shape, not just a ceiling -------------------------------------------
+#
+# R49 said these guards were "ratios only, at two sizes", and that a defect
+# that is linear-with-a-large-constant would be invisible to them. Two points
+# fit any line; three have a slope. Each guard below measures the same
+# operation at 100, 400 and 1600 records and asserts on the fitted exponent.
+
+def test_full_verification_has_a_linear_shape(tmp_path):
+    sizes, times = _curve(
+        lambda n: (lambda log=_fill(tmp_path / f"v{n}.jsonl", n):
+                   (lambda: EventLog(log.path).verify()))())
+    exp = _exponent(sizes, times)
+    _record("full_verification", exp, EXPONENT_CEILING)
+    assert exp < EXPONENT_CEILING, (
+        f"verification scales as n^{exp:.2f} over {sizes}: "
+        f"{[round(t * 1000, 2) for t in times]} ms")
+
+
+def test_projection_load_has_a_linear_shape(tmp_path):
+    sizes, times = _curve(
+        lambda n: (lambda log=_fill(tmp_path / f"p{n}.jsonl", n):
+                   (lambda: AuthorityStore(EventLog(log.path)).load()))())
+    exp = _exponent(sizes, times)
+    _record("projection_load", exp, EXPONENT_CEILING)
+    assert exp < EXPONENT_CEILING, (
+        f"loading the projection scales as n^{exp:.2f} over {sizes}: "
+        f"{[round(t * 1000, 2) for t in times]} ms")
+
+
+def test_independent_reconstruction_has_a_linear_shape(tmp_path):
+    sizes, times = _curve(
+        lambda n: (lambda log=_fill(tmp_path / f"r{n}.jsonl", n):
+                   (lambda: reconstruct(EventLog(log.path))))())
+    exp = _exponent(sizes, times)
+    _record("independent_reconstruction", exp, EXPONENT_CEILING)
+    assert exp < EXPONENT_CEILING, (
+        f"independent reconstruction scales as n^{exp:.2f} over {sizes}: "
+        f"{[round(t * 1000, 2) for t in times]} ms")
+
+
+def test_the_exponent_fit_can_actually_see_a_quadratic(tmp_path):
+    """The discriminator, checked rather than assumed.
+
+    A shape guard whose fit cannot distinguish n from n^2 would pass
+    everything, and nothing else in this file would notice. So the fit is
+    handed a deliberately quadratic operation and has to say so.
+    """
+    def quadratic(n):
+        data = list(range(n))
+
+        def op():
+            total = 0
+            for i in data:
+                for j in data:
+                    total += i ^ j
+            return total
+        return op
+
+    # Smaller sizes than the real guards use: n^2 at 1600 is 2.5 million
+    # inner steps per call, and the point here is the SHAPE of the fit, not
+    # the magnitude.
+    sizes, times = _curve(quadratic, sizes=(60, 120, 240))
+    exp = _exponent(sizes, times)
+    assert exp > EXPONENT_CEILING, (
+        f"a genuinely quadratic operation fitted n^{exp:.2f}; the fit "
+        "cannot see the shapes it is used to refuse")
+
+    def linear(n):
+        data = list(range(n))
+        return lambda: sum(data)
+
+    lin_exp = _exponent(*_curve(linear, sizes=(30000, 120000, 480000)))
+    assert lin_exp < EXPONENT_CEILING, (
+        f"a genuinely linear operation fitted n^{lin_exp:.2f}; the fit "
+        "refuses shapes it is supposed to accept, so every guard using it "
+        "would fail on healthy code")
+
+
+# ---- one governed operation, against a growing history -------------------
+def test_one_governed_operation_does_not_get_slower_as_the_history_grows(
+        tmp_path):
+    """The cost that WAS quadratic and that no guard here covered.
+
+    Every scaling guard above measures a whole-history operation -- verify,
+    load, reconstruct -- and each of those is linear and always was. What
+    nothing measured is the cost of ONE governed operation as the history
+    behind it grows, and that was O(history): every reducer re-reads the log
+    before it decides, and it did so with a full read.
+
+    A profile of 120 campaign cycles spent 10 of its 13 seconds inside
+    read(), and doubling the campaign quadrupled its wall time. Nothing was
+    wrong with any single operation, which is exactly why it survived: this
+    is the third time this repository has recorded a quadratic path, and the
+    first two were found the same way.
+    """
+    def cycle_cost(prefix: int) -> float:
+        # The prefix is HISTORY, not queue. Pre-enqueued jobs would grow the
+        # live queue too, and reconcile visits every pending job by design --
+        # measuring that would conflate "the log is long" with "there is
+        # more work", and only the first is the property under test.
+        _fill(tmp_path / f"h{prefix}.jsonl", prefix)
+        log = EventLog(tmp_path / f"h{prefix}.jsonl")
+        pol = PolicyStore(log).load()
+        pol.publish(default_policy(), actor="owner")
+        sched = Scheduler(log, policy=pol, policy_id="scheduler.default",
+                          capacity={"slots": 64}).load()
+        t0 = time.perf_counter()
+        for i in range(20):
+            jid = f"m{i}"
+            sched.enqueue(job_id=jid, work_digest=digest({"m": i}),
+                          submitter="p1")
+            sched.reconcile()
+            sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{i}",
+                           lease_seqs=200)
+            sched.report(job_id=jid, worker="w1")
+        return time.perf_counter() - t0
+
+    short = cycle_cost(50)
+    long = cycle_cost(1200)
+    _record("governed_operation_vs_history", long / short, 4.0)
+    assert long < short * 4.0, (
+        f"twenty governed operations cost {long * 1000:.0f} ms behind 1200 "
+        f"records and {short * 1000:.0f} ms behind 50 -- the per-operation "
+        "cost is growing with the history, which is the quadratic campaign")
+
+
+# ---- the tracked history -------------------------------------------------
+#
+# R49 said there was "no tracked history of measurements, so a slow drift
+# across many commits would not be noticed". docs/performance_baseline.json
+# is that history, tools/performance_baseline.py writes it, and the tests
+# below stop the file and the code drifting apart from each other -- which is
+# the failure mode of every baseline file anybody has ever kept.
+
+BASELINE = ROOT / "docs" / "performance_baseline.json"
+
+
+def _baseline() -> dict:
+    return json.loads(BASELINE.read_text(encoding="utf-8"))
+
+
+def test_the_baseline_exists_and_holds_observations():
+    doc = _baseline()
+    assert doc["schema_version"] == 1
+    guards = doc["guards"]
+    assert guards, "an empty baseline records no history and detects no drift"
+    for name, g in guards.items():
+        assert g["observations"], f"{name} has a ceiling and no measurements"
+        for o in g["observations"]:
+            assert isinstance(o["value"], (int, float))
+            assert o["commit"] and o["recorded"], (
+                f"{name}: an observation with no commit and no time cannot "
+                "be placed in a history")
+
+
+def test_every_recorded_ceiling_is_the_one_the_suite_enforces():
+    """The file and the code must not drift apart.
+
+    A baseline that remembers a ceiling the suite has since loosened would
+    report a healthy history while the guard passes everything -- which is
+    the way a baseline file usually fails: quietly, and in the reassuring
+    direction.
+    """
+    enforced = {
+        "full_verification": EXPONENT_CEILING,
+        "projection_load": EXPONENT_CEILING,
+        "independent_reconstruction": EXPONENT_CEILING,
+        "governed_operation_vs_history": 4.0,
+    }
+    doc = _baseline()
+    assert set(doc["guards"]) == set(enforced), (
+        f"the baseline names {sorted(doc['guards'])} and the suite records "
+        f"{sorted(enforced)}; a guard in one and not the other is a "
+        "measurement nobody is keeping or a history of nothing")
+    for name, ceiling in enforced.items():
+        assert doc["guards"][name]["ceiling"] == ceiling, (
+            f"{name}: the baseline remembers a ceiling of "
+            f"{doc['guards'][name]['ceiling']} and the suite enforces "
+            f"{ceiling}")
+
+
+def test_the_latest_recorded_observation_is_under_its_ceiling():
+    for name, g in _baseline()["guards"].items():
+        latest = g["observations"][-1]
+        assert latest["value"] < g["ceiling"], (
+            f"{name}: the last recorded measurement {latest['value']} is at "
+            f"or above the ceiling {g['ceiling']} -- a history recorded from "
+            "a failing run is a history of the wrong system")
+
+
+def test_the_recorder_refuses_to_record_nothing():
+    """The anti-vacuity check on the recorder itself.
+
+    A tool that ran the suite, collected no measurements and wrote an empty
+    history would report success and leave a file that proves nothing. This
+    repository already carries that defect once, in a verifier that
+    compared zero files and printed IDENTICAL.
+    """
+    src = (ROOT / "tools" / "performance_baseline.py").read_text(
+        encoding="utf-8")
+    assert "recorded nothing" in src and "vacuous" in src

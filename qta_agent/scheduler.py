@@ -54,6 +54,7 @@ from enum import Enum
 from typing import FrozenSet
 
 from .canonical import digest, is_digest
+from .events import EventLogError
 from .policy import Effect, PolicyRequest, document, rule
 
 ACT_ENQUEUE = "scheduler.enqueue"
@@ -444,6 +445,10 @@ class Scheduler:
         #: LOG's head, and a policy record between two job records moves that
         #: head without moving this projection.
         self._seen_through = -1
+        #: An anchor at ``_seen_through``, so catching up costs O(new) rather
+        #: than O(history). None means "no cheap position": the next
+        #: catch-up does a full verified read and establishes one.
+        self._anchor = None
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "Scheduler":
@@ -453,9 +458,20 @@ class Scheduler:
         self._keys = {}
         self._loaded_through = -1
         self._seen_through = -1
+        self._anchor = None
         for ev in self.log.read():
             self.apply(ev)
+        self._reanchor()
         return self
+
+    def _reanchor(self) -> None:
+        """Take an anchor at the position this projection has reached.
+
+        anchor_at() reads the whole log, so this is the slow path and is
+        only ever paid on a full load or after damage forced one.
+        """
+        self._anchor = (self.log.anchor_at(self._seen_through)
+                        if self._seen_through >= 0 else None)
 
     def catch_up(self, *, force: bool = False) -> "Scheduler":
         """Fold in everything appended since this projection last read.
@@ -481,22 +497,45 @@ class Scheduler:
                 witness = None
             if witness is not None and witness.seq <= self._seen_through:
                 return self
-        self.log.verify().raise_if_bad()
         self._fold_new()
         return self
 
     def _fold_new(self) -> None:
-        """Fold everything after ``_seen_through``. Chain assumed verified.
+        """Fold everything this projection has not seen, in O(new).
 
-        Split out of :meth:`catch_up` for the one caller that has already
-        verified: :meth:`qta_agent.events.EventLog.append_decided` verifies
-        the chain before it calls the decision, and verifying it a second
-        time inside the decision would double the cost of every write while
-        the writer lock is held.
+        Anchored. A full read here made every governed operation cost the
+        whole history, which is the quadratic defect this package has
+        already recorded twice -- and it is exactly the shape that hides,
+        because nothing is wrong with any single operation.
+
+        Falls back to a full verified read when there is no anchor, or when
+        the anchor no longer describes the bytes at its offset. The fallback
+        is strictly stronger, and it re-establishes a position.
         """
+        if self._anchor is not None:
+            try:
+                events, moved = self.log.advance(self._anchor)
+            except EventLogError:
+                # The log was rewritten, rotated or truncated under us. A
+                # full pass will either succeed or refuse, and either answer
+                # is better than continuing from an anchor into bytes that
+                # are no longer the ones it described.
+                self._anchor = None
+            else:
+                self._anchor = moved
+                for ev in events:
+                    # The anchor can legitimately lag this projection by the
+                    # records it appended itself, so the tail is filtered by
+                    # seq rather than assumed to be new. Folding a record
+                    # twice is not a slow path, it is a wrong one.
+                    if ev.seq > self._seen_through:
+                        self.apply(ev)
+                return
+        self.log.verify().raise_if_bad()
         for ev in self.log.read():
             if ev.seq > self._seen_through:
                 self.apply(ev)
+        self._reanchor()
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a scheduler event."""
@@ -865,6 +904,28 @@ class Scheduler:
         self.apply(ev)
         return ev
 
+    def _gate(self, req, *, actor: str) -> "object":
+        """Evaluate a policy request and RECORD IT IF IT WAS REFUSED.
+
+        A control plane that logs only what it permitted cannot answer "what
+        did this agent try", which is the question an incident starts with.
+        Recording every ALLOW as well would double the log for no new
+        information -- the permitted operation writes its own record a
+        moment later -- so what is durable here is exactly the thing that
+        otherwise leaves no trace: the attempt that was turned away, and the
+        policy version that turned it away.
+
+        Evaluated twice on the refusal path, deliberately: the second call
+        goes through decide_and_record, which is the one place a decision
+        becomes an event, and duplicating that here would be a second
+        recording discipline to keep in step with the first.
+        """
+        decision = self.policy.evaluate(self.policy_id, req)
+        if not decision.allowed:
+            decision = self.policy.decide_and_record(
+                self.policy_id, req, actor=actor, target=req.resource)
+        return decision
+
     def _append_reducer_authorized(self, *, actor: str, action: str,
                                    target: str, payload: dict):
         """For records whose rules live in the reducer rather than here.
@@ -915,8 +976,15 @@ class Scheduler:
         return tuple(sorted(seen))
 
     def at_seq(self) -> int:
-        """The log position decisions are being made at."""
-        return self.log.verify().head_seq
+        """The log position decisions are being made at.
+
+        Caught up first, then answered from the projection. This read
+        self.log.verify().head_seq, so asking "where are we?" cost a full
+        verified read of the history -- and dispatch, report and readiness
+        all ask it, several times per operation.
+        """
+        self.catch_up()
+        return self._seen_through
 
     # ---- readiness -----------------------------------------------------
     def readiness(self, job: Job, *, at_seq: int, resolve=None,
@@ -1141,11 +1209,11 @@ class Scheduler:
                 f"capacity {dict(sorted(self.capacity.items()))} can never "
                 "satisfy; refusing to enqueue work that would wait forever")
 
-        decision = self.policy.evaluate(
-            self.policy_id,
+        decision = self._gate(
             PolicyRequest(action="scheduler.enqueue", subject=submitter,
                           role="SUBMITTER", resource=job_id,
-                          task_id=task_id or ""))
+                          task_id=task_id or ""),
+            actor=submitter)
         decision.raise_if_denied()
 
         job = Job(job_id=job_id, work_digest=work_digest, submitter=submitter,
@@ -1169,11 +1237,11 @@ class Scheduler:
                 "a priority change requires a reason; 'why is this urgent' is "
                 "the question an operator asks first")
         if priority < job.priority:
-            decision = self.policy.evaluate(
-                self.policy_id,
+            decision = self._gate(
                 PolicyRequest(action="scheduler.raise_priority", subject=actor,
                               role=role, resource=job_id,
-                              task_id=job.task_id or ""))
+                              task_id=job.task_id or ""),
+                actor=actor)
             decision.raise_if_denied()
         self._append_reducer_authorized(
             actor=actor, action=ACT_PRIORITY, target=job_id,
@@ -1400,11 +1468,11 @@ class Scheduler:
             raise JobTransitionError(
                 f"{job_id!r} is already {job.state.value}; cancelling a "
                 "finished job would rewrite how it finished")
-        decision = self.policy.evaluate(
-            self.policy_id,
+        decision = self._gate(
             PolicyRequest(action="scheduler.cancel", subject=actor,
                           role="SUBMITTER", resource=job_id,
-                          task_id=job.task_id or ""))
+                          task_id=job.task_id or ""),
+            actor=actor)
         decision.raise_if_denied()
         cancelled = [self.transition(job_id=job_id, dst=JobState.CANCELLED,
                                      actor=actor, reason=reason)]

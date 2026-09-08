@@ -35,6 +35,7 @@ in tests rather than in production.
 from __future__ import annotations
 
 import hashlib
+import re
 import json
 from typing import Any
 
@@ -86,6 +87,9 @@ def digest_bytes(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+
+
 def is_digest(value: object) -> bool:
     """True if ``value`` is syntactically a lowercase SHA-256 hex digest.
 
@@ -95,7 +99,12 @@ def is_digest(value: object) -> bool:
     """
     if not isinstance(value, str) or len(value) != 64:
         return False
-    return all(c in "0123456789abcdef" for c in value)
+    # A compiled pattern rather than all(c in "..." for c in value).
+    # This is called for every prev_hash and every hash of every record on
+    # every read, so the generator version was 30 million calls and a third
+    # of the cost of replaying a long history -- the profile that found the
+    # scheduler's quadratic catch-up found this beside it.
+    return _HEX64.match(value) is not None
 
 
 def assert_digest_stable(obj: Any, *, rounds: int = 3) -> str:

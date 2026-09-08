@@ -48,7 +48,7 @@ from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.memory import MemoryStatus, MemoryStore  # noqa: E402
 from qta_agent.policy import (  # noqa: E402
-    Effect, PolicyStore, document, rule,
+    Effect, PolicyDenied, PolicyRequest, PolicyStore, document, rule,
 )
 from qta_agent.reconstruct import compare, reconstruct  # noqa: E402
 from qta_agent.scheduler import (  # noqa: E402
@@ -58,12 +58,24 @@ from qta_agent.scheduler import (  # noqa: E402
 from qta_agent.store import AuthorityStore  # noqa: E402
 
 #: Cycles of the mixed workload. Each cycle writes roughly twenty events, so
-#: this is a few thousand -- past the point where the two known quadratic
-#: defects became obvious, and still inside a CI budget.
-CYCLES = 260
+#: the default is a few thousand -- past the point where the two known
+#: quadratic defects became obvious, and still inside the budget of a suite
+#: that runs on every push.
+#:
+#: RAISED BY ENVIRONMENT, AND RAISED IN CI. A scale knob nobody turns is a
+#: comment. ``QTA_HORIZON_CYCLES`` sets it, the hosted workflow runs a second
+#: pass at a larger figure, and the number actually used is asserted on
+#: below so a run at the default cannot report itself as the long one.
+CYCLES = int(os.environ.get("QTA_HORIZON_CYCLES", "260"))
 
 #: Restart every this many cycles. State must not drift across any of them.
 RESTART_EVERY = 40
+
+#: The cycle at which the RULES CHANGE under a job that is already running.
+#: Past the first restart and the first crash, so the change lands on a
+#: system that has already been rebuilt from its log rather than on a fresh
+#: one.
+MIDFLIGHT_CYCLE = min(137, CYCLES - 2)
 
 #: Crash every this many cycles, mid-operation. Coprime-ish with
 #: RESTART_EVERY so crashes and orderly restarts do not always coincide --
@@ -164,6 +176,7 @@ def horizon(tmp_path_factory):
         "rejected_promotions": 0, "retried": set(),
         "crash_recovered": set(),
     }
+    midflight: dict = {}
 
     for cycle in range(CYCLES):
         kind = cycle % 6
@@ -269,6 +282,66 @@ def horizon(tmp_path_factory):
                                        reason="re-measured")
             h.op("memory.invalidate_source")
 
+        # THE RULES CHANGE WHILE A JOB IS RUNNING.
+        #
+        # Every other version bump in this campaign publishes the same
+        # permissive document with a higher number, which exercises
+        # versioning and says nothing about what a version MEANS. Here the
+        # content changes underneath a job that is already dispatched: the
+        # operation that was permitted a moment ago is refused, the refusal
+        # is durable and names the version that made it, and restoring the
+        # rule lets the same call through. Nothing about the job changed --
+        # only the policy did.
+        if cycle == MIDFLIGHT_CYCLE:
+            fjid = "job-midflight"
+            h.sched.enqueue(job_id=fjid, work_digest=digest({"mid": cycle}),
+                            submitter="p1", requires_evidence=(dg,))
+            h.op("job.enqueue")
+            h.sched.reconcile(resolve=h.evidence.contains)
+            h.op("job.reconcile")
+            h.sched.dispatch(job_id=fjid, worker="w1", lease_id="L-mid",
+                             lease_seqs=4000, resolve=h.evidence.contains)
+            h.op("job.dispatch")
+
+            denied_v = h.policy.in_force("scheduler.default").version + 1
+            h.policy.publish(document(
+                policy_id="scheduler.default", version=denied_v,
+                description="withdrawal suspended while the incident is open",
+                rules=(
+                    rule(rule_id=f"v{denied_v}-no-cancel",
+                         effect=Effect.DENY, actions=("scheduler.cancel",),
+                         subjects=("*",), roles=("*",), resources=("*",),
+                         reason="cancellation suspended by change control"),
+                    rule(rule_id=f"v{denied_v}-allow", effect=Effect.ALLOW,
+                         actions=("*",), subjects=("*",), roles=("*",),
+                         resources=("*",)),
+                )), actor="owner")
+            h.op("policy.publish")
+
+            try:
+                h.sched.cancel(job_id=fjid, actor="p1",
+                               reason="operator changed their mind")
+            except PolicyDenied as exc:
+                midflight["refusal"] = str(exc)
+            midflight["denied_version"] = denied_v
+            midflight["job_id"] = fjid
+            midflight["state_while_denied"] = h.sched.get(fjid).state
+
+            restored_v = denied_v + 1
+            h.policy.publish(document(
+                policy_id="scheduler.default", version=restored_v,
+                description="incident closed; withdrawal permitted again",
+                rules=(rule(rule_id=f"v{restored_v}", effect=Effect.ALLOW,
+                            actions=("*",), subjects=("*",), roles=("*",),
+                            resources=("*",)),)), actor="owner")
+            h.op("policy.publish")
+            h.sched.cancel(job_id=fjid, actor="p1",
+                           reason="withdrawn once the rule was restored")
+            h.op("job.cancel")
+            midflight["restored_version"] = restored_v
+            midflight["final_state"] = h.sched.get(fjid).state
+            expectations["cancelled"].add(fjid)
+
         # A policy version every so often, so historical decisions have
         # something to be non-retroactive against.
         if cycle % 40 == 39:
@@ -357,6 +430,8 @@ for i in range(4000):
     h.crashes += 1
     h.reload()
     h.expectations = expectations
+    h.midflight = midflight
+    h.cycles = CYCLES
     return h
 
 
@@ -673,3 +748,124 @@ def test_the_chain_survives_a_partial_write_at_the_kill_point(horizon):
     assert report.ok and not report.problems
     seqs = [ev.seq for ev in horizon.log.read()]
     assert seqs == list(range(len(seqs))), "a gap or duplicate at the tear"
+
+
+# ---- the rules changing under a running job -----------------------------
+#
+# R48 said the campaign bumped policy VERSIONS and never changed what a
+# version meant, so nothing here had ever been refused by a rule that
+# appeared after the work started. These are that case.
+
+def test_a_policy_change_mid_flight_refused_a_running_job_s_withdrawal(
+        horizon):
+    """The operation was permitted a moment earlier, and the job did not
+    change. The policy did."""
+    mid = horizon.midflight
+    assert mid, "the mid-flight policy change never ran"
+    assert "refusal" in mid, (
+        "the cancel was not refused; a version bump that changes nothing "
+        "about what is permitted is not a policy change")
+    assert "cancellation suspended by change control" in mid["refusal"], \
+        mid["refusal"]
+    assert mid["state_while_denied"] is JobState.DISPATCHED, (
+        "the point is that the job was RUNNING when the rules moved; a "
+        "refusal aimed at a queued job would be a weaker test")
+
+
+def test_the_refusal_is_durable_and_names_the_version_that_made_it(horizon):
+    """A refusal nobody can find afterwards did not happen, as far as an
+    incident review is concerned.
+
+    The scheduler evaluated its gates without recording them, so a denied
+    attempt left no trace at all -- the log answered "what was permitted"
+    and could not answer "what was tried".
+    """
+    from qta_agent.policy import ACT_POLICY_DECISION
+
+    denials = [
+        e for e in horizon.log.read()
+        if e.action == ACT_POLICY_DECISION
+        and not e.payload["decision"]["allowed"]
+        and e.payload["decision"]["request"]["action"] == "scheduler.cancel"
+    ]
+    assert len(denials) == 1, (
+        f"expected exactly one recorded cancellation refusal, got "
+        f"{len(denials)}")
+    rec = denials[0].payload["decision"]
+    assert rec["version"] == horizon.midflight["denied_version"]
+    assert rec["rule_id"].endswith("-no-cancel")
+    assert denials[0].target == horizon.midflight["job_id"]
+
+
+def test_restoring_the_rule_let_the_identical_call_through(horizon):
+    mid = horizon.midflight
+    assert mid["restored_version"] == mid["denied_version"] + 1
+    assert mid["final_state"] is JobState.CANCELLED, (
+        "the same call, by the same actor, on the same job: only the policy "
+        "differed")
+
+
+def test_the_denial_did_not_reach_backwards_over_earlier_decisions(horizon):
+    """A policy is not retroactive, and this is where that is tested against
+    a policy whose CONTENT changed rather than its number.
+
+    Every cancellation before the change was decided under a document that
+    permitted it, and re-evaluating that request under the version in force
+    AT THE TIME must still say so -- otherwise the history would be re-judged
+    by rules written after it.
+    """
+    from qta_agent.policy import ACT_POLICY_DECISION
+
+    changed_at = None
+    for e in horizon.log.read():
+        if (e.action == ACT_POLICY_DECISION
+                and not e.payload["decision"]["allowed"]
+                and e.payload["decision"]["request"]["action"]
+                == "scheduler.cancel"):
+            changed_at = e.seq
+            break
+    assert changed_at is not None
+
+    earlier = [e for e in horizon.log.read()
+               if e.action == "scheduler.transition"
+               and e.payload.get("dst") == "CANCELLED"
+               and e.seq < changed_at]
+    assert earlier, "no cancellation happened before the rules changed"
+    for e in earlier[:5]:
+        decision = horizon.policy.evaluate(
+            "scheduler.default",
+            PolicyRequest(action="scheduler.cancel", subject="p1",
+                          role="SUBMITTER", resource=e.payload["job_id"],
+                          task_id=""),
+            at_seq=e.seq)
+        assert decision.allowed, (
+            f"seq {e.seq}: a cancellation that was permitted when it "
+            f"happened is now refused by {decision.rule_id!r} -- the policy "
+            "reached backwards")
+
+
+def test_the_version_that_denied_is_not_the_one_in_force_now(horizon):
+    """Otherwise the campaign would have ended under the restrictive
+    document and everything after it would be measuring that instead."""
+    now = horizon.policy.in_force("scheduler.default").version
+    assert now > horizon.midflight["denied_version"]
+    assert horizon.policy.in_force_at(
+        "scheduler.default",
+        horizon.midflight["denied_version"]) is not None
+
+
+def test_the_campaign_ran_at_the_scale_it_reports(horizon):
+    """A run at the default must not be able to report itself as the long one.
+
+    QTA_HORIZON_CYCLES raises the scale, and the hosted workflow turns it
+    up. What makes that worth anything is that the number is checked against
+    the trajectory rather than quoted from the environment: a knob that is
+    read and not used is the most reassuring kind of nothing.
+    """
+    assert horizon.cycles == CYCLES
+    report = horizon.log.verify()
+    assert report.count > CYCLES * 6, (
+        f"{CYCLES} cycles produced only {report.count} events; each cycle "
+        "writes roughly twenty, so the workload did not run at the scale "
+        "this run claims")
+    assert horizon.total_ops >= CYCLES * 4

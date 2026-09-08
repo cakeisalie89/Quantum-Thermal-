@@ -226,6 +226,13 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_lease_renewal.json
+      - name: mutation matrix -- catching up in O(new)
+        # The third quadratic path this repository has recorded. Counted
+        # rather than timed: how many times the whole history was read, and
+        # whether each record was folded exactly once.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_incremental.json
       - name: mutation matrix -- read-decide-write across processes
         # Four processes each dispatched the same job and the log became
         # unreplayable with a perfect hash chain. Every mutation here puts
@@ -266,6 +273,15 @@ jobs:
         # membership change nobody reviewed. This is where that fails.
         run: |
           uv run python tools/corpus_allowlist.py
+      - name: long horizon at an elevated scale
+        # The default scale runs with the rest of the suite on every push.
+        # This is the same campaign turned up: roughly ten thousand events
+        # through repeated restarts and mid-operation crashes, which is
+        # where the three quadratic paths this repository has recorded each
+        # became visible. A knob nobody turns is a comment.
+        run: |
+          QTA_HORIZON_CYCLES=1200 uv run python -m pytest \
+            tests/test_agent_long_horizon.py -q -p no:randomly
       - name: fuzz the parsers and trust boundaries
         # Two jobs: replay every committed regression input, then run a
         # bounded seeded campaign. A finding fails the build. The campaign is

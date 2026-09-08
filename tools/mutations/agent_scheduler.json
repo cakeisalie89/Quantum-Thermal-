@@ -150,8 +150,8 @@
     {
       "name": "N21_enqueue_policy_not_consulted",
       "path": "qta_agent/scheduler.py",
-      "find": "                          role=\"SUBMITTER\", resource=job_id,\n                          task_id=task_id or \"\"))\n        decision.raise_if_denied()",
-      "replace": "                          role=\"SUBMITTER\", resource=job_id,\n                          task_id=task_id or \"\"))",
+      "find": "                          task_id=task_id or \"\"),\n            actor=submitter)\n        decision.raise_if_denied()",
+      "replace": "                          task_id=task_id or \"\"),\n            actor=submitter)",
       "rationale": "the policy layer is bypassed on the way in"
     },
     {
@@ -440,6 +440,13 @@
       "find": "        if not decision.allowed:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {decision.identity} refuses to enqueue \"",
       "replace": "        if False:\n            raise SchedulerError(\n                f\"seq {ev.seq}: {decision.identity} refuses to enqueue \"",
       "rationale": "a submitter the policy refuses gets its work into the queue by writing the record itself"
+    },
+    {
+      "name": "N32_a_refused_gate_leaves_no_trace",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not decision.allowed:\n            decision = self.policy.decide_and_record(",
+      "replace": "        if False:\n            decision = self.policy.decide_and_record(",
+      "rationale": "the log answers 'what was permitted' and cannot answer 'what was tried', which is the question an incident starts with -- and a policy change that refused a running job leaves nothing behind at all"
     }
   ]
 }

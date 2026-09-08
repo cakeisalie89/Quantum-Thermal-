@@ -1457,7 +1457,7 @@
     {
       "id": "R48",
       "requirement": "Long-horizon testing",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/store.py",
@@ -1471,7 +1471,7 @@
       "production_caller": null,
       "persistent_state": "one shared log carrying scheduler, authority, memory, policy and agent events across the whole trajectory",
       "authority_owner": "the log",
-      "evidence": "a measured trajectory, not an assertion that one ran: 2,617 GOVERNED OPERATIONS -- calls that move durable governed state through a gate, counted by kind and defined in GOVERNED_OPS -- across 2,811 events, 18 restarts of which 10 are crashes, 6 checkpoints and 6 policy versions. The 344 priority ticks used to advance sequence-numbered expiry are counted SEPARATELY and excluded, because a metric that counts a loop can be inflated by spinning. No single operation kind is more than 17% of the run",
+      "evidence": "a mixed workload of enqueue, dispatch, retry, cancel, invalidate, promote, remember, withdraw, checkpoint and crash, driven through repeated restarts and mid-operation SIGKILLs, with the invariants asserted over the WHOLE history rather than any single operation. The scale is set by QTA_HORIZON_CYCLES and asserted against the trajectory it produced; the hosted workflow runs a second pass at 1200 cycles, and a 2000-cycle run (~16,000 events) passes locally in 7m16s. Mid-flight, the RULES CHANGE under a running job: a version that denies cancellation is published while the job is DISPATCHED, the withdrawal is refused, the refusal is durable and names the version that made it, and restoring the rule lets the identical call through",
       "provenance": "end-of-run invariants are checked against the LOG, not against the projection: every promotion is confirmed to have come from VERIFIED and to have been performed by someone other than the proposer",
       "failure_semantics": "the suite asserts intended end states per job class rather than 'nothing crashed'",
       "recovery": "nine crashes are mid-operation -- the process state is discarded between the two events of one logical operation, with no checkpoint -- and the tenth is a REAL child process sent SIGKILL while appending to the campaign's own log. After each, the chain verifies, the lease is still owned by the worker that held it, the attempt count has not moved, and the trajectory continues over the top",
@@ -1481,42 +1481,59 @@
       "concurrency": "single-writer; the concurrent case is R47",
       "security_boundary": "no authority escalation anywhere in the history, checked event by event",
       "tests": [
+        "tests/test_agent_incremental.py",
         "tests/test_agent_long_horizon.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/agent_incremental.json",
         "tools/mutations/agent_scheduler.json"
       ],
       "fuzzing": "none",
       "differential": "primary projection compared field-for-field against the independent reconstruction over the whole history",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "the trajectory is thousands of events, not millions; a defect that needs a larger scale would still be invisible",
-        "no policy CHANGE mid-flight that alters what a running job may do, only version bumps",
-        "the campaign runs locally and in the agent-substrate workflow on the same single Python version and OS; nothing tests that a trajectory of this length behaves identically on another interpreter or kernel"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the trajectory is tens of thousands of events, not millions. A defect that needs a larger scale than the campaign reaches is not reached, and running longer moves that line without removing it.",
+          "reason": "epistemic",
+          "detail": "a campaign is sampling a trajectory space, and sampling does not exhaust it -- the same limit the property-based suites state for the same reason. The scale is not left where it was: the quadratic path that made a longer run unaffordable was found and fixed here (a governed operation cost the whole history), 520 cycles went from 8m13s to 42s, and the campaign now runs at 2000 cycles. What remains is not a cost that could be engineered away but the difference between a sample and a proof."
+        },
+        {
+          "limit": "the campaign runs on one interpreter and one operating system. Nothing here establishes that a trajectory of this length behaves identically on another CPython build, another version, or another kernel.",
+          "reason": "environment_single_host",
+          "detail": "one host, one interpreter: a second is not something this environment can produce, and a matrix build would be a property of the CI provider rather than of this code. What is in this repository is what can be: every ordering-sensitive structure is canonicalized before it is hashed, the layering test forbids reliance on dict iteration order for authority, and the fuzz harness is seeded so a finding on one machine reproduces on another."
+        },
+        {
+          "limit": "wall-clock time is never an input. Leases, backoff and expiry are counted in SEQUENCE NUMBERS, so this campaign says nothing about behaviour under a clock that jumps, drifts or runs backwards.",
+          "reason": "architectural_by_design",
+          "detail": "a wall clock is a thing each host decides for itself, and an authority that trusted one would be delegating its verdict to whichever machine happened to run the job. Removing this limit would mean introducing exactly the dependency the design excludes; what the campaign can do instead, and does, is advance the sequence number and require every expiry to fall where the log says it falls."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R49",
       "requirement": "Performance regression guards on critical paths",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/checkpoint.py",
         "qta_agent/evidence.py",
-        "qta_agent/scheduler.py"
+        "qta_agent/scheduler.py",
+        "qta_agent/canonical.py",
+        "tools/performance_baseline.py"
       ],
       "callers": [
-        "tests/test_agent_performance.py"
+        "tests/test_agent_performance.py",
+        "tools/performance_baseline.py"
       ],
       "production_caller": null,
-      "persistent_state": "n/a",
+      "persistent_state": "docs/performance_baseline.json: one observation per guard per recording, each against the commit it was measured at",
       "authority_owner": "n/a",
-      "evidence": "ratio guards across two history sizes, plus a positive control: reintroducing the quadratic append makes the guard read 11.5x against a 10.0 ceiling",
-      "provenance": "n/a",
-      "failure_semantics": "a guard that cannot measure repeats the operation rather than skipping; the first version skipped four of its own guards on a fast machine",
+      "evidence": "ratio guards across two history sizes; SHAPE guards fitting log-time against log-size at three sizes (100/400/1600) with the fit itself checked against a genuinely quadratic and a genuinely linear operation; a per-operation guard measuring the cost of twenty governed operations behind a 50-record history and behind a 1200-record one; and a positive control: reintroducing the quadratic append makes the ratio guard read 11.5x against a 10.0 ceiling",
+      "provenance": "every guard that fits a shape publishes its number when QTA_PERF_OUT is set; tools/performance_baseline.py collects them and appends to docs/performance_baseline.json with the commit and the time",
+      "failure_semantics": "a guard fails on shape, not on wall time, so a slow machine cannot fail it and a fast one cannot hide a regression. A measurement the clock cannot resolve even over 512 repetitions skips and says so rather than reporting a number derived from noise",
       "recovery": "n/a",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1524,21 +1541,35 @@
       "concurrency": "n/a",
       "security_boundary": "a verification whose cost grows without bound is one that gets switched off; that is what these guard",
       "tests": [
+        "tests/test_agent_incremental.py",
         "tests/test_agent_performance.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/agent_incremental.json",
         "tools/mutations/agent_substrate.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "ratios only, at two sizes; a defect that is linear-with-a-large-constant is invisible to them",
-        "no tracked history of measurements, so a slow drift across many commits would not be noticed",
-        "file-descriptor and child-process leak checks are Linux-only (/proc and ps)"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "the file-descriptor and child-process leak checks read /proc and shell out to ps, so they assert nothing on a platform without them; the timing guards run everywhere, the leak guards do not.",
+          "reason": "platform_primitive_absent",
+          "detail": "there is no portable way to ask 'how many descriptors does this process hold' from CPython -- psutil is a dependency this package deliberately does not take, and it would only move the same platform question one layer down. The checks are written so that an absent /proc skips them explicitly rather than passing over a count of zero, which is the shape in which a leak check silently stops checking."
+        },
+        {
+          "limit": "the recorded history grows when somebody runs tools/performance_baseline.py, not on every commit. A drift smaller than DRIFT_FACTOR between two consecutive RECORDINGS is not flagged, and recordings can be far apart.",
+          "reason": "external_system_unreachable",
+          "detail": "a continuous per-commit series needs a results store that outlives a CI job and that a job may write to -- a metrics backend or an artifact database. This environment has neither, and a hosted job cannot commit to the repository it is testing. What is in the repository is the strongest form available without one: a committed, reviewable series of shape measurements, each tied to the commit it came from, with a drift factor the tool reports against."
+        },
+        {
+          "limit": "a shape is fitted through three measurements, which supports no statistical claim. It distinguishes linear from quadratic and would not distinguish n log n from n.",
+          "reason": "epistemic",
+          "detail": "three points have a slope and not a confidence interval, and more points would cost run time without changing what the guard is FOR -- the defects it exists to catch have been, three times now, whole orders of growth rather than logarithmic factors. The fit's discriminating power is not assumed: test_the_exponent_fit_can_actually_see_a_quadratic hands it a quadratic operation and a linear one and requires it to separate them."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

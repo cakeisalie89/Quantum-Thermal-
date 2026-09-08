@@ -76,6 +76,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_agents.py",
     "tests/test_agent_concurrency.py",
     "tests/test_agent_cross_process.py",
+    "tests/test_agent_incremental.py",
     "tests/test_agent_crash_recovery.py",
     "tests/test_agent_fault_injection.py",
     "tests/test_agent_fuzz.py",

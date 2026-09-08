@@ -1712,3 +1712,50 @@ def test_a_requeued_job_starts_its_renewal_budget_again(sched):
     assert job.state is not JobState.DISPATCHED
     assert job.lease_renewals == 0, (
         "the renewal count survived the lease it belonged to")
+
+
+def test_a_refused_gate_leaves_a_record_of_what_was_tried(tmp_path):
+    """A refusal nobody can find afterwards did not happen.
+
+    The scheduler evaluated every gate without recording any of them, so a
+    denied attempt left no trace at all: the log answered "what was
+    permitted" and could not answer "what was tried", which is the question
+    an incident starts with.
+
+    Only DENIALS are recorded. A permitted operation writes its own record a
+    moment later, so recording the ALLOW too would double the log for no
+    new information.
+    """
+    from qta_agent.policy import ACT_POLICY_DECISION
+
+    log, s = _strict(tmp_path)
+    before = len(log.read())
+    with pytest.raises(PolicyDenied):
+        s.set_priority(job_id="j1", priority=0, actor="mallory",
+                       role="WORKER", reason="mine is urgent")
+
+    denials = [e for e in log.read()
+               if e.action == ACT_POLICY_DECISION
+               and not e.payload["decision"]["allowed"]]
+    assert len(denials) == 1, (
+        f"the log grew from {before} to {len(log.read())} records and holds "
+        f"{len(denials)} recorded refusal(s)")
+    rec = denials[0].payload["decision"]
+    assert rec["request"]["action"] == "scheduler.raise_priority"
+    assert rec["request"]["subject"] == "mallory"
+    assert rec["rule_id"] == "no-raise"
+    assert denials[0].actor == "mallory", (
+        "the record has to name who tried, not who refused")
+
+
+def test_a_permitted_gate_does_not_write_a_second_record(tmp_path):
+    """The other half, so the rule above is a rule and not a habit."""
+    from qta_agent.policy import ACT_POLICY_DECISION
+
+    log, s = _strict(tmp_path)
+    s.set_priority(job_id="j1", priority=MAX_PRIORITY, actor="operator",
+                   role="SCHEDULER", reason="lowering is not a raise")
+    assert not [e for e in log.read()
+                if e.action == ACT_POLICY_DECISION], (
+        "recording every allowed gate doubles the log and says nothing the "
+        "operation's own record does not")
