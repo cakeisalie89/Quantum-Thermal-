@@ -220,8 +220,8 @@
     {
       "name": "N31_optimistic_concurrency_removed",
       "path": "qta_agent/scheduler.py",
-      "find": "        if (expected_revision is not None\n                and job.revision != expected_revision):",
-      "replace": "        if False:",
+      "find": "            if (expected_revision is not None\n                    and job.revision != expected_revision):",
+      "replace": "            if False:",
       "rationale": "two writers racing on one job both win, and the loser is never told"
     },
     {

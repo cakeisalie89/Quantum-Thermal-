@@ -285,3 +285,214 @@ def test_none_is_an_honest_hosted_answer():
         row = _row(hosted_ci=value)
         assert not [p for p in CM.validate({"rows": [row]})
                 if "run id" in p]
+
+
+# --- the boundary vocabulary must not become a completion loophole ---------
+#
+# A residual gap keeps a row out of COMPLETE. A boundary does not. So the
+# cheapest way to finish this matrix without finishing the system is to move
+# sentences from one field to the other, and the tests below are the ones
+# that have to fail if anybody -- including a future session of mine -- does
+# that. Each attempts the smuggle for real, one boundary category at a time.
+
+_SMUGGLE_DETAIL = (
+    "a detail long enough to satisfy the substantive-argument rule, so that "
+    "the test provokes the guard it is aiming at rather than the length one")
+
+
+def _boundary(reason, limit, detail=_SMUGGLE_DETAIL):
+    return _problems(boundaries=[
+        {"limit": limit, "reason": reason, "detail": detail}])
+
+
+@pytest.mark.parametrize("reason", sorted(CM.BOUNDARY_REASONS))
+def test_no_boundary_category_accepts_a_sentence_that_names_work(reason):
+    """Unfinished work is refused under EVERY reason, not most of them.
+
+    Parametrized over the vocabulary itself rather than over a hand-written
+    list, so a reason added later without a negative test fails here on the
+    day it is added.
+    """
+    problems = _boundary(
+        reason,
+        "the compensating write path is not implemented, so a failed "
+        "external effect is reported and left in place")
+    assert any("residual gap, not a limit" in p for p in problems), (
+        reason, problems)
+
+
+@pytest.mark.parametrize("reason", sorted(
+    CM.BOUNDARY_REASONS - CM._TESTABILITY_REASONS))
+def test_absent_testing_is_refused_under_a_reason_that_cannot_explain_it(
+        reason):
+    """"It is intended this way" explains a missing behaviour, not a missing test.
+
+    The subtler smuggle, and the one that does not look like cheating while
+    you are doing it: the behaviour really is architectural, so the reason
+    reads as true, and the sentence attached to it is about a test somebody
+    simply did not write.
+    """
+    problems = _boundary(
+        reason,
+        "the optimistic-concurrency path has no test across two processes, "
+        "so a lost update between them would go unnoticed")
+    assert any("does not explain why the test cannot be written" in p
+               for p in problems), (reason, problems)
+
+
+@pytest.mark.parametrize("reason", sorted(CM._TESTABILITY_REASONS))
+def test_absent_testing_is_allowed_where_the_reason_explains_it(reason):
+    """And it must not refuse the honest ones.
+
+    A two-writer test on a network filesystem cannot be written on a host
+    with one filesystem. A guard that refused that sentence too would push
+    real limits into evasive phrasing, which is worse than not having it.
+    """
+    assert not _boundary(
+        reason,
+        "two writers on a network filesystem are not covered, because "
+        "flock semantics there differ from the ones available here"), reason
+
+
+@pytest.mark.parametrize("bad_detail", ["", "   ", "too short to argue"])
+def test_a_boundary_with_no_argument_behind_it_is_refused(bad_detail):
+    problems = _boundary(
+        "architectural_by_design",
+        "the substrate mediates rather than contains, so a subprocess that "
+        "opens its own socket is not stopped",
+        detail=bad_detail)
+    assert any("why no engineering in this repository closes" in p
+               for p in problems), problems
+
+
+def test_a_missing_detail_key_is_refused():
+    problems = _problems(boundaries=[{
+        "limit": "the substrate mediates rather than contains, so a "
+                 "subprocess that opens its own socket is not stopped",
+        "reason": "architectural_by_design"}])
+    assert any("why no engineering in this repository closes" in p
+               for p in problems), problems
+
+
+def test_a_detail_that_restates_the_limit_is_not_an_argument():
+    limit = ("the substrate mediates rather than contains, so a subprocess "
+             "that opens its own socket is not stopped by the egress guard")
+    problems = _boundary("architectural_by_design", limit, detail=limit)
+    assert any("restates" in p for p in problems), problems
+
+
+def test_a_reason_outside_the_vocabulary_is_refused():
+    problems = _boundary(
+        "out_of_scope",
+        "the substrate mediates rather than contains, so a subprocess that "
+        "opens its own socket is not stopped")
+    assert any("is not one of" in p for p in problems), problems
+
+
+def test_a_boundary_that_is_a_bare_sentence_is_refused():
+    problems = _problems(boundaries=["we did not get to this one"])
+    assert any("must be an object" in p for p in problems), problems
+
+
+def test_an_honest_boundary_still_passes_every_guard():
+    """The control. Each guard above must be refusing the smuggle and not
+    the category, or the vocabulary becomes unusable and the next person
+    writes residual gaps as prose in some other field."""
+    assert not _boundary(
+        "language_runtime",
+        "zeroing a bytearray does not guarantee that no copy of the "
+        "plaintext remains: str is immutable and the interpreter may have "
+        "interned or copied it",
+        detail="CPython exposes no primitive for erasing a value it has "
+               "already copied, and no way to observe whether it did; what "
+               "this repository can do -- bytearray storage, a load path "
+               "that never builds a str, an explicit wipe -- it does")
+
+
+# --- the guards that decide what COMPLETE means ---------------------------
+#
+# Added because tools/mutations/completion_matrix.json found them naked: the
+# three checks that stand between "39 rows" and "39 finished rows" had no
+# negative test at all, so deleting any of them changed nothing anybody
+# would notice. That is the exact shape of defect this repository exists to
+# refuse, occurring in the file that does the refusing.
+
+def _complete(**over):
+    over.setdefault("residual_gaps", [])
+    over.setdefault("mutation_tests", ["tools/mutations/agent_scheduler.json"])
+    over.setdefault("boundaries", [{
+        "limit": "leases are checked against the log's position rather than "
+                 "against a clock, so a host whose clock is wrong is refused "
+                 "rather than trusted",
+        "reason": "architectural_by_design",
+        "detail": "a wall clock is a thing each host decides for itself, and "
+                  "an authority that trusted one would be delegating its "
+                  "verdict to whichever machine happened to run the job"}])
+    return _problems(classification=CM.COMPLETE, **over)
+
+
+def test_complete_may_not_be_claimed_while_gaps_are_still_listed():
+    """The one arithmetic relation the whole matrix rests on.
+
+    If COMPLETE can coexist with an open gap list, "39/39 complete, 0
+    residual gaps" stops being a statement about the system and becomes a
+    statement about how the rows were filled in.
+    """
+    problems = _complete(residual_gaps=["the compensation path is a stub"])
+    assert any("claimed with residual" in p for p in problems), problems
+
+
+def test_complete_may_not_be_claimed_without_mutation_coverage():
+    problems = _complete(mutation_tests=[])
+    assert any("no mutation coverage" in p for p in problems), problems
+
+
+def test_complete_may_not_be_claimed_without_stating_a_limit():
+    """The classification ends in "to current technically defensible LIMIT".
+
+    A row that names no limit has not finished the sentence, and silence is
+    the cheapest way to overstate a system: nobody reads an absent field.
+    """
+    problems = _complete(boundaries=[])
+    assert any("no boundaries stated" in p for p in problems), problems
+
+
+def test_an_otherwise_sound_complete_row_passes():
+    """The control for the three above."""
+    assert not _complete()
+
+
+def test_the_testability_reasons_are_a_strict_subset_of_the_vocabulary():
+    """Guarding the guard, because widening a set reads as tidying up.
+
+    test_absent_testing_is_refused_under_a_reason_that_cannot_explain_it
+    parametrizes over the COMPLEMENT of this set. Widen the set to the whole
+    vocabulary and that test is parametrized zero times -- it passes by
+    running nothing, which is the vacuous-success defect wearing a green
+    tick. So the complement is asserted to be non-empty and to contain, by
+    name, the reasons that explain an absent BEHAVIOUR and can never explain
+    an absent TEST.
+    """
+    cannot_excuse = CM.BOUNDARY_REASONS - CM._TESTABILITY_REASONS
+    assert cannot_excuse >= {
+        "architectural_by_design",
+        "language_runtime",
+        "requires_external_identity_authority",
+    }, cannot_excuse
+
+
+def test_the_fuzz_staleness_guard_names_the_target_it_found():
+    """The second staleness species, which had no test either.
+
+    Three rows were once found saying "no fuzzing of X" while a target for X
+    was already registered -- an understated row is drift too, and it keeps
+    finished work out of COMPLETE while looking rigorous.
+    """
+    problems = _problems(residual_gaps=[
+        "no fuzzing of the policy decision records"])
+    assert any("registers target" in p for p in problems), problems
+
+
+def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
+    assert not _problems(residual_gaps=[
+        "no fuzzing of the LCVD solver, which lives outside this package"])

@@ -42,7 +42,7 @@ from .authority import (
     check,
 )
 from .canonical import canonical_bytes, digest, is_digest
-from .events import ChainBroken, EventLog, Event
+from .events import ChainBroken, Event, EventLog
 
 
 class StoreError(Exception):
@@ -98,6 +98,7 @@ ACT_DEPEND = "record.depend"
 OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND})
 
 
+
 class AuthorityStore:
     """Live projection with transactional mutation through the log."""
 
@@ -139,6 +140,60 @@ class AuthorityStore:
         for ev in self.log.read():
             self._apply(ev)
         return self
+
+    def catch_up(self, *, force: bool = False) -> "AuthorityStore":
+        """Fold in everything appended since this projection last read.
+
+        The same rule the scheduler follows, for the same reason. Two
+        processes each read a record as UNDER_REVIEW and each appended a
+        transition out of it; both appends were correct on their own terms,
+        and the log was then unreplayable, because the second record moves a
+        record from a state the replay has already left.
+
+        ``force`` skips the cheap witness check, which can legitimately lag
+        the log after a crash between an append and the witness update.
+        """
+        if not force:
+            witness = None
+            try:
+                witness = self.log.head()
+            except Exception:            # noqa: BLE001 - unreadable: do the work
+                witness = None
+            if witness is not None and witness.seq <= self._loaded_through:
+                return self
+        self.log.verify().raise_if_bad()
+        self._fold_new()
+        return self
+
+    def _fold_new(self) -> None:
+        """Fold everything after ``_loaded_through``. Chain assumed verified.
+
+        Split out for the one caller that has already verified:
+        :meth:`qta_agent.events.EventLog.append_decided` verifies the chain
+        before calling the decision, and verifying again inside it would
+        double the cost of every write while the writer lock is held.
+        """
+        for ev in self.log.read():
+            if ev.seq > self._loaded_through:
+                self._apply(ev)
+
+    def _append_decided(self, build):
+        """Re-read, rebuild the record and write, all under one lock.
+
+        ``build`` is a function rather than a dict because a record whose
+        payload was decided before the re-read is exactly the record this
+        exists to prevent. It may raise, and that refusal is the caller's
+        answer: the loser of a race discovers there that the transition it
+        wanted is no longer available.
+        """
+        def under_lock(head_seq):
+            # The chain was verified by append_decided immediately above.
+            self._fold_new()
+            return build()
+
+        ev = self.log.append_decided(under_lock)
+        self._apply(ev)
+        return ev
 
     def _apply(self, ev: Event) -> None:
         """Fold one event into the projection.
@@ -519,6 +574,10 @@ class AuthorityStore:
                evidence: dict | None = None, depends_on: tuple = (),
                policy_id: str | None = None,
                idempotency_key: str | None = None) -> Record:
+        # Read the log before deciding anything. Every check below is about
+        # the state of the store, and this projection's copy of it is only
+        # current until another process writes.
+        self.catch_up()
         # Order matters and was wrong once: checking existence first made the
         # idempotent branch unreachable, because a completed create always
         # leaves the record in place. A retried request would then get
@@ -533,8 +592,6 @@ class AuthorityStore:
                         f"completed a request for {done_for!r}; reusing it "
                         f"for {record_id!r} would return the wrong record")
                 return self.get(record_id)
-        if record_id in self._records:
-            raise StoreError(f"record {record_id!r} already exists")
         evidence = dict(evidence or {})
         for k, v in evidence.items():
             if not is_digest(v):
@@ -542,19 +599,29 @@ class AuthorityStore:
                     f"evidence {k!r} must be a sha256 digest so it cannot be "
                     f"altered after being cited; got {type(v).__name__}")
         self._require_evidence_exists(evidence)
-        for dep in depends_on:
-            if dep not in self._records:
-                raise StoreError(
-                    f"dependency {dep!r} does not exist; a record may not "
-                    "depend on something unrecorded")
-        ev = self.log.append(
-            actor=proposer, action=ACT_CREATE, target=record_id,
-            payload={"record_id": record_id, "kind": kind,
-                     "proposer": proposer, "state": INITIAL.value,
-                     "evidence": evidence, "depends_on": list(depends_on),
-                     "policy_id": policy_id,
-                     "idempotency_key": idempotency_key})
-        self._apply(ev)
+
+        def build():
+            # Re-checked on every attempt, against the log as it stands.
+            # "This id is free" and "these dependencies exist" are both
+            # facts about a moment, and another process creating the same id
+            # between the check and the write is exactly the race.
+            if record_id in self._records:
+                raise StoreError(f"record {record_id!r} already exists")
+            for dep in depends_on:
+                if dep not in self._records:
+                    raise StoreError(
+                        f"dependency {dep!r} does not exist; a record may "
+                        "not depend on something unrecorded")
+            return dict(
+                actor=proposer, action=ACT_CREATE, target=record_id,
+                payload={"record_id": record_id, "kind": kind,
+                         "proposer": proposer, "state": INITIAL.value,
+                         "evidence": evidence,
+                         "depends_on": list(depends_on),
+                         "policy_id": policy_id,
+                         "idempotency_key": idempotency_key})
+
+        self._append_decided(build)
         return self.get(record_id)
 
     def transition(self, *, record_id: str, dst: State, actor: str,
@@ -564,6 +631,7 @@ class AuthorityStore:
                    stale_reason: str | None = None,
                    idempotency_key: str | None = None) -> Record:
         """Authorize and commit a state transition."""
+        self.catch_up()
         if idempotency_key:
             done_for = self._applied_keys.get(idempotency_key)
             if done_for is not None:
@@ -573,29 +641,38 @@ class AuthorityStore:
                         f"completed a request for {done_for!r}; reusing it "
                         f"for {record_id!r} would return the wrong record")
                 return self.get(record_id)
-        cur = self.get(record_id)
-        if expected_revision is not None and cur.revision != expected_revision:
-            raise ConcurrencyError(
-                f"{record_id}: expected revision {expected_revision}, found "
-                f"{cur.revision}; the record changed since it was read")
         evidence = dict(evidence or {})
-        req = TransitionRequest(
-            record_id=record_id, src=cur.state, dst=dst, actor=actor,
-            role=role, evidence={**cur.evidence, **evidence},
-            proposer=cur.proposer, policy_id=policy_id or cur.policy_id)
-        # raises TransitionError if not permitted, including when a cited
-        # digest does not resolve in the attached evidence store
-        edge = check(req, resolve=self._resolver)
-        ev = self.log.append(
-            actor=actor, action=ACT_TRANSITION, target=record_id,
-            payload={"record_id": record_id, "src": cur.state.value,
-                     "dst": dst.value, "role": role.value,
-                     "evidence": evidence,
-                     "policy_id": policy_id or cur.policy_id,
-                     "stale_reason": stale_reason,
-                     "edge_reason": edge.reason,
-                     "idempotency_key": idempotency_key})
-        self._apply(ev)
+
+        def build():
+            # EVERY decision here is re-made against the log at the instant
+            # of the write: the source state, the revision, the edge and the
+            # evidence. A transition recorded from a src the replay has
+            # already left leaves a perfectly valid chain nobody can replay.
+            cur = self.get(record_id)
+            if (expected_revision is not None
+                    and cur.revision != expected_revision):
+                raise ConcurrencyError(
+                    f"{record_id}: expected revision {expected_revision}, "
+                    f"found {cur.revision}; the record changed since it was "
+                    "read")
+            req = TransitionRequest(
+                record_id=record_id, src=cur.state, dst=dst, actor=actor,
+                role=role, evidence={**cur.evidence, **evidence},
+                proposer=cur.proposer, policy_id=policy_id or cur.policy_id)
+            # raises TransitionError if not permitted, including when a
+            # cited digest does not resolve in the attached evidence store
+            edge = check(req, resolve=self._resolver)
+            return dict(
+                actor=actor, action=ACT_TRANSITION, target=record_id,
+                payload={"record_id": record_id, "src": cur.state.value,
+                         "dst": dst.value, "role": role.value,
+                         "evidence": evidence,
+                         "policy_id": policy_id or cur.policy_id,
+                         "stale_reason": stale_reason,
+                         "edge_reason": edge.reason,
+                         "idempotency_key": idempotency_key})
+
+        self._append_decided(build)
         return self.get(record_id)
 
     def _require_evidence_exists(self, evidence: dict) -> None:
@@ -616,16 +693,20 @@ class AuthorityStore:
 
     def add_dependency(self, *, record_id: str, depends_on: tuple,
                        actor: str = "SYSTEM") -> Record:
-        self.get(record_id)      # raises UnknownRecord if it does not exist
-        for dep in depends_on:
-            if dep not in self._records:
-                raise StoreError(f"dependency {dep!r} does not exist")
-            if dep == record_id:
-                raise StoreError(
-                    f"{record_id!r} cannot depend on itself")
-        ev = self.log.append(
-            actor=actor, action=ACT_DEPEND, target=record_id,
-            payload={"record_id": record_id,
-                     "depends_on": list(depends_on)})
-        self._apply(ev)
+        self.catch_up()
+
+        def build():
+            self.get(record_id)  # raises UnknownRecord if it does not exist
+            for dep in depends_on:
+                if dep not in self._records:
+                    raise StoreError(f"dependency {dep!r} does not exist")
+                if dep == record_id:
+                    raise StoreError(
+                        f"{record_id!r} cannot depend on itself")
+            return dict(
+                actor=actor, action=ACT_DEPEND, target=record_id,
+                payload={"record_id": record_id,
+                         "depends_on": list(depends_on)})
+
+        self._append_decided(build)
         return self.get(record_id)

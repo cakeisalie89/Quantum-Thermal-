@@ -118,6 +118,42 @@ _WORK_PHRASES = (
     "unimplemented", "no test for", "is untested",
 )
 
+#: Reasons under which ABSENT TESTING can be a genuine limit rather than
+#: unfinished work. A test that needs a second host, a piece of apparatus, a
+#: reachable external service or a kernel facility this interpreter does not
+#: expose cannot be written here at all; one that is merely unwritten can.
+#:
+#: The other four reasons are excluded on purpose. "It is architecturally
+#: intended" explains why a BEHAVIOUR is absent, never why a test for the
+#: behaviour that IS there was not written -- and "architectural_by_design"
+#: is the reason a boundary reaches for when it wants to sound settled.
+_TESTABILITY_REASONS = frozenset({
+    "external_system_unreachable",
+    "requires_hardware",
+    "environment_single_host",
+    "platform_primitive_absent",
+    "epistemic",
+})
+
+#: Prose that describes testing which was not done. Unlike _WORK_PHRASES
+#: these are not refused outright, because some of them are true limits: a
+#: two-writer test on a network filesystem cannot be written on a host with
+#: one filesystem. They are refused when the reason attached does not
+#: explain why the test is impossible rather than merely absent.
+#:
+#: "modelled" is deliberately NOT in the second pattern. "Ingress is not
+#: modelled" is a statement about the scope of a model -- there is nothing
+#: to test because there is no ingress -- and flagging it taught the matrix
+#: to phrase real boundaries evasively, which is the opposite of the point.
+_ABSENT_TESTING = (
+    r"\bno\b(?:\s+[\w-]+){0,3}\s+"
+    r"(?:tests?|testing|coverage|fuzzing|harness|specs?)\b",
+    r"\bnot\s+(?:tested|covered|exercised|verified|checked|explored|"
+    r"fuzzed|mutated)\b",
+    r"\b(?:missing|absent|lacking)\s+(?:[\w-]+\s+){0,2}"
+    r"(?:tests?|coverage|checks?)\b",
+)
+
 
 def load() -> dict:
     return json.loads(MATRIX.read_text(encoding="utf-8"))
@@ -377,7 +413,27 @@ def validate(doc: dict) -> list:
                     f"{sorted(BOUNDARY_REASONS)}. A boundary has to name why "
                     "no engineering here can close it; if none of these fits, "
                     "it is a residual gap and belongs in residual_gaps")
-            low = f"{limit} {b.get('detail', '')}".lower()
+            # EVIDENCE THAT ENGINEERING IS EXHAUSTED, as a required field.
+            #
+            # 'limit' says what is not claimed; on its own that is a
+            # sentence anybody can write about anything. 'detail' is where
+            # the row has to say why nobody in this repository can close it,
+            # and a boundary without one is an assertion with no argument.
+            detail = b.get("detail")
+            if not isinstance(detail, str) or len(detail.strip()) < 80:
+                problems.append(
+                    f"{where}: 'detail' must say why no engineering in this "
+                    "repository closes this limit. A boundary is a claim "
+                    "that work is exhausted, and a claim with no argument "
+                    "behind it is how unfinished work gets reclassified")
+                detail = detail if isinstance(detail, str) else ""
+            elif detail.strip() in limit or limit.strip() in detail:
+                problems.append(
+                    f"{where}: 'detail' restates 'limit'. Saying the same "
+                    "thing twice is not evidence that engineering is "
+                    "exhausted")
+
+            low = f"{limit} {detail}".lower()
             for phrase in _WORK_PHRASES:
                 if phrase in low:
                     problems.append(
@@ -385,6 +441,25 @@ def validate(doc: dict) -> list:
                         "somebody could do in this repository. That is a "
                         "residual gap, not a limit of what is possible")
                     break
+            else:
+                # ABSENT TESTING is the loophole this catches. "No
+                # cross-process test of X" is a true boundary when there is
+                # one host and a residual gap when there are two, and the
+                # difference is exactly what 'reason' is supposed to name.
+                # A reason that explains an absent BEHAVIOUR cannot also
+                # explain an absent TEST of behaviour that is present.
+                for pat in _ABSENT_TESTING:
+                    hit = re.search(pat, low)
+                    if hit and reason not in _TESTABILITY_REASONS:
+                        problems.append(
+                            f"{where}: says {hit.group(0)!r} under reason "
+                            f"{reason!r}, which does not explain why the "
+                            "test cannot be written here -- only why the "
+                            "behaviour is absent. Either the test is "
+                            f"writable, and this is a residual gap, or the "
+                            f"reason is one of "
+                            f"{sorted(_TESTABILITY_REASONS)}")
+                        break
 
         if cls in BLOCKED:
             if not row.get("blocker"):

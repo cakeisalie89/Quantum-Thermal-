@@ -21,15 +21,20 @@ every test run by `tools/completion_matrix.py`.
 
 | Classification | Rows |
 |---|---:|
-| COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT | 1 |
-| DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS | 31 |
-| INTEGRATED_BUT_INCOMPLETELY_VERIFIED | 7 |
+| COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT | 31 |
+| DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS | 7 |
+| INTEGRATED_BUT_INCOMPLETELY_VERIFIED | 1 |
 | PARTIALLY_IMPLEMENTED / SKELETAL / PLACEHOLDER / ABSENT | 0 |
 | BLOCKED | 0 |
 
-38 of 39 rows remain open, and every open row lists what is still missing.
-One row is closed. That ratio is the honest picture: this is a working control
-plane with a great deal still unproven, not a finished system.
+8 rows remain open with 25 residual gaps between them, and every open row
+lists what is still missing. A closed row is not a row with nothing left to
+say: the 31 closed rows carry 69 stated BOUNDARIES between them, each naming
+something the row does not claim and why no engineering in this repository
+closes it. The validator refuses a boundary that describes work somebody
+could do here, and refuses one that offers no argument for why it cannot be
+done -- the vocabulary is not allowed to become a way of finishing a row by
+rewording it.
 
 ## 2. What testing found
 
@@ -49,6 +54,14 @@ that found it, because the techniques are not interchangeable.
 | **The invalidation cascade cited bytes it never stored.** Against an evidence-backed store — the governed configuration — dependency invalidation could not run at all, so a record whose foundation was withdrawn could never be marked `STALE`. | Writing an audit test for the dependency case |
 | **A job could be enqueued onto work that can never succeed**, and **a terminal failure did not cascade**, leaving dependents waiting forever on a dead parent. | Hypothesis state machine over the scheduler |
 | **The mutation harness destroyed uncommitted work** — `git checkout` cannot tell suite damage from an edit made while it ran. | It happened, twice |
+| **Four processes each dispatched the same job, and the authority log became unreplayable.** Every append held the writer lock and verified the chain; the damage was semantic. The second record moved a job out of a state the replay had already left, so every later `load()` refused the log -- and a log that cannot be rebuilt cannot be repaired, because the history is the authority. | Four real processes racing on one job |
+| **The retry budget was never spent by a lease that lapsed.** `max_attempts` was consulted only where a worker REPORTED a retryable failure. A worker that dies reports nothing, its lease lapses, the job returns to READY, and the next worker takes it -- forever. The budget bounded nothing in the failure mode it exists for. | A six-process mixed campaign, through an assertion written expecting the budget to hold |
+| **`reconcile` scanned, then wrote, and could not survive the gap.** Another process dispatching a job between the scan and the write made the whole convergence pass raise, so one contended job stopped every other job from being reconciled. | The same campaign |
+| **`verify()` sampled the witness AFTER reading the log** -- the same order the writer writes in -- so another process's ordinary append landed between the two samples and was reported as `TRUNCATED`: damage, for a log that was merely being written to. | The same campaign |
+| **A refused lease renewal wrote its record first.** Renewal decides nothing itself; every rule lives in the reducer, on replay. So the record was appended and THEN refused: the caller saw exactly the right exception and every later `load()` hit the same refusal with nothing to catch it. | Asking what append-then-fold means when the fold refuses |
+| **The event log ignored `write()`'s return value.** A short write -- fewer bytes stored, no exception -- would have left half a record on disk and advanced the independently-held witness to name it: the exact damage the witness exists to detect, manufactured by the writer. | Injecting ENOSPC and a silent short write at the file object |
+| **Three of the completion matrix's own guards had no negative test.** COMPLETE with residual gaps still listed, COMPLETE with no mutation coverage, and COMPLETE with no stated limit could each be deleted with nothing noticing -- in the file that decides whether every other row is telling the truth. | Mutating the validator |
+| **…and a fourth was killed by a test that would have passed by running nothing.** The boundary-negative test parametrizes over the COMPLEMENT of a set; widening that set to the whole vocabulary left it parametrized zero times, green, and asserting nothing. | The same mutation run, through a survivor |
 | **Four mutations were silently broken** — two anchors matching nothing, one that no longer parsed, one a no-op — each counted as coverage while testing nothing. | A static sweep of every committed spec |
 
 ### A repository-state incident, recorded because it is not engineering

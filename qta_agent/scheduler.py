@@ -405,6 +405,23 @@ def default_policy(policy_id: str = "scheduler.default") -> "object":
         ))
 
 
+@dataclass(frozen=True)
+class _ProbeEvent:
+    """An event that has not been written, for :meth:`Scheduler._dry_run`.
+
+    Carries exactly the four fields a reducer reads. Deliberately not an
+    ``Event``: an Event has a hash and a prev_hash and belongs to a chain,
+    and building one here would produce something that looks durable and is
+    not.
+    """
+
+    seq: int
+    actor: str
+    action: str
+    target: str
+    payload: dict
+
+
 class Scheduler:
     """The durable queue. Every decision is a projection of the log."""
 
@@ -421,6 +438,12 @@ class Scheduler:
         self._jobs: dict = {}
         self._keys: dict = {}
         self._loaded_through = -1
+        #: The seq of the last event READ from the log, this reducer's or
+        #: anybody's. Distinct from ``_loaded_through``, which advances only
+        #: on scheduler events: the conditional append compares against the
+        #: LOG's head, and a policy record between two job records moves that
+        #: head without moving this projection.
+        self._seen_through = -1
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "Scheduler":
@@ -429,9 +452,51 @@ class Scheduler:
         self._jobs = {}
         self._keys = {}
         self._loaded_through = -1
+        self._seen_through = -1
         for ev in self.log.read():
             self.apply(ev)
         return self
+
+    def catch_up(self, *, force: bool = False) -> "Scheduler":
+        """Fold in everything appended since this projection last read.
+
+        WHY A PROJECTION HAS TO DO THIS BEFORE IT DECIDES
+
+        Two processes each loaded this queue, each saw a job READY, and each
+        appended a transition out of READY. Both appends were correct on
+        their own terms -- the lock was held, the chain verified -- and the
+        log was then permanently unreplayable, because the second record
+        moves a job from a state the replay has already left. Four workers
+        reproduced it on the first attempt.
+
+        ``force`` skips the cheap early-out. The witness file can legitimately
+        lag the log (a crash between the append and the witness update), and
+        a caller that has just been told the head moved must not consult it.
+        """
+        if not force:
+            witness = None
+            try:
+                witness = self.log.head()
+            except Exception:            # noqa: BLE001 - unreadable: do the work
+                witness = None
+            if witness is not None and witness.seq <= self._seen_through:
+                return self
+        self.log.verify().raise_if_bad()
+        self._fold_new()
+        return self
+
+    def _fold_new(self) -> None:
+        """Fold everything after ``_seen_through``. Chain assumed verified.
+
+        Split out of :meth:`catch_up` for the one caller that has already
+        verified: :meth:`qta_agent.events.EventLog.append_decided` verifies
+        the chain before it calls the decision, and verifying it a second
+        time inside the decision would double the cost of every write while
+        the writer lock is held.
+        """
+        for ev in self.log.read():
+            if ev.seq > self._seen_through:
+                self.apply(ev)
 
     def apply(self, ev) -> bool:
         """Fold one event in. True when it was a scheduler event."""
@@ -476,8 +541,14 @@ class Scheduler:
                 updated_seq=ev.seq,
                 reason=p.get("reason", "priority changed"))
         else:
+            # Another subsystem's record. Not folded, still SEEN: the
+            # conditional append compares against the log's head, and a
+            # projection that only tracked its own records would think the
+            # head was where it left it and be refused on every write.
+            self._seen_through = max(self._seen_through, ev.seq)
             return False
         self._loaded_through = ev.seq
+        self._seen_through = max(self._seen_through, ev.seq)
         return True
 
     def _apply_renewal(self, ev, p: dict) -> None:
@@ -700,6 +771,117 @@ class Scheduler:
                 "order by being written down.")
 
     # ---- reads ---------------------------------------------------------
+    def _probe_copy(self) -> "Scheduler":
+        """A throwaway projection with this one's state, for a dry run.
+
+        The job records are frozen dataclasses and every reducer replaces
+        rather than mutates, so copying the two dicts is enough: nothing the
+        probe folds can reach back into this projection.
+        """
+        probe = Scheduler(self.log, policy=self.policy,
+                          policy_id=self.policy_id,
+                          capacity=dict(self.capacity))
+        probe._jobs = dict(self._jobs)
+        probe._keys = dict(self._keys)
+        probe._loaded_through = self._loaded_through
+        probe._seen_through = self._seen_through
+        return probe
+
+    def _dry_run(self, *, actor: str, action: str, target: str,
+                 payload: dict) -> None:
+        """Would the reducer accept this record, from where we stand now?
+
+        THE ORDERING THIS FIXES. The reducer-authorized writes -- lease
+        renewal above all -- appended FIRST and folded second, so a refusal
+        (a lapsed lease, a stale lease id, a renewal past the bound) was
+        raised only after the record was durable. The caller saw exactly the
+        right exception, and the log was left unreplayable: every later
+        load() hit the same refusal, now with nothing to catch it and no way
+        to remove the record.
+
+        A dry run against a throwaway copy answers the question without
+        writing anything. It is NOT a substitute for the reducer's own check
+        -- that is the authority, and it still runs on every replay against
+        every record, including ones this writer never saw. It is what stops
+        this writer producing a record the authority will reject.
+        """
+        self._probe_copy().apply(
+            _ProbeEvent(seq=self._seen_through + 1, actor=actor,
+                        action=action, target=target, payload=payload))
+
+    def _probe_copy(self) -> "Scheduler":
+        """A throwaway projection with this one's state, for a dry run.
+
+        The job records are frozen dataclasses and every reducer replaces
+        rather than mutates, so copying the two dicts is enough: nothing the
+        probe folds can reach back into this projection.
+        """
+        probe = Scheduler(self.log, policy=self.policy,
+                          policy_id=self.policy_id,
+                          capacity=dict(self.capacity))
+        probe._jobs = dict(self._jobs)
+        probe._keys = dict(self._keys)
+        probe._loaded_through = self._loaded_through
+        probe._seen_through = self._seen_through
+        return probe
+
+    def _dry_run(self, *, actor: str, action: str, target: str,
+                 payload: dict) -> None:
+        """Would the reducer accept this record, from where we stand now?
+
+        THE ORDERING THIS FIXES. The reducer-authorized writes -- lease
+        renewal above all -- appended FIRST and folded second, so a refusal
+        (a lapsed lease, a stale lease id, a renewal past the bound) was
+        raised only after the record was durable. The caller saw exactly the
+        right exception, and the log was left unreplayable: every later
+        load() hit the same refusal, now with nothing to catch it and no way
+        to remove the record.
+
+        A dry run against a throwaway copy answers the question without
+        writing anything. It is NOT a substitute for the reducer's own check
+        -- that is the authority, and it still runs on every replay against
+        every record, including ones this writer never saw. It is what stops
+        this writer producing a record the authority will reject.
+        """
+        self._probe_copy().apply(
+            _ProbeEvent(seq=self._seen_through + 1, actor=actor,
+                        action=action, target=target, payload=payload))
+
+    def _append_decided(self, decide):
+        """Re-read, decide and write, all under the log's writer lock.
+
+        ``decide`` is called with this projection already caught up to the
+        log, and returns the append keywords. Whatever it raises propagates
+        with nothing written -- that is the loser of a race refusing, which
+        is the outcome the single-process tests always described and the
+        multi-process reality did not deliver until this existed.
+        """
+        def under_lock(head_seq):
+            # The chain was verified by append_decided immediately above.
+            self._fold_new()
+            return decide()
+
+        ev = self.log.append_decided(under_lock)
+        self.apply(ev)
+        return ev
+
+    def _append_reducer_authorized(self, *, actor: str, action: str,
+                                   target: str, payload: dict):
+        """For records whose rules live in the reducer rather than here.
+
+        An enqueue, a priority change, a lease renewal. What they depend on
+        is that the reducer will accept them from the state the log is in,
+        and that state is not this projection's to assume -- so the dry run
+        happens inside the lock, against the log as it stands.
+        """
+        def decide():
+            self._dry_run(actor=actor, action=action, target=target,
+                          payload=payload)
+            return dict(actor=actor, action=action, target=target,
+                        payload=payload)
+
+        return self._append_decided(decide)
+
     def get(self, job_id: str) -> Job:
         try:
             return self._jobs[job_id]
@@ -972,9 +1154,9 @@ class Scheduler:
                   requires_capability=requires_capability,
                   resources=resources, max_attempts=max_attempts,
                   idempotency_key=idempotency_key, task_id=task_id)
-        ev = self.log.append(actor=submitter, action=ACT_ENQUEUE,
-                             target=job_id, payload={"job": job.to_record()})
-        self.apply(ev)
+        self._append_reducer_authorized(
+            actor=submitter, action=ACT_ENQUEUE, target=job_id,
+            payload={"job": job.to_record()})
         return self.get(job_id)
 
     def set_priority(self, *, job_id: str, priority: int, actor: str,
@@ -993,30 +1175,50 @@ class Scheduler:
                               role=role, resource=job_id,
                               task_id=job.task_id or ""))
             decision.raise_if_denied()
-        ev = self.log.append(
+        self._append_reducer_authorized(
             actor=actor, action=ACT_PRIORITY, target=job_id,
             payload={"job_id": job_id, "priority": priority, "role": role,
                      "reason": reason})
-        self.apply(ev)
         return self.get(job_id)
 
     def transition(self, *, job_id: str, dst: JobState, actor: str,
                    reason: str = "", expected_revision: int | None = None,
                    **fields) -> Job:
-        """Authorize and commit one queue transition."""
-        job = self.get(job_id)
-        if (expected_revision is not None
-                and job.revision != expected_revision):
-            raise SchedulerError(
-                f"{job_id}: expected revision {expected_revision}, found "
-                f"{job.revision}; the job changed since it was read")
-        edge = check_edge(job.state, dst, job_id)
-        payload = {"job_id": job_id, "src": job.state.value, "dst": dst.value,
-                   "reason": reason or edge.reason}
-        payload.update({k: v for k, v in fields.items() if v is not None})
-        ev = self.log.append(actor=actor, action=ACT_JOB_TRANSITION,
-                             target=job_id, payload=payload)
-        self.apply(ev)
+        """Authorize and commit one queue transition.
+
+        Every decision here is made against the log as it stands at the
+        instant of the write, under the writer lock: the state is re-read,
+        the edge re-checked and the payload built there. A transition
+        recorded from a stale ``src`` is the one failure that leaves a
+        perfectly valid chain nobody can replay.
+        """
+        def decide():
+            job = self.get(job_id)
+            if (expected_revision is not None
+                    and job.revision != expected_revision):
+                raise SchedulerError(
+                    f"{job_id}: expected revision {expected_revision}, found "
+                    f"{job.revision}; the job changed since it was read")
+            edge = check_edge(job.state, dst, job_id)
+            payload = {"job_id": job_id, "src": job.state.value,
+                       "dst": dst.value, "reason": reason or edge.reason}
+            payload.update({k: v for k, v in fields.items() if v is not None})
+            # THE WRITER'S CHECKS ARE NOT THE REDUCER'S CHECKS.
+            #
+            # check_edge above asks whether the state machine permits this
+            # edge. The reducer asks more: whether the actor may make this
+            # move, whether a requeue is reclaiming a lease that is still
+            # live, whether the attempt count moves the way the record says.
+            # Writing a record that satisfies the first and not the second
+            # leaves a log nobody can replay -- which is what reconcile did
+            # the moment another process re-leased a job between the scan
+            # and the write.
+            self._dry_run(actor=actor, action=ACT_JOB_TRANSITION,
+                          target=job_id, payload=payload)
+            return dict(actor=actor, action=ACT_JOB_TRANSITION,
+                        target=job_id, payload=payload)
+
+        self._append_decided(decide)
         return self.get(job_id)
 
     def mark_ready(self, job_id: str, *, actor: str = "scheduler") -> Job:
@@ -1031,7 +1233,15 @@ class Scheduler:
         The re-check is not redundant with :meth:`ready_queue`: a caller may
         have taken the queue, done something slow, and come back. A dispatch
         that skipped it would be dispatching against a snapshot.
+
+        The catch-up first is what makes the re-check mean anything across
+        processes. Without it the snapshot being re-checked is this
+        projection's own, which another worker's dispatch has already made
+        historical -- and the loser of the race would then be refused by the
+        state machine's generic "no edge DISPATCHED -> DISPATCHED" instead
+        of by the sentence that says what actually happened.
         """
+        self.catch_up()
         job = self.get(job_id)
         at = self.at_seq()
         if job.state is not JobState.READY:
@@ -1055,6 +1265,13 @@ class Scheduler:
             raise SchedulerError("lease_seqs must be an int >= 1")
         return self.transition(
             job_id=job_id, dst=JobState.DISPATCHED, actor=actor,
+            # The revision this dispatch decided against. Between the
+            # readiness check above and the write below another process can
+            # take the same job, and without this the loser is refused by
+            # the state machine's generic "no edge DISPATCHED -> DISPATCHED"
+            # -- true, and not what happened. What happened is that the job
+            # moved after it was read, and that is what it should be told.
+            expected_revision=job.revision,
             reason=f"leased to {worker}", lease_id=lease_id,
             lease_holder=worker, task_id=task_id,
             lease_expires_after_seq=at + 1 + lease_seqs,
@@ -1074,11 +1291,10 @@ class Scheduler:
         refusals. A guard on the write path only stops callers who were not
         attacking.
         """
-        ev = self.log.append(
+        self._append_reducer_authorized(
             actor=worker, action=ACT_LEASE_RENEW, target=job_id,
             payload={"job_id": job_id, "lease_id": lease_id,
                      "lease_seqs": lease_seqs})
-        self.apply(ev)
         return self.get(job_id)
 
     def report(self, *, job_id: str, worker: str,
@@ -1091,6 +1307,7 @@ class Scheduler:
         reporting success is reporting on work someone else may already have
         redone -- and, worse, may have redone differently.
         """
+        self.catch_up()
         job = self.get(job_id)
         at = self.at_seq()
         if job.state is not JobState.DISPATCHED:
@@ -1212,12 +1429,57 @@ class Scheduler:
         operator can see what the scheduler decided while nobody was looking.
         """
         moves: list = []
+
+        def move(**kw):
+            """One convergence step, tolerant of the world moving under it.
+
+            reconcile scans, then writes, and between the two another
+            process can dispatch the job it was about to requeue or block
+            the job it was about to ready. That is not an error and it is
+            not this call's to resolve: the record it wanted is no longer
+            correct, the state it would have moved from is gone, and the
+            next reconcile sees the world as it now is. Skipping is what
+            makes this operation idempotent under concurrency instead of
+            merely idempotent when run alone.
+            """
+            try:
+                return self.transition(**kw)
+            except (JobTransitionError, SchedulerError):
+                return None
+
         for job in self.expired_leases():
-            moves.append(self.transition(
+            lapsed = (f"lease {job.lease_id!r} lapsed after seq "
+                      f"{job.lease_expires_after_seq}")
+            if job.attempts >= job.max_attempts:
+                # THE RETRY BUDGET HAS TO COUNT LAPSES TOO.
+                #
+                # max_attempts was consulted only where a worker REPORTED a
+                # retryable failure. A worker that dies reports nothing, its
+                # lease lapses, the job returns to READY, and the next
+                # worker picks it up -- forever. So the budget bounded
+                # nothing in the failure mode it exists for, and the
+                # cross-process campaign found it as a job dispatched four
+                # times against a budget of three.
+                #
+                # Found here rather than reasoned about: the assertion that
+                # caught it was written expecting the budget to hold.
+                note = (f"{lapsed}, and the retry budget of "
+                        f"{job.max_attempts} attempt(s) is spent")
+                gave_up = move(
+                    job_id=job.job_id, dst=JobState.FAILED, actor=actor,
+                    reason=note, last_failure=note, lease_id="",
+                    lease_holder="", lease_expires_after_seq=-1)
+                if gave_up is not None:
+                    moves.append(gave_up)
+                    self._block_dependents_of(job.job_id, actor=actor,
+                                              why=note)
+                continue
+            requeued = move(
                 job_id=job.job_id, dst=JobState.READY, actor=actor,
-                reason=(f"lease {job.lease_id!r} lapsed after seq "
-                        f"{job.lease_expires_after_seq}"),
-                lease_id="", lease_holder="", lease_expires_after_seq=-1))
+                reason=lapsed,
+                lease_id="", lease_holder="", lease_expires_after_seq=-1)
+            if requeued is not None:
+                moves.append(requeued)
         # Snapshot the ids first: transitions mutate the projection, and
         # iterating it while it changes would silently skip jobs.
         for job_id in sorted(self._jobs):
@@ -1228,18 +1490,19 @@ class Scheduler:
             r = self.readiness(job, at_seq=at, resolve=resolve,
                                capabilities=capabilities)
             if r.fatal and job.state is not JobState.BLOCKED:
-                moves.append(self.transition(
-                    job_id=job_id, dst=JobState.BLOCKED, actor=actor,
-                    reason=r.reason, blocked_by=list(r.blocked_by)))
+                moved = move(job_id=job_id, dst=JobState.BLOCKED, actor=actor,
+                             reason=r.reason, blocked_by=list(r.blocked_by))
             elif r.ready and job.state is not JobState.READY:
-                moves.append(self.transition(
-                    job_id=job_id, dst=JobState.READY, actor=actor,
-                    reason=r.reason))
+                moved = move(job_id=job_id, dst=JobState.READY, actor=actor,
+                             reason=r.reason)
             elif (not r.ready and not r.fatal
                   and job.state is JobState.READY):
-                moves.append(self.transition(
-                    job_id=job_id, dst=JobState.WAITING, actor=actor,
-                    reason=r.reason))
+                moved = move(job_id=job_id, dst=JobState.WAITING, actor=actor,
+                             reason=r.reason)
+            else:
+                moved = None
+            if moved is not None:
+                moves.append(moved)
         return tuple(moves)
 
     def invalidate(self, *, job_id: str, actor: str, reason: str) -> tuple:

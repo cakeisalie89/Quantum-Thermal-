@@ -1,0 +1,93 @@
+{
+  "title": "The completion matrix validator: the ledger's own guards",
+  "note": "This file is not a subsystem, it is the thing that decides whether the other rows are telling the truth -- so it is in the trust boundary for every completion claim this repository makes, and a guard here that quietly stopped working would be invisible in exactly the way that matters most. C1-C4 attack the boundary vocabulary, which is the cheapest available route to a finished matrix over an unfinished system: move a sentence from residual_gaps to boundaries and the row goes COMPLETE with nothing else changed. C5-C8 attack the checks that keep a row's evidence its own -- COMPLETE with gaps still listed, COMPLETE with no mutation coverage, borrowed coverage, a hosted claim with no run behind it. C9-C10 attack the two staleness guards, which exist because twelve rows were once found describing subsystems that had been built months earlier.",
+  "suites": [
+    "tests/test_completion_matrix.py"
+  ],
+  "mutations": [
+    {
+      "name": "C1_a_boundary_may_describe_work",
+      "path": "tools/completion_matrix.py",
+      "find": "            for phrase in _WORK_PHRASES:\n                if phrase in low:",
+      "replace": "            for phrase in _WORK_PHRASES:\n                if False:",
+      "rationale": "'not implemented' becomes a stateable limit, and every unfinished row can be closed by moving one sentence between two fields"
+    },
+    {
+      "name": "C2_absent_testing_is_a_limit_under_any_reason",
+      "path": "tools/completion_matrix.py",
+      "find": "                    if hit and reason not in _TESTABILITY_REASONS:",
+      "replace": "                    if hit and False:",
+      "rationale": "'architecturally intended' starts explaining why a test was never written, which it cannot do: it explains absent behaviour, not absent coverage of behaviour that is there"
+    },
+    {
+      "name": "C3_every_reason_can_excuse_absent_testing",
+      "path": "tools/completion_matrix.py",
+      "find": "_TESTABILITY_REASONS = frozenset({\n    \"external_system_unreachable\",",
+      "replace": "_TESTABILITY_REASONS = frozenset(BOUNDARY_REASONS) | frozenset({\n    \"external_system_unreachable\",",
+      "rationale": "same loophole as C2 by the other route, and the more likely one: widening a set reads as tidying up"
+    },
+    {
+      "name": "C4_a_boundary_needs_no_argument",
+      "path": "tools/completion_matrix.py",
+      "find": "            if not isinstance(detail, str) or len(detail.strip()) < 80:",
+      "replace": "            if not isinstance(detail, str) or len(detail.strip()) < 0:",
+      "rationale": "a boundary becomes an assertion with nothing behind it, which is how unfinished work gets reclassified as a limit of what is possible"
+    },
+    {
+      "name": "C5_a_detail_may_restate_the_limit",
+      "path": "tools/completion_matrix.py",
+      "find": "            elif detail.strip() in limit or limit.strip() in detail:",
+      "replace": "            elif False:",
+      "rationale": "the evidence requirement is satisfied by copying the claim into the evidence field"
+    },
+    {
+      "name": "C6_complete_may_keep_its_residual_gaps",
+      "path": "tools/completion_matrix.py",
+      "find": "                if row[\"residual_gaps\"]:\n                    problems.append(\n                        f\"{rid}: {COMPLETE} claimed with residual \"",
+      "replace": "                if False:\n                    problems.append(\n                        f\"{rid}: {COMPLETE} claimed with residual \"",
+      "rationale": "the one arithmetic relation the whole matrix rests on -- COMPLETE means no gaps -- stops being enforced, and 39/39 can be declared over a list of open work"
+    },
+    {
+      "name": "C7_complete_needs_no_mutation_coverage",
+      "path": "tools/completion_matrix.py",
+      "find": "                if not row[\"mutation_tests\"]:\n                    problems.append(",
+      "replace": "                if False:\n                    problems.append(",
+      "rationale": "a row can claim completion with tests that would pass if the enforcement they cover were deleted"
+    },
+    {
+      "name": "C8_complete_needs_no_boundaries",
+      "path": "tools/completion_matrix.py",
+      "find": "                if not bounds:\n                    # The classification says",
+      "replace": "                if False:\n                    # The classification says",
+      "rationale": "the classification says 'complete to current technically defensible LIMIT' and the limit stops having to be stated, which is the easiest way to overstate a system"
+    },
+    {
+      "name": "C9_a_hosted_claim_needs_no_run_id",
+      "path": "tools/completion_matrix.py",
+      "find": "            if not re.search(r\"\\b\\d{8,}\\b\", hosted):",
+      "replace": "            if False:",
+      "rationale": "'green' and 'should be fine' become hosted evidence -- the one kind of claim a reader cannot check for themselves"
+    },
+    {
+      "name": "C10_stale_prose_about_built_subsystems_is_accepted",
+      "path": "tools/completion_matrix.py",
+      "find": "                named = {m for m in modules\n                         if len(m) > 4 and m in low}",
+      "replace": "                named = set()",
+      "rationale": "restores the state twelve rows were found in: 'the scheduler does not exist yet', months after it did"
+    },
+    {
+      "name": "C11_stale_coverage_claims_are_accepted",
+      "path": "tools/completion_matrix.py",
+      "find": "            hits = {t for t in _fuzz_targets() if _fuzz_gap_names(low, t)}",
+      "replace": "            hits = set()",
+      "rationale": "a row stays out of COMPLETE for fuzzing that was already written, which understates the system while looking rigorous"
+    },
+    {
+      "name": "C12_borrowed_mutation_coverage_is_accepted",
+      "path": "tools/completion_matrix.py",
+      "find": "                mods = {Path(q).stem for q in impl}",
+      "replace": "                mods = set()",
+      "rationale": "a row cites a spec that mutates somebody else's code, and the coverage claim is about a file the row does not own"
+    }
+  ]
+}

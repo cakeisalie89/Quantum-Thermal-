@@ -226,6 +226,35 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_lease_renewal.json
+      - name: mutation matrix -- read-decide-write across processes
+        # Four processes each dispatched the same job and the log became
+        # unreplayable with a perfect hash chain. Every mutation here puts
+        # one step of that back.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_cross_process.json
+      - name: mutation matrix -- durability under a failing filesystem
+        # Every crash claim rests on three lines of write path. None of
+        # them had a fault behind it: the suite exercised the happy path of
+        # the write and then reasoned about crashes by discarding
+        # projections.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_fault_injection.json
+      - name: mutation matrix -- external secret providers
+        # The seam where a credential enters the process. Every refusal on
+        # it is the only one there is: nothing downstream re-checks whether
+        # a value should have been loaded at all.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_secret_provider.json
+      - name: mutation matrix -- the completion matrix validator
+        # The file that decides whether the other rows are telling the
+        # truth. Three of its guards were found with no negative test at
+        # all, which is why this job exists.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/completion_matrix.json
       - name: mutation matrix -- corpus membership
         # Every guard on a corpus path protected its shape; none protected
         # the set, so writing a file into the tree made it governed text.

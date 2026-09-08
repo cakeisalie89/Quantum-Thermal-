@@ -48,8 +48,8 @@
     {
       "name": "M6_append_onto_broken_chain",
       "path": "qta_agent/events.py",
-      "find": "            report = self.verify()\n            if not report.ok:\n                raise ChainBroken(",
-      "replace": "            report = self.verify()\n            if False:\n                raise ChainBroken(",
+      "find": "        if not report.ok:\n            raise ChainBroken(\n                \"refusing to append to a broken chain: \"\n                + \"; \".join(report.problems))\n        return report",
+      "replace": "        if False:\n            raise ChainBroken(\n                \"refusing to append to a broken chain: \"\n                + \"; \".join(report.problems))\n        return report",
       "rationale": "appending onto a broken chain buries the break under valid records"
     },
     {
@@ -104,8 +104,8 @@
     {
       "name": "M14_ignore_optimistic_concurrency",
       "path": "qta_agent/store.py",
-      "find": "        if expected_revision is not None and cur.revision != expected_revision:",
-      "replace": "        if False:",
+      "find": "            if (expected_revision is not None\n                    and cur.revision != expected_revision):",
+      "replace": "            if False:",
       "rationale": "concurrent transitions would silently last-writer-win over authority"
     },
     {
@@ -118,8 +118,8 @@
     {
       "name": "M16_load_without_verifying",
       "path": "qta_agent/store.py",
-      "find": "        self.log.verify().raise_if_bad()",
-      "replace": "        pass",
+      "find": "        self.log.verify().raise_if_bad()\n        self._records = {}",
+      "replace": "        pass\n        self._records = {}",
       "rationale": "the live projection would be built from a log known to be broken"
     },
     {

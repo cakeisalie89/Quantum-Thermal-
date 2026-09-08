@@ -152,22 +152,22 @@
     {
       "name": "S26_create_checks_existence_before_idempotency",
       "path": "qta_agent/store.py",
-      "find": "        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")",
-      "replace": "        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                return self.get(record_id)",
+      "find": "        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
+      "replace": "        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n        if idempotency_key:\n            done_for = self._applied_keys.get(idempotency_key)\n            if done_for is not None:\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
       "rationale": "the original defect: existence-first makes the idempotent branch unreachable, so a retried create raises instead of returning"
     },
     {
       "name": "S25a_key_reuse_guard_on_create",
       "path": "qta_agent/store.py",
-      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n",
-      "replace": "                return self.get(record_id)\n        if record_id in self._records:\n            raise StoreError(f\"record {record_id!r} already exists\")\n",
+      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
+      "replace": "                return self.get(record_id)\n        evidence = dict(evidence or {})\n        for k, v in evidence.items():",
       "rationale": "a key that completed a request for one record would return a different record from create -- a wrong answer delivered as a success"
     },
     {
       "name": "S25b_key_reuse_guard_on_transition",
       "path": "qta_agent/store.py",
-      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        cur = self.get(record_id)\n        if expected_revision is not None and cur.revision != expected_revision:\n",
-      "replace": "                return self.get(record_id)\n        cur = self.get(record_id)\n        if expected_revision is not None and cur.revision != expected_revision:\n",
+      "find": "                if done_for != record_id:\n                    raise StoreError(\n                        f\"idempotency key {idempotency_key!r} already \"\n                        f\"completed a request for {done_for!r}; reusing it \"\n                        f\"for {record_id!r} would return the wrong record\")\n                return self.get(record_id)\n        evidence = dict(evidence or {})\n\n        def build():",
+      "replace": "                return self.get(record_id)\n        evidence = dict(evidence or {})\n\n        def build():",
       "rationale": "the same reuse at the transition call site"
     },
     {

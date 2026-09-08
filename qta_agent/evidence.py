@@ -44,6 +44,7 @@ decision made against the log, not a capability handed to every caller.
 from __future__ import annotations
 
 import hashlib
+import errno
 import json
 import os
 import stat
@@ -255,7 +256,19 @@ class EvidenceStore:
         tmp = Path(tmp_name)
         try:
             with os.fdopen(fd, "wb") as fh:
-                fh.write(content)
+                written = fh.write(content)
+                if written != len(content):
+                    # See the identical check in events.py. Here it matters
+                    # for a second reason: the name this file is about to be
+                    # renamed to is a digest of the FULL content, so a short
+                    # write that got published would be a blob that does not
+                    # hash to its own name -- the one invariant a
+                    # content-addressed store has.
+                    raise OSError(
+                        errno.ENOSPC,
+                        f"short write: {written} of {len(content)} bytes; "
+                        f"publishing this as {dg[:12]} would store bytes "
+                        "that do not hash to their own name")
                 fh.flush()
                 os.fsync(fh.fileno())
             os.replace(tmp, blob)

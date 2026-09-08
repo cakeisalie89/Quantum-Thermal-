@@ -652,7 +652,7 @@
           "detail": "this is MEDIATION, stated rather than implied: the guard is a Python-level replacement of the connect primitive inside a block, and anything running in this interpreter can undo it. Containment needs privileges an unprivileged interpreter does not have. Saying so is part of the row because a reader who assumed a sandbox would draw a conclusion the code does not support"
         },
         {
-          "limit": "ingress is not modelled at all: Direction has one member, and nothing here listens",
+          "limit": "the substrate has no ingress surface: Direction carries one member, OUTBOUND, and nothing in the package binds or listens on a socket",
           "reason": "architectural_by_design",
           "detail": "this substrate makes outbound requests and accepts none. A Direction enum with an unused INBOUND member would describe an authority nothing enforces, which is the shape of a control that is really a comment. If something here ever listens, the member and its enforcement arrive together"
         }
@@ -662,13 +662,14 @@
     {
       "id": "R33",
       "requirement": "Secret handling: references not inherited environment",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/secrets.py"
       ],
       "callers": [
         "qta_agent/governed_stage10.py",
-        "tests/test_agent_secrets.py"
+        "tests/test_agent_secrets.py",
+        "tests/test_agent_secret_provider.py"
       ],
       "production_caller": null,
       "persistent_state": "secret.grant / secret.access events carry ids, purposes and grant digests; never a value and never a digest of one",
@@ -676,33 +677,55 @@
       "evidence": "grant digests; deliberately no digest of the value, which would be an offline guessing oracle",
       "provenance": "every resolution is recorded with actor, task, tool and purpose",
       "failure_semantics": "fail-closed: an unregistered secret, an unknown grant, a revoked or expired grant, or a purpose mismatch each raise rather than returning an empty value",
-      "recovery": "grants are in the log; values are process-local by design and are re-supplied by the deployment, never persisted here",
+      "recovery": "grants are in the log; values are process-local by design and are re-supplied by the deployment through a SecretProvider, which reads them from outside the process and records the id and the source kind without ever recording the value",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "revocation takes effect at the next reveal, not when the last handle is collected",
       "concurrency": "n/a",
-      "security_boundary": "reference/value separation, placeholder rendering through str/repr/format, value-based redaction across every output surface, an explicit egress-composition check against the confused deputy, and a governed tool environment that inherits nothing; a secret grant does not reach backwards over a read that happened before it was issued. The confused deputy -- a component that legitimately holds a credential for A and legitimately holds egress to B, persuaded to send the first to the second -- is now checked at the BOUNDARY rather than by a function nobody called. check_egress_composition had no caller outside its own tests; it is now reached two ways: Secret.reveal_for(decision) checks the pairing before the plaintext exists, and NetworkAuthority.authorize refuses by VALUE when a body carries a registered secret no grant pairs with that host",
+      "security_boundary": "reference/value separation, placeholder rendering through str/repr/format, value-based redaction across every output surface, an explicit egress-composition check against the confused deputy, and a governed tool environment that inherits nothing; a secret grant does not reach backwards over a read that happened before it was issued. The confused deputy -- a component that legitimately holds a credential for A and legitimately holds egress to B, persuaded to send the first to the second -- is now checked at the BOUNDARY rather than by a function nobody called. check_egress_composition had no caller outside its own tests; it is now reached two ways: Secret.reveal_for(decision) checks the pairing before the plaintext exists, and NetworkAuthority.authorize refuses by VALUE when a body carries a registered secret no grant pairs with that host. A credential now enters the process through ONE seam: SecretStore.provision, which takes a SecretProvider, receives a zeroable bytearray rather than a str, refuses a name that could leave the source directory, refuses a value that is empty, NUL-bearing or not UTF-8, refuses a provider description that carries the credential itself, and rolls back a partially loaded credential set rather than leaving half of one",
       "tests": [
         "tests/test_agent_context.py",
         "tests/test_agent_netauth.py",
         "tests/test_agent_second_reader.py",
+        "tests/test_agent_secret_provider.py",
         "tests/test_agent_secrets.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/agent_secrets.json"
+        "tools/mutations/agent_secrets.json",
+        "tools/mutations/agent_secret_provider.json"
       ],
       "fuzzing": "none",
       "differential": "secret grants are rebuilt by an independent reader that refuses a rebound grant id",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "no secret is resolved on the production path, because nothing there needs one -- the governed tool's environment is BUILT from a declared allowlist rather than inherited, so a credential in os.environ cannot reach it at all",
-        "redaction finds the value and the enumerated encodings only; a hashed, encrypted, compressed or split derivative is not detectable and the module says so",
-        "zeroing a bytearray does not guarantee no copy remains; str is immutable and the interpreter may have copied it",
-        "no external secret provider integration (file, keyring, cloud)",
-        "the pairing check is mediation: a component holding both grants can still call reveal() and write its own socket, which reaches neither the composed operation nor the egress boundary. The value-based check is the stronger of the two because it does not depend on the caller choosing the safe method, and it still only sees bodies that come through authorize()"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "No secret is resolved on the Stage-10 production path, because nothing on that path authenticates to anything. The governed tool's environment is BUILT from GOVERNED_ENV_KEYS rather than inherited, so a credential sitting in os.environ cannot reach the child at all.",
+          "reason": "architectural_by_design",
+          "detail": "Engineering is exhausted here in the strict sense: the only way to make the production path resolve a secret is to give the pipeline a credential it has no use for, so that a row could cite one. That is fabricated evidence with extra steps. The mechanism is exercised end to end by tests/test_agent_secret_provider.py and the environment property is checked by test_the_governed_environment_still_inherits_nothing."
+        },
+        {
+          "limit": "Redaction finds the literal value and the encodings enumerated in ENCODINGS -- base64, base64url, URL-encoding, hex and the JSON-escaped form. A hashed, encrypted, compressed, reversed or split derivative of a secret passes through every output surface unaltered.",
+          "reason": "epistemic",
+          "detail": "Recognising an arbitrary derivative of a value means recognising an arbitrary computation over it, which no redactor can do; enumerating more encodings moves the line and does not remove it. The module says this in its own docstring so that nobody plans as though redaction were containment, and Redactor is mutation-tested (S4, S5) to make sure the encodings it does claim are real."
+        },
+        {
+          "limit": "Zeroing a bytearray does not guarantee that no copy of the plaintext remains in the process. str is immutable, the interpreter may have interned or copied it, and the garbage collector moves objects.",
+          "reason": "language_runtime",
+          "detail": "CPython exposes no primitive for erasing a value it has already copied, and provides no way to observe whether it did. What this repository can do it does: values are held as bytearray, the provider load path never constructs a str at all, and forget() wipes the buffer. The residue is a property of the runtime rather than of this code."
+        },
+        {
+          "limit": "No keyring and no cloud secret-manager integration. Values arrive from a mounted directory (FileSecretProvider, the shape a Kubernetes projected volume or a systemd credential already produces) or from a process that already holds them (MappingSecretProvider), and from nowhere else.",
+          "reason": "requires_external_identity_authority",
+          "detail": "The remaining provider kinds are not more code against the same seam: a desktop keyring needs a logged-in session agent, and a cloud secret manager needs an IAM identity, a KMS and a reachable endpoint -- an external credential authority this repository deliberately does not contain and this environment cannot reach. The seam itself is finished: SecretProvider is the contract, two implementations satisfy it, and both are covered by tools/mutations/agent_secret_provider.json."
+        },
+        {
+          "limit": "The egress-composition pairing check is MEDIATION, not containment. A component holding both a secret grant and an egress grant can still call reveal() and write to a socket it opened itself, which passes through neither the composed operation nor NetworkAuthority.authorize.",
+          "reason": "architectural_by_design",
+          "detail": "Containing it would mean confining the interpreter that hosts the substrate -- a kernel sandbox or a separate network namespace -- which is a deployment property and not something a library can hold about its own process. Inside that limit the stronger of the two checks is already the one that does not depend on the caller: NetworkAuthority.authorize refuses BY VALUE when a body carries a registered secret no grant pairs with that host."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -1320,7 +1343,7 @@
     {
       "id": "R46",
       "requirement": "Crash and recovery testing at transaction boundaries",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/store.py",
@@ -1333,9 +1356,9 @@
       "production_caller": null,
       "persistent_state": "everything; the test's notion of a crash is discarding every projection and rebuilding from the log",
       "authority_owner": "the log",
-      "evidence": "each boundary asserts the recovered state equals what the durable record implies",
+      "evidence": "each boundary asserts the recovered state equals what the durable record implies, twice over: once by discarding every projection in-process, and once by driving the real substrate in a subprocess that is SIGKILLed at that boundary and rebuilt from what survived on disk",
       "provenance": "the log is the record under test",
-      "failure_semantics": "recovery may lose progress and may never gain it; a verification nobody recorded did not happen",
+      "failure_semantics": "recovery may lose progress and may never gain it; a verification nobody recorded did not happen. A write that failed -- ENOSPC, EIO, or a short write that raised nothing -- leaves the witness naming the last record that was durable, and the damaged tail is refused rather than grown onto",
       "recovery": "every boundary in the directive's list is exercised: proposal, queue, lease, capability revocation, timeout, output-without-record, evidence corruption, mid-verification invalidation, unrecorded verification, missing checkpoint, corrupt checkpoint, restart, reconstruction, audit",
       "retry": "a timed-out attempt survives a crash as RETRY_WAIT with its attempt count intact",
       "idempotency": "covered by the scheduler and store suites",
@@ -1343,26 +1366,41 @@
       "concurrency": "a real subprocess is SIGKILLed mid-append and the log still verifies",
       "security_boundary": "a tampered prefix is caught by full verification; a truncation by the separately held witness; a partial trailing line does not cost the records before it",
       "tests": [
-        "tests/test_agent_crash_recovery.py"
+        "tests/test_agent_crash_recovery.py",
+        "tests/test_agent_fault_injection.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/agent_actions.json"
+        "tools/mutations/agent_actions.json",
+        "tools/mutations/agent_fault_injection.json"
       ],
       "fuzzing": "none",
       "differential": "primary projection compared field-for-field against the independent reconstruction after a crash",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "a crash is modelled by discarding projections rather than by killing the process at every boundary; only the log-append boundary uses a real SIGKILL",
-        "no fault injection at the filesystem level (partial fsync, ENOSPC, EIO)"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "faults are injected at the file object this package writes through and at the os.fsync it calls. A storage device that ACKNOWLEDGES a flush it did not perform -- a disk with a volatile write cache, or a virtualised device that lies -- cannot be reproduced from here.",
+          "reason": "requires_hardware",
+          "detail": "the strongest durability primitive available to a process is fsync returning success, and everything below it is the device's word. Injecting a failure is possible and is done; injecting a false SUCCESS proves nothing, because the code's correct response to a successful fsync is to proceed. What can be tested here is tested: failure, partial write, silent short write, and death at every commit point."
+        },
+        {
+          "limit": "the SIGKILL lands at a durable boundary, deterministically, and not part-way through a single write() -- the kernel offers no way to deliver a signal at a chosen instruction inside a syscall.",
+          "reason": "platform_primitive_absent",
+          "detail": "the on-disk state such a kill would leave is a record with a prefix and no newline, and that state is produced directly by the short-write injection rather than raced for: test_a_disk_that_fills_mid_append_leaves_a_partial_line manufactures it, and the reader is then required to refuse it and to refuse to append after it."
+        },
+        {
+          "limit": "atomicity of rename and the ordering guarantees of the underlying filesystem are assumed, not verified. A filesystem on which os.replace is not atomic would defeat the temp-then-rename discipline everything durable here uses.",
+          "reason": "environment_single_host",
+          "detail": "there is one filesystem on this host and no way to mount a second kind, so the assumption cannot be varied and therefore cannot be tested. It is stated here so that a deployment onto storage that does not provide it knows which property it is taking away."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
       "id": "R47",
       "requirement": "Concurrency and race testing",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/evidence.py",
@@ -1375,31 +1413,45 @@
       "production_caller": null,
       "persistent_state": "the log's writer lock is a sidecar file, independent of the log's existence",
       "authority_owner": "EventLog.exclusive",
-      "evidence": "four real processes appending concurrently; the chain verifies and every writer's records survive",
+      "evidence": "four real processes appending concurrently, and separately four to six real processes driving the REDUCERS: the chain verifies, every writer's records survive, one job is dispatched exactly once, one record id is claimed exactly once, and the log is rebuilt from disk afterwards in every case. A seeded six-process campaign of 1500 mixed operations found three defects the single-process suite could not see",
       "provenance": "n/a",
-      "failure_semantics": "a bounded wait for the lock, then refusal -- a blocked append is indistinguishable from a hang; a platform without fcntl refuses rather than appending unlocked",
+      "failure_semantics": "a bounded wait for the lock, then refusal -- a blocked append is indistinguishable from a hang; a platform without fcntl refuses rather than appending unlocked. A racing writer is refused by the decision it lost, never by a record it already wrote: nothing is appended that the reducer would reject on replay",
       "recovery": "the lock is released by closing the descriptor, so a dead holder does not block the next writer",
       "retry": "n/a",
       "idempotency": "concurrent inserts of identical content converge on one blob and one digest",
       "cancellation": "n/a",
-      "concurrency": "real multiprocessing workers, not threads, wherever the GIL could hide the defect",
+      "concurrency": "the writer lock makes one APPEND atomic; EventLog.append_decided makes READ-DECIDE-WRITE atomic, which is what every reducer actually does. The decision runs inside the lock against a projection re-read from the log, and refuses by raising, so the loser of a race gets its own domain refusal and writes nothing",
       "security_boundary": "optimistic revisions refuse a stale writer; two workers cannot both take one job or one lease",
       "tests": [
-        "tests/test_agent_concurrency.py"
+        "tests/test_agent_concurrency.py",
+        "tests/test_agent_cross_process.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/agent_substrate.json"
+        "tools/mutations/agent_substrate.json",
+        "tools/mutations/agent_cross_process.json"
       ],
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [
-        "no concurrency test for the scheduler across PROCESSES; its races are exercised within one interpreter",
-        "no test of two writers on a network filesystem, where flock semantics differ and the module says so",
-        "no stress test long enough to surface a rare interleaving"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "two writers on a NETWORK filesystem are not covered. flock semantics over NFS and SMB differ from the local ones this relies on, and the module says so where the lock is taken.",
+          "reason": "environment_single_host",
+          "detail": "there is one local filesystem on this host and no way to mount a networked one, so the behaviour cannot be produced here at all -- not written, not simulated. What can be varied is: the absence of fcntl is exercised by injecting it, and the refusal to append unlocked is asserted rather than assumed."
+        },
+        {
+          "limit": "the campaign is bounded -- six processes, 1500 operations, one seed per worker. An interleaving rarer than that window is not reached, and running longer moves the line without removing it.",
+          "reason": "epistemic",
+          "detail": "a randomized campaign is sampling, and sampling does not exhaust a state space; the property-based and stateful suites explore the same reducers by a different method for the same reason. What this campaign is FOR is the interleaving nobody reasoned about in advance, and it earned its place: it found the stale-scan requeue, the unbounded retry budget under repeated lease lapse, and the witness-before-log sampling order, none of which were predicted."
+        },
+        {
+          "limit": "the SIGKILL and fault-injection halves of concurrency are not combined: no test kills one of several concurrent writers mid-campaign and asserts about what the survivors see.",
+          "reason": "platform_primitive_absent",
+          "detail": "the kernel offers no way to deliver a signal at a chosen instruction inside another process's syscall, so the interesting instant cannot be selected -- only raced for, which is a slower way of sampling the same space. The two halves are covered separately and deterministically: tests/test_agent_fault_injection.py kills at every durable boundary and manufactures the mid-write on-disk state directly, and this row covers concurrent writers that all survive."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -1669,7 +1721,7 @@
       "residual_gaps": [],
       "boundaries": [
         {
-          "limit": "everything compared here is EXACT -- states, digests, identities. There is no numerical differential testing and no tolerated-difference register, because nothing in this package computes a number a tolerance would apply to",
+          "limit": "everything compared here is EXACT -- states, digests, identities. No comparison in this package admits a tolerance, and there is no tolerated-difference register, because nothing in it computes a number a tolerance would apply to",
           "reason": "architectural_by_design",
           "detail": "a scientific result compared across two implementations would need a declared tolerance; the scientific tree is where that belongs, and this package is forbidden from reaching into it"
         },

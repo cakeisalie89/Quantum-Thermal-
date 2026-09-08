@@ -95,6 +95,7 @@ What that does and does not give you:
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
 import os
 import time
@@ -463,10 +464,30 @@ class EventLog:
         """Verify the whole chain. Fail closed; report every problem found."""
         problems: list = []
         notes: list = []
+        # THE WITNESS IS SAMPLED FIRST, AND THE ORDER IS THE WHOLE POINT.
+        #
+        # A writer appends the record and THEN updates the witness. A reader
+        # that sampled them in that same order could read the log before
+        # another process's append and the witness after it, and would then
+        # report TRUNCATED -- damage -- for a log that was merely being
+        # written to. A six-process campaign produced exactly that: "witness
+        # records seq 33 but the log ends at 32".
+        #
+        # Sampled in the OPPOSITE order to the write, the only skew possible
+        # is a witness that lags the log, which is already the benign case:
+        # it is what a crash between the append and the witness update
+        # leaves, and it is reported as a note rather than a problem.
+        witness = expected_head
+        if witness is None and use_witness:
+            try:
+                witness = self.head()
+            except EventLogError as exc:
+                problems.append(str(exc))
         try:
             events = self.read(strict=True)
         except EventLogError as exc:
-            return VerifyReport(False, 0, -1, ZERO_DIGEST, [str(exc)])
+            return VerifyReport(False, 0, -1, ZERO_DIGEST,
+                                problems + [str(exc)])
 
         prev_hash = ZERO_DIGEST
         prev_wall = None
@@ -479,8 +500,7 @@ class EventLog:
 
         head_seq = events[-1].seq if events else -1
         head_hash = events[-1].hash if events else ZERO_DIGEST
-        self._check_witness(head_seq, head_hash, expected_head, use_witness,
-                            problems, notes)
+        self._check_witness(head_seq, head_hash, witness, problems, notes)
         return VerifyReport(not problems, len(events), head_seq, head_hash,
                             problems, notes)
 
@@ -522,17 +542,14 @@ class EventLog:
                 "wall time")
         return True
 
-    def _check_witness(self, head_seq: int, head_hash: str,
-                       expected_head, use_witness: bool,
+    def _check_witness(self, head_seq: int, head_hash: str, witness,
                        problems: list, notes: list) -> None:
-        """Compare the log's head against the independently held witness."""
-        witness = expected_head
-        if witness is None and use_witness:
-            try:
-                witness = self.head()
-            except EventLogError as exc:
-                problems.append(str(exc))
-                witness = None
+        """Compare the log's head against the independently held witness.
+
+        Takes the witness ALREADY SAMPLED. Reading it here would put the
+        sample after the log read, which is the ordering that turns another
+        process's append into a TRUNCATED report -- see :meth:`verify`.
+        """
         if witness is None:
             return
         if witness.seq > head_seq:
@@ -601,6 +618,13 @@ class EventLog:
         """
         problems: list = []
         notes: list = []
+        # Sampled before the log, for the reason given in verify().
+        witness = None
+        if use_witness:
+            try:
+                witness = self.head()
+            except EventLogError as exc:
+                problems.append(str(exc))
 
         try:
             size = self.path.stat().st_size
@@ -658,8 +682,7 @@ class EventLog:
 
         head_seq = tail[-1].seq if tail else anchor.seq
         head_hash = tail[-1].hash if tail else anchor.head_hash
-        self._check_witness(head_seq, head_hash, None, use_witness,
-                            problems, notes)
+        self._check_witness(head_seq, head_hash, witness, problems, notes)
 
         return VerifyReport(not problems, len(tail), head_seq, head_hash,
                             problems, notes, prefix_verified=False,
@@ -710,29 +733,89 @@ class EventLog:
         extend the damage and make the break harder to locate.
         """
         with self.exclusive():
-            anchor = self._anchor
-            if anchor is not None and self._needs_full_verify():
-                anchor = None
-            if anchor is None:
-                report = self.verify()
-            else:
-                try:
-                    report = self.verify_from(anchor)
-                except ChainBroken:
-                    # The anchor no longer describes the bytes at its offset:
-                    # the log was rewritten, rotated or truncated. Falling
-                    # back to a FULL verify is strictly stronger, not weaker,
-                    # and it will refuse the append if the damage is real.
-                    self._anchor = None
-                    report = self.verify()
-            if not report.ok:
-                raise ChainBroken(
-                    "refusing to append to a broken chain: "
-                    + "; ".join(report.problems))
+            report = self._checked_head()
             ev, new_anchor = self._write_event(
                 report.head_seq, report.head_hash, actor=actor, action=action,
                 target=target, payload=payload, event_id=event_id,
                 wall_time=wall_time)
+            self._anchor = new_anchor
+            self._appends_since_full = (
+                0 if report.prefix_verified else self._appends_since_full + 1)
+        return ev
+
+    def _checked_head(self):
+        """Verify the chain and return its head. Caller holds the lock.
+
+        Factored out of :meth:`append` so that :meth:`append_if_head` uses
+        the SAME verification rather than a second, subtly different one --
+        a duplicated check is a check that drifts, and this one decides
+        whether anything may be written at all.
+        """
+        anchor = self._anchor
+        if anchor is not None and self._needs_full_verify():
+            anchor = None
+        if anchor is None:
+            report = self.verify()
+        else:
+            try:
+                report = self.verify_from(anchor)
+            except ChainBroken:
+                # The anchor no longer describes the bytes at its offset:
+                # the log was rewritten, rotated or truncated. Falling back
+                # to a FULL verify is strictly stronger, not weaker, and it
+                # will refuse the append if the damage is real.
+                self._anchor = None
+                report = self.verify()
+        if not report.ok:
+            raise ChainBroken(
+                "refusing to append to a broken chain: "
+                + "; ".join(report.problems))
+        return report
+
+    def append_decided(self, decide) -> "Event":
+        """Decide and record under ONE lock. The read-decide-write primitive.
+
+        ``decide`` is called with the verified head sequence, while the
+        writer lock is held, and returns the keyword arguments for the
+        append: ``actor``, ``action``, ``target`` and ``payload``. It may
+        raise instead, and the exception propagates with nothing written --
+        that is how a caller refuses work it has just discovered somebody
+        else already took.
+
+        WHY THE DECISION HAS TO HAPPEN IN HERE
+
+        The lock makes one WRITE atomic. It does not make read-decide-write
+        atomic, and every reducer in this package does exactly that: read the
+        state, check that the transition is legal, append a record naming the
+        state it started from. Two processes each read a job as READY, each
+        took the lock in its turn, and each wrote a transition out of READY.
+        Nothing failed at the time -- the hash chain was perfect and both
+        records were well formed -- and the log was permanently unreplayable,
+        because the second record moves a job from a state the replay has
+        already left. Four processes reproduced it on the first attempt.
+
+        The alternative, comparing the head afterwards and retrying, was
+        tried and is worse: under six writers almost every attempt lost, and
+        a bounded retry turned contention into a refusal while an unbounded
+        one would have turned it into a hang.
+
+        ``decide`` MUST NOT APPEND. It runs with the lock held, and this lock
+        is not reentrant: an append inside it waits for itself until the
+        lock timeout. Reading the log is fine and is the point.
+        """
+        with self.exclusive():
+            report = self._checked_head()
+            kwargs = decide(report.head_seq)
+            if not isinstance(kwargs, dict):
+                raise EventLogError(
+                    "decide() must return the append keywords as a dict; "
+                    f"got {type(kwargs).__name__}")
+            ev, new_anchor = self._write_event(
+                report.head_seq, report.head_hash,
+                actor=kwargs["actor"], action=kwargs["action"],
+                target=kwargs["target"], payload=kwargs.get("payload"),
+                event_id=kwargs.get("event_id"),
+                wall_time=kwargs.get("wall_time"))
             self._anchor = new_anchor
             self._appends_since_full = (
                 0 if report.prefix_verified else self._appends_since_full + 1)
@@ -807,7 +890,24 @@ class EventLog:
             # append-mode write lands at the true end of file, which a stat
             # taken earlier may no longer describe.
             start = fh.tell()
-            fh.write(line)
+            written = fh.write(line)
+            if written != len(line):
+                # A SHORT WRITE. write() is allowed to store fewer bytes
+                # than it was given and say so in its return value rather
+                # than by raising -- the classic way a full disk produces a
+                # half record with nothing in the logs. BufferedWriter
+                # normally retries until it raises, so this is cheap
+                # insurance against a file-like object that does not, and
+                # against the day this opens something other than a plain
+                # file. Raising here leaves the partial line on disk for the
+                # reader to refuse, which is the safe direction: the
+                # alternative is a witness that names a record only half
+                # present.
+                raise OSError(
+                    errno.ENOSPC,
+                    f"short write: {written} of {len(line)} bytes reached "
+                    f"{self.path}; the record is not durable and the "
+                    "witness will not be advanced")
             fh.flush()
             os.fsync(fh.fileno())
             end = fh.tell()

@@ -69,10 +69,12 @@ import urllib.parse
 from dataclasses import dataclass, replace
 from typing import FrozenSet
 
+from . import safeio
 from .canonical import digest
 
 ACT_SECRET_GRANT = "secret.grant"
 ACT_SECRET_ACCESS = "secret.access"
+ACT_SECRET_PROVISION = "secret.provision"
 
 #: Sentinel meaning "does not expire on its own". Revocation still applies.
 NEVER_EXPIRES = -1
@@ -399,6 +401,222 @@ def _encoded_forms(value: str) -> tuple:
     return tuple(out)
 
 
+# ---- external providers --------------------------------------------------
+#
+# WHY A PROVIDER AT ALL
+#
+# ``register`` takes a ``str`` that some caller already has. That is fine for
+# a test and for a deployment that injects values itself, and it is the whole
+# of the mechanism only if nothing outside the process ever holds a secret.
+# Real deployments keep credentials somewhere else: a mounted file, an agent
+# socket, a cloud secret manager. A provider is the seam where "somewhere
+# else" is read, and the point of naming it is that the seam is ONE place
+# with one set of refusals rather than a call to ``open()`` in whichever
+# module needed a token first.
+#
+# WHAT A PROVIDER MAY AND MAY NOT DO
+#
+# It returns a ``bytearray`` and never a ``str``. The store zeroes what it
+# holds; a value that has been through ``str`` cannot be zeroed at all (see
+# the module docstring). The load path therefore never constructs one -- the
+# bytes go from the read straight into the buffer the store will wipe. This
+# does not make the value unrecoverable: :mod:`qta_agent.safeio` hands back
+# an immutable ``bytes`` and that copy is not zeroable either. The claim is
+# narrow and is the same one the module makes everywhere: fewer copies, for
+# a bounded time, and no promise that the runtime kept none.
+#
+# It also fetches ONE NAMED SECRET. A provider that returned "everything in
+# the file" would register whatever a hostile or careless source happened to
+# contain, under ids the caller never asked for, and every later authority
+# check would be over a set the caller did not choose.
+
+#: A secret id a provider will look up. One path component, no separators, no
+#: leading dot: the id is used as a FILENAME by the file provider, and an id
+#: like ``../../etc/shadow`` must be refused by the naming rule rather than
+#: relying on the path layer to catch it afterwards.
+_PROVIDER_ID = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
+
+#: An upper bound on one secret. Larger than any credential and small enough
+#: that a mis-pointed provider reads a bounded amount before refusing.
+MAX_SECRET_BYTES = 64 * 1024
+
+
+class ProviderError(SecretError):
+    """A provider could not supply a value. Always fail-closed."""
+
+
+class ProviderUnavailable(ProviderError):
+    """The source itself could not be reached or opened.
+
+    Distinct from :class:`ProviderRefused` on purpose. "The secret store is
+    not mounted" and "the secret store says there is no such secret" are
+    different operational facts, and collapsing them sends an operator to
+    look in the wrong place.
+    """
+
+
+class ProviderRefused(ProviderError):
+    """The source was reachable and did not yield a usable value."""
+
+
+def _check_secret_bytes(secret_id: str, buf: bytearray) -> bytearray:
+    """Every rule a value must satisfy, wherever it came from.
+
+    Shared by ``register`` and by the provider load path so the two cannot
+    drift: a value good enough to register by hand and a value good enough to
+    load from a file are the same value.
+    """
+    if len(buf) < MIN_SECRET_LEN:
+        raise ProviderRefused(
+            f"secret {secret_id!r} is {len(buf)} byte(s); at least "
+            f"{MIN_SECRET_LEN} are required, because a shorter value cannot "
+            "be redacted from output without corrupting it")
+    if 0 in buf:
+        raise ProviderRefused(
+            f"secret {secret_id!r} contains a NUL byte; it could not survive "
+            "being passed to a process or a socket, and a value that is "
+            "silently truncated later is worse than one refused now")
+    try:
+        bytes(buf).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ProviderRefused(
+            f"secret {secret_id!r} is not valid UTF-8 ({exc}); reveal() "
+            "decodes as UTF-8, so this would fail at the moment of use "
+            "rather than at the moment of loading") from None
+    return buf
+
+
+class SecretProvider:
+    """The contract. Subclasses supply :meth:`fetch` and :meth:`describe`.
+
+    Deliberately not a ``Protocol``: the store records ``describe()`` in the
+    log as provenance, so a provider is a thing with an identity and not just
+    a callable that happens to have the right shape.
+    """
+
+    #: Short, stable name for this kind of source. Recorded, not checked.
+    kind = "abstract"
+
+    def describe(self) -> dict:
+        """Where values come from. Must contain no secret value."""
+        raise NotImplementedError
+
+    def fetch(self, secret_id: str) -> bytearray:
+        """Return the value for ONE id, as a zeroable buffer, or raise."""
+        raise NotImplementedError
+
+
+class FileSecretProvider(SecretProvider):
+    """Secrets as files beneath one directory: ``<root>/<secret_id>``.
+
+    The shape a container orchestrator already produces -- Kubernetes
+    projected volumes, systemd credentials, a mounted tmpfs -- so integrating
+    with one is a path, not an SDK.
+
+    Reads go through :class:`qta_agent.safeio.ReadRoot`, which is the reason
+    this class is short. Confinement to the root, refusal of symlinks, the
+    aliased-file check and the size bound are that module's, already tested
+    and already mutated against; re-implementing them here would be a second
+    copy of the hard part.
+
+    A trailing newline is stripped, once. Every editor and every ``echo``
+    appends one, and a token that fails authentication because of an
+    invisible byte is a bad afternoon; a value that genuinely ends in a
+    newline is not expressible in this format, which is said here rather
+    than discovered.
+    """
+
+    kind = "file"
+
+    def __init__(self, root, *, max_bytes: int = MAX_SECRET_BYTES):
+        self.root = root
+        self.max_bytes = max_bytes
+        self._open: safeio.ReadRoot | None = None
+
+    def describe(self) -> dict:
+        return {"kind": self.kind, "root": str(self.root)}
+
+    def __enter__(self) -> "FileSecretProvider":
+        self._open = safeio.ReadRoot(self.root,
+                                     max_bytes=self.max_bytes).open()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._open is not None:
+            self._open.close()
+            self._open = None
+
+    def fetch(self, secret_id: str) -> bytearray:
+        if not isinstance(secret_id, str) or not _PROVIDER_ID.match(secret_id):
+            raise ProviderRefused(
+                f"{secret_id!r} is not a usable secret id for a file "
+                "provider: one component of [A-Za-z0-9._-], not starting "
+                "with a dot, at most 64 characters. The id becomes a "
+                "filename, and a name that can leave the directory is "
+                "refused before the filesystem is asked anything")
+        held = self._open is not None
+        root = self._open if held else safeio.ReadRoot(
+            self.root, max_bytes=self.max_bytes)
+        try:
+            if not held:
+                root.open()
+            try:
+                res = root.read(secret_id)
+            except FileNotFoundError as exc:
+                raise ProviderRefused(
+                    f"the file provider at {self.root} holds no secret "
+                    f"{secret_id!r}") from exc
+            except safeio.SafeIOError as exc:
+                raise ProviderRefused(
+                    f"the file provider refused {secret_id!r}: "
+                    f"{exc.__class__.__name__}: {exc}") from exc
+        except safeio.PathRefused as exc:
+            # Raised by open(): the ROOT is wrong, which is a different
+            # problem from a missing secret and is reported as one.
+            raise ProviderUnavailable(
+                f"the file provider root {self.root} is not usable: "
+                f"{exc.__class__.__name__}: {exc}") from exc
+        finally:
+            if not held:
+                root.close()
+        buf = bytearray(res.data)
+        if buf.endswith(b"\r\n"):
+            del buf[-2:]
+        elif buf.endswith(b"\n"):
+            del buf[-1:]
+        return _check_secret_bytes(secret_id, buf)
+
+
+class MappingSecretProvider(SecretProvider):
+    """An in-memory provider, for deployments that inject values themselves.
+
+    Not a test double: a process that already received its credentials --
+    from an init container, an operator, a parent that read them once -- has
+    a legitimate need to hand them to the store through the same seam, with
+    the same refusals and the same recorded provenance, rather than through
+    a second path that skips both.
+    """
+
+    kind = "mapping"
+
+    def __init__(self, values: dict, *, source: str = "in-process"):
+        self._values = {k: bytearray(v.encode("utf-8")
+                                     if isinstance(v, str) else v)
+                        for k, v in values.items()}
+        self.source = source
+
+    def describe(self) -> dict:
+        return {"kind": self.kind, "source": self.source}
+
+    def fetch(self, secret_id: str) -> bytearray:
+        buf = self._values.get(secret_id)
+        if buf is None:
+            raise ProviderRefused(
+                f"the mapping provider {self.source!r} holds no secret "
+                f"{secret_id!r}")
+        return _check_secret_bytes(secret_id, bytearray(buf))
+
+
 class SecretStore:
     """Registered secrets, the grants over them, and every access recorded.
 
@@ -420,18 +638,108 @@ class SecretStore:
         """Register a value. Returns the REFERENCE; the value stays here."""
         if not isinstance(secret_id, str) or not secret_id:
             raise SecretError("secret_id must be a non-empty str")
-        if not isinstance(value, str) or len(value) < MIN_SECRET_LEN:
+        if not isinstance(value, str):
             raise SecretError(
-                f"secret {secret_id!r} must be at least {MIN_SECRET_LEN} "
-                "characters; a shorter value cannot be redacted from output "
-                "without corrupting it")
+                f"secret {secret_id!r} must be a str, got "
+                f"{type(value).__name__}")
+        self._check_not_registered(secret_id)
+        self._values[secret_id] = _check_secret_bytes(
+            secret_id, bytearray(value.encode("utf-8")))
+        return SecretRef(secret_id)
+
+    def _check_not_registered(self, secret_id: str) -> None:
         if secret_id in self._values:
             raise SecretError(
                 f"secret {secret_id!r} is already registered; replacing it "
                 "silently would leave holders resolving a different value "
                 "than the one they were granted")
-        self._values[secret_id] = bytearray(value.encode("utf-8"))
+
+    def provision(self, provider: SecretProvider, secret_id: str, *,
+                  actor: str = "deployment") -> SecretRef:
+        """Load ONE secret from an external provider and register it.
+
+        Returns the reference. The value goes provider -> store and is never
+        returned, never logged and never digested; what is recorded is the
+        id, the provider's ``describe()`` and who asked.
+
+        No digest, for the reason the module records everywhere else: a
+        digest of a credential is an offline guessing oracle, and this
+        repository would be the one publishing it.
+        """
+        if not isinstance(provider, SecretProvider):
+            raise ProviderError(
+                f"expected a SecretProvider, got {type(provider).__name__}; "
+                "the provenance recorded for a provisioned secret is the "
+                "provider's own description, so it has to be one")
+        if not isinstance(secret_id, str) or not secret_id:
+            raise SecretError("secret_id must be a non-empty str")
+        # BEFORE the fetch. Reading a value that cannot be stored would put
+        # a credential in this process for nothing.
+        self._check_not_registered(secret_id)
+        buf = provider.fetch(secret_id)
+        if not isinstance(buf, bytearray):
+            raise ProviderError(
+                f"provider {provider.kind!r} returned "
+                f"{type(buf).__name__} for {secret_id!r}; a provider returns "
+                "a bytearray, because a str cannot be zeroed")
+        _check_secret_bytes(secret_id, buf)
+        self._values[secret_id] = buf
+        if self.log is not None:
+            desc = provider.describe()
+            try:
+                # The description is about to be written to the log, and the
+                # redactor can only answer this question with the value in
+                # hand -- so the value is registered first and dropped again
+                # if the answer is bad. A provider whose "source" field is
+                # the credential is not hypothetical: a URL with the token
+                # in it is the ordinary way people configure these.
+                self.assert_clean(desc, what="provider description")
+            except SecretError:
+                self.forget(secret_id)
+                raise
+            ev = self.log.append(
+                actor=actor, action=ACT_SECRET_PROVISION, target=secret_id,
+                payload={"secret_id": secret_id, "provider": desc,
+                         "bytes": len(buf)})
+            self._at_seq = ev.seq
         return SecretRef(secret_id)
+
+    def provision_all(self, provider: SecretProvider, secret_ids, *,
+                      actor: str = "deployment") -> tuple:
+        """Provision every id in ``secret_ids``, or none of them.
+
+        Two rules that look fussy and are not:
+
+        EMPTY IS A REFUSAL. A provisioning step that provisioned nothing and
+        reported success is this repository's oldest defect, written down in
+        the ledger twice. A caller with nothing to load should not be calling
+        this.
+
+        ALL OR NOTHING. Half a credential set is the state where a run starts,
+        does some of its work, and fails at the one call that needed the
+        secret that was missing. Anything already registered by this call is
+        forgotten before the failure is raised.
+        """
+        ids = tuple(secret_ids)
+        if not ids:
+            raise ProviderError(
+                "provision_all was given no secret ids. Provisioning nothing "
+                "and returning success is a vacuous result, not an empty "
+                "success")
+        if len(set(ids)) != len(ids):
+            raise ProviderError(
+                f"duplicate secret ids in {list(ids)}; the second load would "
+                "fail as already-registered, which reads as a provider fault "
+                "rather than a caller mistake")
+        done = []
+        try:
+            for sid in ids:
+                done.append(self.provision(provider, sid, actor=actor))
+        except Exception:
+            for ref in done:
+                self.forget(ref.secret_id)
+            raise
+        return tuple(done)
 
     def forget(self, secret_id: str) -> None:
         """Zero and drop a value. The grants remain, and stop resolving."""
