@@ -216,37 +216,87 @@ is SkylakeX. The single field the whole comparison turns on named the wrong
 thing. `openblas_runtime_core()` now reads the selected kernel from the
 bundled library and the summary emits it.
 
-### The hosted runner
+### The sweep, as recorded
 
-At commit `9e922f8`, `package_consistency_check.py` on `ubuntu-latest`
-reported stale root copies beginning: `campaign_state_3d.json`,
-`convergence_report_3d.json`, `coupled_mode_recovery_metrics.csv`,
-`coupled_mode_state_summary.json`, `distributed_thermal_2d_slices.csv`,
-`distributed_thermal_metrics.csv`, `distributed_thermal_profile.csv`,
-`energy_ledger_cumulative_3d.csv`.
+`tools/blas_kernel_sensitivity.py` runs it; `docs/blas_kernel_sensitivity.json`
+is the result. On the sandbox that wrote this section (Intel Xeon @ 2.10 GHz,
+AVX-512, 4 cores, numpy 2.4.4 / scipy 1.17.1):
 
-That is exactly the first eight, alphabetically, of the local Nehalem
-divergence set — and the list was truncated at eight, so the runner's true
-count is not in that log. What can be said from it: the runner did not select
-SkylakeX, and its divergence set is consistent with a narrower-vector kernel.
-The exact count and the runner's kernel name will be readable in the next
-hosted run, because the count and `openblas_runtime_core` are now both
-printed.
+| pinned | kernel selected | byte-identical | differing |
+|---|---|---:|---:|
+| `(unset)` | `SkylakeX` | 63 / 63 | 0 |
+| `SkylakeX` | `SkylakeX` | 63 / 63 | 0 |
+| `Haswell` | `Haswell` | 43 / 63 | 20 |
+| `Haswell, 1 thread` | `Haswell` | 43 / 63 | 20 |
+| `Haswell, numpy AVX2 only` | `Haswell` | 40 / 63 | 23 |
+| `Nehalem` | `Nehalem` | 41 / 63 | 22 |
+
+### The hosted runner, and the row that reproduces it
+
+At commit `72b1f8c`, the `cross-environment-3d` job on `ubuntu-latest`
+reported, in its own job log:
+
+```
+COMPARED 63 files: 40 identical, 23 differing, 0 uncompared
+(unset)      selected=Haswell    40/63 identical, 23 differing
+SkylakeX     FAILED
+Haswell      selected=Haswell    40/63 identical, 23 differing
+Nehalem      selected=Nehalem    41/63 identical, 22 differing
+```
+
+Three things follow, and the third is the one that finishes the
+investigation.
+
+**The runner's default kernel is Haswell.** It is not SkylakeX, and asking
+for SkylakeX fails: the runner's CPU has no AVX-512, so the kernel the
+committed outputs were produced with cannot be selected there at all.
+
+**The count is 23, not 8.** `package_consistency_check.py` in the container
+at the same commit said `24 stale root copies (first 8 shown)` — 24 because
+it compares a slightly larger set than the 63 3D files. Either way the
+"8-file divergence" that R59 recorded as its blocker was the slice width.
+
+**Pinning the kernel alone did not explain it.** This sandbox at
+`OPENBLAS_CORETYPE=Haswell` reproduced 43 of 63; the runner at Haswell
+reproduced 40. Same kernel name, same interpreter, same dependency set,
+three files apart. Pinning threads to one changed nothing here, ruling that
+variable out.
+
+What was left is numpy's **own** SIMD dispatch, which `OPENBLAS_CORETYPE`
+does not touch: numpy compiles several versions of its element-wise loops and
+selects one from the host's CPU features, independently of BLAS. Dropping
+numpy to AVX2 as well —
+
+```
+OPENBLAS_CORETYPE=Haswell NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+```
+
+— gives **40 of 63 on this machine, and the same twenty-three files by
+name**. Not "close to the runner": the same set.
+
+The divergence is therefore fully attributed, to two host-CPU-dependent
+dispatch decisions taken by two different libraries. Both are reproducible
+here on demand, from the same source tree, by pinning environment variables.
 
 ### What this does and does not establish
 
 It establishes that byte-identity of the 3D outputs is a property of a
-**declared environment down to the BLAS kernel**, not of the mathematics. It
-does not establish that any kernel is more correct than another: they all
-compute the same problem to the same order of accuracy, and a byte comparison
-cannot rank them.
+**declared environment down to the CPU's vector features**, not of the
+mathematics — and that a difference between two hosts can be reproduced on
+one of them, which is what makes it an explanation rather than an
+observation.
 
-It was not fixed by pinning `OPENBLAS_CORETYPE` repository-wide. The kernel
-that reproduces the committed bytes is SkylakeX, which requires AVX-512;
-pinning it would make the pipeline refuse to run correctly on hardware
-without it, and pinning anything else would invalidate every committed
-canonical output. Choosing the host's CPU is not something this repository
-can do.
+It does not establish that any dispatch is more correct than another. They
+all compute the same problem to the same order of accuracy, and a byte
+comparison cannot rank them. The differences are last-bit; nothing here
+suggests a numerical defect, and nothing here would detect one.
+
+It was not fixed by pinning these variables repository-wide. The
+configuration that reproduces the committed bytes needs AVX-512 — the hosted
+runner refuses `SkylakeX` outright — so pinning it would make the pipeline
+unable to run on hardware without it, and pinning a configuration every host
+can run would invalidate every committed canonical output. Choosing the
+host's CPU is not something a repository does.
 
 **No tolerance was widened. No file was exempted. No canonical output was
 rewritten.** The byte gate stays closed, and it is now closed around a

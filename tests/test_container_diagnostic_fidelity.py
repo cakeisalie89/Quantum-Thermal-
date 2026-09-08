@@ -568,6 +568,80 @@ def test_the_sensitivity_sweep_refuses_a_result_it_did_not_measure():
                        {"asked_for": "Zen", "selected": "Zen"}]}
     assert any("no comparison" in p for p in B.problems(broken))
 
+    # A KERNEL THE HOST CANNOT RUN IS AN OBSERVATION, not a failure. A
+    # GitHub ubuntu-latest runner has no AVX-512 and cannot select SkylakeX
+    # -- which is the kernel the committed outputs were produced with, and
+    # therefore the single most useful row a hosted sweep produces. The
+    # first version of this tool recorded it as a FAILED run and went red.
+    with_unsupported = {"runs": ok_report["runs"] + [
+        {"asked_for": "SkylakeX", "unsupported": True, "selected": "Haswell",
+         "why": "asked for SkylakeX, this host selects 'Haswell' instead"}]}
+    assert B.problems(with_unsupported) == []
+
+    # ...but it must not stand in for a measurement either: a sweep where
+    # everything was unsupported measured nothing.
+    all_unsupported = {"runs": [
+        {"asked_for": c, "unsupported": True, "selected": "Haswell",
+         "why": "no"} for c in ("SkylakeX", "Zen")]}
+    assert any("measured anything" in p
+               for p in B.problems(all_unsupported))
+
+
+def test_each_pinned_variable_actually_reaches_the_child_environment():
+    """A row that pins nothing measures the host, not the variable.
+
+    Three variables, three libraries, and only one of them is BLAS. numpy
+    dispatches its own element-wise loops from the CPU's features
+    independently of OPENBLAS_CORETYPE -- which is why pinning the kernel
+    alone left this sandbox and a hosted runner three files apart, and
+    pinning numpy as well landed on the runner exactly.
+    """
+    sys.path.insert(0, str(ROOT / "tools"))
+    import blas_kernel_sensitivity as B
+
+    bare = B._env(None, None, None)
+    assert "OPENBLAS_CORETYPE" not in bare
+    assert "NPY_DISABLE_CPU_FEATURES" not in bare
+
+    full = B._env("Haswell", 1, B.AVX2_ONLY)
+    assert full["OPENBLAS_CORETYPE"] == "Haswell"
+    assert full["NPY_DISABLE_CPU_FEATURES"] == B.AVX2_ONLY
+    for var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS",
+                "MKL_NUM_THREADS"):
+        assert full[var] == "1", var
+
+    # And an inherited value is CLEARED rather than carried, or a sweep run
+    # in an already-pinned shell would report the shell's dispatch under
+    # every row's name.
+    import os
+    os.environ["OPENBLAS_CORETYPE"] = "Nehalem"
+    os.environ["NPY_DISABLE_CPU_FEATURES"] = "X86_V4"
+    try:
+        assert "OPENBLAS_CORETYPE" not in B._env(None, None, None)
+        assert "NPY_DISABLE_CPU_FEATURES" not in B._env(None, None, None)
+    finally:
+        del os.environ["OPENBLAS_CORETYPE"]
+        del os.environ["NPY_DISABLE_CPU_FEATURES"]
+
+    # The default sweep must contain the row that reproduces another host.
+    assert any(npy for _c, _t, npy in B.DEFAULT_ROWS), (
+        "no default row pins numpy's dispatch, so the sweep cannot "
+        "reproduce a host without AVX-512")
+
+
+def test_the_probe_reports_the_kernel_a_host_would_actually_select():
+    """Cheap, and asked BEFORE spending four minutes on a sweep row."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import blas_kernel_sensitivity as B
+
+    selected, error = B._probe(None)
+    assert not error and selected, (selected, error)
+    forced, error = B._probe("Nehalem")
+    assert not error and forced == "Nehalem", (forced, error)
+    assert forced != selected, (
+        "this host already selects Nehalem, so it cannot demonstrate that "
+        "forcing changes anything")
+
 
 def test_the_recorded_sweep_shows_a_real_kernel_dependence():
     """The committed measurement, checked for the shape it claims.
@@ -588,9 +662,32 @@ def test_the_recorded_sweep_shows_a_real_kernel_dependence():
     selected = {r["selected"] for r in runs}
     assert len(selected) >= 2, (
         f"every recorded run selected {selected}; the sweep varied nothing")
-    diffs = {r["selected"]: r["comparison"]["differing"] for r in runs}
-    assert any(v == 0 for v in diffs.values()), (
+    measured = [r for r in runs if "comparison" in r]
+    diffs = [r["comparison"]["differing"] for r in measured]
+    assert any(v == 0 for v in diffs), (
         "no kernel reproduced the committed bytes, so the committed outputs "
         f"correspond to no kernel in this record: {diffs}")
-    assert any(v > 0 for v in diffs.values()), (
+    assert any(v > 0 for v in diffs), (
         f"no kernel diverged, so there is no dependence to report: {diffs}")
+
+    # THE ROW THAT REPRODUCES A DIFFERENT MACHINE. Pinning the BLAS kernel
+    # alone left this sandbox at 43/63 and a GitHub runner at 40/63 -- close,
+    # and not the same, which is the state an explanation gets stuck in.
+    # Pinning numpy's own SIMD dispatch as well lands on the runner's exact
+    # numbers. A record without this row would be a story that fitted most
+    # of the data.
+    reproducing = [r for r in measured if r.get("npy_disable")]
+    assert reproducing, (
+        "the record contains no row that pins numpy's SIMD dispatch, so the "
+        "residual between two hosts at the same BLAS kernel is unattributed")
+    assert any(r["comparison"]["identical"] == 40
+               and r["comparison"]["differing"] == 23
+               for r in reproducing), (
+        "no recorded row reproduces the hosted runner's 40/63; the "
+        "attribution in docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md is not "
+        f"supported by this file: {[r['comparison'] for r in reproducing]}")
+
+    # ANTI-VACUITY: pinning threads is in the record because it changed
+    # NOTHING, which is a result and has to stay visible as one.
+    threaded = [r for r in measured if r.get("threads")]
+    assert threaded, "no thread-pinned row, so that variable is untested"

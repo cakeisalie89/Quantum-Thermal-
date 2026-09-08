@@ -9,6 +9,7 @@ its evidence.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -67,37 +68,71 @@ def test_the_matrix_does_not_claim_scientific_authority():
     assert "model_only" in blob or "model-only" in blob
 
 
-@pytest.mark.parametrize("row_id", ["R59"])
-def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
-    """Guards against the matrix being 'closed' without the work.
+#: Rows that must be COMPLETE for this file to pass, and the count that must
+#: hold. Written down so that changing it is an edit somebody makes on
+#: purpose, in the commit that changes it, rather than a number that drifts.
+EXPECTED_COMPLETE = 39
 
-    R55 (no production caller) and R21 (no tool execution) are the two the
-    directive singles out. If either is ever marked complete, that must be
-    because the subsystem exists -- and then this test should be updated in
-    the same change that builds it, deliberately.
 
-    R21 WAS closed, and this test fired, which is the mechanism working:
-    closing it required editing this file. It moved to the check below rather
-    than being deleted, because "it was closed on purpose" is a weaker claim
-    than "it was closed with the things closing it requires".
+def test_the_matrix_is_not_completed_silently():
+    """The last row closing is the easiest thing in the tree to do quietly.
 
-    R55 was closed the same way, and fired here the same way. What closed it
-    was a SECOND workflow running a SECOND tool whose result depends on the
-    workspace rather than on its own request, a route guard making the
-    governed path the only writer of the governed output subtrees, and a
-    verifier that re-runs the tool instead of only re-deriving its digests.
-    It moves to the watchlist below.
+    Every earlier version of this guard watched a NAMED open row and fired
+    when it closed -- R21, then R55, then R59 -- so closing one always
+    required editing this file. With nothing left open there is no row to
+    name, and a guard with an empty parametrize list passes over nothing,
+    which is the vacuous shape this repository has shipped once.
 
-    R59 takes its place here. It is the last row still carrying residual
-    gaps, and all three of them are about EVIDENCE from a hosted container
-    build rather than about code -- which is exactly the kind of row that
-    could be closed by deciding it was fine.
+    So the guard changes shape rather than disappearing: the number of
+    complete rows is written down here. Reclassifying a row, or adding a
+    fortieth, fails until somebody edits this line.
     """
-    row = next(r for r in CM.load()["rows"] if r["id"] == row_id)
-    if row["classification"] == CM.COMPLETE:
-        pytest.fail(
-            f"{row_id} is marked complete -- update this test in the change "
-            "that completed it, so closing it stays a deliberate act")
+    rows = CM.load()["rows"]
+    complete = [r for r in rows if r["classification"] == CM.COMPLETE]
+    assert len(complete) == EXPECTED_COMPLETE, (
+        f"{len(complete)} rows are complete and this test expects "
+        f"{EXPECTED_COMPLETE}. If that is right, say so here in the same "
+        "change; if it is not, the matrix moved without anybody deciding to")
+    assert len(rows) == EXPECTED_COMPLETE, (
+        f"{len(rows)} rows in a matrix whose complete count is "
+        f"{EXPECTED_COMPLETE}; one of the two numbers is wrong")
+
+    # AND COMPLETE MEANS WHAT IT SAYS. A row cannot reach it by having
+    # nothing written in it.
+    for row in complete:
+        assert row["boundaries"], (
+            f"{row['id']}: complete to a 'technically defensible limit' that "
+            "states no limit")
+        assert not row["residual_gaps"], f"{row['id']}: complete with gaps"
+        assert row["mutation_tests"], f"{row['id']}: complete, no mutations"
+
+
+def test_the_last_row_was_closed_by_evidence_not_by_decision():
+    """R59 was the last open row, and it is the easiest kind to close wrongly.
+
+    Its three gaps were all about EVIDENCE rather than code, and evidence
+    gaps close by somebody deciding they are fine. What actually closed it
+    was reproducing another machine's exact result on this one -- the same
+    twenty-three files by name, not two counts that were close -- so this
+    asserts the row still carries the things that reproduction required.
+
+    It has no production_caller and should not: the row is an analysis, not
+    a subsystem, and its callers are the two workflows that run its
+    instruments.
+    """
+    row = next(r for r in CM.load()["rows"] if r["id"] == "R59")
+    assert row["classification"] == CM.COMPLETE
+    assert row["mutation_tests"], "R59: complete with no mutation coverage"
+    assert row["boundaries"] and not row["residual_gaps"]
+    # A hosted claim with a run id somebody can open, not a mood.
+    assert re.search(r"\b\d{8,}\b", row["hosted_ci"]), row["hosted_ci"]
+    # The reproduction, not a resemblance.
+    blob = " ".join(str(row[f]) for f in ("evidence", "differential")).lower()
+    assert "reproduc" in blob, (
+        "R59 no longer claims the other host's result was reproduced, which "
+        "is the difference between an explanation and an observation")
+    assert "63" in blob and "40" in blob, (
+        "R59 no longer carries the numbers the attribution rests on")
 
 
 @pytest.mark.parametrize("row_id", ["R21", "R55"])

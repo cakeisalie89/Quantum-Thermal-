@@ -1,0 +1,86 @@
+{
+  "title": "The cross-environment measurement, and the instruments that make it readable",
+  "note": "R59 spent weeks on a number that was a slice width, resting on a comparison that could not have disagreed with itself, with a fingerprint naming the build kernel rather than the running one. E1-E2 attack the fingerprint field the whole attribution turns on. E3-E7 attack the sensitivity sweep, including the two ways it can vary nothing and still report a result, and the numpy row without which the attribution stops at 'the counts are close'. E8-E11 attack the container script's step record and its ordering -- the record exists because 'steps 1-3 passed' was an inference from set -e ordering, and the ordering matters because set -e once skipped the diagnostic in exactly the case it was written for.",
+  "suites": [
+    "tests/test_container_diagnostic_fidelity.py"
+  ],
+  "mutations": [
+    {
+      "name": "E1_the_fingerprint_names_the_build_kernel_again",
+      "path": "analysis/collect_container_3d.py",
+      "find": "    fp[\"openblas_runtime_core\"] = openblas_runtime_core()",
+      "replace": "    fp[\"openblas_runtime_core\"] = \"\"",
+      "rationale": "the field the whole cross-environment comparison turns on goes back to being absent, so a divergence has no kernel beside it and the build string -- which says Haswell on a machine that selects SkylakeX -- is the only thing left to read"
+    },
+    {
+      "name": "E2_the_runtime_core_lookup_gives_up_silently",
+      "path": "analysis/collect_container_3d.py",
+      "find": "        for name in (\"scipy_openblas_get_corename64_\",",
+      "replace": "        for name in (\"definitely_not_a_symbol\",",
+      "rationale": "the library exports the symbol and this stops looking for it, so every fingerprint records UNKNOWN and the attribution rests on nothing"
+    },
+    {
+      "name": "E3_a_kernel_the_host_cannot_run_is_a_failed_measurement",
+      "path": "tools/blas_kernel_sensitivity.py",
+      "find": "    measured = [r for r in runs if not r.get(\"unsupported\")]",
+      "replace": "    measured = list(runs)",
+      "rationale": "'the tool broke' and 'this CPU cannot execute the kernel the committed outputs were produced with' become the same verdict -- and the second one is the single most useful row a hosted runner produces"
+    },
+    {
+      "name": "E4_a_sweep_that_varied_nothing_is_accepted",
+      "path": "tools/blas_kernel_sensitivity.py",
+      "find": "    if len(selected) < 2:",
+      "replace": "    if False:",
+      "rationale": "every row falling back to one kernel reports 'no difference anywhere' -- a true sentence about a comparison that varied no variable"
+    },
+    {
+      "name": "E5_a_sweep_of_one_row_reports_a_dependence",
+      "path": "tools/blas_kernel_sensitivity.py",
+      "find": "    if len(measured) < 2:",
+      "replace": "    if False:",
+      "rationale": "a single measured row is enough to publish a sensitivity result, which is a claim about a comparison that never happened"
+    },
+    {
+      "name": "E6_numpys_own_dispatch_is_never_pinned",
+      "path": "tools/blas_kernel_sensitivity.py",
+      "find": "    if npy_disable is not None:\n        env[\"NPY_DISABLE_CPU_FEATURES\"] = npy_disable",
+      "replace": "    if npy_disable is None:\n        env[\"NPY_DISABLE_CPU_FEATURES\"] = \"\"",
+      "rationale": "the row that reproduces a host without AVX-512 stops pinning the thing that made it reproduce -- and the attribution falls back to 'the counts are close', which is where the investigation was stuck"
+    },
+    {
+      "name": "E7_an_inherited_pin_is_carried_into_every_row",
+      "path": "tools/blas_kernel_sensitivity.py",
+      "find": "    env.pop(\"OPENBLAS_CORETYPE\", None)\n    env.pop(\"NPY_DISABLE_CPU_FEATURES\", None)",
+      "replace": "    pass",
+      "rationale": "a sweep run in an already-pinned shell reports the shell's dispatch under every row's name, so the rows agree and nothing is measured"
+    },
+    {
+      "name": "E8_the_container_forgets_how_far_it_got",
+      "path": "container_verify.sh",
+      "find": "trap _qta_summary EXIT",
+      "replace": "_qta_summary_disabled=1",
+      "rationale": "the step record goes back to being readable only by scrolling to a part of the log the API does not serve, which is what made 'steps 1-3 passed' an inference"
+    },
+    {
+      "name": "E9_a_completed_step_is_not_recorded",
+      "path": "container_verify.sh",
+      "find": "  QTA_STEPS_OK=\"${QTA_STEPS_OK}${QTA_STEPS_OK:+,}$1\"",
+      "replace": "  QTA_STEPS_OK=\"${QTA_STEPS_OK}\"",
+      "rationale": "the summary prints an empty list however far the run got, so the record says nothing and looks like it says something"
+    },
+    {
+      "name": "E10_the_failing_step_is_not_named",
+      "path": "container_verify.sh",
+      "find": "  if [ -n \"$QTA_STEP_CURRENT\" ]; then\n    echo \"::QTA-STEP-FAILED:: ${QTA_STEP_CURRENT}\"",
+      "replace": "  if [ -z \"$QTA_STEP_CURRENT\" ]; then\n    echo \"::QTA-STEP-FAILED:: ${QTA_STEP_CURRENT}\"",
+      "rationale": "a failing run names no failing step, so the summary tells you what worked and not what did not"
+    },
+    {
+      "name": "E11_the_diagnostic_runs_after_the_check_that_fails",
+      "path": "container_verify.sh",
+      "find": "step \"cross-environment-3d\"\npython analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary\ndone_ \"cross-environment-3d\"\n\nstep \"package_consistency\"\npython package_consistency_check.py\ndone_ \"package_consistency\"\n\nstep \"manuscript_consistency\"\npython manuscript_consistency_check.py\ndone_ \"manuscript_consistency\"\n",
+      "replace": "step \"package_consistency\"\npython package_consistency_check.py\ndone_ \"package_consistency\"\n\nstep \"manuscript_consistency\"\npython manuscript_consistency_check.py\ndone_ \"manuscript_consistency\"\n\nstep \"cross-environment-3d\"\npython analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary\ndone_ \"cross-environment-3d\"\n",
+      "rationale": "a pure REORDER, not a deletion: every step is still there and still announces itself, so only a test that checks the ORDER can see it. set -e then ends the run at the byte divergence and the diagnostic that exists to EXPLAIN a byte divergence never executes -- the one case the measurement matters most is the one it is skipped in"
+    }
+  ]
+}

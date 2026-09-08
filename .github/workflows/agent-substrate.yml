@@ -298,6 +298,13 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/governed_breadth.json
+      - name: mutation matrix -- the cross-environment measurement
+        # R59's instruments: the fingerprint field the attribution turns on,
+        # the sensitivity sweep's two ways of varying nothing, and the
+        # container script's step record and its ordering.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/cross_environment.json
       - name: mutation matrix -- corpus membership
         # Every guard on a corpus path protected its shape; none protected
         # the set, so writing a file into the tree made it governed text.

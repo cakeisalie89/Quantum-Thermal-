@@ -21,20 +21,26 @@ every test run by `tools/completion_matrix.py`.
 
 | Classification | Rows |
 |---|---:|
-| COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT | 38 |
-| DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS | 1 |
+| COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT | 39 |
+| DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS | 0 |
 | INTEGRATED_BUT_INCOMPLETELY_VERIFIED | 0 |
 | PARTIALLY_IMPLEMENTED / SKELETAL / PLACEHOLDER / ABSENT | 0 |
 | BLOCKED | 0 |
 
-One row remains open, with 1 residual gap, and it lists what is still
-missing. A closed row is not a row with nothing left to say: the 38 closed
-rows carry 91 stated BOUNDARIES between them, each naming something the row
-does not claim and why no engineering in this repository closes it. The
-validator refuses a boundary that describes work somebody could do here, and
-refuses one that offers no argument for why it cannot be done -- the
-vocabulary is not allowed to become a way of finishing a row by rewording
-it.
+No row is open and no residual gap is recorded. **That is not a claim that
+nothing is left**, and the matrix is built so it cannot be read as one: a
+closed row is one that has said what it does NOT claim and why no
+engineering in this repository closes it. The 39 rows carry 94 stated
+BOUNDARIES between them. The validator refuses a boundary that describes
+work somebody could do here, refuses one that offers no argument, and
+refuses one that explains an absent BEHAVIOUR while describing an absent
+TEST -- the vocabulary is not allowed to become a way of finishing a row by
+rewording it.
+
+PASS remains 0. `automatic_gate_effect` remains NONE. Nothing in this
+session moved a gate, a threshold, or the scientific state of the project;
+what moved is how much of the software is verified and how precisely its
+limits are stated.
 
 ## 2. What testing found
 
@@ -68,6 +74,7 @@ that found it, because the techniques are not interchangeable.
 | **The fingerprint named the wrong kernel.** It recorded `numpy.show_config`, which reports the *build* configuration — "Haswell" on this machine — while OpenBLAS DYNAMIC_ARCH *selects* SkylakeX at load time. The one field the whole cross-environment comparison turns on was a different fact from the one it was read as. | Reading the runtime core out of the bundled library to check |
 | **The diagnostic that explains a byte divergence was ordered after the check that fails on one.** `set -e` ended the container run at `package_consistency_check.py`, so the 3D comparison never executed in the one case where it mattered. | A hosted container run that finally got far enough to fail numerically |
 | **The corpus scan walked into a second virtualenv.** `EXCLUDED_DIRS` named `.venv` exactly; a CI job that builds `.venv-alt` for a second interpreter put 64 site-packages `.txt` files into the corpus and the membership check refused them. The check was right and the scan was looking somewhere no reviewer would put a document. | The second-interpreter job, on its first run |
+| **Two hosts at the same forced BLAS kernel still disagreed by three files**, so "it is the kernel" fitted most of the data and was not the whole answer. numpy dispatches its own element-wise SIMD loops from the CPU's features, independently of `OPENBLAS_CORETYPE`. Pinning both reproduces a GitHub runner's result on this machine exactly — 40 of 63, and the same twenty-three files by name. | Not accepting two counts that were close as an explanation |
 | **The child process was recorded by pid alone under mutation, and three suites did not notice.** Boot id and start ticks are what make a recorded pid mean anything after the recording process is gone; the record still had a plausible key with a plausible number in it. | A hosted mutation matrix, and believing the survivor |
 
 ### A correction to two commit messages

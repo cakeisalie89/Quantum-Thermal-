@@ -2108,7 +2108,7 @@
     {
       "id": "R59",
       "requirement": "Cross-environment 3D divergence resolved",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "analysis/collect_container_3d.py",
         "tools/blas_kernel_sensitivity.py",
@@ -2122,8 +2122,8 @@
       "production_caller": null,
       "persistent_state": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md records the evidence, what could not be established, and -- marked rather than edited out -- the two conclusions it previously drew that were wrong; docs/blas_kernel_sensitivity.json is the measurement behind them",
       "authority_owner": "the byte gate: final_manifest.json and package_consistency_check.py",
-      "evidence": "the divergence is real, reproduces on demand, and its cause is named. OpenBLAS DYNAMIC_ARCH selects a kernel from the host CPU's flags, and the kernels differ in accumulation order. Forcing OPENBLAS_CORETYPE on ONE machine, one interpreter, one dependency set and one set of inputs: unset and SkylakeX give 63/63 byte-identical to the committed copies, Haswell gives 43/63, Nehalem 41/63. Nothing else changed between those rows, so the difference is the kernel. The committed canonical outputs are SkylakeX-kernel outputs",
-      "provenance": "hosted runs 32618446522, 32618887858, 32619387984, 32622824808, 32624125035, 32626098635, 33113363458; container-verify 34225673878 (d361da8) built and RAN the declared image -- the git packaging gap is closed -- and failed on the byte divergence rather than on packaging; agent-substrate 34216535309 (9e922f8) is where the hosted package-consistency divergence was first actually read",
+      "evidence": "the divergence is real, reproduces on demand, and is FULLY attributed -- to two host-CPU-dependent dispatch decisions taken by two different libraries. OpenBLAS DYNAMIC_ARCH selects a kernel from the host's CPU flags; numpy selects its own element-wise SIMD loops separately, and OPENBLAS_CORETYPE does not touch that. On one machine, one interpreter, one dependency set and one set of inputs: unset and SkylakeX give 63/63 byte-identical to the committed copies, Haswell 43/63, Haswell with one thread 43/63 (so threads are ruled out), Nehalem 41/63, and Haswell with numpy dropped to AVX2 gives 40/63 -- which is the hosted runner's result exactly, including the same twenty-three files by name",
+      "provenance": "hosted runs 32618446522, 32618887858, 32619387984, 32622824808, 32624125035, 32626098635, 33113363458; container-verify 34225673878 and 34234780850 (d361da8, 72b1f8c) built and RAN the declared image, recording ::QTA-STEPS-COMPLETED:: environment,git-available,qta_full_sim,cross-environment-3d and '24 stale root copies (first 8 shown)'; agent-substrate 34234781324 job 102089565031 (72b1f8c) printed 'COMPARED 63 files: 40 identical, 23 differing, 0 uncompared', the runner's default kernel as Haswell, and SkylakeX as unavailable there",
       "failure_semantics": "the byte gate stays closed; no tolerance was widened and no file exempted. The 3D diagnostic is ordered BEFORE the checkers that can fail, so a divergence no longer suppresses the measurement that explains it, and it reports rather than fails so it cannot mask one",
       "recovery": "n/a",
       "retry": "n/a",
@@ -2135,23 +2135,28 @@
         "tests/test_container_diagnostic_fidelity.py"
       ],
       "property_tests": [],
-      "mutation_tests": [],
-      "fuzzing": "none",
-      "differential": "the same pipeline run in two environments and compared byte for byte, and -- newly -- the same pipeline run in ONE environment with only the BLAS kernel varied, which is the only comparison that can attribute a byte difference to the kernel rather than to everything else that also differs between two hosts",
-      "hosted_ci": "container-verify run 34225673878 (head d361da8): the image builds, runs as the declared non-root user, git is present and the repository is shipped, and the run reaches package_consistency_check.py -- which fails on the byte divergence, not on packaging. agent-substrate run 34216535309 shows the same two failures on a bare runner. The step summary and the count fix land in the commit this row describes and their run is cited when it lands",
-      "residual_gaps": [
-        "the runner's own kernel name and its true divergence COUNT have not been read yet: the count fix in package_consistency_check.py, the openblas_runtime_core field and the ::QTA-STEPS-COMPLETED:: exit trap all land in this commit, so the next hosted run is the first that can report them"
+      "mutation_tests": [
+        "tools/mutations/cross_environment.json"
       ],
+      "fuzzing": "none",
+      "differential": "the same pipeline run in two environments and compared byte for byte, and -- decisively -- the same pipeline run in ONE environment with only the dispatch pinned, which is the only comparison that can attribute a byte difference to dispatch rather than to everything else that also differs between two hosts. The attribution is confirmed by the REPRODUCTION of the other host's exact result, not by the two counts being close",
+      "hosted_ci": "container-verify 34234780850 and agent-substrate run 34234781324 (head 72b1f8c) are the runs this row's evidence is read from -- the image builds, git is present, the step record is in the log rather than inferred, and the divergence count is 23 of 63 with the kernel named. Both jobs are RED, on the byte divergence this row describes and characterises: the byte gate is doing its job on hardware whose dispatch differs from the committed outputs', and making it green would mean widening a tolerance or exempting a file, neither of which was done",
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "Byte-identity of the 3D outputs is not claimed across arbitrary host CPUs, and cannot be made to hold on one.",
           "reason": "platform_primitive_absent",
-          "detail": "The stack provides no reproducible-BLAS mode. OpenBLAS ships DYNAMIC_ARCH -- several hand-written kernels in one library, one selected at load time from the host's feature flags -- and guarantees no accumulation order across them, so a sixteen-significant-digit CSV records the difference. The one lever available is OPENBLAS_CORETYPE, and it does not close this: the kernel that reproduces the committed bytes is SkylakeX, which requires AVX-512, so pinning it would make the pipeline refuse hosts that lack it, and pinning any kernel that every host can run would invalidate every committed canonical output. What is left is choosing the hardware, which is not something a repository does. Everything that CAN be done here is done: the dependence is measured rather than asserted (tools/blas_kernel_sensitivity.py), the selected kernel is recorded in the fingerprint, and the byte gate stays closed around a statement that now says what it depends on."
+          "detail": "Neither library provides a reproducible mode. OpenBLAS ships DYNAMIC_ARCH -- several hand-written kernels in one library, one chosen at load time from the host's feature flags -- and numpy dispatches its own element-wise loops the same way; neither guarantees accumulation order across those paths, and a sixteen-significant-digit CSV records the difference. The levers available are OPENBLAS_CORETYPE and NPY_DISABLE_CPU_FEATURES, and together they do not close it: the configuration that reproduces the committed bytes needs AVX-512, which the hosted runner refuses outright, and any configuration every host can run would invalidate every committed canonical output. What is left is choosing the hardware. Everything that CAN be done is done: the dependence is measured rather than asserted, the other host's result is REPRODUCED here rather than merely compared with, and the byte gate stays closed."
         },
         {
-          "limit": "The container-3d-diagnostic artifact from run 32626098635 has still not been read, so the earliest divergence measurement is not available in its original form.",
+          "limit": "That the committed outputs are numerically better than any other dispatch's is not claimed, and no comparison here could establish it.",
+          "reason": "epistemic",
+          "detail": "Every dispatch computes the same problem to the same order of accuracy and the differences are last-bit. A byte comparison can say two results differ; it cannot say which is closer to the true solution, because nothing here holds the true solution. Ranking them would need an independent reference -- an analytic solution, a higher-precision run, or a measurement -- and the last of those is what the whole package is pre-experimental with respect to. The row therefore reports reproducibility and says nothing about correctness, which is the same limit that keeps PASS at 0."
+        },
+        {
+          "limit": "The container-3d-diagnostic artifact from run 32626098635 has still not been read, so the earliest divergence measurement is unavailable in its original form.",
           "reason": "external_system_unreachable",
-          "detail": "Its signed URL points at productionresultssa14.blob.core.windows.net, which this environment's egress policy refuses with a 403 on CONNECT, and the job-logs API serves only a tail. No code in this repository reaches a host the network refuses. It also no longer decides anything: the number it was wanted for -- 'an 8-file divergence' -- turned out to be the slice width in package_consistency_check.py, which printed _drift[:8] with no count beside it, and the divergence it would have described is now reproducible on demand with a named cause."
+          "detail": "Its signed URL points at productionresultssa14.blob.core.windows.net, which this environment's egress policy refuses with a 403 on CONNECT, and the job-logs API serves only a tail. No code in this repository reaches a host the network refuses. It also no longer decides anything: the number it was wanted for -- 'an 8-file divergence' -- was the slice width in package_consistency_check.py, which printed _drift[:8] with no count beside it, and the divergence it would have described is now measured at 23 of 63 with both of its causes named."
         }
       ],
       "blocker": null

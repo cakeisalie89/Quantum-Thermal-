@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NoReturn, Union
@@ -76,7 +77,7 @@ _governed_depth = 0
 
 
 @contextmanager
-def governed_writer():
+def governed_writer() -> Iterator[None]:
     """Permit writes into :data:`GOVERNED_ONLY` for the duration.
 
     Opened by the governed tool entry points and by nothing else in the
