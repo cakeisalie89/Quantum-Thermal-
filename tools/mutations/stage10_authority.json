@@ -16,8 +16,8 @@
     {
       "name": "W2_text_writer_skips_the_guard",
       "path": "qta_multiphysics/stack/workspace.py",
-      "find": "    target = assert_in_workspace(path)\n    data = text.replace",
-      "replace": "    target = Path(path)\n    data = text.replace",
+      "find": "    target = assert_in_workspace(path)\n    prefix = governed_only_prefix(target)",
+      "replace": "    target = Path(path)\n    prefix = governed_only_prefix(target)",
       "rationale": "THE ORIGINAL DEFECT: the writer takes any path and calls write_bytes, so the guard is advisory and a caller who forgets it overwrites canonical state"
     },
     {

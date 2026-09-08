@@ -289,6 +289,15 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/completion_matrix.json
+      - name: mutation matrix -- the second governed workflow
+        # The three claims R55 made in prose and nothing checked: that only
+        # one workflow of the safest available kind used the substrate, that
+        # the governed output subtree had no route guard, and that
+        # verification never re-ran the tool. Includes G13, the defect the
+        # production caller found and every governed test missed.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/governed_breadth.json
       - name: mutation matrix -- corpus membership
         # Every guard on a corpus path protected its shape; none protected
         # the set, so writing a file into the tree made it governed text.

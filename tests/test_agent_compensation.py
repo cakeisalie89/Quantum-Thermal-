@@ -94,6 +94,13 @@ def _external_with_undo(gov, **over):
     main.update(over)
     reg = Registry([ToolSpec(**main), _undo_spec()])
     gov.registry = reg
+    # A registry that declares its own tools declares their entry points
+    # too. While the module name was a literal in the production path, this
+    # compensating tool silently launched the ARTIFACT WRITER -- the undo ran
+    # a tool that was not the undo, and only its own missing inputs stopped
+    # it doing something. Naming the module here is the test saying what it
+    # actually wants run.
+    gov.tool_modules["stage10.revoke_artifact"] = "qta_agent._stage10_tool"
     gov.executor = type(gov.executor)(reg, workspace=gov.root)
     return reg
 

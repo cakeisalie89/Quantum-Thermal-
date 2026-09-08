@@ -721,22 +721,35 @@ def test_the_capability_is_scoped_to_exactly_what_the_tool_declared(gov):
     _run(gov)
     issued = [e.payload for e in gov.log.read()
               if e.action == "capability.issue"]
-    # TWO grants, and the split is the point: the worker may EXECUTE, the
-    # verifier may READ. One grant covering both would mean the executor's
-    # authority is what lets its own work be checked.
-    assert len(issued) == 2, [i["action"] for i in issued]
+    # THREE grants, and every split is the point: the worker may EXECUTE,
+    # the verifier may READ, and the verifier holds a SECOND, separately
+    # minted EXECUTE grant to re-run the tool while checking it. One grant
+    # covering any two of those would mean the executor's authority is what
+    # lets its own work be checked.
+    assert len(issued) == 3, [i["action"] for i in issued]
     execute = [i for i in issued if i["action"] == "EXECUTE_TOOL"]
     reads = [i for i in issued if i["action"] == "READ_PATHS"]
-    assert len(execute) == 1 and len(reads) == 1
+    assert len(execute) == 2 and len(reads) == 1
 
     spec = stage10_registry().get("stage10.emit_artifact")
-    assert tuple(execute[0]["scope"]) == tuple(spec.writable_scope), (
-        f"grant scope {execute[0]['scope']} != declared writable scope "
+    work = [i for i in execute if i["subject"] == WORKER_ID]
+    reverify = [i for i in execute if i["subject"] == VERIFIER_ID]
+    assert len(work) == 1 and len(reverify) == 1, issued
+    assert tuple(work[0]["scope"]) == tuple(spec.writable_scope), (
+        f"grant scope {work[0]['scope']} != declared writable scope "
         f"{list(spec.writable_scope)}")
-    assert execute[0]["tool_id"] == "stage10.emit_artifact"
-    assert execute[0]["subject"] == WORKER_ID
+    assert work[0]["tool_id"] == "stage10.emit_artifact"
     assert reads[0]["subject"] == VERIFIER_ID, (
         "the read grant belongs to the verifier, not to the executor")
+
+    # The re-verification grant is bounded to the check that needed it. A
+    # grant to re-run a tool that outlived the verification would be
+    # standing authority to run it.
+    span = reverify[0]["expires_after_seq"] - reverify[0]["issued_seq"]
+    assert 0 < span <= 8, (
+        f"the re-verification grant spans {span} sequence numbers; it "
+        "exists for one re-run")
+    assert reverify[0]["capability_id"].startswith("cap-reverify-")
 
 
 def test_a_timed_out_run_never_reaches_completed_or_verified(gov):

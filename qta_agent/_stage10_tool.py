@@ -28,9 +28,15 @@ def main(argv: list) -> int:
 
     from qta_multiphysics.stack import workspace as WS
 
-    out_dir = WS.guard_output_dir(inputs["out_dir"])
-    target = out_dir / inputs["name"]
-    sha = WS.write_json_deterministic(target, inputs["payload"])
+    # The governed-writer scope is opened HERE, in the subprocess the
+    # executor launched, and nowhere in the ungoverned tree. That is what
+    # makes ``verification/stage10/governed/out`` a directory only the
+    # governed path writes rather than a directory the governed path
+    # happens to be the only current writer of.
+    with WS.governed_writer():
+        out_dir = WS.guard_output_dir(inputs["out_dir"])
+        target = out_dir / inputs["name"]
+        sha = WS.write_json_deterministic(target, inputs["payload"])
     print(json.dumps({"path": WS.relpath_in_repo(target), "sha256": sha},
                      sort_keys=True))
     return 0

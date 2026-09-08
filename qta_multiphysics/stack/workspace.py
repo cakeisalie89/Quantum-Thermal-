@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NoReturn, Union
 
@@ -44,6 +45,74 @@ PROTECTED_DIRS = ("ro-crate", "qta_multiphysics", "tests",
                   "EXPERIMENT_PLAYBOOKS", "QTA_stage9_release_verification",
                   "stage7_reports", "stage8_reports", "matrix_update_examples",
                   ".github", "attic")
+
+#: Subtrees of the workspace that ONLY the governed path may write, as
+#: workspace-relative POSIX prefixes.
+#:
+#: The allowlist above answers "may Stage-10 write here at all". This answers
+#: a different question the matrix kept having to answer in prose: is the
+#: governed path the only route to these bytes, or merely one route among
+#: several? Until this existed the honest answer was "one route among
+#: several" everywhere, because any in-repo caller could write a file into
+#: the governed output directory and every downstream reader -- the digest
+#: index, the evidence store, the re-execution comparison -- would treat it
+#: as something a governed run produced.
+#:
+#: WHAT THIS IS AND IS NOT. It is a route guard: inside these prefixes the
+#: governed tool entry points are the only writers that go through this
+#: module, so a new rule, a refactor or a copied helper cannot quietly start
+#: producing "governed" artifacts. It is NOT a security boundary against code
+#: already running in the writing process: that code can call
+#: :func:`governed_writer` itself, or bypass this module and call
+#: ``Path.write_bytes``. Containment against a hostile in-process caller is
+#: the subprocess isolation and the capability check, not this flag. Saying
+#: which of the two this is, is the whole reason it is written down.
+GOVERNED_ONLY = ("governed/out", "governed_index/out")
+
+#: Depth of the governed-writer scope. An integer rather than a boolean so
+#: nesting -- a governed tool that calls a helper which opens its own scope
+#: -- restores the previous state instead of clearing it.
+_governed_depth = 0
+
+
+@contextmanager
+def governed_writer():
+    """Permit writes into :data:`GOVERNED_ONLY` for the duration.
+
+    Opened by the governed tool entry points and by nothing else in the
+    production tree. Re-entrant, and restored on the way out even when the
+    body raises: a tool that fails partway must not leave the process able to
+    write governed artifacts.
+    """
+    global _governed_depth
+    _governed_depth += 1
+    try:
+        yield
+    finally:
+        _governed_depth -= 1
+
+
+def is_governed_writer() -> bool:
+    """True while a :func:`governed_writer` scope is open in this process."""
+    return _governed_depth > 0
+
+
+def governed_only_prefix(path: StrPath) -> str:
+    """The :data:`GOVERNED_ONLY` prefix covering ``path``, or ``""``.
+
+    ``path`` is taken already-resolved and inside the workspace -- this is a
+    prefix question asked after the allowlist has answered the location
+    question, not a second copy of it.
+    """
+    p = Path(path)
+    try:
+        rel = p.relative_to(workspace_root()).as_posix()
+    except ValueError:
+        return ""
+    for prefix in GOVERNED_ONLY:
+        if rel == prefix or rel.startswith(prefix + "/"):
+            return prefix
+    return ""
 
 
 def workspace_root() -> Path:
@@ -105,6 +174,16 @@ def write_text_deterministic(path: StrPath, text: str) -> str:
     provenance without re-reading the file.
     """
     target = assert_in_workspace(path)
+    prefix = governed_only_prefix(target)
+    if prefix and not is_governed_writer():
+        raise ValueError(
+            f"{DEFAULT_WORKSPACE}/{prefix}/ is written by the governed "
+            f"Stage-10 path only; refusing {target}. An artifact under this "
+            "prefix is read downstream as something a governed run produced "
+            "-- indexed, hashed into the evidence store and re-derived by the "
+            "verifier -- so an ungoverned writer here would launder an "
+            "unrecorded file into a provenance chain. Run the work through "
+            "GovernedStage10, or write somewhere else in the workspace.")
     data = text.replace("\r\n", "\n").encode("utf-8")
     target.write_bytes(data)
     return hashlib.sha256(data).hexdigest()

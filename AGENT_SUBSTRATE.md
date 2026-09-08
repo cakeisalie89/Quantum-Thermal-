@@ -61,6 +61,7 @@ rather than a web:
 | `audit.py` | turning the log into answers, and finding provenance holes |
 | `tools/audit_log.py` | those answers as a COMMAND: read-only, fail-closed, and run by CI over the governed run's own log |
 | `_stage10_tool.py` | the subprocess entry point a governed run executes |
+| `_stage10_index_tool.py` | the second tool: it hashes declared workspace files, so its result depends on the workspace rather than on its request — and it needs a READ guard a write allowlist cannot supply |
 | `governed_stage10.py` | **the production caller** — a real workflow, mediated end to end: policy, queue, identities, capability, context, network guard, evidence, independent verification, note |
 
 **The log is the truth and everything else is derived from it.** A lost

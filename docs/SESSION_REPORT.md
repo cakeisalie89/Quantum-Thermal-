@@ -21,20 +21,20 @@ every test run by `tools/completion_matrix.py`.
 
 | Classification | Rows |
 |---|---:|
-| COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT | 31 |
-| DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS | 7 |
-| INTEGRATED_BUT_INCOMPLETELY_VERIFIED | 1 |
+| COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT | 38 |
+| DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS | 1 |
+| INTEGRATED_BUT_INCOMPLETELY_VERIFIED | 0 |
 | PARTIALLY_IMPLEMENTED / SKELETAL / PLACEHOLDER / ABSENT | 0 |
 | BLOCKED | 0 |
 
-8 rows remain open with 25 residual gaps between them, and every open row
-lists what is still missing. A closed row is not a row with nothing left to
-say: the 31 closed rows carry 69 stated BOUNDARIES between them, each naming
-something the row does not claim and why no engineering in this repository
-closes it. The validator refuses a boundary that describes work somebody
-could do here, and refuses one that offers no argument for why it cannot be
-done -- the vocabulary is not allowed to become a way of finishing a row by
-rewording it.
+One row remains open, with 3 residual gaps, and it lists what is still
+missing. A closed row is not a row with nothing left to say: the 38 closed
+rows carry 91 stated BOUNDARIES between them, each naming something the row
+does not claim and why no engineering in this repository closes it. The
+validator refuses a boundary that describes work somebody could do here, and
+refuses one that offers no argument for why it cannot be done -- the
+vocabulary is not allowed to become a way of finishing a row by rewording
+it.
 
 ## 2. What testing found
 
@@ -58,6 +58,10 @@ that found it, because the techniques are not interchangeable.
 | **Eight of the eleven checks in the hardware evidence gate could be deleted with nothing noticing.** That gate decides whether an unreviewed hardware claim becomes evidence, which is the thing PASS staying at zero rests on. Most survived by defence in depth: the record the existing tests used was also missing its raw file, so it was excluded one branch earlier whichever guard was removed, and every test stayed green. | The first mutation matrix ever pointed at the scientific tree |
 | **Three checks in the capability module had no coverage at all**, including the mirror of a rule that WAS tested: EXECUTE_TOOL requires a tool_id, and nothing said a grant that is not EXECUTE_TOOL may not carry one. | A generated mutation sample, which knows nothing about the code and therefore has no blind spots of its own |
 | **A timeout counted as coverage.** A mutation killed only by the suite's 300-second backstop was scored as killed and reported as a note, so it appeared in the count while saying nothing about which check was lost -- and cost five minutes of every run. | Re-reading what the harness does with its own verdicts |
+| **The re-execution check ran for tests and for nothing else.** It read its scratch directory from `self.out_rel`, an attribute only the governed suite's fixture ever set; the Snakemake rule reached that line and raised `AttributeError`. Every governed test passed. It is this repository's recurring defect -- a field populated by nothing -- appearing inside the code written to close a gap about verification being too weak. | Running the production caller with the three arguments the workflow actually passes |
+| **The compensation path launched the artifact writer for whatever compensating tool a registry named.** The subprocess module was a literal in three places, so the undo ran a tool that was not the undo; only its own missing inputs stopped it doing something. | Adding a second tool, and finding that "the registry has more than one tool" and "more than one tool can run" were different statements |
+| **Re-execution reported agreement over an empty comparison.** A run that declared no output files iterated over nothing and returned "0 artifact(s) reproduced byte-for-byte" -- the same sentence a real comparison produces. | A mutation that survived, and was believed |
+| **A mutation matrix scored fifteen mutations against a red baseline.** A test asserting that an ungoverned writer is refused left the forged file on disk when the guard was mutated away, so the suite stayed red for every later mutation and each was recorded as KILLED. The harness's post-run baseline check caught it; the report before that read 17/17. | The harness re-checking its own baseline after the run |
 
 ### A correction to two commit messages
 

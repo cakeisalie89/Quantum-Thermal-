@@ -47,6 +47,7 @@ OWNERS: dict = {
     "task.evidence": "governed_stage10",
     "task.compensation": "governed_stage10",
     "task.separate_verification": "governed_stage10",
+    "task.reexecution": "governed_stage10",
     # qta_agent.capability -- the ledger that makes a grant real
     "capability.issue": "capability",
     "capability.revoke": "capability",

@@ -119,8 +119,8 @@
     {
       "name": "G5_non_completed_outcome_treated_as_success",
       "path": "qta_agent/governed_stage10.py",
-      "find": "        if result.outcome is not Outcome.COMPLETED:",
-      "replace": "        if False:",
+      "find": "        if result.outcome is not Outcome.COMPLETED:\n            dst = {Outcome.TIMED_OUT: TaskState.TIMED_OUT,",
+      "replace": "        if False:\n            dst = {Outcome.TIMED_OUT: TaskState.TIMED_OUT,",
       "rationale": "a timed-out or failed run proceeds to evidence capture and verification"
     },
     {

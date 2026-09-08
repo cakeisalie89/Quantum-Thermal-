@@ -80,7 +80,7 @@ from .agents import (
     AgentDirectory, AgentError, AgentRole, EscalationState, PrincipalKind,
     StreamNotifier, check_separation, identity,
 )
-from .canonical import digest
+from .canonical import digest, digest_bytes
 from . import capability as _cap_actions
 from .capability import Action, CapabilityLedger, issue
 from .context import ContextBuilder, Tier, record_context
@@ -95,7 +95,7 @@ from .readpath import (
     ReadRequest,
     read_scope,
 )
-from .safeio import SafeIOError, SourceChanged
+from .safeio import ReadRoot, SafeIOError, SourceChanged
 from .separate_verify import verify_in_separate_process
 from .policy import Effect, PolicyRequest, PolicyStore, document, rule
 from .hostid import (ALIVE, GONE, ProcessIdentity, identify,
@@ -109,7 +109,7 @@ from .tasks import (
     TaskTransitionError, apply_transition, check,
 )
 from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
-                    ToolError, ToolSpec)
+                    ToolError, ToolNotRegistered, ToolSpec)
 
 #: Where governed Stage-10 work is allowed to write. The same subtree the
 #: Stage-10 workspace guard permits, so the two agree by construction rather
@@ -164,12 +164,13 @@ ACT_COMPENSATION = "task.compensation"
 #: this run wrote. Recorded whatever it concluded: "the independent verifier
 #: refused" is exactly the fact an auditor must be able to find.
 ACT_SEPARATE_VERIFY = "task.separate_verification"
+ACT_REEXECUTION = "task.reexecution"
 
 #: The actions THIS projection applies or deliberately passes over. Anything
 #: else is another subsystem's (skipped) or unrecognised (refused).
 OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
                    ACT_EXECUTION, ACT_EVIDENCE, ACT_COMPENSATION,
-                   ACT_SEPARATE_VERIFY})
+                   ACT_SEPARATE_VERIFY, ACT_REEXECUTION})
 
 
 def stage10_policy(version: int = 1) -> "object":
@@ -275,6 +276,42 @@ EXTERNAL_SETTLED: frozenset = frozenset({
 })
 
 
+#: Which subprocess module runs each registered tool. Default-deny by
+#: omission, exactly like the registry: a tool with no entry here cannot be
+#: launched at all. This was a hard-coded module name in three places, which
+#: meant "the registry has more than one tool" and "more than one tool can
+#: run" were different statements and only the first was true.
+_TOOL_MODULE = {
+    "stage10.emit_artifact": "qta_agent._stage10_tool",
+    "stage10.digest_index": "qta_agent._stage10_index_tool",
+}
+
+
+def tool_argv(tool_id: str, inputs: dict, *, modules=None) -> list:
+    """The argv that runs ``tool_id`` in a subprocess, or raise.
+
+    Raising rather than defaulting is the point. A default would run the
+    artifact writer for a tool_id nobody mapped, so a typo in a registry
+    entry would produce a governed, capability-checked, evidence-backed
+    record of the WRONG tool having run. That was not hypothetical: while
+    the module name was a literal, the compensation path launched the
+    artifact writer for whatever compensating tool a registry named.
+
+    ``modules`` overrides the mapping the way ``registry`` overrides the
+    tool set -- a caller that declares its own tools declares their entry
+    points too, and gets the same default-deny over its own mapping rather
+    than an exemption from the rule.
+    """
+    table = _TOOL_MODULE if modules is None else modules
+    module = table.get(tool_id)
+    if module is None:
+        raise ToolNotRegistered(
+            f"tool {tool_id!r} has no subprocess module; registered modules "
+            f"are {sorted(table)}. A tool that cannot be launched is "
+            "not a tool this path will guess an entry point for")
+    return [sys.executable, "-m", module, json.dumps(inputs, sort_keys=True)]
+
+
 def stage10_registry() -> Registry:
     """The tools a governed Stage-10 run may invoke. Default-deny by omission.
 
@@ -296,6 +333,24 @@ def stage10_registry() -> Registry:
             # and hashes it, so "exited 0 and wrote nothing" is a FAILED run
             # here instead of a COMPLETED one with an empty artifact set.
             output_files=(OutputFile("artifact", "{out_dir}/{name}"),),
+            determinism=Determinism.BYTE_IDENTICAL,
+            side_effect=SideEffect.SCOPED_WRITES,
+            writable_scope=(WORKSPACE_PREFIX,), timeout_s=60.0),
+        ToolSpec(
+            tool_id="stage10.digest_index", version="1.0.0",
+            summary="hash declared workspace files into a deterministic index",
+            inputs=(Field_("out_dir", "str"), Field_("name", "str"),
+                    Field_("files", "list")),
+            outputs=(Field_("path", "str"), Field_("sha256", "str"),
+                     Field_("n_files", "int")),
+            output_files=(OutputFile("index", "{out_dir}/{name}"),),
+            # BYTE_IDENTICAL, and here the claim has teeth. The first tool's
+            # output is a function of an argument already recorded in the
+            # task, so re-running it could only disagree if the interpreter
+            # did. This one's output is a function of files on disk, so a
+            # re-run that agrees is evidence the workspace did not move under
+            # the run -- and one that disagrees is a finding rather than a
+            # false alarm about an assumption nobody measured.
             determinism=Determinism.BYTE_IDENTICAL,
             side_effect=SideEffect.SCOPED_WRITES,
             writable_scope=(WORKSPACE_PREFIX,), timeout_s=60.0),
@@ -352,6 +407,10 @@ class GovernedStage10:
         self.log = log
         self.evidence = evidence
         self.registry = registry or stage10_registry()
+        #: Entry point per tool, mutable beside :attr:`registry` for the same
+        #: reason: a caller that supplies its own tools has to say how they
+        #: are launched, and gets default-deny over its own mapping.
+        self.tool_modules = dict(_TOOL_MODULE)
         self.executor = Executor(self.registry, workspace=self.root)
 
         # Every subsystem projects the SAME log. That is the arrangement the
@@ -524,13 +583,17 @@ class GovernedStage10:
                     or task.result_digest,
                     updated_seq=ev.seq)
             elif ev.action in (ACT_EVIDENCE, ACT_COMPENSATION,
-                               ACT_SEPARATE_VERIFY):
+                               ACT_SEPARATE_VERIFY, ACT_REEXECUTION):
                 # A compensation does not move the task. The task's outcome
                 # was and remains whatever it reached; what a compensation
                 # records is that somebody tried to undo its effect, which is
                 # a fact ABOUT the task rather than a state of it. Folding it
                 # into the state machine would make "was compensated" and
                 # "did not happen" the same answer.
+                #
+                # The same is true of a re-execution: it is a fact about how
+                # the result was checked, and the transition it justifies is
+                # recorded as a transition.
                 continue
             else:
                 try:
@@ -765,8 +828,7 @@ class GovernedStage10:
 
         out_dir = self.root / inputs["out_dir"]
         out_dir.mkdir(parents=True, exist_ok=True)
-        argv = [sys.executable, "-m", "qta_agent._stage10_tool",
-                json.dumps(inputs, sort_keys=True)]
+        argv = self._argv(tool_id, inputs)
         env = self._tool_environment()
         # No egress grant was issued, so the guard denies every connection.
         # This catches the case a declaration cannot: a DEPENDENCY of the tool
@@ -909,6 +971,21 @@ class GovernedStage10:
         #
         # A crashed verifier is not a pass. Any non-zero exit, timeout or
         # unreadable answer refuses the run, and the reason travels with it.
+        # AND THE RESULT ITSELF, not only the bytes that carry it.
+        #
+        # Re-deriving a digest asks whether the file changed. It cannot ask
+        # whether the tool produced the right thing: the same wrong bytes
+        # hash to the same wrong digest every time. For a tool that DECLARES
+        # byte-identical determinism the tool can simply be run again, and
+        # that is a question about the result rather than about the file.
+        if ok:
+            ok, again = self._reexecute_and_compare(
+                tool_id=tool_id, inputs=inputs, verifier=verifier,
+                task_id=task_id,
+                declared={result.output_paths.get(name, name): dg
+                          for name, dg in result.output_digests.items()})
+            why = why + "; " + again if ok else again
+
         if ok:
             sep = verify_in_separate_process(self.log.path, root=self.root)
             self.log.append(
@@ -1130,8 +1207,7 @@ class GovernedStage10:
         cap_id = self._compensation_capability(task_id, actor)
         inputs = {"task_id": task_id}
         undo.validate_inputs(inputs)
-        argv = [sys.executable, "-m", "qta_agent._stage10_tool",
-                json.dumps(inputs, sort_keys=True)]
+        argv = self._argv(undo.tool_id, inputs)
         with socket_guard(self.network, actor=actor, task_id=task_id,
                           tool_id=undo.tool_id):
             result = self.executor.run(
@@ -1187,6 +1263,30 @@ class GovernedStage10:
                   issued_wall_time=time.time()),
             actor="scheduler")
         return cap_id
+
+    def _reverification_capability(self, task_id: str, verifier: str,
+                                   tool_id: str) -> str:
+        """A grant for THIS re-run, by THIS verifier, on THIS task.
+
+        Bounded the same way the compensation grant is, and for the same
+        reason: authority to re-run a tool in order to check it is not
+        standing authority to run it, and a grant that outlived the check
+        would be exactly that.
+        """
+        cap_id = f"cap-reverify-{uuid.uuid4().hex[:8]}"
+        head = self.log.verify().head_seq
+        self.capabilities.issue(
+            issue(capability_id=cap_id, subject=verifier,
+                  action=Action.EXECUTE_TOOL, task_id=task_id,
+                  tool_id=tool_id, scope=(WORKSPACE_PREFIX,),
+                  issued_seq=head + 1, expires_after_seq=head + 4,
+                  issued_wall_time=time.time()),
+            actor="scheduler")
+        return cap_id
+
+    def _argv(self, tool_id: str, inputs: dict) -> list:
+        """This runner's entry point for ``tool_id``. See :func:`tool_argv`."""
+        return tool_argv(tool_id, inputs, modules=self.tool_modules)
 
     def _tool_of(self, task_id: str) -> str:
         """Which tool a task ran, from the log rather than from a caller."""
@@ -1644,6 +1744,149 @@ class GovernedStage10:
                     "contract named has a provenance record that is missing "
                     "something")
         return ""
+
+    def _reexecute_and_compare(self, *, tool_id: str, inputs: dict,
+                               declared: dict, verifier: str,
+                               task_id: str) -> tuple:
+        """RUN THE TOOL AGAIN and compare, for a tool that claims to be
+        byte-identical.
+
+        WHAT _verify_artifacts DOES NOT ASK
+
+        It re-derives each digest from disk through a governed read, which
+        answers "are the bytes the task cited still the bytes on disk". That
+        is a question about the FILE. It is not a question about the RESULT:
+        the same wrong bytes hash to the same wrong digest every time, so a
+        tool that produced the wrong thing passes it perfectly.
+
+        The only stronger question available without a second implementation
+        is whether the tool, given the same declared inputs, produces the
+        same bytes again -- and it is only available for tools that DECLARE
+        byte-identical determinism. For a NONDETERMINISTIC tool a difference
+        proves nothing and this is skipped and says so, because a check that
+        cannot distinguish tampering from an unproven assumption failing is
+        a check that gets switched off after its first false alarm.
+
+        The re-run writes into a scratch directory of its own. Re-running
+        over the artifact would destroy the thing being verified and would
+        make the comparison a comparison with itself.
+
+        THE SCRATCH DIRECTORY COMES FROM THE TASK'S OWN INPUTS. It was read
+        from an attribute on this object, which only the test fixture ever
+        set: the production caller reached this line and raised
+        ``AttributeError``, so the re-execution check existed for tests and
+        for nothing else. That is this repository's recurring defect -- a
+        field populated by nothing -- appearing inside the code that was
+        written to close a gap about verification being too weak.
+        """
+        spec = self.registry.get(tool_id)
+        if spec.determinism is not Determinism.BYTE_IDENTICAL:
+            return True, (f"{tool_id} declares {spec.determinism.value}; "
+                          "re-execution would compare bytes nobody promised "
+                          "would match")
+        import shutil
+
+        out_dir = inputs.get("out_dir")
+        if not isinstance(out_dir, str) or not out_dir:
+            return False, ("the task declares no out_dir, so there is nowhere "
+                           "to re-execute into that is not the artifact "
+                           "itself")
+        scratch_rel = f"{out_dir}/.reverify-{task_id[-8:]}"
+        scratch = self.root / scratch_rel
+        try:
+            scratch.mkdir(parents=True, exist_ok=True)
+            again = dict(inputs)
+            again["out_dir"] = scratch_rel
+            argv = self._argv(tool_id, again)
+            # THE VERIFIER MINTS ITS OWN GRANT, and does not borrow the
+            # worker's. A grant is not a bearer token -- the ledger refuses
+            # one used by anybody but its subject, which is how this was
+            # found -- and reusing the worker's would make "may do the work"
+            # and "may check the work" the same authority, so a component
+            # tricked into one would hold the other.
+            verify_cap = self._reverification_capability(
+                task_id, verifier, tool_id)
+            fresh = self.capabilities.in_force(self.log.verify().head_seq)
+            with socket_guard(self.network, actor=verifier, task_id=task_id,
+                              tool_id=tool_id):
+                result = self.executor.run(
+                    tool_id=tool_id, actor=verifier, task_id=task_id,
+                    capability_id=verify_cap, capabilities=fresh,
+                    inputs=again, argv=argv, cwd=self.root,
+                    limits=Limits(wall_seconds=spec.timeout_s),
+                    env=self._tool_environment())
+            if result.outcome is not Outcome.COMPLETED:
+                return False, (f"re-execution of {tool_id} did not complete "
+                               f"({result.outcome.value}): {result.reason}")
+            # READ THROUGH THE CONFINEMENT PRIMITIVE, not with read_bytes.
+            #
+            # These files were written by the very tool this check exists to
+            # be harder to fool than. A tool that plants a symlink in its own
+            # output directory would otherwise have the VERIFIER read
+            # whatever it points at -- an arbitrary file, or a device that
+            # never ends -- and report the digest under the artifact's name.
+            # ReadRoot binds the read to a descriptor on the scratch
+            # directory, refuses symlink components and non-regular files,
+            # and bounds the size.
+            produced = {}
+            try:
+                with ReadRoot(scratch) as root:
+                    for dirpath, _dirnames, names in os.walk(
+                            scratch, followlinks=False):
+                        for name in sorted(names):
+                            rel = (Path(dirpath) / name).relative_to(
+                                scratch).as_posix()
+                            produced[Path(rel).name] = root.read(
+                                rel, require_unique_link=False).digest
+            except SafeIOError as exc:
+                return False, (
+                    "re-execution wrote something the verifier will not "
+                    f"read: {exc}")
+            # The tool's DECLARED outputs, not the whole capture. The
+            # capture sweeps the output directory, which in a graph holds
+            # the previous step's artifacts too -- and a tool cannot be
+            # expected to reproduce files it never claimed to write.
+            cited = {Path(rel).name: dg for rel, dg in declared.items()}
+            # AN EMPTY COMPARISON IS NOT AGREEMENT. Without this, a run that
+            # declared no output files reaches the loop below, iterates over
+            # nothing and returns "0 artifact(s) reproduced byte-for-byte" --
+            # the same sentence a real comparison produces. A verifier that
+            # reports success over zero items is worse than no verifier,
+            # because the report reads identically either way, and this
+            # repository has shipped that shape once already.
+            if not cited:
+                return False, (
+                    "the run declared no output files, so re-execution has "
+                    "nothing to compare; agreement over an empty comparison "
+                    "is not agreement")
+            # DELIBERATELY REDUNDANT with the per-name check below, and kept
+            # for the diagnostic: "produced no files at all" and "did not
+            # reproduce a.json" are different things to be told. A mutation
+            # of this line cannot be killed independently, which is the
+            # honest description of a refinement rather than a guard.
+            if not produced:
+                return False, ("re-execution produced no files, so there is "
+                               "nothing to compare against the artifacts "
+                               "this run cited")
+            for name, dg in sorted(cited.items()):
+                if name not in produced:
+                    return False, (f"re-execution did not reproduce {name}, "
+                                   "which the run cited as an artifact")
+                if produced[name] != dg:
+                    return False, (
+                        f"{name} re-executed to {produced[name][:12]}... and "
+                        f"the run cited {dg[:12]}...; a tool declared "
+                        "BYTE_IDENTICAL produced different bytes from the "
+                        "same declared inputs")
+            self.log.append(
+                actor=verifier, action=ACT_REEXECUTION, target=task_id,
+                payload={"task_id": task_id, "tool_id": tool_id,
+                         "compared": sorted(cited),
+                         "determinism": spec.determinism.value})
+            return True, (f"{len(cited)} artifact(s) reproduced byte-for-byte "
+                          "by re-running the tool from its declared inputs")
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
 
     def _verify_artifacts(self, artifacts: dict, *,
                           verifier: str = VERIFIER_ID,

@@ -1876,31 +1876,35 @@
     {
       "id": "R55",
       "requirement": "Scientific workflow integration with a real production caller",
-      "classification": "INTEGRATED_BUT_INCOMPLETELY_VERIFIED",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/governed_stage10.py",
         "qta_agent/_stage10_tool.py",
-        "qta_agent/idempotency.py"
+        "qta_agent/_stage10_index_tool.py",
+        "qta_agent/idempotency.py",
+        "qta_multiphysics/stack/workspace.py"
       ],
       "callers": [
         "Snakefile",
         "qta_agent/governed_stage10.py",
-        "tests/test_agent_governed_stage10.py"
+        "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_breadth.py"
       ],
       "production_caller": "Snakefile",
       "persistent_state": "task log + content-addressed artifacts",
       "authority_owner": "GovernedStage10.run, which now also requires the SUBMITTER to be a registered PROPOSER -- it is the policy subject and the owner of a durable key namespace, and an unregistered string held both",
-      "evidence": "every produced file hashed into the evidence store; the completion cites those digests",
+      "evidence": "every produced file hashed into the evidence store; the completion cites those digests. On the verified path the tool is then RE-RUN from its declared inputs into a scratch directory and the declared outputs are compared byte for byte, so the completion cites bytes that were reproduced rather than only bytes that are still there",
       "provenance": "task, capability, execution and evidence records in one hash-chained log",
-      "failure_semantics": "a non-COMPLETED outcome never reaches verification; the Snakemake rule fails the build on an unverified run",
+      "failure_semantics": "a non-COMPLETED outcome never reaches verification; a re-execution that disagrees, produces nothing, or covers no declared artifact fails verification rather than reporting agreement over an empty comparison; both Snakemake rules fail the build on an unverified run",
       "recovery": "projection() replays; a forged transition is re-authorized on replay and refused. A caller that lost its response reopens the log and resubmits under the same key, and every ledger is rebuilt from durable state alone",
       "retry": "none at this layer; the scheduler owns retry. A resubmission is not a retry: it reports the first attempt's current state and starts nothing",
       "idempotency": "durable and OWNER-SCOPED. A binding lives under (submitter, tool_id, key) and its owner comes from the event's actor, never the payload, so a guessed key does not reach another actor's task -- it does not collide at all. Request identity is a digest of the canonical serialization of the tool and inputs. The same submitter resending the same request under the same key gets the first task back with ZERO new events and no second execution; a different request under a live key is refused. The binding is durable BEFORE dispatch, so a crash in between is recoverable as already-submitted",
       "cancellation": "supported by the lifecycle, not yet driven by the rule",
-      "concurrency": "none",
-      "security_boundary": "capability scoped to the task, tool and workspace; bounded subprocess; writes go through the Stage-10 guard; the idempotency namespace is scoped to the submitting identity, and that identity is checked against the agent directory before it can own one",
+      "concurrency": "two independent workflows, each with its own log and evidence store; Snakemake serialises them through the file dependency, and neither shares durable state with the other",
+      "security_boundary": "capability scoped to the task, tool and workspace; bounded subprocess; writes go through the Stage-10 guard and READS through it too, so a tool that hashes caller-named paths cannot be pointed at a canonical output or outside the repository; the verifier MINTS its own bounded grant rather than borrowing the worker's, and reads the re-run's output through the confinement primitive so a tool that plants a symlink in its own output directory cannot make the verifier read what it points at; the governed output subtrees refuse an ungoverned writer; the idempotency namespace is scoped to the submitting identity, and that identity is checked against the agent directory before it can own one",
       "tests": [
         "tests/test_agent_governed_stage10.py",
+        "tests/test_agent_governed_breadth.py",
         "tests/test_agent_idempotency.py"
       ],
       "property_tests": [
@@ -1908,18 +1912,35 @@
       ],
       "mutation_tests": [
         "tools/mutations/agent_tasks.json",
-        "tools/mutations/agent_idempotency.json"
+        "tools/mutations/agent_idempotency.json",
+        "tools/mutations/governed_breadth.json"
       ],
       "fuzzing": "none",
-      "differential": "reconstruct.py projects bindings independently, keyed by the (owner, tool, key) TUPLE rather than the ledger's own scope digest, so the two readers cannot agree by construction about the one thing worth checking separately; compare_bindings reports any disagreement",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942), 34010167285 (41ea81f) and 34015444218 (3d4c9da) -- all green, the recent ones read from the API at job level",
-      "residual_gaps": [
-        "ONE workflow, of the safest available kind. No solver, gate, manifest or canonical output is mediated by the substrate.",
-        "the ungoverned Stage-10 adapters remain directly callable; the governed path is additive rather than the only route",
-        "verification re-derives digests from disk; it does not re-run the tool or check the result's meaning",
-        "idempotency here is DUPLICATE SUPPRESSION and durable request identity, NOT end-to-end exactly-once. Exactly-once against an external service needs that service to participate in a transaction or an idempotency protocol; a supervisor that dies between an EXTERNAL effect and the record of it leaves genuine uncertainty, reported as UNCERTAIN with the declared compensation quoted rather than resolved by guessing"
+      "differential": "reconstruct.py projects bindings independently, keyed by the (owner, tool, key) TUPLE rather than the ledger's own scope digest, so the two readers cannot agree by construction about the one thing worth checking separately; compare_bindings reports any disagreement. Separately, the tool itself is a second reader of its own result: re-execution compares the bytes a fresh run produces against the digests the first run cited",
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942), 34010167285 (41ea81f) and 34015444218 (3d4c9da) -- all green, the recent ones read from the API at job level; the governed_breadth matrix and the second workflow are added to this workflow in the commit this row describes and the run for it is cited when it lands",
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "No solver, gate, manifest or canonical output is mediated by the substrate, and the two governed workflows cannot become a dependency of any of them.",
+          "reason": "architectural_by_design",
+          "detail": "automatic_gate_effect = NONE is the invariant this repository exists to hold: a scientific result must not depend on whether the authority layer is importable, correct, or even present. Mediating a gate would make the PASS count a function of the control plane; mediating final_manifest.json or a canonical CSV would put the byte gate downstream of it. The engineering that CAN be done in that direction has been: the write allowlist confines Stage-10 to one subtree, the read guard refuses a canonical path so a governed digest of one cannot exist, test_the_workflow_touches_the_substrate_only_in_the_governed_rules names the complete set of rules that may reference qta_agent and fails if a rule is added or if a named one stops using it, and test_no_gate_computing_module_references_the_substrate refuses the import in the other direction. Widening further is not unfinished work; it is the thing the row would have to stop claiming."
+        },
+        {
+          "limit": "Outside the governed output subtrees the Stage-10 adapters stay directly callable, so the governed path is one route to those bytes rather than the only one.",
+          "reason": "architectural_by_design",
+          "detail": "Same invariant, seen from the writer's side. Making the governed path the only route to every Stage-10 byte would make the byte-gated pipeline depend on the substrate running, which is precisely what the boundary above forbids. What is closable was closed: GOVERNED_ONLY declares the subtrees whose contents are read downstream as governed products, and write_text_deterministic -- the single choke point every Stage-10 writer routes through -- refuses a writer there that is not inside a governed_writer scope, which only the two tool entry points open. Inside those prefixes the governed path IS the only route. The guard is a route guard, not containment against code already running in the writing process: that code can open the scope itself or call Path.write_bytes, and the containment for a hostile tool is the subprocess and the capability check instead. Saying which of the two this is, is the difference between a claim and a description."
+        },
+        {
+          "limit": "Re-execution establishes that a tool declared BYTE_IDENTICAL reproduces the bytes it cited; it does not establish that those bytes are the RIGHT ones.",
+          "reason": "epistemic",
+          "detail": "Reproducibility and correctness are different questions, and only one of them has an answer available here. A tool that consistently produces the wrong result passes a byte comparison with itself perfectly. Deciding whether a result MEANS what it claims needs an independent specification of what the tool ought to produce -- a second implementation, or an oracle -- and this repository has neither for these tools, which is the same limit that makes the whole package forecast-only. Every check that does not need one is on the path: the declared outputs are collected rather than swept, the digests are re-derived through the governed read boundary, the tool is re-run from its declared inputs by a separately-identified verifier holding its own bounded grant, and a comparison covering no artifacts is refused rather than reported as agreement."
+        },
+        {
+          "limit": "Idempotency here is duplicate suppression and durable request identity. End-to-end exactly-once against an effect outside this system is not claimed.",
+          "reason": "architectural_by_design",
+          "detail": "Exactly-once is a property of a PROTOCOL between two parties, not of one party's bookkeeping: the counterparty has to expose an idempotency key it honours, or join a transaction, and no such counterparty is in this repository or can be added to it by writing more code on this side. Everything that IS on this side is implemented -- request identity as a digest of the canonical serialization, an owner-scoped binding whose owner comes from the event's actor rather than the payload, the binding made durable BEFORE dispatch so a crash in between is recoverable as already-submitted, a declared compensation, and an execution the supervisor cannot resolve reported as UNCERTAIN with that compensation quoted. Resolving the uncertainty by assumption is the one thing that would close the gap on paper, and it is the thing this system exists not to do."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {

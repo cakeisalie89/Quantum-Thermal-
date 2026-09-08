@@ -66,6 +66,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_execution.py",
     "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_governed_breadth.py",
     "tests/test_agent_idempotency.py",
     "tests/test_agent_recovery.py",
     "tests/test_agent_second_reader.py",
@@ -140,7 +141,7 @@ LAYERS = ("canonical", "hostid", "safeio", "actions", "events",
           # child's import guard refuses at runtime.
           "separate_verify",
           "scheduler", "memory", "context", "agents", "audit",
-          "_stage10_tool", "governed_stage10")
+          "_stage10_tool", "_stage10_index_tool", "governed_stage10")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.
@@ -159,6 +160,11 @@ LAYERS = ("canonical", "hostid", "safeio", "actions", "events",
 BRIDGE_MODULES = {
     "governed_stage10": {"qta_multiphysics"},
     "_stage10_tool": {"qta_multiphysics"},
+    # The second tool, and the same single import. It reaches for the
+    # Stage-10 guard's READ side as well as its write side, which is the
+    # narrower crossing rather than a wider one: it is how a tool that hashes
+    # caller-named paths is stopped from hashing a canonical output.
+    "_stage10_index_tool": {"qta_multiphysics"},
 }
 
 #: Reaching any of these from qta_agent would make an authority verdict able
@@ -370,13 +376,23 @@ def test_no_gate_computing_module_references_the_substrate():
         f"a gate-computing module references qta_agent: {offenders}")
 
 
-def test_the_workflow_touches_the_substrate_only_in_the_governed_rule():
-    """The production integration is confined to one named rule.
+#: The Snakemake rules permitted to reference qta_agent, and the complete
+#: set of them. Two, since the substrate gained a second tool: one workflow
+#: emitting a governed artifact, one indexing what the Stage-10 rules
+#: produced. Adding a third is a deliberate widening of where a scientific
+#: build can depend on the authority layer being importable, and should look
+#: like one.
+GOVERNED_RULES = {"s10_governed", "s10_governed_index"}
+
+
+def test_the_workflow_touches_the_substrate_only_in_the_governed_rules():
+    """The production integration is confined to named rules.
 
     A gate rule that imported qta_agent would make a scientific result depend
     on whether the authority layer is importable, which is exactly what
     automatic_gate_effect=NONE denies. Confining the reference to
-    ``s10_governed`` keeps the integration real and keeps that denial true.
+    :data:`GOVERNED_RULES` keeps the integration real and keeps that denial
+    true.
     """
     raw = (ROOT / "Snakefile").read_text(encoding="utf-8")
     # Comment lines are stripped first. A block that ends where the next rule
@@ -386,16 +402,26 @@ def test_the_workflow_touches_the_substrate_only_in_the_governed_rule():
     text = "\n".join(line for line in raw.splitlines()
                      if not line.lstrip().startswith("#"))
     offenders = []
+    reached = set()
     for block in text.split("\nrule ")[1:]:
         name = block.split(":", 1)[0].strip()
         body = block.split("\n", 1)[1] if "\n" in block else ""
-        if "qta_agent" in body and name != "s10_governed":
+        if "qta_agent" not in body:
+            continue
+        reached.add(name)
+        if name not in GOVERNED_RULES:
             offenders.append(name)
     assert not offenders, (
-        f"rules other than s10_governed reference qta_agent: {offenders}")
-    assert "qta_agent" in raw, (
-        "the workflow no longer references the substrate at all, so the "
-        "production path is not being exercised")
+        f"rules outside {sorted(GOVERNED_RULES)} reference qta_agent: "
+        f"{offenders}")
+    # AND THE ALLOWLIST IS NOT AHEAD OF THE WORKFLOW. A named rule that does
+    # not exist, or exists and no longer touches the substrate, turns this
+    # from a confinement check into a list of rules somebody once wrote --
+    # which is how an allowlist stops meaning anything.
+    assert reached == GOVERNED_RULES, (
+        f"{sorted(GOVERNED_RULES - reached)} are declared as governed rules "
+        "and do not reference the substrate; the production path they were "
+        "added for is not being exercised")
 
 
 # --- the declared layering is the real layering ------------------------------
@@ -531,6 +557,13 @@ IO_LAYER = {
     # /proc, for process identity. Not a workspace path and not something a
     # capability could scope: it is the kernel answering about a pid.
     "hostid": "/proc, for process identity",
+    # A TOOL, not a layer of the substrate. It runs in a bounded subprocess
+    # with no log handle, no capability set and no network, and its reads are
+    # confined by the Stage-10 workspace read guard. Handing it a
+    # GovernedReader would hand a tool the supervisor's authority, which is
+    # the opposite of what running it in its own process is for.
+    "_stage10_index_tool": "a subprocess tool, confined by the workspace "
+                           "read guard rather than by a grant it holds",
 }
 
 _READ_CALLS = {"read_text", "read_bytes"}

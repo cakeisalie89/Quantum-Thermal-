@@ -67,7 +67,7 @@ def test_the_matrix_does_not_claim_scientific_authority():
     assert "model_only" in blob or "model-only" in blob
 
 
-@pytest.mark.parametrize("row_id", ["R55"])
+@pytest.mark.parametrize("row_id", ["R59"])
 def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
     """Guards against the matrix being 'closed' without the work.
 
@@ -80,6 +80,18 @@ def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
     closing it required editing this file. It moved to the check below rather
     than being deleted, because "it was closed on purpose" is a weaker claim
     than "it was closed with the things closing it requires".
+
+    R55 was closed the same way, and fired here the same way. What closed it
+    was a SECOND workflow running a SECOND tool whose result depends on the
+    workspace rather than on its own request, a route guard making the
+    governed path the only writer of the governed output subtrees, and a
+    verifier that re-runs the tool instead of only re-deriving its digests.
+    It moves to the watchlist below.
+
+    R59 takes its place here. It is the last row still carrying residual
+    gaps, and all three of them are about EVIDENCE from a hosted container
+    build rather than about code -- which is exactly the kind of row that
+    could be closed by deciding it was fine.
     """
     row = next(r for r in CM.load()["rows"] if r["id"] == row_id)
     if row["classification"] == CM.COMPLETE:
@@ -88,7 +100,7 @@ def test_the_known_largest_gaps_are_still_recorded_as_gaps(row_id):
             "that completed it, so closing it stays a deliberate act")
 
 
-@pytest.mark.parametrize("row_id", ["R21"])
+@pytest.mark.parametrize("row_id", ["R21", "R55"])
 def test_a_row_closed_from_the_watchlist_carries_what_closing_it_needed(
         row_id):
     """A row that graduated must still show its work, forever.

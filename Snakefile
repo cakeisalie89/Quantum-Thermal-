@@ -734,10 +734,165 @@ rule s10_governed:
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+# ---- the SECOND governed workflow ------------------------------------------
+# Until this rule existed the matrix's honest description of R55 was "ONE
+# workflow, of the safest available kind": a single rule, running a single
+# tool, whose output was a function of a payload the rule itself had written
+# into the request. Re-execution could not disagree with it, a missing file
+# could not fail it, and the registry's default-deny set had one member.
+#
+# This is a different workflow, running a DIFFERENT tool, over the real
+# outputs of the visualization, USD, RAG and governed-artifact rules. Its
+# result is a function of bytes on disk, so:
+#
+#   * the verifier's re-execution is a real comparison rather than a constant
+#     computed twice;
+#   * a named file that is missing, unreadable or outside the workspace fails
+#     the run, and a failed run never reaches verification;
+#   * the read guard is on the path, not beside it.
+#
+# automatic_gate_effect = NONE, and this rule is where that is most worth
+# saying: it READS the artifacts of five other rules and writes an index of
+# what it found. An index is provenance. It is not a gate, it is not a
+# manifest, no canonical output is among its inputs -- the read guard refuses
+# them -- and nothing downstream of it can change the PASS count.
+
+rule s10_governed_index:
+    input:
+        artifact=f"{W10}/governed/out/governed_artifact.json",
+        summary=f"{W10}/governed/out/governed_summary.json",
+        vtk=f"{W10}/viz/vtk/thermal_3d_vtk_manifest.json",
+        usd=f"{W10}/viz/usd/qta_domain_usd_manifest.json",
+        rag=f"{W10}/rag/rag_index.json",
+    output:
+        index=f"{W10}/governed_index/out/stage10_index.json",
+        report=f"{W10}/governed_index/index_run.json",
+    run:
+        import json
+        from pathlib import Path
+
+        from qta_agent.events import EventLog
+        from qta_agent.evidence import EvidenceStore
+        from qta_agent.governed_stage10 import (ACT_REEXECUTION,
+                                                GovernedStage10)
+        from qta_agent.tasks import TaskState
+
+        root = Path(".").resolve()
+        base = root / W10 / "governed_index"
+        base.mkdir(parents=True, exist_ok=True)
+
+        # Its OWN log and evidence store. Sharing the first workflow's would
+        # make "two workflows" one history with two entry points, and the
+        # question this rule exists to answer is whether the governed path
+        # works for a caller that is not the one it was written for.
+        gov = GovernedStage10(
+            root=root,
+            log=EventLog(base / "task_log.jsonl"),
+            evidence=EvidenceStore(base / "evidence"))
+
+        files = sorted(str(Path(f).as_posix())
+                       for f in (input.artifact, input.summary, input.vtk,
+                                 input.usd, input.rag))
+        run = gov.run(tool_id="stage10.digest_index", inputs={
+            "out_dir": f"{W10}/governed_index/out",
+            "name": "stage10_index.json",
+            "files": files,
+        })
+
+        assert run.state is TaskState.VERIFIED, (
+            f"the governed index run ended {run.state.value}: {run.reason}")
+        assert run.artifacts, "a verified run with no artifacts proves nothing"
+        assert gov.log.verify().ok, "the index task log does not verify"
+
+        # THE RE-EXECUTION IS THE POINT OF THIS RULE. Verification that only
+        # re-derives digests from disk confirms the bytes did not move; it
+        # does not confirm the tool would produce them again. Here it can,
+        # because the tool is BYTE_IDENTICAL and its inputs are files.
+        reexec = [ev for ev in gov.log.read() if ev.action == ACT_REEXECUTION]
+        assert reexec, (
+            "the verified run recorded no re-execution; verification fell "
+            "back to re-deriving digests and the rule must not report that "
+            "as the stronger check")
+        assert reexec[-1].payload["tool_id"] == "stage10.digest_index"
+        assert "reproduced byte-for-byte" in run.reason, run.reason
+
+        indexed = json.loads(Path(output.index).read_text(encoding="utf-8"))
+        assert indexed["n_files"] == len(files), (
+            f"the index covers {indexed['n_files']} of {len(files)} declared "
+            "files; a partial index that reports success is the vacuous "
+            "shape this repository has shipped once already")
+        assert indexed["automatic_gate_effect"] == "NONE"
+
+        # No canonical output is reachable from here, and that is checked
+        # rather than asserted in prose: every indexed path is inside the
+        # Stage-10 workspace, which is where the read guard confines it.
+        for entry in indexed["files"]:
+            assert entry["path"].startswith(W10 + "/"), (
+                f"the index names {entry['path']}, which is outside the "
+                "Stage-10 workspace; the substrate does not mediate "
+                "canonical outputs and an index entry naming one would say "
+                "it did")
+
+        # The provenance of THIS workflow, audited by the same index the
+        # first one uses. A second caller with a provenance hole is a second
+        # caller nobody checked.
+        from qta_agent.audit import AuditIndex
+
+        idx = AuditIndex.from_log(gov.log)
+        explanation = idx.explain_task(run.task_id)
+        assert explanation.complete, (
+            "the governed index run has provenance gaps:\n"
+            + "\n".join(f"  - {g}" for g in explanation.gaps))
+        assert not idx.denials(), (
+            "a governed run recorded a policy denial and still reported "
+            f"success: {[d.summary for d in idx.denials()]}")
+
+        from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
+
+        recon = reconstruct_tasks(gov.log)
+        divergences = compare_tasks(gov.projection(), recon)
+        assert not divergences, (
+            "the live projection and an independent replay disagree:\n"
+            + "\n".join(f"  - {d}" for d in divergences))
+        assert not recon.unauthorized, recon.unauthorized
+        assert not recon.anomalies, recon.anomalies
+
+        Path(output.report).write_text(json.dumps({
+            "task_id": run.task_id,
+            "state": run.state.value,
+            "tool_id": "stage10.digest_index",
+            "outcome": run.outcome,
+            "result_digest": run.result_digest,
+            "artifacts": run.artifacts,
+            "log_head_seq": run.log_head_seq,
+            "verification": run.reason,
+            "job_id": run.job_id,
+            "job_state": run.job_state,
+            "reexecution_records": len(reexec),
+            "indexed_files": indexed["n_files"],
+            "workflow": "second governed workflow; independent log and "
+                        "evidence store from s10_governed",
+            "automatic_gate_effect": "NONE",
+            "scientific_PASS_count": 0,
+            "does_not_mean": (
+                "an index of governed artifacts records which bytes were "
+                "present when a governed run read them. It is provenance, "
+                "not scientific validity; no canonical output is indexed, no "
+                "gate is reachable, and PASS remains 0"),
+            "provenance": explanation.to_record(),
+            "independent_replay": {
+                "agrees": True, "divergences": 0,
+                "events_replayed": recon.events_replayed,
+                "tasks_verified": list(recon.verified_ids()),
+            },
+        }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 rule s10_full:
     input:
         f"{W10}/stage10_stack_report.json",
         f"{W10}/governed/governed_run.json",
+        f"{W10}/governed_index/index_run.json",
 
 
 # ---- opt-in Stage-10 rules (each evaluation is a full 3D solve) ------------
