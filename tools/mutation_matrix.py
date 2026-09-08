@@ -426,13 +426,21 @@ def main() -> int:
     survived = [k for k, v in results.items() if v == "SURVIVED"]
     anchors = [k for k, v in results.items() if v == "ANCHOR_DRIFT"]
     timeouts = [k for k, v in results.items() if v == "KILLED_BY_TIMEOUT"]
-    killed = sum(1 for v in results.values()
-                 if v in ("KILLED", "KILLED_BY_TIMEOUT"))
+    # A TIMEOUT IS NOT A KILL, AND THE COUNT SAYS SO.
+    #
+    # It used to be counted as one and reported as a note, so a mutation
+    # nothing bounded appeared in the score as coverage -- while costing
+    # SUITE_TIMEOUT_S of wall clock per run and saying nothing about which
+    # check was lost. Two were in that state and were bounded by hand; what
+    # was missing was anything to stop a third. This is that: a timeout-only
+    # kill is excluded from the count AND fails the run.
+    killed = sum(1 for v in results.values() if v == "KILLED")
 
     print()
     print(f"killed:   {killed}/{len(mutations)}")
     if timeouts:
-        print(f"killed only by timeout (write a bounded test): {timeouts}")
+        print(f"KILLED ONLY BY TIMEOUT (not counted as coverage; write a "
+              f"bounded test): {timeouts}")
     if survived:
         print(f"SURVIVED: {survived}")
     if anchors:
@@ -464,7 +472,7 @@ def main() -> int:
               f"the suite rejects: {post_failed}")
         print("Restoration was byte-identical but not complete; something "
               "outside the mutated sources survived the run.")
-    return 0 if not (survived or anchors or drifted or collateral
+    return 0 if not (survived or anchors or timeouts or drifted or collateral
                      or still_dirty or post_rc) else 1
 
 

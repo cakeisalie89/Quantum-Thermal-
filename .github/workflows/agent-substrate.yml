@@ -226,6 +226,13 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_lease_renewal.json
+      - name: mutation matrix -- the hardware evidence gate
+        # The scientific tree's own guard: what turns an unreviewed hardware
+        # claim into evidence. Eight of its eleven checks could be deleted
+        # with nothing noticing when this spec was first written.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/hardware_governance.json
       - name: mutation matrix -- the fuzz harness itself
         # A fuzzer reports the same sentence whether it exercised the whole
         # package or nothing at all, so every guard that tells those apart

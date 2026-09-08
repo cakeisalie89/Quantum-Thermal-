@@ -638,3 +638,61 @@ def test_every_mutation_states_why_it_matters(spec_path):
     thin = [m["name"] for m in spec["mutations"]
             if len(m.get("rationale", "").strip()) < 20]
     assert not thin, thin
+
+
+# ---- a timeout is not a kill --------------------------------------------
+def test_a_mutation_killed_only_by_a_timeout_is_not_counted_as_coverage(
+        tmp_path):
+    """It was counted as one, and reported as a note.
+
+    So a mutation nothing bounded appeared in the score as coverage, while
+    costing the whole suite timeout per run and saying nothing about which
+    check was lost. Two were in that state and were bounded by hand; what
+    was missing was anything to stop a third. This is that.
+
+    The harness's own timeout is lowered for the test rather than waited
+    out: the property is how a timeout is CLASSIFIED, and waiting five
+    minutes to observe a classification would make this test the slowest
+    thing in the suite for no additional information.
+    """
+    module = '''
+def check_a(x):
+    if x < 0:
+        raise ValueError("negative")
+    return x
+'''
+    suite = '''
+import sys, time
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from pkg import mod
+
+
+def test_guard_a():
+    # With the guard present this returns immediately. With it removed
+    # nothing raises and the test hangs -- which is the badly written test
+    # the harness has to refuse to count as coverage.
+    try:
+        mod.check_a(-1)
+    except ValueError:
+        return
+    time.sleep(600)
+'''
+    spec = _project(tmp_path, module_src=module, suite_src=suite,
+                    mutations=[{"name": "T1_guard_a_removed",
+                                "path": "pkg/mod.py",
+                                "find": "    if x < 0:",
+                                "replace": "    if 0:",
+                                "rationale": "nothing bounds this"}])
+    harness = tmp_path / "tools" / "mutation_matrix.py"
+    src = harness.read_text(encoding="utf-8")
+    harness.write_text(src.replace("SUITE_TIMEOUT_S = 300",
+                                   "SUITE_TIMEOUT_S = 8"), encoding="utf-8")
+
+    out = _run(tmp_path, spec)
+    assert "KILLED ONLY BY TIMEOUT" in out.stdout, out.stdout
+    assert "killed:   0/1" in out.stdout, (
+        "a timeout was counted as coverage:\n" + out.stdout)
+    assert out.returncode != 0, (
+        "the run passed with a mutation nothing bounds; the harness reports "
+        "the condition and has to fail on it")

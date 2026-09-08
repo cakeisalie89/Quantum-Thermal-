@@ -446,3 +446,65 @@ def test_a_capability_cannot_be_its_own_parent(tmp_path):
     with pytest.raises(Exception) as exc:
         _cap(cap_id="c1", parent_id="c1")
     assert "itself" in str(exc.value)
+
+
+# --------------------------------------------------------------------------
+# Found by a GENERATED mutation sample, not by review
+# --------------------------------------------------------------------------
+#
+# tools/generated_mutations.py applied mechanical operators to
+# qta_agent/capability.py with no idea what any of it means, and a sample of
+# sixteen left seven alive. Four of those were covered by
+# tools/mutations/agent_execution.json, whose suite this sample did not run
+# -- an artifact of the pairing rather than a hole. The three below were
+# genuine, and this is what a generated finding is FOR: it names a check the
+# specification author did not think to name.
+
+def test_a_grant_that_is_not_execute_tool_may_not_carry_a_tool_id(tmp_path):
+    """The mirror of "EXECUTE_TOOL requires a tool_id", and the half nobody
+    wrote a test for.
+
+    A READ_PATHS grant carrying a tool_id implies a tool authority it does
+    not confer, and the digest covers the field -- so the grant would travel
+    with a claim its holder never had.
+    """
+    with pytest.raises(Exception, match="does not take a tool_id"):
+        _cap(action=Action.READ_PATHS, tool_id="stage10.emit_artifact")
+
+    ok = _cap(action=Action.EXECUTE_TOOL, tool_id="stage10.emit_artifact")
+    assert ok.tool_id == "stage10.emit_artifact", (
+        "the positive case has to keep working, or this test is refusing "
+        "the field rather than the pairing")
+
+
+def test_a_parent_id_that_is_not_a_string_is_refused(tmp_path):
+    """A delegation chain is walked by following parent_id.
+
+    Anything that is not a string either fails somewhere down the walk with
+    an error about the wrong thing, or -- worse -- compares unequal to every
+    real id and quietly terminates the chain early.
+    """
+    for bad in (7, ["c1"], {"id": "c1"}, 1.5):
+        with pytest.raises(Exception, match="parent_id must be a str"):
+            _cap(cap_id="c2", parent_id=bad)
+
+
+def test_the_never_expires_sentinel_is_part_of_the_record_format(tmp_path):
+    """-1 is not an implementation detail; it is on disk.
+
+    Every comparison in the module uses the NAME, so changing the value
+    moves reader and writer together and no test notices. What does not move
+    is a record already in a log: it carries the literal, and a build that
+    decided the sentinel is something else reads an unexpiring grant as one
+    that expired before it was issued.
+    """
+    from qta_agent.capability import (
+        NEVER_EXPIRES, capability_from_record,
+    )
+
+    assert NEVER_EXPIRES == -1, (
+        "the sentinel is a wire format, not a private constant")
+    cap = _cap(expires_after_seq=-1)
+    rec = cap.body()
+    assert rec["expires_after_seq"] == -1
+    assert capability_from_record(rec).expires_after_seq == NEVER_EXPIRES

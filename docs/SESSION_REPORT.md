@@ -54,6 +54,22 @@ that found it, because the techniques are not interchangeable.
 | **The invalidation cascade cited bytes it never stored.** Against an evidence-backed store — the governed configuration — dependency invalidation could not run at all, so a record whose foundation was withdrawn could never be marked `STALE`. | Writing an audit test for the dependency case |
 | **A job could be enqueued onto work that can never succeed**, and **a terminal failure did not cascade**, leaving dependents waiting forever on a dead parent. | Hypothesis state machine over the scheduler |
 | **The mutation harness destroyed uncommitted work** — `git checkout` cannot tell suite damage from an edit made while it ran. | It happened, twice |
+| **Eight of the eleven checks in the hardware evidence gate could be deleted with nothing noticing.** That gate decides whether an unreviewed hardware claim becomes evidence, which is the thing PASS staying at zero rests on. Most survived by defence in depth: the record the existing tests used was also missing its raw file, so it was excluded one branch earlier whichever guard was removed, and every test stayed green. | The first mutation matrix ever pointed at the scientific tree |
+| **Three checks in the capability module had no coverage at all**, including the mirror of a rule that WAS tested: EXECUTE_TOOL requires a tool_id, and nothing said a grant that is not EXECUTE_TOOL may not carry one. | A generated mutation sample, which knows nothing about the code and therefore has no blind spots of its own |
+| **A timeout counted as coverage.** A mutation killed only by the suite's 300-second backstop was scored as killed and reported as a note, so it appeared in the count while saying nothing about which check was lost -- and cost five minutes of every run. | Re-reading what the harness does with its own verdicts |
+
+### A correction to two commit messages
+
+`2f9a977` and `8ad93cc` quote residual-gap counts that are wrong. The true
+progression, read from `docs/completion_matrix.json` at each commit, is
+28 rows / 35 gaps, then 31 / 25, then 33 / 19, then 34 / 16. The second
+message says "25 -> 16" where the matrix said 19, and the third says
+"16 -> 13" where it said 16; the first understates its starting count by
+one. The matrix was correct at every commit and the prose was typed from a
+stale figure. Recorded here rather than fixed in place: the commits are
+pushed, and a ledger that quietly loses its own errors is the thing this
+document exists not to be.
+
 | **Coverage feedback, added and then measured, does not help here** -- and the first version of it was actively worse, choosing parents uniformly until a valid record was the parent two per cent of the time and coverage went DOWN. Over eight seeds at two budgets the fixed version is a wash (84.8 vs 84.6 transitions at 300 cases; 89.1 vs 88.5 at 600). Recorded because the expectation was the opposite, and because an earlier three-seed sample appeared to show a win. | Measuring the thing that was supposed to be an improvement |
 | **Every governed operation cost the whole history.** Each reducer re-reads the log before it decides -- which is what stops a decision being made against a stale projection -- and it did so with a full read. A profile of 120 campaign cycles spent 10 of its 13 seconds inside `read()`, and doubling the campaign quadrupled its wall time. Nothing was wrong with any single operation, which is why it survived: this is the third quadratic path recorded here, and all three were found the same way. | Trying to raise the long-horizon campaign's scale, then profiling why it would not go |
 | **The retry budget was never spent by a lease that lapsed** (above), found through the same campaign once it could be run long enough to reach it. | The campaign at the larger scale |

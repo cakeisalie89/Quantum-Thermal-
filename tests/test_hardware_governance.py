@@ -15,6 +15,8 @@ import sys
 import pathlib
 import tempfile
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from qta_multiphysics.hardware_governance_3d import (       # noqa: E402
@@ -270,3 +272,140 @@ if __name__ == "__main__":
             failed += 1
     print(f"\n{passed} passed, {failed} failed, {passed + failed} total")
     sys.exit(1 if failed else 0)
+
+
+# --- the evidence gate, isolated one guard at a time -----------------------
+#
+# Written after tools/mutations/hardware_governance.json found eight of the
+# checks below unprotected: deleting any of them changed no test result. Most
+# survived by DEFENCE IN DEPTH -- the record used in the existing tests is
+# also missing its raw file, so it was excluded by the deficiency check
+# whichever other guard was removed. A test that passes for a reason it did
+# not intend is a test that stops covering the reason it did intend, and the
+# fixture below removes every other reason so each guard stands alone.
+
+def _admissible(td):
+    """A record and a review that WOULD enter the dossier, so a test can
+    remove exactly one thing and see the refusal that removing it causes."""
+    rec = _m(data_class="HARDWARE_REVIEWED")
+    p = pathlib.Path(td) / "fixture.dat"
+    p.write_bytes(b"fixture!!!!")
+    rec["raw_data"] = {**FIX["raw_data"],
+                       "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
+    return rec, review_for(rec)
+
+
+def test_the_admissible_fixture_is_actually_admitted():
+    """The control. Every test below asserts an exclusion, and an exclusion
+    proves nothing if the record was going to be excluded anyway."""
+    with tempfile.TemporaryDirectory() as td:
+        rec, rev = _admissible(td)
+        d = build_evidence_dossier("B3", [rec],
+                                   {rec["measurement_id"]: rev}, td)
+        assert d["n_entries"] == 1 and d["n_excluded"] == 0, d
+
+
+def test_an_otherwise_complete_unverified_record_still_never_enters():
+    """The class is what says a human looked at this.
+
+    The existing separation test used a record that was ALSO missing its raw
+    file, so removing the data_class check left it excluded for the other
+    reason and the test still passed.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        rec, rev = _admissible(td)
+        rec["data_class"] = "HARDWARE_UNVERIFIED"
+        d = build_evidence_dossier("B3", [rec],
+                                   {rec["measurement_id"]: rev}, td)
+        assert d["n_entries"] == 0, "an unreviewed claim entered the dossier"
+        why = d["excluded"][0]["why"]
+        assert any("HARDWARE_REVIEWED" in str(w) for w in why), why
+
+
+@pytest.mark.parametrize("break_it,expected", [
+    (lambda r: r.update(control_refs=[]), "control/background"),
+    (lambda r: r.update(uncertainty={"type": "stddev", "value": 1e-13}),
+     "missing 'method'"),
+    (lambda r: r.update(chain_of_custody=r["chain_of_custody"][:1]),
+     "custody missing required stage"),
+])
+def test_a_hard_deficiency_still_excludes_an_otherwise_complete_record(
+        break_it, expected):
+    """Each of these passes the SCHEMA and fails completeness.
+
+    That distinction is the point. Removing the calibration block was the
+    first attempt and it proved nothing: the record then failed schema
+    validation, so it was excluded one branch earlier and the completeness
+    check could be deleted with the test still green. A deficiency that
+    reaches the completeness check has to be one the schema accepts.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        rec, _ = _admissible(td)
+        break_it(rec)
+        ok, _why = schema_validate_hardware(rec)
+        assert ok, "this record must reach the completeness check, not fail "\
+                   "the schema before it"
+        d = build_evidence_dossier("B3", [rec],
+                                   {rec["measurement_id"]: review_for(rec)},
+                                   td)
+        assert d["n_entries"] == 0, "an incomplete record entered the dossier"
+        why = " ".join(str(w) for w in d["excluded"][0]["why"])
+        assert expected in why, why
+
+
+def test_a_reject_review_does_not_admit_the_record_it_rejected():
+    """The strongest possible inversion of a human decision."""
+    with tempfile.TemporaryDirectory() as td:
+        rec, _ = _admissible(td)
+        rejected = review_for(rec, decision="REJECT")
+        d = build_evidence_dossier("B3", [rec],
+                                   {rec["measurement_id"]: rejected}, td)
+        assert d["n_entries"] == 0, (
+            "a record its reviewer REJECTED was admitted as evidence")
+
+
+def test_a_review_bound_to_a_different_record_does_not_transfer():
+    """A review names a measurement_id AND a digest, and only the digest
+    survives the record being modified or replaced afterwards."""
+    with tempfile.TemporaryDirectory() as td:
+        rec, _ = _admissible(td)
+        other = _m(data_class="HARDWARE_REVIEWED", value=9.9e-9)
+        stolen = review_for(other)
+        ok, why = validate_review_record(stolen, record=rec)
+        assert not ok and any("does not bind" in w for w in why), why
+        d = build_evidence_dossier("B3", [rec],
+                                   {rec["measurement_id"]: stolen}, td)
+        assert d["n_entries"] == 0
+
+
+def test_a_review_that_binds_to_nothing_is_refused():
+    with tempfile.TemporaryDirectory() as td:
+        rec, rev = _admissible(td)
+        unbound = {**rev, "record_sha256": ""}
+        ok, why = validate_review_record(unbound, record=rec)
+        assert not ok and any("bind against" in w for w in why), why
+        d = build_evidence_dossier("B3", [rec],
+                                   {rec["measurement_id"]: unbound}, td)
+        assert d["n_entries"] == 0
+
+
+@pytest.mark.parametrize("claimed", ["pending", "-", "Z" * 64, "a" * 63,
+                                     "a" * 65])
+def test_a_malformed_binding_digest_is_refused(claimed):
+    """'pending' must not be a binding. A malformed digest that reaches the
+    comparison below either never runs it or compares against nonsense."""
+    ok, why = validate_review_record({**REVIEW, "record_sha256": claimed})
+    assert not ok and any("malformed" in w for w in why), (claimed, why)
+
+
+def test_a_quarantined_claim_is_told_it_has_no_standing():
+    """The quarantine report is read by people deciding what to trust, and
+    'provisional evidence' and 'no evidentiary standing' license completely
+    different actions."""
+    q = build_quarantine_report([FIX])
+    entry = q["quarantined"][0]
+    assert "no evidentiary standing" in entry["standing"], entry["standing"]
+    assert "never enters dossiers" in entry["standing"]
+    assert entry["automatic_gate_effect"] == "NONE"
+    assert q["can_PASS_now"] == "NO"
+    assert q["measured_in_this_system"] is False

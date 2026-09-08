@@ -1,7 +1,9 @@
 {
   "title": "Who may mint a capability, and what a delegation may not widen",
-  "note": "Every mutation here removes one link in the chain between 'this actor wrote a record' and 'this actor had the authority to'. The ledger recorded the first for a long time and refused to check the second, which is attribution rather than authorization -- so these are the checks that turned issuer_of() from a label into a gate.",
-  "suites": ["tests/test_agent_delegation.py"],
+  "note": "Every mutation here removes one link in the chain between 'this actor wrote a record' and 'this actor had the authority to'. The ledger recorded the first for a long time and refused to check the second, which is attribution rather than authorization -- so these are the checks that turned issuer_of() from a label into a gate. D22-D24 came from tools/generated_mutations.py rather than from review: a sample of sixteen mechanical mutations over this module left seven alive, four of which were covered by another spec whose suite the sample did not run, and three of which were genuine holes. That is what a generated set is for -- it names the checks the specification author did not think to name.",
+  "suites": [
+    "tests/test_agent_delegation.py"
+  ],
   "mutations": [
     {
       "name": "D1_any_actor_may_mint_once_a_root_exists",
@@ -149,6 +151,27 @@
       "find": "        if self._root is None:\n            # TRUST ON FIRST USE, WRITTEN DOWN.",
       "replace": "        if False:\n            # TRUST ON FIRST USE, WRITTEN DOWN.",
       "rationale": "the writer stops establishing a root, so the very first honest mint is refused by its own reader: the rule must be enforceable without the caller remembering it"
+    },
+    {
+      "name": "D22_a_non_tool_grant_may_carry_a_tool_id",
+      "path": "qta_agent/capability.py",
+      "find": "    if action is not Action.EXECUTE_TOOL and tool_id:",
+      "replace": "    if False:",
+      "rationale": "the mirror of 'EXECUTE_TOOL requires a tool_id', and the half nobody had written a test for: a READ_PATHS grant carrying a tool_id travels with a tool authority it does not confer, and the digest covers the field. Found by a GENERATED mutation sample"
+    },
+    {
+      "name": "D23_a_parent_id_need_not_be_a_string",
+      "path": "qta_agent/capability.py",
+      "find": "    if parent_id is not None and not isinstance(parent_id, str):",
+      "replace": "    if False:",
+      "rationale": "a chain is walked by following parent_id, so a non-string either fails somewhere down the walk with an error about the wrong thing or compares unequal to every real id and terminates the chain early. Found by a GENERATED mutation sample"
+    },
+    {
+      "name": "D24_the_never_expires_sentinel_changes_value",
+      "path": "qta_agent/capability.py",
+      "find": "NEVER_EXPIRES = -1",
+      "replace": "NEVER_EXPIRES = -2",
+      "rationale": "every comparison uses the NAME, so reader and writer move together and nothing notices -- except a record already in a log, which carries the literal. A build that decided the sentinel is something else reads an unexpiring grant as one that expired before it was issued. Found by a GENERATED mutation sample"
     }
   ]
 }

@@ -1628,9 +1628,11 @@
     {
       "id": "R51",
       "requirement": "Mutation testing of enforcement logic",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "tools/mutation_matrix.py"
+        "tools/mutation_matrix.py",
+        "tools/generated_mutations.py",
+        "tools/mutations"
       ],
       "callers": [
         ".github/workflows/agent-substrate.yml"
@@ -1638,9 +1640,9 @@
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "none",
       "authority_owner": "tools/mutation_matrix.py",
-      "evidence": "359 mutations across 15 specifications, each deleting exactly one enforcement point; the suite must fail. Every spec is additionally checked STATICALLY on each test run: an anchor must match exactly once, a replacement must change something, and the mutated source must still parse",
+      "evidence": "34 committed specs run in CI, covering qta_agent, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over qta_agent/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24",
       "provenance": "none",
-      "failure_semantics": "non-zero on a survivor, a drifted anchor, a source not restored byte-identically, collateral damage to a tracked file, or a post-run baseline that no longer passes; refuses to start against a red OR non-deterministic baseline, or with a leftover mutation on disk",
+      "failure_semantics": "a survivor, an anchor that matches anything but once, a source not restored byte-identical, a test that damaged a tracked file, or a mutation killed ONLY by the suite timeout each fail the run. A timeout is not counted as coverage: it says nothing about which check was lost and costs the whole timeout every run",
       "recovery": "a recovery sidecar plus SIGTERM/SIGINT handlers restore sources; --recover restores from an interrupted run",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1654,6 +1656,7 @@
         "tests/test_agent_execution.py",
         "tests/test_agent_governed_stage10.py",
         "tests/test_agent_substrate.py",
+        "tests/test_generated_mutations.py",
         "tests/test_mutation_harness.py"
       ],
       "property_tests": [],
@@ -1663,12 +1666,24 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [
-        "a mutation killed only by the harness's 300s backstop counts as a kill while saying nothing about which check was lost. Two were in that state and are now bounded, but nothing PREVENTS a new one: the harness reports the condition and fails, and writing the bounded test is still manual",
-        "mutations are hand-written, one per enforcement point. There is no generated operator set, so coverage is as complete as the specification author's imagination and no better",
-        "the specs mutate qta_agent, the Stage-10 write guard and the harness itself. The scientific tree has no mutation coverage at all"
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "a GENERATED survivor is reported for triage and does not fail a build. A generated set contains genuinely equivalent mutations -- a bound no caller reaches, a comparison whose operands make both spellings identical -- in a way a hand-written one does not.",
+          "reason": "epistemic",
+          "detail": "deciding whether a mutation is equivalent is deciding whether two programs agree on every input, which is undecidable in general and, for the cases that actually arise here, needs somebody who knows what the code means. Failing on generated survivors would make the tool unusable within a day, which is worse than not having it. What IS enforced mechanically is every rule that is always right: an anchor matching exactly once, a replacement that changes something, and source that still parses -- because a mutation that does not parse is 'killed' by the import failing and tests nothing."
+        },
+        {
+          "limit": "the generated operators are the five that can be applied without understanding the code: comparison swaps, boolean flips, constant increments, guard removal and dropped negations. A defect needing a semantic edit -- reordering two statements, dropping a field from a digest -- is not generated.",
+          "reason": "epistemic",
+          "detail": "an operator that reorders statements has to know which reorderings are meaning-preserving, which is the same undecidable question as above. The hand-written specs are where those live, and they are where the defects with real names came from: the two halves of a grant window, a replay that trusted a record's own src, an append-then-fold order that made a refusal durable. The two sets are complements, and the row claims both rather than either."
+        },
+        {
+          "limit": "mutation coverage of the scientific tree is the hardware evidence gate, not the solvers. No mutation is applied to a thermal, transport or optical model.",
+          "reason": "architectural_by_design",
+          "detail": "a mutation matrix asks 'would anything notice if this check stopped checking', and a solver has no checks -- it has equations, whose correctness is a question for convergence studies, dimensional analysis and the differential comparisons in R53, all of which this repository has and none of which is mutation testing. The part of the scientific tree that DOES hold checks is the gate deciding what counts as evidence, and that is exactly the part now covered."
+        }
       ],
-      "boundaries": [],
       "blocker": null
     },
     {
@@ -1932,8 +1947,9 @@
       "requirement": "PASS remains separate from architectural completeness",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/__init__.py",
         "authorities.json",
+        "qta_agent/__init__.py",
+        "qta_multiphysics/hardware_governance_3d.py",
         "tools/repo_scope.py"
       ],
       "callers": [
@@ -1944,7 +1960,7 @@
       "production_caller": null,
       "persistent_state": "none",
       "authority_owner": "authorities.json :: agent_authority_substrate",
-      "evidence": "automatic_gate_effect=NONE, enforced by an import scan over tracked AND untracked-unignored files -- the set a file joins the moment anybody commits",
+      "evidence": "automatic_gate_effect=NONE, enforced by an import scan over tracked AND untracked-unignored files -- the set a file joins the moment anybody commits. The other half of the same claim is qta_multiphysics/hardware_governance_3d.py, which decides whether an unreviewed hardware claim becomes evidence: automatic_gate_effect is NONE in every report it emits, a quarantined record is told it has no evidentiary standing, and a review must be authored by a human and bound to THIS record by digest. Mutation testing found 8 of those 11 checks deletable with no test noticing -- most of them masked by a fixture that was also failing a different check -- and all 11 are covered now",
       "provenance": "none",
       "failure_semantics": "the isolation suite fails if anything outside qta_agent and its allowlisted tests imports the substrate, and it fails on the machine that introduced the importer rather than on a runner an hour later",
       "recovery": "none",
@@ -1955,11 +1971,13 @@
       "security_boundary": "none",
       "tests": [
         "tests/test_agent_substrate_isolation.py",
-        "tests/test_single_source_of_truth.py",
-        "tests/test_repo_contract.py"
+        "tests/test_hardware_governance.py",
+        "tests/test_repo_contract.py",
+        "tests/test_single_source_of_truth.py"
       ],
       "property_tests": [],
       "mutation_tests": [
+        "tools/mutations/hardware_governance.json",
         "tools/mutations/repo_contract.json"
       ],
       "fuzzing": "none",

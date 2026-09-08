@@ -1,0 +1,87 @@
+{
+  "title": "The gate between an unreviewed hardware claim and evidence",
+  "note": "R51 said the scientific tree had no mutation coverage at all, and this is the part of it that matters most: hardware_governance_3d.py decides whether a measurement record counts as reviewed evidence, and PASS staying at zero is exactly the claim that rests on it. H1-H4 attack the intake boundary -- a record that fails its schema must be REJECTED rather than quarantined, and a quarantined record must never acquire evidentiary standing. H5-H9 attack the review binding, which is the confused-deputy surface here: a review must be authored by a human, must decide ACCEPT_AS_EVIDENCE explicitly, and must bind to THIS record by digest rather than merely naming its id, or a reviewed record can be swapped for an unreviewed one after the fact. H10-H11 attack the two constants a reader takes at face value: automatic_gate_effect NONE and can_PASS_now NO.",
+  "suites": [
+    "tests/test_hardware_governance.py",
+    "tests/test_independent_gate_recomputation.py"
+  ],
+  "mutations": [
+    {
+      "name": "H1_a_schema_invalid_record_is_quarantined_instead_of_rejected",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        ok, reasons = schema_validate_hardware(rec)\n        if not ok:\n            rejected.append(",
+      "replace": "        ok, reasons = schema_validate_hardware(rec)\n        if False:\n            rejected.append(",
+      "rationale": "a structurally broken record enters the quarantine report as an ordinary unreviewed claim, so the intake boundary stops distinguishing 'incomplete' from 'not a record at all'"
+    },
+    {
+      "name": "H2_an_unreviewed_record_reaches_the_dossier",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if not ok or rec.get(\"data_class\") != \"HARDWARE_REVIEWED\":",
+      "replace": "        if False:",
+      "rationale": "the dossier is what a reader treats as evidence; admitting a HARDWARE_UNVERIFIED record makes an unreviewed claim indistinguishable from a reviewed one"
+    },
+    {
+      "name": "H3_the_data_class_is_no_longer_checked",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if not ok or rec.get(\"data_class\") != \"HARDWARE_REVIEWED\":",
+      "replace": "        if not ok:",
+      "rationale": "half of H2: the schema is still enforced and the class that says a human looked at this is not"
+    },
+    {
+      "name": "H4_a_record_with_hard_deficiencies_is_admitted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        hard = [x for x in defs if \"UNRESOLVED_REQUIREMENT\" not in x]\n        if hard:",
+      "replace": "        hard = [x for x in defs if \"UNRESOLVED_REQUIREMENT\" not in x]\n        if False:",
+      "rationale": "completeness stops meaning zero deficiencies, so a record missing calibration or custody enters the dossier alongside a complete one"
+    },
+    {
+      "name": "H5_a_review_that_did_not_accept_is_treated_as_acceptance",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if not rok or rev.get(\"decision\") != \"ACCEPT_AS_EVIDENCE\":",
+      "replace": "        if not rok:",
+      "rationale": "a REJECT review admits the record it rejected, which is the strongest possible inversion of a human decision"
+    },
+    {
+      "name": "H6_a_review_authored_by_a_tool_is_accepted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    if rev.get(\"authored_by_tool\"):\n        reasons.append(\"review records authored by tools are invalid by \"",
+      "replace": "    if False:\n        reasons.append(\"review records authored by tools are invalid by \"",
+      "rationale": "the human in the loop becomes optional, and a machine-generated review carries the standing of a reviewed one -- which is the failure this entire module exists to make impossible"
+    },
+    {
+      "name": "H7_a_review_need_not_bind_to_the_record_it_reviewed",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "            actual = compute_record_sha256(record)\n            if actual.lower() != claimed.lower():",
+      "replace": "            actual = compute_record_sha256(record)\n            if False:",
+      "rationale": "the reviewed record can be modified or replaced after the review, and the review keeps applying to whatever now carries its measurement_id"
+    },
+    {
+      "name": "H8_a_review_with_no_digest_binds_to_anything",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    elif record is not None:\n        reasons.append(\"review has no record_sha256 to bind against\")",
+      "replace": "    elif record is not None:\n        pass",
+      "rationale": "the same as H7 by omission: a review that names no digest is accepted, so binding becomes optional rather than required"
+    },
+    {
+      "name": "H9_a_malformed_digest_is_accepted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if len(claimed) != 64 or any(c not in \"0123456789abcdef\"\n                                     for c in claimed.lower()):",
+      "replace": "        if False:",
+      "rationale": "'-' or 'pending' becomes a valid binding, and the comparison below either never runs or compares against nonsense"
+    },
+    {
+      "name": "H10_the_quarantine_report_claims_a_gate_effect",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "AUTOMATIC_GATE_EFFECT = \"NONE\"",
+      "replace": "AUTOMATIC_GATE_EFFECT = \"ADVANCES_GATE\"",
+      "rationale": "every report in this module states automatic_gate_effect, and NONE is the sentence that keeps an unreviewed hardware claim from moving a gate on its own. A reader takes it at face value"
+    },
+    {
+      "name": "H11_a_quarantined_claim_is_given_standing",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "            \"standing\": \"unreviewed hardware claim -- no evidentiary \"\n                        \"standing; never enters dossiers\",",
+      "replace": "            \"standing\": \"provisional evidence pending review\",",
+      "rationale": "the quarantine report is read by people deciding what to trust, and 'provisional evidence' and 'no evidentiary standing' license completely different actions"
+    }
+  ]
+}
