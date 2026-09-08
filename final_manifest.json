@@ -2360,8 +2360,8 @@
     },
     {
       "filename": "tests/test_stage7_5_resilience.py",
-      "size_bytes": 5640,
-      "sha256": "bca7dcc90a526778fd7b54aa4b0d218ac4ed72268574d45dd91f70df5fbe7f0e",
+      "size_bytes": 8120,
+      "sha256": "37c3f5935ab1c37aa264f016925a14713ea633daaa97b79203975bcd55e26508",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "f9bbe1cce7593b8cc7bcaef42adb93cc5f4d77d29c76b6e6b91edf65aabe035e",
+      "sha256": "231e6e5ccf10f56b80943f002d826aeee4c87775c9c0282e1b4000c9bf698bda",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
