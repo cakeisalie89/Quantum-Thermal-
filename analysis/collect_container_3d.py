@@ -26,6 +26,7 @@ the logs API with no redirect at all.
 """
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import json
 import os
@@ -45,6 +46,39 @@ if str(REPO_ROOT) not in sys.path:
 #: The Monte Carlo sample count qta_full_sim.py passes to run_all. Mirrored
 #: here rather than left to run_all's default, which is 60. See main().
 CANONICAL_MC_SAMPLES = 30
+
+
+def openblas_runtime_core() -> str:
+    """The kernel OpenBLAS actually SELECTED, or a reason it is unknown.
+
+    Read from the bundled library rather than from ``numpy.show_config``,
+    which reports what the wheel was BUILT with. DYNAMIC_ARCH picks a kernel
+    per CPU at load time, so the build string and the running kernel are
+    different facts and only the second one explains a byte difference.
+
+    Never raises. A fingerprint that cannot be taken is recorded as absent;
+    a diagnostic that fails to collect is worse than one that says it could
+    not.
+    """
+    import glob
+
+    import numpy
+    try:
+        libdir = os.path.join(
+            os.path.dirname(os.path.dirname(numpy.__file__)), "numpy.libs")
+        libs = sorted(glob.glob(os.path.join(libdir, "*openblas*.so*")))
+        if not libs:
+            return "UNKNOWN: no bundled openblas found"
+        handle = ctypes.CDLL(libs[0])
+        for name in ("scipy_openblas_get_corename64_",
+                     "openblas_get_corename64_", "openblas_get_corename"):
+            fn = getattr(handle, name, None)
+            if fn is not None:
+                fn.restype = ctypes.c_char_p
+                return fn().decode("ascii", "replace")
+        return "UNKNOWN: library exports no corename symbol"
+    except Exception as exc:              # diagnostic: record, never fail
+        return f"UNKNOWN: {type(exc).__name__}: {exc}"
 
 
 def fingerprint() -> dict:
@@ -68,6 +102,16 @@ def fingerprint() -> dict:
         fp["simd"] = cfg.get("SIMD Extensions", {})
     except Exception as e:
         fp["numpy_show_config"] = f"UNAVAILABLE: {type(e).__name__}"
+    # THE FIELD THIS COMPARISON ACTUALLY TURNS ON, and it was not being
+    # recorded. ``numpy.show_config`` reports the BUILD configuration; the
+    # string it prints here says "Haswell" while OpenBLAS DYNAMIC_ARCH
+    # selects SkylakeX at RUNTIME on the same machine. A cross-environment
+    # comparison whose fingerprint names the wrong kernel is a comparison
+    # nobody can attribute, and the kernel is not a detail: forcing it, on
+    # one machine with one interpreter and one set of inputs, moves this
+    # collector's verdict from 63/63 identical to 20 files differing.
+    fp["openblas_runtime_core"] = openblas_runtime_core()
+    fp["OPENBLAS_CORETYPE"] = os.environ.get("OPENBLAS_CORETYPE")
     for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
                 "BLIS_NUM_THREADS", "NUMEXPR_NUM_THREADS",
                 "VECLIB_MAXIMUM_THREADS", "PYTHONHASHSEED", "LANG", "LC_ALL",
@@ -105,10 +149,28 @@ def compare_with_committed(inventory: dict) -> dict:
     Doing the comparison HERE, and printing it, puts the answer in the job
     log: a route that is authenticated, served by the logs API, and not
     subject to a signed-URL redirect to a host an egress policy may refuse.
+
+    THE COMMITTED COPIES ARE AT THE REPOSITORY ROOT, and this compared
+    against ``outputs/`` instead. Two things were wrong with that, and the
+    second is worse than the first.
+
+    ``outputs/`` is gitignored. On a fresh checkout it does not exist, so
+    every regenerated file landed in ``not_committed``, nothing was compared,
+    and the summary reported zero differences over zero comparisons. A
+    hosted run said exactly that, and the anti-vacuity step in the workflow
+    is what refused it.
+
+    Worse: on a machine where ``outputs/`` DOES exist -- any machine that has
+    run the pipeline or the package checker, which removes and recreates it
+    -- ``outputs/`` is itself a REGENERATION. So the comparison passed by
+    comparing a regeneration against a regeneration: two readings of the same
+    computation, which cannot disagree about the thing R59 is asking. The
+    "63 of 63 byte-identical" this collector reported was measured against
+    the wrong side, and the answer it was supposed to give was never taken.
     """
     same, differ, missing = [], [], []
     for name, rec in sorted(inventory.items()):
-        committed = REPO_ROOT / "outputs" / name
+        committed = REPO_ROOT / name
         if not committed.is_file():
             missing.append(name)
             continue
@@ -124,7 +186,9 @@ def emit_summary(fp: dict, comparison: dict) -> None:
     """One machine-readable line per fact, greppable out of a job log."""
     print("::QTA-3D-ENV:: " + json.dumps(
         {k: fp.get(k) for k in ("python", "platform", "machine", "numpy",
-                                "scipy", "h5py", "qutip", "blas", "lapack",
+                                "scipy", "h5py", "qutip",
+                                "openblas_runtime_core", "OPENBLAS_CORETYPE",
+                                "blas", "lapack",
                                 "simd", "OMP_NUM_THREADS",
                                 "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
                                 "PYTHONHASHSEED", "LANG", "TZ",

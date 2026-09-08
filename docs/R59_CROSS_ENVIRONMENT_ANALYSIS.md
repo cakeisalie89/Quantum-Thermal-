@@ -118,25 +118,139 @@ output.** The GitHub job-logs API returned only the pytest tail (5006 lines of
 
 ## What is now known, and what is not
 
+> **The two claims marked SUPERSEDED below were wrong, and the next section
+> says why.** They are left in place rather than edited out: a record that
+> quietly repairs itself is not a record.
+
 **Established**
 
 * The collector had a real defect that produced a spurious one-file
   divergence with a completely misleading cause.
-* An independent container reproduces all 63 canonical outputs byte-for-byte,
-  3D included.
+* ~~An independent container reproduces all 63 canonical outputs
+  byte-for-byte, 3D included.~~ **SUPERSEDED.** That measurement compared a
+  regeneration against a regeneration; it could not have disagreed. See
+  *The divergence is real, and it is the BLAS kernel*.
 * The most recent container run's failure is a packaging gap — no `git`
   binary, no `.git` directory — and is unrelated to numerics.
 
 **Not established**
 
-* What the original 8-file count measured. The
-  `container-3d-diagnostic` artifact from run 32626098635 could not be
-  downloaded: its host, `productionresultssa14.blob.core.windows.net`, is
-  denied by this environment's egress policy
-  (`connect_rejected`, 403 on CONNECT), and the job-logs API caps at the
-  pytest tail.
-* Whether the divergence ever existed in the canonical path, or was an
-  artefact of the same collector defect in an earlier form.
+* ~~What the original 8-file count measured.~~ **SUPERSEDED and answered.**
+  The 8 was the slice width in `package_consistency_check.py`, which printed
+  `_drift[:8]` with no count beside it. The artifact from run 32626098635 is
+  still unreachable — its host, `productionresultssa14.blob.core.windows.net`,
+  is denied by this environment's egress policy (`connect_rejected`, 403 on
+  CONNECT) — and it no longer needs to be read, because the number it would
+  have explained was never a measurement.
+* ~~Whether the divergence ever existed in the canonical path.~~
+  **SUPERSEDED.** It does, it reproduces on demand, and its cause is named.
+
+## The divergence is real, and it is the BLAS kernel
+
+*Added after the section above, which was wrong about the central fact. The
+earlier conclusion — "the divergence does not reproduce" — rested on a
+comparison that could not have disagreed.*
+
+### The instrument compared a regeneration against a regeneration
+
+`compare_with_committed` looked for the committed canonical copies under
+`outputs/`. Two things are wrong with that, and the second is worse.
+
+`outputs/` is gitignored. On a fresh checkout it does not exist, so every
+regenerated file landed in `not_committed`: a hosted run reported **0 of 63
+compared** while printing a clean-looking summary. The anti-vacuity step in
+`agent-substrate.yml` is what refused it.
+
+And on any machine where `outputs/` *does* exist — every machine that has run
+the pipeline, or `package_consistency_check.py`, which removes and recreates
+it — `outputs/` is **itself a regeneration**. So the comparison asked one
+reading of a computation whether it matched another reading of the same
+computation. It could not disagree. "63 of 63 byte-identical", the sentence
+this document previously rested on, was measured against the wrong side.
+
+The committed canonical copies are at the **repository root**. The comparison
+now reads them there, and `test_the_comparison_finds_the_canonical_copies_
+where_they_live` builds its inventory from `final_manifest.json` rather than
+from the directory the comparison looks in — the earlier version of that test
+read names *and* bytes out of `outputs/`, which is why it was green
+throughout.
+
+### The 8-file divergence was a slice width
+
+`package_consistency_check.py` reported `stale root copies: {_drift[:8]}` —
+the first eight names, with no count beside them. A hosted run whose
+regeneration diverged in twenty files printed eight names, and "an 8-file
+divergence" is what got written into R59's blocker and chased for weeks.
+
+The number 8 is `[:8]`. It was never a measurement. The checker now prints the
+count first and says when the list is truncated.
+
+### What the divergence actually is
+
+OpenBLAS ships DYNAMIC_ARCH: one library containing several hand-written
+kernels, one selected at load time from the host CPU's feature flags. The
+kernels differ in blocking, vector width and accumulation order, so they
+differ in the last bits of a floating-point reduction — and a CSV of
+sixteen-significant-digit numbers records the last bits.
+
+`OPENBLAS_CORETYPE` forces the selection, which turns "another environment"
+into a variable on one machine, with one interpreter, one dependency set and
+one set of inputs. `tools/blas_kernel_sensitivity.py` runs that sweep. On the
+sandbox that wrote this section (Intel Xeon @ 2.10 GHz, AVX-512, 4 cores,
+numpy 2.4.4 / scipy 1.17.1):
+
+| `OPENBLAS_CORETYPE` | kernel selected | byte-identical | differing |
+|---|---|---:|---:|
+| `(unset)` | `SkylakeX` | 63 / 63 | 0 |
+| `SkylakeX` | `SkylakeX` | 63 / 63 | 0 |
+| `Haswell` | `Haswell` | 43 / 63 | 20 |
+| `Nehalem` | `Nehalem` | 41 / 63 | 22 |
+
+Nothing else changed between those rows. The committed canonical outputs are
+**SkylakeX-kernel outputs**.
+
+The fingerprint could not have said so before: it recorded
+`numpy.show_config`, which reports what the wheel was **built** with — the
+string on this machine says `Haswell` — while the kernel actually **selected**
+is SkylakeX. The single field the whole comparison turns on named the wrong
+thing. `openblas_runtime_core()` now reads the selected kernel from the
+bundled library and the summary emits it.
+
+### The hosted runner
+
+At commit `9e922f8`, `package_consistency_check.py` on `ubuntu-latest`
+reported stale root copies beginning: `campaign_state_3d.json`,
+`convergence_report_3d.json`, `coupled_mode_recovery_metrics.csv`,
+`coupled_mode_state_summary.json`, `distributed_thermal_2d_slices.csv`,
+`distributed_thermal_metrics.csv`, `distributed_thermal_profile.csv`,
+`energy_ledger_cumulative_3d.csv`.
+
+That is exactly the first eight, alphabetically, of the local Nehalem
+divergence set — and the list was truncated at eight, so the runner's true
+count is not in that log. What can be said from it: the runner did not select
+SkylakeX, and its divergence set is consistent with a narrower-vector kernel.
+The exact count and the runner's kernel name will be readable in the next
+hosted run, because the count and `openblas_runtime_core` are now both
+printed.
+
+### What this does and does not establish
+
+It establishes that byte-identity of the 3D outputs is a property of a
+**declared environment down to the BLAS kernel**, not of the mathematics. It
+does not establish that any kernel is more correct than another: they all
+compute the same problem to the same order of accuracy, and a byte comparison
+cannot rank them.
+
+It was not fixed by pinning `OPENBLAS_CORETYPE` repository-wide. The kernel
+that reproduces the committed bytes is SkylakeX, which requires AVX-512;
+pinning it would make the pipeline refuse to run correctly on hardware
+without it, and pinning anything else would invalidate every committed
+canonical output. Choosing the host's CPU is not something this repository
+can do.
+
+**No tolerance was widened. No file was exempted. No canonical output was
+rewritten.** The byte gate stays closed, and it is now closed around a
+statement that says what it depends on.
 
 ## Disposition
 

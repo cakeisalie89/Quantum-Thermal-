@@ -399,6 +399,45 @@ def test_partial_output_from_a_killed_process_is_captured(env):
     assert r.stdout_bytes == 7, "partial output was discarded"
 
 
+def test_the_child_is_recorded_by_identity_and_not_by_pid_alone(env):
+    """A pid is a number somebody else will be holding soon.
+
+    The execution record carries the child's identity so a LATER supervisor
+    can ask "is that still the process I started" rather than "does something
+    hold that number". Boot id and start ticks are what make the answer
+    possible after the recording process is gone; without them, a recovery
+    path acting on a reused pid signals whatever inherited it.
+
+    A hosted mutation run deleted the identity and left a bare pid, and
+    nothing in three suites noticed -- the record still had a plausible
+    ``child_process`` key with a plausible number in it, which is the shape
+    an unchecked field always has.
+    """
+    from qta_agent.hostid import ProcessIdentity
+
+    r = _run(env, [PY, "-c", "print('ok')"])
+    assert r.outcome is Outcome.COMPLETED, r.reason
+
+    rec = r.to_record()["child_process"]
+    assert set(rec) == {"pid", "pgid", "host_boot_id", "start_ticks"}, rec
+    assert rec["pid"] == r.pid and rec["pgid"] == r.pgid
+    # The two fields a bare pid does not have, and the reason the record
+    # exists at all. Both are recorded from /proc on Linux; asserting they
+    # are merely PRESENT would pass on the mutation, so each is asserted to
+    # carry a real value.
+    assert rec["host_boot_id"], (
+        "no boot id, so a pid recorded before a reboot is indistinguishable "
+        "from the same pid after one")
+    assert isinstance(rec["start_ticks"], int) and rec["start_ticks"] > 0, (
+        f"no start time, so a reused pid reads as the original: {rec}")
+
+    # And it round-trips through the reader that recovery actually uses.
+    ident = ProcessIdentity.from_record(rec)
+    assert ident is not None and ident.pid == r.pid
+    assert ident.host_boot_id == rec["host_boot_id"]
+    assert ident.start_ticks == rec["start_ticks"]
+
+
 def test_a_child_process_group_is_killed_with_its_parent(env, tmp_path):
     """Otherwise an orphaned grandchild outlives the timeout that killed it.
 

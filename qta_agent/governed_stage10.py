@@ -80,7 +80,7 @@ from .agents import (
     AgentDirectory, AgentError, AgentRole, EscalationState, PrincipalKind,
     StreamNotifier, check_separation, identity,
 )
-from .canonical import digest, digest_bytes
+from .canonical import digest
 from . import capability as _cap_actions
 from .capability import Action, CapabilityLedger, issue
 from .context import ContextBuilder, Tier, record_context

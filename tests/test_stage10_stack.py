@@ -412,6 +412,39 @@ def test_corpus_excludes_non_governed_trees():
                        for part in pathlib.Path(rel).parts)
 
 
+def test_a_virtualenv_is_excluded_whatever_it_is_called(tmp_path):
+    """THE DEFECT, and why a name was the wrong thing to exclude on.
+
+    EXCLUDED_DIRS named ``.venv`` exactly. A hosted job that builds a second
+    environment as ``.venv-alt`` to run the suite on another interpreter put
+    64 site-packages ``.txt`` files into the corpus scan, and the membership
+    check refused them as undeclared governed text. It was right; the scan
+    was looking in a place no reviewer would ever put a document.
+
+    ``pyvenv.cfg`` is what the interpreter writes when it creates a virtual
+    environment, so this is the definition rather than a guess -- and the
+    name in the test is deliberately one nobody has used.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "real.md").write_text("a governed document\n")
+    for name in (".venv-alt", "env-for-py315", "whatever"):
+        site = tmp_path / name / "lib" / "python9.9" / "site-packages" / "pkg"
+        site.mkdir(parents=True)
+        (tmp_path / name / "pyvenv.cfg").write_text("home = /usr\n")
+        (site / "entry_points.txt").write_text("not a document\n")
+        (site / "LICENSE.txt").write_text("neither is this\n")
+
+    found = RAG.corpus_files(tmp_path)
+    assert found == ["docs/real.md"], found
+
+    # ANTI-VACUITY: a directory WITHOUT pyvenv.cfg is not silently pruned,
+    # or this would pass by excluding everything.
+    plain = tmp_path / "notes"
+    plain.mkdir()
+    (plain / "kept.md").write_text("still a document\n")
+    assert RAG.corpus_files(tmp_path) == ["docs/real.md", "notes/kept.md"]
+
+
 def test_index_is_deterministic_and_hits_carry_provenance():
     a = RAG.build_index()
     b = RAG.build_index()

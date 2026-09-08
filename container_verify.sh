@@ -18,8 +18,36 @@ set -euo pipefail
 # only the pytest tail, so the earlier steps' results were never actually
 # seen. A marker per step turns the inference into a record, and the markers
 # are greppable so a later reader can confirm each one individually.
-step() { echo "::QTA-STEP-BEGIN:: $1"; }
-done_() { echo "::QTA-STEP-OK:: $1"; }
+QTA_STEPS_OK=""
+QTA_STEP_CURRENT=""
+step() { QTA_STEP_CURRENT="$1"; echo "::QTA-STEP-BEGIN:: $1"; }
+done_() {
+  echo "::QTA-STEP-OK:: $1"
+  QTA_STEPS_OK="${QTA_STEPS_OK}${QTA_STEPS_OK:+,}$1"
+  QTA_STEP_CURRENT=""
+}
+
+# A SUMMARY AT THE END, because the beginning of the log is not reachable.
+#
+# The per-step markers turned the inference into a record, and the record was
+# still unreadable: the job-logs API serves the TAIL, and by the time this
+# script has run qta_full_sim.py and a pytest suite the early markers are
+# fifteen hundred lines above it. R59 recorded "steps 1-3 passed" as an
+# inference from `set -e` ordering; a marker nobody can scroll to is the same
+# inference wearing a record's clothes.
+#
+# An EXIT trap, so it prints on failure too -- which is the case where
+# knowing how far it got actually matters.
+_qta_summary() {
+  local rc=$?
+  echo "::QTA-STEPS-COMPLETED:: ${QTA_STEPS_OK:-none}"
+  if [ -n "$QTA_STEP_CURRENT" ]; then
+    echo "::QTA-STEP-FAILED:: ${QTA_STEP_CURRENT}"
+  fi
+  echo "::QTA-EXIT:: ${rc}"
+  return $rc
+}
+trap _qta_summary EXIT
 
 step "environment"
 python -c "import json,sys,platform,numpy,scipy
@@ -57,6 +85,24 @@ step "qta_full_sim"
 python qta_full_sim.py
 done_ "qta_full_sim"
 
+# The 3D cross-environment comparison, IN THE JOB LOG rather than only in an
+# artifact, and BEFORE the checkers that can fail. The artifact route is
+# authenticated and works; its signed storage host is denied by some egress
+# policies, so the evidence that matters is emitted where the logs API can
+# serve it.
+#
+# Ordered ahead of package_consistency_check.py because of what happened
+# when it was not: the package check failed on a byte divergence, `set -e`
+# ended the run, and the diagnostic that exists to EXPLAIN a byte divergence
+# never executed. The one case where the measurement matters most was the
+# one case it was skipped in.
+#
+# It is a diagnostic: it reports a divergence and never fails on one. Putting
+# it first therefore cannot mask a failure, only inform one.
+step "cross-environment-3d"
+python analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary
+done_ "cross-environment-3d"
+
 step "package_consistency"
 python package_consistency_check.py
 done_ "package_consistency"
@@ -64,14 +110,6 @@ done_ "package_consistency"
 step "manuscript_consistency"
 python manuscript_consistency_check.py
 done_ "manuscript_consistency"
-
-# The 3D cross-environment comparison, IN THE JOB LOG rather than only in an
-# artifact. The artifact route is authenticated and works; its signed
-# storage host is denied by some egress policies, so the evidence that
-# matters is emitted where the logs API can serve it.
-step "cross-environment-3d"
-python analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary
-done_ "cross-environment-3d"
 
 # Fail closed if collection collapses: a suite that collects nothing must not
 # be reported as a passing suite.

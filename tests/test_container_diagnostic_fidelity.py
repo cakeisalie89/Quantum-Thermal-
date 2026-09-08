@@ -140,11 +140,29 @@ def test_the_analysis_document_states_what_it_could_not_establish():
     is."""
     doc = (ROOT / "docs" / "R59_CROSS_ENVIRONMENT_ANALYSIS.md").read_text(
         encoding="utf-8")
+    flat = " ".join(doc.split())
     assert "**Not established**" in doc
-    assert "could not be\n  downloaded" in doc or \
-        "could not be downloaded" in doc.replace("\n  ", " ")
+    # The artifact host that cannot be reached, still named. Matched on the
+    # host rather than on a sentence: the wording changed when the section
+    # was superseded, and a test pinned to a phrase would have failed for
+    # the document being updated rather than for it hiding anything.
+    assert "productionresultssa14.blob.core.windows.net" in doc
+    assert "denied by this environment's egress policy" in flat
     assert "inference from `set -e` ordering" in doc
     assert "No tolerance was widened" in doc
+
+    # AND WHAT SUPERSEDED IT. A record that repairs itself quietly is not a
+    # record, so the two claims that turned out to be wrong have to still be
+    # visible as claims, marked.
+    assert flat.count("SUPERSEDED") >= 3, (
+        "the superseded conclusions were edited out rather than marked")
+    assert "regeneration against a regeneration" in flat, (
+        "the document does not say why the earlier byte-identity result "
+        "could not have disagreed")
+    assert "slice width" in flat, (
+        "the document does not say what the 8-file count actually was")
+    assert "OPENBLAS_CORETYPE" in doc and "SkylakeX" in doc, (
+        "the document names no kernel, so the divergence has no cause in it")
 
 
 # --- the comparison the collector never made --------------------------------
@@ -168,13 +186,13 @@ def test_the_comparison_counts_identical_differing_and_missing(tmp_path,
                                                                monkeypatch):
     import analysis.collect_container_3d as C
 
-    outputs = tmp_path / "outputs"
-    outputs.mkdir()
-    (outputs / "same.json").write_text("a")
-    (outputs / "differs.json").write_text("b")
+    # The committed copies live at the repository ROOT, not under outputs/
+    # -- which is gitignored, absent on a fresh checkout, and where it does
+    # exist is itself a regeneration. This fixture built them under outputs/
+    # and so agreed with the defect instead of catching it.
+    (tmp_path / "same.json").write_text("a")
+    (tmp_path / "differs.json").write_text("b")
     monkeypatch.setattr(C, "REPO_ROOT", tmp_path)
-    committed = tmp_path / "outputs"          # same dir stands in as committed
-    _ = committed
     inventory = {
         "same.json": {"sha256": hashlib.sha256(b"a").hexdigest(), "size": 1},
         "differs.json": {"sha256": hashlib.sha256(b"XX").hexdigest(),
@@ -247,6 +265,62 @@ def test_the_container_script_reports_every_step():
                  "cross-environment-3d", "manifest_freshness"):
         assert f'step "{step}"' in src, f"{step} does not announce itself"
         assert f'done_ "{step}"' in src, f"{step} does not report success"
+
+    # AND THE SUMMARY AT THE END, because the beginning is not reachable.
+    # The logs API serves the tail; by the time this script has run
+    # qta_full_sim.py the early markers are far above it.
+    assert "trap _qta_summary EXIT" in src, (
+        "no exit trap, so the step record is only readable by scrolling to "
+        "a part of the log the API does not serve")
+    assert "::QTA-STEPS-COMPLETED::" in src
+    assert "::QTA-STEP-FAILED::" in src
+    assert "::QTA-EXIT::" in src
+
+
+def test_the_summary_prints_on_failure_and_names_the_failing_step(tmp_path):
+    """Run the trap for real. A trap nobody fires is a comment.
+
+    The case that matters is the failing one: knowing how far the script got
+    is exactly what an inference from `set -e` ordering could not tell you.
+    """
+    import subprocess
+
+    src = (ROOT / "container_verify.sh").read_text(encoding="utf-8")
+    start = src.index("QTA_STEPS_OK=")
+    end = src.index("trap _qta_summary EXIT") + len("trap _qta_summary EXIT")
+    harness = tmp_path / "demo.sh"
+    harness.write_text(
+        "set -euo pipefail\n" + src[start:end] + "\n"
+        'step "one"; true; done_ "one"\n'
+        'step "two"; true; done_ "two"\n'
+        'step "three"; false; done_ "three"\n')
+
+    proc = subprocess.run(["bash", str(harness)], capture_output=True,
+                          text=True)
+    assert proc.returncode == 1, proc.returncode
+    out = proc.stdout
+    assert "::QTA-STEPS-COMPLETED:: one,two" in out, out
+    assert "::QTA-STEP-FAILED:: three" in out, out
+    assert "::QTA-EXIT:: 1" in out, out
+    # ANTI-VACUITY: the summary must not claim a step that did not finish.
+    assert "three" not in out.split("::QTA-STEPS-COMPLETED::")[1].split(
+        "\n")[0]
+
+
+def test_the_diagnostic_runs_before_the_checkers_that_can_fail():
+    """The one case the measurement matters most was the one it was skipped in.
+
+    The package check failed on a byte divergence, `set -e` ended the run,
+    and the diagnostic that exists to EXPLAIN a byte divergence never
+    executed. It is a diagnostic -- it reports and never fails -- so putting
+    it first cannot mask a failure, only inform one.
+    """
+    src = (ROOT / "container_verify.sh").read_text(encoding="utf-8")
+    diag = src.index('step "cross-environment-3d"')
+    for later in ("package_consistency", "manuscript_consistency"):
+        assert diag < src.index(f'step "{later}"'), (
+            f"{later} runs before the 3D diagnostic, so a failure there "
+            "suppresses the measurement that would explain it")
 
 
 def test_the_container_installs_git_and_ships_the_repository():
@@ -355,6 +429,24 @@ def test_uncompared_files_are_named_in_the_log(capsys):
     assert "::QTA-3D-VERDICT:: INCOMPARABLE" in out
 
 
+def _committed_output_names():
+    """Canonical output filenames, read from the tracked manifest.
+
+    The manifest is the repository's own record of what is committed, so
+    this cannot drift toward whatever happens to be in a scratch directory.
+    Root-level ``.csv``/``.json`` files only: those are the canonical
+    outputs the byte gate is about.
+    """
+    import json
+
+    manifest = json.loads(
+        (ROOT / "final_manifest.json").read_text(encoding="utf-8"))
+    paths = [e.get("filename", "") for e in manifest["files"]]
+    return {p for p in paths
+            if "/" not in p and p.endswith((".csv", ".json"))
+            and (ROOT / p).is_file()}
+
+
 def test_the_comparison_finds_the_canonical_copies_where_they_live():
     """THE root cause of the 0/63, tested directly.
 
@@ -368,14 +460,22 @@ def test_the_comparison_finds_the_canonical_copies_where_they_live():
 
     import analysis.collect_container_3d as C
 
-    outputs = C.REPO_ROOT / "outputs"
-    names = sorted(p.name for p in outputs.iterdir() if p.is_file())
+    # FROM THE COMMITTED COPIES, which is the only set that exists on a
+    # fresh checkout. This test used to read names AND bytes out of
+    # ``outputs/`` -- the same directory the comparison then looked in -- so
+    # it passed by asking one copy whether it matched itself, and could not
+    # see that ``outputs/`` is gitignored, absent in CI, and on any machine
+    # where it DOES exist is a regeneration rather than the committed
+    # canonical file. A hosted run reported 0 of 63 compared while this was
+    # green.
+    names = sorted(_committed_output_names())
     assert len(names) >= C.EXPECTED_CANONICAL, (
         f"only {len(names)} committed outputs; the comparison could not "
         "reach its expected coverage even in principle")
 
     inventory = {
-        n: {"sha256": hashlib.sha256((outputs / n).read_bytes()).hexdigest()}
+        n: {"sha256":
+            hashlib.sha256((C.REPO_ROOT / n).read_bytes()).hexdigest()}
         for n in names
     }
     c = C.compare_with_committed(inventory)
@@ -387,3 +487,110 @@ def test_the_comparison_finds_the_canonical_copies_where_they_live():
     assert c["identical"] == len(names)
     assert c["differing"] == 0
     assert C.verdict_for(c).startswith("IDENTICAL")
+
+
+# --------------------------------------------------------------------------
+# The BLAS kernel, which is what the divergence turned out to be about
+# --------------------------------------------------------------------------
+
+def test_the_fingerprint_records_the_kernel_that_was_actually_selected():
+    """The build string and the running kernel are different facts.
+
+    ``numpy.show_config`` reports what the wheel was BUILT with -- on this
+    machine it says "Haswell" -- while OpenBLAS DYNAMIC_ARCH selects
+    SkylakeX at load time. Every conclusion R59 draws turns on the second
+    one, and the fingerprint recorded only the first.
+    """
+    import analysis.collect_container_3d as C
+
+    core = C.openblas_runtime_core()
+    assert core and not core.startswith("UNKNOWN"), core
+    assert core.isidentifier() or core.isalnum(), core
+
+    fp = C.fingerprint()
+    assert fp["openblas_runtime_core"] == core
+    assert "OPENBLAS_CORETYPE" in fp
+
+
+def test_forcing_the_kernel_actually_changes_the_selected_one():
+    """ANTI-VACUITY for the whole sensitivity claim.
+
+    If ``OPENBLAS_CORETYPE`` were ignored, the sweep would compare a kernel
+    against itself several times and report "no sensitivity" -- a true
+    sentence about a comparison that varied nothing. Run in a subprocess
+    because the selection happens once, when the library is loaded.
+    """
+    import os
+    import subprocess
+
+    probe = ("import sys; sys.path.insert(0, %r);"
+             "from analysis.collect_container_3d import openblas_runtime_core;"
+             "print(openblas_runtime_core())" % str(ROOT))
+    env = dict(os.environ)
+    env["OPENBLAS_CORETYPE"] = "Nehalem"
+    forced = subprocess.run([sys.executable, "-c", probe], cwd=ROOT,
+                            env=env, capture_output=True, text=True)
+    assert forced.returncode == 0, forced.stderr[-400:]
+    env.pop("OPENBLAS_CORETYPE")
+    default = subprocess.run([sys.executable, "-c", probe], cwd=ROOT,
+                             env=env, capture_output=True, text=True)
+    assert default.returncode == 0, default.stderr[-400:]
+
+    assert forced.stdout.strip() == "Nehalem", forced.stdout
+    assert default.stdout.strip() != "Nehalem", (
+        "the default selection is already the forced one, so this machine "
+        "cannot demonstrate the variable")
+
+
+def test_the_sensitivity_sweep_refuses_a_result_it_did_not_measure():
+    """The sweep's own anti-vacuity, provoked rather than described."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import blas_kernel_sensitivity as B
+
+    ok_report = {"runs": [
+        {"asked_for": None, "selected": "SkylakeX",
+         "comparison": {"identical": 63, "regenerated": 63, "differing": 0,
+                        "differing_files": []}},
+        {"asked_for": "Nehalem", "selected": "Nehalem",
+         "comparison": {"identical": 41, "regenerated": 63, "differing": 22,
+                        "differing_files": ["a"]}},
+    ]}
+    assert B.problems(ok_report) == []
+
+    all_same = {"runs": [dict(r, selected="SkylakeX")
+                         for r in ok_report["runs"]]}
+    assert any("changed nothing" in p for p in B.problems(all_same))
+
+    one_run = {"runs": ok_report["runs"][:1]}
+    assert any("nothing was compared" in p for p in B.problems(one_run))
+
+    broken = {"runs": [ok_report["runs"][0],
+                       {"asked_for": "Zen", "selected": "Zen"}]}
+    assert any("no comparison" in p for p in B.problems(broken))
+
+
+def test_the_recorded_sweep_shows_a_real_kernel_dependence():
+    """The committed measurement, checked for the shape it claims.
+
+    Not re-run here -- each kernel is a full regeneration and the sweep
+    takes minutes -- but a committed result that did not vary its variable,
+    or that reported no dependence at all, would make the R59 boundary an
+    assertion instead of a measurement.
+    """
+    import json
+
+    rec = json.loads((ROOT / "docs" / "blas_kernel_sensitivity.json")
+                     .read_text(encoding="utf-8"))
+    assert rec["automatic_gate_effect"] == "NONE"
+    assert rec["scientific_PASS_count"] == 0
+    runs = rec["runs"]
+    assert len(runs) >= 3, runs
+    selected = {r["selected"] for r in runs}
+    assert len(selected) >= 2, (
+        f"every recorded run selected {selected}; the sweep varied nothing")
+    diffs = {r["selected"]: r["comparison"]["differing"] for r in runs}
+    assert any(v == 0 for v in diffs.values()), (
+        "no kernel reproduced the committed bytes, so the committed outputs "
+        f"correspond to no kernel in this record: {diffs}")
+    assert any(v > 0 for v in diffs.values()), (
+        f"no kernel diverged, so there is no dependence to report: {diffs}")

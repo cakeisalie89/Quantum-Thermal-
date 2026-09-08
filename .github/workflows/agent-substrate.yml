@@ -495,3 +495,18 @@ jobs:
                 f"identical, {c['differing']} differing, "
                 f"{c['not_committed']} uncompared")
           PY
+      - name: which BLAS kernel this runner selected, and how much it matters
+        # THE ANSWER R59 WAS LOOKING FOR, measured on the runner rather than
+        # inferred from it. OpenBLAS DYNAMIC_ARCH picks a kernel from the
+        # host CPU's flags; the kernels differ in accumulation order, so
+        # they differ in the last bits a sixteen-digit CSV records.
+        #
+        # Forcing OPENBLAS_CORETYPE makes "another environment" a variable
+        # on ONE machine, which is the only way to attribute a byte
+        # difference to the kernel rather than to everything else that also
+        # differs between two hosts. Several full regenerations, so it is
+        # slow; it runs here because this job is the one that exists to
+        # answer this question.
+        run: |
+          uv run python tools/blas_kernel_sensitivity.py \
+            --out "${RUNNER_TEMP}/blas_sensitivity.json"

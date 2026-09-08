@@ -1,0 +1,112 @@
+{
+ "automatic_gate_effect": "NONE",
+ "does_not_mean": "a kernel that reproduces the committed bytes is not a more correct kernel. This measures which outputs depend on the BLAS kernel, not which answer is right",
+ "label": "MODEL_ONLY / FORECAST_ONLY / DIAGNOSTIC",
+ "runs": [
+  {
+   "asked_for": null,
+   "comparison": {
+    "differing": 0,
+    "differing_files": [],
+    "identical": 63,
+    "not_committed": 0,
+    "not_committed_files": [],
+    "regenerated": 63
+   },
+   "exit_status": 0,
+   "numpy": "2.4.4",
+   "scipy": "1.17.1",
+   "selected": "SkylakeX"
+  },
+  {
+   "asked_for": "SkylakeX",
+   "comparison": {
+    "differing": 0,
+    "differing_files": [],
+    "identical": 63,
+    "not_committed": 0,
+    "not_committed_files": [],
+    "regenerated": 63
+   },
+   "exit_status": 0,
+   "numpy": "2.4.4",
+   "scipy": "1.17.1",
+   "selected": "SkylakeX"
+  },
+  {
+   "asked_for": "Haswell",
+   "comparison": {
+    "differing": 20,
+    "differing_files": [
+     "campaign_state_3d.json",
+     "coupled_mode_recovery_metrics.csv",
+     "coupled_mode_state_summary.json",
+     "distributed_thermal_2d_slices.csv",
+     "distributed_thermal_metrics.csv",
+     "energy_ledger_cumulative_3d.csv",
+     "falsification_report_3d.json",
+     "gas_transport_metrics.csv",
+     "gas_transport_profile.csv",
+     "mesh_convergence_summary.csv",
+     "mode_recovery_3d_timeline.csv",
+     "multiphysics_summary.json",
+     "multiphysics_verification_summary.csv",
+     "numerical_stability_summary.csv",
+     "surface_coverage_metrics.csv",
+     "thermal_3d_energy_accounting.csv",
+     "thermal_3d_probe_timeseries.csv",
+     "thermal_3d_readiness.json",
+     "thermal_3d_reduction_check.json",
+     "thermal_3d_verification_report.json"
+    ],
+    "identical": 43,
+    "not_committed": 0,
+    "not_committed_files": [],
+    "regenerated": 63
+   },
+   "exit_status": 0,
+   "numpy": "2.4.4",
+   "scipy": "1.17.1",
+   "selected": "Haswell"
+  },
+  {
+   "asked_for": "Nehalem",
+   "comparison": {
+    "differing": 22,
+    "differing_files": [
+     "campaign_state_3d.json",
+     "convergence_report_3d.json",
+     "coupled_mode_recovery_metrics.csv",
+     "coupled_mode_state_summary.json",
+     "distributed_thermal_2d_slices.csv",
+     "distributed_thermal_metrics.csv",
+     "distributed_thermal_profile.csv",
+     "energy_ledger_cumulative_3d.csv",
+     "falsification_report_3d.json",
+     "gas_transport_metrics.csv",
+     "mesh_convergence_summary.csv",
+     "mode_recovery_3d_timeline.csv",
+     "multiphysics_summary.json",
+     "multiphysics_verification_summary.csv",
+     "numerical_stability_summary.csv",
+     "surface_coverage_metrics.csv",
+     "thermal_3d_energy_accounting.csv",
+     "thermal_3d_hotspots.csv",
+     "thermal_3d_probe_timeseries.csv",
+     "thermal_3d_readiness.json",
+     "thermal_3d_reduction_check.json",
+     "thermal_3d_verification_report.json"
+    ],
+    "identical": 41,
+    "not_committed": 0,
+    "not_committed_files": [],
+    "regenerated": 63
+   },
+   "exit_status": 0,
+   "numpy": "2.4.4",
+   "scipy": "1.17.1",
+   "selected": "Nehalem"
+  }
+ ],
+ "scientific_PASS_count": 0
+}

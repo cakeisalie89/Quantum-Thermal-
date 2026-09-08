@@ -1,7 +1,10 @@
 {
   "title": "A production caller that enqueues a graph, and a comparison that must actually compare",
   "note": "Two rows, one shape: a mechanism that existed and whose real question nothing asked. The scheduler could always express dependencies and the production path enqueued one job, so 'dependency graphs are exercised only in tests'. And the cross-environment comparison could always report IDENTICAL without comparing anything, because the verdict read one field instead of closing the arithmetic.",
-  "suites": ["tests/test_agent_governed_stage10.py", "tests/test_container_diagnostic_fidelity.py"],
+  "suites": [
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_container_diagnostic_fidelity.py"
+  ],
   "mutations": [
     {
       "name": "G1_dependencies_never_reach_the_scheduler",
@@ -83,9 +86,9 @@
     {
       "name": "G12_the_comparison_looks_in_the_wrong_place",
       "path": "analysis/collect_container_3d.py",
-      "find": "        committed = REPO_ROOT / \"outputs\" / name",
-      "replace": "        committed = REPO_ROOT / \"canonical\" / name",
-      "rationale": "the root cause of '0/63 identical': every file lands in not_committed and nothing is ever compared"
+      "find": "        committed = REPO_ROOT / name",
+      "replace": "        committed = REPO_ROOT / \"outputs\" / name",
+      "rationale": "the exact wrong path that shipped, restored: outputs/ is gitignored, so on a fresh checkout every file lands in not_committed and nothing is compared -- and on a machine where it exists it is a regeneration, so the comparison agrees with itself. This mutation was previously anchored ON the wrong path and killed by a test that read from the same directory"
     }
   ]
 }

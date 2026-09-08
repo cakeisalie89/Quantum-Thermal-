@@ -48,7 +48,12 @@ MAX_SNIPPET_CHARS = 600
 
 # Non-governed or generated trees are never indexed.
 EXCLUDED_DIRS = ("attic", "verification", ".git", ".venv", "outputs",
-                 "release", "__pycache__")
+                 "release", "__pycache__",
+                 # An installed package tree is never governed text. Named
+                 # here as well as detected below, because a venv can be
+                 # created anywhere and this catches a nested one whose root
+                 # directory the scan never saw.
+                 "site-packages")
 CORPUS_GLOBS = ("*.md", "*.txt")
 
 #: Files the globs catch that are not governed DOCUMENTS, and why.
@@ -97,14 +102,43 @@ def tokenize(text: str) -> list[str]:
             if len(t) > 1 and t not in STOPWORDS]
 
 
+def _virtualenv_dirs(root: Path) -> frozenset:
+    """Directory names directly under ``root`` that ARE virtual environments.
+
+    Detected by ``pyvenv.cfg``, which is the file the interpreter itself
+    writes when it creates one -- not a guess, and not a name.
+
+    EXCLUDED_DIRS named ``.venv`` exactly. A CI job that builds a second
+    environment as ``.venv-alt`` to run the suite on another interpreter
+    therefore dropped 64 ``.txt`` files out of site-packages into the corpus
+    scan, and the membership check refused them as undeclared governed text:
+    entry_points.txt, a vendored TLD list, package licences. The check was
+    right about what it saw and the scan was wrong about where to look, and
+    adding one more name would have lasted until the next environment.
+    """
+    found = set()
+    try:
+        entries = list(root.iterdir())
+    except OSError:
+        return frozenset()
+    for d in entries:
+        try:
+            if d.is_dir() and (d / "pyvenv.cfg").is_file():
+                found.add(d.name)
+        except OSError:
+            continue
+    return frozenset(found)
+
+
 def corpus_files(root: StrPath | None = None) -> list[str]:
     """Governed text documents, as repo-relative POSIX paths, sorted."""
     root = Path(root) if root is not None else repo_root()
+    excluded = set(EXCLUDED_DIRS) | _virtualenv_dirs(root)
     out = []
     for pattern in CORPUS_GLOBS:
         for p in root.rglob(pattern):
             rel = p.relative_to(root)
-            if any(part in EXCLUDED_DIRS for part in rel.parts):
+            if any(part in excluded for part in rel.parts):
                 continue
             if rel.as_posix() in EXCLUDED_FILES:
                 continue

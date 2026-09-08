@@ -27,7 +27,7 @@ every test run by `tools/completion_matrix.py`.
 | PARTIALLY_IMPLEMENTED / SKELETAL / PLACEHOLDER / ABSENT | 0 |
 | BLOCKED | 0 |
 
-One row remains open, with 3 residual gaps, and it lists what is still
+One row remains open, with 1 residual gap, and it lists what is still
 missing. A closed row is not a row with nothing left to say: the 38 closed
 rows carry 91 stated BOUNDARIES between them, each naming something the row
 does not claim and why no engineering in this repository closes it. The
@@ -62,6 +62,13 @@ that found it, because the techniques are not interchangeable.
 | **The compensation path launched the artifact writer for whatever compensating tool a registry named.** The subprocess module was a literal in three places, so the undo ran a tool that was not the undo; only its own missing inputs stopped it doing something. | Adding a second tool, and finding that "the registry has more than one tool" and "more than one tool can run" were different statements |
 | **Re-execution reported agreement over an empty comparison.** A run that declared no output files iterated over nothing and returned "0 artifact(s) reproduced byte-for-byte" -- the same sentence a real comparison produces. | A mutation that survived, and was believed |
 | **A mutation matrix scored fifteen mutations against a red baseline.** A test asserting that an ungoverned writer is refused left the forged file on disk when the guard was mutated away, so the suite stayed red for every later mutation and each was recorded as KILLED. The harness's post-run baseline check caught it; the report before that read 17/17. | The harness re-checking its own baseline after the run |
+| **The cross-environment collector compared a regeneration against a regeneration.** It looked for the committed canonical copies under `outputs/`, which is gitignored — absent in CI, so 0 of 63 were compared — and which on any machine that has run the pipeline is itself a regeneration. "63 of 63 byte-identical", the sentence R59 rested on, was measured against the wrong side and could not have disagreed. | A hosted anti-vacuity step that required every number to close |
+| **…and the test for it read from the same directory.** `test_the_comparison_finds_the_canonical_copies_where_they_live` took names *and* bytes out of `outputs/`, so it asked one copy whether it matched itself. Green throughout. | Fixing the collector and watching the test not notice |
+| **The "8-file divergence" was a slice width.** `package_consistency_check.py` printed `stale root copies: {_drift[:8]}` with no count. A run diverging in twenty files printed eight names, and "an 8-file divergence" went into R59's blocker and was chased for weeks. | Forcing a BLAS kernel locally and seeing the checker print exactly eight names while the collector said twenty |
+| **The fingerprint named the wrong kernel.** It recorded `numpy.show_config`, which reports the *build* configuration — "Haswell" on this machine — while OpenBLAS DYNAMIC_ARCH *selects* SkylakeX at load time. The one field the whole cross-environment comparison turns on was a different fact from the one it was read as. | Reading the runtime core out of the bundled library to check |
+| **The diagnostic that explains a byte divergence was ordered after the check that fails on one.** `set -e` ended the container run at `package_consistency_check.py`, so the 3D comparison never executed in the one case where it mattered. | A hosted container run that finally got far enough to fail numerically |
+| **The corpus scan walked into a second virtualenv.** `EXCLUDED_DIRS` named `.venv` exactly; a CI job that builds `.venv-alt` for a second interpreter put 64 site-packages `.txt` files into the corpus and the membership check refused them. The check was right and the scan was looking somewhere no reviewer would put a document. | The second-interpreter job, on its first run |
+| **The child process was recorded by pid alone under mutation, and three suites did not notice.** Boot id and start ticks are what make a recorded pid mean anything after the recording process is gone; the record still had a plausible key with a plausible number in it. | A hosted mutation matrix, and believing the survivor |
 
 ### A correction to two commit messages
 
