@@ -594,6 +594,16 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
                 collect: tuple = ()) -> ExecutionResult:
     """Run ``argv`` under kernel-enforced limits and classify how it ended.
 
+    WHAT THE KERNEL ENFORCES HERE, AND WHAT IT DOES NOT. The limits are
+    rlimits set between fork and exec: CPU, address space, output size,
+    process count, core dumps. NETWORKING IS NOT AMONG THEM. A child can
+    open sockets, and a probe under these bounds did. Egress is governed by
+    authority -- no grant is issued to a tool -- and by an in-process guard
+    that patches ``socket.socket.connect`` in the PARENT interpreter. That
+    guard is not containment, says so in its own docstring, and does not
+    exist in a child process. Anything describing this function's bounds as
+    denying network access is describing something that is not here.
+
     ``env`` REPLACES the environment rather than extending it. Inheriting the
     caller's environment is how a tool acquires credentials, proxies and paths
     nobody granted it -- the child gets exactly what is passed and nothing

@@ -610,6 +610,80 @@ check that cannot see what it claims to.
 
 ---
 
+## D-2026-08 — "kernel-enforced bounds with no network authority" read as containment
+
+**STATUS** — repaired, as a corrected claim and a pinned boundary. **No new
+containment was built, and none is claimed.**
+
+**DEFECT.** The completion report and the governance authority record both
+said a task reaching `VERIFIED` means a declared tool *"ran under
+kernel-enforced bounds with no network authority"*. Both halves are true
+separately. Together they read as containment, and there is none.
+
+**WHAT IS ACTUALLY ENFORCED.** `_apply_limits` sets five rlimits between
+fork and exec: `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_FSIZE`, `RLIMIT_NPROC`,
+`RLIMIT_CORE`, plus `setsid`. **Not one of them restricts networking.**
+
+**PROVEN, NOT ASSUMED.** A probe run through the real `run_bounded` under
+these exact bounds opened a listening TCP socket and routed a UDP socket to
+`8.8.8.8:53`, printing both, exiting 0, `Outcome.COMPLETED`.
+
+**WHAT THE SUBSTRATE ACTUALLY WITHHOLDS.** Authority, not capability. No
+egress grant is issued to a tool, and `socket_guard` refuses connections the
+parent makes without one. That guard is a monkeypatch of
+`socket.socket.connect` in the parent's own interpreter; its docstring
+already says it is not containment and that code inside the block can
+restore the original method. **It does not exist in a child process at all.**
+
+**INVARIANT.** A claim names the mechanism that makes it true. "The kernel
+enforces X" and "we grant no Y" are two statements, and joining them with
+"with" transfers the first's force to the second.
+
+**FIX.** All three sites now say which bounds the kernel enforces, that
+networking is not among them, that what is withheld is authority, and that
+the in-process guard is not containment and does not reach a child:
+`docs/SESSION_REPORT.md`, the `authorities.json` `does_not_mean` record, and
+`run_bounded`'s own docstring — the last because that is where a reader
+forms the belief.
+
+**PINNED BY ASSERTING WHAT IS NOT TRUE.**
+`test_a_bounded_child_is_NOT_prevented_from_using_the_network` asserts a
+child CAN open a socket. If anyone later adds a namespace, a seccomp filter
+or anything else that genuinely contains a child, that test fails and they
+must come to the claims written to match the old reality and update them
+deliberately — rather than leaving prose that has quietly become true for
+reasons nobody recorded. Paired with
+`test_the_bounds_that_ARE_enforced_are_the_ones_claimed`, which shows the
+address-space rlimit biting: a boundary test asserting only an absence would
+pass in a build where nothing was enforced at all, so both halves of "these
+and not those" are checked.
+
+**FORBIDDEN FAKE FIXES.** Adding a network namespace and claiming
+containment without evidence it holds under this environment's privileges.
+Deleting the words "no network authority", which are true and load-bearing —
+the defect is the join, not either half. Extending `socket_guard` to the
+child by injecting a `sitecustomize`, which is a monkeypatch reaching one
+process further and is exactly what §39 forbids calling kernel containment.
+Recording the boundary and *also* leaving the original sentence somewhere
+else in the repository.
+
+**SIBLING SWEEP.** Every occurrence of "kernel-enforced" was enumerated:
+three source sites, all corrected, plus `verification/stage10/rag/rag_index.json`,
+which is derived from the report and regenerates. The scheme/method/path
+widening noted in D-2026-07 belongs to this same boundary: a socket, once
+open, carries whatever the process sends, and no connect-time check can see
+it.
+
+**DISCOVERED BY.** Reading the sentence against `_apply_limits` and asking
+which of the five rlimits does the work the sentence attributes to them.
+
+**INVALIDATED CLAIMS.** Any reading of the completion report or the
+authority record in which a VERIFIED task was network-isolated by the
+kernel. It was not, and is not now; the difference is that the documents say
+so.
+
+---
+
 ## D-2026-06 — analyst conclusion error: the 3D solver's convergence check
 
 **STATUS** — recorded, not a code defect.

@@ -7,10 +7,25 @@ what it found, and what remains open.
 **It is not a scientific claim.** `automatic_gate_effect` is `NONE`,
 `scientific_PASS_count` is `0`, `measured_in_this_system` is `false`, and
 nothing in this layer can read or write a gate. A task reaching `VERIFIED`
-means a declared tool ran under kernel-enforced bounds with no network
-authority, produced the bytes it claims, and a separated actor confirmed those
-bytes are still on disk. That is provenance. It is not scientific validity, not
-a measurement, and not hardware.
+means a declared tool ran under kernel-enforced CPU, address-space,
+output-size, process-count and core-dump bounds; was granted no network
+authority by this substrate; produced the bytes it claims; and a separated
+actor confirmed those bytes are still on disk. That is provenance. It is not
+scientific validity, not a measurement, and not hardware.
+
+**"Kernel-enforced" and "no network authority" are two separate statements,
+and only the first is the kernel's.** The bounds listed above are `rlimit`s
+set between fork and exec. None of them restricts networking, and a child
+process is free to open sockets: a probe under these exact bounds opened a
+listening TCP socket and routed a UDP socket, exiting 0. What the substrate
+withholds is *authority* -- no egress grant is issued, and the in-process
+`socket_guard` refuses connections the parent makes without one. That guard
+is a monkeypatch in the parent's own interpreter; code inside the block can
+restore the original method, and it does not exist at all in a child. A
+sentence combining the two halves reads as containment, and there is no
+containment here. `tests/test_agent_execution.py` pins this by asserting a
+child CAN open a socket, so the claim cannot be re-strengthened without the
+test failing first.
 
 ---
 

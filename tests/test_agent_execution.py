@@ -1263,3 +1263,77 @@ def test_the_declaration_is_part_of_the_contract_digest():
     assert plain.digest() != with_out.digest(), (
         "a contract change that a citation cannot distinguish is a citation "
         "that does not identify what ran")
+
+
+# --------------------------------------------------------------------------
+# The containment boundary, pinned by asserting what is NOT true.
+#
+# The completion report and the authority record both said a VERIFIED task
+# "ran under kernel-enforced bounds with no network authority". Both halves
+# are true separately and the sentence reads as containment, which there is
+# none of: the bounds are rlimits (CPU, address space, output size, process
+# count, core dumps) and not one of them restricts networking.
+#
+# This test asserts the boundary EXISTS. If somebody later adds a network
+# namespace, a seccomp filter or anything else that genuinely contains a
+# child, this test fails -- and whoever added it has to come here, see the
+# claims that were written to match the old reality, and update them
+# deliberately rather than leaving prose that has quietly become true for
+# reasons nobody recorded.
+# --------------------------------------------------------------------------
+
+def test_a_bounded_child_is_NOT_prevented_from_using_the_network(tmp_path):
+    """A stated boundary, not a wish. See docs/SESSION_REPORT.md.
+
+    Local sockets only: the question is whether the child has the syscalls,
+    not whether this host has connectivity, and a test that needed a remote
+    peer would fail for reasons that have nothing to do with the claim.
+    """
+    import textwrap
+    (tmp_path / "out").mkdir()
+    spec = _spec(tool_id="netprobe", writable_scope=("out",), timeout_s=20.0)
+    prog = textwrap.dedent("""
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("127.0.0.1", 0))
+        s.listen(1)
+        print("BOUND", s.getsockname()[0])
+        s.close()
+    """)
+    r = run_bounded([PY, "-c", prog], spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0),
+                    env={"PATH": "/usr/bin:/bin"})
+
+    assert r.outcome is Outcome.COMPLETED and r.exit_status == 0, (
+        f"the probe itself failed ({r.outcome}, {r.reason}); this test says "
+        "nothing until the child runs")
+    assert "BOUND 127.0.0.1" in r.stdout_excerpt, (
+        "a child under these bounds could NOT open a socket. If that is now "
+        "deliberate -- a namespace, a seccomp filter, anything real -- then "
+        "the containment boundary recorded in docs/SESSION_REPORT.md, "
+        "authorities.json and run_bounded's docstring is out of date and "
+        "must be updated to say what is actually enforced")
+
+
+def test_the_bounds_that_ARE_enforced_are_the_ones_claimed(tmp_path):
+    """Anti-vacuity for the test above: the rlimits are real.
+
+    A boundary test that only asserted an absence would pass in a build
+    where nothing was enforced at all. This one shows the address-space
+    bound biting, so 'the kernel enforces these and not networking' is a
+    statement about two things that were both checked.
+    """
+    import textwrap
+    (tmp_path / "out").mkdir()
+    spec = _spec(tool_id="memprobe", writable_scope=("out",), timeout_s=20.0)
+    prog = textwrap.dedent("""
+        b = bytearray(512 * 1024 * 1024)
+        print("ALLOCATED", len(b))
+    """)
+    r = run_bounded([PY, "-c", prog], spec=spec, cwd=tmp_path,
+                    limits=Limits(wall_seconds=20.0,
+                                  address_space_bytes=64 * 1024 * 1024),
+                    env={"PATH": "/usr/bin:/bin"})
+    assert "ALLOCATED" not in (r.stdout_excerpt or ""), (
+        "the address-space rlimit did not bite; the bounds this executor "
+        "claims to enforce are not being applied")

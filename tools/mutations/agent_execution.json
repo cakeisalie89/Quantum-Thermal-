@@ -433,6 +433,13 @@
       "find": "            \"output_files\": [f.to_record() for f in self.output_files],",
       "replace": "            \"output_files\": [],",
       "rationale": "two tools that collect different files cite the same digest, so a citation stops identifying what ran"
+    },
+    {
+      "name": "X62_the_address_space_bound_is_not_applied",
+      "path": "qta_agent/execution.py",
+      "find": "        resource.setrlimit(resource.RLIMIT_AS,\n                           (limits.address_space_bytes,\n                            limits.address_space_bytes))",
+      "replace": "        pass",
+      "rationale": "the anti-vacuity half of the containment boundary: the claim is 'the kernel enforces THESE and not networking', so a build where the rlimits do not bite makes the boundary test vacuous rather than informative"
     }
   ]
 }
