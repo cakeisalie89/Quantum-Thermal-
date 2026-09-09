@@ -238,11 +238,11 @@
       "rationale": "the caller's context window becomes somebody else's decision"
     },
     {
-      "name": "MR5_an_empty_query_matches_everything",
+      "name": "MR5_an_unmatched_query_returns_the_whole_store",
       "path": "qta_agent/memory.py",
-      "find": "        terms = _terms(query)\n        if not terms:\n            return ()",
-      "replace": "        terms = _terms(query)\n        if False:\n            return ()",
-      "rationale": "asking nothing returns nothing is the safe answer; the alternative hands a caller the whole store on a typo"
+      "find": "            matched = terms & body\n            if not matched:\n                continue",
+      "replace": "            matched = terms & body\n            if False:\n                continue",
+      "rationale": "THE rule, as distinct from the fast path above it. The early return on an empty query is a refinement -- without it an empty query still comes back empty, because this intersection is what collects an entry at all. Remove the intersection and any query hands the caller the whole store, scored zero"
     },
     {
       "name": "MR6_the_total_bound_is_not_enforced",

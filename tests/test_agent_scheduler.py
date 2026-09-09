@@ -1193,6 +1193,71 @@ def _events(sched):
     return sched.log.verify().count
 
 
+def test_report_refuses_at_the_CALL_SITE_not_as_a_replay_error(sched):
+    """The two refusals say different things, and the difference matters.
+
+    Ownership and liveness are checked twice on purpose: once by `report`
+    before it writes anything, and again by `authorize_ownership` when any
+    reader folds the record. The second is the authority -- a rejected
+    worker can append the record itself, and replay is what stops that being
+    believed.
+
+    So the write-path check is a REFINEMENT, and the mutations that delete it
+    survived the existing tests: the reducer refuses too, and its message
+    contains the same words those tests match on.
+
+    What the reducer's message cannot say is that the CALLER was wrong. It
+    is a replay complaint, prefixed with the sequence number of an
+    impossible record -- the thing an operator reads as "the log is
+    damaged". Turning a bad call into that message sends somebody hunting a
+    corruption that does not exist. This pins the distinction: a bad call is
+    refused as a bad call, and a forged record is refused as a forged
+    record, and they do not look alike.
+    """
+    _dispatched(sched)
+
+    with pytest.raises(JobTransitionError) as bad_caller:
+        sched.report(job_id="j1", worker="mallory")
+    msg = str(bad_caller.value)
+    assert "leased to 'worker-a'" in msg, msg
+    assert not msg.startswith("seq "), (
+        "a wrong caller was told the log contains an impossible record at a "
+        f"sequence number: {msg!r}. That is the replay refusal leaking into "
+        "the call path, and it reads as damage rather than as a mistake")
+
+    # THE OTHER HALF, so this cannot pass by nothing ever mentioning a seq:
+    # the same claim, appended directly, IS a replay error and says so.
+    from qta_agent.scheduler import ACT_JOB_TRANSITION
+
+    sched.log.append(
+        actor="mallory", action=ACT_JOB_TRANSITION, target="j1",
+        payload={"job_id": "j1", "src": "DISPATCHED", "dst": "SUCCEEDED",
+                 "reason": "forged", "lease_id": "L1",
+                 "lease_holder": "mallory", "lease_expires_after_seq": 10_000,
+                 "lease_renewals": 0, "attempts": 1})
+    with pytest.raises(JobTransitionError) as forged:
+        _reload(sched.log.path.parent)
+    assert str(forged.value).startswith("seq "), str(forged.value)
+
+
+def test_report_refuses_a_lapsed_lease_at_the_call_site_too(sched):
+    """Same distinction, the liveness half."""
+    _dispatched(sched, lease_seqs=1)
+    for i in range(4):                        # push past the expiry
+        _enqueue(sched, f"filler{i}")
+
+    with pytest.raises(JobTransitionError) as caught:
+        sched.report(job_id="j1", worker="worker-a")
+    msg = str(caught.value)
+    assert "lapsed" in msg, msg
+    assert not msg.startswith("seq "), (
+        "the holder of a lapsed lease was told the log is damaged at a "
+        f"sequence number rather than that its report is late: {msg!r}")
+    assert "the log is at" in msg, (
+        "the refusal does not say how late the report is, which is the one "
+        "thing the caller needs in order to act on it")
+
+
 def test_a_refused_report_from_a_non_holder_appends_nothing(sched):
     _dispatched(sched)
     before = _events(sched)

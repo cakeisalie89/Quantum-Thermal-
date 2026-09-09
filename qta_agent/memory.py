@@ -355,6 +355,11 @@ class MemoryStore:
                 "decision")
         terms = _terms(query)
         if not terms:
+            # A FAST PATH, not the rule. Without it an empty query still
+            # comes back empty, because the intersection below is what
+            # collects an entry at all -- so a mutation removing this line
+            # cannot be killed, and saying so is more honest than pretending
+            # it guards something. The rule is `if not matched: continue`.
             return ()
         scored = []
         for e in self._entries.values():

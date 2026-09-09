@@ -508,6 +508,37 @@ def test_recall_is_deterministic_across_readers(mem, tmp_path):
         [h.memory_id for h in revived.recall("alpha beta", k=8)]
 
 
+def test_recall_breaks_ties_by_id_and_not_by_arrival_order(mem):
+    """The tie-break is the determinism, and the other test cannot see it.
+
+    `test_recall_is_deterministic_across_readers` writes m0..m7 in id order,
+    so arrival order and id order are the same sequence and dropping the
+    tie-break changes nothing -- Python's sort is stable and the entries come
+    back in the order the dict holds them, which is the order they were
+    written. The mutation that removes the id break survived that test for
+    exactly that reason.
+
+    Here the two orders disagree. Every entry matches the same single term,
+    so every score is equal and the ONLY thing deciding the result is the
+    tie-break.
+    """
+    arrival = ["m-zulu", "m-alpha", "m-mike", "m-bravo"]
+    for mid in arrival:
+        mem.remember(memory_id=mid, author="a", text="alpha")
+
+    got = [h.memory_id for h in mem.recall("alpha", k=8)]
+
+    assert got == sorted(arrival), (
+        f"recall returned {got}; ties must resolve by memory_id, not by the "
+        "order entries happened to be written")
+    assert got != arrival, (
+        "arrival order equals id order, so this test cannot see the "
+        "tie-break at all")
+    assert len({h.score for h in mem.recall("alpha", k=8)}) == 1, (
+        "the scores differ, so the ranking decided this rather than the "
+        "tie-break")
+
+
 def test_recall_ranks_by_how_many_query_terms_matched(mem):
     mem.remember(memory_id="m-one", author="a", text="alpha only")
     mem.remember(memory_id="m-both", author="a", text="alpha and beta")
@@ -531,6 +562,26 @@ def test_an_empty_query_returns_nothing_rather_than_everything(mem):
     mem.remember(memory_id="m1", author="a", text="alpha")
     assert mem.recall("") == ()
     assert mem.recall("   ") == ()
+
+
+def test_a_query_that_matches_nothing_returns_nothing(mem):
+    """THE guard, as distinct from the fast path above it.
+
+    `recall` returns early on a query with no terms, and that early return
+    is a refinement rather than a rule: without it an empty query still
+    comes back empty, because an entry is only collected when the query and
+    the body share a term. The rule is that intersection test, and a query
+    of real words that matches no entry is where it is the only thing
+    standing between a caller and the whole store.
+    """
+    mem.remember(memory_id="m1", author="a", text="alpha beta")
+    mem.remember(memory_id="m2", author="a", text="gamma delta")
+
+    assert mem.recall("epsilon zeta", k=8) == (), (
+        "a query sharing no term with any entry returned entries; the "
+        "caller asked about one thing and was handed the store")
+    # ANTI-VACUITY: the store is not simply empty.
+    assert len(mem.recall("alpha", k=8)) == 1
 
 
 # ---- the total bound ----------------------------------------------------
