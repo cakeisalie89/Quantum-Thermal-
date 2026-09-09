@@ -278,6 +278,41 @@ The divergence is therefore fully attributed, to two host-CPU-dependent
 dispatch decisions taken by two different libraries. Both are reproducible
 here on demand, from the same source tree, by pinning environment variables.
 
+### The pool is mixed, and one run showed both answers
+
+Run `34296217403` at `7ccfd02` is the clearest evidence in this document,
+and it is not a comparison between two environments — it is a comparison
+inside one workflow run.
+
+Two of its jobs ran on different machines from GitHub's `ubuntu-latest`
+pool:
+
+| job | machine | result |
+|---|---|---|
+| `102293316307` (`full-suite`) | has AVX-512 | `package_consistency_check.py` → **PASS**, every committed byte reproduced |
+| `102293316177` (`cross-environment-3d`) | no AVX-512 | `SkylakeX UNSUPPORTED ON THIS HOST: exit -4`, Haswell **40 / 63** |
+
+Same commit, same workflow, same dependency lockfile, ten minutes apart.
+
+Three things follow.
+
+**A machine without AVX-512 does not fall back when asked for SkylakeX.** It
+dies: exit `-4` is SIGILL, an illegal instruction. Pinning the kernel that
+reproduces the committed bytes is therefore not a portability trade — on
+those hosts it is a crash.
+
+**The byte gate's hosted result depends on which machine the job draws.**
+That is not flakiness in the check; the check is deterministic given a host.
+It is the byte gate correctly reporting that this host's arithmetic differs,
+on a pool that does not promise a uniform host. Earlier runs `34216535309`
+and `34234781324` drew non-AVX-512 machines and were red on exactly this.
+
+**The local attribution is confirmed from the other side.** This runner's
+plain `Haswell` row and its `Haswell + numpy AVX2 only` row are identical —
+40 / 63 both times — because the host has no AVX-512 for numpy to use
+either way. That is exactly what the local sweep predicted: the extra pin
+changes nothing on a machine that was never taking the AVX-512 path.
+
 ### What this does and does not establish
 
 It establishes that byte-identity of the 3D outputs is a property of a
@@ -292,11 +327,13 @@ comparison cannot rank them. The differences are last-bit; nothing here
 suggests a numerical defect, and nothing here would detect one.
 
 It was not fixed by pinning these variables repository-wide. The
-configuration that reproduces the committed bytes needs AVX-512 — the hosted
-runner refuses `SkylakeX` outright — so pinning it would make the pipeline
-unable to run on hardware without it, and pinning a configuration every host
+configuration that reproduces the committed bytes needs AVX-512, and a
+machine without it does not decline the kernel — it executes an illegal
+instruction and dies. So pinning it would make the pipeline crash on such
+hardware rather than merely differ, and pinning a configuration every host
 can run would invalidate every committed canonical output. Choosing the
-host's CPU is not something a repository does.
+host's CPU is not something a repository does, and on a shared runner pool
+it is not something the job gets to do either.
 
 **No tolerance was widened. No file was exempted. No canonical output was
 rewritten.** The byte gate stays closed, and it is now closed around a
