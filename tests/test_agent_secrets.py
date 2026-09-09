@@ -563,3 +563,46 @@ def test_grants_in_force_omits_revoked_grants():
     assert [g.grant_id for g in s.grants_in_force()] == ["sg1"]
     s.revoke("sg1", actor="owner", reason="done")
     assert s.grants_in_force() == ()
+
+
+# --------------------------------------------------------------------------
+# Who may withdraw a secret grant -- and where that is enforced.
+#
+# Unlike the capability ledger and the egress authority, this store has no
+# reducer: it is rebuilt by the process that owns it, and the log is an
+# audit trail rather than the source of truth. So the rule runs on the write
+# path and there is NO replay here for it to also run on. That asymmetry is
+# a property of this module, and it is asserted below rather than left for a
+# reader to discover -- the independent reconstruction is what re-reads such
+# a record, and it applies the rule in its own words.
+# --------------------------------------------------------------------------
+
+def test_an_unrelated_actor_may_not_revoke_a_secret_grant():
+    s = SecretStore()
+    s.register("api-token", VALUE)
+    s.issue(_grant(), actor="owner")
+    with pytest.raises(SecretError, match="may not revoke"):
+        s.revoke("sg1", actor="mallory", reason="denial of service")
+    assert [g.grant_id for g in s.grants_in_force()] == ["sg1"]
+
+
+def test_the_granter_may_revoke_its_own_secret_grant():
+    """Anti-vacuity: the ordinary withdrawal still works."""
+    s = SecretStore()
+    s.register("api-token", VALUE)
+    s.issue(_grant(), actor="owner")
+    s.revoke("sg1", actor="owner", reason="rotated")
+    assert s.grants_in_force() == ()
+
+
+def test_this_store_has_no_replay_and_says_so():
+    """A stated boundary, pinned so it cannot quietly stop being true.
+
+    If a reducer is ever added here, this test fails and whoever adds it has
+    to decide deliberately whether the revocation rule belongs in it. That
+    is the point: the gap is recorded, not hidden.
+    """
+    assert not hasattr(SecretStore, "apply"), (
+        "SecretStore grew a reducer; the revocation authority check in "
+        "revoke() now needs a replay-side twin, and the comment in that "
+        "method saying there is no replay here is out of date")

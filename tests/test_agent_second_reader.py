@@ -761,3 +761,114 @@ def test_a_report_at_the_LAST_legal_position_is_not_flagged(gov):
     recon = reconstruct_subsystems(gov.log)
     assert recon.anomalies == [], recon.anomalies
     assert _job(recon)["state"] == "SUCCEEDED"
+
+
+# --------------------------------------------------------------------------
+# Destruction, in the second reader's own words.
+#
+# Every rule below has the same shape as one the reader already applied to
+# CREATION: a grant may not be minted by anyone, a human may not be admitted
+# by an agent. None of them had a counterpart for taking the thing away, so
+# admission was checked and removal was not -- which is the same authority
+# reached from the other direction.
+#
+# For secret grants this reader is not a second opinion but the ONLY one:
+# SecretStore has no reducer, so a secret.grant revocation appended around
+# its write path is re-read by nothing else in the system.
+# --------------------------------------------------------------------------
+
+def _rooted(gov):
+    """A run, so the log carries a root issuer and real grants."""
+    _run(gov)
+    return reconstruct_subsystems(gov.log)
+
+
+def test_the_second_reader_refuses_a_revocation_from_an_unrelated_actor(gov):
+    recon = _rooted(gov)
+    cid = sorted(recon.capabilities)[0]
+    after = _forge(gov, "capability.revoke",
+                   {"capability_id": cid, "reason": "denial of service"},
+                   actor="mallory")
+    assert any("revokes" in a and "mallory" in a
+               for a in after.anomalies), after.anomalies
+    assert after.capabilities[cid]["revoked_seq"] is None
+
+
+def test_the_second_reader_follows_a_revocation_by_the_issuer(gov):
+    """Anti-vacuity: a reader that refused every revocation would pass above."""
+    recon = _rooted(gov)
+    cid = sorted(recon.capabilities)[0]
+    issuer = recon.capabilities[cid]["issued_by"]
+    after = _forge(gov, "capability.revoke",
+                   {"capability_id": cid, "reason": "rotated"}, actor=issuer)
+    assert after.anomalies == [], after.anomalies
+    assert after.capabilities[cid]["revoked_seq"] is not None
+
+
+def test_the_second_reader_refuses_an_egress_revocation_by_a_stranger(gov):
+    gov.log.append(actor="control", action="network.grant", target="t1",
+                   payload={"grant": {"grant_id": "g1"},
+                            "grant_digest": "d" * 64})
+    recon = _forge(gov, "network.grant",
+                   {"grant_id": "g1", "revoke": True, "reason": "dos"},
+                   actor="mallory")
+    assert any("revokes network grant" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert recon.net_grants["g1"]["revoked_seq"] is None
+
+
+def test_the_second_reader_refuses_a_secret_revocation_by_a_stranger(gov):
+    """The case where this reader is the only reader there is."""
+    gov.log.append(actor="control", action="secret.grant", target="t1",
+                   payload={"grant": {"grant_id": "sg1"},
+                            "grant_digest": "e" * 64})
+    recon = _forge(gov, "secret.grant",
+                   {"grant_id": "sg1", "revoke": True, "reason": "dos"},
+                   actor="mallory")
+    assert any("revokes secret grant" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert recon.secret_grants["sg1"]["revoked_seq"] is None
+
+
+def test_the_second_reader_follows_a_grant_revoked_by_its_granter(gov):
+    """Anti-vacuity for both grant tables."""
+    gov.log.append(actor="control", action="network.grant", target="t1",
+                   payload={"grant": {"grant_id": "g1"},
+                            "grant_digest": "d" * 64})
+    recon = _forge(gov, "network.grant",
+                   {"grant_id": "g1", "revoke": True, "reason": "rotated"},
+                   actor="control")
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.net_grants["g1"]["revoked_seq"] is not None
+
+
+def test_the_second_reader_refuses_an_agent_retiring_a_human(gov):
+    gov.log.append(actor="system", action="agent.register", target="bot",
+                   payload={"identity": {"instance_id": "bot",
+                                         "agent_id": "bot", "kind": "AGENT",
+                                         "roles": ["EXECUTOR"]}})
+    gov.log.append(actor="out-of-band-bootstrap", action="agent.register",
+                   target="person",
+                   payload={"identity": {"instance_id": "person",
+                                         "agent_id": "person",
+                                         "kind": "HUMAN",
+                                         "roles": ["REVIEWER"]}})
+    recon = _forge(gov, "agent.retire",
+                   {"instance_id": "person", "reason": "inconvenient"},
+                   actor="bot")
+    assert any("retires the HUMAN" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert recon.agents["person"]["retired_seq"] is None
+
+
+def test_the_second_reader_follows_a_principal_standing_itself_down(gov):
+    """Anti-vacuity: somebody leaving is not a finding."""
+    gov.log.append(actor="system", action="agent.register", target="bot",
+                   payload={"identity": {"instance_id": "bot",
+                                         "agent_id": "bot", "kind": "AGENT",
+                                         "roles": ["EXECUTOR"]}})
+    recon = _forge(gov, "agent.retire",
+                   {"instance_id": "bot", "reason": "shutting down"},
+                   actor="bot")
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.agents["bot"]["retired_seq"] is not None

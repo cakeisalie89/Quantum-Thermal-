@@ -828,6 +828,11 @@ class NetworkAuthority:
     def __init__(self, log=None):
         self.log = log
         self._grants: dict = {}
+        #: grant_id -> the actor whose record issued it. Only populated in
+        #: log-backed mode: with no log there is no record to attribute a
+        #: grant to, and revocation there is a local operation on a local
+        #: object rather than an authority decision.
+        self._granted_by: dict = {}
         self._revoked: set = set()
         self._services: dict = {}
         #: (service_id, task_id) -> calls PERMITTED so far. Counted from the
@@ -842,6 +847,7 @@ class NetworkAuthority:
             return self
         self.log.verify().raise_if_bad()
         self._grants = {}
+        self._granted_by = {}
         self._revoked = set()
         self._services = {}
         self._service_calls = {}
@@ -884,6 +890,7 @@ class NetworkAuthority:
         if ev.action == ACT_NET_GRANT:
             p = ev.payload
             if p.get("revoke"):
+                self._authorize_revoke(ev, p["grant_id"])
                 self._revoked.add(p["grant_id"])
             else:
                 g = grant_from_record(p["grant"])
@@ -916,6 +923,12 @@ class NetworkAuthority:
                         f"it was issued at seq {g.issued_seq}; a grant is in "
                         "force from where it appears in the log")
                 self._grants[g.grant_id] = g
+                # WHO granted it. Kept beside the grant rather than inside
+                # it so the grant's digest -- its identity -- does not
+                # depend on who recorded it. Without this there was nothing
+                # for a revocation to be checked against, which is why
+                # revocation was checked against nothing.
+                self._granted_by[g.grant_id] = ev.actor
             self._at_seq = ev.seq
             return True
         if ev.action in (ACT_NET_REQUEST, ACT_NET_RESULT):
@@ -995,9 +1008,35 @@ class NetworkAuthority:
             self._grants[g.grant_id] = g
         return g
 
+    def _authorize_revoke(self, ev, grant_id: str) -> None:
+        """May ``ev.actor`` withdraw this egress grant? Or raise.
+
+        Issuing was guarded; withdrawing was not, on either path, so one
+        appended line took away authority somebody else granted. Egress
+        authority is what a task's network access rests on, and a grant
+        revoked out from under a running task fails it closed -- correct as
+        a direction, and not something an unrelated actor gets to decide.
+        """
+        granter = self._granted_by.get(grant_id)
+        if granter is None:
+            raise NetworkError(
+                f"seq {ev.seq}: {ev.actor!r} revokes egress grant "
+                f"{grant_id!r}, which this log has not issued")
+        if ev.actor != granter:
+            raise NetworkError(
+                f"seq {ev.seq}: {ev.actor!r} revokes egress grant "
+                f"{grant_id!r}, granted by {granter!r}. A grant is withdrawn "
+                "by whoever made it.")
+
     def revoke(self, grant_id: str, *, actor: str, reason: str) -> None:
         if grant_id not in self._grants:
             raise NetworkError(f"no egress grant {grant_id!r} to revoke")
+        granter = self._granted_by.get(grant_id)
+        if granter is not None and actor != granter:
+            raise NetworkError(
+                f"{actor!r} may not revoke egress grant {grant_id!r}, "
+                f"granted by {granter!r}. A grant is withdrawn by whoever "
+                "made it.")
         if self.log is not None:
             ev = self.log.append(
                 actor=actor, action=ACT_NET_GRANT, target=grant_id,

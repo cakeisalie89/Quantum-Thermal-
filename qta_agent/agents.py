@@ -526,6 +526,11 @@ class AgentDirectory:
                     f"seq {ev.seq}: retirement names {iid!r}, which was "
                     "never registered; a record about a principal that does "
                     "not exist is not a fact about this system")
+            # EXISTENCE FIRST, THEN AUTHORITY. Asking who may retire a
+            # principal that was never admitted answers a question about the
+            # wrong problem, and the message an operator reads would name
+            # authority when the actual fault is a name that does not exist.
+            self._check_may_retire(iid, by=ev.actor, seq=ev.seq)
             self._identities[iid] = replace(self._identities[iid],
                                             retired_seq=ev.seq)
         elif ev.action == ACT_MESSAGE:
@@ -646,6 +651,12 @@ class AgentDirectory:
                 raise EscalationError(
                     f"seq {ev.seq}: {answered_by!r} answered escalation "
                     f"{eid!r} and is not a registered principal")
+            if not ident.is_active(ev.seq):
+                raise EscalationError(
+                    f"seq {ev.seq}: {answered_by!r} was retired after seq "
+                    f"{ident.retired_seq} and may not answer escalation "
+                    f"{eid!r}. A principal that has left cannot be the "
+                    "person a decision is attributed to.")
             if ident.kind is not PrincipalKind.HUMAN:
                 raise EscalationError(
                     f"seq {ev.seq}: {answered_by!r} is a "
@@ -692,7 +703,14 @@ class AgentDirectory:
         if by == BOOTSTRAP:
             return
         registrar = self._identities.get(by)
-        if registrar is None or registrar.kind is not PrincipalKind.HUMAN:
+        # ACTIVE, not merely registered. require() has always refused a
+        # retired instance every role, and these two gates did not consult
+        # retirement at all -- so "retired" meant a principal could no
+        # longer act, except to admit new humans and to answer escalations,
+        # which are the two things it most matters that they cannot do.
+        at = self._at_seq if seq is None else seq
+        if (registrar is None or registrar.kind is not PrincipalKind.HUMAN
+                or not registrar.is_active(at)):
             where = f"seq {seq}: " if seq is not None else ""
             raise IdentityError(
                 f"{where}{by!r} may not register a HUMAN principal: only an "
@@ -700,6 +718,61 @@ class AgentDirectory:
                 f"{BOOTSTRAP!r} bootstrap, can. An agent that could "
                 "do this would be one step from answering its own "
                 "escalations.")
+
+    def _check_may_retire(self, instance_id: str, *, by: str,
+                          seq: int | None = None) -> None:
+        """May ``by`` retire ``instance_id``? Or raise.
+
+        ONE function for both paths, for the same reason
+        :meth:`_check_may_register` is one function: the rule that lives in
+        two places is the rule that drifts.
+
+        WHAT WAS HERE BEFORE: nothing. Admission was guarded and removal was
+        not, on either path, so any string could retire any principal --
+        including every HUMAN in the log. Reproduced before this existed: an
+        AGENT retired a HUMAN and a fresh replay agreed the person was gone.
+
+        WHO MAY:
+
+        * the instance itself, which is somebody standing down;
+        * whoever admitted it, which is the mirror of admitting;
+        * any HUMAN who is still active, or the out-of-band bootstrap.
+
+        AND THE ASYMMETRY THAT MATTERS: a HUMAN principal may be retired
+        ONLY by a human or by itself. :meth:`_check_may_register` already
+        says an agent that could admit a human would be one step from
+        answering its own escalations. An agent that can retire humans is
+        the same reasoning from the other end -- it edits the membership of
+        the set the human gate is drawn from, and does it by subtraction
+        instead of addition.
+        """
+        if by == BOOTSTRAP or by == instance_id:
+            return
+        target = self._identities.get(instance_id)
+        actor = self._identities.get(by)
+        where = f"seq {seq}: " if seq is not None else ""
+        at = self._at_seq if seq is None else seq
+        actor_is_live_human = (
+            actor is not None
+            and actor.kind is PrincipalKind.HUMAN
+            and actor.is_active(at))
+        if (target is not None and target.kind is PrincipalKind.HUMAN
+                and not actor_is_live_human):
+            raise IdentityError(
+                f"{where}{by!r} may not retire the HUMAN principal "
+                f"{instance_id!r}: only another active human, the principal "
+                f"itself, or the explicit {BOOTSTRAP!r} bootstrap can. "
+                "Removing humans from the log is how an agent empties the "
+                "set the human gate is drawn from.")
+        if target is not None and target.registered_by == by:
+            return
+        if actor_is_live_human:
+            return
+        raise IdentityError(
+            f"{where}{by!r} may not retire {instance_id!r}, which was "
+            f"admitted by {getattr(target, 'registered_by', None)!r}. A "
+            "principal is retired by whoever admitted it, by itself, or by "
+            "an active human.")
 
     def register(self, ident: AgentIdentity, *, by: str) -> AgentIdentity:
         """Record a participating instance. See :meth:`_check_may_register`."""
@@ -713,6 +786,7 @@ class AgentDirectory:
 
     def retire(self, instance_id: str, *, by: str, reason: str) -> None:
         self.get(instance_id)
+        self._check_may_retire(instance_id, by=by)
         ev = self.log.append(actor=by, action=ACT_AGENT_RETIRE,
                              target=instance_id,
                              payload={"instance_id": instance_id,

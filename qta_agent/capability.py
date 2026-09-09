@@ -649,11 +649,57 @@ class CapabilityLedger:
             if not cap_id:
                 raise CapabilityError(
                     f"seq {ev.seq}: revocation names no capability")
+            self._authorize_revoke(ev, cap_id)
             self._revoked.add(cap_id)
         else:
             return False
         self._at_seq = ev.seq
         return True
+
+    def _authorize_revoke(self, ev, cap_id: str) -> None:
+        """May ``ev.actor`` withdraw this grant?
+
+        WHY CREATION WAS GUARDED AND DESTRUCTION WAS NOT
+
+        :meth:`_authorize_mint` has always asked who may bring a grant into
+        existence. Nothing asked who may take one away, on either path, so
+        any actor could append one line and withdraw authority somebody else
+        granted -- and every later check would agree the grant was gone,
+        because a revocation is exactly as durable as a mint.
+
+        This was not a gap in reasoning so much as a gap in symmetry. The
+        ledger has ALWAYS recorded who issued each grant, in ``_issued_by``,
+        and :meth:`issuer_of` says in its own docstring that it is "not an
+        authorization". The substrate knew who granted the authority and did
+        not consult that knowledge when the authority was destroyed.
+
+        WHO MAY. The actor who issued it, or the root issuer. A delegate
+        withdrawing its own grant is ordinary housekeeping; the root can
+        reach anything it is the source of. Nobody else, including the
+        grant's own SUBJECT: a capability is not the holder's to destroy,
+        and letting a holder revoke it would let one confused or captured
+        worker take down authority the control plane is relying on.
+
+        Not a :class:`CapabilityDenied`: nobody was refused the USE of a
+        grant, the same distinction :class:`NotTheIssuer` already draws.
+        """
+        issuer = self._issued_by.get(cap_id)
+        if issuer is None:
+            # A revocation for a grant this ledger never issued. Refused
+            # rather than recorded: a revocation is a statement about a
+            # specific grant, and there is no grant here to make it about.
+            raise CapabilityError(
+                f"seq {ev.seq}: {ev.actor!r} revokes {cap_id!r}, which this "
+                "log has not issued")
+        if ev.actor == issuer:
+            return
+        if self._root is not None and ev.actor == self._root:
+            return
+        raise NotTheIssuer(
+            f"seq {ev.seq}: {ev.actor!r} revokes {cap_id!r}, granted by "
+            f"{issuer!r}. A grant is withdrawn by whoever made it or by the "
+            f"root issuer ({self._root!r}); anyone else withdrawing it is "
+            "taking away authority that was never theirs to give.")
 
     def _authorize_mint(self, ev, cap: Capability) -> None:
         """May ``ev.actor`` bring ``cap`` into existence?
@@ -841,6 +887,13 @@ class CapabilityLedger:
         if capability_id not in self._issued:
             raise CapabilityError(
                 f"no capability {capability_id!r} to revoke")
+        issuer = self._issued_by.get(capability_id)
+        if actor != issuer and not (self._root is not None
+                                    and actor == self._root):
+            raise NotTheIssuer(
+                f"{actor!r} may not revoke {capability_id!r}, granted by "
+                f"{issuer!r}. A grant is withdrawn by whoever made it or by "
+                f"the root issuer ({self._root!r}).")
         ev = self.log.append(
             actor=actor, action=ACT_REVOKE, target=capability_id,
             payload={"capability_id": capability_id, "reason": reason})

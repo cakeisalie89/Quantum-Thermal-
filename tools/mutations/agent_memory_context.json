@@ -23,9 +23,9 @@
     {
       "name": "Y3_anyone_may_retract_anyone_s_memory",
       "path": "qta_agent/memory.py",
-      "find": "        if entry.author != actor:",
-      "replace": "        if False:",
-      "rationale": "withdrawing someone else's statement becomes indistinguishable from withdrawing your own"
+      "find": "        if entry.author != actor:\n            raise MemoryError_(\n                f\"memory {memory_id!r} was written by {entry.author!r}; \"",
+      "replace": "        if False:\n            raise MemoryError_(\n                f\"memory {memory_id!r} was written by {entry.author!r}; \"",
+      "rationale": "withdrawing someone else's statement becomes indistinguishable from withdrawing your own Anchor made specific when supersede() gained the same comparison: an anchor that matches two guards attacks whichever the harness reaches first, which is not a mutation, it is a coin toss."
     },
     {
       "name": "Y4_stale_entries_stay_current",
@@ -191,9 +191,9 @@
     {
       "name": "MC_replay_lets_anyone_retract",
       "path": "qta_agent/memory.py",
-      "find": "            if dst is MemoryStatus.RETRACTED and ev.actor != cur.author:",
+      "find": "            if dst in _AUTHORS_OWN and ev.actor != cur.author:",
       "replace": "            if False:",
-      "rationale": "withdrawing someone else's statement stops being a different act, making the write-path authorship check advisory"
+      "rationale": "withdrawing someone else's statement stops being a different act, making the write-path authorship check advisory Anchor repaired when the rule was widened from RETRACTED alone to both withdrawing statuses; M38 attacks the widening itself by narrowing it back."
     },
     {
       "name": "MC_active_becomes_reachable_again",
@@ -264,6 +264,27 @@
       "find": "    evidence_status = \"REMEMBERED_TEXT_NOT_EVIDENCE\"",
       "replace": "    evidence_status: str = \"REMEMBERED_TEXT_NOT_EVIDENCE\"",
       "rationale": "a status a caller can choose is a label rather than a property; a construction path could then mint a hit that claims to be evidence"
+    },
+    {
+      "name": "M38_anyone_may_supersede_anyone_elses_entry",
+      "path": "qta_agent/memory.py",
+      "find": "            if dst in _AUTHORS_OWN and ev.actor != cur.author:",
+      "replace": "            if dst is MemoryStatus.RETRACTED and ev.actor != cur.author:",
+      "rationale": "restores the defect exactly: the rule was stated for RETRACTED and its sibling had no check anywhere. Superseding is the stronger withdrawal -- it removes the entry from current() AND points every later reader at the superseder's replacement"
+    },
+    {
+      "name": "M39_the_write_path_lets_anyone_supersede",
+      "path": "qta_agent/memory.py",
+      "find": "        entry = self.get(old_id)\n        if entry.author != actor:",
+      "replace": "        entry = self.get(old_id)\n        if False:",
+      "rationale": "the caller writes a record the reducer will refuse on the next load, so the store is unreadable rather than merely wrong"
+    },
+    {
+      "name": "M40_an_invalidation_cascade_requires_authorship",
+      "path": "qta_agent/memory.py",
+      "find": "_AUTHORS_OWN: frozenset = frozenset({\n    MemoryStatus.RETRACTED, MemoryStatus.SUPERSEDED,\n})",
+      "replace": "_AUTHORS_OWN: frozenset = frozenset({\n    MemoryStatus.RETRACTED, MemoryStatus.SUPERSEDED, MemoryStatus.STALE,\n})",
+      "rationale": "the over-correction, in the fail-closed direction and still a defect: a source changing is a fact about the world cascaded over entries with many authors, and requiring authorship stops the cascade doing the only thing it exists for"
     }
   ]
 }

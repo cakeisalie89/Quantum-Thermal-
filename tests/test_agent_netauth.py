@@ -20,7 +20,8 @@ if str(ROOT) not in sys.path:
 
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.netauth import (  # noqa: E402
-    ACT_NET_REQUEST, AddressClass, Direction, EgressGrant, GuardedConnection,
+    ACT_NET_GRANT, ACT_NET_REQUEST, AddressClass, Direction, EgressGrant,
+    GuardedConnection,
     MalformedTarget, NetworkAuthority, NetworkDenied, NetworkError,
     NetworkRequest, ServiceOperation, classify_address, grant,
     grant_from_record, host_matches, parse_target, service, socket_guard,
@@ -302,7 +303,9 @@ def test_a_revoked_grant_authorizes_nothing(tmp_path):
     log = EventLog(tmp_path / "log.jsonl")
     a = _auth(log=log)
     assert a.authorize(_req()).allowed is True
-    a.revoke("g1", actor="owner", reason="rotated")
+    # The granter. This used to be an unrelated string and it worked,
+    # which was the defect: withdrawing egress authority took none.
+    a.revoke("g1", actor="scheduler", reason="rotated")
     d = a.authorize(_req())
     assert d.allowed is False and "revoked" in d.reason
 
@@ -1078,3 +1081,38 @@ def test_a_refused_call_does_not_spend_the_budget_on_replay(tmp_path):
     assert revived.calls_made("registrar", TASK) == 0, (
         "refused calls were counted against the budget on replay")
     assert revived.authorize(_svc_req()).allowed
+
+
+# --------------------------------------------------------------------------
+# Who may withdraw egress authority.
+#
+# Issuing was guarded; withdrawing was not, on either path, so one appended
+# line took away authority somebody else granted. A grant revoked out from
+# under a running task fails it closed -- correct as a direction, and not
+# something an unrelated actor gets to decide.
+# --------------------------------------------------------------------------
+
+def test_an_unrelated_actor_may_not_revoke_an_egress_grant(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    a = _auth(log=log)
+    with pytest.raises(NetworkError, match="may not revoke"):
+        a.revoke("g1", actor="mallory", reason="denial of service")
+    assert a.authorize(_req()).allowed is True
+
+
+def test_replay_refuses_an_egress_revocation_from_an_unrelated_actor(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    _auth(log=log)
+    log.append(actor="mallory", action=ACT_NET_GRANT, target="g1",
+               payload={"grant_id": "g1", "revoke": True, "reason": "dos"})
+    with pytest.raises(NetworkError, match="revokes egress grant"):
+        NetworkAuthority(log).load()
+
+
+def test_the_granter_may_revoke_its_own_egress_grant(tmp_path):
+    """Anti-vacuity: the ordinary withdrawal still works, and still bites."""
+    log = EventLog(tmp_path / "log.jsonl")
+    a = _auth(log=log)
+    a.revoke("g1", actor="scheduler", reason="rotated")
+    assert a.authorize(_req()).allowed is False
+    assert NetworkAuthority(log).load().authorize(_req()).allowed is False

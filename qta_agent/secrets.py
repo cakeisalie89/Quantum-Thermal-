@@ -629,6 +629,10 @@ class SecretStore:
         self.log = log
         self._values: dict = {}
         self._grants: dict = {}
+        #: grant_id -> the actor that issued it, so a revocation has
+        #: something to be checked against. See :meth:`revoke` for why this
+        #: store enforces that on one path and not two.
+        self._granted_by: dict = {}
         self._revoked: set = set()
         self._at_seq = 0
         self._accesses: list = []
@@ -766,6 +770,7 @@ class SecretStore:
             # where a grant begins is not the caller's to choose.
             g = replace(g, issued_seq=self.log.verify().head_seq + 1)
         self._grants[g.grant_id] = g
+        self._granted_by[g.grant_id] = actor
         if self.log is not None:
             # The grant BODY, which names ids and purposes and no value.
             ev = self.log.append(
@@ -775,8 +780,27 @@ class SecretStore:
         return g
 
     def revoke(self, grant_id: str, *, actor: str, reason: str) -> None:
+        """Withdraw a grant. Whoever made it may; nobody else.
+
+        WHERE THIS IS ENFORCED, AND WHERE IT IS NOT. Unlike the capability
+        ledger and the egress authority, this store has no reducer: it is
+        rebuilt by the process that owns it, and the log is an audit trail
+        rather than the source of truth. So this check runs on the write
+        path and there is no replay here for it to also run on. A record
+        appended around this method is not re-authorized by anything in
+        THIS module -- the independent reconstruction is what reads such a
+        record, and it applies the rule in its own words. Stated rather than
+        left implicit, because "checked on both paths" is true of the other
+        two ledgers and is not true here.
+        """
         if grant_id not in self._grants:
             raise SecretError(f"no secret grant {grant_id!r} to revoke")
+        granter = self._granted_by.get(grant_id)
+        if granter is not None and actor != granter:
+            raise SecretError(
+                f"{actor!r} may not revoke secret grant {grant_id!r}, "
+                f"granted by {granter!r}. A grant is withdrawn by whoever "
+                "made it.")
         self._revoked.add(grant_id)
         if self.log is not None:
             ev = self.log.append(

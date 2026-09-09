@@ -624,3 +624,76 @@ def test_live_bytes_reports_what_a_projection_holds(mem):
     assert mem.live_bytes() == 8
     mem.retract("m2", actor="a", reason="withdrawn")
     assert mem.live_bytes() == 5
+
+
+# --------------------------------------------------------------------------
+# Superseding is a withdrawal, and withdrawals belong to the author.
+#
+# retract() has always refused withdrawing somebody else's statement, on the
+# write path and on replay, with the argument written out. Its sibling had
+# no check anywhere -- and supersession is the STRONGER of the two: it
+# removes the entry from current() AND points every later reader at whatever
+# the superseder chose to replace it with.
+# --------------------------------------------------------------------------
+
+def _two(mem, a1="alice", a2="mallory"):
+    _remember(mem, "m1", author=a1, text="the coupling term is not negligible")
+    _remember(mem, "m2", author=a2, text="the coupling term is negligible")
+
+
+def test_nobody_else_may_supersede_your_statement(mem):
+    _two(mem)
+    with pytest.raises(MemoryError_, match="may not supersede"):
+        mem.supersede(old_id="m1", new_id="m2", actor="mallory",
+                      reason="mine is better")
+    assert mem.get("m1").status is MemoryStatus.ACTIVE
+
+
+def test_replay_refuses_a_supersession_by_a_non_author(mem):
+    """The write-path check would be advisory if the reducer let it through.
+
+    This is the same argument the RETRACTED rule already carries, applied to
+    the status move that was missing from it.
+    """
+    _two(mem)
+    log = mem.log
+    log.append(actor="mallory", action=ACT_MEMORY_STATUS, target="m1",
+               payload={"memory_id": "m1", "status": "SUPERSEDED",
+                        "superseded_by": "m2", "reason": "mine is better"})
+    with pytest.raises(MemoryError_, match="may not supersede"):
+        MemoryStore(log, evidence=mem.evidence).load()
+
+
+def test_a_superseded_entry_stops_being_recalled_only_when_its_author_says(mem):
+    """The whole point of the rule, stated as the effect it protects."""
+    _two(mem)
+    with pytest.raises(MemoryError_):
+        mem.supersede(old_id="m1", new_id="m2", actor="mallory", reason="no")
+    assert "m1" in [h.memory_id for h in mem.recall("coupling")]
+
+
+def test_an_author_may_still_supersede_their_own(mem):
+    """Anti-vacuity: the ordinary correction still works."""
+    _two(mem, a1="alice", a2="alice")
+    mem.supersede(old_id="m1", new_id="m2", actor="alice", reason="refined")
+    assert mem.get("m1").status is MemoryStatus.SUPERSEDED
+    assert mem.get("m1").superseded_by == "m2"
+
+
+def test_an_invalidation_cascade_is_not_an_authorship_claim(mem):
+    """INVALIDATED is deliberately outside the author's-own rule.
+
+    A source changing is a fact about the world, cascaded over entries with
+    many different authors by whoever noticed it. Requiring authorship there
+    would stop the cascade doing the only thing it exists for -- so the rule
+    covers the two statuses that WITHDRAW and neither of the two that say a
+    premise stopped holding.
+    """
+    dg = mem.evidence.put(b"a measurement that later changed")
+    _remember(mem, "m1", author="alice", derived_from=(dg,))
+    _remember(mem, "m2", author="bob", derived_from=(dg,))
+    moved = mem.invalidate_source(dg, actor="system", reason="rerun differed")
+
+    assert {e.memory_id for e in moved} == {"m1", "m2"}
+    assert mem.get("m1").status is MemoryStatus.STALE
+    assert mem.get("m2").status is MemoryStatus.STALE

@@ -361,6 +361,142 @@ check's own output is the only thing that settles it.
 
 ---
 
+## D-2026-05 — creation was guarded everywhere; destruction was guarded nowhere
+
+**STATUS** — repaired.
+
+**DEFECT.** Five destructive operations accepted a record from any actor at
+all, on the write path and on replay, in both readers. Each was reproduced
+against the code as it stood:
+
+| operation | before |
+|---|---|
+| `agent.retire` | an **AGENT retired a HUMAN**, and a fresh replay agreed the person was gone |
+| `memory.supersede` | `mallory` marked `alice`'s entry SUPERSEDED **by an entry mallory wrote** |
+| `capability.revoke` | `mallory` revoked a grant the **root issuer** made |
+| `network.grant` revoke | any actor withdrew egress authority somebody else granted |
+| `secret.grant` revoke | the same, in the one store that has **no reducer at all** |
+
+**INVARIANT.** Taking authority away takes authority. Whoever may destroy a
+thing is a decision, not a default.
+
+**ROOT CAUSE — one shape, five instances.** Every one of these modules
+guards CREATION carefully and had nothing on the matching removal.
+`_authorize_mint` asks who may bring a grant into existence;
+`_check_may_register` says an agent that could admit a human would be one
+step from answering its own escalations; `retract()` refuses withdrawing
+somebody else's statement in a paragraph of argument. Removal is the same
+authority reached from the other direction and had no counterpart anywhere.
+
+The sharpest instance is `memory.supersede`. `retract` states the rule,
+argues for it, and enforces it on **both** paths — and its sibling, which is
+strictly worse, had no check at all. Retracting somebody's note removes it;
+superseding it removes it **and** points every later reader at an entry the
+superseder chose.
+
+The capability ledger is the clearest evidence that this was a gap in
+symmetry rather than in knowledge: it has ALWAYS recorded who issued each
+grant in `_issued_by`, and `issuer_of()` says in its own docstring that it
+is "not an authorization". The substrate knew who granted the authority and
+did not consult that knowledge when the authority was destroyed.
+
+**A SIXTH, FOUND ON THE WAY: retirement did not mean the same thing at every
+gate.** `require()` has always refused a retired instance every role.
+`_check_may_register` and the escalation-answer path did not consult
+retirement at all. So "retired" meant a principal could no longer act,
+*except* to admit new humans and to answer escalations — the two things it
+most matters that they cannot do. Reproduced: a retired human registered a
+new HUMAN and answered an open escalation.
+
+**IMPLEMENTATION FIX.**
+
+* `capability.revoke` — the issuer of that grant, or the root issuer.
+  Explicitly **not** the subject: a capability is not the holder's to
+  destroy, and an "issuer or subject" rule would let one captured worker
+  take down authority the control plane relies on.
+* `network.grant` / `secret.grant` revoke — the actor that issued the
+  grant. Neither module recorded a granter, so one is recorded now; without
+  it there was nothing for a revocation to be checked against, which is why
+  revocation was checked against nothing.
+* `agent.retire` — the principal itself, whoever admitted it, or an active
+  human; and a HUMAN may be retired **only** by a human or by itself. One
+  `_check_may_retire`, called by the write path and the reducer, for the
+  same reason `_check_may_register` is one function.
+* `memory.supersede` — the author of the old entry, mirroring `retract`, on
+  both paths. `_AUTHORS_OWN` names the two statuses that WITHDRAW.
+* Retirement conservation — `_check_may_register` and the escalation answer
+  now require the acting principal to be **active**, not merely registered.
+
+**WHAT IS DELIBERATELY NOT COVERED.** `INVALIDATED` and `STALE` are outside
+the author's-own rule. Those say a premise an entry rested on stopped
+holding — a fact about the world, cascaded over entries with many different
+authors by whoever noticed it. Requiring authorship there would stop the
+cascade doing the only thing it exists for. A mutation asserts this
+(`M40`), because the over-correction is fail-closed and would otherwise look
+like a strictly safer choice.
+
+**A BOUNDARY, STATED RATHER THAN CLOSED.** `SecretStore` has no reducer: it
+is rebuilt by the process that owns it and its log is an audit trail, not
+the source of truth. So its revocation rule runs on the write path and there
+is **no replay in that module** for it to also run on. The independent
+reconstruction is the only thing that re-reads such a record. This is
+asserted by a test that fails if a reducer is ever added, so whoever adds
+one has to decide deliberately whether the rule belongs in it.
+
+**INDEPENDENT-READER FIX.** All three revocation rules and the retirement
+rule restated in `reconstruct.py`'s own words, from the event header and its
+own replayed state. The reader now records who minted each capability and
+who granted each egress/secret grant, since it had no more to check against
+than the ledgers did. The bootstrap sentinel is spelled out rather than
+imported, like every other constant there: if the two ever drift, the
+divergence is the finding.
+
+**ADVERSARIAL TESTS.** Each row of the table above, at the write path and at
+replay, plus the subject-may-not-revoke case, the retired-principal cases,
+and the second reader's version of every rule. Anti-vacuity throughout: the
+issuer may still revoke, the root may still revoke a delegation, a registrar
+may still retire what it admitted, a principal may still stand itself down,
+an author may still supersede their own entry, an active human still
+answers, and an invalidation cascade still crosses authors.
+
+**A PATTERN IN THE TEST SUITE ITSELF.** Five existing tests revoked with an
+arbitrary actor — `actor="owner"` against grants issued by `"scheduler"` —
+and passed, because nothing checked. They were not testing who may revoke;
+they were testing what a revocation does, and the arbitrary actor was an
+unnoticed instance of the defect. Each now names the issuer, and says why in
+a comment. This is the same failure recorded in D-2026-04: **a test that
+supplies an internally inconsistent actor and still passes is evidence of a
+missing check, and it reads as a passing test.**
+
+**FORBIDDEN FAKE FIXES.** Enforcing only on the write path, where honest
+callers already comply and forgers never go. Letting the grant's subject
+revoke it. Making revocation require the *policy gate* alone, which
+`scheduler.cancel` legitimately does but which for these would answer a
+different question than "whose grant is this". Removing the retirement check
+from `require()` so the three gates agree by weakening rather than by
+conserving.
+
+**SIBLING SWEEP.** Every destructive entry point in the substrate was
+enumerated: `agent.retire`, `capability.revoke`, `netauth.revoke`,
+`secrets.revoke`, `memory.retract`, `memory.supersede`,
+`memory.invalidate_source`, `scheduler.cancel`, `scheduler.invalidate`,
+`checkpoint.prune`, `execution.cancel`. `scheduler.cancel` was already
+correct and is the model: it goes through the policy gate with its own
+action. `memory.retract` was already correct. `checkpoint.prune` and
+`execution.cancel` are local operations on local objects, not authority
+decisions over a shared log. The other five are fixed here.
+
+**DISCOVERED BY.** The sibling sweep of D-2026-04, which turned up
+`agent.retire` with no check of any kind and was recorded there as a lead
+rather than followed immediately.
+
+**INVALIDATED CLAIMS.** Any earlier statement that authority in this
+substrate is guarded end to end. It was guarded on the way in. Any statement
+that a retired principal cannot act — it could, at two of the three gates
+that matter.
+
+---
+
 ## Open follow-up tracked from this ledger
 
 These are named here so they cannot be closed by silence. They are **not**

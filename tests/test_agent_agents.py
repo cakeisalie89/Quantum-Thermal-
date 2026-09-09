@@ -1180,3 +1180,106 @@ def test_the_write_path_cannot_produce_a_record_replay_refuses(tmp_path):
     (rec,) = [ev for ev in log.read()
               if ev.action == ACT_ESCALATION_ANSWER]
     assert rec.actor == rec.payload["answered_by"] == "person"
+
+
+# --------------------------------------------------------------------------
+# Who may take a principal OUT of the log.
+#
+# Admission was guarded from the start: an agent that could register a human
+# would be one step from answering its own escalations. Removal was guarded
+# by nothing, on either path -- and it is the same authority reached from
+# the other direction. An agent that can retire humans edits the membership
+# of the set the human gate draws from, by subtraction instead of addition.
+# --------------------------------------------------------------------------
+
+def test_an_agent_cannot_retire_a_human(tmp_path):
+    log, _ = _escalation_world(tmp_path)
+    d = AgentDirectory(log).load()
+    with pytest.raises(IdentityError, match="may not retire the HUMAN"):
+        d.retire("person", by="bot", reason="inconvenient")
+
+
+def test_replay_refuses_an_agent_retiring_a_human(tmp_path):
+    """The write path is not the trust boundary; the log is."""
+    log, _ = _escalation_world(tmp_path)
+    log.append(actor="bot", action=ACT_AGENT_RETIRE, target="person",
+               payload={"instance_id": "person", "reason": "inconvenient"})
+    with pytest.raises(IdentityError, match="may not retire the HUMAN"):
+        AgentDirectory(log).load()
+
+
+def test_an_unrelated_agent_cannot_retire_another_agent(tmp_path):
+    log, _ = _escalation_world(tmp_path)
+    d = AgentDirectory(log).load()
+    with pytest.raises(IdentityError, match="may not retire"):
+        d.retire("bot", by="signer", reason="not mine to say")
+
+
+def test_the_registrar_may_retire_what_it_admitted(tmp_path):
+    """Anti-vacuity: removal mirrors admission, so admission's actor may."""
+    log, _ = _escalation_world(tmp_path)
+    d = AgentDirectory(log).load()
+    d.retire("bot", by="system", reason="replaced")
+    assert AgentDirectory(log).load().get("bot").retired_seq is not None
+
+
+def test_a_principal_may_stand_down_itself(tmp_path):
+    log, _ = _escalation_world(tmp_path)
+    d = AgentDirectory(log).load()
+    d.retire("bot", by="bot", reason="shutting down")
+    assert AgentDirectory(log).load().get("bot").retired_seq is not None
+
+
+def test_a_human_may_retire_a_human(tmp_path):
+    log, _ = _escalation_world(tmp_path)
+    d = AgentDirectory(log).load()
+    d.retire("person", by="person2", reason="left the project")
+    assert AgentDirectory(log).load().get("person").retired_seq is not None
+
+
+# --------------------------------------------------------------------------
+# And retirement has to MEAN the same thing everywhere it is consulted.
+#
+# require() has always refused a retired instance every role. Two other
+# gates did not consult retirement at all, so "retired" meant a principal
+# could no longer act -- except to admit new humans and to answer
+# escalations, which are the two things it most matters that they cannot do.
+# --------------------------------------------------------------------------
+
+def _retired_human(tmp_path):
+    log, d = _escalation_world(tmp_path)
+    d.retire("person", by=BOOTSTRAP, reason="left the project")
+    return log, d
+
+
+def test_a_retired_human_cannot_admit_a_new_human(tmp_path):
+    log, d = _retired_human(tmp_path)
+    with pytest.raises(IdentityError, match="may not register a HUMAN"):
+        d.register(identity(agent_id="p3", instance_id="p3",
+                            kind=PrincipalKind.HUMAN,
+                            roles={AgentRole.REVIEWER}), by="person")
+
+
+def test_a_retired_human_cannot_answer_an_escalation(tmp_path):
+    log, d = _retired_human(tmp_path)
+    with pytest.raises(EscalationError, match="was retired after seq"):
+        d.answer(escalation_id="e1", answered_by="person", answer="yes",
+                 reason="from beyond retirement")
+
+
+def test_replay_refuses_an_answer_from_a_retired_human(tmp_path):
+    log, d = _retired_human(tmp_path)
+    log.append(actor="person", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "person",
+                        "reason": "from beyond retirement"})
+    with pytest.raises(EscalationError, match="was retired after seq"):
+        AgentDirectory(log).load()
+
+
+def test_an_ACTIVE_human_still_answers(tmp_path):
+    """Anti-vacuity: the retirement check must name a real condition."""
+    log, d = _escalation_world(tmp_path)
+    d.answer(escalation_id="e1", answered_by="person", answer="yes",
+             reason="checked it and it holds")
+    assert AgentDirectory(log).load().escalation("e1").answered_by == "person"

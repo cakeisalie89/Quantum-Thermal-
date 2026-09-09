@@ -676,9 +676,15 @@ def test_a_grant_the_log_never_recorded_is_not_in_force(tmp_path):
 
 
 def test_revocation_recorded_in_the_log_stops_a_grant(tmp_path):
+    """What a revocation DOES, once somebody entitled to make one does.
+
+    The actor here used to be an unrelated string, and it worked, which was
+    itself the defect: withdrawing a grant took no authority at all. It is
+    the issuer now because that is who may.
+    """
     log, ledger = _ledger(tmp_path)
     ledger.issue(_cap(), actor="scheduler")
-    ledger.revoke("c1", actor="owner", reason="withdrawn")
+    ledger.revoke("c1", actor="scheduler", reason="withdrawn")
 
     from qta_agent.capability import CapabilityLedger
     rebuilt = CapabilityLedger(log).load()

@@ -27,9 +27,9 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from qta_agent.capability import (  # noqa: E402
-    ACT_ISSUE, ACT_ROOT, MAX_DELEGATION_DEPTH, Action, BadDelegation,
-    CapabilityExpired, CapabilityLedger, CapabilityRevoked, CapabilityUnknown,
-    NotTheIssuer, Request, issue,
+    ACT_ISSUE, ACT_REVOKE, ACT_ROOT, MAX_DELEGATION_DEPTH, Action,
+    BadDelegation, CapabilityError, CapabilityExpired, CapabilityLedger,
+    CapabilityRevoked, CapabilityUnknown, NotTheIssuer, Request, issue,
 )
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.reconstruct import reconstruct_subsystems  # noqa: E402
@@ -508,3 +508,74 @@ def test_the_never_expires_sentinel_is_part_of_the_record_format(tmp_path):
     rec = cap.body()
     assert rec["expires_after_seq"] == -1
     assert capability_from_record(rec).expires_after_seq == NEVER_EXPIRES
+
+
+# --------------------------------------------------------------------------
+# Who may take a grant away.
+#
+# _authorize_mint has always asked who may bring a grant into existence.
+# Nothing asked who may destroy one, so any actor could append a line and
+# withdraw authority somebody else granted -- and every later check agreed
+# the grant was gone, because a revocation is exactly as durable as a mint.
+#
+# The ledger has ALWAYS recorded who issued each grant. issuer_of() says in
+# its own docstring that it is "not an authorization". The substrate knew
+# who granted the authority and did not consult that when it was destroyed.
+# --------------------------------------------------------------------------
+
+def test_an_unrelated_actor_may_not_revoke_a_grant(tmp_path):
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    with pytest.raises(NotTheIssuer, match="may not revoke"):
+        led.revoke("c1", actor="mallory", reason="denial of service")
+    assert led.revoked_ids() == ()
+
+
+def test_replay_refuses_a_revocation_from_an_unrelated_actor(tmp_path):
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    log.append(actor="mallory", action=ACT_REVOKE, target="c1",
+               payload={"capability_id": "c1", "reason": "denial of service"})
+    with pytest.raises(NotTheIssuer, match="revokes 'c1'"):
+        CapabilityLedger(log).load()
+
+
+def test_the_SUBJECT_of_a_grant_may_not_revoke_it(tmp_path):
+    """A capability is not the holder's to destroy.
+
+    Letting a holder revoke would let one confused or captured worker take
+    down authority the control plane is relying on -- and it is the case an
+    'issuer or subject' rule would quietly permit.
+    """
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(subject="agent-1"), actor="control-plane")
+    with pytest.raises(NotTheIssuer, match="may not revoke"):
+        led.revoke("c1", actor="agent-1", reason="I am done with it")
+
+
+def test_the_issuer_may_revoke_what_it_granted(tmp_path):
+    """Anti-vacuity: the ordinary withdrawal still works."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    led.revoke("c1", actor="control-plane", reason="rotated")
+    assert CapabilityLedger(log).load().revoked_ids() == ("c1",)
+
+
+def test_the_root_issuer_may_revoke_a_delegated_grant(tmp_path):
+    """The root can reach anything it is the source of."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    led.issue(_cap(cap_id="c2", subject="agent-2", parent_id="c1",
+                   issued_seq=2), actor="agent-1")
+    led.revoke("c2", actor="control-plane", reason="the delegation is done")
+    assert "c2" in CapabilityLedger(log).load().revoked_ids()
+
+
+def test_a_revocation_for_a_grant_that_was_never_issued_is_refused(tmp_path):
+    """A revocation is a statement ABOUT a grant. There is no grant here."""
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(), actor="control-plane")
+    log.append(actor="control-plane", action=ACT_REVOKE, target="c-nope",
+               payload={"capability_id": "c-nope", "reason": "tidying"})
+    with pytest.raises(CapabilityError, match="has not issued"):
+        CapabilityLedger(log).load()

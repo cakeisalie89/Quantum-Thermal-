@@ -298,6 +298,20 @@
       "find": "        return replace(decision, allowed=False,\n                       reason=(\"the secret store could not be consulted \"",
       "replace": "        return None\n        return replace(decision, allowed=False,\n                       reason=(\"the secret store could not be consulted \"",
       "rationale": "a store that cannot answer turns into a yes, which is the fail-open direction"
+    },
+    {
+      "name": "E43_an_egress_grant_may_be_revoked_by_anyone",
+      "path": "qta_agent/netauth.py",
+      "find": "                self._authorize_revoke(ev, p[\"grant_id\"])\n                self._revoked.add(p[\"grant_id\"])",
+      "replace": "                self._revoked.add(p[\"grant_id\"])",
+      "rationale": "egress authority is what a task's network access rests on; an unrelated actor revoking it fails the task closed on somebody else's say-so"
+    },
+    {
+      "name": "E44_the_granter_is_not_recorded_so_nothing_can_be_checked",
+      "path": "qta_agent/netauth.py",
+      "find": "                self._granted_by[g.grant_id] = ev.actor",
+      "replace": "                self._granted_by[g.grant_id] = None",
+      "rationale": "the revocation rule has nothing to compare against, so it refuses everything -- the fail-closed direction, and still wrong: an honest granter can no longer withdraw its own grant"
     }
   ]
 }

@@ -181,6 +181,27 @@
       "find": "            if p.get(\"submitter\") != ev.actor:",
       "replace": "            if False:",
       "rationale": "the primary refuses a create naming a submitter it is not, so such a log never reaches compare_tasks. A silent second reader leaves nothing in the system saying anything about the forgery"
+    },
+    {
+      "name": "R26_the_reader_lets_anyone_revoke_a_capability",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ev.actor != cur.get(\"issued_by\") and ev.actor != out.root_issuer:",
+      "replace": "    if False:",
+      "rationale": "the mint side of this reader asks whether the actor could create the grant; without this, nothing asks whether it could destroy one"
+    },
+    {
+      "name": "R27_the_reader_lets_anyone_revoke_a_grant",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if ev.actor != cur.get(\"granted_by\"):",
+      "replace": "        if False:",
+      "rationale": "for secret grants this reader is not a second opinion but the only one -- SecretStore has no reducer, so nothing else re-reads such a record"
+    },
+    {
+      "name": "R28_the_reader_lets_anyone_retire_a_human",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if cur.get(\"kind\") == \"HUMAN\" and not live_human:",
+      "replace": "        if False:",
+      "rationale": "this reader refuses an agent that ADMITS a human and would accept one that removes every human there is"
     }
   ]
 }

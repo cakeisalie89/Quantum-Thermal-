@@ -72,9 +72,9 @@
     {
       "name": "A10_an_agent_may_register_a_human",
       "path": "qta_agent/agents.py",
-      "find": "        if registrar is None or registrar.kind is not PrincipalKind.HUMAN:",
+      "find": "        if (registrar is None or registrar.kind is not PrincipalKind.HUMAN\n                or not registrar.is_active(at)):",
       "replace": "        if False:",
-      "rationale": "one step from an agent granting itself human authority and answering its own escalations"
+      "rationale": "one step from an agent granting itself human authority and answering its own escalations Anchor repaired when the same guard also began requiring the registrar to be ACTIVE; the mutation attacks the rule it always did, at the rewritten condition. A53 attacks the added conjunct alone."
     },
     {
       "name": "A11_the_asker_may_answer",
@@ -355,6 +355,34 @@
       "find": "            if answered_by != ev.actor:\n                raise EscalationError(",
       "replace": "            if False:\n                raise EscalationError(",
       "rationale": "the record's account of who decided may differ from the log's account of who wrote it, so an AGENT names a registered HUMAN in the payload and every remaining check -- registered, HUMAN, not the asker, answer among the options -- passes on the borrowed name. The one record in this system meant to carry a human decision becomes the one an agent can write"
+    },
+    {
+      "name": "A51_anybody_may_retire_anybody",
+      "path": "qta_agent/agents.py",
+      "find": "            self._check_may_retire(iid, by=ev.actor, seq=ev.seq)",
+      "replace": "            pass",
+      "rationale": "admission was guarded and removal was not; an AGENT retires every HUMAN in the log and edits the membership of the set the human gate draws from"
+    },
+    {
+      "name": "A52_an_agent_may_retire_a_human",
+      "path": "qta_agent/agents.py",
+      "find": "        if (target is not None and target.kind is PrincipalKind.HUMAN\n                and not actor_is_live_human):",
+      "replace": "        if False:",
+      "rationale": "only the asymmetry is removed, so agents may still not retire each other's instances but may retire people -- the exact case the register rule already refuses in the other direction"
+    },
+    {
+      "name": "A53_a_retired_human_may_still_admit_humans",
+      "path": "qta_agent/agents.py",
+      "find": "        if (registrar is None or registrar.kind is not PrincipalKind.HUMAN\n                or not registrar.is_active(at)):",
+      "replace": "        if registrar is None or registrar.kind is not PrincipalKind.HUMAN:",
+      "rationale": "retirement stops meaning the same thing at every gate: require() refuses a retired instance every role and this one still lets it admit new humans"
+    },
+    {
+      "name": "A54_a_retired_human_may_still_answer_an_escalation",
+      "path": "qta_agent/agents.py",
+      "find": "            if not ident.is_active(ev.seq):\n                raise EscalationError(",
+      "replace": "            if False:\n                raise EscalationError(",
+      "rationale": "a principal that has left the project is still the person a human decision is attributed to"
     }
   ]
 }

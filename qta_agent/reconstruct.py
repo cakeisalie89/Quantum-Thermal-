@@ -481,6 +481,12 @@ _JOB_PENDING = {"RETRY_WAIT", "BLOCKED"}
 #: construction, including where the scheduler is wrong.
 _JOB_OUTCOME = {"SUCCEEDED", "RETRY_WAIT", "FAILED"}
 
+#: The out-of-band sentinel a log's first humans are admitted under. Spelled
+#: out here rather than imported, like everything else in this module: if the
+#: directory's sentinel and this one ever drift apart, the divergence is the
+#: finding rather than something both readers agree about by construction.
+_BOOTSTRAP = "out-of-band-bootstrap"
+
 
 def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
     """Replay every remaining authority subsystem, independently.
@@ -912,6 +918,10 @@ def _sub_capability_issue(ev, p: dict, out) -> None:
         "tool_id": p.get("tool_id"), "scope": tuple(p.get("scope") or ()),
         "issued_seq": issued,
         "expires_after_seq": p.get("expires_after_seq"),
+        # Who minted it. Kept out of "body" so the grant's identity does not
+        # depend on who recorded it -- and kept at all so a revocation has
+        # something to be checked against.
+        "issued_by": ev.actor,
         "parent_id": p.get("parent_id") or "",
         "revoked_seq": None,
         "body": {k: v for k, v in p.items() if k != "task_id"},
@@ -948,10 +958,23 @@ def _sub_capability_issue(ev, p: dict, out) -> None:
 
 
 def _sub_capability_revoke(ev, p: dict, out) -> None:
+    """Withdraw a grant, checking who is entitled to.
+
+    The mint side of this reader has always asked whether the actor could
+    create the grant. Nothing asked whether it could destroy one, so an
+    arbitrary actor could revoke authority the root issued and this reader
+    reported no finding.
+    """
     cid = p.get("capability_id")
     cur = out.capabilities.get(cid)
     if cur is None:
         _note(out, ev, f"revoke for unknown capability {cid!r}")
+        return
+    if ev.actor != cur.get("issued_by") and ev.actor != out.root_issuer:
+        _note(out, ev, f"{ev.actor!r} revokes {cid!r}, granted by "
+                       f"{cur.get('issued_by')!r}; a grant is withdrawn by "
+                       f"whoever made it or by the root issuer "
+                       f"({out.root_issuer!r})")
         return
     if cur["revoked_seq"] is None:
         cur["revoked_seq"] = ev.seq
@@ -986,11 +1009,35 @@ def _sub_agent_register(ev, p: dict, out) -> None:
 
 
 def _sub_agent_retire(ev, p: dict, out) -> None:
+    """Remove a principal, checking who is entitled to.
+
+    Admission was checked here -- a non-human registering a human is a
+    finding. Removal was not checked at all, so anything could retire
+    anybody, including every human in the log. Admission and removal are
+    the same authority reached from two directions, and only one of them
+    was guarded.
+    """
     iid = p.get("instance_id")
     cur = out.agents.get(iid)
     if cur is None:
         _note(out, ev, f"retire for unknown instance {iid!r}")
         return
+    by = ev.actor
+    actor = out.agents.get(by)
+    live_human = (actor is not None and actor.get("kind") == "HUMAN"
+                  and actor.get("retired_seq") is None)
+    if by != _BOOTSTRAP and by != iid:
+        if cur.get("kind") == "HUMAN" and not live_human:
+            _note(out, ev, f"{by!r} retires the HUMAN {iid!r} and is not an "
+                           "active human itself; subtracting people is how "
+                           "the set the human gate draws from is emptied")
+            return
+        if cur.get("registered_by") != by and not live_human:
+            _note(out, ev, f"{by!r} retires {iid!r}, admitted by "
+                           f"{cur.get('registered_by')!r}; a principal is "
+                           "retired by whoever admitted it, by itself, or "
+                           "by an active human")
+            return
     if cur["retired_seq"] is None:
         cur["retired_seq"] = ev.seq
 
@@ -1039,6 +1086,20 @@ def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
         if cur is None:
             _note(out, ev, f"revoke for unknown {what} grant {gid!r}")
             return
+        # WHO MAY TAKE IT AWAY. Issuing a grant was checked here and
+        # withdrawing one was not, in this reader and in both of the
+        # ledgers it reads after -- so one appended line removed authority
+        # somebody else granted, and every reader agreed it was gone,
+        # because a revocation is exactly as durable as a grant.
+        #
+        # This matters more for secrets than anywhere else: that store has
+        # no reducer at all, so a secret.grant revocation appended around
+        # its write path is re-read by NOTHING except this function.
+        if ev.actor != cur.get("granted_by"):
+            _note(out, ev, f"{ev.actor!r} revokes {what} grant {gid!r}, "
+                           f"granted by {cur.get('granted_by')!r}; a grant "
+                           "is withdrawn by whoever made it")
+            return
         if cur["revoked_seq"] is None:
             cur["revoked_seq"] = ev.seq
         return
@@ -1060,7 +1121,7 @@ def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
         return
     table[gid] = {"grant_id": gid, "digest": p.get("grant_digest"),
                   "issued_seq": ev.seq, "revoked_seq": None,
-                  "body": grant}
+                  "granted_by": ev.actor, "body": grant}
 
 
 def _sub_service(ev, p: dict, out) -> None:

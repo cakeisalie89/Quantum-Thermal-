@@ -509,7 +509,9 @@ class LedgerMachine(RuleBasedStateMachine):
     def revoke_one(self, cid):
         if cid in self.revoked:
             return
-        self.ledger.revoke(cid, actor="owner", reason="property test")
+        # The issuer. An unrelated actor used to work here, which is what
+        # made this rule pass while saying nothing about who may revoke.
+        self.ledger.revoke(cid, actor="scheduler", reason="property test")
         self.revoked.add(cid)
 
     @rule(cid=caps)

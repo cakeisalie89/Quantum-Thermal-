@@ -134,6 +134,17 @@ STATUS_EDGES: dict = {
     MemoryStatus.RETRACTED: frozenset(),
 }
 
+#: Status moves that WITHDRAW a statement, and so belong to whoever made it.
+#: Both are the author's call and neither is anybody else's.
+#:
+#: STALE and INVALIDATED are deliberately absent. Those say a premise the
+#: entry rested on stopped holding -- a fact about the world, cascaded over
+#: entries with many authors by whoever noticed it. Requiring authorship
+#: there would stop the cascade doing the only thing it exists for.
+_AUTHORS_OWN: frozenset = frozenset({
+    MemoryStatus.RETRACTED, MemoryStatus.SUPERSEDED,
+})
+
 
 @dataclass(frozen=True)
 class MemoryEntry:
@@ -283,13 +294,32 @@ class MemoryStore:
                     f"{sorted(x.value for x in allowed) or 'nothing'}. "
                     "A status a replay would refuse today does not become "
                     "state by being present in the log.")
-            if dst is MemoryStatus.RETRACTED and ev.actor != cur.author:
+            if dst in _AUTHORS_OWN and ev.actor != cur.author:
                 # The same rule the write path applies. Withdrawing someone
                 # else's statement is a different act, and a replay that let
                 # it through would make the write-path check advisory.
+                #
+                # SUPERSEDED BELONGS HERE AND WAS MISSING. The rule was
+                # stated for RETRACTED, argued for in prose, enforced on
+                # both paths -- and its sibling, which is strictly worse,
+                # had no check anywhere. Retracting someone else's note
+                # removes it; superseding it removes it AND points every
+                # later reader at an entry the superseder chose. Anyone
+                # could write their own version of a finding, supersede the
+                # original with it, and recall() would afterwards return
+                # theirs and not the author's.
+                #
+                # INVALIDATED is deliberately NOT in this set. That status
+                # is a consequence of a source changing, cascaded over
+                # entries with many different authors by whoever noticed;
+                # it asserts that a premise is gone, not that the author
+                # withdrew anything, and requiring authorship there would
+                # make the cascade unable to do the one thing it is for.
+                verb = ("retract" if dst is MemoryStatus.RETRACTED
+                        else "supersede")
                 raise MemoryError_(
                     f"seq {ev.seq}: {mid!r} was written by {cur.author!r}; "
-                    f"{ev.actor!r} may not retract it.")
+                    f"{ev.actor!r} may not {verb} it.")
             self._entries[mid] = replace(
                 cur, status=dst,
                 status_reason=p.get("reason", ""),
@@ -484,7 +514,20 @@ class MemoryStore:
 
     def supersede(self, *, old_id: str, new_id: str, actor: str,
                   reason: str) -> MemoryEntry:
+        """Replace an entry with a later one. The author's call, like retract.
+
+        Superseding is the stronger of the two withdrawals: it removes the
+        entry from ``current()`` and names its replacement, so every later
+        reader is pointed at whatever the superseder chose.
+        """
         self.get(new_id)
+        entry = self.get(old_id)
+        if entry.author != actor:
+            raise MemoryError_(
+                f"memory {old_id!r} was written by {entry.author!r}; "
+                f"{actor!r} may not supersede it. Replacing someone else's "
+                "statement with your own is not a correction, and the log "
+                "should say which happened.")
         return self._set_status(old_id, MemoryStatus.SUPERSEDED, actor=actor,
                                 reason=reason, superseded_by=new_id)
 

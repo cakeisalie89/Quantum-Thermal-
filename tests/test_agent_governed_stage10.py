@@ -1052,7 +1052,11 @@ def test_a_revoked_capability_stops_authorizing_without_the_caller_s_help(gov):
     cap_id = next(e.payload["capability_id"] for e in gov.log.read()
                   if e.action == "capability.issue"
                   and e.payload["action"] == "EXECUTE_TOOL")
-    gov.capabilities.revoke(cap_id, actor="owner", reason="rotated")
+    # Asked of the ledger rather than guessed: this test is about what a
+    # revocation DOES, and naming the issuer here keeps it from also
+    # asserting, silently, that anyone may make one.
+    gov.capabilities.revoke(cap_id, actor=gov.capabilities.issuer_of(cap_id),
+                            reason="rotated")
 
     live = gov.capabilities.in_force(gov.log.verify().head_seq)
     with pytest.raises(CapabilityRevoked):

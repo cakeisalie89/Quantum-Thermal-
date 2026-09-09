@@ -172,6 +172,27 @@
       "find": "NEVER_EXPIRES = -1",
       "replace": "NEVER_EXPIRES = -2",
       "rationale": "every comparison uses the NAME, so reader and writer move together and nothing notices -- except a record already in a log, which carries the literal. A build that decided the sentinel is something else reads an unexpiring grant as one that expired before it was issued. Found by a GENERATED mutation sample"
+    },
+    {
+      "name": "G25_a_grant_may_be_revoked_by_anyone",
+      "path": "qta_agent/capability.py",
+      "find": "            self._authorize_revoke(ev, cap_id)\n            self._revoked.add(cap_id)",
+      "replace": "            self._revoked.add(cap_id)",
+      "rationale": "minting was guarded and withdrawing was not, so one appended line takes away authority somebody else granted -- and every later check agrees the grant is gone, because a revocation is exactly as durable as a mint"
+    },
+    {
+      "name": "G26_the_subject_of_a_grant_may_destroy_it",
+      "path": "qta_agent/capability.py",
+      "find": "        if ev.actor == issuer:\n            return\n        if self._root is not None and ev.actor == self._root:",
+      "replace": "        if ev.actor in (issuer, self._issued[cap_id].subject):\n            return\n        if self._root is not None and ev.actor == self._root:",
+      "rationale": "a capability is not the holder's to destroy; letting the subject revoke lets one confused or captured worker take down authority the control plane relies on"
+    },
+    {
+      "name": "G27_the_write_path_lets_anyone_revoke",
+      "path": "qta_agent/capability.py",
+      "find": "        issuer = self._issued_by.get(capability_id)\n        if actor != issuer and not (self._root is not None\n                                    and actor == self._root):",
+      "replace": "        issuer = self._issued_by.get(capability_id)\n        if False:",
+      "rationale": "the caller builds a record its own reducer will refuse, which is the writer-versus-reducer divergence this repository has already recorded once"
     }
   ]
 }
