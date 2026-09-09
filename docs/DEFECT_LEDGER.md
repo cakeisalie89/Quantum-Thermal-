@@ -76,8 +76,33 @@ projection), `test_the_final_lapse_fails_the_job_rather_than_requeueing_it`,
 attacks the **guard** (`attempts >= max_attempts`); removing the guard
 requeues past the budget and the long campaign notices. It cannot see this
 defect, because with the guard in place the job simply sticks and
-`attempts <= max_attempts` remains true of a stuck job. A mutation attacking
-the **action** is required and is tracked as follow-up work below.
+`attempts <= max_attempts` remains true of a stuck job.
+`S64_the_give_up_edge_is_not_recognised_as_a_handover` attacks the
+**action**: it restores this defect exactly, and dies to
+`test_repeated_worker_death_cannot_exceed_the_budget[1]`, a test that did
+not exist before this finding. `N46`'s anchor was repaired in place when the
+rule it attacks was widened to cover the give-up edge -- the mutation keeps
+its identity and its history rather than being retired and re-minted under a
+new name for the same mutant.
+
+**MUTATIONS CONSIDERED AND DROPPED.** Four candidates in the same rule were
+written and then removed rather than kept as easy kills, which is the
+discipline this ledger is supposed to hold:
+
+* *handover exemption without the liveness test* -- stopped one guard later
+  by `N46`;
+* *handover exemption without the no-owner test* -- stopped one guard later
+  by `N48`;
+* *a second mutant of the reclamation guard* -- that is `N46` under a new
+  name;
+* *the attempt-accounting expression made trivially true* -- the matrix
+  showed it dying to the same test as `N47`. Deleting the comparison and
+  making it always succeed are one mutant reached two ways.
+
+Each would have raised the kill count and measured nothing: three of them
+test which guard fires first, which is implementation detail, and the fourth
+duplicates a mutation that already exists. The attempt rule never lacked
+coverage of the count. It lacked coverage of the give-up action.
 
 **ACCEPTANCE CRITERIA.** A job dispatched `max_attempts` times, each attempt
 ending in a lease lapse rather than a report, ends `FAILED` with
@@ -202,6 +227,114 @@ catch a forged owner or a forged attempt count.
 
 ---
 
+## D-2026-04 — an agent could sign a person's escalation answer
+
+**STATUS** — repaired.
+
+**DEFECT.** `agent.escalation.answer` records the decision in
+`payload["answered_by"]` and the writer in the event header's `actor`.
+Nothing compared them. Every check in the reducer interrogates
+`answered_by` — that it is a registered principal, that it is
+`PrincipalKind.HUMAN`, that it is not the principal who raised the
+escalation, that the answer is among the options — so an **AGENT** could
+append the record, name a real person in the payload, and satisfy all four
+on the borrowed name.
+
+Reproduced before the fix: an agent `x1` appended the record naming human
+`h1`, and a fresh replay reported the escalation `ANSWERED`, `answer='yes'`,
+`answered_by='h1'`.
+
+**INVARIANT.** The record's account of who decided cannot differ from the
+log's account of who wrote it.
+
+**WHY IT MATTERS MORE THAN THE OTHERS.** `agents.py` opens by stating that
+no agent may answer an escalation — that an escalation exists precisely
+because the decision was not the agent's to make, and that no arrangement of
+roles substitutes for a person. This was the one record in the system meant
+to carry a human decision, and it was the one an agent could write.
+
+**ROOT CAUSE.** Two causes, and the second is the interesting one.
+
+*First:* the guard was written as a property of the named principal rather
+than of the writer, so it asked the right question about the wrong string.
+
+*Second:* **every existing forgery test set `answered_by` equal to the
+event's actor.** The suite modelled an attacker who lies about the decision
+while filling in the paperwork honestly. A forger who writes somebody else's
+name was never modelled, so the missing comparison had nothing to fail. This
+is the test-design failure to look for elsewhere: an adversarial test that
+keeps the attacker internally consistent tests the checks that exist and
+cannot discover the one that does not.
+
+**AFFECTED REPRESENTATIONS.** `AgentDirectory.apply` (the reducer, which is
+also the replay rule). The write path `answer()` already bound
+`actor=answered_by`, which is why no honest run ever produced a record the
+new rule refuses — and why the defect was invisible in normal operation.
+
+**IMPLEMENTATION FIX.** The reducer refuses a record whose `answered_by`
+differs from `ev.actor`, before any of the checks that read `answered_by`.
+The withdraw branch immediately above it already did exactly this against
+`raised_by`; so did the capability root, the idempotency owner and the task
+executor. The answer was the gap in an otherwise uniform discipline.
+
+**WHAT THIS DOES NOT ESTABLISH.** It is not authentication. `ev.actor` is
+still a string the writer chose, and the log file is still the trust
+boundary it always was. What it establishes is that the two accounts of who
+decided cannot be played against each other.
+
+**SIBLING SWEEP — AND A SECOND FINDING.** Every reducer that reads a
+principal name out of a payload was enumerated and classified as bound to
+the event header, bound to replayed state, or unbound:
+
+* `capability.root` issuer, `idempotency.bind` owner, `memory.write` author,
+  `scheduler.enqueue` submitter, `capability.issue` minter (all three
+  minting cases), and the second reader's copies of each — **bound to the
+  header** already.
+* `task.transition` `executed_by` and the second reader's copy — **bound to
+  replayed state**, which is stronger: the executor comes from the execution
+  record, and separation of duties is checked against it.
+* `capability.issue` `subject` and `agent.register` `instance_id` — **not
+  identity claims about the writer**. A grant names its grantee and a
+  registration names the instance being admitted; both are legitimately
+  third parties, and the writer is checked separately.
+* `task.create` `submitter` — **UNBOUND, in both readers.** Fixed here
+  alongside the escalation: the submitter is what the policy gate was
+  evaluated against when the task was admitted and what every later
+  attribution question reads back, so a forged create attributes work to
+  somebody who never asked for it. `scheduler.enqueue` had always compared
+  it; `task.create` never had.
+* `agent.retire` — **no authority check of any kind**, on the writer or the
+  target, in either reader. Not repaired here: it is a destructive-authority
+  defect and belongs with that work, where it is now a confirmed lead rather
+  than a suspicion. Recorded so it cannot be lost.
+
+**ADVERSARIAL TESTS.** An agent signing a person's answer; a *person*
+signing another person's answer (two registered humans are still two
+principals, and a decision recorded under the wrong one is one the named
+person can truthfully deny making); an answer naming nobody, so a missing
+field cannot read as agreement with the header; a forged `task.create` in
+both readers, asserting the record is not folded as well as reported. Plus
+anti-vacuity: an honest answer still replays, an honest create still
+projects, and the write path is checked to bind the two fields — a writer
+that could emit a record its own replay refuses is the defect D-2026-01
+already recorded once.
+
+**FORBIDDEN FAKE FIXES.** Deriving `answered_by` from `ev.actor` and
+dropping the payload field, which destroys the disagreement instead of
+detecting it. Checking only at the write path, where honest callers already
+agreed and forgers never go. Treating the header as authentication.
+
+**DISCOVERED BY.** Reading the reducer against the module's own opening
+paragraph and asking which string each guard actually interrogates.
+
+**INVALIDATED CLAIMS.** Any earlier statement that no agent could answer an
+escalation, or that the human gate could not be satisfied by an agent. It
+could, by naming a person. The prior audit of self-declared identity fields
+established the header-binding discipline across the substrate and did not
+reach this record.
+
+---
+
 ## D-2026-03 — analyst conclusion error: the hosted byte check
 
 **STATUS** — recorded, not a code defect.
@@ -233,10 +366,11 @@ check's own output is the only thing that settles it.
 These are named here so they cannot be closed by silence. They are **not**
 claimed complete.
 
-1. **A mutation attacking the give-up ACTION** (D-2026-01), distinct from
-   the existing one that attacks the guard. Until it exists, the budget's
-   lapse path is covered by tests but not by mutation.
-2. **The admission-rule sweep across every `_sub_*` reducer**
+1. **The admission-rule sweep across every `_sub_*` reducer**
    (D-2026-02 sibling sweep). `_sub_job_transition` and `_sub_lease_renew`
    now restate admission; the capability, agent, memory, network, secret and
    context reducers have not been re-read against that standard.
+2. **Escalations have no second reader at all.** `reconstruct_subsystems`
+   replays nine subsystems and `agent.escalation.*` is not among them, so
+   the human-decision records -- the ones D-2026-04 shows were forgeable --
+   are reconstructed by nobody. Stated as a boundary, not a claim.

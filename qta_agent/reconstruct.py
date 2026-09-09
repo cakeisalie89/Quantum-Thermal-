@@ -299,6 +299,16 @@ def reconstruct_tasks(log: EventLog, *,
                     f"seq {ev.seq}: task {tid!r} created twice; the second "
                     "record would silently replace the first one's history")
                 continue
+            if p.get("submitter") != ev.actor:
+                # Restated here for the reason every rule in this module is:
+                # the primary refuses such a record, so a log carrying one
+                # never reaches the comparison between the two readers.
+                out.anomalies.append(
+                    f"seq {ev.seq}: task {tid!r} names submitter "
+                    f"{p.get('submitter')!r} and was appended by "
+                    f"{ev.actor!r}; whoever asked for the work is whoever "
+                    "wrote the request")
+                continue
             tasks[tid] = {
                 "task_id": tid, "tool_id": p.get("tool_id"),
                 "submitter": p.get("submitter"),

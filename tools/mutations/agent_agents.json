@@ -348,6 +348,13 @@
       "find": "            except AgentError:\n                escalation_id = \"\"",
       "replace": "            except ZeroDivisionError:\n                escalation_id = \"\"",
       "rationale": "losing the honest UNCERTAIN answer to save the escalation: the same trade the notifier refuses, one layer up"
+    },
+    {
+      "name": "A50_an_agent_may_sign_a_persons_answer",
+      "path": "qta_agent/agents.py",
+      "find": "            if answered_by != ev.actor:\n                raise EscalationError(",
+      "replace": "            if False:\n                raise EscalationError(",
+      "rationale": "the record's account of who decided may differ from the log's account of who wrote it, so an AGENT names a registered HUMAN in the payload and every remaining check -- registered, HUMAN, not the asker, answer among the options -- passes on the borrowed name. The one record in this system meant to carry a human decision becomes the one an agent can write"
     }
   ]
 }

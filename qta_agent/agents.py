@@ -614,6 +614,33 @@ class AgentDirectory:
                 self._at_seq = ev.seq
                 return True
             answered_by = p.get("answered_by")
+            # THE PAYLOAD NAMES THE DECIDER. THE HEADER NAMES THE WRITER.
+            #
+            # Every check below this line interrogates `answered_by`: that it
+            # is registered, that it is a HUMAN, that it is not the asker.
+            # All of them were satisfied by a record an AGENT wrote naming a
+            # person in its payload, because nothing compared the two. This
+            # module exists to say that no agent may answer an escalation,
+            # and an agent could answer one by writing the person's name.
+            #
+            # The withdraw branch immediately above already checks
+            # `ev.actor`. So did the capability root, the idempotency owner
+            # and the task executor. The answer -- the one record in this
+            # system that is supposed to carry a human decision -- was the
+            # place the comparison was missing.
+            #
+            # This does NOT authenticate anybody. `ev.actor` is still a
+            # string the writer chose, and the log file is still the trust
+            # boundary. What it establishes is that the record's account of
+            # who decided cannot differ from the log's account of who wrote
+            # it, so the two can never be played against each other.
+            if answered_by != ev.actor:
+                raise EscalationError(
+                    f"seq {ev.seq}: the record names {answered_by!r} as "
+                    f"answering escalation {eid!r} but was appended by "
+                    f"{ev.actor!r}. An escalation is answered by whoever "
+                    "writes the answer; a record that gets to name somebody "
+                    "else lets an agent sign a person's decision.")
             ident = self._identities.get(answered_by)
             if ident is None:
                 raise EscalationError(

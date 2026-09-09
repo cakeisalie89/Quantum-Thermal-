@@ -381,3 +381,33 @@ def test_both_readers_refuse_the_forged_history_the_same_way(tmp_path, gov):
     with pytest.raises(TaskTransitionError, match="execution record says"):
         g2.projection()
     assert reconstruct_tasks(log).verified_ids() == ()
+
+
+def test_the_second_reader_refuses_a_create_in_somebody_elses_name(gov):
+    """The submitter is who wrote the request, in this reader's words too.
+
+    Restated here for the reason every rule in the second reader is: the
+    production projection refuses this record, so a log carrying it never
+    reaches compare_tasks at all. If this reader is silent, nothing in the
+    system says anything about the forgery.
+    """
+    _run(gov)
+    gov.log.append(actor="mallory", action="task.create", target="t-forged",
+                   payload={"task_id": "t-forged",
+                            "tool_id": "stage10.emit_artifact",
+                            "submitter": SUBMITTER_ID,
+                            "inputs_digest": "a" * 64, "depends_on": []})
+    recon = reconstruct_tasks(gov.log)
+    assert any("appended by 'mallory'" in a for a in recon.anomalies), \
+        recon.anomalies
+    # Reported AND not folded: a reader that notes the anomaly and then
+    # builds the task anyway has told the truth and believed the lie.
+    assert "t-forged" not in recon.tasks
+
+
+def test_an_honest_create_is_not_flagged_by_the_second_reader(gov):
+    """Anti-vacuity for the rule above."""
+    run = _run(gov)
+    recon = reconstruct_tasks(gov.log)
+    assert not recon.anomalies, recon.anomalies
+    assert recon.tasks[run.task_id]["submitter"] == SUBMITTER_ID

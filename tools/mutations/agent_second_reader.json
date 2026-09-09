@@ -174,6 +174,13 @@
       "find": "    budget = job.get(\"max_attempts\")\n    if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:",
       "replace": "    budget = job.get(\"max_attempts\")\n    if False:",
       "rationale": "an enqueue that states no bound is accepted silently, and the count in the reconstruction has nothing to be measured against"
+    },
+    {
+      "name": "R25_the_reader_takes_the_submitter_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if p.get(\"submitter\") != ev.actor:",
+      "replace": "            if False:",
+      "rationale": "the primary refuses a create naming a submitter it is not, so such a log never reaches compare_tasks. A silent second reader leaves nothing in the system saying anything about the forgery"
     }
   ]
 }

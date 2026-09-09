@@ -1077,3 +1077,106 @@ def test_the_stream_notifier_writes_something_an_operator_can_see(tmp_path):
     for expected in ("ESCALATION", "e1", "t1", "compensate or accept?",
                      "COMPENSATE", "a1-1"):
         assert expected in line, f"{expected!r} missing from {line!r}"
+
+
+# --------------------------------------------------------------------------
+# The payload names the decider. The header names the writer.
+#
+# Every forgery test above sets `answered_by` to the same string as the
+# event's actor -- they model an attacker who lies about the DECISION while
+# filling in the paperwork honestly. Nothing modelled the attacker who
+# writes somebody else's name, and that is the one the checks could not see:
+# the HUMAN-principal check, the not-the-asker check and the option check
+# all interrogate `answered_by`, so naming a real person satisfied all three
+# no matter who held the pen.
+# --------------------------------------------------------------------------
+
+def _escalation_world(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="bot", instance_id="bot",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    d.register(identity(agent_id="signer", instance_id="signer",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.REVIEWER}), by="system")
+    for who in ("person", "person2"):
+        d.register(identity(agent_id=who, instance_id=who,
+                            kind=PrincipalKind.HUMAN,
+                            roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    d.escalate(escalation_id="e1", task_id="t1", question="promote?",
+               raised_by="bot", options=("yes", "no"))
+    return log, d
+
+
+def test_an_agent_cannot_sign_a_persons_answer(tmp_path):
+    """The defect this module exists to prevent, committed by the module.
+
+    An AGENT appends the record and names a registered HUMAN in the
+    payload. Every check passes -- 'person' is registered, is HUMAN, is not
+    the asker, and 'yes' is among the options -- and the escalation reads as
+    answered by a person who never saw it.
+    """
+    log, _ = _escalation_world(tmp_path)
+    log.append(actor="signer", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "person",
+                        "reason": "signed on their behalf"})
+    with pytest.raises(EscalationError, match="appended by 'signer'"):
+        AgentDirectory(log).load()
+
+
+def test_a_person_cannot_sign_another_persons_answer(tmp_path):
+    """Not only an agent-versus-human boundary.
+
+    Two registered humans are still two principals. A decision recorded
+    under the wrong one is a decision the named person can truthfully deny
+    making, which is the property the record exists to give them.
+    """
+    log, _ = _escalation_world(tmp_path)
+    log.append(actor="person2", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "answered_by": "person",
+                        "reason": "they told me to say yes"})
+    with pytest.raises(EscalationError, match="appended by 'person2'"):
+        AgentDirectory(log).load()
+
+
+def test_an_answer_naming_nobody_is_refused(tmp_path):
+    """A missing name must not read as agreement with the header."""
+    log, _ = _escalation_world(tmp_path)
+    log.append(actor="person", action=ACT_ESCALATION_ANSWER, target="t1",
+               payload={"escalation_id": "e1", "state": "ANSWERED",
+                        "answer": "yes", "reason": "no name given"})
+    with pytest.raises(EscalationError, match="appended by 'person'"):
+        AgentDirectory(log).load()
+
+
+def test_an_honest_answer_still_replays(tmp_path):
+    """Anti-vacuity: a rule that refused every answer would pass the above."""
+    log, d = _escalation_world(tmp_path)
+    d.answer(escalation_id="e1", answered_by="person", answer="yes",
+             reason="the tolerance is defensible and I checked it")
+
+    fresh = AgentDirectory(log).load()
+    esc = fresh.escalation("e1")
+    assert esc.state is EscalationState.ANSWERED
+    assert esc.answered_by == "person"
+    assert esc.answer == "yes"
+
+
+def test_the_write_path_cannot_produce_a_record_replay_refuses(tmp_path):
+    """The two halves have to agree about what a record may say.
+
+    answer() binds the event's actor to answered_by, so an honest write can
+    never build the record the reducer now rejects. Checked rather than
+    assumed: a writer that could emit an unreplayable record is the defect
+    the scheduler already recorded once.
+    """
+    log, d = _escalation_world(tmp_path)
+    d.answer(escalation_id="e1", answered_by="person", answer="no",
+             reason="the tolerance would hide the disagreement")
+
+    (rec,) = [ev for ev in log.read()
+              if ev.action == ACT_ESCALATION_ANSWER]
+    assert rec.actor == rec.payload["answered_by"] == "person"

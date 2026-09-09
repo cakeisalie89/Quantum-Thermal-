@@ -480,6 +480,20 @@ class GovernedStage10:
             seq = ev.seq
             p = ev.payload
             if ev.action == ACT_TASK_CREATE:
+                # The submitter is who asked for the work, and it is what the
+                # policy gate was evaluated against when the task was
+                # admitted. Taken from the payload alone it is a name the
+                # record chose for itself, so a forged create attributes work
+                # to somebody who never asked for it -- and every later
+                # question about who submitted this reads the forgery back.
+                # scheduler.enqueue has always checked this; task.create did
+                # not.
+                if p["submitter"] != ev.actor:
+                    raise TaskTransitionError(
+                        f"seq {ev.seq}: task {p['task_id']!r} names submitter "
+                        f"{p['submitter']!r} but was appended by "
+                        f"{ev.actor!r}; work is attributed to whoever asked "
+                        "for it, not to whoever a record nominates")
                 tasks[p["task_id"]] = Task(
                     task_id=p["task_id"], tool_id=p["tool_id"],
                     submitter=p["submitter"],

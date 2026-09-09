@@ -227,6 +227,13 @@
       "find": "            output_files=(OutputFile(\"artifact\", \"{out_dir}/{name}\"),),",
       "replace": "            output_files=(),",
       "rationale": "nothing is collected by the executor, so the only observer of the artifact is the sweep that runs afterwards and there is nothing to compare it against"
+    },
+    {
+      "name": "T32_a_task_may_be_created_in_somebody_elses_name",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if p[\"submitter\"] != ev.actor:\n                    raise TaskTransitionError(",
+      "replace": "                if False:\n                    raise TaskTransitionError(",
+      "rationale": "the submitter is what the policy gate was evaluated against and what every later attribution question reads back; without the comparison it is a name the record chose for itself"
     }
   ]
 }

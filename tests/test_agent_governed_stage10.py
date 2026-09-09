@@ -1497,3 +1497,36 @@ def test_an_independent_step_still_runs_when_another_fails(gov, monkeypatch):
 
     assert graph["a"].state is TaskState.FAILED
     assert graph["independent"].state is TaskState.VERIFIED
+
+
+# --------------------------------------------------------------------------
+# Who asked for the work.
+#
+# The submitter is what the policy gate was evaluated against when the task
+# was admitted, and it is the answer every later question about attribution
+# reads back. Taken from the payload alone it is a name the record chose for
+# itself. scheduler.enqueue has always compared it to the event's actor;
+# task.create did not, in the production projection or in the second reader.
+# --------------------------------------------------------------------------
+
+def test_a_task_cannot_be_created_in_somebody_elses_name(gov):
+    _run(gov)
+    gov.log.append(actor="mallory", action="task.create", target="t-forged",
+                   payload={"task_id": "t-forged",
+                            "tool_id": "stage10.emit_artifact",
+                            "submitter": SUBMITTER_ID,
+                            "inputs_digest": "a" * 64, "depends_on": []})
+    with pytest.raises(TaskTransitionError, match="appended by 'mallory'"):
+        gov.projection()
+
+
+def test_an_honest_create_still_projects(gov):
+    """Anti-vacuity: the production path writes the record it always did."""
+    run = _run(gov)
+    task = gov.projection().get(run.task_id)
+    assert task.submitter == SUBMITTER_ID
+
+    (created,) = [ev for ev in gov.log.read()
+                  if ev.action == "task.create"
+                  and ev.payload.get("task_id") == run.task_id]
+    assert created.actor == created.payload["submitter"] == SUBMITTER_ID
