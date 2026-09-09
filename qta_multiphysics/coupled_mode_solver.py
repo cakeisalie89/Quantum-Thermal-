@@ -27,30 +27,13 @@ from .radiation_paths import radiation_paths
 from .vibration_transfer import vibration_transfer
 
 
-#: A solve that did not converge carries no scientific authority. Any consumer
-#: below -- Mode-C readiness, Mode-D start, eligibility forecasts, derived
-#: metrics -- must deny authority rather than read the numbers anyway.
-SOLVER_OK = "ok"
-
-
-class SolverFailure(RuntimeError):
-    """A numerical solve did not converge; downstream authority is denied."""
-
-
-def require_converged(result, what: str):
-    """Fail closed on a non-converged solve.
-
-    solver_status used to be reported alongside the metrics as a passive
-    string while ready_terms was computed from the same result regardless, so
-    a failed BDF integration could still produce FORECAST_READY_IF_MEASURED.
-    Readiness is now unreachable without convergence.
-    """
-    status = getattr(result, "solver_status", None)
-    if status != SOLVER_OK:
-        raise SolverFailure(
-            f"{what}: solver_status={status!r} (expected {SOLVER_OK!r}); "
-            "readiness, eligibility and derived metrics are denied")
-    return result
+# The convergence contract now lives in the numerics layer, so that every
+# solver path inherits it rather than only the one it was written beside.
+# Re-exported here because this module is where callers and tests have always
+# imported it from, and moving a rule should not break the readers of it.
+from .numerics import (                                  # noqa: E402,F401
+    SOLVER_OK, SolverFailure, require_converged,
+)
 
 
 def run_coupled(cfg: MultiphysicsConfig):

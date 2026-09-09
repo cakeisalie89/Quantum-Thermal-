@@ -715,6 +715,125 @@ convergence.
 
 ---
 
+## D-2026-09 — the convergence contract was written once and applied twice
+
+**STATUS** — repaired.
+
+**DEFECT.** `require_converged()` is this repository's own fail-closed
+contract for numerical solves. Its docstring says exactly why it exists:
+*"solver_status used to be reported alongside the metrics as a passive string
+while ready_terms was computed from the same result regardless, so a failed
+BDF integration could still produce FORECAST_READY_IF_MEASURED."*
+
+It had **two call sites**, both inside `run_coupled`, the 1D path where it
+was written. `run_mode_sequence_3d` — whose own docstring says it runs the
+canonical mode order *"exactly mirroring the 1D/2D `coupled_mode_solver`"* —
+mirrored the mode order, the state hand-off and the species interlocks, and
+not this. So every 3D result, the Mode-C readiness decision taken from it,
+the campaign state, the falsification report and the machine FSM were built
+on integrations nobody had asked about.
+
+**INVARIANT.** A solve that did not converge carries no scientific
+authority, on every path, not only the one where the rule was discovered.
+
+**ROOT CAUSE.** The rule was fixed where the defect was found and never
+swept. It also *lived* where it was found — defined beside the 1D coupled
+solver, inside one of the things it governs, so the next sibling did not
+inherit it by construction.
+
+**THE VERIFIER TESTED AGAINST ITSELF.** `test_require_converged_rejects_a_failed_status`
+and `test_require_converged_accepts_ok` construct a hand-made object with
+`solver_status="failed"` and check the helper's return. They prove the
+function works. They prove nothing about whether anything calls it — which
+was the entire defect — and they sat in the file named for this contract,
+reading like its coverage.
+
+**IMPLEMENTATION FIX.**
+
+* The contract moved **down the layering** into `numerics.py`, which every
+  solver already depends on, and is re-exported from `coupled_mode_solver`
+  so existing callers and tests are unaffected. Where a rule lives decides
+  who inherits it.
+* `require_converged` applied at all three 3D solves in
+  `run_mode_sequence_3d` — Mode B, Mode C (which decides readiness, and Mode
+  D is constructed only if it holds) and the Mode D sensing hold.
+* Applied at the five solves in `reduction_checks_3d`, which are taken
+  *outside* the sequence: a reduction check compares two solvers, and if
+  either did not converge it measures the distance between one answer and
+  one non-answer and reports it as a `rel_error` with a `within_tolerance`
+  verdict beside a `solver_status` nobody reads.
+* Applied at the three thermal solves in `runner.py`, which writes NV
+  temperatures, hotspots, gradients and energy residuals — and the two
+  `solver_status` strings beside them, which is exactly the passive
+  reporting the contract exists to replace.
+
+**A SECOND HALF OF THE CONTRACT, FOR RAW INTEGRATOR RESULTS.**
+`surface_coverage`, `gas_transport_1d` and `verification.py`'s MMS check hold
+a scipy `OdeResult` and never looked at `.success` at all. A failed
+integration does not return garbage — it returns a **shorter trajectory**,
+every value finite, so `assert_finite` passes and the numbers look ordinary.
+Callers pairing `so.y` with the `t_eval` they asked for then hold two arrays
+of different lengths, and the one describing time is the one still at full
+length. `require_integrated()` says the same thing in that layer's
+vocabulary.
+
+**THE ENERGY ACCOUNTING WAS QUADRATURING AN EXTRAPOLATION.**
+`solve_thermal_3d` integrates the solver's continuous interpolant over the
+whole window, `sol_obj.sol(tq)` with `tq` spanning `[0, t_end]`. An
+`OdeSolution` evaluated past the interval actually integrated **extrapolates
+the last polynomial rather than refusing**, so a failed solve produced an
+entirely ordinary-looking `rel_residual` — computed over time the integrator
+never reached — and handed it back beside `solver_status="failed"` for a
+reader to notice or not. The residual is now `NaN` on a failed solve, which
+both readers already fail closed on: `closure_ok` is `abs(rel) < tol`, false
+for NaN, and the accounting formats it as-is so an operator sees `nan`
+rather than a plausible figure.
+
+**ADVERSARIAL TESTS.** Failure injected at each of the three 3D solves,
+with results reporting temperatures that satisfy every readiness term so
+only the status check can refuse them; a reduction check against an injected
+failure; a real `solve_thermal_3d` run with `success` flipped, asserting the
+residual is NaN and closure is refused. Anti-vacuity throughout: an honest
+sequence still runs, an honest solve still reports a residual, and
+`require_integrated` still accepts a finished integration.
+
+**THE MUTATION THAT SURVIVED, AND WHY.** `SC3` — removing the Mode D check —
+survived the first campaign. The failure-injection tests reached solves 1 and
+2 only, and the honest test asserted nothing about the Mode D hold, so the
+branch ran and nothing looked at it. **A branch no test reaches is a branch
+no test defends, however green the file is.** Fixed by injecting at the third
+solve and by having the honest test assert Mode D was actually entered — so
+the injection test is known to be reaching a branch that runs rather than one
+skipped for unrelated reasons. 7/7 after.
+
+**FORBIDDEN FAKE FIXES.** Leaving the contract beside the 1D solver and
+importing it upward, which reproduces the layering that caused this.
+Checking `solver_status` at each consumer instead of at the producer, which
+is the passive-string pattern with more places to forget. Deleting the
+`solver_stability` condition in `falsification_3d` now that the sequence
+refuses to return a failed result — it is a second reading of a thing
+enforced upstream, and it still catches a sequence assembled by hand.
+
+**SIBLING SWEEP.** Every `solve_ivp` call site in the repository was
+enumerated: `thermal_3d_transient`, `thermal_2d_axisymmetric`, `thermal_1d`
+and `stack/fem_fenicsx` already checked `success` and recorded it;
+`surface_coverage`, `gas_transport_1d` and `verification` did not and now do.
+Every consumer of `solver_status` was enumerated too: `coupled_mode_solver`
+(enforced), `uncertainty.py` and `falsification_3d` (checked in their own
+words), `reduction_checks_3d`, `runner.py`, `vtk_export.py` and
+`verification.py` (passive — the first two now enforce; the last two report
+into records rather than deciding anything, and are left as reporting).
+
+**DISCOVERED BY.** Asking where `require_converged` is actually called,
+after wrongly reporting that the 3D solver never checked convergence at all
+(D-2026-06). The wrong answer led to the right question.
+
+**INVALIDATED CLAIMS.** Any statement that a non-converged solve cannot
+produce readiness in this repository. That was true of the 1D coupled path
+and of nothing else.
+
+---
+
 ## Open follow-up tracked from this ledger
 
 These are named here so they cannot be closed by silence. They are **not**

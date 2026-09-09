@@ -230,6 +230,20 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
                         dense_output=True)
     T = sol_obj.y
     assert_finite(T, "thermal_3d.T")
+    # THE ACCOUNTING BELOW MUST NOT RUN ON A TRAJECTORY THAT STOPPED EARLY.
+    #
+    # It quadratures the solver's continuous interpolant over the whole
+    # window, sol_obj.sol(tq) with tq spanning [0, t_end]. An OdeSolution
+    # evaluated past the interval it actually integrated extrapolates the
+    # last polynomial rather than refusing, so a failed solve produced a
+    # perfectly ordinary-looking rel_residual -- computed over time the
+    # integrator never reached -- and handed it back beside
+    # solver_status="failed" for a reader to notice or not.
+    #
+    # assert_finite above does not catch this: a failed integration returns
+    # a SHORTER trajectory, not a wrong-looking one, and every value in it
+    # is finite.
+    converged = bool(sol_obj.success)
 
     # ---- energy accounting (DERIVED numerical check, MODEL-ONLY) [J] ----
     # Quadrature on a dense internal grid from the solver's continuous
@@ -255,13 +269,19 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     residual = E_src_total - E_sink - dU
     denom = max(abs(E_src_total), abs(dU), abs(E_sink), 1e-30)
     energy = {
+        "converged": converged,
         "integrated_source_energy_J": E_src_total,
         "laser_and_volumetric_channels_J": E_src,
         "front_flux_channel_J": E_front,
         "boundary_sink_energy_J": E_sink,
         "internal_energy_change_J": dU,
-        "residual_J": residual,
-        "rel_residual": residual / denom,
+        # NaN rather than a number when the integration did not finish. Both
+        # readers of this fail closed on NaN: closure_ok() is
+        # `abs(rel) < tol`, which is False for NaN, and energy_accounting_3d
+        # formats it as-is so an operator sees nan rather than a plausible
+        # figure. A number here would be the quadrature of an extrapolation.
+        "residual_J": residual if converged else float("nan"),
+        "rel_residual": (residual / denom) if converged else float("nan"),
         "label": LABEL,
     }
     return Thermal3DResult(grid, tt, T, cfg, source_mode, transverse,

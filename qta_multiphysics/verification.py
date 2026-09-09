@@ -12,6 +12,8 @@ import math
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from .numerics import require_integrated
+
 from .config import MultiphysicsConfig, default_config
 from .grids import Grid1D, thermal_depth_refinement, thermal_radial_refinement
 from .material_models import diamond_k, diamond_cp
@@ -43,6 +45,10 @@ def diffusion_sanity_1d(n=200, L=4.0e-5, k_const=2000.0, rho=3510.0, cp_const=1.
     t_end = 0.2 * L**2 / alpha
     teval = np.linspace(0, t_end, 30)
     so = solve_ivp(rhs, (0, t_end), T0, method="BDF", t_eval=teval, rtol=1e-8, atol=1e-12)
+    # An MMS check fits a decay rate to this trajectory and compares it to
+    # the analytic one. Fitted to a truncated trajectory, the comparison is
+    # between an analytic rate and an artefact of where the solver stopped.
+    require_integrated(so, "MMS decay-rate verification")
     amp = so.y.max(axis=0) - so.y.min(axis=0)  # peak-to-... amplitude of cosine mode
     amp0 = amp[amp > 0]
     # fit log(amp) vs t

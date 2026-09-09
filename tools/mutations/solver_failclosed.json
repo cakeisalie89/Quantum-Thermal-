@@ -1,0 +1,58 @@
+{
+  "title": "The convergence contract, and every path that has to inherit it",
+  "note": "require_converged was written for run_coupled and applied there. For a long time those were the ONLY TWO call sites in the repository, while run_mode_sequence_3d -- whose own docstring says it runs the canonical mode order 'exactly mirroring the 1D/2D coupled_mode_solver' -- mirrored the mode order, the state hand-off and the species interlocks, and not this. The tests that existed asserted the helper rejects a hand-made object with solver_status='failed'; that proves the function works and says nothing about whether anything calls it, which was the defect. SC1-SC3 attack the 3D call sites, SC4-SC5 the two halves of the contract itself, SC6 the energy accounting that quadratured an extrapolation over a failed solve, SC7 a reduction check taken outside the sequence.",
+  "suites": [
+    "tests/test_solver_failclosed.py"
+  ],
+  "mutations": [
+    {
+      "name": "SC1_the_3d_MODE_B_solve_is_not_checked",
+      "path": "qta_multiphysics/mode_sequence_3d.py",
+      "find": "    tB = require_converged(\n        solve_thermal_3d(cfg, g3, source_mode=\"averaged\",",
+      "replace": "    tB = (\n        solve_thermal_3d(cfg, g3, source_mode=\"averaged\",",
+      "rationale": "restores the defect at the first solve: everything downstream -- Mode C, readiness, the campaign state, the falsification report, the machine FSM -- is built on an integration nobody asked about"
+    },
+    {
+      "name": "SC2_the_3d_MODE_C_solve_is_not_checked",
+      "path": "qta_multiphysics/mode_sequence_3d.py",
+      "find": "    tC = require_converged(\n        solve_thermal_3d(cfg, g3, source_mode=\"averaged\", source_scale=0.0,",
+      "replace": "    tC = (\n        solve_thermal_3d(cfg, g3, source_mode=\"averaged\", source_scale=0.0,",
+      "rationale": "Mode C decides readiness and Mode D is constructed only if it holds, so a non-converged recovery solve that still yields a recool time is a readiness verdict taken from an integration that did not finish"
+    },
+    {
+      "name": "SC3_the_3d_MODE_D_hold_is_not_checked",
+      "path": "qta_multiphysics/mode_sequence_3d.py",
+      "find": "            res.tD_hold = require_converged(\n                solve_thermal_3d(",
+      "replace": "            res.tD_hold = (\n                solve_thermal_3d(",
+      "rationale": "the sensing-hold thermal state; a hold nobody integrated to completion is not a hold"
+    },
+    {
+      "name": "SC4_the_contract_accepts_any_status",
+      "path": "qta_multiphysics/numerics.py",
+      "find": "    status = getattr(result, \"solver_status\", None)\n    if status != SOLVER_OK:",
+      "replace": "    status = getattr(result, \"solver_status\", None)\n    if False:",
+      "rationale": "the contract itself goes quiet, and every call site inherits a check that checks nothing"
+    },
+    {
+      "name": "SC5_a_truncated_trajectory_is_accepted",
+      "path": "qta_multiphysics/numerics.py",
+      "find": "    if not getattr(sol_obj, \"success\", False):",
+      "replace": "    if False:",
+      "rationale": "a failed integration returns a SHORTER trajectory, every value finite, so assert_finite passes and a caller pairing so.y with its t_eval holds two arrays of different lengths"
+    },
+    {
+      "name": "SC6_the_energy_accounting_extrapolates_over_a_failed_solve",
+      "path": "qta_multiphysics/thermal_3d_transient.py",
+      "find": "        \"residual_J\": residual if converged else float(\"nan\"),\n        \"rel_residual\": (residual / denom) if converged else float(\"nan\"),",
+      "replace": "        \"residual_J\": residual,\n        \"rel_residual\": residual / denom,",
+      "rationale": "the accounting quadratures the solver's interpolant over the whole window; past the interval actually integrated an OdeSolution extrapolates rather than refusing, so a failed solve reports an ordinary-looking closure residual"
+    },
+    {
+      "name": "SC7_a_reduction_check_compares_against_a_non_answer",
+      "path": "qta_multiphysics/reduction_checks_3d.py",
+      "find": "    require_converged(r3, \"reduction_3d_to_1d: 3D solve\")",
+      "replace": "    pass",
+      "rationale": "these solves are taken outside run_mode_sequence_3d, so enforcing it there does not reach them; the comparison then measures the distance between one answer and one non-answer and reports a rel_error with a within_tolerance verdict"
+    }
+  ]
+}

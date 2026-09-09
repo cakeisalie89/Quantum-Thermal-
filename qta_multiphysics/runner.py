@@ -23,6 +23,7 @@ from .radiation_paths import radiation_paths
 from .vibration_transfer import vibration_transfer
 from .coupled_mode_solver import run_coupled
 from .verification import run_verification
+from .numerics import require_converged
 from .uncertainty import run_monte_carlo
 from . import future_3d
 from .metrics import build_gate_specs
@@ -57,6 +58,15 @@ def run_all(outdir, mc_samples=60, verbose=True):
     t1 = solve_thermal_1d(cfg, source_mode="averaged", n_eval=80)
     t1p = solve_thermal_1d(cfg, source_mode="pulse", n_eval=80)
     t2 = solve_thermal_2d(cfg, source_mode="averaged", n_r=40, n_z=48, n_eval=20)
+    # This runner writes thermal_metrics: NV temperatures, hotspots,
+    # gradients, energy residuals. It also writes the two solver_status
+    # strings beside them, which is the passive reporting require_converged
+    # exists to replace -- a reader of the metrics has no reason to consult
+    # a neighbouring field before believing them.
+    for _res, _what in ((t1, "runner: 1D averaged"),
+                        (t1p, "runner: 1D pulse"),
+                        (t2, "runner: 2D averaged")):
+        require_converged(_res, _what)
     t2.T_peak.to_slice_csv(out("distributed_thermal_2d_slices.csv"))
     # Per-cell 1D mesh + field outputs, all generated from the actual finite-
     # volume arrays the solver integrated (genuinely nonuniform cells).

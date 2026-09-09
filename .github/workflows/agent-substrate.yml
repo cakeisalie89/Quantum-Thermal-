@@ -246,6 +246,17 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/hardware_governance.json
+      - name: mutation matrix -- the convergence contract and every path
+        # require_converged was written for the 1D coupled solver and applied
+        # there. For a long time those were its only two call sites, while
+        # the 3D mode sequence -- which says in its own docstring that it
+        # mirrors the 1D path exactly -- did not inherit it. These attack the
+        # call sites, both halves of the contract, the energy accounting that
+        # quadratured an extrapolation over a failed solve, and a reduction
+        # check taken outside the sequence.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/solver_failclosed.json
       - name: mutation matrix -- the fuzz harness itself
         # A fuzzer reports the same sentence whether it exercised the whole
         # package or nothing at all, so every guard that tells those apart

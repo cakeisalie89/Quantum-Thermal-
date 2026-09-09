@@ -50,6 +50,7 @@ from .thermal_1d import solve_thermal_1d
 from .thermal_2d_axisymmetric import solve_thermal_2d
 from .thermal_3d_transient import solve_thermal_3d
 from .mesh_3d import Grid3DConfig
+from .numerics import require_converged
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
@@ -71,6 +72,14 @@ def reduction_3d_to_1d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     r1 = solve_thermal_1d(cfg, source_mode="averaged",
                           n_cells=cfg.solver.n_cells_1d, n_eval=n_eval,
                           t_end=t_end)
+    # A reduction check compares two solvers against each other. If either
+    # did not converge, the comparison measures the distance between one
+    # answer and one non-answer, and reports it as a rel_error with a
+    # within_tolerance verdict beside a solver_status nobody reads. These
+    # solves are taken outside run_mode_sequence_3d, so the rule is stated
+    # here too rather than assumed to have travelled.
+    require_converged(r3, "reduction_3d_to_1d: 3D solve")
+    require_converged(r1, "reduction_3d_to_1d: 1D solve")
     T3 = r3.nv_layer_temperature_K()
     T1 = r1.nv_layer_temperature_K()
     rel = (T3 - T1) / max(abs(T1), 1e-30)
@@ -93,6 +102,7 @@ def reduction_3d_to_2d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     t_end = float(t_end if t_end is not None else cfg.solver.pulse_window_s)
     r3 = solve_thermal_3d(cfg, g3=g3, transverse="gaussian",
                           t_end=t_end, n_eval=n_eval)
+    require_converged(r3, "reduction_3d_to_2d: 3D solve")
     T3 = r3.nv_layer_temperature_K()
     # 2D probe: NV-layer maximum = the on-axis (r=0) value for a centred beam,
     # the like-for-like counterpart of the 3D beam-axis probe.
@@ -103,6 +113,7 @@ def reduction_3d_to_2d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     # disable_radial, which would remove radial transport everywhere.
     r2m = solve_thermal_2d(cfg, source_mode="averaged", t_end=t_end,
                            n_r=24, n_z=32, n_eval=n_eval, lateral_adiabatic=True)
+    require_converged(r2m, "reduction_3d_to_2d: 2D adiabatic-lateral solve")
     T2m = float(r2m.nv_layer_max_K())
     rel_m = (T3 - T2m) / max(abs(T2m), 1e-30)
 
@@ -112,6 +123,7 @@ def reduction_3d_to_2d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     # rather than dimensional consistency. It is NOT an equivalence statement.
     r2p = solve_thermal_2d(cfg, source_mode="averaged", t_end=t_end,
                            n_r=24, n_z=32, n_eval=n_eval, disable_radial=False)
+    require_converged(r2p, "reduction_3d_to_2d: 2D production-boundary solve")
     T2p = float(r2p.nv_layer_max_K())
     rel_p = (T3 - T2p) / max(abs(T2p), 1e-30)
 
