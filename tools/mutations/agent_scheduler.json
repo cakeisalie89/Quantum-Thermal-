@@ -1,6 +1,6 @@
 {
   "title": "Durable scheduling: readiness, ownership, retry, cancellation",
-  "note": "A scheduler's enforcement points are the ones that decide whether work runs at all, who owns it, and what happens when it does not succeed. Each mutation here removes one. The sharpest are N3 (a failed dependency stops blocking, so dependents wait forever on work nobody will do), N7 (a stale lease may report success, so a worker back from the dead overwrites the outcome someone else produced) and N12 (a verification failure becomes retryable, which is how a flaky pass is eventually obtained).",
+  "note": "A scheduler's enforcement points are the ones that decide whether work runs at all, who owns it, and what happens when it does not succeed. Each mutation here removes one. The sharpest are N3 (a failed dependency stops blocking, so dependents wait forever on work nobody will do), N7 (a stale lease may report success, so a worker back from the dead overwrites the outcome someone else produced) and N12 (a verification failure becomes retryable, which is how a flaky pass is eventually obtained). S64 and S68 attack the ownership and attempt-accounting rules the reducer applies on REPLAY, not just on the write path. S64 restores a defect that made a whole branch of reconcile unreachable: the surrounding guard was covered by a mutation, the ACTION behind it was not, and a job stuck forever still satisfies attempts <= max_attempts. Three further candidates in the same rule (handover exemption without the liveness test, and without the no-owner test) were traced and DROPPED rather than kept as easy kills: each is stopped one guard later by N46 or N48, so they measure which guard fires first rather than whether the semantics are held.",
   "suites": [
     "tests/test_agent_machine_properties.py",
     "tests/test_agent_policy.py",
@@ -325,9 +325,9 @@
     {
       "name": "N46_a_live_lease_may_be_reclaimed",
       "path": "qta_agent/scheduler.py",
-      "find": "    if (job.state is JobState.DISPATCHED and dst is JobState.READY\n            and job.lease_is_live(at)):",
+      "find": "    if (job.state is JobState.DISPATCHED\n            and dst in {JobState.READY, JobState.FAILED}\n            and actor != job.lease_holder\n            and job.lease_is_live(at)):",
       "replace": "    if False:",
-      "rationale": "'the lease lapsed' becomes a sentence anyone can write, and the same work goes to a second worker"
+      "rationale": "'the lease lapsed' becomes a sentence anyone can write, and the same work goes to a second worker. Anchor repaired when the rule was widened to cover the give-up edge as well as the requeue: the mutation attacks the same semantics it always did, at the rewritten location"
     },
     {
       "name": "N47_the_attempt_count_may_be_rewritten",
@@ -447,6 +447,20 @@
       "find": "        if not decision.allowed:\n            decision = self.policy.decide_and_record(",
       "replace": "        if False:\n            decision = self.policy.decide_and_record(",
       "rationale": "the log answers 'what was permitted' and cannot answer 'what was tried', which is the question an incident starts with -- and a policy change that refused a running job leaves nothing behind at all"
+    },
+    {
+      "name": "S64_the_give_up_edge_is_not_recognised_as_a_handover",
+      "path": "qta_agent/scheduler.py",
+      "find": "                       and dst in {JobState.READY, JobState.FAILED}\n                       and not job.lease_is_live(at)",
+      "replace": "                       and dst in {JobState.READY}\n                       and not job.lease_is_live(at)",
+      "rationale": "restores the defect exactly: DISPATCHED -> FAILED after a lapse is judged an outcome report, so the reducer demands it come from the worker that died. reconcile's tolerant move() swallows the refusal and the job stays DISPATCHED under a lease nobody holds, forever -- the budget's enforcement branch becomes unreachable code"
+    },
+    {
+      "name": "S68_the_attempt_count_may_move_on_any_edge",
+      "path": "qta_agent/scheduler.py",
+      "find": "        allowed = (job.attempts + 1\n                   if (job.state is JobState.READY\n                       and dst is JobState.DISPATCHED)\n                   else job.attempts)",
+      "replace": "        allowed = want",
+      "rationale": "an attempt is charged at exactly one edge. Let any record name the count and a requeue can set it back to zero, which is a retry budget that never runs down"
     }
   ]
 }

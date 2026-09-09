@@ -1,6 +1,6 @@
 {
   "title": "The second reader for the subsystems that had none",
-  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure).",
+  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left.",
   "suites": [
     "tests/test_agent_second_reader.py",
     "tests/test_agent_differential.py",
@@ -125,6 +125,55 @@
       "find": "        if a == \"scheduler.enqueue\":",
       "replace": "        if False:",
       "rationale": "the reader agrees by covering nothing, which is the quieter failure: an empty second projection diffs clean against anything"
+    },
+    {
+      "name": "R18_the_reader_does_not_ask_who_signed_an_outcome",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if cur.get(\"lease_holder\") != ev.actor:\n            _note(out, ev, f\"job {jid!r} is held by \"",
+      "replace": "        if False:\n            _note(out, ev, f\"job {jid!r} is held by \"",
+      "rationale": "the second reader projects a verdict written by somebody who was not running the work. The primary refuses such a log outright, so the two readers are never compared on it -- this reader is the only one looking"
+    },
+    {
+      "name": "R19_the_reader_accepts_an_outcome_after_possession_ran_out",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if not holds:\n            _note(out, ev, f\"job {jid!r} had possession only to seq {end!r} \"",
+      "replace": "        if False:\n            _note(out, ev, f\"job {jid!r} had possession only to seq {end!r} \"",
+      "rationale": "a worker back from the dead decides an outcome for work that may already have been redone, and the independent reconstruction agrees with it"
+    },
+    {
+      "name": "R20_the_reader_lets_a_live_lease_be_reclaimed",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if (src == \"DISPATCHED\" and dst in {\"READY\", \"FAILED\"}\n            and cur.get(\"lease_holder\") != ev.actor and holds):",
+      "replace": "    if False:",
+      "rationale": "the handover edges are guarded by the fact they assert. Drop the check and a record claiming a lapse that did not happen replays clean"
+    },
+    {
+      "name": "R21_the_reader_takes_the_attempt_count_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        allowed = have + 1 if charge else have",
+      "replace": "        allowed = want",
+      "rationale": "the count the retry budget is measured against becomes whatever the record says it is, so an independently reconstructed history shows a budget that never runs down"
+    },
+    {
+      "name": "R22_the_reader_lets_a_transition_grant_possession",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if grants and not (src == \"READY\" and dst == \"DISPATCHED\"):",
+      "replace": "    if False:",
+      "rationale": "ownership is taken at hand-out and dropped on the way back. Allow any edge to carry it and a record names its own owner"
+    },
+    {
+      "name": "R23_the_reader_judges_possession_where_the_record_LANDED",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    holds = bool(cur.get(\"lease_id\")) and isinstance(end, int) and (\n        (ev.seq - 1) <= end)",
+      "replace": "    holds = bool(cur.get(\"lease_id\")) and isinstance(end, int) and (\n        ev.seq <= end)",
+      "rationale": "off by one in the direction that FAILS CLOSED, which is why it would survive a test written in the comfortable middle: a report decided at the last legal position lands one past it and is refused as late. The second reader would report an anomaly against an entirely honest log"
+    },
+    {
+      "name": "R24_the_reader_does_not_carry_the_retry_budget",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    budget = job.get(\"max_attempts\")\n    if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:",
+      "replace": "    budget = job.get(\"max_attempts\")\n    if False:",
+      "rationale": "an enqueue that states no bound is accepted silently, and the count in the reconstruction has nothing to be measured against"
     }
   ]
 }

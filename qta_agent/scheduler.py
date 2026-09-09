@@ -1665,7 +1665,37 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
     # head_seq + 1. Evaluating liveness at ``seq`` would therefore refuse a
     # report that ``report`` had just accepted, at exactly the boundary seq.
     at = seq - 1
-    if job.state is JobState.DISPATCHED and dst in OUTCOME_STATES:
+    # TWO edges out of DISPATCHED belong to somebody other than the holder,
+    # and for the same reason: the holder is the party that has gone away.
+    #
+    #   DISPATCHED -> READY   the supervisor returns the work to the queue
+    #   DISPATCHED -> FAILED  the supervisor gives up, the budget being spent
+    #
+    # Neither can be guarded by actor, because the actor who ought to speak
+    # is the dead worker. Both are guarded instead by the fact they claim --
+    # that the lease has lapsed -- which is checked here against replayed
+    # state rather than taken from the record.
+    #
+    # ONLY the second one was missing, and its absence made a whole branch of
+    # reconcile() unreachable: the give-up path built its record, the reducer
+    # refused it as an outcome reported by a non-holder, reconcile's tolerant
+    # move() swallowed the refusal as though a racing process had moved the
+    # job, and the job stayed DISPATCHED under a lease nobody held, forever.
+    # The retry budget's own enforcement branch could not execute.
+    #
+    # It went unseen because the mutation covering the budget dies on the
+    # GUARD rather than on the ACTION: delete the `attempts >= max_attempts`
+    # test and the job is requeued past its budget, which the long campaign
+    # notices. Leave the guard in place and the give-up is refused, the job
+    # sticks, and `attempts <= max_attempts` is still true of a job that is
+    # simply stuck. Defence in depth masking a dead branch.
+    lapsed_handover = (job.state is JobState.DISPATCHED
+                       and dst in {JobState.READY, JobState.FAILED}
+                       and not job.lease_is_live(at)
+                       and not payload.get("lease_holder")
+                       and not payload.get("lease_id"))
+    if (job.state is JobState.DISPATCHED and dst in OUTCOME_STATES
+            and not lapsed_handover):
         if actor != job.lease_holder:
             raise JobTransitionError(
                 f"seq {seq}: {job.job_id!r} is leased to "
@@ -1679,14 +1709,17 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
                 f"after seq {job.lease_expires_after_seq}. A late report does "
                 "not get to decide the outcome -- the work may already have "
                 "been redone.")
-    if (job.state is JobState.DISPATCHED and dst is JobState.READY
+    if (job.state is JobState.DISPATCHED
+            and dst in {JobState.READY, JobState.FAILED}
+            and actor != job.lease_holder
             and job.lease_is_live(at)):
-        # The requeue edge is the one edge out of DISPATCHED that someone
-        # OTHER than the holder is meant to take, so it cannot be guarded by
-        # actor. It is guarded by the fact it claims: the lease has lapsed.
+        # The handover edges, guarded by the fact they claim. A record that
+        # takes work away from a LIVE lease hands the same attempt to a
+        # second worker, or declares an attempt dead while it is still
+        # running.
         raise JobTransitionError(
-            f"seq {seq}: {job.job_id!r} is requeued as though its lease had "
-            f"lapsed, but lease {job.lease_id!r} runs to seq "
+            f"seq {seq}: {job.job_id!r} is moved to {dst.value} as though "
+            f"its lease had lapsed, but lease {job.lease_id!r} runs to seq "
             f"{job.lease_expires_after_seq}. Reclaiming a live lease hands "
             "the same work to a second worker.")
     if "attempts" in payload:

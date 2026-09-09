@@ -1824,3 +1824,215 @@ def test_a_permitted_gate_does_not_write_a_second_record(tmp_path):
                 if e.action == ACT_POLICY_DECISION], (
         "recording every allowed gate doubles the log and says nothing the "
         "operation's own record does not")
+
+
+# ==========================================================================
+# THE RETRY BUDGET, AS A BOUND RATHER THAN AS A BRANCH
+#
+# X6_a_lapsed_lease_does_not_spend_the_retry_budget is killed today -- by a
+# 250-cycle mixed campaign. That is a kill and it is not coverage: the
+# campaign asserts a great many things at once, so it cannot say WHICH rule
+# failed, and it would go on killing the mutation if the budget started
+# leaking for a different reason.
+#
+# So the rule gets its own statement. The invariant is not "there is a
+# comparison in reconcile"; it is:
+#
+#   for max_attempts = N, no combination of dispatch, worker death, lease
+#   lapse, retryable failure, renewal, supervisor restart, several
+#   reconcilers, a stale report or a lost race creates more than N GENUINE
+#   execution attempts.
+#
+# An attempt is charged at exactly one edge, READY -> DISPATCHED, and the
+# replay rule refuses a record that sets `attempts` on any other edge. So
+# the number of attempts a history spent is countable from the log alone,
+# without trusting the projection that the same code produced -- which is
+# what _attempts_charged does.
+# ==========================================================================
+
+def _attempts_charged(sched, job_id="j1"):
+    """Genuine attempts, counted from the LOG rather than the projection.
+
+    Counting `job.attempts` would ask the reducer whether the reducer kept
+    the count correctly. Counting dispatch records asks the history.
+    """
+    from qta_agent.scheduler import ACT_JOB_TRANSITION
+
+    return sum(1 for ev in sched.log.read()
+               if ev.action == ACT_JOB_TRANSITION
+               and ev.payload.get("job_id") == job_id
+               and ev.payload.get("dst") == JobState.DISPATCHED.value)
+
+
+def _lapse(sched, n=6):
+    """Push the log past any live lease without touching the job."""
+    for i in range(n):
+        _enqueue(sched, f"filler-{_lapse.n}-{i}")
+    _lapse.n += 1
+
+
+_lapse.n = 0
+
+
+def _budget_world(tmp_path, max_attempts):
+    log = EventLog(tmp_path / "log.jsonl")
+    pol = PolicyStore(log).load()
+    pol.publish(default_policy(), actor="owner")
+    s = Scheduler(log, policy=pol, policy_id="scheduler.default",
+                  capacity={"slots": 8}).load()
+    s.enqueue(job_id="j1", work_digest=WORK, submitter="owner",
+              max_attempts=max_attempts)
+    s.reconcile()
+    return s
+
+
+@pytest.mark.parametrize("n", [1, 2, 3])
+def test_repeated_worker_death_cannot_exceed_the_budget(tmp_path, n):
+    """The failure mode the budget exists for, and the one it did not cover.
+
+    A worker that dies reports nothing. Before the lapse branch existed the
+    budget was consulted only where a worker REPORTED a retryable failure,
+    so a job whose workers kept dying was handed out forever.
+    """
+    sched = _budget_world(tmp_path, n)
+    for attempt in range(n + 4):          # keep going well past the budget
+        job = sched.get("j1")
+        if job.state is JobState.READY:
+            _dispatch(sched, "j1", worker=f"w{attempt}", lease_seqs=1)
+        _lapse(sched)
+        sched.reconcile()
+
+    assert _attempts_charged(sched) == n, (
+        f"{_attempts_charged(sched)} dispatches against a budget of {n}")
+    assert sched.get("j1").state is JobState.FAILED
+    assert "budget" in sched.get("j1").last_failure
+
+
+def test_the_final_lapse_fails_the_job_rather_than_requeueing_it(tmp_path):
+    sched = _budget_world(tmp_path, 2)
+    _dispatch(sched, "j1", worker="w1", lease_seqs=1)
+    _lapse(sched)
+    sched.reconcile()
+    assert sched.get("j1").state is JobState.READY, "the first lapse retries"
+
+    _dispatch(sched, "j1", worker="w2", lease_seqs=1)
+    _lapse(sched)
+    sched.reconcile()
+    assert sched.get("j1").state is JobState.FAILED, (
+        "the budget is spent and the job was handed out again")
+    assert _attempts_charged(sched) == 2
+
+
+def test_a_transient_report_and_a_lapse_draw_on_the_SAME_budget(tmp_path):
+    """Two paths spend one budget.
+
+    Reported failures and dead workers were accounted separately once, which
+    is how a job could exceed max_attempts by alternating between them.
+    """
+    sched = _budget_world(tmp_path, 3)
+    _dispatch(sched, "j1", worker="w1", lease_seqs=50)
+    sched.report(job_id="j1", worker="w1", failure=FailureClass.TRANSIENT,
+                 detail="a socket")
+    _lapse(sched)
+    sched.reconcile()
+
+    _dispatch(sched, "j1", worker="w2", lease_seqs=1)   # dies
+    _lapse(sched)
+    sched.reconcile()
+
+    _dispatch(sched, "j1", worker="w3", lease_seqs=50)
+    sched.report(job_id="j1", worker="w3", failure=FailureClass.TRANSIENT,
+                 detail="another socket")
+    _lapse(sched)
+    sched.reconcile()
+
+    assert _attempts_charged(sched) == 3
+    assert sched.get("j1").state is JobState.FAILED
+    for i in range(3):
+        _lapse(sched)
+        sched.reconcile()
+    assert _attempts_charged(sched) == 3, "a terminal job was dispatched again"
+
+
+def test_two_reconcilers_cannot_charge_the_same_lapse_twice(tmp_path):
+    """Both see the same expired lease; only one record may land."""
+    sched = _budget_world(tmp_path, 3)
+    _dispatch(sched, "j1", worker="w1", lease_seqs=1)
+    _lapse(sched)
+
+    other = Scheduler(sched.log, policy=sched.policy,
+                      policy_id="scheduler.default",
+                      capacity={"slots": 8}).load()
+    sched.reconcile()
+    other.reconcile()
+
+    # Count the requeues OUT OF DISPATCHED. A job also reaches READY from
+    # WAITING when its preconditions first hold, and counting that as a
+    # requeue is how this assertion read a healthy log as a double charge.
+    from qta_agent.scheduler import ACT_JOB_TRANSITION
+    requeues = [ev for ev in sched.log.read()
+                if ev.action == ACT_JOB_TRANSITION
+                and ev.payload.get("job_id") == "j1"
+                and ev.payload.get("src") == JobState.DISPATCHED.value
+                and ev.payload.get("dst") == JobState.READY.value]
+    assert len(requeues) == 1, (
+        f"{len(requeues)} requeue records for one lapse; two reconcilers "
+        "each charged it")
+    assert _attempts_charged(sched) == 1
+
+
+def test_a_supervisor_restart_does_not_reset_the_budget(tmp_path):
+    """attempts is projected from the log, so a restart must re-derive it."""
+    sched = _budget_world(tmp_path, 2)
+    _dispatch(sched, "j1", worker="w1", lease_seqs=1)
+    _lapse(sched)
+    sched.reconcile()
+
+    revived = Scheduler(sched.log, policy=sched.policy,
+                        policy_id="scheduler.default",
+                        capacity={"slots": 8}).load()
+    assert revived.get("j1").attempts == 1, revived.get("j1").attempts
+
+    _dispatch(revived, "j1", worker="w2", lease_seqs=1)
+    _lapse(revived)
+    revived.reconcile()
+    assert revived.get("j1").state is JobState.FAILED
+    assert _attempts_charged(revived) == 2
+
+
+def test_a_renewal_does_not_buy_another_attempt(tmp_path):
+    """Renewal extends one attempt; it must not begin a second."""
+    sched = _budget_world(tmp_path, 1)
+    _dispatch(sched, "j1", worker="w1", lease_seqs=2)
+    sched.renew_lease(job_id="j1", worker="w1", lease_id="lease-j1",
+                      lease_seqs=2)
+    assert _attempts_charged(sched) == 1, "renewal charged an attempt"
+
+    _lapse(sched)
+    sched.reconcile()
+    assert sched.get("j1").state is JobState.FAILED
+    assert _attempts_charged(sched) == 1
+
+
+def test_a_worker_that_lost_the_dispatch_race_is_not_charged(tmp_path):
+    """A racer that never gained authority must not spend the budget."""
+    sched = _budget_world(tmp_path, 2)
+    _dispatch(sched, "j1", worker="w1", lease_seqs=50)
+    with pytest.raises((JobTransitionError, SchedulerError)):
+        _dispatch(sched, "j1", worker="w2", lease_seqs=50)
+    assert _attempts_charged(sched) == 1, (
+        "the loser of a dispatch race was charged an attempt")
+
+
+def test_a_late_report_after_a_lapse_cannot_spend_or_refund_the_budget(
+        tmp_path):
+    """The worker back from the dead, on both outcomes."""
+    for failure in (None, FailureClass.TRANSIENT):
+        s = _budget_world(tmp_path / f"late-{failure}", 2)
+        _dispatch(s, "j1", worker="w1", lease_seqs=1)
+        _lapse(s)
+        s.reconcile()
+        before = _attempts_charged(s)
+        with pytest.raises(JobTransitionError):
+            s.report(job_id="j1", worker="w1", failure=failure)
+        assert _attempts_charged(s) == before

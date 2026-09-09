@@ -465,6 +465,12 @@ _JOB_TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
 #: whatever a lease said about ownership has stopped being true.
 _JOB_PENDING = {"RETRY_WAIT", "BLOCKED"}
 
+#: Leaving DISPATCHED with a verdict on the attempt that was running. Named
+#: here, in strings, for the same reason as the sets above: a second reader
+#: that asked the scheduler which edges are verdicts would agree with it by
+#: construction, including where the scheduler is wrong.
+_JOB_OUTCOME = {"SUCCEEDED", "RETRY_WAIT", "FAILED"}
+
 
 def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
     """Replay every remaining authority subsystem, independently.
@@ -555,11 +561,22 @@ def _sub_enqueue(ev, p: dict, out) -> None:
     if job.get("lease_holder") or job.get("lease_id"):
         _note(out, ev, f"job {jid!r} is enqueued already holding a lease")
         return
+    # The retry budget arrives here or nowhere. A job whose enqueue does not
+    # state a whole, positive bound has no bound this reader can hold it to,
+    # and saying so is better than quietly substituting a default that the
+    # scheduler happens to use today.
+    budget = job.get("max_attempts")
+    if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
+        _note(out, ev, f"job {jid!r} is enqueued with a retry budget of "
+                       f"{budget!r}; the count has nothing to be measured "
+                       "against")
+        budget = None
     out.jobs[jid] = {
         "job_id": jid, "state": state,
         "work_digest": job.get("work_digest"),
         "submitter": ev.actor, "priority": job.get("priority"),
         "attempts": job.get("attempts") or 0,
+        "max_attempts": budget,
         "lease_holder": job.get("lease_holder") or "",
         "lease_expires_after_seq": job.get("lease_expires_after_seq", -1),
         "idempotency_key": job.get("idempotency_key"),
@@ -581,6 +598,80 @@ def _sub_job_transition(ev, p: dict, out) -> None:
     if cur["state"] in _JOB_TERMINAL:
         _note(out, ev, f"job {jid!r} leaves terminal state {src!r}")
         return
+
+    # WHO IS ALLOWED TO SAY THIS, AND WHAT MAY IT SAY ABOUT THE BUDGET.
+    #
+    # Everything above this point checks the SHAPE of the move: that the
+    # job exists, that it is where the record says it is, that it is not
+    # coming back from the dead. None of that asks who wrote the record or
+    # what the record does to the retry count -- so a hand-written line
+    # naming a job's outcome on behalf of a worker that never reported,
+    # or one that quietly sets attempts back to zero, replayed clean here
+    # and this reader said it had no findings.
+    #
+    # That is worse than it sounds. The scheduler's own reducer refuses all
+    # of these, so a log carrying one cannot be loaded by the primary at
+    # all -- which means the comparison of the two readers never runs, and
+    # THIS reader is the only one left looking at the history. A second
+    # opinion that accepts a wider language than the first is not a second
+    # opinion on the logs that matter.
+    #
+    # Restated below in this module's own terms, from the event header and
+    # the state this replay has built, never from the payload's own claims.
+    end = cur.get("lease_expires_after_seq", -1)
+    # The writer decided at the head and its record landed one past it, so
+    # possession is judged at the position the decision was taken from.
+    # Judging it at ev.seq would reject a report written at the last legal
+    # moment.
+    holds = bool(cur.get("lease_id")) and isinstance(end, int) and (
+        (ev.seq - 1) <= end)
+    grants = bool(p.get("lease_holder")) or bool(p.get("lease_id"))
+
+    # Two ways out of DISPATCHED are nobody's to sign but the supervisor's,
+    # because the party who ought to sign them is the worker that stopped
+    # answering: the work goes back on the queue, or the queue gives up on
+    # it. They are legitimate exactly when the thing they assert is true --
+    # that possession has run out -- and when they hand ownership to no one.
+    handover = (src == "DISPATCHED" and dst in {"READY", "FAILED"}
+                and not holds and not grants)
+    if src == "DISPATCHED" and dst in _JOB_OUTCOME and not handover:
+        if cur.get("lease_holder") != ev.actor:
+            _note(out, ev, f"job {jid!r} is held by "
+                           f"{cur.get('lease_holder')!r} and {ev.actor!r} "
+                           f"records its outcome as {dst!r}; an attempt is "
+                           "answered for by whoever was running it")
+            return
+        if not holds:
+            _note(out, ev, f"job {jid!r} had possession only to seq {end!r} "
+                           f"and the log is at {ev.seq}; an outcome arriving "
+                           "after that decides work somebody else may "
+                           "already have redone")
+            return
+    if (src == "DISPATCHED" and dst in {"READY", "FAILED"}
+            and cur.get("lease_holder") != ev.actor and holds):
+        _note(out, ev, f"job {jid!r} is taken back as though possession had "
+                       f"run out, but it runs to seq {end!r}; the same work "
+                       "would be handed to a second worker")
+        return
+    if "attempts" in p:
+        want = p.get("attempts")
+        # A retry is counted where one is handed out, and nowhere else. Any
+        # other record that names the count is rewriting the only number
+        # the budget is measured against.
+        charge = src == "READY" and dst == "DISPATCHED"
+        have = cur.get("attempts") or 0
+        allowed = have + 1 if charge else have
+        if want != allowed:
+            _note(out, ev, f"job {jid!r} has {have} attempt(s) and this "
+                           f"record sets {want!r}; only the hand-out edge "
+                           "moves that count, and only by one")
+            return
+    if grants and not (src == "READY" and dst == "DISPATCHED"):
+        _note(out, ev, f"job {jid!r} {src!r} -> {dst!r} carries possession; "
+                       "it is taken when the work is handed out and dropped "
+                       "on the way back, never granted in passing")
+        return
+
     cur["state"] = dst
     if "lease_holder" in p:
         cur["lease_holder"] = p.get("lease_holder") or ""
@@ -600,6 +691,13 @@ def _sub_job_transition(ev, p: dict, out) -> None:
         cur["lease_holder"] = ""
         cur["lease_expires_after_seq"] = -1
         cur["lease_renewals"] = 0
+    # The bound the count exists to be measured against. Checked here rather
+    # than only on the hand-out edge so that a budget overrun is a finding
+    # about the HISTORY, whatever combination of records produced it.
+    budget = cur.get("max_attempts")
+    if isinstance(budget, int) and (cur.get("attempts") or 0) > budget:
+        _note(out, ev, f"job {jid!r} has spent {cur.get('attempts')} "
+                       f"attempt(s) against a budget of {budget}")
 
 
 #: A lease may be extended this many times before the work has to be

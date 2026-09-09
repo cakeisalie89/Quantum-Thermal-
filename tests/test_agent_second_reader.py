@@ -510,3 +510,254 @@ def test_a_refused_call_does_not_count_against_the_budget(gov):
     recon = reconstruct_subsystems(gov.log)
     assert recon.service_calls.get("registrar/t1", 0) == 0
     assert not [a for a in recon.anomalies if "budget" in a]
+
+
+# --------------------------------------------------------------------------
+# Ownership and the retry budget, as the SECOND reader states them.
+#
+# Everything above about job transitions checks their SHAPE. These check the
+# two things the shape says nothing about: who was entitled to write the
+# record, and what the record is allowed to do to the count that the retry
+# budget is measured against.
+#
+# The reason this matters more than the usual second-reader test: the
+# production reducer refuses every forgery below, so a log carrying one
+# CANNOT BE LOADED by the primary at all. The primary-versus-reader
+# comparison never runs on these histories. On exactly the logs where a
+# second opinion is the point, this reader is the only reader there is --
+# and it accepted all of them until these tests were written.
+# --------------------------------------------------------------------------
+
+def _lapse(gov, n=6):
+    """Push the log past any live lease without touching the job.
+
+    The filler action is deliberately one no ``_sub_*`` reducer handles.
+    Advancing the log with a real subsystem record would manufacture
+    findings of its own and make the anti-vacuity checks below unreadable.
+    """
+    for i in range(n):
+        gov.log.append(actor="filler", action="filler.tick",
+                       target=f"filler-{i}", payload={})
+
+
+def _job(recon, jid="j-lease"):
+    return recon.jobs[jid]
+
+
+def test_the_second_reader_refuses_an_outcome_signed_by_a_non_holder(gov):
+    """An attempt is answered for by whoever was running it."""
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED",
+                    "dst": "SUCCEEDED", "reason": "mine now"},
+                   actor="mallory")
+    assert any("records its outcome" in a for a in recon.anomalies), \
+        recon.anomalies
+    # Not merely reported -- not folded. A reader that notes the anomaly and
+    # then projects the forged state has told the truth and believed the lie.
+    assert _job(recon)["state"] == "DISPATCHED"
+    assert _job(recon)["lease_holder"] == "w1"
+
+
+def test_the_second_reader_refuses_an_outcome_after_possession_ran_out(gov):
+    """A late report does not get to decide work somebody else may have redone."""
+    _leased_job(gov, lease_seqs=1)
+    _lapse(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED",
+                    "dst": "SUCCEEDED", "reason": "finished eventually"},
+                   actor="w1")
+    assert any("had possession only to seq" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert _job(recon)["state"] == "DISPATCHED"
+
+
+def test_the_second_reader_refuses_a_requeue_that_reclaims_a_live_lease(gov):
+    """A requeue asserts possession ran out. The reader checks the assertion."""
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED", "dst": "READY",
+                    "reason": "lease lapsed (it did not)", "lease_id": "",
+                    "lease_holder": "", "lease_expires_after_seq": -1},
+                   actor="scheduler")
+    assert any("taken back as though possession had run out" in a
+               for a in recon.anomalies), recon.anomalies
+    assert _job(recon)["state"] == "DISPATCHED"
+
+
+def test_the_second_reader_refuses_a_give_up_that_reclaims_a_live_lease(gov):
+    """The same rule on the other handover edge, which was the newer one."""
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED", "dst": "FAILED",
+                    "reason": "budget spent (it is not)", "lease_id": "",
+                    "lease_holder": "", "lease_expires_after_seq": -1},
+                   actor="scheduler")
+    # Refused as an OUTCOME rather than as a reclamation: while possession
+    # is live this edge is not a handover at all, so the ownership rule
+    # reaches it first. The production reducer classifies it the same way,
+    # which is the agreement being checked -- the two readers refuse the
+    # same record for the same stated reason.
+    assert any("records its outcome" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert _job(recon)["state"] == "DISPATCHED"
+
+
+def test_the_second_reader_refuses_an_attempts_reset_on_a_REAL_lapse(gov):
+    """The case the possession rule cannot cover for.
+
+    Possession really has run out, so the handover is legitimate and every
+    ownership check above passes. The only thing standing between this log
+    and a retry budget that never runs down is the rule about what a record
+    may do to the count.
+    """
+    _leased_job(gov, lease_seqs=1)
+    _lapse(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED", "dst": "READY",
+                    "reason": "lapsed", "attempts": 0, "lease_id": "",
+                    "lease_holder": "", "lease_expires_after_seq": -1},
+                   actor="scheduler")
+    assert any("only the hand-out edge moves that count" in a
+               for a in recon.anomalies), recon.anomalies
+    assert _job(recon)["attempts"] == 1
+
+
+def test_the_second_reader_refuses_an_inflated_attempt_count(gov):
+    _leased_job(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED",
+                    "dst": "SUCCEEDED", "reason": "done", "attempts": 9999},
+                   actor="w1")
+    assert any("only the hand-out edge moves that count" in a
+               for a in recon.anomalies), recon.anomalies
+    assert _job(recon)["attempts"] == 1
+
+
+def test_the_second_reader_refuses_a_transition_that_grants_possession(gov):
+    """Ownership is taken at hand-out, never granted in passing."""
+    _leased_job(gov, lease_seqs=1)
+    _lapse(gov)
+    recon = _forge(gov, "scheduler.transition",
+                   {"job_id": "j-lease", "src": "DISPATCHED", "dst": "READY",
+                    "reason": "lapsed", "lease_holder": "mallory",
+                    "lease_id": "L-mine", "lease_expires_after_seq": 9999},
+                   actor="scheduler")
+    assert any("carries possession" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert _job(recon)["lease_holder"] == "w1"
+
+
+def test_the_second_reader_notices_a_budget_overrun(gov):
+    """The count is checked against the bound it exists to be measured against."""
+    s = _leased_job(gov, lease_seqs=1)
+    budget = s.get("j-lease").max_attempts
+    _lapse(gov)
+    gov.log.append(
+        actor="scheduler", action="scheduler.transition", target="j-lease",
+        payload={"job_id": "j-lease", "src": "DISPATCHED", "dst": "READY",
+                 "reason": "lapsed", "lease_id": "", "lease_holder": "",
+                 "lease_expires_after_seq": -1})
+    gov.log.append(
+        actor="scheduler", action="scheduler.transition", target="j-lease",
+        payload={"job_id": "j-lease", "src": "READY", "dst": "DISPATCHED",
+                 "reason": "leased", "attempts": budget + 1,
+                 "lease_holder": "w2", "lease_id": "L2",
+                 "lease_expires_after_seq": 99999})
+    recon = reconstruct_subsystems(gov.log)
+    # Refused on the way in -- the count could not reach budget + 1 in one
+    # step -- which is the stronger of the two findings and the one that
+    # keeps the overrun from ever being projected.
+    assert any("only the hand-out edge moves that count" in a
+               for a in recon.anomalies), recon.anomalies
+    assert _job(recon)["attempts"] <= budget
+
+
+def test_the_second_reader_refuses_an_enqueue_with_no_retry_budget(gov):
+    """A count with no bound is a count nothing is measured against."""
+    recon = _forge(gov, "scheduler.enqueue", {"job": {
+        "job_id": "j-nobudget", "state": "READY", "submitter": "mallory",
+        "work_digest": "c" * 64, "priority": 0, "attempts": 0}})
+    assert any("has nothing to be measured against" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.jobs["j-nobudget"]["max_attempts"] is None
+
+
+def test_an_honest_lapse_handover_is_NOT_flagged(gov):
+    """Anti-vacuity: the rules above must still let the real thing through.
+
+    A reader that refuses every handover would pass all seven tests above
+    and be useless. This is the same edge, taken legitimately.
+    """
+    s = _leased_job(gov, lease_seqs=1)
+    _lapse(gov)
+    s.load()
+    s.reconcile()
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    assert _job(recon)["state"] == "READY"
+    assert _job(recon)["attempts"] == 1
+    assert _job(recon)["lease_holder"] == ""
+
+
+def test_an_honest_outcome_from_the_holder_is_NOT_flagged(gov):
+    """The other half of the anti-vacuity check: a real report."""
+    s = _leased_job(gov)
+    s.report(job_id="j-lease", worker="w1")
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    assert _job(recon)["state"] == "SUCCEEDED"
+
+
+def test_a_history_the_primary_REFUSES_is_still_read_by_the_second(gov):
+    """Why these rules had to live here and not only in the reducer.
+
+    The scheduler will not load this log at all, so the comparison between
+    the two readers cannot run. If the second reader is silent, nothing in
+    the system says anything about the forged record.
+    """
+    from qta_agent.scheduler import Scheduler
+    s = _leased_job(gov)
+    gov.log.append(actor="mallory", action="scheduler.transition",
+                   target="j-lease",
+                   payload={"job_id": "j-lease", "src": "DISPATCHED",
+                            "dst": "SUCCEEDED", "reason": "mine now"})
+    with pytest.raises(Exception) as primary:
+        Scheduler(gov.log, policy=s.policy, policy_id=s.policy_id,
+                  capacity={"slots": 8}).load()
+    assert "mallory" in str(primary.value)
+
+    recon = reconstruct_subsystems(gov.log)
+    assert any("mallory" in a and "records its outcome" in a
+               for a in recon.anomalies), recon.anomalies
+
+
+def test_a_report_at_the_LAST_legal_position_is_not_flagged(gov):
+    """Possession is judged where the WRITER decided, not where the record lands.
+
+    A writer decides at the head and its record lands one past it. Judging
+    liveness at the record's own position would refuse a report written at
+    the last moment the lease was good -- a legitimate report, rejected for
+    arithmetic. This is the boundary that off-by-one lives at, so it is
+    checked at the boundary rather than in the comfortable middle.
+    """
+    s = _leased_job(gov, lease_seqs=4)
+    end = s.get("j-lease").lease_expires_after_seq
+    # Advance to exactly the last position a report may be DECIDED from, so
+    # the record itself lands at end + 1.
+    while s.at_seq() < end:
+        gov.log.append(actor="filler", action="filler.tick",
+                       target="pad", payload={})
+        s.catch_up()
+    s.report(job_id="j-lease", worker="w1")
+
+    landed = [ev for ev in gov.log.read()
+              if ev.action == "scheduler.transition"
+              and ev.payload.get("dst") == "SUCCEEDED"]
+    assert landed and landed[-1].seq == end + 1, (
+        f"the report landed at {landed[-1].seq if landed else None}, not the "
+        f"boundary {end + 1}; this test is no longer testing the boundary")
+
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    assert _job(recon)["state"] == "SUCCEEDED"
