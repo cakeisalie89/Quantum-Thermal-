@@ -579,3 +579,20 @@ def test_a_revocation_for_a_grant_that_was_never_issued_is_refused(tmp_path):
                payload={"capability_id": "c-nope", "reason": "tidying"})
     with pytest.raises(CapabilityError, match="has not issued"):
         CapabilityLedger(log).load()
+
+
+def test_replay_refuses_a_revocation_by_the_SUBJECT(tmp_path):
+    """The reducer's own copy of the rule, reached directly.
+
+    Calling revoke() as the subject is refused at the write path, so that
+    test never reaches the reducer -- and a mutation that let the SUBJECT
+    revoke, in the reducer, survived it. The log is the trust boundary, so
+    the rule has to hold against a record that never went through the
+    method.
+    """
+    log, led = _ledger(tmp_path)
+    led.issue(_cap(subject="agent-1"), actor="control-plane")
+    log.append(actor="agent-1", action=ACT_REVOKE, target="c1",
+               payload={"capability_id": "c1", "reason": "I am done with it"})
+    with pytest.raises(NotTheIssuer, match="revokes 'c1'"):
+        CapabilityLedger(log).load()

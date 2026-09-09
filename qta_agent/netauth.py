@@ -796,6 +796,12 @@ class NetworkDecision:
     request: dict = field(default_factory=dict)
     #: Addresses the connection is confined to, when the grant pins any.
     pinned_addresses: tuple = ()
+    #: Ports the grant behind this decision permits. Carried for the same
+    #: reason the addresses are: the process-layer guard sees a destination
+    #: and has to check it, and a destination is an address AND a port.
+    #: Without this the guard had the addresses to check against and nothing
+    #: to check the port against, so it checked the half it had.
+    pinned_ports: tuple = ()
     #: The registered service this destination belongs to, or None when the
     #: host is not claimed by one. Recorded so an incident asking "what did
     #: we call, and how much" has a name to group by rather than a set of
@@ -808,6 +814,7 @@ class NetworkDecision:
                 "grant_id": self.grant_id, "grant_digest": self.grant_digest,
                 "request": self.request,
                 "pinned_addresses": list(self.pinned_addresses),
+                "pinned_ports": list(self.pinned_ports),
                 "service_id": self.service_id,
                 "service_digest": self.service_digest}
 
@@ -1119,6 +1126,7 @@ class NetworkAuthority:
                 decision = NetworkDecision(
                     True, why, grant_id=gid, grant_digest=g.digest(),
                     request=rec, pinned_addresses=g.addresses,
+                    pinned_ports=g.ports,
                     service_id=svc.service_id if svc else None,
                     service_digest=svc.digest() if svc else None)
                 refusal = _refuse_secret_pairing(decision, body, secrets)
@@ -1264,6 +1272,33 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
     def _check(address) -> None:
         host, port = _address_parts(address)
         if allowed is not None and allowed.allowed:
+            # A DESTINATION IS AN ADDRESS AND A PORT.
+            #
+            # Both branches below used to check the half of the destination
+            # they had a field for and return. The grant's ports ARE checked
+            # at the decision -- _covers refuses a target whose port the
+            # grant does not permit -- and then the one layer that sees the
+            # connection actually being made did not check them, so a grant
+            # for :443 permitted a connect to :22 on the same address, and
+            # to :6379, and to anything else.
+            #
+            # Checked once, here, ahead of both branches, because the
+            # port is the same question whether or not addresses are
+            # pinned. Putting it inside one of them is how the two came to
+            # disagree in the first place.
+            #
+            # The re-authorizing path further down does check the port --
+            # it rebuilds a request carrying the real one. But that path is
+            # reached only when there is NO authorizing decision, which is
+            # the dependency-reached-the-network case. Every connection made
+            # UNDER a decision, which is every connection this system means
+            # to make, skipped the check entirely.
+            if allowed.pinned_ports and port not in allowed.pinned_ports:
+                raise GuardedConnection(
+                    f"connect to {host}:{port} is to a port the grant behind "
+                    f"this request does not permit "
+                    f"({list(allowed.pinned_ports)}); the address being "
+                    "right is half of a destination being right")
             if allowed.pinned_addresses:
                 if host not in allowed.pinned_addresses:
                     raise GuardedConnection(

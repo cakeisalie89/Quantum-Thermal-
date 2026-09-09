@@ -1116,3 +1116,133 @@ def test_the_granter_may_revoke_its_own_egress_grant(tmp_path):
     a.revoke("g1", actor="scheduler", reason="rotated")
     assert a.authorize(_req()).allowed is False
     assert NetworkAuthority(log).load().authorize(_req()).allowed is False
+
+
+# --------------------------------------------------------------------------
+# A destination is an address AND a port.
+#
+# _covers checks nine dimensions of a request, port among them. The
+# process-layer guard -- the one layer that sees the connection actually
+# being made -- checked the address and not the port, because the decision
+# carried the addresses to check against and nothing to check the port
+# against.
+#
+# BOTH authorized branches skipped it: the pinned one and the one where the
+# grant accepted the unpinned window. The path further down DOES check the
+# port, because it rebuilds a request with the real one -- but that path is
+# reached only when there is NO authorizing decision, which is the
+# dependency-reached-the-network case. Every connection made under a
+# decision, which is every connection the system means to make, skipped it.
+# --------------------------------------------------------------------------
+
+PIN = "127.0.0.1"
+
+
+def _pinned(ports=(443,), **over):
+    kw = dict(grant_id="g1", subject=ACTOR, task_id=TASK, tool_id=TOOL,
+              schemes=("https",), hosts=("localhost",), ports=ports,
+              methods=("GET",), addresses=(PIN,),
+              address_classes=(AddressClass.LOOPBACK.value,))
+    kw.update(over)
+    a = NetworkAuthority()
+    a.issue(grant(**kw), actor="scheduler")
+    req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         target=parse_target("https://localhost/v1/x",
+                                             method="GET"),
+                         resolved_address=PIN)
+    d = a.authorize(req)
+    assert d.allowed, d.reason
+    return a, d
+
+
+def _connect_pinned(a, d, port):
+    with socket_guard(a, actor=ACTOR, task_id=TASK, tool_id=TOOL, allowed=d):
+        s = socket.socket()
+        s.settimeout(0.05)
+        try:
+            socket.socket.connect(s, (PIN, port))
+            return None                    # the guard let it through
+        except GuardedConnection as exc:
+            return exc
+        except OSError:
+            return None                    # the guard let it through; the OS
+        finally:                           # is what refused, which is not
+            s.close()                      # this module's doing
+
+
+@pytest.mark.parametrize("port", [22, 6379, 9200, 80])
+def test_a_pinned_address_does_not_grant_every_port_on_it(port):
+    a, d = _pinned(ports=(443,))
+    exc = _connect_pinned(a, d, port)
+    assert exc is not None, (
+        f"the guard permitted a connect to the pinned address on port "
+        f"{port}, which the grant does not permit; the address being right "
+        "is half of a destination being right")
+    assert "does not permit" in str(exc)
+
+
+def test_the_granted_port_is_still_permitted():
+    """Anti-vacuity: a guard that refused every port would pass the above."""
+    a, d = _pinned(ports=(443,))
+    assert _connect_pinned(a, d, 443) is None
+
+
+def test_every_granted_port_is_permitted_not_just_the_first():
+    """A grant naming several ports means several, and the guard is a set
+    membership test rather than a comparison against one of them."""
+    a, d = _pinned(ports=(443, 8443))
+    assert _connect_pinned(a, d, 443) is None
+    assert _connect_pinned(a, d, 8443) is None
+    assert _connect_pinned(a, d, 22) is not None
+
+
+def test_the_decision_carries_the_ports_it_was_granted_for():
+    """The dimension has to survive the decision, or the guard cannot see it.
+
+    This is the conservation the defect was: the port was checked at
+    authorize() and then not carried to the layer that had to check it again
+    against the real connection.
+    """
+    a, d = _pinned(ports=(443, 8443))
+    assert d.pinned_ports == (443, 8443)
+    assert d.to_record()["pinned_ports"] == [443, 8443]
+
+
+def test_the_pinned_and_unpinned_paths_agree_about_ports():
+    """The two authorized branches must accept the same language.
+
+    Neither checked the port before this. They are the same question --
+    is this destination one the grant permits -- so the check belongs ahead
+    of the branch rather than inside one of them, which is how they came to
+    disagree in the first place.
+    """
+    unpinned = NetworkAuthority()
+    unpinned.issue(grant(grant_id="g2", subject=ACTOR, task_id=TASK,
+                         tool_id=TOOL, schemes=("https",),
+                         hosts=("localhost",), ports=(443,),
+                         methods=("GET",),
+                         address_classes=(AddressClass.LOOPBACK.value,),
+                         allow_unpinned_addresses=True),
+                   actor="scheduler")
+    req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         target=parse_target("https://localhost/v1/x",
+                                             method="GET"),
+                         resolved_address=PIN)
+    d = unpinned.authorize(req)
+    assert d.allowed and not d.pinned_addresses
+
+    with socket_guard(unpinned, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                      allowed=d):
+        s = socket.socket()
+        s.settimeout(0.05)
+        try:
+            socket.socket.connect(s, (PIN, 22))
+            refused = False
+        except GuardedConnection:
+            refused = True
+        except OSError:
+            refused = False
+        finally:
+            s.close()
+    assert refused, ("the unpinned path permitted port 22; the two branches "
+                     "no longer agree about what a destination is")

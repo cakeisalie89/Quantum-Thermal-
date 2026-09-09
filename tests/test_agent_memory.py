@@ -697,3 +697,30 @@ def test_an_invalidation_cascade_is_not_an_authorship_claim(mem):
     assert {e.memory_id for e in moved} == {"m1", "m2"}
     assert mem.get("m1").status is MemoryStatus.STALE
     assert mem.get("m2").status is MemoryStatus.STALE
+
+
+def test_a_refused_supersession_LEAVES_THE_LOG_LOADABLE(mem):
+    """What the write-path check is for, as distinct from the reducer's job.
+
+    Both layers refuse a non-author's supersession, with the same exception
+    and the same message -- so a test that only asserts "it raises" cannot
+    tell them apart, and a mutation removing the write-path check SURVIVED
+    against exactly such a test.
+
+    They do not guarantee the same thing. _set_status appends and THEN
+    applies, so without the check at the call site the record is durable
+    before the reducer ever sees it: the caller gets its exception and the
+    store is permanently unloadable. The check at the write path is what
+    keeps a refusal from poisoning the log.
+    """
+    _two(mem)
+    with pytest.raises(MemoryError_, match="may not supersede"):
+        mem.supersede(old_id="m1", new_id="m2", actor="mallory",
+                      reason="mine is better")
+
+    # The refusal must have cost the log nothing.
+    assert [ev.action for ev in mem.log.read()] == [ACT_MEMORY_WRITE] * 2, (
+        "the refused supersession still appended a record; the log now "
+        "carries an event its own reducer will refuse on every future load")
+    reloaded = MemoryStore(mem.log, evidence=mem.evidence).load()
+    assert reloaded.get("m1").status is MemoryStatus.ACTIVE

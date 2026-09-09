@@ -486,6 +486,32 @@ action. `memory.retract` was already correct. `checkpoint.prune` and
 `execution.cancel` are local operations on local objects, not authority
 decisions over a shared log. The other five are fixed here.
 
+**MUTATION CAMPAIGN, AND THE TWO THAT SURVIVED.** 223 mutations over six
+specs; 221 died on the first run. The two survivors were both real coverage
+gaps in the tests I had just written, and neither was a redundant guard:
+
+* `M39_the_write_path_lets_anyone_supersede` — removing the check from
+  `supersede()` left the test passing, because the **reducer** then refuses
+  the same record with the **same exception type and the same message**. A
+  test asserting only "it raises" cannot tell the two layers apart. They do
+  not guarantee the same thing: `_set_status` appends and *then* applies, so
+  without the call-site check the record is durable before the reducer ever
+  sees it — the caller gets its exception and the store is **permanently
+  unloadable**. Verified directly: after the bypassed call the log had grown
+  by one event and a fresh `load()` raised. The new test asserts the
+  distinguishing property, that a refusal costs the log nothing, and kills
+  the mutation.
+* `G26_the_subject_of_a_grant_may_destroy_it` — I had written a
+  subject-may-not-revoke test, and it exercised the **write path**, which
+  refuses before the mutated reducer is ever reached. The log is the trust
+  boundary, so the rule needed a test against a record that never went
+  through the method. The new test appends the revocation directly.
+
+Both are the §23 shape from opposite directions: one mutation survived
+because a *different* guard produced an indistinguishable outcome, the other
+because the test never reached the guard under attack. Neither was fixed by
+weakening the mutation or by asserting an implementation detail.
+
 **DISCOVERED BY.** The sibling sweep of D-2026-04, which turned up
 `agent.retire` with no check of any kind and was recorded there as a lead
 rather than followed immediately.
@@ -494,6 +520,124 @@ rather than followed immediately.
 substrate is guarded end to end. It was guarded on the way in. Any statement
 that a retired principal cannot act — it could, at two of the three gates
 that matter.
+
+---
+
+## D-2026-07 — a destination is an address and a port; the guard checked the address
+
+**STATUS** — repaired.
+
+**DEFECT.** `socket_guard` is the layer that sees the connection actually
+being made. On every path where a request had been authorized, it checked
+the address and never the port. A grant permitting `:443` on a pinned
+address permitted a connect to `:22` on that address, and `:6379`, and
+anything else.
+
+Reproduced: a grant for `hosts=("localhost",), ports=(443,),
+addresses=("127.0.0.1",)`, an authorized decision reading *"egress grant 'g1'
+covers GET https://localhost:443/v1/x"*, and then connects to `127.0.0.1` on
+443, 22 and 6379 all permitted identically by the guard.
+
+**INVARIANT.** What the guard permits at connect time is what the decision
+authorized. A destination is an address AND a port.
+
+**ROOT CAUSE — a dimension lost between two layers that both had it.**
+`_covers` checks nine dimensions of a request, port among them; it refuses a
+target whose port the grant does not permit. `NetworkDecision` then carried
+`pinned_addresses` and nothing else about the destination. So the guard had
+the addresses to check against and *nothing to check the port against*, and
+checked the half it had a field for. The port was present at the decision,
+present in the grant, present in the reason string the decision records —
+and absent from the object that travels to the enforcement point.
+
+**WHAT I GOT WRONG WHILE FIXING IT, AND WHY IT IS RECORDED HERE.** I first
+wrote that only the *pinned* branch skipped the port, and that the general
+path "re-authorizes with the real port and always caught this" — I put that
+claim in a production comment, in a test docstring, and in a test whose whole
+premise was that the two branches disagreed. It is false. **Both** authorized
+branches skipped it: the pinned one, and the one where the grant accepted the
+unpinned window. The re-authorizing path does check the port, but it is
+reached only when there is NO authorizing decision — the
+dependency-reached-the-network case. Every connection made *under* a
+decision, which is every connection the system means to make, skipped the
+check. The test failed and told me so. Both comments and the test are
+corrected; the claim is recorded because a wrong rationale left in a comment
+is a defect that outlives the code it explains.
+
+**IMPLEMENTATION FIX.** `NetworkDecision` gains `pinned_ports`, set from the
+grant behind an allowed decision, and carried into `to_record()` so the
+durable record says what the connection was confined to. The guard checks the
+port **once, ahead of both branches**, because it is the same question
+whether or not addresses are pinned — putting it inside one branch is how the
+two came to disagree in the first place.
+
+**ADVERSARIAL TESTS.** The pinned address on four ports the grant does not
+name; a grant naming several ports, so the check is set membership and not a
+comparison against one of them; the decision carrying the ports through to
+its record, which is the conservation the defect was; and the two authorized
+branches agreeing. Anti-vacuity: the granted port is still permitted, and a
+guard that refused every port would pass all of the refusal tests.
+
+**MUTATIONS.** `E45` restores the defect. `E46` drops `pinned_ports` from the
+decision — the conservation failure itself rather than the missing check it
+caused, so the two are covered separately. `E47` moves the check back inside
+the pinned branch, re-creating the disagreement between the two authorized
+paths.
+
+**A THIRD TEST-SUITE FINDING.** My new helper was named `_connect`, which
+already existed at module scope in that file, and shadowing it broke five
+existing socket-guard tests. They failed loudly and were fixed by renaming
+mine. Worth recording only because for several minutes I read those five
+failures as evidence that the *existing tests had been passing on
+unauthorized ports* — a plausible story, consistent with the two test-suite
+findings already in this ledger, and wrong. Reading a failure as
+confirmation of the pattern you are already looking for is its own hazard.
+
+**FORBIDDEN FAKE FIXES.** Checking the port only on the pinned path, which
+is the state that produced this. Deriving the permitted ports inside the
+guard by reaching into `authority._grants` — the decision is what authorized
+the connection, and re-deriving authority at enforcement time is how the two
+drift. Treating the monkeypatch as containment: it is not, and `socket_guard`
+already says so in its own docstring.
+
+**SIBLING SWEEP.** The other dimensions the decision does not carry —
+scheme, method, path — are genuinely unavailable at connect time, and the
+fallback synthesises the most permissive plausible values
+(`https`, `/`, `GET`). That is a real widening and is not fixed here: a
+socket, once open, carries whatever the process sends. It belongs with the
+containment boundary in D-2026-08 rather than being papered over with a
+check that cannot see what it claims to.
+
+---
+
+## D-2026-06 — analyst conclusion error: the 3D solver's convergence check
+
+**STATUS** — recorded, not a code defect.
+
+**DEFECT.** I stated that `solve_thermal_3d` never checks `sol_obj.success`.
+It does, at `thermal_3d_transient.py:268`, past the point where I had stopped
+reading. I read to the end of the energy accounting, saw no check, and
+reported the absence as established.
+
+**ROOT CAUSE.** Reporting a *negative* — "this code does not do X" — from a
+partial read. An absence is only established by reading the whole scope it
+could appear in, and I had not.
+
+**WHY IT IS IN THIS LEDGER.** Same reason as D-2026-03. A wrong analyst
+conclusion is an authority claim that the evidence contradicts, and the
+value of recording it is the pattern: this is the second time a confident
+negative has come from an incomplete read, and both times the correction
+came from looking at the thing itself rather than from re-reasoning.
+
+**WHAT THE ACTUAL DEFECT TURNED OUT TO BE.** Sharper than the one I
+reported, and recorded as the open item below: `require_converged()` — the
+repository's own fail-closed contract, whose docstring says it exists
+because "a failed BDF integration could still produce
+FORECAST_READY_IF_MEASURED" — is called at exactly two sites, both in the 1D
+coupled path, and at none of the 3D ones.
+
+**INVALIDATED CLAIMS.** My statement that the 3D solver does not check
+convergence.
 
 ---
 

@@ -312,6 +312,27 @@
       "find": "                self._granted_by[g.grant_id] = ev.actor",
       "replace": "                self._granted_by[g.grant_id] = None",
       "rationale": "the revocation rule has nothing to compare against, so it refuses everything -- the fail-closed direction, and still wrong: an honest granter can no longer withdraw its own grant"
+    },
+    {
+      "name": "E45_the_guard_checks_the_address_and_not_the_port",
+      "path": "qta_agent/netauth.py",
+      "find": "            if allowed.pinned_ports and port not in allowed.pinned_ports:",
+      "replace": "            if False:",
+      "rationale": "restores the defect exactly: a grant for :443 permits a connect to :22 on the same address. _covers checks nine dimensions of a request including the port, and the one layer that sees the connection being made checked the address alone"
+    },
+    {
+      "name": "E46_the_decision_does_not_carry_the_ports",
+      "path": "qta_agent/netauth.py",
+      "find": "                    request=rec, pinned_addresses=g.addresses,\n                    pinned_ports=g.ports,",
+      "replace": "                    request=rec, pinned_addresses=g.addresses,",
+      "rationale": "the dimension is dropped between the decision and the guard, so the guard has nothing to check against and its port rule goes quiet -- the conservation failure itself, rather than the missing check it caused"
+    },
+    {
+      "name": "E47_the_port_check_moves_back_inside_the_pinned_branch",
+      "path": "qta_agent/netauth.py",
+      "find": "            if allowed.pinned_ports and port not in allowed.pinned_ports:\n                raise GuardedConnection(",
+      "replace": "            if allowed.pinned_addresses and allowed.pinned_ports and port not in allowed.pinned_ports:\n                raise GuardedConnection(",
+      "rationale": "the port is checked for pinned grants and not for ones that accepted the unpinned window, so the two authorized branches disagree again about what a destination is -- which is how they came to disagree the first time"
     }
   ]
 }
