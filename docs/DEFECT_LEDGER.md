@@ -1597,11 +1597,24 @@ the matrices edit sources in place:
 `agent_separate_verify` 11/11 · `agent_tasks` 32/32 · `governed_breadth` 17/17 ·
 `agent_delegation` 27/27 · `agent_lease_renewal` 11/11 ·
 `agent_service_authority` 14/14 · `agent_substrate` 46/46 ·
-`agent_secret_provider` 18/18 — **263 mutations, none surviving**, every run
-reporting sources restored byte-identical. With the six run earlier in the
-tranche (`agent_agents` 61, `agent_netauth` 50, `agent_secrets` 35,
+`agent_secret_provider` 18/18 — 263, none surviving, every run reporting
+sources restored byte-identical. With the six run earlier in the tranche
+(`agent_agents` 61, `agent_netauth` 50, `agent_secrets` 35,
 `agent_second_reader` 40, `solver_failclosed` 25, `corpus_allowlist` 12) that
-is **486 mutations**.
+is 486.
+
+Then the specs this table NAMES but whose target files this tranche did not
+touch, so that no row above rests on a hosted result alone:
+`agent_scheduler` 64/64 · `agent_cross_process` 8/8 · `agent_incremental` 9/9
+· `agent_memory_context` 40/40 · `stage10_authority` 15/15 ·
+`repo_contract` 12/12. **634 mutations across twenty-six specs, none
+surviving.**
+
+`stage10_authority` is the one that mattered most to run. It is step 53 of 55,
+and the failure at step 47 recorded in D-2026-22 SKIPPED it — so P0-5's own
+spec had no result at that commit, hosted or local. A spec that is wired into
+CI and never reaches the runner is wired in the sense the contract checks and
+not in the sense that matters.
 
 **A checker that reported a defect that was not one.** `generate_manifest.py`
 refuses any path that is untracked and not ignored, which is right. But
@@ -1649,7 +1662,7 @@ it stops being true, or it is not answered.
 | 16 | all corresponding tests are anti-vacuous | Every failure-injection test in this tranche has a paired positive: the converged path DOES evaluate the interpolant, the honest sequence DOES enter Mode D, the honest report DOES take three solves, the honest ensemble DOES evaluate its samples, the mesh-check branch DOES fire. |
 | 17 | every new mutation spec is wired into CI | `tools/workflow_contract.py`: 38 of 38, checked by the file's own contents rather than by assertion. |
 | 18 | every mutation is killed for the intended semantic reason | Each survivor in this tranche was diagnosed rather than papered over: E48 resolved to the grant's first address, R40 sent a state that was neither answered nor withdrawn, SC3 never reached Mode D, M39 could not tell two layers apart, G26 hit the write path instead of the reducer, SC24 ran with the mesh-check fraction at zero, SC25 was a mutation that did not restore its own defect, C11 and C12 were written and never run at all. One (S36) was dropped as equivalent-by-construction rather than forced. |
-| 19 | full affected tests green | Full local suite, plus 486 local mutations across twenty specs with none surviving and every run reporting sources restored byte-identical. Hosted `second-interpreter` and `cross-environment-3d` green at `104a6f1`; `full-suite` red on `package_consistency_check.py` only, which is the documented R59 host divergence — its pytest step passes and the job's own diagnostic names the runner's kernel. **`agent-substrate` was RED at `104a6f1`**, on step 47 of 55: `corpus_allowlist`, 10 of 12. See D-2026-22. Thirty-seven matrices before it were green and the seven steps after it were skipped, so that job's tail is unmeasured at that commit and is re-run here. |
+| 19 | full affected tests green | Full local suite, plus 634 local mutations across twenty-six specs with none surviving and every run reporting sources restored byte-identical. Hosted `second-interpreter` and `cross-environment-3d` green at `104a6f1`; `full-suite` red on `package_consistency_check.py` only, which is the documented R59 host divergence — its pytest step passes and the job's own diagnostic names the runner's kernel. **`agent-substrate` was RED at `104a6f1`**, on step 47 of 55: `corpus_allowlist`, 10 of 12. See D-2026-22. Thirty-seven matrices before it were green and the seven steps after it were skipped, so that job's tail is unmeasured at that commit and is re-run here. |
 | 20 | defect ledger updated | D-2026-11 … D-2026-21, plus the PREMATURE_CLOSURE record and two ANALYST_CONCLUSION_ERROR records for my own wrong claims. |
 | 21 | PASS remains 0 | Unchanged; `package_consistency_check.py` asserts no PASS token in any output on every run. |
 | 22 | `automatic_gate_effect` remains NONE | Unchanged. |
