@@ -1396,3 +1396,216 @@ def test_the_pinned_and_unpinned_paths_agree_about_ports():
             s.close()
     assert refused, ("the unpinned path permitted port 22; the two branches "
                      "no longer agree about what a destination is")
+
+
+# ===========================================================================
+# P0-R11 -- THE ADDRESS CLASS, IN THE BRANCH THAT NEEDED IT.
+#
+# The class check in socket_guard sits behind `literal is not None`, so it
+# answers only for a connect target that was ALREADY an IP. Unpinned mode is
+# the case where the target is a NAME -- it is what the branch exists for --
+# and there the class went unchecked entirely, while the comment above it
+# said "this layer is holding the address the connection is actually going
+# to, so it can answer the question the authorization could not".
+#
+# It was not holding that address. The OS resolver chose it afterwards.
+#
+# Reproduced with no external networking and no resolver of our own:
+# `localhost` is a hostname that resolves to loopback, so a PUBLIC-only grant
+# for it is a grant whose class restriction the connection violates.
+# ===========================================================================
+
+def _loopback_listener():
+    """A real listener, so a PERMITTED connect actually completes."""
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    threading.Thread(target=lambda: srv.accept(), daemon=True).start()
+    return srv, srv.getsockname()[1]
+
+
+def _unpinned_named_connect(classes, host="localhost"):
+    """Authorize a NAME unpinned under ``classes``, then connect to it.
+
+    Returns ("ALLOWED", peer) or ("REFUSED", message).
+    """
+    srv, port = _loopback_listener()
+    try:
+        auth = NetworkAuthority()
+        auth.issue(_grant(hosts=(host,), ports=(port,),
+                          address_classes=classes,
+                          addresses=(), allow_unpinned_addresses=True),
+                   actor="scheduler")
+        d = auth.authorize(NetworkRequest(
+            actor=ACTOR, task_id=TASK, tool_id=TOOL,
+            target=parse_target(f"https://{host}:{port}/v1/x", method="GET")))
+        assert d.allowed and d.address_mode == MODE_UNPINNED_ACCEPTED, d
+        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                          allowed=d):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2.0)
+            try:
+                s.connect((host, port))
+                return "ALLOWED", s.getpeername()
+            except GuardedConnection as exc:
+                return "REFUSED", str(exc)
+            finally:
+                s.close()
+    finally:
+        srv.close()
+
+
+def test_an_unpinned_NAME_resolving_inside_the_perimeter_is_refused():
+    """THE defect: PUBLIC-only authority reaching loopback through a name."""
+    result, detail = _unpinned_named_connect((AddressClass.PUBLIC.value,))
+    assert result == "REFUSED", (
+        f"a grant permitting PUBLIC only reached {detail} through an "
+        "unpinned name; the class restriction was never applied because the "
+        "connect target was a name rather than an address")
+    assert "LOOPBACK" in detail and "PUBLIC" in detail, detail
+
+
+def test_an_unpinned_NAME_inside_a_permitted_class_still_connects():
+    """Anti-vacuity: the rule names a real condition.
+
+    A guard that refused every unpinned name would pass the test above while
+    breaking the mode entirely.
+    """
+    result, detail = _unpinned_named_connect((AddressClass.LOOPBACK.value,))
+    assert result == "ALLOWED", detail
+    assert detail[0] == "127.0.0.1", detail
+
+
+def test_the_connection_goes_TO_THE_ADDRESS_THE_GUARD_CLASSIFIED():
+    """One resolution, not two -- and observably so.
+
+    Classifying a name and then handing the NAME to the real connect resolves
+    it a SECOND time, and a second resolution is a second answer: the
+    rebinding window, opened by the check written to close it.
+
+    ``getpeername()`` cannot tell the two apart, because both end up at a
+    loopback address. So the resolution the guard sees is steered somewhere
+    the OS would not send it: the listener is on 127.0.0.2 and the patched
+    resolver returns only that, while the real resolver still maps
+    ``localhost`` to 127.0.0.1 where nothing is listening. Connecting to the
+    classified address succeeds; handing the name back does not.
+    """
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        srv.bind(("127.0.0.2", 0))
+    except OSError:                              # pragma: no cover - not Linux
+        pytest.skip("127.0.0.2 is not bindable on this host")
+    srv.listen(1)
+    port = srv.getsockname()[1]
+    threading.Thread(target=lambda: srv.accept(), daemon=True).start()
+
+    real_gai = socket.getaddrinfo
+
+    def steered(host, prt, *a, **kw):
+        if host == "localhost":
+            return [(socket.AF_INET, socket.SOCK_STREAM,
+                     socket.IPPROTO_TCP, "", ("127.0.0.2", prt))]
+        return real_gai(host, prt, *a, **kw)      # pragma: no cover
+
+    try:
+        auth = NetworkAuthority()
+        auth.issue(_grant(hosts=("localhost",), ports=(port,),
+                          address_classes=(AddressClass.LOOPBACK.value,),
+                          addresses=(), allow_unpinned_addresses=True),
+                   actor="scheduler")
+        d = auth.authorize(NetworkRequest(
+            actor=ACTOR, task_id=TASK, tool_id=TOOL,
+            target=parse_target(f"https://localhost:{port}/v1/x",
+                                method="GET")))
+        socket.getaddrinfo = steered
+        try:
+            with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                              allowed=d):
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(2.0)
+                try:
+                    s.connect(("localhost", port))
+                    peer = s.getpeername()
+                finally:
+                    s.close()
+        finally:
+            socket.getaddrinfo = real_gai
+    finally:
+        srv.close()
+
+    assert peer[0] == "127.0.0.2", (
+        f"connected to {peer}, not the address the guard classified. The "
+        "name was handed back to a second resolver, so what was checked and "
+        "what was reached are two different answers")
+
+
+def test_an_unpinned_name_that_is_not_the_authorized_name_is_still_refused():
+    """The name binding survives the new resolution step."""
+    srv, port = _loopback_listener()
+    try:
+        auth = NetworkAuthority()
+        auth.issue(_grant(hosts=("localhost", "other.invalid"), ports=(port,),
+                          address_classes=(AddressClass.LOOPBACK.value,),
+                          addresses=(), allow_unpinned_addresses=True),
+                   actor="scheduler")
+        d = auth.authorize(NetworkRequest(
+            actor=ACTOR, task_id=TASK, tool_id=TOOL,
+            target=parse_target(f"https://localhost:{port}/v1/x",
+                                method="GET")))
+        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                          allowed=d):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2.0)
+            with pytest.raises(GuardedConnection, match="different host"):
+                s.connect(("other.invalid", port))
+            s.close()
+    finally:
+        srv.close()
+
+
+def test_an_unpinned_name_on_another_port_is_still_refused():
+    """The port binding survives it too."""
+    srv, port = _loopback_listener()
+    try:
+        auth = NetworkAuthority()
+        auth.issue(_grant(hosts=("localhost",), ports=(port, port + 1),
+                          address_classes=(AddressClass.LOOPBACK.value,),
+                          addresses=(), allow_unpinned_addresses=True),
+                   actor="scheduler")
+        d = auth.authorize(NetworkRequest(
+            actor=ACTOR, task_id=TASK, tool_id=TOOL,
+            target=parse_target(f"https://localhost:{port}/v1/x",
+                                method="GET")))
+        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                          allowed=d):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2.0)
+            with pytest.raises(GuardedConnection, match="does not realize"):
+                s.connect(("localhost", port + 1))
+            s.close()
+    finally:
+        srv.close()
+
+
+def test_connect_ex_takes_the_same_path_as_connect():
+    """Both entry points, or the guard is a suggestion."""
+    srv, port = _loopback_listener()
+    try:
+        auth = NetworkAuthority()
+        auth.issue(_grant(hosts=("localhost",), ports=(port,),
+                          address_classes=(AddressClass.PUBLIC.value,),
+                          addresses=(), allow_unpinned_addresses=True),
+                   actor="scheduler")
+        d = auth.authorize(NetworkRequest(
+            actor=ACTOR, task_id=TASK, tool_id=TOOL,
+            target=parse_target(f"https://localhost:{port}/v1/x",
+                                method="GET")))
+        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                          allowed=d):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2.0)
+            with pytest.raises(GuardedConnection, match="LOOPBACK"):
+                s.connect_ex(("localhost", port))
+            s.close()
+    finally:
+        srv.close()

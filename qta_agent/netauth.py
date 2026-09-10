@@ -1344,7 +1344,13 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
     original = socket.socket.connect
     original_ex = socket.socket.connect_ex
 
-    def _check(address) -> None:
+    def _check(address):
+        """Return the address to actually connect to.
+
+        Usually the one handed in. In the unpinned-name case it is the
+        VERIFIED address this guard resolved and classified, so that the
+        connection goes where the check looked -- see below.
+        """
         host, port = _address_parts(address)
         if allowed is not None and allowed.allowed:
             # A DESTINATION IS AN ADDRESS AND A PORT.
@@ -1397,7 +1403,7 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
                         f"({allowed.authorized_address}); a name that "
                         "resolves differently at connect time than at check "
                         "time is the rebinding case, not a retry")
-                return
+                return address
             # UNPINNED_ACCEPTED. What can still be checked, and what cannot.
             #
             # CAN: if the connect target is a NAME rather than an address, it
@@ -1409,8 +1415,12 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
             #
             # CANNOT: an IP literal here, against a decision that authorized
             # a name, is exactly the resolve-then-connect window the grant
-            # accepted. Checking it would require resolving the name again,
-            # and a second resolution is a second answer.
+            # accepted. Checking WHICH permitted address it is would require
+            # resolving the name again, and a second resolution is a second
+            # answer. Its CLASS is a different question and is checked, both
+            # for a literal here and -- since P0-R11 -- for a name, by
+            # resolving once below and connecting to what that resolution
+            # chose.
             #
             # ALREADY CONSUMED, and not re-establishable from a bare socket
             # call: actor, task, tool, scheme, method and path. They were
@@ -1455,7 +1465,40 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
                     "resolve-then-connect window. Pin addresses, or set "
                     "allow_unpinned_addresses on the grant to say the "
                     "deployment accepts it.")
-            return
+            if g is not None and _maybe_ip(host) is None:
+                # A NAME, UNPINNED. THE CLASS CHECK ABOVE DID NOT RUN.
+                #
+                # It is guarded by `literal is not None`, so it answers only
+                # for a connect target that was already an IP. The unpinned
+                # case is the one where the target is a name -- which is the
+                # case this whole branch exists for -- and there the class
+                # went unchecked entirely. A grant permitting PUBLIC only
+                # reached loopback through `localhost`, reproduced exactly
+                # that way.
+                #
+                # RESOLVING HERE DOES NOT OPEN A SECOND WINDOW; IT CLOSES
+                # ONE. The alternative is to resolve, classify, and then hand
+                # the NAME back to `original`, which resolves again and may
+                # get a different answer -- the rebinding case, created by
+                # the check meant to prevent it. So the permitted address
+                # this resolution chose is what gets connected to, and the
+                # name is not resolved twice.
+                #
+                # Host and SNI are set by the layer above from the URL it was
+                # given, not from what `connect` received, so substituting the
+                # verified address preserves them.
+                permitted, seen = _permitted_addresses(host, port,
+                                                       g.address_classes)
+                if not permitted:
+                    raise GuardedConnection(
+                        f"connect to {host}:{port} resolves to {seen} and "
+                        f"grant {allowed.grant_id!r} permits "
+                        f"{list(g.address_classes)}; waiving address PINNING "
+                        "waives knowing WHICH permitted address a name "
+                        "resolves to, not whether it resolves inside the "
+                        "perimeter at all")
+                return _with_host(address, permitted[0])
+            return address
         req = NetworkRequest(
             actor=actor, task_id=task_id, tool_id=tool_id,
             target=Target(scheme="https", host=host, port=port, path="/",
@@ -1467,14 +1510,13 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
             raise GuardedConnection(
                 f"connect to {host}:{port} was not authorized: "
                 f"{decision.reason}")
+        return address
 
     def guarded_connect(self, address):
-        _check(address)
-        return original(self, address)
+        return original(self, _check(address))
 
     def guarded_connect_ex(self, address):
-        _check(address)
-        return original_ex(self, address)
+        return original_ex(self, _check(address))
 
     socket.socket.connect = guarded_connect
     socket.socket.connect_ex = guarded_connect_ex
@@ -1500,6 +1542,50 @@ def _address_parts(address) -> tuple:
         raise GuardedConnection(
             f"connect address {address!r} is not (host, port): {exc}") from exc
     return str(host), int(port)
+
+
+def _permitted_addresses(host: str, port: int, classes) -> tuple:
+    """Resolve ``host`` once and split the answers by permitted class.
+
+    Returns ``(permitted, seen)``: the addresses whose class this grant
+    allows, in resolution order, and a diagnostic list of every address with
+    its class, so a refusal can say what the name actually resolved to.
+
+    ONE RESOLUTION. The addresses returned here are what the caller connects
+    to; the name is never handed back to a second resolver, because a second
+    resolution is a second answer and the difference between them is the
+    rebinding window.
+
+    A resolution failure is left to propagate as ``socket.gaierror``, exactly
+    as it would have without this guard. A name that does not resolve is not
+    a policy decision.
+    """
+    infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    permitted, seen = [], []
+    for family, _type, _proto, _canon, sockaddr in infos:
+        if family not in (socket.AF_INET, socket.AF_INET6):
+            continue                              # pragma: no cover
+        addr = sockaddr[0]
+        try:
+            cls = classify_address(addr)
+        except ValueError:                        # pragma: no cover - from OS
+            continue
+        seen.append(f"{addr} ({cls.value})")
+        if cls.value in classes:
+            permitted.append(sockaddr)
+    return tuple(permitted), seen
+
+
+def _with_host(address, sockaddr):
+    """The original connect target, with the verified address substituted.
+
+    The resolved ``sockaddr`` already carries the port, and for IPv6 the
+    flowinfo and scope id the OS chose -- which is why it is used whole
+    rather than having its first element spliced into the caller's tuple.
+    """
+    if not isinstance(address, tuple):            # pragma: no cover - AF_UNIX
+        return address
+    return sockaddr
 
 
 def _maybe_ip(host: str) -> str | None:

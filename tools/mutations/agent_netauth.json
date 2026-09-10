@@ -354,6 +354,34 @@
       "find": "            if _maybe_ip(host) is None and host != allowed.authorized_host:",
       "replace": "            if False:",
       "rationale": "waiving address pinning waives knowing which address a name resolves to; without this it also waives which name was asked for, and any host in the grant answers for any other"
+    },
+    {
+      "name": "E52_an_unpinned_name_skips_the_address_class",
+      "path": "qta_agent/netauth.py",
+      "find": "            if g is not None and _maybe_ip(host) is None:",
+      "replace": "            if False:",
+      "rationale": "restores the defect exactly: the class check above answers only for a target that is already an IP, so with this branch gone an unpinned NAME -- the case the whole mode exists for -- reaches whatever it resolves to, and a PUBLIC-only grant reaches loopback"
+    },
+    {
+      "name": "E53_a_forbidden_class_is_reported_but_not_refused",
+      "path": "qta_agent/netauth.py",
+      "find": "                if not permitted:\n                    raise GuardedConnection(",
+      "replace": "                if False:\n                    raise GuardedConnection(",
+      "rationale": "resolves and classifies, then connects anyway. The diagnostic would still name the class, which is the shape of a check that reports rather than enforces"
+    },
+    {
+      "name": "E54_the_name_is_handed_back_to_a_second_resolver",
+      "path": "qta_agent/netauth.py",
+      "find": "                return _with_host(address, permitted[0])",
+      "replace": "                return address",
+      "rationale": "classifies one resolution and connects using the NAME, so the OS resolves again. A second resolution is a second answer, which is the rebinding window -- opened by the check written to close it"
+    },
+    {
+      "name": "E55_a_permitted_class_is_not_required_to_match",
+      "path": "qta_agent/netauth.py",
+      "find": "        if cls.value in classes:\n            permitted.append(sockaddr)",
+      "replace": "        if True:\n            permitted.append(sockaddr)",
+      "rationale": "every resolved address becomes permitted, so the grant's address_classes stop bounding anything while the code still looks like it classifies"
     }
   ]
 }

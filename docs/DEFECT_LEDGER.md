@@ -1828,6 +1828,117 @@ not a record. And the P0 completion declared at `5e761fc`: the gate was
 satisfied at `04f170d` on the evidence then available, and this defect was
 open the whole time.
 
+---
+
+## D-2026-24 — the address class was checked only where it was already known
+
+**CLASS** — `SECURITY_DEFECT`, `DOCUMENTATION_OVERCLAIM`.
+
+**DISCOVERED BY.** The same external hostile review, reading `socket_guard`'s
+UNPINNED_ACCEPTED branch against the comment printed directly above it.
+
+**DEFECT.** The class check in `socket_guard` is guarded by
+`if literal is not None`, where `literal = _maybe_ip(host)`. It therefore
+answers only for a connect target that was **already an IP address**.
+UNPINNED_ACCEPTED is the mode where the target is a **name** — that is what
+the mode is for — and there the class was never checked at all. The OS
+resolver then chose an address after the guard had finished looking.
+
+So a grant reading
+
+```
+hosts=("localhost",)  address_classes=("PUBLIC",)  allow_unpinned_addresses=True
+```
+
+authorized, and the connection landed on `127.0.0.1`.
+
+**AND THE COMMENT ABOVE IT SAID THE OPPOSITE:**
+
+> This layer is holding the address the connection is actually going to, so it
+> can answer the question the authorization could not.
+
+It was not holding that address. In the branch where the check mattered, the
+address did not exist yet.
+
+**INVARIANT.** Do not claim an address-class restriction is enforced when the
+enforcement point never observes the resolved address. "Unpinned" cannot mean
+both *we do not know which address this name resolves to* and *we guarantee it
+stays in the granted class* unless the resolution itself is mediated.
+
+**REPRODUCER.** Fully local — no external networking, no resolver of our own.
+`localhost` is a name that resolves to loopback:
+
+```
+authorize -> allowed=True mode=UNPINNED_ACCEPTED host=localhost addr=None
+grant permits ('PUBLIC',); 'localhost' is LOOPBACK
+CONNECT ALLOWED -> peer ('127.0.0.1', 45873)   <-- inside the perimeter
+```
+
+**IMPLEMENTATION FIX.** Directive Option A/B, the preferred outcome: resolve
+under authority, then connect to the verified address. `_permitted_addresses`
+resolves the name **once**, classifies every answer, and returns those the
+grant permits; the guard connects to one of those rather than handing the name
+back.
+
+**RESOLVING HERE CLOSES A WINDOW RATHER THAN OPENING ONE.** The obvious
+alternative — resolve, classify, then pass the NAME to the real `connect` — has
+the OS resolve a second time, and a second resolution is a second answer. That
+is the rebinding case, created by the check written to prevent it. Host and SNI
+are set by the layer above from the URL it was given, not from what `connect`
+received, so substituting the verified address preserves them.
+
+**ADVERSARIAL TESTS.** Six. The defect itself (PUBLIC-only grant, name
+resolving to loopback, refused, with both the class it found and the class it
+permits named in the message); its anti-vacuity twin (a LOOPBACK-permitting
+grant still connects, so the rule is not "refuse every unpinned name"); the
+name binding and the port binding, each proved to survive the new resolution
+step; `connect_ex` taking the same path as `connect`; and the substitution
+itself.
+
+**THE ONE TEST THAT NEEDED A REAL DISCRIMINATOR.** `getpeername()` cannot tell
+"connected to the classified address" from "handed the name back", because
+both end at a loopback address — so the mutation that reverted the
+substitution survived its first test. The listener is now bound on
+**127.0.0.2** and the resolver is steered to return only that, while the real
+resolver still maps `localhost` to 127.0.0.1 where nothing listens. Connecting
+to the classified address succeeds; handing the name back fails. That is the
+difference the test exists to see.
+
+**MUTATIONS.** `E52` deletes the branch, restoring the defect exactly. `E53`
+resolves and classifies and connects anyway — the shape of a check that
+reports rather than enforces. `E54` hands the name back to a second resolver.
+`E55` makes every resolved address permitted, so `address_classes` bounds
+nothing while the code still looks like it classifies. 54/54.
+
+**AND THE HARNESS CAUGHT SOMETHING I DID NOT.** Adding `_with_host` introduced
+a second copy of the line `if isinstance(address, (bytes, str)):`, which was
+`W27`'s anchor. The matrix reported **ANCHOR DRIFT (tested nothing)** rather
+than scoring a mutation that no longer applied anywhere in particular. The
+helper now tests `not isinstance(address, tuple)` instead. A mutation whose
+anchor has drifted is not a passing mutation; it is an absent one, and the
+distinction is the reason that check exists.
+
+**AFFECTED REPRESENTATIONS.** `socket_guard`'s CAN/CANNOT comment, which said
+a second resolution made the class uncheckable — true of *which* permitted
+address, false of the class, and now says which is which. Row R32's
+`security_boundary` already described address classes and pinning without
+claiming the unpinned name case, so it stands.
+
+**FORBIDDEN FAKE FIXES.** Refusing every unpinned name — that removes the mode
+rather than enforcing it, and the anti-vacuity twin fails if it happens.
+Classifying and then connecting by name anyway (`E53`). Treating
+`allow_unpinned_addresses` as waiving the class as well as the pinning: the
+two are different waivers, and the grant field says pinning.
+
+**SIBLING SWEEP.** Every `return` path in `_check` was re-read when it began
+returning an address rather than `None`: PINNED, unpinned, and the
+re-authorizing path each return the address to use, so no branch can silently
+connect somewhere the check did not look.
+
+**INVALIDATED CLAIMS.** Any reading of D-2026-07 or D-2026-14 as having closed
+the address-class question. They closed the port and the exact-decision
+binding. The class was enforced only where it was already known.
+
 ### The gate's verdict, at `04f170d`
 
 All twenty-three are true at that commit, and every one of them is answered by
