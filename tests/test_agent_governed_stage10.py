@@ -916,7 +916,11 @@ def test_execution_runs_inside_the_network_guard(gov, monkeypatch):
     """The guard is applied, not merely available.
 
     Asserted by attempting a connection from inside the executor call, which
-    is exactly where a dependency that phones home would attempt one.
+    is exactly where a dependency imported into THIS process would attempt
+    one. That is the whole of what this guard covers: the real tool runs as a
+    subprocess, the patch does not exist there, and nothing in the kernel
+    bounds applied to it restricts networking -- see
+    test_a_bounded_child_is_NOT_prevented_from_using_the_network.
     """
     import socket
 

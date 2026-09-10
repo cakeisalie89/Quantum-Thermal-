@@ -1,6 +1,6 @@
 {
   "title": "Network authority: default deny, label-wise hosts, pinned addresses",
-  "note": "An egress allowlist is bypassed by strings, not by exploits. Most of these mutations turn one careful comparison into a careless one -- label matching into string matching, an explicit port into an assumed one, a safe method into any method -- and each turns a specific grant into a general one. W1 is the sharpest: with no grant the answer must be no, and a default-allow here is indistinguishable from having no network authority at all.",
+  "note": "An egress allowlist is bypassed by strings, not by exploits. Most of these mutations turn one careful comparison into a careless one -- label matching into string matching, an explicit port into an assumed one, a safe method into any method -- and each turns a specific grant into a general one. W1 is the sharpest: with no grant the answer must be no, and a default-allow here is indistinguishable from having no network authority at all. E45-E51 attack the request->decision->socket composition. The three they replace attacked pinned_ports, a field that no longer exists: it carried the GRANT's port set on a DECISION, which is the bearer-token shape itself, so the fix retired the field rather than guarding it.",
   "suites": [
     "tests/test_agent_netauth.py"
   ],
@@ -169,9 +169,9 @@
     {
       "name": "W24_socket_guard_ignores_the_pin",
       "path": "qta_agent/netauth.py",
-      "find": "                if host not in allowed.pinned_addresses:",
+      "find": "                if host != allowed.authorized_address:",
       "replace": "                if False:",
-      "rationale": "the socket layer stops checking the address the connection actually goes to"
+      "rationale": "the socket layer stops checking the address the connection actually goes to. Anchor repaired when the comparison moved from the grant's pin SET to the one resolution this decision was issued for -- the same rule, at the rewritten condition, and E48 attacks which value it compares against"
     },
     {
       "name": "W25_socket_guard_permits_unauthorized_connects",
@@ -314,25 +314,46 @@
       "rationale": "the revocation rule has nothing to compare against, so it refuses everything -- the fail-closed direction, and still wrong: an honest granter can no longer withdraw its own grant"
     },
     {
-      "name": "E45_the_guard_checks_the_address_and_not_the_port",
+      "name": "E45_the_decision_carries_the_grants_ports_not_the_requests",
       "path": "qta_agent/netauth.py",
-      "find": "            if allowed.pinned_ports and port not in allowed.pinned_ports:",
+      "find": "                    authorized_port=tgt.port,",
+      "replace": "                    authorized_port=(g.ports[0] if g.ports else -1),",
+      "rationale": "restores the bearer-token shape at its source: the decision describes the grant rather than the operation, so an authorization issued for one port is spendable on another the grant happens to permit"
+    },
+    {
+      "name": "E46_the_guard_does_not_check_the_authorized_port",
+      "path": "qta_agent/netauth.py",
+      "find": "            if port != allowed.authorized_port:",
       "replace": "            if False:",
-      "rationale": "restores the defect exactly: a grant for :443 permits a connect to :22 on the same address. _covers checks nine dimensions of a request including the port, and the one layer that sees the connection being made checked the address alone"
+      "rationale": "the one dimension a socket can always observe goes unchecked, and any port reaches the authorized address"
     },
     {
-      "name": "E46_the_decision_does_not_carry_the_ports",
+      "name": "E48_the_decision_forgets_which_address_it_resolved_to",
       "path": "qta_agent/netauth.py",
-      "find": "                    request=rec, pinned_addresses=g.addresses,\n                    pinned_ports=g.ports,",
-      "replace": "                    request=rec, pinned_addresses=g.addresses,",
-      "rationale": "the dimension is dropped between the decision and the guard, so the guard has nothing to check against and its port rule goes quiet -- the conservation failure itself, rather than the missing check it caused"
+      "find": "                    authorized_address=addr,",
+      "replace": "                    authorized_address=(g.addresses[0] if g.addresses else addr),",
+      "rationale": "the decision points at the grant's first pin instead of the resolution it was issued for, so a decision covers any address the grant pins"
     },
     {
-      "name": "E47_the_port_check_moves_back_inside_the_pinned_branch",
+      "name": "E49_an_unresolved_request_may_satisfy_a_pin",
       "path": "qta_agent/netauth.py",
-      "find": "            if allowed.pinned_ports and port not in allowed.pinned_ports:\n                raise GuardedConnection(",
-      "replace": "            if allowed.pinned_addresses and allowed.pinned_ports and port not in allowed.pinned_ports:\n                raise GuardedConnection(",
-      "rationale": "the port is checked for pinned grants and not for ones that accepted the unpinned window, so the two authorized branches disagree again about what a destination is -- which is how they came to disagree the first time"
+      "find": "            if g.addresses:\n                return False, (\n                    f\"egress grant {gid!r} pins {list(g.addresses)} and this \"",
+      "replace": "            if False:\n                return False, (\n                    f\"egress grant {gid!r} pins {list(g.addresses)} and this \"",
+      "rationale": "restores the one-keyword bypass: omitting resolved_address skipped the pinning check entirely, and skipping a check is not passing it"
+    },
+    {
+      "name": "E50_the_socket_does_not_classify_an_unclassified_address",
+      "path": "qta_agent/netauth.py",
+      "find": "                    if cls is not None and cls.value not in g.address_classes:",
+      "replace": "                    if False:",
+      "rationale": "a granted NAME that resolves to loopback or a private range reaches it, because the authorization could not classify what it had not resolved and the layer that could did not try"
+    },
+    {
+      "name": "E51_unpinned_becomes_any_hostname_on_an_allowed_port",
+      "path": "qta_agent/netauth.py",
+      "find": "            if _maybe_ip(host) is None and host != allowed.authorized_host:",
+      "replace": "            if False:",
+      "rationale": "waiving address pinning waives knowing which address a name resolves to; without this it also waives which name was asked for, and any host in the grant answers for any other"
     }
   ]
 }

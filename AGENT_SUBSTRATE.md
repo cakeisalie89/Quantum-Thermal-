@@ -193,7 +193,8 @@ identity authority and this repository deliberately contains none.
 What that failure does NOT reach is everything content-addressed: the
 artifact is still the bytes the record names, cited evidence still has to
 exist and hash correctly, the write allowlist still binds the path, egress
-is still refused without a grant, and the history still says which identity
+from this process is still refused without a grant (mediation, not child
+containment — see R21/R32/R54), and the history still says which identity
 did which part — so an investigator who later learns the three accounts were
 one person can find every record they touched. The assumption fails with a
 trail rather than silently, and its blast radius is bounded by every other

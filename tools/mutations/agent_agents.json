@@ -128,16 +128,16 @@
     {
       "name": "A18_redelivery_may_rewrite_a_message",
       "path": "qta_agent/agents.py",
-      "find": "            if existing.body_digest != body_digest:",
-      "replace": "            if False:",
-      "rationale": "a retrying sender changes what it said by saying it again"
+      "find": "            why = message_identity_conflict(existing, msg)\n            if why:",
+      "replace": "            why = message_identity_conflict(existing, msg)\n            if False:",
+      "rationale": "a retrying sender changes what it said by saying it again. Anchor repaired when the comparison widened from the body alone to every dimension the id names: the mutation attacks the same write-path rule at the rewritten condition, while A57-A61 attack which dimensions are compared"
     },
     {
       "name": "A19_forged_redelivery_accepted_on_replay",
       "path": "qta_agent/agents.py",
-      "find": "                if first.body_digest != msg.body_digest:",
-      "replace": "                if False:",
-      "rationale": "a rewritten message passes replay as if it were the original"
+      "find": "                why = message_identity_conflict(first, msg)\n                if why:",
+      "replace": "                why = message_identity_conflict(first, msg)\n                if False:",
+      "rationale": "a rewritten message passes replay as if it were the original. Anchor repaired for the same reason as A18; this one is the reducer's copy of the rule"
     },
     {
       "name": "A20_message_bodies_carried_inline",
@@ -383,6 +383,55 @@
       "find": "            if not ident.is_active(ev.seq):\n                raise EscalationError(",
       "replace": "            if False:\n                raise EscalationError(",
       "rationale": "a principal that has left the project is still the person a human decision is attributed to"
+    },
+    {
+      "name": "A55_an_escalation_may_be_raised_in_somebody_elses_name",
+      "path": "qta_agent/agents.py",
+      "find": "            if esc.raised_by != ev.actor:\n                raise EscalationError(",
+      "replace": "            if False:\n                raise EscalationError(",
+      "rationale": "the answer side of this record was repaired and the creation side left taking raised_by from the payload, so an agent could open an escalation attributed to anybody including a HUMAN -- false attribution, and a denial vector, since the raiser may not answer their own escalation"
+    },
+    {
+      "name": "A56_a_message_may_be_sent_in_somebody_elses_name",
+      "path": "qta_agent/agents.py",
+      "find": "            if msg.sender_instance != ev.actor:\n                raise MessageError(",
+      "replace": "            if False:\n                raise MessageError(",
+      "rationale": "the claim branch has always checked this in these words -- a record is attributed to the instance that recorded it -- and the message branch did not, so one principal could append a message attributed to another, and messages are what a later reader uses to reconstruct who told whom what"
+    },
+    {
+      "name": "A57_a_redelivery_is_compared_only_by_its_body",
+      "path": "qta_agent/agents.py",
+      "find": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\",\n    \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "replace": "MESSAGE_IMMUTABLE: tuple = (\n    \"body_digest\",\n)",
+      "rationale": "restores the original partial equivalence exactly: a redelivery keeps the bytes and silently changes who it was for, which task it belonged to, what it was about and what it replied to, and the divergent record is then discarded as a duplicate"
+    },
+    {
+      "name": "A58_the_redelivery_check_drops_recipient_agent",
+      "path": "qta_agent/agents.py",
+      "find": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\",\n    \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "replace": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"task_id\", \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "rationale": "one dimension at a time: a redelivery may change recipient_agent while every other field agrees, so the test for that field alone has to be the thing that catches it"
+    },
+    {
+      "name": "A59_the_redelivery_check_drops_task_id",
+      "path": "qta_agent/agents.py",
+      "find": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\",\n    \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "replace": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "rationale": "one dimension at a time: a redelivery may change task_id while every other field agrees, so the test for that field alone has to be the thing that catches it"
+    },
+    {
+      "name": "A60_the_redelivery_check_drops_subject",
+      "path": "qta_agent/agents.py",
+      "find": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\",\n    \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "replace": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\", \"body_digest\", \"in_reply_to\",\n)",
+      "rationale": "one dimension at a time: a redelivery may change subject while every other field agrees, so the test for that field alone has to be the thing that catches it"
+    },
+    {
+      "name": "A61_the_redelivery_check_drops_in_reply_to",
+      "path": "qta_agent/agents.py",
+      "find": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\",\n    \"subject\", \"body_digest\", \"in_reply_to\",\n)",
+      "replace": "MESSAGE_IMMUTABLE: tuple = (\n    \"message_id\", \"sender_instance\", \"recipient_agent\", \"task_id\", \"subject\", \"body_digest\",\n)",
+      "rationale": "one dimension at a time: a redelivery may change in_reply_to while every other field agrees, so the test for that field alone has to be the thing that catches it"
     }
   ]
 }

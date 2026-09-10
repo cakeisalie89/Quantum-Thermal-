@@ -43,9 +43,9 @@
     {
       "name": "SC6_the_energy_accounting_extrapolates_over_a_failed_solve",
       "path": "qta_multiphysics/thermal_3d_transient.py",
-      "find": "        \"residual_J\": residual if converged else float(\"nan\"),\n        \"rel_residual\": (residual / denom) if converged else float(\"nan\"),",
-      "replace": "        \"residual_J\": residual,\n        \"rel_residual\": residual / denom,",
-      "rationale": "the accounting quadratures the solver's interpolant over the whole window; past the interval actually integrated an OdeSolution extrapolates rather than refusing, so a failed solve reports an ordinary-looking closure residual"
+      "find": "    if not converged:",
+      "replace": "    if False:",
+      "rationale": "removes the short circuit, so the accounting quadratures the solver's interpolant across the whole requested window on a failed solve. An OdeSolution asked past the interval it covers extrapolates its final polynomial rather than refusing, so the missing time is CONSTRUCTED and integrated. Retargeted from the NaN it used to attack: NaN stopped the arithmetic being believed, and the short circuit stops it being performed"
     },
     {
       "name": "SC7_a_reduction_check_compares_against_a_non_answer",
@@ -53,6 +53,20 @@
       "find": "    require_converged(r3, \"reduction_3d_to_1d: 3D solve\")",
       "replace": "    pass",
       "rationale": "these solves are taken outside run_mode_sequence_3d, so enforcing it there does not reach them; the comparison then measures the distance between one answer and one non-answer and reports a rel_error with a within_tolerance verdict"
+    },
+    {
+      "name": "SC8_the_failed_branch_reports_a_residual_anyway",
+      "path": "qta_multiphysics/thermal_3d_transient.py",
+      "find": "            \"converged\": False,\n            \"accounting\": \"UNAVAILABLE_INTEGRATION_INCOMPLETE\",",
+      "replace": "            \"converged\": True,\n            \"accounting\": \"UNAVAILABLE_INTEGRATION_INCOMPLETE\",",
+      "rationale": "a failed solve announces itself as converged, so every consumer reading that flag rather than solver_status treats the unavailable accounting as a real one"
+    },
+    {
+      "name": "SC9_the_failed_branch_hides_how_far_it_got",
+      "path": "qta_multiphysics/thermal_3d_transient.py",
+      "find": "            \"integrated_to_s\": float(tt[-1]) if tt.size else 0.0,",
+      "replace": "            \"integrated_to_s\": float(t_end),",
+      "rationale": "the diagnostic claims the integration reached the requested end, which is the one fact a reader needs to see it did not -- and makes the anti-vacuity assertion in the test vacuous"
     }
   ]
 }

@@ -245,12 +245,45 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     # is finite.
     converged = bool(sol_obj.success)
 
+    tt = sol_obj.t
+
+    if not converged:
+        # BRANCH BEFORE THE INTERPOLATION, NOT AFTER THE ARITHMETIC.
+        #
+        # The accounting below quadratures the solver's continuous
+        # interpolant across [0, t_end]. An OdeSolution asked for a time past
+        # the interval it actually covered extrapolates its final polynomial
+        # rather than refusing, so on a failed solve every quantity here was
+        # computed partly over time the integrator never reached.
+        #
+        # NaN-ing the residual afterwards stopped that arithmetic being
+        # BELIEVED, which was the authority defect and is fixed. It did not
+        # stop it being PERFORMED: the fake future was still constructed,
+        # integrated, and then thrown away. A quantity that must not be
+        # trusted should not be computed, both because computing it invites
+        # some later reader to use it and because the act itself asserts
+        # that the missing interval exists.
+        #
+        # What survives is what was really integrated: the trajectory, its
+        # times, the solver's own message, and an accounting dict that says
+        # plainly that there is nothing to report.
+        energy = {
+            "converged": False,
+            "accounting": "UNAVAILABLE_INTEGRATION_INCOMPLETE",
+            "integrated_to_s": float(tt[-1]) if tt.size else 0.0,
+            "requested_t_end_s": float(t_end),
+            "residual_J": float("nan"),
+            "rel_residual": float("nan"),
+            "label": LABEL,
+        }
+        return Thermal3DResult(grid, tt, T, cfg, source_mode, transverse,
+                               "failed", sol_obj.message, T0, energy, laser)
+
     # ---- energy accounting (DERIVED numerical check, MODEL-ONLY) [J] ----
     # Quadrature on a dense internal grid from the solver's continuous
     # interpolant. A composite geometric+linear grid resolves the fast early
     # transient (microsecond-scale in both the heating and the recovery/decay
     # phases) so closure is independent of the sparse n_eval sampling.
-    tt = sol_obj.t
     _tg = np.geomspace(max(t_end * 1e-7, 1e-12), t_end, 161)
     tq = np.unique(np.concatenate(([0.0], _tg, np.linspace(0.0, t_end, 81))))
     Tq = sol_obj.sol(tq)
@@ -275,13 +308,12 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
         "front_flux_channel_J": E_front,
         "boundary_sink_energy_J": E_sink,
         "internal_energy_change_J": dU,
-        # NaN rather than a number when the integration did not finish. Both
-        # readers of this fail closed on NaN: closure_ok() is
-        # `abs(rel) < tol`, which is False for NaN, and energy_accounting_3d
-        # formats it as-is so an operator sees nan rather than a plausible
-        # figure. A number here would be the quadrature of an extrapolation.
-        "residual_J": residual if converged else float("nan"),
-        "rel_residual": (residual / denom) if converged else float("nan"),
+        # Reached only on a converged solve -- the failed case returned
+        # above, before anything was interpolated. Both readers still fail
+        # closed on the NaN the failed branch reports: closure_ok() is
+        # `abs(rel) < tol`, which is False for NaN.
+        "residual_J": residual,
+        "rel_residual": residual / denom,
         "label": LABEL,
     }
     return Thermal3DResult(grid, tt, T, cfg, source_mode, transverse,

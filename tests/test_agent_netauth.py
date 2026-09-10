@@ -21,7 +21,7 @@ if str(ROOT) not in sys.path:
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.netauth import (  # noqa: E402
     ACT_NET_GRANT, ACT_NET_REQUEST, AddressClass, Direction, EgressGrant,
-    GuardedConnection,
+    GuardedConnection, MODE_PINNED, MODE_UNPINNED_ACCEPTED,
     MalformedTarget, NetworkAuthority, NetworkDenied, NetworkError,
     NetworkRequest, ServiceOperation, classify_address, grant,
     grant_from_record, host_matches, parse_target, service, socket_guard,
@@ -538,22 +538,43 @@ def test_the_guard_refuses_an_address_outside_the_pinned_set(listener):
 
 
 def test_an_unpinned_grant_is_refused_at_the_socket_unless_accepted(listener):
+    """The resolve-then-connect window, and when it is actually open.
+
+    This used to refuse even when the REQUEST carried a resolution, because
+    the decision did not keep it and the guard therefore had nothing to
+    compare against. It does keep it now, so a request that resolved is
+    checkable against the address it resolved to -- stricter than the old
+    blanket refusal, not looser. The window is open only when nothing was
+    resolved AND the grant has accepted it.
+    """
     host, port = listener
     base = dict(subject=ACTOR, task_id=TASK, tool_id=TOOL, schemes=("http",),
                 hosts=("localhost",), ports=(port,), methods=("GET",),
                 address_classes=(AddressClass.LOOPBACK,))
+
+    # Nothing resolved, and the grant has not accepted the window.
     strict = NetworkAuthority()
     strict.issue(grant(grant_id="g1", **base), actor="scheduler")
-    d = strict.authorize(_req(f"http://localhost:{port}/x", resolved=host))
+    d = strict.authorize(_req(f"http://localhost:{port}/x"))
+    assert d.allowed and d.address_mode == MODE_UNPINNED_ACCEPTED
     with socket_guard(strict, actor=ACTOR, task_id=TASK, tool_id=TOOL,
                       allowed=d):
         with pytest.raises(GuardedConnection, match="cannot be checked"):
             _connect(listener)
 
+    # The same grant, but the request resolved: now it IS checkable.
+    d_res = strict.authorize(_req(f"http://localhost:{port}/x", resolved=host))
+    assert d_res.address_mode == MODE_PINNED
+    assert d_res.authorized_address == host
+    with socket_guard(strict, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                      allowed=d_res):
+        _connect(listener)
+
+    # And the deployment may accept the window explicitly.
     lax = NetworkAuthority()
     lax.issue(grant(grant_id="g1", allow_unpinned_addresses=True, **base),
               actor="scheduler")
-    d2 = lax.authorize(_req(f"http://localhost:{port}/x", resolved=host))
+    d2 = lax.authorize(_req(f"http://localhost:{port}/x"))
     with socket_guard(lax, actor=ACTOR, task_id=TASK, tool_id=TOOL,
                       allowed=d2):
         _connect(listener)
@@ -1155,12 +1176,12 @@ def _pinned(ports=(443,), **over):
     return a, d
 
 
-def _connect_pinned(a, d, port):
+def _connect_pinned(a, d, port, host=None):
     with socket_guard(a, actor=ACTOR, task_id=TASK, tool_id=TOOL, allowed=d):
         s = socket.socket()
         s.settimeout(0.05)
         try:
-            socket.socket.connect(s, (PIN, port))
+            socket.socket.connect(s, (host or PIN, port))
             return None                    # the guard let it through
         except GuardedConnection as exc:
             return exc
@@ -1176,9 +1197,9 @@ def test_a_pinned_address_does_not_grant_every_port_on_it(port):
     exc = _connect_pinned(a, d, port)
     assert exc is not None, (
         f"the guard permitted a connect to the pinned address on port "
-        f"{port}, which the grant does not permit; the address being right "
-        "is half of a destination being right")
-    assert "does not permit" in str(exc)
+        f"{port}, which this authorization was not issued for; the address "
+        "being right is half of a destination being right")
+    assert "does not realize this authorization" in str(exc)
 
 
 def test_the_granted_port_is_still_permitted():
@@ -1187,25 +1208,154 @@ def test_the_granted_port_is_still_permitted():
     assert _connect_pinned(a, d, 443) is None
 
 
-def test_every_granted_port_is_permitted_not_just_the_first():
-    """A grant naming several ports means several, and the guard is a set
-    membership test rather than a comparison against one of them."""
-    a, d = _pinned(ports=(443, 8443))
-    assert _connect_pinned(a, d, 443) is None
-    assert _connect_pinned(a, d, 8443) is None
-    assert _connect_pinned(a, d, 22) is not None
+def test_ONE_decision_does_not_cover_every_port_its_grant_permits():
+    """A decision authorizes one operation, not its grant's whole set.
+
+    THIS TEST REPLACES ONE THAT ASSERTED THE DEFECT. Its predecessor said a
+    grant naming several ports means the guard is "a set membership test",
+    and checked that a decision issued for :443 also permitted :8443. That is
+    the bearer-token semantics, written down as if it were the requirement.
+
+    A grant is what the actor MIGHT request. A decision is one particular
+    operation authorized at one particular point. The connection has to
+    realize the decision; it is not enough that it independently satisfies
+    the grant.
+    """
+    a, d443 = _pinned(ports=(443, 8443))
+    assert _connect_pinned(a, d443, 443) is None
+    assert _connect_pinned(a, d443, 8443) is not None, (
+        "a decision issued for :443 was spendable on :8443 because both are "
+        "inside the parent grant")
 
 
-def test_the_decision_carries_the_ports_it_was_granted_for():
-    """The dimension has to survive the decision, or the guard cannot see it.
+def test_each_permitted_port_works_under_its_OWN_decision():
+    """Anti-vacuity for the test above: the grant's other port is reachable.
 
-    This is the conservation the defect was: the port was checked at
-    authorize() and then not carried to the layer that had to check it again
-    against the real connection.
+    A rule that simply refused the second port would pass the test above and
+    make half the grant unusable. Authorized separately, each works.
+    """
+    a, _ = _pinned(ports=(443, 8443))
+    for port in (443, 8443):
+        req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                             target=parse_target(
+                                 f"https://localhost:{port}/v1/x",
+                                 method="GET"),
+                             resolved_address=PIN)
+        d = a.authorize(req)
+        assert d.allowed, d.reason
+        assert d.authorized_port == port
+        assert _connect_pinned(a, d, port) is None
+
+
+def test_the_decision_carries_the_operation_it_authorized():
+    """The conservation the defect was, restated at the right level.
+
+    The decision used to carry the grant's SETS -- every pinned address and
+    every permitted port. It carries the one operation now, and the grant's
+    pin set stays beside it as audit context rather than as the enforcement
+    set.
     """
     a, d = _pinned(ports=(443, 8443))
-    assert d.pinned_ports == (443, 8443)
-    assert d.to_record()["pinned_ports"] == [443, 8443]
+    assert d.authorized_host == "localhost"
+    assert d.authorized_port == 443
+    assert d.authorized_scheme == "https"
+    assert d.authorized_address == PIN
+    assert d.address_mode == MODE_PINNED
+    rec = d.to_record()
+    assert rec["authorized_port"] == 443
+    assert rec["authorized_address"] == PIN
+    # The grant's pin set is still recorded, and is not the enforcement set.
+    assert rec["pinned_addresses"] == [PIN]
+    assert "pinned_ports" not in rec
+
+
+def test_a_decision_does_not_cover_another_address_its_grant_pins():
+    """The same rule on the address dimension."""
+    a = NetworkAuthority()
+    a.issue(grant(grant_id="g1", subject=ACTOR, task_id=TASK, tool_id=TOOL,
+                  schemes=("https",), hosts=("localhost",), ports=(443,),
+                  methods=("GET",), addresses=(PIN, "127.0.0.2"),
+                  address_classes=(AddressClass.LOOPBACK.value,)),
+            actor="scheduler")
+    # Resolved to the SECOND pin on purpose. Resolving to the first would let
+    # a decision that simply echoed the grant's first pinned address produce
+    # the identical value, and this test could not tell the two apart -- a
+    # mutation doing exactly that survived until this line changed.
+    req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         target=parse_target("https://localhost/v1/x",
+                                             method="GET"),
+                         resolved_address="127.0.0.2")
+    d = a.authorize(req)
+    assert d.allowed and d.authorized_address == "127.0.0.2"
+    assert _connect_pinned(a, d, 443, host="127.0.0.2") is None
+    exc = _connect_pinned(a, d, 443, host=PIN)
+    assert exc is not None and "not the address this authorization" in str(exc), (
+        "a decision that resolved to 127.0.0.2 was spendable on the grant's "
+        "other pinned address")
+
+
+def test_an_unresolved_request_cannot_satisfy_a_PIN():
+    """Skipping a check is not passing it.
+
+    The address-class and pinning checks both sat behind `if addr is not
+    None`, so a caller that omitted resolved_address skipped both -- and a
+    grant pinning exactly one address was satisfied by a request that
+    resolved to nothing. The bypass was one keyword argument.
+    """
+    a, _ = _pinned(ports=(443,))
+    req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         target=parse_target("https://localhost/v1/x",
+                                             method="GET"),
+                         resolved_address=None)
+    d = a.authorize(req)
+    assert d.allowed is False
+    assert "cannot be checked against a pin" in d.reason
+
+
+def test_an_unclassifiable_address_is_classified_at_the_socket():
+    """The class check, moved to the layer that can answer it.
+
+    Authorizing a URL before resolving is this module's normal calling
+    convention, so demanding a resolver at authorize() would be a new
+    contract rather than a repair. The guard holds the address the
+    connection is actually going to, so a granted NAME that resolves inside
+    the perimeter is refused there.
+    """
+    a = NetworkAuthority()
+    a.issue(grant(grant_id="g1", subject=ACTOR, task_id=TASK, tool_id=TOOL,
+                  schemes=("https",), hosts=("localhost",), ports=(443,),
+                  methods=("GET",), allow_unpinned_addresses=True,
+                  address_classes=(AddressClass.PUBLIC.value,)),
+            actor="scheduler")
+    req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         target=parse_target("https://localhost/v1/x",
+                                             method="GET"),
+                         resolved_address=None)
+    d = a.authorize(req)
+    assert d.allowed, d.reason           # the class could not be answered yet
+    exc = _connect_pinned(a, d, 443)     # ...and 127.0.0.1 is LOOPBACK
+    assert exc is not None and "LOOPBACK" in str(exc), exc
+
+
+def test_unpinned_does_not_become_any_hostname_on_an_allowed_port():
+    """The waiver is about addresses, not about which name was asked for."""
+    a = NetworkAuthority()
+    a.issue(grant(grant_id="g1", subject=ACTOR, task_id=TASK, tool_id=TOOL,
+                  schemes=("https",), hosts=("a.example.com", "b.example.com"),
+                  ports=(443,), methods=("GET",),
+                  allow_unpinned_addresses=True,
+                  address_classes=(AddressClass.PUBLIC.value,)),
+            actor="scheduler")
+    req = NetworkRequest(actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         target=parse_target("https://a.example.com/v1/x",
+                                             method="GET"),
+                         resolved_address=None)
+    d = a.authorize(req)
+    assert d.address_mode == MODE_UNPINNED_ACCEPTED
+    exc = _connect_pinned(a, d, 443, host="b.example.com")
+    assert exc is not None and "names a different host" in str(exc), (
+        "a decision for a.example.com was spendable on b.example.com because "
+        "both are inside the grant")
 
 
 def test_the_pinned_and_unpinned_paths_agree_about_ports():

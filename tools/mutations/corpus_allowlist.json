@@ -74,6 +74,20 @@
       "find": "        if not isinstance(sha, str) or len(sha) != 64:",
       "replace": "        if not isinstance(sha, str) and False:",
       "rationale": "membership without content becomes name-equality, which is what the allowlist replaced"
+    },
+    {
+      "name": "C11_tooling_state_becomes_governed_text",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "            if any(part.startswith(\".\") for part in rel.parts[:-1]):\n                continue",
+      "replace": "            if False:\n                continue",
+      "rationale": "restores the observed hole: the mutation harness's quarantine holds COPIES of governed documents, the scan walked them, and the allowlist regeneration tool admitted one -- a document becoming governed by being created rather than by being reviewed"
+    },
+    {
+      "name": "C12_the_dot_rule_swallows_a_real_document",
+      "path": "qta_multiphysics/stack/rag_index.py",
+      "find": "            if any(part.startswith(\".\") for part in rel.parts[:-1]):",
+      "replace": "            if any(part.startswith(\".\") for part in rel.parts):",
+      "rationale": "the over-correction, and it is fail-closed so it would look like the safer choice: excluding the FILE name as well drops a real document whose own name begins with a dot"
     }
   ]
 }

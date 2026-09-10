@@ -883,3 +883,47 @@ def test_rag_indexes_nothing_beyond_governed_documents():
 
 def test_rag_corpus_completeness_is_exact_in_both_directions():
     assert set(RAG.corpus_files()) == _governed_text_files()
+
+
+def test_a_dot_directory_under_the_root_is_never_governed_text(tmp_path):
+    """Tooling state that lives in the repo is not a document.
+
+    OBSERVED, NOT IMAGINED. The mutation harness quarantines a tracked file
+    it finds changed under a running matrix, into `.mutation-quarantine/`.
+    Those are COPIES of governed documents. The corpus scan walked them, and
+    the allowlist regeneration tool ADMITTED one -- a copy of
+    AGENT_SUBSTRATE.md was written into docs/corpus_allowlist.json as a
+    governed document in its own right.
+
+    That is exactly what the allowlist exists to stop: a file becoming
+    governed by being created rather than by being reviewed. It was caught
+    only by the both-directions completeness check afterwards, and only
+    because the directory still existed to compare against.
+
+    The named exclusion list has to be remembered. This rule does not.
+    """
+    for rel in (".mutation-quarantine/20260101T000000/AGENT_SUBSTRATE.md",
+                ".git/hooks/README.md",
+                ".scratch/notes.txt",
+                ".some-future-tool/copy-of-a-real-document.md"):
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("# not governed text\n", encoding="utf-8")
+    (tmp_path / "REAL.md").write_text("# governed\n", encoding="utf-8")
+
+    found = RAG.corpus_files(tmp_path)
+    assert found == ["REAL.md"], (
+        f"the scan offered tooling state as governed text: "
+        f"{[f for f in found if f != 'REAL.md']}")
+
+
+def test_the_dot_rule_does_not_exclude_dotfiles_that_are_documents(tmp_path):
+    """Anti-vacuity: the rule is about DIRECTORIES, not about leading dots.
+
+    Excluding every path with a dot in it would pass the test above and quietly
+    drop real documents whose own name begins with one.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / ".hidden-but-a-document.md").write_text(
+        "# governed\n", encoding="utf-8")
+    assert RAG.corpus_files(tmp_path) == ["docs/.hidden-but-a-document.md"]

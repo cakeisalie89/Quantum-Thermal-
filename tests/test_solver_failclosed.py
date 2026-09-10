@@ -169,6 +169,7 @@ if __name__ == "__main__":
 # proves nothing about whether anything calls it, which was the defect.
 # --------------------------------------------------------------------------
 
+import numpy as np                                              # noqa: E402
 import pytest                                                   # noqa: E402
 from qta_multiphysics import mode_sequence_3d as MS3            # noqa: E402
 from qta_multiphysics.numerics import (                         # noqa: E402
@@ -364,6 +365,98 @@ def test_a_failed_3d_solve_reports_no_energy_residual():
     from qta_multiphysics.energy_accounting_3d import closure_ok
     assert closure_ok(r, 0.05) is False, (
         "energy closure accepted a solve that did not converge")
+
+
+def test_a_failed_3d_solve_NEVER_EVALUATES_the_interpolant_past_what_it_integrated():
+    """Not "the fake future is discarded" -- it is never constructed.
+
+    NaN-ing the residual stopped the extrapolated arithmetic being BELIEVED.
+    It did not stop it being PERFORMED: sol_obj.sol(tq) still ran across the
+    whole requested window, and an OdeSolution asked for a time past the
+    interval it covers extrapolates its final polynomial rather than
+    refusing. So every quantity was computed partly over time the integrator
+    never reached, and then thrown away.
+
+    This spies on the interpolant itself and asserts the strong property: on
+    a failed solve, no evaluation occurs beyond sol_obj.t[-1].
+    """
+    from qta_multiphysics import thermal_3d_transient as T3
+    real = T3.solve_ivp
+    seen = {"max_t": None, "calls": 0}
+
+    def failing(*a, **kw):
+        sol = real(*a, **kw)
+        # Truncate to a genuinely shorter trajectory, as a real failure does.
+        cut = max(2, len(sol.t) // 3)
+        sol.t = sol.t[:cut]
+        sol.y = sol.y[:, :cut]
+        sol.success = False
+        sol.message = "step size underflow"
+        inner = sol.sol
+
+        def watched(tq):
+            seen["calls"] += 1
+            arr = np.atleast_1d(np.asarray(tq, dtype=float))
+            hi = float(arr.max())
+            seen["max_t"] = hi if seen["max_t"] is None else max(
+                seen["max_t"], hi)
+            return inner(tq)
+
+        sol.sol = watched
+        return sol
+
+    T3.solve_ivp = failing
+    try:
+        r = T3.solve_thermal_3d(default_config())
+    finally:
+        T3.solve_ivp = real
+
+    assert r.solver_status == "failed"
+    assert seen["calls"] == 0, (
+        f"the interpolant was evaluated {seen['calls']} time(s) on a failed "
+        f"solve, out to t={seen['max_t']}; the integrated interval ended at "
+        f"{float(r.t[-1])}. A quantity that must not be trusted should not "
+        "be computed")
+    assert r.energy["converged"] is False
+    assert r.energy["accounting"] == "UNAVAILABLE_INTEGRATION_INCOMPLETE"
+    assert r.energy["integrated_to_s"] < r.energy["requested_t_end_s"], (
+        "this test is not exercising a truncated trajectory")
+    # What was really integrated survives, so the failure is diagnosable.
+    assert r.t.size >= 2 and r.T.shape[1] == r.t.size
+    assert "underflow" in r.message
+
+
+def test_the_honest_path_DOES_evaluate_the_interpolant():
+    """Anti-vacuity: the guard above must name a real difference.
+
+    If solve_thermal_3d never used the interpolant, the assertion that a
+    failed solve does not use it would hold for a reason that has nothing to
+    do with convergence.
+    """
+    from qta_multiphysics import thermal_3d_transient as T3
+    real = T3.solve_ivp
+    seen = {"calls": 0}
+
+    def watching(*a, **kw):
+        sol = real(*a, **kw)
+        inner = sol.sol
+
+        def watched(tq):
+            seen["calls"] += 1
+            return inner(tq)
+
+        sol.sol = watched
+        return sol
+
+    T3.solve_ivp = watching
+    try:
+        r = T3.solve_thermal_3d(default_config())
+    finally:
+        T3.solve_ivp = real
+    assert r.solver_status == "ok"
+    assert seen["calls"] > 0, (
+        "the converged path does not use the interpolant either, so the "
+        "failed-path assertion establishes nothing about convergence")
 
 
 def test_an_honest_3d_solve_still_reports_a_residual():

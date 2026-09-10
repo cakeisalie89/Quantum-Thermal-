@@ -53,7 +53,18 @@ EXCLUDED_DIRS = ("attic", "verification", ".git", ".venv", "outputs",
                  # here as well as detected below, because a venv can be
                  # created anywhere and this catches a nested one whose root
                  # directory the scan never saw.
-                 "site-packages")
+                 "site-packages",
+                 # Where the mutation harness stashes a tracked file it found
+                 # changed under a running matrix. It holds COPIES of
+                 # governed documents, so without this the scan offers them
+                 # as governed text in their own right -- and the allowlist
+                 # regeneration tool ADMITS them, which is a document
+                 # becoming governed by being created rather than by being
+                 # reviewed. Observed, not imagined: a quarantined copy of
+                 # AGENT_SUBSTRATE.md was written into the allowlist this
+                 # way, and only the both-directions completeness check
+                 # afterwards said so.
+                 ".mutation-quarantine")
 CORPUS_GLOBS = ("*.md", "*.txt")
 
 #: Files the globs catch that are not governed DOCUMENTS, and why.
@@ -139,6 +150,16 @@ def corpus_files(root: StrPath | None = None) -> list[str]:
         for p in root.rglob(pattern):
             rel = p.relative_to(root)
             if any(part in excluded for part in rel.parts):
+                continue
+            # NO DOT-DIRECTORY IS GOVERNED TEXT.
+            #
+            # The named list above has to be remembered; this does not. Every
+            # entry that is a dot-directory -- .git, .venv, the quarantine --
+            # is tooling state that happens to live under the repository
+            # root, and the next one nobody adds to the list is the one that
+            # gets in. A rule that covers the class costs nothing and does
+            # not depend on somebody noticing.
+            if any(part.startswith(".") for part in rel.parts[:-1]):
                 continue
             if rel.as_posix() in EXCLUDED_FILES:
                 continue

@@ -794,14 +794,37 @@ class NetworkDecision:
     grant_id: str | None = None
     grant_digest: str | None = None
     request: dict = field(default_factory=dict)
-    #: Addresses the connection is confined to, when the grant pins any.
+    #: Addresses the GRANT pins, when it pins any. Audit context: it says
+    #: what the deployment was willing to accept, which is not the same as
+    #: what this decision authorized. Never the enforcement set -- see
+    #: ``authorized_address`` and the note below.
     pinned_addresses: tuple = ()
-    #: Ports the grant behind this decision permits. Carried for the same
-    #: reason the addresses are: the process-layer guard sees a destination
-    #: and has to check it, and a destination is an address AND a port.
-    #: Without this the guard had the addresses to check against and nothing
-    #: to check the port against, so it checked the half it had.
-    pinned_ports: tuple = ()
+    #: THE EXACT OPERATION THIS DECISION AUTHORIZED.
+    #
+    #: THREE LEVELS, AND THE MIDDLE ONE WAS MISSING. A grant is the set of
+    #: operations an actor MIGHT request. A decision is one particular
+    #: operation authorized at one particular point. The actual connection
+    #: must be a realization of the decision -- it is not enough that it
+    #: independently satisfies the grant.
+    #:
+    #: This decision used to carry the grant's SETS: every address the grant
+    #: pinned and every port it permitted. So a decision issued for
+    #: ``a.example.com:443`` was spendable on ``:8443``, and on any other
+    #: pinned address, because both were somewhere inside the parent grant. A
+    #: set on a decision is a bearer token for the grant.
+    #:
+    #: ``authorized_address`` is the resolution this decision was issued for,
+    #: or None when the grant waived pinning. A re-resolution to a different
+    #: address -- even another the grant pins -- needs a fresh authorization,
+    #: which is a function call.
+    authorized_host: str = ""
+    authorized_port: int = -1
+    authorized_scheme: str = ""
+    authorized_address: str | None = None
+    #: PINNED when the connection's address is checked against
+    #: ``authorized_address``; UNPINNED_ACCEPTED when the grant explicitly
+    #: waived that and the deployment took the resolve-then-connect window.
+    address_mode: str = ""
     #: The registered service this destination belongs to, or None when the
     #: host is not claimed by one. Recorded so an incident asking "what did
     #: we call, and how much" has a name to group by rather than a set of
@@ -814,7 +837,11 @@ class NetworkDecision:
                 "grant_id": self.grant_id, "grant_digest": self.grant_digest,
                 "request": self.request,
                 "pinned_addresses": list(self.pinned_addresses),
-                "pinned_ports": list(self.pinned_ports),
+                "authorized_host": self.authorized_host,
+                "authorized_port": self.authorized_port,
+                "authorized_scheme": self.authorized_scheme,
+                "authorized_address": self.authorized_address,
+                "address_mode": self.address_mode,
                 "service_id": self.service_id,
                 "service_digest": self.service_digest}
 
@@ -1123,10 +1150,20 @@ class NetworkAuthority:
             ok, why = self._covers(gid, req)
             if ok:
                 g = self._grants[gid]
+                tgt = req.target
+                addr = req.resolved_address or tgt.literal_address
                 decision = NetworkDecision(
                     True, why, grant_id=gid, grant_digest=g.digest(),
                     request=rec, pinned_addresses=g.addresses,
-                    pinned_ports=g.ports,
+                    # From the REQUEST, not from the grant. This is the
+                    # difference between "one operation was authorized" and
+                    # "an operation somewhere in this grant was authorized".
+                    authorized_host=tgt.host,
+                    authorized_port=tgt.port,
+                    authorized_scheme=tgt.scheme,
+                    authorized_address=addr,
+                    address_mode=(MODE_UNPINNED_ACCEPTED if addr is None
+                                  else MODE_PINNED),
                     service_id=svc.service_id if svc else None,
                     service_digest=svc.digest() if svc else None)
                 refusal = _refuse_secret_pairing(decision, body, secrets)
@@ -1187,7 +1224,33 @@ class NetworkAuthority:
             return False, (f"egress grant {gid!r} does not cover path "
                            f"{t.path!r}; its prefixes are {list(g.paths)}")
         addr = req.resolved_address or t.literal_address
-        if addr is not None:
+        if addr is None:
+            # AN ABSENT RESOLUTION IS NOT A SATISFIED PIN.
+            #
+            # Both checks below used to sit behind `if addr is not None`, so a
+            # caller that simply omitted resolved_address skipped the address
+            # CLASS check and the PINNING check together -- and a grant that
+            # pinned exactly one address was satisfied by a request that
+            # resolved to nothing. The bypass was one keyword argument.
+            #
+            # Pinning is refused here, because a pin is a statement about a
+            # specific address and there is nothing to compare it to.
+            #
+            # The CLASS check is a different matter and is NOT refused here.
+            # Authorizing by URL before resolving is this module's normal
+            # calling convention, and demanding a resolver at authorize()
+            # would be a new contract rather than a repair. Instead the class
+            # is checked where it can be answered: socket_guard sees the
+            # address the connection is actually going to, and classifies it
+            # there. Deferred to the layer that has the answer rather than
+            # skipped by the layer that does not.
+            if g.addresses:
+                return False, (
+                    f"egress grant {gid!r} pins {list(g.addresses)} and this "
+                    "request carries no resolved address; an unresolved "
+                    "request cannot be checked against a pin, and skipping "
+                    "the check is not passing it")
+        else:
             try:
                 cls = classify_address(addr)
             except ValueError:
@@ -1245,6 +1308,18 @@ class NetworkAuthority:
 
 
 # ---- the process layer --------------------------------------------------
+#: The address of the connection is checked against the one resolution this
+#: decision was issued for.
+MODE_PINNED = "PINNED"
+
+#: The grant explicitly accepted the resolve-then-connect window, so the
+#: address cannot be checked at connect time. THE PORT AND EVERY OTHER
+#: DIMENSION STILL CAN. "Unpinned" waives knowing which address a name
+#: resolves to; it does not waive which name and port were authorized, and it
+#: must never become "any host on an allowed port".
+MODE_UNPINNED_ACCEPTED = "UNPINNED_ACCEPTED"
+
+
 class GuardedConnection(NetworkDenied):
     """A socket connect was refused by the process-layer guard."""
 
@@ -1293,22 +1368,86 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
             # the dependency-reached-the-network case. Every connection made
             # UNDER a decision, which is every connection this system means
             # to make, skipped the check entirely.
-            if allowed.pinned_ports and port not in allowed.pinned_ports:
+            # THE CONNECTION MUST REALIZE **THIS** DECISION.
+            #
+            # Not "must fall somewhere inside the parent grant". A decision
+            # used to carry the grant's SETS -- every permitted port, every
+            # pinned address -- so one issued for a.example.com:443 was
+            # spendable on :8443 and on any other pinned address, and in
+            # unpinned mode on an unrelated host entirely. A set on a
+            # decision is a bearer token for the grant.
+            #
+            # The port is the dimension a socket can always observe, so it is
+            # checked in both modes, against the ONE port authorized.
+            if port != allowed.authorized_port:
                 raise GuardedConnection(
-                    f"connect to {host}:{port} is to a port the grant behind "
-                    f"this request does not permit "
-                    f"({list(allowed.pinned_ports)}); the address being "
-                    "right is half of a destination being right")
-            if allowed.pinned_addresses:
-                if host not in allowed.pinned_addresses:
+                    f"connect to {host}:{port} does not realize this "
+                    f"authorization, which was issued for "
+                    f"{allowed.authorized_host}:{allowed.authorized_port}. "
+                    "Another port inside the same grant is another operation, "
+                    "and it needs its own decision")
+            if allowed.address_mode == MODE_PINNED:
+                # The one resolution this decision was issued for -- not the
+                # set the grant pinned. A re-resolution to a different
+                # address, even another the grant pins, is a fresh operation.
+                if host != allowed.authorized_address:
                     raise GuardedConnection(
-                        f"connect to {host}:{port} is outside the addresses "
-                        f"this request pinned "
-                        f"({list(allowed.pinned_addresses)}); a name that "
+                        f"connect to {host}:{port} is not the address this "
+                        f"authorization resolved to "
+                        f"({allowed.authorized_address}); a name that "
                         "resolves differently at connect time than at check "
                         "time is the rebinding case, not a retry")
                 return
+            # UNPINNED_ACCEPTED. What can still be checked, and what cannot.
+            #
+            # CAN: if the connect target is a NAME rather than an address, it
+            # is the same kind of thing the decision authorized and is
+            # compared directly. This is what stops "unpinned" becoming "any
+            # hostname on an allowed port" -- the waiver is about not knowing
+            # which ADDRESS a name resolves to, not about which name was
+            # asked for.
+            #
+            # CANNOT: an IP literal here, against a decision that authorized
+            # a name, is exactly the resolve-then-connect window the grant
+            # accepted. Checking it would require resolving the name again,
+            # and a second resolution is a second answer.
+            #
+            # ALREADY CONSUMED, and not re-establishable from a bare socket
+            # call: actor, task, tool, scheme, method and path. They were
+            # checked by the authorization that produced this decision. The
+            # socket layer sees two numbers and a string; saying so is more
+            # useful than a check that pretends to cover them.
+            if _maybe_ip(host) is None and host != allowed.authorized_host:
+                raise GuardedConnection(
+                    f"connect to {host}:{port} names a different host than "
+                    f"this authorization, which was issued for "
+                    f"{allowed.authorized_host}. Waiving address pinning "
+                    "waives knowing which address a name resolves to; it does "
+                    "not waive which name was asked for")
             g = authority._grants.get(allowed.grant_id)
+            # THE ADDRESS CLASS, CHECKED WHERE IT CAN BE ANSWERED.
+            #
+            # _covers classifies the resolved address when the request
+            # carries one. When it does not -- the normal case for a caller
+            # that authorizes a URL before resolving -- the class went
+            # unchecked, so a granted NAME that resolves to loopback or a
+            # private range reached it. This layer is holding the address the
+            # connection is actually going to, so it can answer the question
+            # the authorization could not.
+            if g is not None:
+                literal = _maybe_ip(host)
+                if literal is not None:
+                    try:
+                        cls = classify_address(literal)
+                    except ValueError:            # pragma: no cover - parsed
+                        cls = None
+                    if cls is not None and cls.value not in g.address_classes:
+                        raise GuardedConnection(
+                            f"connect to {host}:{port} is a {cls.value} "
+                            f"address and grant {allowed.grant_id!r} permits "
+                            f"{list(g.address_classes)}; a granted name that "
+                            "resolves inside the perimeter is the request "
+                            "this class check exists for")
             if g is not None and not g.allow_unpinned_addresses:
                 raise GuardedConnection(
                     f"connect to {host}:{port} cannot be checked: the grant "

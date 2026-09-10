@@ -834,6 +834,370 @@ and of nothing else.
 
 ---
 
+## D-2026-10 — PREMATURE CLOSURE: "all six P0 items are done"
+
+**STATUS** — recorded. The repairs stand; the claim did not.
+
+**DEFECT.** I wrote that all six P0 items were done. An external review of
+the same head found further instances of the same defect classes still live.
+The repairs were real and are retained. The *claim* was wrong, and it was
+wrong in a specific, repeatable way: **I closed the examples that exposed
+each defect and did not close the defect class.**
+
+**WHAT THE SIBLING SWEEPS ACTUALLY COVERED.** Each P0 item's sweep looked
+where the defect had been found and at structurally identical siblings I
+could enumerate quickly. D-2026-04's sweep, for instance, enumerated every
+reducer reading a principal name out of a payload — and *classified* the
+escalation raiser and the message sender as part of records I had already
+looked at, rather than checking each one. Two actor-bearing fields, in the
+same file, in the same class, missed by a sweep whose whole purpose was to
+find exactly them.
+
+**ROOT CAUSE.** A sweep that enumerates by *reading* stops where attention
+stops. There was no artefact — no table, no generated inventory, no test —
+that could be checked for completeness independently of my having looked.
+"I swept the siblings" was itself an unverifiable self-assertion of the kind
+this ledger exists to distrust everywhere else.
+
+**FIX.** D-2026-16 builds the inventory as an artefact with a guard, so the
+question "has every durable action been classified" has an answer that does
+not depend on my say-so.
+
+**WHAT DOES NOT CHANGE.** The P0-1..P0-6 records stay exactly as written.
+Each described a real defect, reproduced it, repaired it and tested it. None
+of them is retracted. What is retracted is the sentence that the class was
+closed.
+
+**INVALIDATED CLAIMS.** "All six P0 items are done." The accurate statement
+was: the known examples of six defect classes were repaired, and the sweep
+for further instances was incomplete.
+
+---
+
+## D-2026-11 — an escalation could be raised in somebody else's name
+
+**STATUS** — repaired.
+
+**DEFECT.** `ACT_ESCALATION` rebuilt the escalation from its payload and
+applied it verbatim. Nothing required `raised_by == ev.actor`, so any
+principal could open an escalation attributed to any other.
+
+Reproduced: agent `A` appended a record naming agent `B`; replay reported
+the escalation OPEN, `raised_by='B'`. A second reproduction had `A` name a
+registered **HUMAN**.
+
+**INVARIANT.** An escalation is attributed to whoever raised it. The payload
+may repeat that; it may not establish it.
+
+**WHY IT IS WORSE THAN FALSE ATTRIBUTION.** The raiser may not answer their
+own escalation — a rule added in D-2026-04. So naming a person as the raiser
+is a way to *stop that person answering it*. A forged attribution becomes a
+denial of the human gate.
+
+**ROOT CAUSE.** D-2026-04 repaired the ANSWER side of this record and left
+the CREATION side. The two are the same fact — who did this — serialized in
+the same file, one branch apart. The `claim` branch three lines below has
+always carried the rule, in these words: *a claim is attributed to the
+instance that recorded it*.
+
+**IMPLEMENTATION FIX.** The reducer refuses a record whose `raised_by`
+differs from `ev.actor`. `escalate()` already binds `actor=raised_by`, so no
+honest write can produce the mismatch — which is exactly why the reducer
+needed the check: the only records that can differ are the ones that did not
+come through the writer.
+
+**ADVERSARIAL TESTS.** Agent-names-agent, agent-names-human,
+human-names-agent, each parameterized; the honest path still replays; and
+the writer is asserted to bind the two fields.
+
+**MUTATIONS.** `A55` deletes only the binding and dies to the test written
+for it.
+
+---
+
+## D-2026-12 — a message could be sent in somebody else's name
+
+**STATUS** — repaired.
+
+**DEFECT.** `ACT_MESSAGE` took `sender_instance` from the payload. One
+principal could append a message attributed to another. Reproduced: `A`
+appended, `sender_instance='B'`, and the projection attributed it to `B`.
+
+**INVARIANT.** `message.sender_instance == ev.actor`. The durable event actor
+is authority; the payload sender is serialization.
+
+**WHY IT MATTERS.** Messages are what a later reader uses to reconstruct who
+told whom what. A forgeable sender makes that reconstruction a record of
+what the forger wanted it to say.
+
+**ROOT CAUSE.** Identical to D-2026-11 and in the same reducer: the `claim`
+branch immediately below states the rule and the message branch did not
+inherit it.
+
+**MUTATIONS.** `A56`. It dies to a test that reaches replay directly rather
+than to an unrelated role check, which the directive asked for specifically.
+
+---
+
+## D-2026-13 — a redelivery could change everything a message id names
+
+**STATUS** — repaired.
+
+**DEFECT.** A duplicate `message_id` was treated as harmless redelivery when
+`body_digest` matched. Five other immutable dimensions were never compared,
+and the divergent record was then **silently discarded** as a duplicate.
+
+Reproduced: a second record with the same id and body but a different
+sender, recipient, task, subject and `in_reply_to` was accepted, and the
+projection kept the first. Two records claiming one identity with different
+semantics, and nothing anywhere said so.
+
+**INVARIANT.** A duplicate immutable identifier is either an exact semantic
+redelivery or a conflict. There is no partial-equivalence rule.
+
+**ROOT CAUSE.** "What it said" was read as "its bytes". A message id names a
+whole record: who sent it, to whom, about what, on which task, in reply to
+what. The body is one dimension of six.
+
+**IMPLEMENTATION FIX.** `MESSAGE_IMMUTABLE` names the dimensions an id
+carries, once, and `message_identity_conflict()` returns the first
+disagreement. Both the reducer and `send()` use it — the write path had the
+same partial comparison. `sent_seq` and `delivered_to` are deliberately
+excluded: the log assigns one and delivery accumulates the other.
+
+**ADVERSARIAL TESTS.** One field at a time, parameterized, so each invariant
+is independently established and the failure names which dimension caught
+it; a multi-field case; the same partial resend through the writer; and
+anti-vacuity — an exact redelivery is still an idempotent no-op, three times
+over. Plus a test that every named dimension is a real `Message` field, so a
+name that drifted would compare `None` to `None` forever rather than
+silently checking nothing.
+
+**MUTATIONS.** `A57` restores the body-only comparison exactly; `A58`-`A61`
+drop one dimension each, so no single field rests on another's coverage.
+`A18` and `A19`, which attacked the old body-only condition, were **repaired
+in place** rather than retired — they attack the same rules at the rewritten
+lines and keep their history.
+
+---
+
+## D-2026-14 — a network decision was a bearer token for its whole grant
+
+**STATUS** — repaired. **This supersedes part of D-2026-07.**
+
+**DEFECT.** Four holes, all reproduced against the head that D-2026-07 had
+already repaired:
+
+1. `pinned_ports` carried the **grant's** port set, so a decision issued for
+   `a.example.com:443` was spendable on `:8443`.
+2. `pinned_addresses` carried the **grant's** pin set, so the same decision
+   was spendable on any other address the grant pinned.
+3. In unpinned mode an **unrelated host** on a permitted port was allowed.
+4. `_covers` guarded both the address-class and the pinning checks behind
+   `if addr is not None`, so a request that simply omitted
+   `resolved_address` **skipped both** — and a grant pinning exactly one
+   address was satisfied by a request that resolved to nothing. The bypass
+   was one keyword argument.
+
+**INVARIANT — three levels, and the middle one was missing.** A GRANT is the
+set of operations an actor might request. A DECISION is one particular
+operation authorized at one particular point. The ACTUAL OPERATION must be a
+realization of the decision. It is not enough that it independently
+satisfies the grant.
+
+**WHY D-2026-07 DID NOT CATCH THIS.** That repair asked "is the port checked
+at all" and answered it correctly. It did not ask "checked against what".
+Carrying `grant.ports` onto the decision *looked* like conservation — the
+dimension was now present at the enforcement point — and was the bearer-token
+shape written down. **A set on a decision is the defect.**
+
+**IMPLEMENTATION FIX.** The decision carries `authorized_host`,
+`authorized_port`, `authorized_scheme`, `authorized_address` and
+`address_mode`, all from the REQUEST. `pinned_ports` is retired: a set of
+ports on a decision is exactly the confusion. `pinned_addresses` stays as
+audit context and is no longer the enforcement set. The guard checks the
+port exactly in both modes, the exact resolved address in PINNED mode, and
+the exact host **name** in UNPINNED_ACCEPTED mode when the connect target is
+a name rather than an address.
+
+**WHAT UNPINNED ACTUALLY WAIVES.** Not knowing which ADDRESS a name resolves
+to. It does not waive which name was asked for, which port, which actor,
+task, tool, scheme or method — those were consumed by the authorization and
+cannot be re-established from a bare socket call, which is said in the code
+rather than papered over.
+
+**THE CLASS CHECK, MOVED RATHER THAN DEMANDED.** Requiring a resolution at
+`authorize()` would have refused every unresolved request — the module's
+normal calling convention — and 30 tests said so. That is a contract
+redesign, not a repair. Pinning still requires a resolution, because a pin
+is a statement about a specific address and skipping it is not passing it.
+The address CLASS is now checked by `socket_guard`, which holds the address
+the connection is actually going to and can answer what the authorization
+could not. **Stronger than before and compatible with the callers.**
+
+**TWO OF MY OWN P0-4 TESTS ASSERTED THE DEFECT.**
+`test_every_granted_port_is_permitted_not_just_the_first` said a grant
+naming several ports means the guard is "a set membership test", and checked
+that a decision for `:443` also permitted `:8443`. That is the bearer-token
+semantics written down as the requirement.
+`test_the_decision_carries_the_ports_it_was_granted_for` asserted the field
+whose existence was the defect. Both are replaced, and their replacements
+say what they replaced and why. This is the third time this ledger records a
+test that encoded a defect; the first two were pre-existing and this pair is
+mine.
+
+**MUTATIONS.** `E45`-`E51` attack the request→decision→socket composition —
+the decision echoing the grant, the guard skipping the port, the decision
+forgetting its resolution, the unresolved-pin bypass, the deferred class
+check, and unpinned becoming any-hostname. `W24` was repaired in place.
+`E47` was dropped as a duplicate mutant of `W24`. `E48` **survived its first
+run** because my test resolved to the grant's *first* pinned address, where
+a decision that merely echoed `g.addresses[0]` computes the identical value;
+the test now resolves to the second, and says so.
+
+---
+
+## D-2026-15 — the production caller's docstring claimed containment it does not have
+
+**STATUS** — repaired, as corrected prose. **No containment was added.**
+
+**DEFECT.** `governed_stage10.py`'s module docstring said the tool runs
+inside a network guard "so a dependency that phones home is refused", and
+that "if the tool opens a socket, the run does not complete". The real tool
+runs as a **subprocess**. The guard is a monkeypatch in the supervisor's
+interpreter and does not exist there.
+
+**THE FILE CONTRADICTED ITSELF.** The comment at the enforcement point
+already said the guard "binds this process, not the child -- said here
+because the difference matters **and the module says so too**." The module
+said the opposite. Two representations of one fact, in one file, and the
+honest one deferred to the overclaiming one.
+
+**FIX.** The docstring now separates supervisor-level mediation from child
+containment, states that the kernel bounds applied to the child restrict CPU,
+address space, output size, process count and core dumps and **not**
+networking, and points at the probe that demonstrates a child opening a
+socket. The enforcement comment no longer claims the module agrees; it says
+the module now says the same thing.
+
+**SIBLING SWEEP.** `netauth.py`'s docstring was already exemplary — it names
+a "kernel layer (NOT provided)" outright. The completion matrix was already
+honest in five separate boundaries (R21, R22, R32, R33, R54), each saying
+the guard binds this process and not the child. `AGENT_SUBSTRATE.md` had one
+line reading as containment in an authority context, now qualified.
+`test_execution_runs_inside_the_network_guard` was accurate but could be
+misread, and now says what it covers. **The overclaim was localised to the
+one file a reader of the production caller reads first.**
+
+**FORBIDDEN FAKE FIXES.** Adding a `sitecustomize` to reach the child, which
+is a monkeypatch one process further. Deleting "no egress grant", which is
+true and load-bearing. Weakening the child-networking test so the stronger
+prose becomes true.
+
+---
+
+## D-2026-16 — a failed 3D solve still CONSTRUCTED the future it must not report
+
+**STATUS** — repaired.
+
+**DEFECT.** D-2026-09 made a failed solve report `NaN` for its energy
+residual. The quadrature that produced the number still ran: `sol_obj.sol(tq)`
+was evaluated across the whole requested window, and an `OdeSolution` asked
+for a time past the interval it covers **extrapolates its final polynomial
+rather than refusing**. So every quantity in the accounting was computed
+partly over time the integrator never reached, and then discarded.
+
+**INVARIANT.** If the integration did not reach the required end state, the
+full-window accounting must not pretend the missing interval exists — not in
+what it reports, and not in what it computes.
+
+**WHY THE DIFFERENCE IS REAL AND NOT PEDANTRY.** NaN stopped the arithmetic
+being BELIEVED, which was the authority defect. It did not stop it being
+PERFORMED. A quantity that must not be trusted should not be computed:
+computing it invites some later reader to use it, and the act itself asserts
+that the missing interval exists.
+
+**IMPLEMENTATION FIX.** The failed case branches **before** any
+interpolation and returns what was really integrated — the trajectory, its
+times, the solver's message — with an accounting dict that says
+`UNAVAILABLE_INTEGRATION_INCOMPLETE` and reports how far the integration
+actually got against what was asked, so the failure is diagnosable.
+
+**ADVERSARIAL TESTS.** The interpolant itself is spied on: the test asserts
+**zero** evaluations on a failed solve, and names the integrated end time in
+its failure message. Paired with the anti-vacuity twin — the converged path
+DOES evaluate the interpolant, so the assertion establishes something about
+convergence rather than about a code path nobody uses. Plus an assertion
+that the truncated trajectory really is shorter than the request, so the
+test cannot pass over a case it did not create.
+
+**MUTATIONS.** `SC6` retargeted from the NaN to the short circuit — NaN
+stopped belief, the short circuit stops the act. `SC8` makes the failed
+branch announce itself converged; `SC9` makes it claim it reached the
+requested end, which would also make the test's own anti-vacuity assertion
+vacuous.
+
+---
+
+## D-2026-17 — the harness's own scratch directory became governed text
+
+**STATUS** — repaired.
+
+**DEFECT.** The RAG corpus scan walked `.mutation-quarantine/`, where the
+mutation harness stashes a tracked file it finds changed under a running
+matrix. Those are **copies of governed documents**. The scan offered them as
+governed text in their own right, and
+`tools/corpus_allowlist.py --write` **admitted one**: a quarantined copy of
+`AGENT_SUBSTRATE.md` was written into `docs/corpus_allowlist.json` as a
+governed document.
+
+**INVARIANT.** A document becomes governed by being reviewed into the
+allowlist, not by being created. That is the sentence `load_allowlist`
+already carries, and the scan feeding it did not honour.
+
+**HOW IT HAPPENED, WHICH IS THE INTERESTING PART.** I edited two tracked
+files while a mutation matrix was running. The harness noticed, reverted
+them, and quarantined my versions — behaving exactly as designed. The
+quarantine directory then sat inside the repository root, and the next
+`--write` swept it in. **A safety mechanism's output became an input to a
+trust boundary.**
+
+**CAUGHT BY.** The corpus completeness check, which compares the scan
+against `git ls-files` in BOTH directions. It failed on "extra items in the
+left set". Had I committed the regenerated allowlist and then removed the
+quarantine, it would have failed in the other direction instead — naming a
+document that does not exist. Either way it refused; a one-directional check
+would have accepted the first.
+
+**IMPLEMENTATION FIX.** `.mutation-quarantine` is named in `EXCLUDED_DIRS`
+with its reason, and — the part that matters — **no dot-directory under the
+root is governed text**. The named list has to be remembered; the rule does
+not. `.git` and `.venv` were already listed individually, which is the same
+fact discovered three times without being generalized.
+
+**ADVERSARIAL TESTS.** A tree containing a quarantine copy, a `.git` file, a
+`.scratch` file and a plausible future tool's directory, asserting only the
+real document is offered. Paired with the anti-vacuity twin: a document whose
+own FILE name begins with a dot is still governed, so the rule is about
+directories rather than about leading dots.
+
+**MUTATIONS.** `C11` restores the hole. `C12` is the over-correction —
+excluding the file name too — which is fail-closed and would therefore look
+like the safer choice while silently dropping real documents.
+
+**MY OWN ERROR, RECORDED.** Editing tracked files while a mutation matrix
+runs is a mistake this session has now made twice. The harness caught it
+both times and both times the recovery cost real work. The rule is: **while
+a matrix holds the tree, do read-only work only.**
+
+**SIBLING SWEEP.** Other repo-local scratch that could reach a trust
+boundary: `.exec-*` execution scratch directories are also dot-prefixed and
+now excluded by the same rule. The manifest generator has its own policy and
+refuses untracked files outright, which is why it reported the quarantine as
+"untracked and not ignored" rather than absorbing it.
+
+---
+
 ## Open follow-up tracked from this ledger
 
 These are named here so they cannot be closed by silence. They are **not**

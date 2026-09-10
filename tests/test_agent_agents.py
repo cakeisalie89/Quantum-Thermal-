@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
 
 from qta_agent.agents import (  # noqa: E402
     ACT_AGENT_REGISTER, ACT_AGENT_RETIRE, ACT_CLAIM, ACT_ESCALATION_ANSWER,
-    ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
+    ACT_ESCALATION, ACT_MESSAGE, BOOTSTRAP, AgentDirectory,
     AgentError, AgentRole,
     ConflictError, ConflictRule, EscalationError, EscalationState,
     IdentityError, INCOMPATIBLE, MessageError, Notifier, PrincipalKind,
@@ -186,9 +186,14 @@ def test_a_forged_redelivery_with_a_new_body_is_refused_on_replay(dir_,
                     body_digest=BODY)
     rec = msg.to_record()
     rec["body_digest"] = digest({"body": "swapped"})
-    dir_.log.append(actor="mallory", action=ACT_MESSAGE, target="verifier",
+    # The SENDER resends different bytes. The actor here used to be an
+    # unrelated string, which worked because nothing compared the record's
+    # sender to the event's actor -- so this test now reaches the rule it is
+    # named for instead of the one that came later. The foreign-actor case
+    # has its own tests below.
+    dir_.log.append(actor="p1", action=ACT_MESSAGE, target="verifier",
                     payload={"message": rec})
-    with pytest.raises(MessageError, match="different body"):
+    with pytest.raises(MessageError, match="body_digest was"):
         AgentDirectory(EventLog(tmp_path / "log.jsonl")).load()
 
 
@@ -1283,3 +1288,196 @@ def test_an_ACTIVE_human_still_answers(tmp_path):
     d.answer(escalation_id="e1", answered_by="person", answer="yes",
              reason="checked it and it holds")
     assert AgentDirectory(log).load().escalation("e1").answered_by == "person"
+
+
+# --------------------------------------------------------------------------
+# The rest of the actor/payload sweep: raising, sending, and what an id names.
+#
+# The answer side of an escalation was repaired first. Two siblings carrying
+# the same fact were left behind, and both had the same shape: the write path
+# binds the actor correctly, so no honest run can produce a mismatch -- which
+# is precisely why the REDUCER had to check it. The only records that can
+# differ are the ones that did not come through the writer.
+# --------------------------------------------------------------------------
+
+def _abh(tmp_path):
+    """Two agents and a human, on a fresh log."""
+    log = EventLog(tmp_path / "log.jsonl")
+    d = AgentDirectory(log).load()
+    d.register(identity(agent_id="A", instance_id="A",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.PROPOSER}), by="system")
+    d.register(identity(agent_id="B", instance_id="B",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.EXECUTOR}), by="system")
+    d.register(identity(agent_id="H", instance_id="H",
+                        kind=PrincipalKind.HUMAN,
+                        roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    return log, d
+
+
+def _esc_record(**over):
+    rec = {"escalation_id": "e1", "task_id": "t1",
+           "question": "widen the tolerance?", "raised_by": "A",
+           "state": "OPEN", "options": ["yes", "no"]}
+    rec.update(over)
+    return rec
+
+
+# ---- P0-R1: who raised it ------------------------------------------------
+
+@pytest.mark.parametrize("actor,raiser", [
+    ("A", "B"),      # one agent attributes it to another
+    ("A", "H"),      # an agent attributes it to a person
+    ("H", "A"),      # a person attributes it to an agent
+])
+def test_replay_refuses_an_escalation_raised_in_somebody_elses_name(
+        tmp_path, actor, raiser):
+    """An escalation is attributed to whoever raised it.
+
+    False attribution is the obvious harm. The subtler one: the raiser may
+    not answer their own escalation, so naming a person as the raiser is a
+    way to stop that person answering it.
+    """
+    log, _ = _abh(tmp_path)
+    log.append(actor=actor, action=ACT_ESCALATION, target="t1",
+               payload={"escalation": _esc_record(raised_by=raiser)})
+    with pytest.raises(EscalationError, match=f"appended by {actor!r}"):
+        AgentDirectory(log).load()
+
+
+def test_an_escalation_raised_by_its_own_actor_still_replays(tmp_path):
+    """Anti-vacuity: the ordinary path is untouched."""
+    log, d = _abh(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="widen it?",
+               raised_by="A", options=("yes", "no"))
+    fresh = AgentDirectory(log).load()
+    assert fresh.escalation("e1").raised_by == "A"
+
+
+def test_the_escalation_writer_cannot_emit_a_record_replay_refuses(tmp_path):
+    """escalate() binds actor=raised_by, so the two halves agree."""
+    log, d = _abh(tmp_path)
+    d.escalate(escalation_id="e1", task_id="t1", question="q?",
+               raised_by="A", options=("yes", "no"))
+    (rec,) = [ev for ev in log.read() if ev.action == ACT_ESCALATION]
+    assert rec.actor == rec.payload["escalation"]["raised_by"] == "A"
+
+
+# ---- P0-R2: who sent it --------------------------------------------------
+
+def _msg_record(**over):
+    rec = {"message_id": "m1", "sender_instance": "A",
+           "recipient_agent": "B", "task_id": "t1", "subject": "original",
+           "body_digest": "a" * 64, "in_reply_to": None}
+    rec.update(over)
+    return rec
+
+
+@pytest.mark.parametrize("actor,sender", [
+    ("A", "B"),      # one agent signs another's message
+    ("A", "H"),      # an agent signs a person's message
+    ("H", "A"),      # a person signs an agent's message
+])
+def test_replay_refuses_a_message_sent_in_somebody_elses_name(
+        tmp_path, actor, sender):
+    log, _ = _abh(tmp_path)
+    log.append(actor=actor, action=ACT_MESSAGE, target="B",
+               payload={"message": _msg_record(sender_instance=sender)})
+    with pytest.raises(MessageError, match=f"appended by {actor!r}"):
+        AgentDirectory(log).load()
+
+
+def test_an_honest_message_still_replays(tmp_path):
+    """Anti-vacuity for the sender rule."""
+    log, d = _abh(tmp_path)
+    d.send(message_id="m1", sender_instance="A", recipient_agent="B",
+           task_id="t1", subject="s", body_digest="a" * 64)
+    fresh = AgentDirectory(log).load()
+    (msg,) = [m for m in fresh._messages.values()]
+    assert msg.sender_instance == "A"
+
+
+# ---- P0-R3: what a message_id NAMES -------------------------------------
+
+@pytest.mark.parametrize("field,value", [
+    ("recipient_agent", "H"),
+    ("task_id", "t9"),
+    ("subject", "rewritten"),
+    ("body_digest", "b" * 64),
+    ("in_reply_to", "m0"),
+])
+def test_a_redelivery_may_not_change_any_dimension_the_id_names(
+        tmp_path, field, value):
+    """One field at a time, so each invariant is independently established.
+
+    The reducer compared body_digest alone. A redelivery could keep the bytes
+    and change who it was for, which task it belonged to, what it was about,
+    or what it replied to -- and the divergent record was then DISCARDED as a
+    duplicate, so two records claimed one identity with different semantics
+    and nothing said so.
+    """
+    log, _ = _abh(tmp_path)
+    log.append(actor="A", action=ACT_MESSAGE, target="B",
+               payload={"message": _msg_record()})
+    log.append(actor="A", action=ACT_MESSAGE, target="B",
+               payload={"message": _msg_record(**{field: value})})
+    with pytest.raises(MessageError, match=f"{field} was"):
+        AgentDirectory(log).load()
+
+
+def test_a_redelivery_differing_in_several_dimensions_is_refused(tmp_path):
+    log, _ = _abh(tmp_path)
+    log.append(actor="A", action=ACT_MESSAGE, target="B",
+               payload={"message": _msg_record()})
+    log.append(actor="A", action=ACT_MESSAGE, target="B",
+               payload={"message": _msg_record(
+                   recipient_agent="H", task_id="t9", subject="rewritten")})
+    with pytest.raises(MessageError, match="was already sent"):
+        AgentDirectory(log).load()
+
+
+def test_an_exact_redelivery_is_still_an_idempotent_no_op(tmp_path):
+    """Anti-vacuity: a retrying sender must not be punished for retrying."""
+    log, _ = _abh(tmp_path)
+    for _ in range(3):
+        log.append(actor="A", action=ACT_MESSAGE, target="B",
+                   payload={"message": _msg_record()})
+    fresh = AgentDirectory(log).load()
+    assert len(fresh._messages) == 1
+    assert fresh._messages["m1"].subject == "original"
+
+
+def test_the_write_path_refuses_the_same_partial_resend(tmp_path):
+    """send() compared only the body too. Both paths, one rule."""
+    log, d = _abh(tmp_path)
+    d.send(message_id="m1", sender_instance="A", recipient_agent="B",
+           task_id="t1", subject="original", body_digest="a" * 64)
+    with pytest.raises(MessageError, match="recipient_agent was"):
+        d.send(message_id="m1", sender_instance="A", recipient_agent="H",
+               task_id="t1", subject="original", body_digest="a" * 64)
+
+
+def test_an_identical_resend_through_the_writer_returns_the_first(tmp_path):
+    log, d = _abh(tmp_path)
+    first = d.send(message_id="m1", sender_instance="A", recipient_agent="B",
+                   task_id="t1", subject="original", body_digest="a" * 64)
+    again = d.send(message_id="m1", sender_instance="A", recipient_agent="B",
+                   task_id="t1", subject="original", body_digest="a" * 64)
+    assert again == first
+
+
+def test_every_immutable_dimension_is_a_real_message_field(tmp_path):
+    """The named list cannot drift away from the record it describes.
+
+    A dimension named here and absent from Message would compare None to
+    None forever -- a check that passes because it is looking at nothing.
+    """
+    from qta_agent.agents import MESSAGE_IMMUTABLE, Message
+    fields = set(Message.__dataclass_fields__)
+    assert set(MESSAGE_IMMUTABLE) <= fields, (
+        f"MESSAGE_IMMUTABLE names {set(MESSAGE_IMMUTABLE) - fields}, which "
+        "Message does not have")
+    # And the mutable ones are deliberately absent.
+    assert "sent_seq" not in MESSAGE_IMMUTABLE
+    assert "delivered_to" not in MESSAGE_IMMUTABLE

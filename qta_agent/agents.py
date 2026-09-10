@@ -304,6 +304,41 @@ class Message:
                 "delivered_to": list(self.delivered_to)}
 
 
+#: The dimensions of a message that its ``message_id`` NAMES. A second record
+#: reusing an id must agree on every one of them or it is a different message
+#: wearing the same name.
+#:
+#: WHY THIS IS A LIST AND NOT "the body". The reducer compared ``body_digest``
+#: alone, so a redelivery could keep the bytes and silently change who sent
+#: it, who it was for, which task it belonged to, what it was about, and what
+#: it was a reply to -- five dimensions -- and the second record was then
+#: DISCARDED as a duplicate. Two records claiming one identity with different
+#: semantics, and nothing anywhere said so.
+#:
+#: ``sent_seq`` and ``delivered_to`` are deliberately absent: the log assigns
+#: the first and delivery accumulates the second, so neither is part of what
+#: the id names.
+MESSAGE_IMMUTABLE: tuple = (
+    "message_id", "sender_instance", "recipient_agent", "task_id",
+    "subject", "body_digest", "in_reply_to",
+)
+
+
+def message_identity_conflict(first: Message, second: Message) -> str:
+    """The first immutable dimension on which two same-id messages disagree.
+
+    Empty string when they are the same message. Returns ONE field rather
+    than all of them because the first disagreement is the one an operator
+    acts on, and because a test that changes one field at a time can then
+    assert which invariant caught it.
+    """
+    for name in MESSAGE_IMMUTABLE:
+        a, b = getattr(first, name), getattr(second, name)
+        if a != b:
+            return (f"{name} was {a!r} and is now {b!r}")
+    return ""
+
+
 def message_from_record(rec: dict) -> Message:
     """Rebuild a message from a log payload, validating its shape.
 
@@ -535,16 +570,37 @@ class AgentDirectory:
                                             retired_seq=ev.seq)
         elif ev.action == ACT_MESSAGE:
             msg = message_from_record(p["message"])
+            # WHO SENT IT IS THE EVENT'S ACTOR.
+            #
+            # The claim branch below has always checked this, in these words:
+            # a record is attributed to the instance that recorded it. The
+            # message branch did not, so one principal could append a message
+            # attributed to another -- and messages are what a later reader
+            # uses to reconstruct who told whom what.
+            #
+            # send() binds actor=sender_instance, so no honest write can
+            # produce the mismatch. That is exactly why the reducer had to
+            # check it: the only records that can differ are the ones that
+            # did not come through send().
+            if msg.sender_instance != ev.actor:
+                raise MessageError(
+                    f"seq {ev.seq}: message {msg.message_id!r} says it was "
+                    f"sent by {msg.sender_instance!r} but was appended by "
+                    f"{ev.actor!r}; a message is attributed to the instance "
+                    "that recorded it")
             if msg.message_id in self._messages:
                 # Duplicate delivery is expected and is a no-op, not an
                 # error: a retrying sender must not be able to change what it
-                # said by saying it again.
+                # said by saying it again. "What it said" is every dimension
+                # the id names, not only the body -- see MESSAGE_IMMUTABLE.
                 first = self._messages[msg.message_id]
-                if first.body_digest != msg.body_digest:
+                why = message_identity_conflict(first, msg)
+                if why:
                     raise MessageError(
                         f"seq {ev.seq}: message {msg.message_id!r} was "
-                        "already sent with a different body; a redelivery "
-                        "that changes the content is a rewrite")
+                        f"already sent and this record differs: {why}. A "
+                        "redelivery repeats a message; a record reusing an "
+                        "id to say something else is a rewrite")
                 return True
             self._messages[msg.message_id] = replace(msg, sent_seq=ev.seq)
         elif ev.action == ACT_CLAIM:
@@ -576,6 +632,26 @@ class AgentDirectory:
             self._claims[claim.claim_id] = claim
         elif ev.action == ACT_ESCALATION:
             esc = escalation_from_record(p["escalation"])
+            # WHO RAISED IT IS THE EVENT'S ACTOR.
+            #
+            # The answer side of this record was repaired first, and the
+            # creation side was left taking raised_by from the payload -- so
+            # an agent could open an escalation attributed to anybody,
+            # including a HUMAN. That is false attribution, and it is also a
+            # denial vector: the raiser may not answer their own escalation,
+            # so naming a person as the raiser is a way to stop that person
+            # answering it.
+            #
+            # Same discipline as the claim branch below and the answer branch
+            # above. escalate() binds actor=raised_by, so only a record that
+            # never went through it can differ.
+            if esc.raised_by != ev.actor:
+                raise EscalationError(
+                    f"seq {ev.seq}: escalation {esc.escalation_id!r} says it "
+                    f"was raised by {esc.raised_by!r} but was appended by "
+                    f"{ev.actor!r}; an escalation is attributed to whoever "
+                    "raised it, and the payload may repeat that but not "
+                    "establish it")
             if esc.escalation_id in self._escalations:
                 raise EscalationError(
                     f"seq {ev.seq}: escalation {esc.escalation_id!r} raised "
@@ -840,18 +916,23 @@ class AgentDirectory:
             raise MessageError(
                 f"message {message_id!r} replies to {in_reply_to!r}, which "
                 "was never sent")
-        existing = self._messages.get(message_id)
-        if existing is not None:
-            if existing.body_digest != body_digest:
-                raise MessageError(
-                    f"message {message_id!r} was already sent with a "
-                    "different body; a resend that changes the content is a "
-                    "rewrite, and the bus is append-only")
-            return existing
         msg = Message(message_id=message_id, sender_instance=sender_instance,
                       recipient_agent=recipient_agent, task_id=task_id,
                       subject=subject, body_digest=body_digest,
                       in_reply_to=in_reply_to)
+        existing = self._messages.get(message_id)
+        if existing is not None:
+            # Compared across every dimension the id names, for the same
+            # reason the reducer is: a resend that keeps the bytes and
+            # changes the recipient is not a resend.
+            why = message_identity_conflict(existing, msg)
+            if why:
+                raise MessageError(
+                    f"message {message_id!r} was already sent and this "
+                    f"differs: {why}. A resend repeats a message; reusing an "
+                    "id to say something else is a rewrite, and the bus is "
+                    "append-only")
+            return existing
         ev = self.log.append(actor=sender_instance, action=ACT_MESSAGE,
                              target=recipient_agent,
                              payload={"message": msg.to_record()})
