@@ -302,8 +302,8 @@
     },
     {
       "filename": ".gitignore",
-      "size_bytes": 325,
-      "sha256": "45b720990797b66fd9c978484bb521e849aba6c02b0bdcad7c10aa1cff45f3c1",
+      "size_bytes": 892,
+      "sha256": "ec3f12b03287693a70490c7c6e6a64116323f819013aba450de587a4cedc79af",
       "generated_by": "manual",
       "purpose": "excludes generated outputs and Python cache files"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "e17ae19093d7e6e426c523716d1bf02eb516dc83ce3f58615adec9ca44c8b1a3",
+      "sha256": "dbb930e743b2b3a4b941c7d3f8e32beaf08ad95eaa64c3e43ed69adc819c3466",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 95028,
-      "sha256": "0fb292512d86739d13bba35956cb34d93088aa53f68267572ca958040cab0077",
+      "size_bytes": 96846,
+      "sha256": "970618bc727eb7ed3c2cafeb420cf70b43c64653c8a3fe951f678815e22c883d",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
