@@ -1559,6 +1559,13 @@ two mistakes and only running both distinguishes it from either:
 **MUTATIONS.** `C11` and `C12`, unchanged — they were already the right
 mutations. 12/12, sources restored byte-identical.
 
+**CONFIRMED HOSTED.** `agent-substrate` at `7dc9a1f` completed all 55
+steps green, including steps 48–55 — the corpus-allowlist completeness
+check, the long-horizon campaign at elevated scale, the fuzz pass, the
+governed production path, the read-only auditor, `stage10_authority`,
+"sources are unchanged after mutation testing" and "the substrate did
+not touch the canonical tree" — none of which had run at `104a6f1`.
+
 **INVALIDATED CLAIMS.** D-2026-17's implicit claim that its repair was
 verified. It was implemented and asserted; it was not verified until now.
 ---
@@ -1662,7 +1669,7 @@ it stops being true, or it is not answered.
 | 16 | all corresponding tests are anti-vacuous | Every failure-injection test in this tranche has a paired positive: the converged path DOES evaluate the interpolant, the honest sequence DOES enter Mode D, the honest report DOES take three solves, the honest ensemble DOES evaluate its samples, the mesh-check branch DOES fire. |
 | 17 | every new mutation spec is wired into CI | `tools/workflow_contract.py`: 38 of 38, checked by the file's own contents rather than by assertion. |
 | 18 | every mutation is killed for the intended semantic reason | Each survivor in this tranche was diagnosed rather than papered over: E48 resolved to the grant's first address, R40 sent a state that was neither answered nor withdrawn, SC3 never reached Mode D, M39 could not tell two layers apart, G26 hit the write path instead of the reducer, SC24 ran with the mesh-check fraction at zero, SC25 was a mutation that did not restore its own defect, C11 and C12 were written and never run at all. One (S36) was dropped as equivalent-by-construction rather than forced. |
-| 19 | full affected tests green | Full local suite, plus 634 local mutations across twenty-six specs with none surviving and every run reporting sources restored byte-identical. Hosted `second-interpreter` and `cross-environment-3d` green at `104a6f1`; `full-suite` red on `package_consistency_check.py` only, which is the documented R59 host divergence — its pytest step passes and the job's own diagnostic names the runner's kernel. **`agent-substrate` was RED at `104a6f1`**, on step 47 of 55: `corpus_allowlist`, 10 of 12. See D-2026-22. Thirty-seven matrices before it were green and the seven steps after it were skipped, so that job's tail is unmeasured at that commit and is re-run here. |
+| 19 | full affected tests green | Full local suite, plus 634 local mutations across twenty-six specs with none surviving and every run reporting sources restored byte-identical. Hosted `second-interpreter` and `cross-environment-3d` green at `104a6f1`; `full-suite` red on `package_consistency_check.py` only, which is the documented R59 host divergence — its pytest step passes and the job's own diagnostic names the runner's kernel. `agent-substrate` was RED at `104a6f1` on step 47 of 55 (D-2026-22) and is **green at `7dc9a1f` across all 55 steps**, including the eight that the earlier failure skipped. This condition is satisfied for a commit when that commit's own `agent-substrate` run is green; commits after `7dc9a1f` in this tranche change only this ledger, `.gitignore` and the derived artifacts, and each is confirmed by its own run rather than inherited from its parent — which is the whole lesson of D-2026-22. |
 | 20 | defect ledger updated | D-2026-11 … D-2026-21, plus the PREMATURE_CLOSURE record and two ANALYST_CONCLUSION_ERROR records for my own wrong claims. |
 | 21 | PASS remains 0 | Unchanged; `package_consistency_check.py` asserts no PASS token in any output on every run. |
 | 22 | `automatic_gate_effect` remains NONE | Unchanged. |
