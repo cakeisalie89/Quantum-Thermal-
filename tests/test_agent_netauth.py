@@ -1398,199 +1398,413 @@ def test_the_pinned_and_unpinned_paths_agree_about_ports():
                      "no longer agree about what a destination is")
 
 
+
 # ===========================================================================
-# P0-R11 -- THE ADDRESS CLASS, IN THE BRANCH THAT NEEDED IT.
+# P0-R11 -- THE ADDRESS CLASS, AND THE ENDPOINT THAT CARRIES IT.
 #
-# The class check in socket_guard sits behind `literal is not None`, so it
-# answers only for a connect target that was ALREADY an IP. Unpinned mode is
-# the case where the target is a NAME -- it is what the branch exists for --
-# and there the class went unchecked entirely, while the comment above it
-# said "this layer is holding the address the connection is actually going
-# to, so it can answer the question the authorization could not".
+# TWO defects, found in that order.
 #
-# It was not holding that address. The OS resolver chose it afterwards.
+# FIRST: the class check in socket_guard sat behind `literal is not None`, so
+# it answered only for a connect target that was ALREADY an IP.
+# UNPINNED_ACCEPTED is the mode where the target is a NAME -- it is what the
+# mode is for -- and there the class went unchecked entirely, while the
+# comment above it said "this layer is holding the address the connection is
+# actually going to". It was not. The OS resolver chose it afterwards.
 #
-# Reproduced with no external networking and no resolver of our own:
-# `localhost` is a hostname that resolves to loopback, so a PUBLIC-only grant
-# for it is a grant whose class restriction the connection violates.
+# SECOND, introduced by the repair for the first and found by HOSTED CI on
+# both 3.12 and 3.13: resolve-under-authority kept the sockaddr and dropped
+# the family, socket type and protocol that came with it. On a dual-stack
+# host `localhost` resolves to `::1` first, and handing that to an AF_INET
+# socket raises
+#
+#     TypeError: AF_INET address must be a pair (host, port)
+#
+# which is a crash, not a governed refusal. It passed locally because THIS
+# container resolves localhost IPv4-only -- so the local evidence was a
+# property of the environment, not of the code.
+#
+# Every test below therefore controls the resolver explicitly. Resolver order
+# must not decide policy, so the matrix runs both orders.
 # ===========================================================================
 
-def _loopback_listener():
-    """A real listener, so a PERMITTED connect actually completes."""
-    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    srv.bind(("127.0.0.1", 0))
-    srv.listen(1)
-    threading.Thread(target=lambda: srv.accept(), daemon=True).start()
-    return srv, srv.getsockname()[1]
+import contextlib                                              # noqa: E402
+
+from qta_agent.netauth import ResolvedCandidate                # noqa: E402
+
+V6_LOOPBACK = ("::1", socket.AF_INET6)
+V4_LOOPBACK = ("127.0.0.1", socket.AF_INET)
 
 
-def _unpinned_named_connect(classes, host="localhost"):
-    """Authorize a NAME unpinned under ``classes``, then connect to it.
+def _ipv6_available() -> bool:
+    """Whether this host can make an AF_INET6 socket at all.
 
-    Returns ("ALLOWED", peer) or ("REFUSED", message).
+    NOT cosmetic. The container this was developed in has no IPv6 and
+    resolves `localhost` to IPv4 only; the hosted runner has both. That
+    difference is exactly what let the family-conservation defect reach CI
+    green locally, so the tests needing IPv6 skip LOUDLY here rather than
+    being deleted, and the tests that do not need it stay deterministic on
+    every host by steering the resolver.
     """
-    srv, port = _loopback_listener()
+    if not socket.has_ipv6:
+        return False
     try:
-        auth = NetworkAuthority()
-        auth.issue(_grant(hosts=(host,), ports=(port,),
-                          address_classes=classes,
-                          addresses=(), allow_unpinned_addresses=True),
-                   actor="scheduler")
-        d = auth.authorize(NetworkRequest(
-            actor=ACTOR, task_id=TASK, tool_id=TOOL,
-            target=parse_target(f"https://{host}:{port}/v1/x", method="GET")))
-        assert d.allowed and d.address_mode == MODE_UNPINNED_ACCEPTED, d
-        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
-                          allowed=d):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2.0)
-            try:
-                s.connect((host, port))
-                return "ALLOWED", s.getpeername()
-            except GuardedConnection as exc:
-                return "REFUSED", str(exc)
-            finally:
-                s.close()
-    finally:
-        srv.close()
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
+            probe.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
 
+
+HAS_IPV6 = _ipv6_available()
+needs_ipv6 = pytest.mark.skipif(
+    not HAS_IPV6, reason="host has no usable IPv6; see _ipv6_available")
+
+
+@contextlib.contextmanager
+def _listener(bind="127.0.0.1", family=socket.AF_INET):
+    """A real listener, torn down deterministically.
+
+    The first version started a daemon thread running ``srv.accept()`` and
+    closed the socket underneath it, which raised inside the thread and
+    produced PytestUnhandledThreadExceptionWarning on the hosted runner. A
+    warning from a leaked thread is noise that hides real ones, so the thread
+    is now joined and the expected close is caught where it happens.
+    """
+    srv = socket.socket(family, socket.SOCK_STREAM)
+    srv.settimeout(5.0)
+    srv.bind((bind, 0))
+    srv.listen(1)
+    accepted = []
+
+    def serve():
+        try:
+            conn, _ = srv.accept()
+            accepted.append(conn)
+        except OSError:
+            pass                      # closed before anyone connected: fine
+
+    thread = threading.Thread(target=serve)
+    thread.start()
+    try:
+        yield srv.getsockname()[1]
+    finally:
+        try:
+            srv.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        srv.close()
+        thread.join(timeout=5.0)
+        assert not thread.is_alive(), "the listener thread outlived its test"
+        for conn in accepted:
+            conn.close()
+
+
+@contextlib.contextmanager
+def _resolver(candidates, port, host="localhost"):
+    """Make ``host`` resolve to exactly ``candidates``, in that order.
+
+    Deterministic on every host: the matrix below must not depend on whether
+    the machine running it happens to be dual-stack.
+    """
+    real = socket.getaddrinfo
+
+    def steered(name, prt, family=0, socktype=0, proto=0, flags=0):
+        if name != host:
+            return real(name, prt, family, socktype, proto, flags)
+        out = []
+        for addr, fam in candidates:
+            sockaddr = ((addr, port) if fam == socket.AF_INET
+                        else (addr, port, 0, 0))
+            out.append((fam, socktype or socket.SOCK_STREAM,
+                        proto or socket.IPPROTO_TCP, "", sockaddr))
+        return out
+
+    socket.getaddrinfo = steered
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = real
+
+
+def _authorized(port, classes, host="localhost", ports=None):
+    auth = NetworkAuthority()
+    auth.issue(_grant(hosts=(host,), ports=tuple(ports or (port,)),
+                      address_classes=classes, addresses=(),
+                      allow_unpinned_addresses=True), actor="scheduler")
+    d = auth.authorize(NetworkRequest(
+        actor=ACTOR, task_id=TASK, tool_id=TOOL,
+        target=parse_target(f"https://{host}:{port}/v1/x", method="GET")))
+    assert d.allowed and d.address_mode == MODE_UNPINNED_ACCEPTED, d
+    return auth, d
+
+
+def _attempt(auth, d, target, family=socket.AF_INET,
+             socktype=socket.SOCK_STREAM, use_connect_ex=False):
+    """Connect through the guard. Returns ("ALLOWED", peer) or ("REFUSED", why).
+
+    A ``TypeError`` is deliberately NOT caught: an incompatible endpoint
+    reaching the socket is the regression this matrix exists to prevent, and
+    a crash must never be mistaken for a fail-closed refusal.
+    """
+    with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                      allowed=d):
+        s = socket.socket(family, socktype)
+        s.settimeout(5.0)
+        try:
+            if use_connect_ex:
+                s.connect_ex(target)
+            else:
+                s.connect(target)
+            return "ALLOWED", s.getpeername()
+        except GuardedConnection as exc:
+            return "REFUSED", str(exc)
+        finally:
+            s.close()
+
+
+# --- A/B/G: the hosted regression, both resolver orders ---------------------
+
+@pytest.mark.parametrize("order,label", [
+    ([V4_LOOPBACK], "IPv4 only"),
+    ([V6_LOOPBACK, V4_LOOPBACK], "IPv6 first"),
+    ([V4_LOOPBACK, V6_LOOPBACK], "IPv4 first"),
+])
+def test_an_AF_INET_socket_gets_a_compatible_endpoint(order, label):
+    """THE hosted regression: `TypeError: AF_INET address must be a pair`.
+
+    A permitted address CLASS does not make an endpoint usable. Resolver
+    order must not decide correctness, so all three orders must agree.
+    """
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver(order, port):
+            result, detail = _attempt(auth, d, ("localhost", port))
+    assert result == "ALLOWED", f"{label}: {detail}"
+    assert detail[0] == "127.0.0.1", (label, detail)
+
+
+# --- C: permitted class, incompatible family -> governed refusal ------------
+
+def test_a_permitted_but_INCOMPATIBLE_endpoint_is_refused_not_crashed():
+    """Fail closed as a DECISION, with a reason, never as a TypeError."""
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V6_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port))
+    assert result == "REFUSED", detail
+    assert "none is usable by this" in detail and "AF_INET" in detail, detail
+    assert "::1" in detail and "LOOPBACK" in detail, (
+        "the refusal must name what it resolved to and why it is unusable")
+
+
+# --- E/F: the same rules from the other family ------------------------------
+
+@needs_ipv6
+def test_an_AF_INET6_socket_selects_the_compatible_endpoint():
+    with _listener(bind="::1", family=socket.AF_INET6) as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V4_LOOPBACK, V6_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port),
+                                      family=socket.AF_INET6)
+    assert result == "ALLOWED", detail
+    assert detail[0] == "::1", detail
+
+
+@needs_ipv6
+def test_an_AF_INET6_socket_with_only_IPv4_is_refused():
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port),
+                                      family=socket.AF_INET6)
+    assert result == "REFUSED", detail
+    assert "none is usable by this" in detail and "AF_INET6" in detail, detail
+
+
+# --- H/R: the class rule, which started all this ----------------------------
 
 def test_an_unpinned_NAME_resolving_inside_the_perimeter_is_refused():
-    """THE defect: PUBLIC-only authority reaching loopback through a name."""
-    result, detail = _unpinned_named_connect((AddressClass.PUBLIC.value,))
+    """The original defect: PUBLIC-only authority reaching loopback."""
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.PUBLIC.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port))
     assert result == "REFUSED", (
-        f"a grant permitting PUBLIC only reached {detail} through an "
-        "unpinned name; the class restriction was never applied because the "
-        "connect target was a name rather than an address")
+        f"a grant permitting PUBLIC only reached {detail}; the class "
+        "restriction was never applied because the target was a name")
     assert "LOOPBACK" in detail and "PUBLIC" in detail, detail
 
 
 def test_an_unpinned_NAME_inside_a_permitted_class_still_connects():
     """Anti-vacuity: the rule names a real condition.
 
-    A guard that refused every unpinned name would pass the test above while
-    breaking the mode entirely.
+    A guard refusing every unpinned name would pass the test above while
+    removing the mode entirely.
     """
-    result, detail = _unpinned_named_connect((AddressClass.LOOPBACK.value,))
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port))
     assert result == "ALLOWED", detail
     assert detail[0] == "127.0.0.1", detail
 
 
-def test_the_connection_goes_TO_THE_ADDRESS_THE_GUARD_CLASSIFIED():
-    """One resolution, not two -- and observably so.
+# --- S: mixed permitted and forbidden answers, decided deliberately ---------
 
-    Classifying a name and then handing the NAME to the real connect resolves
-    it a SECOND time, and a second resolution is a second answer: the
-    rebinding window, opened by the check written to close it.
+def test_a_mixed_resolution_selects_a_permitted_compatible_candidate():
+    """Documented semantics: a forbidden answer does not poison the rest.
 
-    ``getpeername()`` cannot tell the two apart, because both end up at a
-    loopback address. So the resolution the guard sees is steered somewhere
-    the OS would not send it: the listener is on 127.0.0.2 and the patched
-    resolver returns only that, while the real resolver still maps
-    ``localhost`` to 127.0.0.1 where nothing is listening. Connecting to the
-    classified address succeeds; handing the name back does not.
+    The connection goes to exactly one endpoint and that endpoint is inside
+    the grant, so the forbidden answer is never reached. The stricter reading
+    would make a dual-stack host unusable whenever one family maps somewhere
+    the grant does not permit, while protecting nothing.
     """
-    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        srv.bind(("127.0.0.2", 0))
-    except OSError:                              # pragma: no cover - not Linux
-        pytest.skip("127.0.0.2 is not bindable on this host")
-    srv.listen(1)
-    port = srv.getsockname()[1]
-    threading.Thread(target=lambda: srv.accept(), daemon=True).start()
-
-    real_gai = socket.getaddrinfo
-
-    def steered(host, prt, *a, **kw):
-        if host == "localhost":
-            return [(socket.AF_INET, socket.SOCK_STREAM,
-                     socket.IPPROTO_TCP, "", ("127.0.0.2", prt))]
-        return real_gai(host, prt, *a, **kw)      # pragma: no cover
-
-    try:
-        auth = NetworkAuthority()
-        auth.issue(_grant(hosts=("localhost",), ports=(port,),
-                          address_classes=(AddressClass.LOOPBACK.value,),
-                          addresses=(), allow_unpinned_addresses=True),
-                   actor="scheduler")
-        d = auth.authorize(NetworkRequest(
-            actor=ACTOR, task_id=TASK, tool_id=TOOL,
-            target=parse_target(f"https://localhost:{port}/v1/x",
-                                method="GET")))
-        socket.getaddrinfo = steered
-        try:
-            with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
-                              allowed=d):
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(2.0)
-                try:
-                    s.connect(("localhost", port))
-                    peer = s.getpeername()
-                finally:
-                    s.close()
-        finally:
-            socket.getaddrinfo = real_gai
-    finally:
-        srv.close()
-
-    assert peer[0] == "127.0.0.2", (
-        f"connected to {peer}, not the address the guard classified. The "
-        "name was handed back to a second resolver, so what was checked and "
-        "what was reached are two different answers")
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([("93.184.216.34", socket.AF_INET), V4_LOOPBACK],
+                       port):
+            result, detail = _attempt(auth, d, ("localhost", port))
+    assert result == "ALLOWED", detail
+    assert detail[0] == "127.0.0.1", (
+        "the PUBLIC answer was not permitted by this grant and must not have "
+        "been selected")
 
 
-def test_an_unpinned_name_that_is_not_the_authorized_name_is_still_refused():
-    """The name binding survives the new resolution step."""
-    srv, port = _loopback_listener()
-    try:
-        auth = NetworkAuthority()
-        auth.issue(_grant(hosts=("localhost", "other.invalid"), ports=(port,),
-                          address_classes=(AddressClass.LOOPBACK.value,),
-                          addresses=(), allow_unpinned_addresses=True),
-                   actor="scheduler")
-        d = auth.authorize(NetworkRequest(
-            actor=ACTOR, task_id=TASK, tool_id=TOOL,
-            target=parse_target(f"https://localhost:{port}/v1/x",
-                                method="GET")))
-        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
-                          allowed=d):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2.0)
-            with pytest.raises(GuardedConnection, match="different host"):
-                s.connect(("other.invalid", port))
-            s.close()
-    finally:
-        srv.close()
+# --- I/J/K: the other bindings survive the new resolution step --------------
+
+def test_an_unpinned_name_that_is_not_the_authorized_name_is_refused():
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("other.invalid", port))
+    assert result == "REFUSED" and "different host" in detail, detail
 
 
-def test_an_unpinned_name_on_another_port_is_still_refused():
-    """The port binding survives it too."""
-    srv, port = _loopback_listener()
-    try:
-        auth = NetworkAuthority()
-        auth.issue(_grant(hosts=("localhost",), ports=(port, port + 1),
-                          address_classes=(AddressClass.LOOPBACK.value,),
-                          addresses=(), allow_unpinned_addresses=True),
-                   actor="scheduler")
-        d = auth.authorize(NetworkRequest(
-            actor=ACTOR, task_id=TASK, tool_id=TOOL,
-            target=parse_target(f"https://localhost:{port}/v1/x",
-                                method="GET")))
-        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
-                          allowed=d):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2.0)
-            with pytest.raises(GuardedConnection, match="does not realize"):
-                s.connect(("localhost", port + 1))
-            s.close()
-    finally:
-        srv.close()
+def test_an_unpinned_name_on_another_port_is_refused():
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,),
+                              ports=(port, port + 1))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port + 1))
+    assert result == "REFUSED" and "does not realize" in detail, detail
 
+
+# --- L/M: connect and connect_ex share one decision path --------------------
 
 def test_connect_ex_takes_the_same_path_as_connect():
-    """Both entry points, or the guard is a suggestion."""
-    srv, port = _loopback_listener()
-    try:
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.PUBLIC.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port),
+                                      use_connect_ex=True)
+    assert result == "REFUSED" and "LOOPBACK" in detail, detail
+
+
+def test_connect_ex_also_gets_a_compatible_endpoint():
+    """Both entry points, on the crash path too, or the guard is a suggestion."""
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V6_LOOPBACK, V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port),
+                                      use_connect_ex=True)
+    assert result == "ALLOWED", detail
+    assert detail[0] == "127.0.0.1", detail
+
+
+# --- N: IPv6 scope and flowinfo survive selection ---------------------------
+
+def test_the_ipv6_sockaddr_is_used_whole():
+    """flowinfo and scope id are part of an IPv6 address, not decoration.
+
+    A link-local address without its scope is not an address, so the
+    candidate carries the resolver's four-tuple rather than having its first
+    element spliced into the caller's pair.
+    """
+    cand = ResolvedCandidate(family=socket.AF_INET6,
+                             socktype=socket.SOCK_STREAM,
+                             proto=socket.IPPROTO_TCP,
+                             sockaddr=("fe80::1", 443, 7, 9),
+                             address="fe80::1", address_class="LINK_LOCAL")
+    assert cand.sockaddr == ("fe80::1", 443, 7, 9)
+    assert len(cand.sockaddr) == 4
+
+
+# --- the compatibility rule itself, unit-tested -----------------------------
+
+class _FakeSock:
+    def __init__(self, family, type_, proto):
+        self.family, self.type, self.proto = family, type_, proto
+
+
+@pytest.mark.parametrize("sock_type", [
+    socket.SOCK_STREAM,
+    socket.SOCK_STREAM | getattr(socket, "SOCK_NONBLOCK", 0),
+    socket.SOCK_STREAM | getattr(socket, "SOCK_CLOEXEC", 0),
+])
+def test_socket_type_flags_do_not_defeat_compatibility(sock_type):
+    """SOCK_NONBLOCK/SOCK_CLOEXEC describe HOW a socket behaves, not WHAT.
+
+    Comparing a flagged type against SOCK_STREAM by equality silently refuses
+    every non-blocking socket -- a fail-closed bug that looks like security.
+    """
+    cand = ResolvedCandidate(socket.AF_INET, socket.SOCK_STREAM,
+                             socket.IPPROTO_TCP, ("127.0.0.1", 1),
+                             "127.0.0.1", "LOOPBACK")
+    assert cand.usable_by(_FakeSock(socket.AF_INET, sock_type, 0))
+
+
+def test_an_implicit_protocol_is_compatible_with_an_explicit_one():
+    """`socket.socket(AF_INET, SOCK_STREAM).proto` is 0; getaddrinfo says 6."""
+    cand = ResolvedCandidate(socket.AF_INET, socket.SOCK_STREAM,
+                             socket.IPPROTO_TCP, ("127.0.0.1", 1),
+                             "127.0.0.1", "LOOPBACK")
+    assert cand.usable_by(_FakeSock(socket.AF_INET, socket.SOCK_STREAM, 0))
+    assert cand.usable_by(_FakeSock(socket.AF_INET, socket.SOCK_STREAM,
+                                    socket.IPPROTO_TCP))
+
+
+def test_a_mismatched_protocol_is_not_compatible():
+    """Anti-vacuity for the rule above: 0 is permissive, other values are not."""
+    cand = ResolvedCandidate(socket.AF_INET, socket.SOCK_DGRAM,
+                             socket.IPPROTO_UDP, ("127.0.0.1", 1),
+                             "127.0.0.1", "LOOPBACK")
+    assert not cand.usable_by(_FakeSock(socket.AF_INET, socket.SOCK_DGRAM,
+                                        socket.IPPROTO_TCP))
+    assert not cand.usable_by(_FakeSock(socket.AF_INET, socket.SOCK_STREAM,
+                                        socket.IPPROTO_UDP))
+
+
+# --- UDP: the guard is not TCP-only, and says so ---------------------------
+
+def test_a_UDP_socket_is_resolved_as_UDP_and_governed_the_same_way():
+    """socket_guard patches socket.socket.connect generally, so a datagram
+    socket reaches it too. Resolving it as TCP and pretending the answer
+    describes the UDP operation would be mediating one protocol with another
+    protocol's metadata.
+    """
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.PUBLIC.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port),
+                                      socktype=socket.SOCK_DGRAM)
+    assert result == "REFUSED" and "LOOPBACK" in detail, detail
+
+
+def test_a_UDP_socket_reaching_a_permitted_class_connects():
+    """Anti-vacuity: UDP is governed, not blanket-refused."""
+    with _listener() as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([V4_LOOPBACK], port):
+            result, detail = _attempt(auth, d, ("localhost", port),
+                                      socktype=socket.SOCK_DGRAM)
+    assert result == "ALLOWED", detail
+    assert detail[0] == "127.0.0.1", detail
+
+
+# --- O/P: literals still take the literal path ------------------------------
+
+def test_a_literal_ipv4_target_is_still_classified_directly():
+    with _listener() as port:
         auth = NetworkAuthority()
         auth.issue(_grant(hosts=("localhost",), ports=(port,),
                           address_classes=(AddressClass.PUBLIC.value,),
@@ -1600,12 +1814,75 @@ def test_connect_ex_takes_the_same_path_as_connect():
             actor=ACTOR, task_id=TASK, tool_id=TOOL,
             target=parse_target(f"https://localhost:{port}/v1/x",
                                 method="GET")))
-        with socket_guard(auth, actor=ACTOR, task_id=TASK, tool_id=TOOL,
-                          allowed=d):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2.0)
-            with pytest.raises(GuardedConnection, match="LOOPBACK"):
-                s.connect_ex(("localhost", port))
-            s.close()
-    finally:
-        srv.close()
+        result, detail = _attempt(auth, d, ("127.0.0.1", port))
+    assert result == "REFUSED" and "LOOPBACK" in detail, detail
+
+
+# --- the guard resolves ONCE, and connects to what it resolved --------------
+
+def test_the_connection_goes_TO_THE_ADDRESS_THE_GUARD_CLASSIFIED():
+    """One resolution, not two -- and observably so.
+
+    Classifying a name and then handing the NAME to the real connect resolves
+    it a SECOND time, and a second resolution is a second answer: the
+    rebinding window, opened by the check written to close it.
+
+    getpeername() cannot tell the two apart when both end on loopback, so the
+    resolution the guard sees is steered somewhere the OS would not send it:
+    the listener is on 127.0.0.2 and the steered resolver returns only that,
+    while the real resolver still maps `localhost` to 127.0.0.1 where nothing
+    listens.
+    """
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.2", 0))
+        probe.close()
+    except OSError:                              # pragma: no cover - not Linux
+        pytest.skip("127.0.0.2 is not bindable on this host")
+
+    with _listener(bind="127.0.0.2") as port:
+        auth, d = _authorized(port, (AddressClass.LOOPBACK.value,))
+        with _resolver([("127.0.0.2", socket.AF_INET)], port):
+            result, detail = _attempt(auth, d, ("localhost", port))
+    assert result == "ALLOWED", detail
+    assert detail[0] == "127.0.0.2", (
+        f"connected to {detail}, not the address the guard classified; the "
+        "name was handed back to a second resolver, so what was checked and "
+        "what was reached are two different answers")
+
+
+# --- the same rules AS DECISIONS, with no socket call anywhere --------------
+#
+# The ordering tests kill a family-ignoring mutant by letting CPython's
+# TypeError escape. That proves the crash happens; it does not prove anything
+# DECIDED. A mutation killed by a runtime accident is not evidence that the
+# semantic guard works, so each rule is also asserted directly.
+
+def test_an_incompatible_family_is_unusable_AS_A_DECISION():
+    v6 = ResolvedCandidate(socket.AF_INET6, socket.SOCK_STREAM,
+                           socket.IPPROTO_TCP, ("::1", 1, 0, 0), "::1",
+                           "LOOPBACK")
+    assert not v6.usable_by(_FakeSock(socket.AF_INET, socket.SOCK_STREAM, 0))
+    assert v6.usable_by(_FakeSock(socket.AF_INET6, socket.SOCK_STREAM, 0))
+
+
+def test_selection_refuses_when_only_incompatible_candidates_are_permitted():
+    """`_select_candidate` returns a REASON, never an unusable endpoint."""
+    from qta_agent.netauth import _select_candidate
+
+    v6 = ResolvedCandidate(socket.AF_INET6, socket.SOCK_STREAM,
+                           socket.IPPROTO_TCP, ("::1", 1, 0, 0), "::1",
+                           "LOOPBACK")
+    v4 = ResolvedCandidate(socket.AF_INET, socket.SOCK_STREAM,
+                           socket.IPPROTO_TCP, ("127.0.0.1", 1), "127.0.0.1",
+                           "LOOPBACK")
+    sock4 = _FakeSock(socket.AF_INET, socket.SOCK_STREAM, 0)
+
+    chosen, why = _select_candidate((v6,), ("LOOPBACK",), sock4)
+    assert chosen is None and "none is usable by this" in why, (chosen, why)
+
+    chosen, why = _select_candidate((v6, v4), ("LOOPBACK",), sock4)
+    assert chosen is v4 and not why, (chosen, why)
+
+    chosen, why = _select_candidate((v4,), ("PUBLIC",), sock4)
+    assert chosen is None and "the grant permits" in why, (chosen, why)

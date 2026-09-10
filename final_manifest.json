@@ -3284,8 +3284,8 @@
     },
     {
       "filename": "qta_agent/netauth.py",
-      "size_bytes": 74843,
-      "sha256": "ef69a6621fcc3c13fde695e6247f7ebdfecb519ccc34391f7d60fc89418b67e7",
+      "size_bytes": 79094,
+      "sha256": "3c26032e0e21e63bd67c99cea02775f86c7a644c1f98b6e8a2ed507bf5247927",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3326,8 +3326,8 @@
     },
     {
       "filename": "tests/test_agent_netauth.py",
-      "size_bytes": 66019,
-      "sha256": "493124a9c1bb92af60560c0b2bc283c089d5d5877668a2eddfbcc4100c13d697",
+      "size_bytes": 77652,
+      "sha256": "4332fc7ba0c781f0220aa6f5f37d36f48aa5c0b472ba388b7feedf5930736450",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3368,8 +3368,8 @@
     },
     {
       "filename": "tools/mutations/agent_netauth.json",
-      "size_bytes": 21052,
-      "sha256": "2145255d312f93ba30c5a81de59f45766be0b7d2a5d46896a53a400a6a952dba",
+      "size_bytes": 24312,
+      "sha256": "56997542a051c226219a1f6bea6027b82f5141fc6cf29e2b02983e62459044c0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "6534bf857445a8604b8057815b669e54787a8cf39133a20b84731ebc59372aef",
+      "sha256": "3e2648b0d34feaba3809d40483538a5eb6e6ad77bda259664eada4b6c76e4e86",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 115102,
-      "sha256": "c00a7c7f522e8a97cf74d8d6c46a459e1ec68661073f2c3f8b2b42d74ee63fab",
+      "size_bytes": 121289,
+      "sha256": "76418df02145a304e269bf87686346e60dc01ed854685150749e65243255e07e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

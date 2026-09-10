@@ -365,23 +365,72 @@
     {
       "name": "E53_a_forbidden_class_is_reported_but_not_refused",
       "path": "qta_agent/netauth.py",
-      "find": "                if not permitted:\n                    raise GuardedConnection(",
+      "find": "                if candidate is None:\n                    raise GuardedConnection(",
       "replace": "                if False:\n                    raise GuardedConnection(",
       "rationale": "resolves and classifies, then connects anyway. The diagnostic would still name the class, which is the shape of a check that reports rather than enforces"
     },
     {
       "name": "E54_the_name_is_handed_back_to_a_second_resolver",
       "path": "qta_agent/netauth.py",
-      "find": "                return _with_host(address, permitted[0])",
+      "find": "                return candidate.sockaddr",
       "replace": "                return address",
       "rationale": "classifies one resolution and connects using the NAME, so the OS resolves again. A second resolution is a second answer, which is the rebinding window -- opened by the check written to close it"
     },
     {
       "name": "E55_a_permitted_class_is_not_required_to_match",
       "path": "qta_agent/netauth.py",
-      "find": "        if cls.value in classes:\n            permitted.append(sockaddr)",
-      "replace": "        if True:\n            permitted.append(sockaddr)",
+      "find": "    in_class = [c for c in candidates if c.address_class in classes]",
+      "replace": "    in_class = list(candidates)",
       "rationale": "every resolved address becomes permitted, so the grant's address_classes stop bounding anything while the code still looks like it classifies"
+    },
+    {
+      "name": "E56_the_socket_family_is_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if sock.family != self.family:\n            return False",
+      "replace": "        if False:\n            return False",
+      "rationale": "THE hosted regression, restored: a permitted address class does not make an endpoint usable. On a dual-stack host an AF_INET socket is handed the IPv6 answer and raises TypeError -- a crash where a decision belongs"
+    },
+    {
+      "name": "E57_the_first_permitted_candidate_wins_regardless_of_usability",
+      "path": "qta_agent/netauth.py",
+      "find": "    usable = [c for c in in_class if c.usable_by(sock)]",
+      "replace": "    usable = list(in_class)",
+      "rationale": "selects on class alone and calls the result usable, which is the same defect one layer up from E56 and survives any test that only ever resolves one family"
+    },
+    {
+      "name": "E58_the_socket_type_is_ignored",
+      "path": "qta_agent/netauth.py",
+      "find": "        if _base_socktype(sock.type) != _base_socktype(self.socktype):\n            return False",
+      "replace": "        if False:\n            return False",
+      "rationale": "a datagram socket accepts a stream endpoint's metadata; the guard would be mediating one protocol using another protocol's resolution"
+    },
+    {
+      "name": "E59_socket_type_flags_defeat_compatibility",
+      "path": "qta_agent/netauth.py",
+      "find": "    return int(value) & ~_TYPE_FLAGS",
+      "replace": "    return int(value)",
+      "rationale": "SOCK_NONBLOCK/SOCK_CLOEXEC describe HOW a socket behaves, not WHAT it is. Comparing a flagged type by equality refuses every non-blocking socket -- a fail-closed bug that looks like security and would be found only by a caller that uses one"
+    },
+    {
+      "name": "E60_an_implicit_protocol_stops_being_compatible",
+      "path": "qta_agent/netauth.py",
+      "find": "        return sock.proto == 0 or self.proto == 0 or sock.proto == self.proto",
+      "replace": "        return sock.proto == self.proto",
+      "rationale": "socket.socket(AF_INET, SOCK_STREAM).proto is 0 while getaddrinfo reports IPPROTO_TCP, so this refuses ordinary sockets. The mirror of E58: too strict rather than too loose, and equally wrong"
+    },
+    {
+      "name": "E61_resolution_ignores_the_sockets_type",
+      "path": "qta_agent/netauth.py",
+      "find": "    infos = socket.getaddrinfo(host, port, socket.AF_UNSPEC,\n                               _base_socktype(sock.type), sock.proto)",
+      "replace": "    infos = socket.getaddrinfo(host, port, socket.AF_UNSPEC,\n                               socket.SOCK_STREAM, socket.IPPROTO_TCP)",
+      "rationale": "resolves every socket as TCP. A UDP operation would then be governed by metadata describing a different protocol"
+    },
+    {
+      "name": "E62_connect_ex_skips_the_shared_decision_path",
+      "path": "qta_agent/netauth.py",
+      "find": "    def guarded_connect_ex(self, address):\n        return original_ex(self, _check(self, address))",
+      "replace": "    def guarded_connect_ex(self, address):\n        return original_ex(self, address)",
+      "rationale": "the two entry points differ only in how they report failure; they must not differ in what they permit"
     }
   ]
 }

@@ -1344,12 +1344,15 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
     original = socket.socket.connect
     original_ex = socket.socket.connect_ex
 
-    def _check(address):
-        """Return the address to actually connect to.
+    def _check(sock, address):
+        """Return the address ``sock`` should actually connect to.
 
         Usually the one handed in. In the unpinned-name case it is the
-        VERIFIED address this guard resolved and classified, so that the
-        connection goes where the check looked -- see below.
+        VERIFIED endpoint this guard resolved and classified -- so that the
+        connection goes where the check looked, and to something this
+        particular socket can use. It takes the socket because a permitted
+        address class does not make an endpoint usable: family, socket type
+        and protocol have to survive the resolution too.
         """
         host, port = _address_parts(address)
         if allowed is not None and allowed.allowed:
@@ -1487,17 +1490,18 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
                 # Host and SNI are set by the layer above from the URL it was
                 # given, not from what `connect` received, so substituting the
                 # verified address preserves them.
-                permitted, seen = _permitted_addresses(host, port,
-                                                       g.address_classes)
-                if not permitted:
+                candidate, refusal = _select_candidate(
+                    _resolve_candidates(host, port, sock),
+                    g.address_classes, sock)
+                if candidate is None:
                     raise GuardedConnection(
-                        f"connect to {host}:{port} resolves to {seen} and "
-                        f"grant {allowed.grant_id!r} permits "
-                        f"{list(g.address_classes)}; waiving address PINNING "
-                        "waives knowing WHICH permitted address a name "
-                        "resolves to, not whether it resolves inside the "
-                        "perimeter at all")
-                return _with_host(address, permitted[0])
+                        f"connect to {host}:{port} {refusal} "
+                        f"(grant {allowed.grant_id!r})")
+                # The sockaddr whole, not its first element spliced into the
+                # caller's tuple: for IPv6 it carries the flowinfo and scope
+                # id the resolver chose, and a link-local address without its
+                # scope is not an address.
+                return candidate.sockaddr
             return address
         req = NetworkRequest(
             actor=actor, task_id=task_id, tool_id=tool_id,
@@ -1512,11 +1516,15 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
                 f"{decision.reason}")
         return address
 
+    # ONE DECISION PATH, TWO ENTRY POINTS. `connect` and `connect_ex` differ
+    # only in how they report failure to their caller; they must not differ in
+    # what they permit. Both call the same `_check`, and a mutation attacks
+    # each separately so the two cannot drift apart silently.
     def guarded_connect(self, address):
-        return original(self, _check(address))
+        return original(self, _check(self, address))
 
     def guarded_connect_ex(self, address):
-        return original_ex(self, _check(address))
+        return original_ex(self, _check(self, address))
 
     socket.socket.connect = guarded_connect
     socket.socket.connect_ex = guarded_connect_ex
@@ -1544,48 +1552,127 @@ def _address_parts(address) -> tuple:
     return str(host), int(port)
 
 
-def _permitted_addresses(host: str, port: int, classes) -> tuple:
-    """Resolve ``host`` once and split the answers by permitted class.
+#: Socket-type bits that describe HOW a socket behaves rather than WHAT it is.
+#: ``socket.socket(...).type`` may carry them on Linux, and comparing a type
+#: carrying them against ``SOCK_STREAM`` by equality silently fails.
+_TYPE_FLAGS = (getattr(socket, "SOCK_NONBLOCK", 0)
+               | getattr(socket, "SOCK_CLOEXEC", 0))
 
-    Returns ``(permitted, seen)``: the addresses whose class this grant
-    allows, in resolution order, and a diagnostic list of every address with
-    its class, so a refusal can say what the name actually resolved to.
 
-    ONE RESOLUTION. The addresses returned here are what the caller connects
-    to; the name is never handed back to a second resolver, because a second
-    resolution is a second answer and the difference between them is the
-    rebinding window.
+def _base_socktype(value: int) -> int:
+    """The socket type with behaviour flags masked off."""
+    return int(value) & ~_TYPE_FLAGS
+
+
+@dataclass(frozen=True)
+class ResolvedCandidate:
+    """One endpoint a name resolved to, with everything needed to use it.
+
+    WHY THIS IS A RECORD AND NOT A ``sockaddr``. The first version of this
+    code kept only the sockaddr, having satisfied itself that the address
+    CLASS was permitted. A permitted class does not make an endpoint usable:
+    a hostname on a dual-stack host resolves to both an IPv6 and an IPv4
+    endpoint, and handing the IPv6 one to an ``AF_INET`` socket raises
+
+        TypeError: AF_INET address must be a pair (host, port)
+
+    which is not a governed refusal, it is a crash. The dimensions below are
+    exactly the ones the connection needs and the ones that were being
+    dropped one line after ``getaddrinfo`` returned them.
+    """
+
+    family: int
+    socktype: int
+    proto: int
+    sockaddr: tuple
+    address: str
+    address_class: str
+
+    def usable_by(self, sock) -> bool:
+        """Whether a socket can actually connect to this endpoint.
+
+        ``proto == 0`` on either side means "chosen implicitly", which is
+        compatible with whatever the other side names -- refusing that would
+        reject ordinary ``socket.socket(AF_INET, SOCK_STREAM)``, whose
+        ``proto`` is 0 while ``getaddrinfo`` reports ``IPPROTO_TCP``.
+        """
+        if sock.family != self.family:
+            return False
+        if _base_socktype(sock.type) != _base_socktype(self.socktype):
+            return False
+        return sock.proto == 0 or self.proto == 0 or sock.proto == self.proto
+
+    def describe(self) -> str:
+        fam = getattr(self.family, "name", self.family)
+        return f"{self.address} ({self.address_class}, {fam})"
+
+
+def _resolve_candidates(host: str, port: int, sock) -> tuple:
+    """Resolve ``host`` ONCE, as the endpoints this socket could use.
+
+    Resolution is parameterized by the socket's own type and protocol -- a
+    UDP socket must not be resolved as TCP and then told the answer describes
+    its operation -- but deliberately NOT by its family: asking for
+    ``AF_UNSPEC`` returns the incompatible answers too, so a refusal can say
+    "it resolved to ``::1`` and this socket is AF_INET" instead of failing
+    with a bare ``gaierror``.
 
     A resolution failure is left to propagate as ``socket.gaierror``, exactly
-    as it would have without this guard. A name that does not resolve is not
-    a policy decision.
+    as it would without this guard. A name that does not resolve is not a
+    policy decision.
     """
-    infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
-    permitted, seen = [], []
-    for family, _type, _proto, _canon, sockaddr in infos:
+    infos = socket.getaddrinfo(host, port, socket.AF_UNSPEC,
+                               _base_socktype(sock.type), sock.proto)
+    out = []
+    for family, socktype, proto, _canon, sockaddr in infos:
         if family not in (socket.AF_INET, socket.AF_INET6):
             continue                              # pragma: no cover
-        addr = sockaddr[0]
         try:
-            cls = classify_address(addr)
+            cls = classify_address(sockaddr[0])
         except ValueError:                        # pragma: no cover - from OS
             continue
-        seen.append(f"{addr} ({cls.value})")
-        if cls.value in classes:
-            permitted.append(sockaddr)
-    return tuple(permitted), seen
+        out.append(ResolvedCandidate(family=family, socktype=socktype,
+                                     proto=proto, sockaddr=sockaddr,
+                                     address=sockaddr[0],
+                                     address_class=cls.value))
+    return tuple(out)
 
 
-def _with_host(address, sockaddr):
-    """The original connect target, with the verified address substituted.
+def _select_candidate(candidates, classes, sock):
+    """The endpoint to connect to, or ``None`` with the reason it is not one.
 
-    The resolved ``sockaddr`` already carries the port, and for IPv6 the
-    flowinfo and scope id the OS chose -- which is why it is used whole
-    rather than having its first element spliced into the caller's tuple.
+    Returns ``(candidate, refusal)``; exactly one is set.
+
+    WHEN A NAME RESOLVES TO BOTH PERMITTED AND FORBIDDEN ANSWERS, a permitted
+    one may be selected. The connection goes to exactly one endpoint and that
+    endpoint is inside the grant, so the forbidden answer is never reached.
+    The stricter reading -- any forbidden answer poisons the resolution --
+    would make a dual-stack host unusable whenever one family maps somewhere
+    the grant does not permit, without protecting anything: the address that
+    would be connected to is checked either way. Chosen deliberately, and
+    ``test_a_mixed_resolution_selects_a_permitted_compatible_candidate``
+    is what says so.
     """
-    if not isinstance(address, tuple):            # pragma: no cover - AF_UNIX
-        return address
-    return sockaddr
+    if not candidates:                            # pragma: no cover - gaierror
+        return None, "the name resolved to no usable address"
+    in_class = [c for c in candidates if c.address_class in classes]
+    if not in_class:
+        return None, (
+            f"resolves to {[c.describe() for c in candidates]} and the grant "
+            f"permits {sorted(classes)}; waiving address PINNING waives "
+            "knowing WHICH permitted address a name resolves to, not whether "
+            "it resolves inside the perimeter at all")
+    usable = [c for c in in_class if c.usable_by(sock)]
+    if not usable:
+        fam = getattr(sock.family, "name", sock.family)
+        return None, (
+            f"resolves to {[c.describe() for c in in_class]}, which the grant "
+            f"permits, but none is usable by this {fam} "
+            f"type={_base_socktype(sock.type)} proto={sock.proto} socket. "
+            "A permitted address class does not make an endpoint usable, and "
+            "connecting to an incompatible one is a crash rather than a "
+            "decision")
+    return usable[0], ""
 
 
 def _maybe_ip(host: str) -> str | None:

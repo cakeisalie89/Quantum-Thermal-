@@ -1939,6 +1939,116 @@ connect somewhere the check did not look.
 the address-class question. They closed the port and the exact-decision
 binding. The class was enforced only where it was already known.
 
+---
+
+## D-2026-25 — a permitted address class does not make an endpoint usable
+
+**CLASS** — `IMPLEMENTATION_DEFECT`, `SEMANTIC_DIMENSION_LOSS`,
+`HOSTED_INTEGRATION_DEFECT`, `TEST_DEFECT / COVERAGE_GAP`.
+
+**AFFECTED COMMIT** — `de7f0e699439251d01a2c3988f3e4d4f89518712`.
+
+**DISCOVERED BY.** Hosted CI, on **both** interpreters: `agent-substrate`
+(3.12) and `second-interpreter` (3.13) failed the same new test,
+`test_an_unpinned_NAME_inside_a_permitted_class_still_connects`, with
+
+```
+TypeError: AF_INET address must be a pair (host, port)
+  qta_agent/netauth.py  guarded_connect() -> original(self, _check(address))
+```
+
+`full-suite` failed during the full pytest stage, so **package consistency
+never ran** — which is why the failure at that commit is *not* R59 and must not
+be described as it.
+
+**DEFECT.** D-2026-24's repair resolved a name under authority, classified the
+answers, and returned a `sockaddr`. It kept the address and dropped everything
+that came with it: **family, socket type and protocol**. On a dual-stack host
+`localhost` resolves to `::1` first, so an `AF_INET` socket was handed an IPv6
+sockaddr and CPython raised. Not a governed refusal — a crash.
+
+**WHY IT PASSED LOCALLY.** This container has no usable IPv6 and resolves
+`localhost` to IPv4 only. The local evidence was a property of the environment,
+not of the code. That is the same shape as the finding it was fixing: a check
+that appears to hold because the case it fails on never arose.
+
+**INVARIANT.** A network endpoint decision must conserve every dimension the
+connection needs. Permitted-by-authority and usable-by-this-socket are two
+different questions, and answering only the first is how a security check
+turns into a crash.
+
+**REPRODUCER.** Deterministic on any host, because the resolver is controlled:
+an `AF_INET` socket, a steered `getaddrinfo` returning `::1` before
+`127.0.0.1`. Reversing the order must give the same answer — resolver order
+must not decide policy.
+
+**IMPLEMENTATION FIX.** `ResolvedCandidate` keeps `family`, `socktype`,
+`proto`, `sockaddr`, `address` and `address_class` together.
+`_resolve_candidates` resolves **once**, parameterized by the socket's own type
+and protocol — a UDP socket must not be resolved as TCP and then told the
+answer describes its operation — but deliberately with `AF_UNSPEC`, so a
+refusal can say *"it resolved to `::1` and this socket is AF_INET"* instead of
+failing with a bare `gaierror`. `_select_candidate` filters by class, then by
+usability, and returns a **reason** rather than an unusable endpoint. `_check`
+now takes the socket, and both `connect` and `connect_ex` go through it.
+
+**TWO COMPATIBILITY SUBTLETIES, EACH ITS OWN TRAP.** `socket.type` may carry
+`SOCK_NONBLOCK`/`SOCK_CLOEXEC`, and comparing a flagged type against
+`SOCK_STREAM` by equality refuses every non-blocking socket — a fail-closed bug
+that looks like security. And `socket.socket(AF_INET, SOCK_STREAM).proto` is
+`0` while `getaddrinfo` reports `IPPROTO_TCP`, so requiring equality refuses
+ordinary sockets. Both are normalized deliberately and both have mutations
+(`E59`, `E60`) attacking the normalization from opposite directions.
+
+**THE ONE SEMANTICS CHOSEN RATHER THAN DISCOVERED.** When a name resolves to
+both permitted and forbidden answers, a permitted one is selected. The
+connection reaches exactly one endpoint and that endpoint is inside the grant.
+The stricter reading — any forbidden answer poisons the resolution — would make
+a dual-stack host unusable whenever one family maps somewhere the grant does
+not permit, while protecting nothing.
+`test_a_mixed_resolution_selects_a_permitted_compatible_candidate` is what says
+so.
+
+**ADVERSARIAL TESTS.** The matrix is deterministic on every host: the resolver
+is steered in each case rather than trusted. Both resolver orders and IPv4-only
+for an `AF_INET` socket; permitted-but-incompatible refused **as a decision**;
+both IPv6 cases (skipped loudly where the host has no IPv6, never deleted); the
+original class rule and its anti-vacuity twin; mixed classes; name, port and
+literal bindings surviving the new step; `connect` and `connect_ex` on both the
+refusal and the crash path; UDP governed and UDP permitted; the IPv6 sockaddr
+kept whole; and the substitution proved against a listener on `127.0.0.2`.
+
+**A KILL BY TypeError IS NOT A SEMANTIC KILL.** `E56` and `E57` first died only
+because CPython raised when the bad endpoint reached the socket. That proves
+the crash happens, not that anything decided. Both rules are now asserted
+directly — `test_an_incompatible_family_is_unusable_AS_A_DECISION` and
+`test_selection_refuses_when_only_incompatible_candidates_are_permitted` — with
+no socket call anywhere, and both mutants were confirmed by hand to fail those
+with a plain `AssertionError`.
+
+**MUTATIONS.** `E56` ignores family (the regression itself), `E57` selects on
+class alone, `E58` ignores socket type, `E59` lets type flags defeat
+compatibility, `E60` makes an implicit protocol incompatible, `E61` resolves
+every socket as TCP, `E62` lets `connect_ex` skip the shared decision path.
+Four earlier R11 mutations were retargeted onto the restructured code. 61/61.
+
+**TEST-HARNESS DEFECT FIXED WITH IT.** The listener helper started a daemon
+thread on `srv.accept()` and closed the socket underneath it, producing
+`PytestUnhandledThreadExceptionWarning` on the hosted runner. It is now a
+context manager that shuts down, closes, joins with a timeout and asserts the
+thread did not outlive its test. The suite is run with that warning as an
+error. A warning from a leaked thread is noise that hides real ones.
+
+**FORBIDDEN FAKE FIXES.** Special-casing `localhost`. Preferring IPv4
+unconditionally. Forcing resolver ordering. Catching `TypeError` and calling it
+fail-closed — a policy refusal is an intentional governed decision, not an
+accidental runtime type error.
+
+**INVALIDATED CLAIMS.** The local closure of P0-R11 at `de7f0e6`. The
+**security analysis** behind it stands: the PUBLIC→loopback defect was real and
+the repair direction was right. The repair exposed a second, cross-layer loss
+in the same code path. Both facts belong on the record.
+
 ### The gate's verdict, at `04f170d`
 
 All twenty-three are true at that commit, and every one of them is answered by
