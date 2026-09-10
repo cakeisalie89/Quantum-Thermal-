@@ -1675,6 +1675,159 @@ it stops being true, or it is not answered.
 | 22 | `automatic_gate_effect` remains NONE | Unchanged. |
 | 23 | PR #17 remains unmerged | Open, not merged, no merge requested. |
 
+---
+
+## D-2026-23 — two defect records described a repair no commit ever made
+
+**CLASS** — `DOCUMENTATION_OVERCLAIM`, `ANALYST_CONCLUSION_ERROR`,
+`PREMATURE_CLOSURE`.
+
+**DISCOVERED BY.** An external hostile review, after `5e761fc` declared P0
+complete. It read the live source instead of this ledger.
+
+**DEFECT.** `qta_agent/governed_stage10.py` — the production caller, the file
+a reader of this substrate opens first — claimed:
+
+> the tool runs inside a network guard with no egress grant, so a dependency
+> that phones home is refused rather than merely undeclared
+
+and
+
+> if the policy denies, if readiness fails, if the separation check refuses,
+> **or if the tool opens a socket**, the run does not complete
+
+The tool is executed as a **subprocess**. `socket_guard` replaces
+`socket.socket.connect` in the process that enters it, and a subprocess does
+not inherit a Python monkeypatch. Both sentences are false of the tool.
+
+**WHAT MAKES THIS RECORD DIFFERENT FROM D-2026-08 AND D-2026-15.** Those two
+already describe this defect. D-2026-15 is titled *"the production caller's
+docstring claimed containment it does not have"*. Neither of the commits
+carrying them modified `qta_agent/governed_stage10.py`. Not one line:
+
+```
+$ git show 4ece228 -- qta_agent/governed_stage10.py     # empty
+$ git show 104a6f1 -- qta_agent/governed_stage10.py     # empty
+$ git log --all -S "WHERE THE NETWORK GUARD REACHES" \
+      -- qta_agent/governed_stage10.py                  # empty: never existed
+```
+
+The session record for that tranche states the module docstring was "rewritten
+with WHERE THE NETWORK GUARD REACHES, AND WHERE IT STOPS". That heading has
+never existed in any commit in this repository. **A repair was recorded, and
+the repair was not made.**
+
+**ROOT CAUSE.** Two, and the second is the one worth keeping.
+
+1. The edit was lost. The mutation harness quarantines tracked files edited
+   while a matrix is running, and that happened twice in that sitting. An edit
+   to this file would have been reverted exactly like the two whose
+   restoration *was* noticed.
+2. **The repair was verified by re-reading the summary of the repair.** The
+   ledger was written from intent, and the ledger was then what got checked.
+   Nothing in the acceptance gate compared a prose claim against the file it
+   was made about, so the loss was invisible to every later review — including
+   two that were hunting this exact defect class.
+
+**AND THE FILE CORROBORATED ITSELF.** The comment at the enforcement point
+read: *"It binds this process, not the child -- said here because the
+difference matters **and the module says so too**."* The module said the
+opposite. A cross-reference to a sentence that does not exist is worse than no
+cross-reference, because it reads as a second source agreeing.
+
+**INVARIANT.** A documentation claim that a subprocess cannot reach the
+network requires enforcement that constrains that subprocess. Parent-process
+monkeypatching is not child-process containment. And a ledger entry claiming a
+repair is not evidence that the repair exists.
+
+**REPRODUCER.** The exact production configuration — guard entered in the
+supervisor, no egress grant, work launched as a subprocess:
+
+```
+PARENT: refused by guard -> connect to 127.0.0.1:9 was not authorized:
+                            no egress grant exists
+CHILD:  rc=0  stdout='CHILD CONNECTED 127.0.0.1 38029'
+```
+
+**IMPLEMENTATION FIX.** Option B — honest process-local mediation. No
+containment layer was invented to preserve the stronger prose, because none is
+available in this architecture. The docstring now separates IN-PROCESS
+MEDIATION (what the module has) from CHILD / DESCENDANT OS CONTAINMENT (what
+it does not), names the kernel primitives that would be required, and points
+at the test that measures the boundary. The enforcement comment now says what
+it actually cross-references, and records that it used to claim corroboration
+it did not have.
+
+**AFFECTED REPRESENTATIONS.** Swept: the `governed_stage10.py` docstring and
+enforcement comment (both false, both repaired); `completion_matrix.json` row
+R32 `evidence`, which said "a connection attempted during execution is
+refused" without saying *by whom* (repaired — its `boundaries` field was
+already correct); `netauth.py`, whose "kernel layer (NOT provided)" section
+was already honest and always had been; `docs/SESSION_REPORT.md`, already
+honest — that is where P0-5's real work landed; `AGENT_SUBSTRATE.md`, which
+names the guard in a feature table without claiming containment.
+
+**ADVERSARIAL TEST.** `test_the_parent_guard_does_not_bind_the_child` enters
+the production guard with no grant, proves the SUPERVISOR is refused, then
+launches a child from inside that same block and proves it connects. Both
+halves are load-bearing: without the first, the test would pass against a
+guard that was never installed.
+
+**THE GUARD AGAINST A THIRD RECURRENCE.** Prose is mechanically inspectable,
+so it gets a mechanical check.
+`test_no_project_text_reclaims_child_process_containment` sweeps every tracked
+`.py`/`.md`/`.json`/`.yml` for the three sentences that would be false of this
+substrate, exempting only this ledger (which must keep the historical claim)
+and the file that defines the list. It asserts it examined more than a hundred
+files first, because a sweep that walked nothing would report "nobody makes
+this claim" for free — and a paired test proves the patterns match the
+sentences they were written for.
+
+**MUTATIONS.** `W5` removes the supervisor guard entirely — it never bound the
+child, but it does bind the supervisor and its libraries, which is the half
+the module now claims. `W6` removes the sweep's nonempty-scope floor. `W7`
+removes the re-verification guard. 18/18, sources restored byte-identical.
+
+**BOTH OF MY FIRST TWO MUTATIONS SURVIVED, AND EACH TAUGHT SOMETHING.**
+
+`W6` — classification `EQUIVALENT_MUTATION`, as first written. The floor lived
+inline in the test that walked the tree, so nothing could hand it an empty
+scope and deleting it changed no observable outcome. The fix was not a cleverer
+test but a restructure: `sweep_claims` now takes its scope as an argument, so
+`test_the_claim_sweep_refuses_an_empty_scope` can give it the input it exists
+to refuse. **A guard that cannot be handed the input it rejects is not tested
+by anything**, however green the file is.
+
+`W5` — classification `MISSING_TEST`, then `DEFENCE-IN-DEPTH MASKING`. The
+first version of `test_the_supervisor_IS_bound_during_a_governed_run` passed
+against the mutant. A governed run enters the executor **twice** — once to
+execute, once to RE-EXECUTE under verification — and each call has its own
+`socket_guard`. The spy recorded into a single slot, so the second, still
+guarded call overwrote the first, and a run with its execution guard deleted
+looked identical to one without. The spy now keeps every entry and asserts all
+of them were refused, plus that there were at least two, so the test cannot
+pass by reaching only one block. `W7` exists because that investigation found
+a third guarded site that no mutation had ever attacked.
+
+**FORBIDDEN FAKE FIXES.** Adding a monkeypatch to the child's entry point and
+calling it containment: the tool is `python -m qta_agent._stage10_tool`, and
+anything it imports can undo that as easily as the supervisor can. Deleting
+the sentence without stating the boundary. Claiming rlimits restrict
+networking — they do not, and
+`test_a_bounded_child_is_NOT_prevented_from_using_the_network` already pins
+that.
+
+**SIBLING SWEEP.** Every claim in the repository of this shape — "X cannot
+reach the network", "the run does not complete if X" — is now covered by the
+mechanical sweep rather than by having looked.
+
+**INVALIDATED CLAIMS.** D-2026-08's and D-2026-15's status of *repaired*, for
+this file. Their analysis was right; their repair was never applied. Both stay
+in this ledger unedited, because a record that quietly becomes true later is
+not a record. And the P0 completion declared at `5e761fc`: the gate was
+satisfied at `04f170d` on the evidence then available, and this defect was
+open the whole time.
+
 ### The gate's verdict, at `04f170d`
 
 All twenty-three are true at that commit, and every one of them is answered by
@@ -1695,9 +1848,25 @@ in that script passes at this commit, including the three that matter most
 here — `can_PASS_now=NO for all 83 rows`, `PASS_count=0`, and `no PASS tokens
 in any 3D output`.
 
-So, plainly, and only now:
+So, at that commit, and on the evidence available then:
 
-**P0 is complete.**
+**`GATE_SATISFIED_AT_COMMIT: 04f170d`.**
+
+That sentence originally read "P0 is complete." It was wrong the moment it was
+written, and not because the gate was miscounted: D-2026-23 was open the whole
+time, in the production caller's own docstring. The three states this ledger
+now distinguishes are:
+
+| state | meaning |
+|---|---|
+| `GATE_SATISFIED_AT_COMMIT` | every gate condition was true at a named commit, on the evidence then available. Historical, and it stays true forever. |
+| `CURRENTLY_OPEN_FINDING` | a defect of the same class is known now. Reopens the tranche prospectively; does **not** retract the historical record. |
+| `CURRENTLY_CLOSED` | no open finding, and the gate has been re-run at the current head. |
+
+A previous green gate is evidence about a commit. It is not a claim about the
+present, and it must never become one by being left unqualified — which is
+precisely how "P0 complete" survived a defect that a `grep` of the live source
+would have found.
 
 The known examples were repaired in the first tranche and the sibling sweeps
 were incomplete; that was recorded as `PREMATURE_CLOSURE` in D-2026-10 rather
@@ -1709,6 +1878,12 @@ having done it.
 **This record is itself a documentation commit.** Its own hosted run is
 confirmed separately; the gate was satisfied at `04f170d`, which is named
 above rather than inherited.
+
+**STATUS, SET BY THE SECOND REOPENING:** `CURRENTLY_OPEN_FINDING`. An external
+hostile review reading the live source found D-2026-23 and further findings
+recorded above it. The chronology is the point and is left intact: gate
+satisfied → external review found a sibling defect → P0 reopened → repaired →
+gate re-run.
 
 ---
 

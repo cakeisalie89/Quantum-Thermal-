@@ -1538,3 +1538,221 @@ def test_an_honest_create_still_projects(gov):
                   if ev.action == "task.create"
                   and ev.payload.get("task_id") == run.task_id]
     assert created.actor == created.payload["submitter"] == SUBMITTER_ID
+
+
+# ===========================================================================
+# P0-R10 -- THE BOUNDARY THE PRODUCTION CALLER'S DOCSTRING USED TO DENY.
+#
+# The module docstring said, for the whole life of the file, that "the tool
+# runs inside a network guard with no egress grant, so a dependency that
+# phones home is refused" and that "if the tool opens a socket, the run does
+# not complete". The tool is a SUBPROCESS. socket_guard is a monkeypatch on
+# socket.socket.connect in the process that enters it, and a subprocess does
+# not inherit it.
+#
+# Two ledger records -- D-2026-08 and D-2026-15 -- described repairing that
+# prose. Neither commit modified this module. The claim was never edited, and
+# the comment at the enforcement point cross-referenced it as corroboration
+# ("the module says so too"), which is how the contradiction survived two
+# reviews that were specifically looking for it.
+#
+# So the boundary is measured here rather than asserted anywhere.
+# ===========================================================================
+
+def test_the_parent_guard_does_not_bind_the_child():
+    """The exact production configuration: guard entered, no egress grant.
+
+    Loopback only. The question is whether the child has the syscalls, not
+    whether this host has connectivity -- a probe needing a remote peer would
+    fail for reasons that say nothing about the claim.
+    """
+    import subprocess
+    import textwrap
+    from qta_agent.netauth import NetworkAuthority, NetworkError, socket_guard
+
+    net = NetworkAuthority()          # no grant issued -> default deny
+    prog = textwrap.dedent("""
+        import socket
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        cli = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        cli.connect(srv.getsockname())          # a real connect(), in the child
+        print("CHILD-CONNECTED")
+        cli.close(); srv.close()
+    """)
+
+    with socket_guard(net, actor="w", task_id="t-probe", tool_id="probe"):
+        # Half one: the supervisor IS bound. Without this the test would pass
+        # on a guard that was never installed.
+        with pytest.raises(NetworkError):
+            import socket
+            socket.socket(socket.AF_INET,
+                          socket.SOCK_STREAM).connect(("127.0.0.1", 9))
+
+        # Half two: the child, launched from inside that same block, is not.
+        proc = subprocess.run([sys.executable, "-c", prog],
+                              capture_output=True, text=True, timeout=60)
+
+    assert proc.returncode == 0 and "CHILD-CONNECTED" in proc.stdout, (
+        f"the child could not open a socket (rc={proc.returncode}, "
+        f"stderr={proc.stderr[:200]!r}). If that is now DELIBERATE -- a "
+        "network namespace, a seccomp filter, anything the kernel enforces -- "
+        "then the boundary stated in this module's docstring, in "
+        "qta_agent/netauth.py and in completion_matrix row R32 is out of date "
+        "and must be re-strengthened to say what is actually enforced")
+
+
+#: Sentences that would be FALSE of this substrate. Kept as data so the sweep
+#: below reads as a list of claims nobody may make, rather than as a regex
+#: somebody has to decode.
+FORBIDDEN_EGRESS_CLAIMS = (
+    "if the tool opens a socket, the run does",
+    "the tool runs inside a network guard with no egress grant",
+    "a dependency that phones home is refused rather than merely undeclared",
+)
+
+#: Text this sweep does not police, and why.
+_CLAIM_SWEEP_EXEMPT = {
+    # The ledger's job is to record what was once claimed. Redacting the
+    # false sentence there would destroy the evidence that it was made.
+    "docs/DEFECT_LEDGER.md": "records the historical claim on purpose",
+    # This file quotes the forbidden strings in order to forbid them.
+    "tests/test_agent_governed_stage10.py": "defines the list",
+}
+
+
+#: The sweep needs to have swept. Below this, an empty finding says nothing.
+CLAIM_SWEEP_FLOOR = 100
+
+
+def sweep_claims(named_bodies):
+    """Offending ``path: claim`` strings, over an explicitly nonempty scope.
+
+    Split out from its caller so the floor is REACHABLE: with the walk inlined
+    there was no way to hand this rule an empty scope, so the mutation that
+    deleted the floor survived -- correctly, since nothing could tell the
+    difference. A guard that cannot be given the input it exists to refuse is
+    not tested by anything.
+    """
+    scanned = 0
+    found = []
+    for rel, body in named_bodies:
+        scanned += 1
+        for claim in FORBIDDEN_EGRESS_CLAIMS:
+            if claim in body:
+                found.append(f"{rel}: {claim!r}")
+    if scanned <= CLAIM_SWEEP_FLOOR:
+        raise AssertionError(
+            f"the claim sweep examined {scanned} file(s), at or below its "
+            f"floor of {CLAIM_SWEEP_FLOOR}. A `git ls-files` that returned "
+            "nothing, a wrong cwd, or a pathspec that stopped matching would "
+            "all report 'nobody makes this claim' having read almost nothing")
+    return found
+
+
+def _tracked_text():
+    """Every tracked text file this sweep polices, as (path, body)."""
+    import subprocess
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z", "*.py", "*.md", "*.json", "*.yml", "*.yaml"],
+        cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+    assert tracked.returncode == 0, tracked.stderr
+    for rel in filter(None, tracked.stdout.split("\0")):
+        if rel in _CLAIM_SWEEP_EXEMPT:
+            continue
+        try:
+            yield rel, (ROOT / rel).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):        # pragma: no cover
+            continue
+
+
+def test_the_claim_sweep_refuses_an_empty_scope():
+    """The floor, given the input it exists to refuse."""
+    with pytest.raises(AssertionError, match="at or below its floor"):
+        sweep_claims([])
+    with pytest.raises(AssertionError, match="at or below its floor"):
+        sweep_claims([(f"f{i}.md", "harmless") for i in range(50)])
+
+
+def test_the_claim_sweep_finds_a_planted_claim():
+    """Detection, over a scope large enough to clear the floor.
+
+    Proves a green result above means "nobody makes this claim" rather than
+    "the patterns match nothing at all".
+    """
+    scope = [(f"filler{i}.md", "harmless prose")
+             for i in range(CLAIM_SWEEP_FLOOR + 1)]
+    for claim in FORBIDDEN_EGRESS_CLAIMS:
+        planted = scope + [("planted.md", f"before. {claim} after.")]
+        found = sweep_claims(planted)
+        assert found == [f"planted.md: {claim!r}"], (claim, found)
+
+
+def test_no_project_text_reclaims_child_process_containment():
+    """A claim/behaviour guard, so this cannot regress quietly a third time.
+
+    The first two repairs of this defect were prose edits with nothing
+    standing behind them, and both were recorded as complete. A sentence is
+    mechanically inspectable, so it gets a mechanical check.
+    """
+    found = sweep_claims(_tracked_text())
+    assert not found, (
+        "these say the tool's own process cannot reach the network, and "
+        "test_the_parent_guard_does_not_bind_the_child measures that it "
+        "can:\n  " + "\n  ".join(found))
+
+
+
+
+def test_the_supervisor_IS_bound_during_a_governed_run(gov):
+    """The half of the claim that IS true, measured rather than assumed.
+
+    A mutation removing ``socket_guard`` from the production path survived
+    the whole suite: every test drives the run from outside, and nothing
+    inside it ever tried to open a socket, so deleting the only network
+    mediation the governed run has changed nothing anybody could see.
+
+    The spy runs where a phoning-home dependency of the SUPERVISOR would --
+    inside the guarded block, in this interpreter, during execution.
+    """
+    import socket
+    from qta_agent.netauth import NetworkError
+
+    # EVERY call, not the last one. A governed run enters the executor twice
+    # -- once to execute and once to RE-EXECUTE under verification -- and each
+    # is wrapped in its own guard. Recording into a single slot let the second,
+    # still-guarded call overwrite the first, so removing the execution guard
+    # was invisible: the mutation survived against this very test until the
+    # spy started keeping all of them.
+    seen = []
+    real_run = gov.executor.run
+
+    def spy(**kw):
+        try:
+            socket.socket(socket.AF_INET,
+                          socket.SOCK_STREAM).connect(("127.0.0.1", 9))
+            seen.append(("ALLOWED", ""))
+        except NetworkError as exc:
+            seen.append(("REFUSED", str(exc)))
+        except OSError as exc:
+            seen.append((f"OSError: {type(exc).__name__}", str(exc)))
+        return real_run(**kw)
+
+    gov.executor.run = spy
+    try:
+        _run(gov)
+    finally:
+        gov.executor.run = real_run
+
+    assert len(seen) >= 2, (
+        f"the executor was entered {len(seen)} time(s); a governed run "
+        "executes and then re-executes under verification, so fewer than two "
+        "means this test no longer reaches both guarded blocks")
+    bad = [(i, r, w[:90]) for i, (r, w) in enumerate(seen) if r != "REFUSED"]
+    assert not bad, (
+        f"connections from the supervising process were not all refused: "
+        f"{bad}. No egress grant is issued for a governed run, so every one "
+        "of them should be. If a guard has been removed, the module "
+        "docstring's IN-PROCESS MEDIATION paragraph is now false")
+    assert all("no egress grant" in w for _r, w in seen), seen

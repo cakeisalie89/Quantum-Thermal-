@@ -623,7 +623,7 @@
       "production_caller": "qta_agent/governed_stage10.py",
       "persistent_state": "network.grant / network.request / network.result events; grants are projected from the verified log",
       "authority_owner": "NetworkAuthority.authorize (default deny) and socket_guard at the process layer",
-      "evidence": "each decision carries the deciding grant's content digest; the governed run executes inside a socket guard with no egress grant, and a connection attempted during execution is refused",
+      "evidence": "each decision carries the deciding grant's content digest; the governed run executes inside a socket guard with no egress grant, and a connection attempted BY THE SUPERVISING PROCESS during execution is refused. A connection attempted by the tool's own subprocess is NOT refused -- a subprocess does not inherit the monkeypatch -- and the boundary below is the one that governs that case",
       "provenance": "every attempt is recorded with actor, task, tool, capability and destination -- refusals included, payloads never",
       "failure_semantics": "fail-closed: no grant means no network; NetworkDenied deliberately does not subclass OSError so a retry loop cannot swallow a policy decision",
       "recovery": "grants reload from the log; a grant record whose content does not match its recorded digest refuses the load",

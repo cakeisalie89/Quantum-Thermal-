@@ -48,13 +48,41 @@ script does not count, an unused CLI does not count. So:
     parallel implementation that happens to agree;
   * the worker and the verifier are REGISTERED identities and the separation
     between them is checked by the directory, not by comparing two strings;
-  * the tool runs inside a network guard with no egress grant, so a
-    dependency that phones home is refused rather than merely undeclared;
+  * the run is mediated by a network guard installed in THIS process with no
+    egress grant, so a dependency that phones home FROM THE SUPERVISOR is
+    refused rather than merely undeclared -- a narrower statement than this
+    line used to make, for the reason set out below;
   * a context manifest records what was available to the run, by digest.
 
+WHERE THE NETWORK GUARD REACHES, AND WHERE IT STOPS
+
+The tool is executed as a SUBPROCESS. :func:`~qta_agent.netauth.socket_guard`
+replaces ``socket.socket.connect`` in the process that enters it, and a
+subprocess does not inherit a Python monkeypatch. So:
+
+  IN-PROCESS MEDIATION -- what this module has.
+      A connection attempted by this supervisor, or by any library it
+      imported, is checked against the live grants. No egress grant is
+      issued for a governed Stage-10 run, so every such connection is
+      refused.
+
+  CHILD / DESCENDANT OS CONTAINMENT -- what this module does NOT have.
+      The tool's own process, and anything it spawns, can open sockets
+      freely. Nothing here prevents that. Only a kernel-level boundary --
+      a network namespace, seccomp, a firewall -- can, and this module
+      neither creates one nor pretends to. See the "kernel layer (NOT
+      provided)" section of :mod:`qta_agent.netauth`, which has always said
+      so; for a long time this docstring did not, and the comment at the
+      enforcement point below cross-referenced a sentence that was not here.
+
+``test_the_parent_guard_does_not_bind_the_child`` proves the second half by
+entering this exact guard with no grant and then connecting from a child, so
+the boundary is a measured fact rather than a caveat somebody remembered.
+
 Every one of those is load-bearing: if the policy denies, if readiness fails,
-if the separation check refuses, or if the tool opens a socket, the run does
-not complete and the Snakemake rule fails the build.
+or if the separation check refuses, the run does not complete and the
+Snakemake rule fails the build. A socket opened by the TOOL is not on that
+list, because nothing in this module would notice it.
 
 WHAT IT STILL DOES NOT DO
 
@@ -876,10 +904,18 @@ class GovernedStage10:
         out_dir.mkdir(parents=True, exist_ok=True)
         argv = self._argv(tool_id, inputs)
         env = self._tool_environment()
-        # No egress grant was issued, so the guard denies every connection.
-        # This catches the case a declaration cannot: a DEPENDENCY of the tool
-        # reaching the network. It binds this process, not the child -- said
-        # here because the difference matters and the module says so too.
+        # No egress grant was issued, so the guard denies every connection
+        # ATTEMPTED IN THIS PROCESS. That catches the case a declaration
+        # cannot: a dependency of the SUPERVISOR reaching the network.
+        #
+        # It binds this process, not the child. The executor below starts a
+        # subprocess, and a subprocess does not inherit a Python monkeypatch,
+        # so the tool itself is not confined by this block. This comment used
+        # to end "and the module says so too"; the module said the opposite
+        # for the whole life of the file, and a cross-reference to a sentence
+        # that does not exist is worse than no cross-reference, because it
+        # reads as corroboration. The module docstring now states the
+        # boundary and a test measures it.
         with socket_guard(self.network, actor=worker, task_id=task_id,
                           tool_id=tool_id):
             result = self.executor.run(

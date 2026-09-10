@@ -3,7 +3,8 @@
   "note": "These guards were recovered from tests/test_agent_authority_boundaries.py in the PR #16 corpus, which proved current main had lost them: the Stage-10 writers overwrote README.md and wrote {\"status\": \"PASS\"} into results_gate_table.csv during an ordinary test run, and load_index accepted a rewritten index as authoritative. Each mutation below reopens one of those holes.",
   "suites": [
     "tests/test_agent_authority_boundaries.py",
-    "tests/test_stage10_stack.py"
+    "tests/test_stage10_stack.py",
+    "tests/test_agent_governed_stage10.py"
   ],
   "mutations": [
     {
@@ -110,6 +111,27 @@
       "find": "    if not isinstance(stored_digests, dict) or not all(",
       "replace": "    if False and not all(",
       "rationale": "a malformed digest map is fed into the rebuild path"
+    },
+    {
+      "name": "W5_the_supervisor_guard_is_not_entered",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        with socket_guard(self.network, actor=worker, task_id=task_id,\n                          tool_id=tool_id):",
+      "replace": "        if True:",
+      "rationale": "removes the only network mediation the governed run has. It never bound the tool's subprocess, but it does bind the SUPERVISOR and its libraries, which is the half the module actually claims"
+    },
+    {
+      "name": "W6_the_claim_sweep_examines_nothing",
+      "path": "tests/test_agent_governed_stage10.py",
+      "find": "    if scanned <= CLAIM_SWEEP_FLOOR:\n        raise AssertionError(",
+      "replace": "    if False:\n        raise AssertionError(",
+      "rationale": "the sweep's nonempty-scope floor. Now reachable: sweep_claims takes its scope as an argument, so a test can hand it an empty one. Inlined, nothing could give it the input it exists to refuse and the mutation survived for that reason"
+    },
+    {
+      "name": "W7_the_reverification_guard_is_not_entered",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            with socket_guard(self.network, actor=verifier, task_id=task_id,\n                              tool_id=tool_id):",
+      "replace": "            if True:",
+      "rationale": "the SECOND guarded block a governed run enters -- re-execution under verification. It is the one that masked W5: a spy keeping only the last executor entry recorded this call's refusal and reported the execution guard as present"
     }
   ]
 }
