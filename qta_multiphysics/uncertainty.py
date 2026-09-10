@@ -17,6 +17,7 @@ import dataclasses
 import numpy as np
 
 from .config import default_config
+from .numerics import SOLVER_OK, require_converged
 from .thermal_1d import solve_thermal_1d
 from .units import K_B
 
@@ -83,16 +84,33 @@ def run_monte_carlo(n_samples=120, seed=12345, mesh_check_fraction=0.1):
 
         try:
             rB = solve_thermal_1d(cfg, source_mode="averaged", n_cells=80, n_eval=25)
-            if rB.solver_status != "ok" or not rB.final_profile().is_finite():
+            if rB.solver_status != SOLVER_OK or not rB.final_profile().is_finite():
                 pde_fail += 1
                 continue
-            peak_NV.append(rB.nv_layer_temperature_K())
-            max_T.append(rB.hotspot_temperature_K())
+            # HELD, NOT PUBLISHED YET. A sample enters the distributions
+            # only once every solve it needs has succeeded. Appending Mode B
+            # here, before Mode C had even been attempted, left a sample
+            # counted in pde_stability_failure_count AND present in the
+            # Mode-B statistics -- so n_evaluated (len(peak_NV)) counted it
+            # too, and n_evaluated + pde_fail could exceed n_samples.
+            peak_B = rB.nv_layer_temperature_K()
+            max_B = rB.hotspot_temperature_K()
             # recool: source off
             cfg_off = dataclasses.replace(cfg, laser=dataclasses.replace(laser, absorbed_fraction=0.0))
-            rC = solve_thermal_1d(cfg_off, source_mode="averaged", n_cells=80, n_eval=40,
-                                  T_init=rB.T[:, -1], t_end=base.solver.recovery_window_s)
+            # The recovery solve decides recool time AND the readiness
+            # flag below. A failed one returns a SHORTER trajectory, so
+            # it reports a faster recool and a final temperature that
+            # never finished cooling -- both in the direction of "ready".
+            # Mode B was checked and this was not.
+            rC = require_converged(
+                solve_thermal_1d(cfg_off, source_mode="averaged",
+                                 n_cells=80, n_eval=40,
+                                 T_init=rB.T[:, -1],
+                                 t_end=base.solver.recovery_window_s),
+                "uncertainty: Mode-C recovery solve")
             rc_t = rC.recool_time_s(th)
+            peak_NV.append(peak_B)
+            max_T.append(max_B)
             recool.append(rc_t)
         except Exception:
             pde_fail += 1
@@ -131,8 +149,14 @@ def run_monte_carlo(n_samples=120, seed=12345, mesh_check_fraction=0.1):
         if rng.random() < mesh_check_fraction:
             n_mesh_checked += 1
             try:
-                a = solve_thermal_1d(cfg, source_mode="averaged", n_cells=100, n_eval=12).nv_layer_temperature_K()
-                b = solve_thermal_1d(cfg, source_mode="averaged", n_cells=200, n_eval=12).nv_layer_temperature_K()
+                a = require_converged(
+                    solve_thermal_1d(cfg, source_mode="averaged",
+                                     n_cells=100, n_eval=12),
+                    "uncertainty: mesh check n=100").nv_layer_temperature_K()
+                b = require_converged(
+                    solve_thermal_1d(cfg, source_mode="averaged",
+                                     n_cells=200, n_eval=12),
+                    "uncertainty: mesh check n=200").nv_layer_temperature_K()
                 if abs(b - a) / max(abs(b), 1e-12) > 0.20:
                     mesh_fail += 1
             except Exception:

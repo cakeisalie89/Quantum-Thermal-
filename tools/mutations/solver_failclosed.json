@@ -67,6 +67,118 @@
       "find": "            \"integrated_to_s\": float(tt[-1]) if tt.size else 0.0,",
       "replace": "            \"integrated_to_s\": float(t_end),",
       "rationale": "the diagnostic claims the integration reached the requested end, which is the one fact a reader needs to see it did not -- and makes the anti-vacuity assertion in the test vacuous"
+    },
+    {
+      "name": "SC10_the_convergence_report_measures_against_a_non_answer",
+      "path": "qta_multiphysics/convergence_3d.py",
+      "find": "    base = require_converged(solve_thermal_3d(cfg, ci, n_eval=13),\n                             \"convergence_report: CI-mesh solve\")",
+      "replace": "    base = solve_thermal_3d(cfg, ci, n_eval=13)",
+      "rationale": "the baseline every other number in the report is measured against; a truncated one is sampled earlier and reads cooler, so both the mesh and the time verdict become statements about when the solver stopped"
+    },
+    {
+      "name": "SC11_the_refined_mesh_solve_is_not_checked",
+      "path": "qta_multiphysics/convergence_3d.py",
+      "find": "    ref = require_converged(solve_thermal_3d(cfg, refined, n_eval=13),\n                            \"convergence_report: refined-mesh solve\")",
+      "replace": "    ref = solve_thermal_3d(cfg, refined, n_eval=13)",
+      "rationale": "the refined solve IS the mesh check; the finer mesh is the likelier one to stiffen, and a failure there produces a probe difference that certifies mesh convergence from a shorter integration"
+    },
+    {
+      "name": "SC12_the_tightened_integration_solve_is_not_checked",
+      "path": "qta_multiphysics/convergence_3d.py",
+      "find": "        tight = require_converged(\n            solve_thermal_3d(cfg, ci, n_eval=13,\n                             max_step_divisor=MAX_STEP_DIVISOR_TIGHT),\n            \"convergence_report: tightened-integration solve\")",
+      "replace": "        tight = solve_thermal_3d(cfg, ci, n_eval=13,\n                                 max_step_divisor=MAX_STEP_DIVISOR_TIGHT)",
+      "rationale": "the time-convergence verdict; tightening rtol by 10x and halving max_step is exactly what makes this the solve most likely to fail, and its failure would be reported as time convergence"
+    },
+    {
+      "name": "SC13_a_sensitivity_is_reported_from_a_failed_solve",
+      "path": "qta_multiphysics/sensitivity_3d.py",
+      "find": "    r = require_converged(solve_thermal_3d(cfg, CI, n_eval=9),\n                          \"sensitivity_3d: probe-rise solve\")",
+      "replace": "    r = solve_thermal_3d(cfg, CI, n_eval=9)",
+      "rationale": "every perturbation goes through _rise; a perturbed configuration is the one that stiffens, and its truncated probe reads cooler, so an unguarded failure flips the SIGN of the published sensitivity rather than adding noise"
+    },
+    {
+      "name": "SC14_the_mdao_screening_response_is_not_checked",
+      "path": "qta_multiphysics/stack/mdao_openmdao.py",
+      "find": "    r = require_converged(\n        solve_thermal_3d(c, SCREENING_MESH, n_eval=SCREENING_N_EVAL),\n        \"mdao screening response\")",
+      "replace": "    r = solve_thermal_3d(c, SCREENING_MESH, n_eval=SCREENING_N_EVAL)",
+      "rationale": "the function the OpenMDAO component and the tests share, evaluated at design points chosen to be extreme; a failure there enters an optimisation as a real objective value"
+    },
+    {
+      "name": "SC15_the_salib_screening_response_is_not_checked",
+      "path": "qta_multiphysics/stack/sensitivity_salib.py",
+      "find": "    r = require_converged(\n        solve_thermal_3d(cfg, SCREENING_MESH, n_eval=SCREENING_N_EVAL),\n        \"salib screening response\")",
+      "replace": "    r = solve_thermal_3d(cfg, SCREENING_MESH, n_eval=SCREENING_N_EVAL)",
+      "rationale": "Sobol sampling deliberately visits the corners of the parameter box; the samples that fail are the ones the index is most sensitive to"
+    },
+    {
+      "name": "SC16_the_heavy_pass_writes_from_a_failed_solve",
+      "path": "qta_multiphysics/runner_3d.py",
+      "find": "    rh = require_converged(solve_thermal_3d(cfg, mesh, n_eval=13),\n                           \"runner_3d: heavy opt-in pass\")",
+      "replace": "    rh = solve_thermal_3d(cfg, mesh, n_eval=13)",
+      "rationale": "the only 3D consumer in the package that solves directly instead of through the mode sequence; it writes a probe timeseries, a hotspot table and an energy accounting from whatever comes back"
+    },
+    {
+      "name": "SC17_the_1d_mesh_convergence_verdict_ignores_the_status_it_prints",
+      "path": "qta_multiphysics/verification.py",
+      "find": "        r = require_converged(\n            solve_thermal_1d(cfg, source_mode=\"averaged\", n_cells=n,\n                             n_eval=30),\n            f\"mesh_convergence_1d: n={n}\")",
+      "replace": "        r = solve_thermal_1d(cfg, source_mode=\"averaged\", n_cells=n,\n                             n_eval=30)",
+      "rationale": "this function records solver_status in a row beside the metric and computes thermal_1d_converged from the same result regardless -- verbatim the shape require_converged's own docstring says it was written to remove"
+    },
+    {
+      "name": "SC18_the_2d_mesh_convergence_verdict_is_not_checked",
+      "path": "qta_multiphysics/verification.py",
+      "find": "        r = require_converged(\n            solve_thermal_2d(cfg, source_mode=\"averaged\", n_r=nr, n_z=nz,\n                             n_eval=12),\n            f\"mesh_convergence_2d: {tag}\")",
+      "replace": "        r = solve_thermal_2d(cfg, source_mode=\"averaged\", n_r=nr, n_z=nz,\n                             n_eval=12)",
+      "rationale": "same shape as SC17 in the 2D layer, and the finest mesh is both the one the verdict is measured on and the one likeliest to fail"
+    },
+    {
+      "name": "SC19_the_axis_symmetry_check_is_not_checked",
+      "path": "qta_multiphysics/verification.py",
+      "find": "    r = require_converged(\n        solve_thermal_2d(cfg, source_mode=\"averaged\", n_r=32, n_z=40,\n                         n_eval=10),\n        \"axis_symmetry_2d\")",
+      "replace": "    r = solve_thermal_2d(cfg, source_mode=\"averaged\", n_r=32, n_z=40,\n                         n_eval=10)",
+      "rationale": "a truncated field has a SMALLER axis gradient because it has had less time to develop one, so a failed solve is more likely to certify axis symmetry than a converged one"
+    },
+    {
+      "name": "SC20_the_reduction_comparison_accepts_a_failed_1d_side",
+      "path": "qta_multiphysics/verification.py",
+      "find": "    r1 = require_converged(\n        solve_thermal_1d(cfg, source_mode=\"averaged\",\n                         n_cells=cfg.solver.n_z_2d, n_eval=20),\n        \"reduction_2d_to_1d: 1D solve\")",
+      "replace": "    r1 = solve_thermal_1d(cfg, source_mode=\"averaged\",\n                          n_cells=cfg.solver.n_z_2d, n_eval=20)",
+      "rationale": "the check is a COMPARISON, so a non-answer on either side is enough; two solves that both stopped early agree with each other"
+    },
+    {
+      "name": "SC21_the_reduction_comparison_accepts_a_failed_2d_side",
+      "path": "qta_multiphysics/verification.py",
+      "find": "    r2 = require_converged(\n        solve_thermal_2d(cfg, source_mode=\"averaged\", n_r=24,\n                         n_z=cfg.solver.n_z_2d, n_eval=12,\n                         disable_radial=True),\n        \"reduction_2d_to_1d: 2D radial-disabled solve\")",
+      "replace": "    r2 = solve_thermal_2d(cfg, source_mode=\"averaged\", n_r=24,\n                          n_z=cfg.solver.n_z_2d, n_eval=12,\n                          disable_radial=True)",
+      "rationale": "the other side of the same comparison; killed only by a test that injects on the 2D side rather than assuming one guard stands for both"
+    },
+    {
+      "name": "SC22_a_coupling_is_confirmed_by_a_failed_solve",
+      "path": "qta_multiphysics/verification.py",
+      "find": "    rT = require_converged(\n        solve_thermal_1d(cfg, source_mode=\"averaged\", n_cells=80,\n                         n_eval=20),\n        \"coupling_checks: optical-feeds-thermal solve\")",
+      "replace": "    rT = solve_thermal_1d(cfg, source_mode=\"averaged\", n_cells=80,\n                          n_eval=20)",
+      "rationale": "the documented optical-to-thermal coupling is confirmed by a hotspot above base temperature, and a diverging solve produces a very large hotspot; the check most likely to be confirmed by failure"
+    },
+    {
+      "name": "SC23_the_uq_recovery_solve_is_not_checked",
+      "path": "qta_multiphysics/uncertainty.py",
+      "find": "            rC = require_converged(\n                solve_thermal_1d(cfg_off, source_mode=\"averaged\",\n                                 n_cells=80, n_eval=40,\n                                 T_init=rB.T[:, -1],\n                                 t_end=base.solver.recovery_window_s),\n                \"uncertainty: Mode-C recovery solve\")",
+      "replace": "            rC = solve_thermal_1d(cfg_off, source_mode=\"averaged\",\n                                  n_cells=80, n_eval=40,\n                                  T_init=rB.T[:, -1],\n                                  t_end=base.solver.recovery_window_s)",
+      "rationale": "Mode B is checked in this loop and the recovery solve was not; a truncated recovery reports a faster recool time AND a final temperature that never finished cooling, both in the direction of the readiness flag it feeds"
+    },
+    {
+      "name": "SC24_the_uq_mesh_check_accepts_two_truncated_answers",
+      "path": "qta_multiphysics/uncertainty.py",
+      "find": "                a = require_converged(\n                    solve_thermal_1d(cfg, source_mode=\"averaged\",\n                                     n_cells=100, n_eval=12),\n                    \"uncertainty: mesh check n=100\").nv_layer_temperature_K()",
+      "replace": "                a = solve_thermal_1d(cfg, source_mode=\"averaged\",\n                                     n_cells=100, n_eval=12).nv_layer_temperature_K()",
+      "rationale": "the ensemble's own mesh criterion; two solves that stopped at the same early time agree to well within 20% and are counted as a passing mesh check"
+    },
+    {
+      "name": "SC25_a_failed_sample_still_enters_the_mode_b_statistics",
+      "path": "qta_multiphysics/uncertainty.py",
+      "find": "            peak_B = rB.nv_layer_temperature_K()\n            max_B = rB.hotspot_temperature_K()\n            # recool: source off\n            cfg_off = dataclasses.replace(cfg, laser=dataclasses.replace(laser, absorbed_fraction=0.0))\n            # The recovery solve decides recool time AND the readiness\n            # flag below. A failed one returns a SHORTER trajectory, so\n            # it reports a faster recool and a final temperature that\n            # never finished cooling -- both in the direction of \"ready\".\n            # Mode B was checked and this was not.\n            rC = require_converged(\n                solve_thermal_1d(cfg_off, source_mode=\"averaged\",\n                                 n_cells=80, n_eval=40,\n                                 T_init=rB.T[:, -1],\n                                 t_end=base.solver.recovery_window_s),\n                \"uncertainty: Mode-C recovery solve\")\n            rc_t = rC.recool_time_s(th)\n            peak_NV.append(peak_B)\n            max_T.append(max_B)\n            recool.append(rc_t)",
+      "replace": "            peak_NV.append(rB.nv_layer_temperature_K())\n            max_T.append(rB.hotspot_temperature_K())\n            # recool: source off\n            cfg_off = dataclasses.replace(cfg, laser=dataclasses.replace(laser, absorbed_fraction=0.0))\n            rC = require_converged(\n                solve_thermal_1d(cfg_off, source_mode=\"averaged\",\n                                 n_cells=80, n_eval=40,\n                                 T_init=rB.T[:, -1],\n                                 t_end=base.solver.recovery_window_s),\n                \"uncertainty: Mode-C recovery solve\")\n            rc_t = rC.recool_time_s(th)\n            recool.append(rc_t)",
+      "rationale": "the ordering exactly as found: the Mode-B half of a sample is published before the Mode-C solve is even attempted, so a sample refused by the recovery guard is counted in pde_stability_failure_count AND present in the Mode-B distributions, and n_evaluated + pde_fail can exceed n_samples"
     }
   ]
 }

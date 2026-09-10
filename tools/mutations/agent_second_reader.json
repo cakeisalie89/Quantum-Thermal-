@@ -1,6 +1,6 @@
 {
-  "title": "The second reader for the subsystems that had none",
-  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left.",
+  "title": "The second reader, for the subsystems it covers -- 28 of 37 durable actions",
+  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left. R29-R40 attack the escalation rules. Until they existed this reader had no escalation reconstruction at all, while the campaign was described as covering the second reader for EVERY subsystem -- two statements that could not both be true.",
   "suites": [
     "tests/test_agent_second_reader.py",
     "tests/test_agent_differential.py",
@@ -202,6 +202,90 @@
       "find": "        if cur.get(\"kind\") == \"HUMAN\" and not live_human:",
       "replace": "        if False:",
       "rationale": "this reader refuses an agent that ADMITS a human and would accept one that removes every human there is"
+    },
+    {
+      "name": "R29_the_reader_does_not_check_who_raised_it",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if esc.get(\"raised_by\") != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "an escalation is attributed to whoever asked it; without this an agent opens one in a person's name, which is false attribution and also stops that person answering, since the raiser may not"
+    },
+    {
+      "name": "R30_the_reader_accepts_an_escalation_born_answered",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if state != _ESC_OPEN:",
+      "replace": "    if False:",
+      "rationale": "a question born ANSWERED was never asked and carries a decision nobody is recorded as having made"
+    },
+    {
+      "name": "R31_the_reader_accepts_a_question_with_one_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if len(set(options)) < _ESC_MIN_OPTIONS:",
+      "replace": "    if False:",
+      "rationale": "an answer that cannot be checked against what was asked is a conversation, not a decision"
+    },
+    {
+      "name": "R32_the_reader_lets_an_escalation_be_raised_twice",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if eid in out.escalations:",
+      "replace": "    if False:",
+      "rationale": "the second record replaces a question somebody may already have answered"
+    },
+    {
+      "name": "R33_the_reader_lets_a_decided_escalation_be_decided_again",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"state\"] != _ESC_OPEN:",
+      "replace": "    if False:",
+      "rationale": "a recorded human decision is rewritten by a later record, and terminality is what makes an answer worth anything"
+    },
+    {
+      "name": "R34_the_reader_does_not_ask_who_signed_the_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if answered_by != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "every check after this one interrogates answered_by, so without it they all pass on a borrowed name and an agent signs a person's decision"
+    },
+    {
+      "name": "R35_the_reader_lets_a_non_human_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ident.get(\"kind\") != \"HUMAN\":",
+      "replace": "    if False:",
+      "rationale": "the strongest claim the directory makes -- no arrangement of roles substitutes for a person -- goes unchecked in the reader that exists to check it independently"
+    },
+    {
+      "name": "R36_the_reader_lets_the_asker_answer_their_own",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if answered_by == cur[\"raised_by\"]:",
+      "replace": "    if False:",
+      "rationale": "the party who could not decide decides, which is the whole of what an escalation is for"
+    },
+    {
+      "name": "R37_the_reader_accepts_an_answer_outside_the_options",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if p.get(\"answer\") not in cur[\"options\"]:",
+      "replace": "    if False:",
+      "rationale": "a free-text answer to a closed question cannot be checked against what was asked"
+    },
+    {
+      "name": "R38_the_reader_lets_anyone_withdraw",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if ev.actor != cur[\"raised_by\"]:",
+      "replace": "        if False:",
+      "rationale": "a third party retires a question somebody was waiting on, and a withdrawal claims no human decided anything so nothing else would notice"
+    },
+    {
+      "name": "R39_the_reader_lets_a_retired_human_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ident.get(\"retired_seq\") is not None:",
+      "replace": "    if False:",
+      "rationale": "a principal that has left the project is still the person a decision is attributed to"
+    },
+    {
+      "name": "R40_the_reader_accepts_a_state_that_is_neither",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if dst not in _ESC_TERMINAL:",
+      "replace": "    if False:",
+      "rationale": "an escalation is moved to a state that is neither answered nor withdrawn, and the terminality checks above then have nothing to bite on"
     }
   ]
 }

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "9b176ec86ee749a281f8a0eca50397fa9f2bb4bf602822c3c5027f4242c3f7be",
+  "entries_digest": "2dc10e70b61301b3672171e57050f82dbf8f4410dc6f7f014ced54761040b559",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -178,7 +178,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "60f01febdcd26b0709368493d7f4537414c121d2fe12acaf542208fe0a9672f2"
+      "sha256": "0fb292512d86739d13bba35956cb34d93088aa53f68267572ca958040cab0077"
     },
     {
       "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",

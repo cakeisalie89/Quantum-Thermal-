@@ -1,0 +1,543 @@
+{
+  "schema_version": 1,
+  "label": "identity-bearing fields of every durable qta_agent action",
+  "note": "Reviewed classification; mechanical facts around it are checked by tools/identity_inventory.py, which fails when a new action is unclassified, when an entry names an action that no longer exists, when an ACTOR field names no regression test or names one that does not exist, or when the recorded independent-reader coverage disagrees with what reconstruct.py dispatches on. That last check is the one that turns 'the second reader covers every subsystem' from a claim into a measurement.",
+  "roles": {
+    "ACTOR": "must derive from or equal ev.actor",
+    "SUBJECT": "who or what the action is about; may differ from the actor and must never be read as authority for who acted",
+    "RECIPIENT": "who the action is addressed to",
+    "DIAGNOSTIC_DUPLICATE": "a copy of a fact whose authority is elsewhere; must agree with its source and must not be read as authority",
+    "NONE": "carries no identity-bearing field"
+  },
+  "actions": [
+    {
+      "action": "agent.claim",
+      "module": "agents.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "by_instance",
+          "role": "ACTOR",
+          "write_path": "claim() binds actor=by_instance",
+          "replay": "ConflictError unless by_instance == ev.actor",
+          "regression_test": "test_replay_refuses_a_claim_attributed_to_someone_else",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        },
+        {
+          "name": "subject",
+          "role": "SUBJECT",
+          "note": "what the claim is ABOUT, not who made it"
+        }
+      ],
+      "note": "Claims are what conflict detection compares. No independent reader."
+    },
+    {
+      "action": "agent.escalation",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "escalation.raised_by",
+          "role": "ACTOR",
+          "write_path": "escalate() binds actor=raised_by",
+          "replay": "EscalationError unless raised_by == ev.actor",
+          "regression_test": "test_replay_refuses_an_escalation_raised_in_somebody_elses_name",
+          "note": "D-2026-11. The raiser may not answer, so a forged raiser also denies the named party the ability to answer"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "agent.escalation.answer",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "answered_by",
+          "role": "ACTOR",
+          "write_path": "answer() binds actor=answered_by",
+          "replay": "EscalationError unless answered_by == ev.actor, then HUMAN, active, and not the raiser",
+          "regression_test": "test_an_agent_cannot_sign_a_persons_answer",
+          "note": "D-2026-04. Every other check interrogates this field, so all of them passed on a borrowed name"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "agent.message",
+      "module": "agents.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "message.sender_instance",
+          "role": "ACTOR",
+          "write_path": "send() binds actor=sender_instance",
+          "replay": "MessageError unless sender_instance == ev.actor",
+          "regression_test": "test_replay_refuses_a_message_sent_in_somebody_elses_name",
+          "note": "D-2026-12"
+        },
+        {
+          "name": "message.recipient_agent",
+          "role": "RECIPIENT",
+          "note": "who it is addressed to; legitimately not the actor, and part of what message_id names"
+        }
+      ],
+      "note": "No independent reader. Messages reconstruct who told whom what."
+    },
+    {
+      "action": "agent.register",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "identity.registered_by",
+          "role": "ACTOR",
+          "write_path": "register() sets it from `by`",
+          "replay": "taken from ev.actor and refused if the record disagrees",
+          "regression_test": "test_a_registration_may_not_name_a_registrar_it_did_not_have",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        },
+        {
+          "name": "identity.instance_id",
+          "role": "SUBJECT",
+          "note": "the principal being admitted, never the registrar"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "agent.retire",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "instance_id",
+          "role": "SUBJECT",
+          "note": "the principal being removed. The RETIRER is ev.actor and _check_may_retire authorizes it (D-2026-05)"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "capability.issue",
+      "module": "capability.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "subject",
+          "role": "SUBJECT",
+          "note": "the grantee. The MINTER is ev.actor, authorized by _authorize_mint against the root or the parent's subject"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "capability.revoke",
+      "module": "capability.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "capability_id",
+          "role": "SUBJECT",
+          "note": "the grant withdrawn. The REVOKER is ev.actor, authorized against the issuer or the root (D-2026-05)"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "capability.root",
+      "module": "capability.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "issuer",
+          "role": "ACTOR",
+          "write_path": "anoint() binds actor=issuer",
+          "replay": "NotTheIssuer unless issuer == ev.actor",
+          "regression_test": "test_anointing_a_third_party_is_refused",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "context.build",
+      "module": "context.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a manifest of what was available, by digest"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "file.read",
+      "module": "readpath.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the READER is ev.actor; the payload names paths and digests"
+        }
+      ],
+      "note": "Audit record for a governed read. No independent reader."
+    },
+    {
+      "action": "idempotency.bind",
+      "module": "idempotency.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "owner",
+          "role": "ACTOR",
+          "write_path": "bind() appends as the owner",
+          "replay": "IdempotencyError unless owner == ev.actor",
+          "regression_test": "test_replay_takes_the_owner_from_the_event_not_the_payload",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "memory.status",
+      "module": "memory.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the actor is ev.actor; RETRACTED and SUPERSEDED require the entry's author (D-2026-05), STALE and INVALIDATED do not"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "memory.write",
+      "module": "memory.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "entry.author",
+          "role": "ACTOR",
+          "write_path": "remember() appends as the author",
+          "replay": "MemoryError_ unless author == ev.actor",
+          "regression_test": "test_a_memory_entry_naming_an_author_it_is_not_is_refused",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "network.grant",
+      "module": "netauth.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "grant.subject",
+          "role": "SUBJECT",
+          "note": "the grantee. The GRANTER is ev.actor, recorded and required on revocation (D-2026-05)"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "network.request",
+      "module": "netauth.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "request.actor",
+          "role": "SUBJECT",
+          "note": "the requester, checked against the grant's subject by _covers rather than trusted as the writer"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "network.result",
+      "module": "netauth.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "outcome and response digest"
+        }
+      ],
+      "note": "No independent reader."
+    },
+    {
+      "action": "network.service",
+      "module": "netauth.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a service contract, by digest"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "policy.decision",
+      "module": "policy.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "decision.subject",
+          "role": "SUBJECT",
+          "note": "who the decision was about; the DECIDER is the policy engine and the writer is ev.actor"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "policy.publish",
+      "module": "policy.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the document and its digest"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "record.create",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "proposer",
+          "role": "ACTOR",
+          "write_path": "propose() appends as the proposer",
+          "replay": "the store derives the proposer from ev.actor and refuses a record that names another",
+          "regression_test": "test_a_create_may_not_name_a_proposer_it_did_not_have",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "record.depend",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "an edge between two record ids"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "record.transition",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the ACTOR is ev.actor and the state machine authorizes it"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "scheduler.enqueue",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "job.submitter",
+          "role": "ACTOR",
+          "write_path": "enqueue() appends as the submitter",
+          "replay": "refused unless job.submitter == ev.actor",
+          "regression_test": "test_a_job_naming_a_submitter_it_is_not_is_refused",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "scheduler.lease_renew",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the RENEWER is ev.actor and must be the lease holder"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "scheduler.priority",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "priority and the role claimed for it"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "scheduler.transition",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "ownership is decided from ev.actor against the lease holder (D-2026-01); lease_holder in the payload may only be SET on the hand-out edge"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "secret.access",
+      "module": "secrets.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the RESOLVER is ev.actor; the payload names grant, secret, tool and purpose and no value"
+        }
+      ],
+      "note": "No independent reader."
+    },
+    {
+      "action": "secret.grant",
+      "module": "secrets.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "grant.subject",
+          "role": "SUBJECT",
+          "note": "the grantee. The GRANTER is ev.actor, recorded and required on revocation, and re-authorized on replay (D-2026-18)"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "secret.provision",
+      "module": "secrets.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a provider load; byte COUNT only, never the value"
+        }
+      ],
+      "note": "No independent reader."
+    },
+    {
+      "action": "task.compensation",
+      "module": "governed_stage10.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "answered_by",
+          "role": "DIAGNOSTIC_DUPLICATE",
+          "note": "a copy of the escalation's answerer, carried so an auditor need not join two tables. The authority is the escalation. Compared to it on replay, because a convenience nothing checks is a field a forged record sets freely -- and it names a PERSON as having authorized destroying something"
+        }
+      ],
+      "note": "No independent reader."
+    },
+    {
+      "action": "task.create",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "submitter",
+          "role": "ACTOR",
+          "write_path": "run() appends as the submitter",
+          "replay": "TaskTransitionError unless submitter == ev.actor",
+          "regression_test": "test_a_task_cannot_be_created_in_somebody_elses_name",
+          "note": "D-2026-04 sibling sweep"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "task.evidence",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "declared artifacts, by digest"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "task.execution",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the EXECUTOR is ev.actor; this record establishes it and task.transition may repeat but not change it"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "action": "task.reexecution",
+      "module": "governed_stage10.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a re-run comparison"
+        }
+      ],
+      "note": "No independent reader."
+    },
+    {
+      "action": "task.separate_verification",
+      "module": "governed_stage10.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the VERIFIER is ev.actor, separated from the executor"
+        }
+      ],
+      "note": "No independent reader."
+    },
+    {
+      "action": "task.transition",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "executed_by",
+          "role": "DIAGNOSTIC_DUPLICATE",
+          "note": "bound to REPLAYED STATE, not to the header: the executor comes from the execution record, and separation of duties is checked against it. bound to replayed state, which is stronger than the header"
+        }
+      ],
+      "note": ""
+    }
+  ]
+}

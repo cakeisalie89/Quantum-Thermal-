@@ -176,6 +176,42 @@ class SecretGrant:
         return ANY_PURPOSE in self.purposes or purpose in self.purposes
 
 
+def grant_from_record(rec: dict) -> SecretGrant:
+    """Rebuild a grant from a log payload, validating its shape.
+
+    This did not exist until the store gained a reducer, which is the
+    clearest evidence that nothing ever replayed these records: every other
+    authority object in this package has had one from the start.
+
+    Shape is validated rather than trusted. ``SecretGrant(**rec)`` looks like
+    it works and produces an object whose fields have JSON types -- a list
+    where a tuple belongs -- which then fails somewhere far from the record
+    that caused it.
+    """
+    if not isinstance(rec, dict):
+        raise SecretError(f"secret grant record is {type(rec).__name__}")
+    known = set(SecretGrant.__dataclass_fields__)
+    unknown = set(rec) - known
+    if unknown:
+        raise SecretError(
+            f"secret grant record carries unknown fields {sorted(unknown)}; "
+            "refusing to project a grant this version does not fully "
+            "understand")
+    missing = known - set(rec)
+    if missing:
+        raise SecretError(
+            f"secret grant record is missing {sorted(missing)}")
+    purposes = rec["purposes"]
+    if not isinstance(purposes, (list, tuple)):
+        raise SecretError(
+            f"secret grant purposes are {type(purposes).__name__}")
+    return grant(grant_id=rec["grant_id"], subject=rec["subject"],
+                 task_id=rec["task_id"], tool_id=rec["tool_id"],
+                 secret_id=rec["secret_id"], purposes=tuple(purposes),
+                 issued_seq=rec["issued_seq"],
+                 expires_after_seq=rec["expires_after_seq"])
+
+
 def grant(*, grant_id: str, subject: str, task_id: str, tool_id: str,
           secret_id: str, purposes, issued_seq: int = 0,
           expires_after_seq: int = NEVER_EXPIRES) -> SecretGrant:
@@ -637,6 +673,99 @@ class SecretStore:
         self._at_seq = 0
         self._accesses: list = []
 
+    # ---- projection ----------------------------------------------------
+    def load(self) -> "SecretStore":
+        """Rebuild grant AUTHORITY from the log. Values are not in the log.
+
+        WHY THIS EXISTS NOW, HAVING NOT EXISTED BEFORE
+
+        This store had no reducer. Its in-process dicts were the authority
+        and the log was an audit trail beside them, which contradicted the
+        architecture's own statement that the log is the truth and everything
+        else is derived from it. Two consequences, both observed:
+
+        * a fresh ``SecretStore(log)`` saw ZERO grants. Authority did not
+          survive a restart -- fail-closed for USE, and it meant the durable
+          record and the live state were unrelated objects;
+        * a forged revocation appended around :meth:`revoke` was re-read by
+          nothing in this module. The independent reconstruction noticed it,
+          which made a diagnostic reader the only enforcement.
+
+        WHAT IS AND IS NOT RECONSTRUCTED
+
+        Reconstructed: grant identifiers, subject, task, tool, secret id,
+        purposes, issuance position, expiry, revocation, and the granting
+        actor. All of it non-secret authority metadata.
+
+        NOT reconstructed, and never written: the secret VALUE, and no
+        digest of it either. A digest is an offline guessing oracle against
+        a low-entropy credential, so the durable record carries the grant's
+        own digest -- over ids and purposes -- and nothing derived from the
+        bytes. :meth:`register` stays process-local and deployment-supplied.
+
+        The consequence is deliberate and is tested: after a restart the
+        authority is known and the value is not, so :meth:`resolve` raises
+        :class:`UnknownSecret` rather than losing the grant. "I may not have
+        it" and "nobody ever granted it" are different answers.
+        """
+        if self.log is None:
+            return self
+        self.log.verify().raise_if_bad()
+        self._grants = {}
+        self._granted_by = {}
+        self._revoked = set()
+        for ev in self.log.read():
+            self.apply(ev)
+        return self
+
+    def apply(self, ev) -> bool:
+        """Fold one event in. True when it was a secret-grant event."""
+        if ev.action != ACT_SECRET_GRANT:
+            self._at_seq = max(self._at_seq, ev.seq)
+            return False
+        p = ev.payload
+        if p.get("revoke"):
+            gid = p.get("grant_id")
+            if gid not in self._grants:
+                raise SecretError(
+                    f"seq {ev.seq}: revocation names secret grant {gid!r}, "
+                    "which this log never issued")
+            granter = self._granted_by.get(gid)
+            if ev.actor != granter:
+                raise SecretError(
+                    f"seq {ev.seq}: {ev.actor!r} revokes secret grant "
+                    f"{gid!r}, granted by {granter!r}. A grant is withdrawn "
+                    "by whoever made it -- checked HERE now, and not only by "
+                    "the independent reader")
+            self._revoked.add(gid)
+            self._at_seq = ev.seq
+            return True
+        g = grant_from_record(p["grant"])
+        claimed = p.get("grant_digest")
+        if claimed != g.digest():
+            raise SecretError(
+                f"seq {ev.seq}: secret grant claims digest "
+                f"{str(claimed)[:12]} but hashes to {g.digest()[:12]}")
+        existing = self._grants.get(g.grant_id)
+        if existing is not None:
+            if existing.digest() != g.digest():
+                raise SecretError(
+                    f"seq {ev.seq}: secret grant {g.grant_id!r} is issued "
+                    "again with different terms; the grant in force would be "
+                    "replaced by one nobody reviewed")
+            self._at_seq = ev.seq
+            return True
+        if g.issued_seq != ev.seq:
+            # WHERE a grant starts is the log's to say. One appended at seq
+            # 90 claiming seq 5 reads as authority in force for 5..89.
+            raise SecretError(
+                f"seq {ev.seq}: secret grant {g.grant_id!r} claims "
+                f"issued_seq {g.issued_seq}; it would predate its own record")
+        self._grants[g.grant_id] = g
+        self._granted_by[g.grant_id] = ev.actor
+        self._at_seq = ev.seq
+        return True
+
     # ---- registration --------------------------------------------------
     def register(self, secret_id: str, value: str) -> SecretRef:
         """Register a value. Returns the REFERENCE; the value stays here."""
@@ -765,33 +894,36 @@ class SecretStore:
             raise UnknownSecret(
                 f"no secret {g.secret_id!r} is registered; a grant over "
                 "something that does not exist would look like authority")
-        if self.log is not None:
-            # Stamped from the log, like the capability and egress ledgers:
-            # where a grant begins is not the caller's to choose.
-            g = replace(g, issued_seq=self.log.verify().head_seq + 1)
-        self._grants[g.grant_id] = g
-        self._granted_by[g.grant_id] = actor
-        if self.log is not None:
-            # The grant BODY, which names ids and purposes and no value.
-            ev = self.log.append(
-                actor=actor, action=ACT_SECRET_GRANT, target=g.task_id,
-                payload={"grant": g.body(), "grant_digest": g.digest()})
-            self._at_seq = ev.seq
-        return g
+        if self.log is None:
+            # No log, no reducer to fold through: a local object, and
+            # revocation here is a local operation rather than an authority
+            # decision. Said in revoke() too.
+            self._grants[g.grant_id] = g
+            self._granted_by[g.grant_id] = actor
+            return g
+        # Stamped from the log, like the capability and egress ledgers:
+        # where a grant begins is not the caller's to choose.
+        g = replace(g, issued_seq=self.log.verify().head_seq + 1)
+        # The grant BODY, which names ids and purposes and no value.
+        ev = self.log.append(
+            actor=actor, action=ACT_SECRET_GRANT, target=g.task_id,
+            payload={"grant": g.body(), "grant_digest": g.digest()})
+        # FOLDED THROUGH THE REDUCER, not assigned beside it. The write path
+        # and the replay now reach the projection by the same route, so a
+        # rule added to one cannot be missing from the other -- which is the
+        # shape of most of what this ledger records.
+        self.apply(ev)
+        return self._grants[g.grant_id]
 
     def revoke(self, grant_id: str, *, actor: str, reason: str) -> None:
         """Withdraw a grant. Whoever made it may; nobody else.
 
-        WHERE THIS IS ENFORCED, AND WHERE IT IS NOT. Unlike the capability
-        ledger and the egress authority, this store has no reducer: it is
-        rebuilt by the process that owns it, and the log is an audit trail
-        rather than the source of truth. So this check runs on the write
-        path and there is no replay here for it to also run on. A record
-        appended around this method is not re-authorized by anything in
-        THIS module -- the independent reconstruction is what reads such a
-        record, and it applies the rule in its own words. Stated rather than
-        left implicit, because "checked on both paths" is true of the other
-        two ledgers and is not true here.
+        CHECKED ON BOTH PATHS, which it was not. This store used to have no
+        reducer -- its in-process dicts were the authority and the log sat
+        beside them as an audit trail -- so a revocation appended around this
+        method was re-read by nothing here, and the independent
+        reconstruction was the only thing that noticed. :meth:`apply` now
+        carries the same rule, so the record is re-authorized on every load.
         """
         if grant_id not in self._grants:
             raise SecretError(f"no secret grant {grant_id!r} to revoke")
@@ -801,13 +933,14 @@ class SecretStore:
                 f"{actor!r} may not revoke secret grant {grant_id!r}, "
                 f"granted by {granter!r}. A grant is withdrawn by whoever "
                 "made it.")
-        self._revoked.add(grant_id)
-        if self.log is not None:
-            ev = self.log.append(
-                actor=actor, action=ACT_SECRET_GRANT, target=grant_id,
-                payload={"grant_id": grant_id, "revoke": True,
-                         "reason": reason})
-            self._at_seq = ev.seq
+        if self.log is None:
+            self._revoked.add(grant_id)
+            return
+        ev = self.log.append(
+            actor=actor, action=ACT_SECRET_GRANT, target=grant_id,
+            payload={"grant_id": grant_id, "revoke": True,
+                     "reason": reason})
+        self.apply(ev)
 
     def set_position(self, at_seq: int) -> None:
         if not isinstance(at_seq, int) or isinstance(at_seq, bool):

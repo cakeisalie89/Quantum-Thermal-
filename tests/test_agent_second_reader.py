@@ -1,5 +1,12 @@
 """A second implementation for the subsystems that had none.
 
+HOW MUCH IT COVERS, MEASURED. 28 of the 37 durable actions are
+independently reconstructed. The nine that are not are named in
+docs/identity_inventory.json and the count is checked by
+tools/identity_inventory.py, so "the second reader covers every subsystem"
+cannot be said here again without the check failing first. Escalations were
+among the nine until this session.
+
 R42 and R53 said the same thing from two directions: the independent
 reconstruction rebuilt authority records and tasks, and the scheduler,
 policy, capability, agent, memory, network, secret and context projections
@@ -872,3 +879,259 @@ def test_the_second_reader_follows_a_principal_standing_itself_down(gov):
                    actor="bot")
     assert recon.anomalies == [], recon.anomalies
     assert recon.agents["bot"]["retired_seq"] is not None
+
+
+# --------------------------------------------------------------------------
+# Escalations, independently reconstructed.
+#
+# The mutation campaign was described as covering "the second reader for
+# every subsystem" while escalations had no independent reconstruction at
+# all. Those cannot both be true. The honest resolutions are to build the
+# reader or to weaken the claim; this is the reader.
+#
+# It shares no code with AgentDirectory. Every rule is restated from plain
+# dictionaries -- which is the whole value, because one implementation cannot
+# disagree with itself.
+# --------------------------------------------------------------------------
+
+from qta_agent.agents import (                                   # noqa: E402
+    ACT_ESCALATION, ACT_ESCALATION_ANSWER, AgentRole, BOOTSTRAP,
+    PrincipalKind, identity,
+)
+
+
+def _people(gov):
+    """One agent and two humans, through the real directory."""
+    d = gov.agents
+    d.register(identity(agent_id="A", instance_id="A",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.PROPOSER}), by="system")
+    for who in ("H", "H2"):
+        d.register(identity(agent_id=who, instance_id=who,
+                            kind=PrincipalKind.HUMAN,
+                            roles={AgentRole.REVIEWER}), by=BOOTSTRAP)
+    return d
+
+
+def _opened(gov, raised_by="A"):
+    d = _people(gov)
+    d.escalate(escalation_id="e1", task_id="t1", question="widen it?",
+               raised_by=raised_by, options=("yes", "no"))
+    return d
+
+
+def _answer(**over):
+    p = {"escalation_id": "e1", "state": "ANSWERED", "answer": "yes",
+         "answered_by": "H", "reason": "checked it"}
+    p.update(over)
+    return p
+
+
+def test_the_second_reader_follows_an_honest_escalation(gov):
+    """Anti-vacuity, first: a reader that flagged everything is useless."""
+    d = _opened(gov)
+    d.answer(escalation_id="e1", answered_by="H", answer="yes",
+             reason="checked and it holds")
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    e = recon.escalations["e1"]
+    assert (e["state"], e["raised_by"], e["answer"], e["answered_by"]) == (
+        "ANSWERED", "A", "yes", "H")
+
+
+def test_the_second_reader_follows_an_honest_withdrawal(gov):
+    d = _opened(gov)
+    d.withdraw(escalation_id="e1", by="A", reason="no longer needed")
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.escalations["e1"]["state"] == "WITHDRAWN"
+
+
+def test_the_second_reader_refuses_an_agent_signing_a_humans_answer(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION_ANSWER, _answer(), actor="A")
+    assert any("names 'H' as its answerer" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert recon.escalations["e1"]["state"] == "OPEN"
+
+
+def test_the_second_reader_refuses_an_agent_answering_as_itself(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   _answer(answered_by="A"), actor="A")
+    assert any("may not answer" in a for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_the_ASKER_answering_their_own(gov):
+    """Isolated on purpose.
+
+    When an agent raises it, the KIND check catches the asker first and this
+    rule is never reached. A HUMAN raiser reaches it.
+    """
+    _opened(gov, raised_by="H")
+    recon = _forge(gov, ACT_ESCALATION_ANSWER, _answer(), actor="H")
+    assert any("raised escalation 'e1' and may" in a
+               for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_a_retired_human_answering(gov):
+    d = _opened(gov)
+    d.retire("H", by=BOOTSTRAP, reason="left the project")
+    recon = _forge(gov, ACT_ESCALATION_ANSWER, _answer(), actor="H")
+    assert any("was retired after seq" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_an_answer_outside_the_options(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   _answer(answer="maybe"), actor="H")
+    assert any("is not one of" in a for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_a_third_party_withdrawal(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   {"escalation_id": "e1", "state": "WITHDRAWN",
+                    "reason": "not mine"}, actor="H")
+    assert any("withdraws it" in a for a in recon.anomalies), recon.anomalies
+    assert recon.escalations["e1"]["state"] == "OPEN"
+
+
+def test_the_second_reader_refuses_a_second_decision(gov):
+    d = _opened(gov)
+    d.answer(escalation_id="e1", answered_by="H", answer="yes", reason="r")
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   _answer(answer="no", answered_by="H2"), actor="H2")
+    assert any("deciding it again" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert recon.escalations["e1"]["answer"] == "yes"
+
+
+def test_the_second_reader_refuses_reopening_a_withdrawn_escalation(gov):
+    d = _opened(gov)
+    d.withdraw(escalation_id="e1", by="A", reason="done")
+    recon = _forge(gov, ACT_ESCALATION_ANSWER, _answer(), actor="H")
+    assert any("deciding it again" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_an_answer_to_an_unknown_escalation(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   _answer(escalation_id="e-nope"), actor="H")
+    assert any("never opened" in a for a in recon.anomalies), recon.anomalies
+
+
+@pytest.mark.parametrize("state", ["OPEN", "REOPENED", "", None])
+def test_the_second_reader_refuses_a_decision_state_that_is_neither(
+        gov, state):
+    """Answered or withdrawn. Anything else is not a decision at all.
+
+    Without this the record falls past the withdrawal branch into the answer
+    branch and is PROJECTED AS ANSWERED whatever it claimed to be -- so a
+    record saying OPEN becomes a recorded human decision.
+    """
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   _answer(state=state), actor="H")
+    assert any("neither answered nor withdrawn" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.escalations["e1"]["state"] == "OPEN"
+    assert recon.escalations["e1"]["answer"] is None
+
+
+def _raise(**over):
+    esc = {"escalation_id": "e2", "task_id": "t1", "question": "q?",
+           "raised_by": "A", "state": "OPEN", "options": ["yes", "no"]}
+    esc.update(over)
+    return {"escalation": esc}
+
+
+def test_the_second_reader_refuses_a_forged_raiser(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION, _raise(raised_by="H"), actor="A")
+    assert any("attributed to whoever asked it" in a
+               for a in recon.anomalies), recon.anomalies
+    assert "e2" not in recon.escalations
+
+
+def test_the_second_reader_refuses_a_duplicate_create(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION, _raise(escalation_id="e1"), actor="A")
+    assert any("raised twice" in a for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_an_escalation_born_answered(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION,
+                   _raise(state="ANSWERED", answer="yes", answered_by="H"),
+                   actor="A")
+    assert any("raising a question is not answering it" in a
+               for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_an_escalation_with_one_option(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION, _raise(options=["yes"]), actor="A")
+    assert any("distinct option(s)" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_an_escalation_that_asks_nothing(gov):
+    _opened(gov)
+    recon = _forge(gov, ACT_ESCALATION, _raise(question="   "), actor="A")
+    assert any("asks nothing" in a for a in recon.anomalies), recon.anomalies
+
+
+def test_a_HUMAN_registration_forgery_reaches_the_escalation_answer(gov):
+    """The two subsystems compose, and this reader sees both.
+
+    An agent that could register a HUMAN would be one step from answering its
+    own escalations. The register rule is checked here already; this asserts
+    the composition, so a bypass in one is not answered by silence in the
+    other.
+    """
+    _opened(gov)
+    gov.log.append(actor="A", action="agent.register", target="fake-human",
+                   payload={"identity": {"instance_id": "fake-human",
+                                         "agent_id": "fake-human",
+                                         "kind": "HUMAN",
+                                         "roles": ["REVIEWER"]}})
+    recon = _forge(gov, ACT_ESCALATION_ANSWER,
+                   _answer(answered_by="fake-human"), actor="fake-human")
+    assert any("is not HUMAN and registers" in a for a in recon.anomalies), \
+        recon.anomalies
+    # ...and the answer does not land, because the principal never existed.
+    assert recon.escalations["e1"]["state"] == "OPEN"
+
+
+def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
+    """A second reader that calls the first is the same decision run twice.
+
+    Checked over the parsed IMPORTS rather than over the text: a substring
+    search matches this module's own prose about the layers it deliberately
+    does not import, which is a check that fails for being right.
+    """
+    import ast
+    import qta_agent.reconstruct as R
+
+    tree = ast.parse(Path(R.__file__).read_text(encoding="utf-8"))
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.lstrip("."))
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imported.add(alias.name)
+
+    forbidden = {"agents", "scheduler", "policy", "capability", "memory",
+                 "netauth", "secrets", "context",
+                 "qta_agent.agents", "qta_agent.scheduler",
+                 "qta_agent.policy", "qta_agent.capability",
+                 "qta_agent.memory", "qta_agent.netauth",
+                 "qta_agent.secrets", "qta_agent.context"}
+    leaked = sorted(imported & forbidden)
+    assert not leaked, (
+        f"the second reader imports {leaked}; it would then agree with those "
+        "layers by construction, including where they are wrong")

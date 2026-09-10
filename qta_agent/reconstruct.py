@@ -453,6 +453,8 @@ class SubsystemReconstruction:
     contexts: dict = field(default_factory=dict)
     #: The one actor this log permits to mint grants, or None if none yet.
     root_issuer: "str | None" = None
+    #: escalation_id -> the question, its state and who decided it.
+    escalations: dict = field(default_factory=dict)
     #: service_id -> its contract as this reader rebuilt it.
     services: dict = field(default_factory=dict)
     #: "service_id/task_id" -> permitted calls counted from the log.
@@ -486,6 +488,17 @@ _JOB_OUTCOME = {"SUCCEEDED", "RETRY_WAIT", "FAILED"}
 #: directory's sentinel and this one ever drift apart, the divergence is the
 #: finding rather than something both readers agree about by construction.
 _BOOTSTRAP = "out-of-band-bootstrap"
+
+#: Where a question for a human can be. Spelled out rather than imported,
+#: like every other vocabulary in this module.
+_ESC_OPEN = "OPEN"
+_ESC_TERMINAL = {"ANSWERED", "WITHDRAWN"}
+
+#: The fewest options an escalation may offer. A question with one answer is
+#: a notification and should not block anything; a question with none cannot
+#: be answered at all. Restated: if the directory's bound and this one drift
+#: apart, the divergence is the finding.
+_ESC_MIN_OPTIONS = 2
 
 
 def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
@@ -523,6 +536,10 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_agent_register(ev, p, out)
         elif a == "agent.retire":
             _sub_agent_retire(ev, p, out)
+        elif a == "agent.escalation":
+            _sub_escalation(ev, p, out)
+        elif a == "agent.escalation.answer":
+            _sub_escalation_answer(ev, p, out)
         elif a == "memory.write":
             _sub_memory_write(ev, p, out)
         elif a == "memory.status":
@@ -1042,6 +1059,151 @@ def _sub_agent_retire(ev, p: dict, out) -> None:
         cur["retired_seq"] = ev.seq
 
 
+def _sub_escalation(ev, p: dict, out) -> None:
+    """Open a question for a human, in this reader's own words.
+
+    WHY THIS EXISTS. The mutation campaign was described as covering "the
+    second reader for every subsystem" while escalations had no independent
+    reconstruction at all. Those two cannot both be true, and the honest
+    resolutions are to build the reader or to weaken the claim. This is the
+    reader.
+
+    It shares no code with AgentDirectory. Every rule below is restated from
+    plain dictionaries, which is the whole value: two implementations can
+    still share a misunderstanding, and one implementation cannot disagree
+    with itself.
+    """
+    esc = p.get("escalation")
+    if not isinstance(esc, dict):
+        _note(out, ev, "agent.escalation carries no escalation")
+        return
+    eid = esc.get("escalation_id")
+    if not isinstance(eid, str) or not eid:
+        _note(out, ev, "agent.escalation names no escalation_id")
+        return
+    if eid in out.escalations:
+        _note(out, ev, f"escalation {eid!r} raised twice; the second record "
+                       "would replace a question somebody may already have "
+                       "answered")
+        return
+    # WHO RAISED IT IS THE EVENT'S ACTOR. The raiser may not answer their own
+    # escalation, so a forged raiser is not only false attribution -- it is a
+    # way to stop the named party answering.
+    if esc.get("raised_by") != ev.actor:
+        _note(out, ev, f"escalation {eid!r} says it was raised by "
+                       f"{esc.get('raised_by')!r} and was appended by "
+                       f"{ev.actor!r}; a question is attributed to whoever "
+                       "asked it")
+        return
+    state = esc.get("state")
+    if state != _ESC_OPEN:
+        # An escalation is a question. One born ANSWERED was never asked,
+        # and carries a decision nobody is recorded as having made.
+        _note(out, ev, f"escalation {eid!r} is raised directly in "
+                       f"{state!r}; raising a question is not answering it")
+        return
+    options = esc.get("options")
+    if not isinstance(options, (list, tuple)):
+        _note(out, ev, f"escalation {eid!r} offers {type(options).__name__} "
+                       "rather than a list of options")
+        return
+    if len(set(options)) < _ESC_MIN_OPTIONS:
+        _note(out, ev, f"escalation {eid!r} offers "
+                       f"{len(set(options))} distinct option(s); an answer "
+                       "that cannot be checked against what was asked is a "
+                       "conversation, not a decision")
+        return
+    if not str(esc.get("question") or "").strip():
+        _note(out, ev, f"escalation {eid!r} asks nothing")
+        return
+    if esc.get("answer") is not None or esc.get("answered_by") is not None:
+        _note(out, ev, f"escalation {eid!r} is raised already carrying an "
+                       "answer")
+        return
+    out.escalations[eid] = {
+        "escalation_id": eid, "task_id": esc.get("task_id"),
+        "raised_by": ev.actor, "state": _ESC_OPEN,
+        "options": tuple(options), "answer": None, "answered_by": None,
+        "raised_seq": ev.seq, "answered_seq": None,
+    }
+
+
+def _sub_escalation_answer(ev, p: dict, out) -> None:
+    """Answer or withdraw, checking who is entitled to which."""
+    eid = p.get("escalation_id")
+    cur = out.escalations.get(eid)
+    if cur is None:
+        _note(out, ev, f"answer for escalation {eid!r}, which this history "
+                       "never opened")
+        return
+    if cur["state"] != _ESC_OPEN:
+        _note(out, ev, f"escalation {eid!r} is {cur['state']!r}; deciding it "
+                       "again would rewrite a decision already recorded")
+        return
+    dst = p.get("state")
+    if dst not in _ESC_TERMINAL:
+        _note(out, ev, f"escalation {eid!r} is moved to {dst!r}, which is "
+                       "neither answered nor withdrawn")
+        return
+
+    if dst == "WITHDRAWN":
+        # A withdrawal is a different act from an answer: the ASKER says they
+        # no longer need the decision, and no human is claimed to have made
+        # one. Only the asker may do it -- otherwise a third party can retire
+        # a question somebody was waiting on.
+        if ev.actor != cur["raised_by"]:
+            _note(out, ev, f"escalation {eid!r} was raised by "
+                           f"{cur['raised_by']!r} and {ev.actor!r} withdraws "
+                           "it; retiring somebody else's question is not "
+                           "theirs to do")
+            return
+        cur["state"] = "WITHDRAWN"
+        cur["answered_seq"] = ev.seq
+        return
+
+    answered_by = p.get("answered_by")
+    # The payload names the decider; the header names the writer. Every check
+    # below interrogates `answered_by`, so without this they all pass on a
+    # borrowed name.
+    if answered_by != ev.actor:
+        _note(out, ev, f"escalation {eid!r} names {answered_by!r} as its "
+                       f"answerer and was appended by {ev.actor!r}; an agent "
+                       "that can write a person's name can sign their "
+                       "decision")
+        return
+    ident = out.agents.get(answered_by)
+    if ident is None:
+        _note(out, ev, f"{answered_by!r} answered escalation {eid!r} and is "
+                       "not a registered principal")
+        return
+    if ident.get("retired_seq") is not None:
+        _note(out, ev, f"{answered_by!r} was retired after seq "
+                       f"{ident['retired_seq']} and may not answer "
+                       f"{eid!r}; a principal that has left cannot be the "
+                       "person a decision is attributed to")
+        return
+    if ident.get("kind") != "HUMAN":
+        # The strongest claim the directory makes, restated independently:
+        # an escalation exists because the decision was not the agent's to
+        # make, and no arrangement of roles substitutes for a person.
+        _note(out, ev, f"{answered_by!r} is a {ident.get('kind')!r} "
+                       f"principal and may not answer {eid!r}; holding a "
+                       "role does not change what kind of thing is deciding")
+        return
+    if answered_by == cur["raised_by"]:
+        _note(out, ev, f"{answered_by!r} raised escalation {eid!r} and may "
+                       "not also answer it")
+        return
+    if p.get("answer") not in cur["options"]:
+        _note(out, ev, f"answer {p.get('answer')!r} to {eid!r} is not one of "
+                       f"{list(cur['options'])}")
+        return
+    cur["state"] = "ANSWERED"
+    cur["answer"] = p.get("answer")
+    cur["answered_by"] = answered_by
+    cur["answered_seq"] = ev.seq
+
+
 def _sub_memory_write(ev, p: dict, out) -> None:
     entry = p.get("entry")
     if not isinstance(entry, dict):
@@ -1094,7 +1256,11 @@ def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
         #
         # This matters more for secrets than anywhere else: that store has
         # no reducer at all, so a secret.grant revocation appended around
-        # its write path is re-read by NOTHING except this function.
+        # its write path was re-read by NOTHING except this function. It has
+        # one now -- the store reconstructs grant authority from the log and
+        # refuses a forged revocation itself -- so this is a second opinion
+        # again rather than the only one. The rule stays here because that is
+        # what a second opinion is.
         if ev.actor != cur.get("granted_by"):
             _note(out, ev, f"{ev.actor!r} revokes {what} grant {gid!r}, "
                            f"granted by {cur.get('granted_by')!r}; a grant "
@@ -1106,6 +1272,18 @@ def _sub_grant(ev, p: dict, out, table: dict, what: str) -> None:
     grant = p.get("grant")
     if not isinstance(grant, dict):
         _note(out, ev, f"{what}.grant carries no grant body")
+        return
+    # WHERE A GRANT STARTS IS THE LOG'S TO SAY.
+    #
+    # Restated here for secrets in particular: that store had no reducer at
+    # all until recently, so for a long time this reader was the ONLY thing
+    # that would have looked at a secret.grant record. It is a second opinion
+    # again rather than the sole one, and the rule belongs in both.
+    issued = grant.get("issued_seq")
+    if issued is not None and issued != ev.seq:
+        _note(out, ev, f"{what} grant {grant.get('grant_id')!r} claims "
+                       f"issued_seq {issued!r} at seq {ev.seq}; it would "
+                       "predate its own record")
         return
     gid = grant.get("grant_id") or p.get("grant_id")
     if not isinstance(gid, str) or not gid:
@@ -1201,7 +1379,8 @@ def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
     tables = {"jobs": recon.jobs, "capabilities": recon.capabilities,
               "agents": recon.agents, "memory": recon.memory,
               "net_grants": recon.net_grants, "services": recon.services,
-              "secret_grants": recon.secret_grants}
+              "secret_grants": recon.secret_grants,
+              "escalations": recon.escalations}
     for name, theirs in tables.items():
         mine = primary.get(name)
         if mine is None:

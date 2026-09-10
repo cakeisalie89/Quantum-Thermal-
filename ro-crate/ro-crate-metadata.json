@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "174635",
+   "contentSize": "176120",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -260,10 +260,10 @@
   {
    "@id": "qta_multiphysics/runner_3d.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "15974",
+   "contentSize": "16818",
    "description": "3-D reduced-CI layer runner",
    "name": "runner_3d.py",
-   "sha256": "ec76c664e97bb8ba774e55832d64d5587359916de1231ae52f58e9047a851542"
+   "sha256": "ed0f0529b1ca03ce23f8229eba3d84ac74c95c87d88cb0fb3dc518ef662c7bee"
   },
   {
    "@id": "qta_scientific_results.h5",

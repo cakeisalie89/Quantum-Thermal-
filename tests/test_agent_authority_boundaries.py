@@ -573,6 +573,65 @@ def test_an_allowlist_from_a_future_schema_is_refused(tmp_path):
     assert "schema" in str(exc.value)
 
 
+def test_no_dot_directory_anywhere_is_governed_text(tmp_path):
+    """Tooling state that happens to live under the repository root.
+
+    OBSERVED, NOT IMAGINED. The mutation harness quarantines a tracked file
+    it finds changed under a running matrix, and the quarantine holds
+    COPIES of governed documents. The scan walked them and the allowlist
+    regeneration tool ADMITTED one -- a document becoming governed by being
+    created rather than by being reviewed.
+
+    ``.mutation-quarantine`` is in EXCLUDED_DIRS as well, so a test that
+    only used that name would pass with the rule deleted. The dot-directory
+    here is one nobody has named, which is the whole point of having a rule
+    that covers the class: the next dot-directory is the one that gets in.
+    """
+    root = tmp_path / "r"
+    (root / "docs").mkdir(parents=True)
+    (root / "real.md").write_text("# Real\ngoverned\n", encoding="utf-8")
+    (root / "docs" / "kept.md").write_text("# Kept\n", encoding="utf-8")
+    unnamed = root / "docs" / ".cache"
+    unnamed.mkdir()
+    (unnamed / "note.md").write_text("# tooling state\n", encoding="utf-8")
+    nested = root / ".mutation-quarantine" / "20260910T010248"
+    nested.mkdir(parents=True)
+    (nested / "real.md").write_text("# a copy nobody reviewed\n",
+                                    encoding="utf-8")
+
+    found = RAG.corpus_files(root)
+    assert "real.md" in found and "docs/kept.md" in found, found
+    assert [f for f in found if f.startswith(".")] == [], found
+    assert [f for f in found if "/." in f] == [], found
+
+
+def test_a_document_whose_own_name_begins_with_a_dot_is_still_governed(
+        tmp_path):
+    """The over-correction, which is fail-closed and so looks like the safer
+    choice.
+
+    Excluding every path SEGMENT that starts with a dot also excludes the
+    FILE name, and a governed document may perfectly well be called
+    ``.release-notes.md``. Dropping it silently narrows what retrieval may
+    quote without anyone reviewing the narrowing -- which is the same class
+    of unreviewed change as admitting an extra document, in the other
+    direction.
+
+    Paired with the test above on purpose: one refuses too little and the
+    other refuses too much, and only running both distinguishes the rule
+    from either mistake.
+    """
+    root = tmp_path / "r"
+    root.mkdir()
+    (root / ".release-notes.md").write_text("# Real\ngoverned\n",
+                                            encoding="utf-8")
+    (root / "plain.md").write_text("# Also real\n", encoding="utf-8")
+    found = RAG.corpus_files(root)
+    assert ".release-notes.md" in found, (
+        f"a governed document was dropped for its own name: {found}")
+    assert "plain.md" in found, found
+
+
 def test_no_derived_artifact_is_in_the_corpus():
     """A file the build regenerates cannot be a reviewed document.
 

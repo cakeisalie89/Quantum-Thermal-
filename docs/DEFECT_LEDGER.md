@@ -1198,16 +1198,483 @@ refuses untracked files outright, which is why it reported the quarantine as
 
 ---
 
+## D-2026-18 — secret authority was not event-sourced, and calling that a boundary was wrong
+
+**STATUS** — repaired. Option A adopted.
+
+**THE MISCLASSIFICATION FIRST.** D-2026-05 recorded "SecretStore has no
+reducer" as a **stated boundary**. It is not a boundary. It is ordinary
+engineering inside this repository, and the test for that is the question
+the directive names: could ordinary work here implement the missing
+behaviour without unavailable external evidence or privileges? Yes. Calling
+it a boundary because the reducer did not exist confuses *what is absent*
+with *what cannot be built*.
+
+**DEFECT.** The store's in-process dicts were the authority; the log sat
+beside them as an audit trail. That contradicts the architecture's own
+statement that the log is the truth and everything else is derived from it.
+Two consequences, both reproduced:
+
+* **a fresh `SecretStore(log)` saw ZERO grants.** Secret authority did not
+  survive a restart at all. Fail-closed for USE, and it meant the durable
+  record and the live state were unrelated objects: the log said a grant
+  existed and the system that reads the log disagreed;
+* a forged revocation appended around `revoke()` was re-read by nothing in
+  the module. The independent reconstruction noticed it, which made a
+  **diagnostic reader the only enforcement**.
+
+**THE CLEAREST EVIDENCE THAT NOTHING REPLAYED.** `secrets.py` had no
+`grant_from_record`. Every other authority object in the package has had one
+from the start. A module that never rebuilds its objects from records does
+not need a function for it.
+
+**IMPLEMENTATION FIX — OPTION A.** `load()` and `apply()` reconstruct grant
+AUTHORITY from the log: grant ids, subject, task, tool, secret id, purposes,
+issuance position, expiry, revocation and the granting actor. The reducer
+re-authorizes the revoker, refuses a revocation naming a grant never issued,
+refuses a grant that predates its own record, refuses a rebound id, and
+verifies the grant digest against its body. `issue()` and `revoke()` now
+**fold through `apply()`** rather than assigning beside it, so the write path
+and the replay reach the projection by the same route.
+
+**WHAT STAYS OUT OF THE LOG, AND WHY THAT IS THE POINT OF OPTION A.** The
+secret VALUE, and **no digest of it either**. A digest of a low-entropy
+credential is an offline guessing oracle, so the record carries the *grant's*
+digest — over ids and purposes — and nothing derived from the bytes. A test
+asserts the plaintext, its sha256, a 16-char prefix of that, and its base64
+are all absent from the durable record.
+
+**THE DELIBERATE CONSEQUENCE.** After a restart the authority is known and
+the value is not, so `resolve()` raises `UnknownSecret` rather than losing
+the grant. *"I may not have it"* and *"nobody ever granted it"* are different
+answers, and the second would be a lie. Tested in both directions:
+provisioning the value again makes the reconstructed grant work.
+
+**A PIN THAT DID ITS JOB.** D-2026-05 left
+`test_this_store_has_no_replay_and_says_so`, asserting
+`not hasattr(SecretStore, "apply")`, with the note that whoever added a
+reducer would have to come back and decide deliberately whether the
+revocation rule belonged in it. Adding the reducer **failed that test**, and
+the decision was made here rather than by accident. That is the mechanism
+working, and it is the argument for pinning a boundary rather than only
+writing it down.
+
+**MUTATIONS.** `S31`-`S35` attack each reducer rule. `S27` was repaired in
+place when `issue()` gained an early return.
+
+**A MUTATION WRITTEN AND DROPPED.** `S36` made `issue()` assign the
+projection directly instead of folding through `apply()`. It **survived**,
+and it is equivalent by construction: `issue()` builds the grant itself,
+stamps `issued_seq` from the log, computes the digest from the same object
+and refuses a duplicate id before appending, so every reducer check passes
+trivially and no test can tell the two routes apart. The fold is kept —
+it is what stops a rule added to the reducer being missing from the writer —
+but that is a property of *future* changes, not a behaviour available to
+test now, and a mutation that cannot be killed honestly is not coverage.
+
+**INVALIDATED CLAIMS.** D-2026-05's classification of this as a boundary,
+and the statement in my previous report that "SecretStore has no reducer, so
+its revocation rule runs on one path only". The completion matrix never made
+this claim — its R33 boundaries are about value handling, redaction,
+zeroing, provider kinds and egress composition, none of which this touches.
+
+---
+
+## D-2026-19 — escalations had no second reader, while the campaign said every subsystem had one
+
+**STATUS** — repaired, and the claim replaced by a measurement.
+
+**DEFECT.** `reconstruct.py` reconstructed nine subsystems and escalations
+were not among them. The hosted workflow step was named *"mutation matrix --
+the second reader for every subsystem"*. Both could not be true.
+
+Escalations are the worst subsystem to omit: they carry the human decisions,
+and D-2026-04 and D-2026-11 both found forgeries in exactly those records.
+
+**IMPLEMENTATION FIX.** `_sub_escalation` and `_sub_escalation_answer`
+restate the create, answer and withdraw rules in plain dictionaries: unique
+id, raiser bound to the event actor, born OPEN, at least two distinct
+options, a question that asks something, no answer carried at creation; then
+existence, terminality, answerer bound to the actor, registered, active,
+HUMAN, not the raiser, answer among the options; and withdrawal by the asker
+alone. `ANSWERED` and `WITHDRAWN` are terminal.
+
+**INDEPENDENCE, CHECKED OVER THE AST.** The reader imports nothing from
+`agents`, `scheduler`, `policy`, `capability`, `memory`, `netauth`,
+`secrets` or `context`. My first version of that test searched the source
+TEXT for "AgentDirectory" and failed — on this module's own prose about the
+layers it deliberately does not import. A check that fails for being right
+is a bad check; it reads the parsed imports now.
+
+**ADVERSARIAL TESTS.** Sixteen, including the composition case: an agent
+that forges a HUMAN registration and then answers with it is refused at the
+registration, and the escalation stays OPEN — so a bypass in one subsystem
+is not answered by silence in the other. The asker-answers-their-own case is
+isolated with a HUMAN raiser, because with an agent raiser the KIND check
+catches it first and that rule is never reached.
+
+**MUTATIONS.** `R29`-`R40`, one per restated rule. `R40` **survived** its
+first run: nothing sent a decision state that was neither ANSWERED nor
+WITHDRAWN, and without the check such a record falls past the withdrawal
+branch into the answer branch and is projected as ANSWERED whatever it
+claimed. The test now sends `OPEN`, `REOPENED`, `""` and `None`.
+
+---
+
+## D-2026-20 — the sweep had no artefact, so its completeness was unverifiable
+
+**STATUS** — repaired. This is the fix for D-2026-10.
+
+**DEFECT.** Every claim of the form "I swept the siblings" in this ledger
+rested on my having looked. There was no table, no generated list and no
+test that could be checked independently. That is the same
+self-asserted-authority shape the substrate refuses everywhere else, applied
+to the process rather than the code — and it is why the escalation raiser
+and the message sender survived a sweep written to find exactly them.
+
+**FIX — `docs/identity_inventory.json` and `tools/identity_inventory.py`.**
+The classification is REVIEWED, because deriving intent from source would be
+guessing and a guess that looks mechanical is worse than a judgement that
+says it is one. Everything around it is MEASURED:
+
+* every `ACT_*` constant must appear — a new durable action fails the check
+  until somebody classifies it;
+* no entry may name an action that no longer exists;
+* every field classified `ACTOR` must record a write path, a replay rule and
+  a regression test, **and that test must exist**;
+* the recorded independent-reader coverage must equal what `reconstruct.py`
+  actually dispatches on.
+
+**THE GUARD CAUGHT ME IMMEDIATELY.** The first draft named five regression
+tests that do not exist —
+`test_a_forged_claim_cannot_be_attributed_to_another_instance` and four
+others. Plausible names, guessed rather than checked. The checker failed on
+all five within a minute of existing, and the real names came from the
+source. It also caught `record.create`'s field being `proposer`, not
+`submitter`.
+
+**WHAT THE MEASUREMENT SAYS.** 37 durable actions. **28 independently
+reconstructed, 9 not:** `agent.claim`, `agent.message`, `file.read`,
+`network.result`, `secret.access`, `secret.provision`, `task.compensation`,
+`task.reexecution`, `task.separate_verification`. The CI step title that
+said "every subsystem" now says "the 28 of 37 it covers", and a test fails
+if coverage ever becomes total without the prose being updated — the
+over-claim guard pointed in both directions.
+
+**ONE MORE FIELD FOUND BY BUILDING IT.** `task.compensation` carries
+`answered_by`, a copy of the escalation's answerer. It is read from the
+escalation projection, so it is not forgeable through the writer — but the
+record is `continue`d by the reducer, so a hand-appended one could name any
+person as having authorized destroying something, and nothing compared it.
+It is classified `DIAGNOSTIC_DUPLICATE` and is now compared to the
+escalation it cites. **A convenience that nothing checks is a field a forged
+record sets freely.**
+
+**FORBIDDEN FAKE FIXES.** Deriving the role classification with a regex over
+field names and calling the table generated. Recording coverage as a number
+somebody types. Marking the nine unreconstructed actions as boundaries —
+they are ordinary engineering, and the inventory says so by naming them
+rather than by excusing them.
+
+---
+
+## D-2026-21 — the convergence rule had five call sites and sixteen consumers
+
+**STATUS** — repaired.
+
+**DISCOVERED BY.** The §12 recheck of P0-6. Not by re-reading the P0-6 repair,
+which is correct, but by asking the question §17 asks of every repair: *where
+else is this same fact consumed?* The fact is "this solve did not converge".
+The answer was: in eleven places that never asked.
+
+**DEFECT.** `require_converged` was written for `run_coupled`, and D-2026-09
+extended it to `run_mode_sequence_3d` and the reduction checks. That is five
+call sites. This package had **sixteen** places that read a published number
+off a solve result. The other eleven took whatever came back:
+
+| where | what it published from a solve nobody asked about |
+|---|---|
+| `convergence_3d.convergence_report` ×3 | the mesh-convergence and time-convergence verdicts, and the baseline both are measured against |
+| `sensitivity_3d._rise` | every normalized sensitivity in the OAT ranking |
+| `stack/mdao_openmdao.evaluate` | the objective an OpenMDAO study optimises |
+| `stack/sensitivity_salib.screening_response_K` | the response Sobol indices are computed from |
+| `runner_3d` heavy pass | a probe timeseries, a hotspot table and an energy accounting, written to disk |
+| `verification.mesh_convergence_1d` | `thermal_1d_converged` |
+| `verification.mesh_convergence_2d` | `thermal_2d_converged` |
+| `verification.axis_symmetry_2d` | `axis_grad_small_vs_bulk` |
+| `verification.reduction_2d_to_1d` ×2 | `reduces_to_1d` |
+| `verification.coupling_checks` | `optical_feeds_thermal` |
+| `uncertainty.run_monte_carlo` ×3 | the Mode-C recool distribution, the readiness fraction, and the ensemble's own mesh criterion |
+
+**INVARIANT.** A number derived from a solve carries the authority of that
+solve. A solve that did not converge carries none, so no published quantity
+may be derived from one — wherever the derivation happens.
+
+**ROOT CAUSE.** The rule was applied where each defect was found. `numerics.py`
+already says this about itself, in the docstring of the very function
+involved: *"A rule that lives inside one of the things it governs is a rule
+the next sibling does not inherit."* It was moved to the numerics layer for
+exactly that reason and then still only called from the sites that had already
+failed. Availability is not application.
+
+**WHY THE DIRECTION OF THE ERROR MATTERS.** A failed integration does not
+return garbage. It returns a **shorter** trajectory in which every value is
+finite, so `assert_finite` passes and the numbers look ordinary. Sampled
+`[-1]`, it reports the last time REACHED rather than `t_end` — which is
+**cooler**. So an unguarded failure does not add noise:
+
+* in a screening study it flips the **sign** of a reported sensitivity, because
+  the perturbed configuration is the one that stiffens and its truncated probe
+  reads colder than the base;
+* in the recovery ensemble it reports a **faster** recool and a final
+  temperature that never finished cooling — both in the direction of "ready";
+* in `axis_symmetry_2d` a truncated field has a **smaller** axis gradient
+  because it has had less time to develop one, so a failed solve is *more*
+  likely to certify axis symmetry than a converged one;
+* in `coupling_checks` a diverging solve produces a very large hotspot, which
+  is precisely what "optical feeds thermal" is confirmed by.
+
+Each of these is a check that a failure makes *more* likely to pass.
+
+**AFFECTED REPRESENTATIONS.** Implementation at every site above. No durable
+record, no replay and no second reader: this layer is forecast computation,
+not the agent substrate. Prose: `numerics.require_converged`'s own docstring
+claimed the move to the numerics layer solved the inheritance problem; it did
+not, and it now says which sites call it.
+
+**IMPLEMENTATION FIX.** `require_converged` at all eleven, phrased in each
+site's own vocabulary so a failure message names what was being computed.
+`uncertainty.run_monte_carlo` is the one exception to raising: it is an
+ensemble that already counts a failed sample and carries on, and both of its
+new guards sit inside the `except Exception:` that does exactly that — so the
+shared rule lands on the shared counter instead of inventing a second
+convention.
+
+**A SECOND DEFECT, FOUND BY THE TEST FOR THE FIRST.** With the recovery solve
+guarded, the two-sample ensemble reported `pde_stability_failure_count == 1`
+**and** `n_evaluated == 2`. The Mode-B values were appended to the published
+distributions *before* the Mode-C solve was attempted, so a sample the run had
+itself classified as a PDE failure was also present in the Mode-B statistics,
+and `n_evaluated + pde_fail` could exceed `n_samples`. A sample now enters the
+distributions only once every solve it needs has succeeded. This was reachable
+before this change too, through the `except Exception` that already existed.
+
+**A REFACTOR THAT IS PART OF THE FIX.** `runner_3d`'s heavy pass was inline in
+`run_3d_all`, so the only way to reach it was to run the entire 3D pipeline
+first. The one call site in that module that never asked whether its solve
+converged was also the one no test could reach, which is not a coincidence: an
+unreachable branch is an unguarded branch. It is now `write_heavy_pass`, a
+module-level function with the same body, called from the same place.
+
+**ADVERSARIAL TESTS.** Twenty-one new in `tests/test_solver_failclosed.py`, one per
+guard rather than one per module, because what a failed solve would have
+produced is different at each. Every stub returns **usable** numbers rather
+than nothing — deleting a guard must let the caller SUCCEED with a wrong
+answer, so the test fails for the reason it was written for instead of on a
+missing attribute. Injection is at a chosen call index, so the tests reach the
+*third* solve of a three-solve function rather than only the first: SC12 and
+`n=400` are exactly the mutations a test that only injects at call 1 leaves
+alive. Anti-vacuity pairs: an honest convergence report takes all three
+solves (asserted by count, so the at=3 injection is known to fire); an honest
+heavy pass writes all four of its files; an honest two-sample ensemble
+evaluates two samples and counts zero failures.
+
+**ONE TEST IS NOT ABOUT CONVERGENCE AT ALL.** The tightened-integration guard
+sits inside the `try/finally` that restores `cfg.solver.rtol`. A guard that
+raised past the restoration would leave the shared configuration permanently
+tightened for every later caller in the process. Asserted separately.
+
+**MUTATIONS.** `SC10`–`SC25`, sixteen: one per restored guard, plus `SC25`
+for the ensemble accounting — it restores the original ordering verbatim,
+which is the defect exactly as it was found. 25/25 killed, sources restored
+byte-identical. `SC20` and `SC21`
+are deliberately both kept: the reduction check is a COMPARISON, and two
+solves that both stopped early agree with each other, so a test that guards
+only one side proves nothing about the other.
+
+**FORBIDDEN FAKE FIXES.** Recording `solver_status` beside the result and
+leaving the verdict computed from it regardless — that is the defect
+`mesh_convergence_1d` already had. Catching `SolverFailure` at any of these
+sites and substituting a default. Widening `SOLVER_OK` to admit a second
+status. Making `energy_accounting_rows` tolerate a failed result's accounting
+dict: it raises `KeyError` on one today, which is ugly but closed, and making
+it *return* something would open it.
+
+**SIBLING SWEEP.** Every call of `solve_thermal_1d`, `solve_thermal_2d` and
+`solve_thermal_3d` in `qta_multiphysics/` was enumerated and checked; the
+sixteen consumers above are the complete list, and `future_3d.py:58` is a
+passthrough that returns the result to a caller rather than reading it.
+
+**INVALIDATED CLAIMS.** Any earlier statement that P0-6 closed the
+convergence contract. It closed the mode sequence and the accounting inside
+the solver. The class stayed open for two more subsystems and the whole
+forecast-screening surface.
+
+---
+
+## D-2026-22 — two mutations were written for D-2026-17 and never run
+
+**STATUS** — repaired.
+
+**DISCOVERED BY.** Hosted CI, at `104a6f1`. `agent-substrate` had run
+thirty-seven mutation matrices green and failed on the thirty-eighth: step 47,
+`corpus_allowlist`, `killed: 10/12`. Not by any local check, because the local
+sweep that covered every spec predates the commit that added these two.
+
+**DEFECT.** D-2026-17 repaired the corpus scan — no dot-directory is governed
+text — and added `C11` (delete the rule) and `C12` (over-correct it to exclude
+dot FILES as well) to the spec. It added no test that distinguishes either
+from the fix, and the spec was not re-run in that sitting. So the record
+claimed a repair whose only evidence was that the code looked right.
+
+**WHY IT MATTERS MORE THAN "two survivors".** The seven steps after it in the
+workflow — including `stage10_authority`, the corpus-allowlist completeness
+check, the long-horizon campaign, the fuzz pass, the governed production path,
+the auditor, and the two post-campaign source-integrity checks — are `skipped`
+when a step fails. One unrun spec did not cost one matrix; it cost the tail of
+the job.
+
+**INVARIANT.** A mutation added to a spec is run before the sitting that added
+it is called finished. A defect record's repair is evidenced by a mutation that
+dies, not by a mutation that exists.
+
+**IMPLEMENTATION FIX.** None — the code was already correct. Both survivors
+were a missing test, which is the honest diagnosis and the reason this record
+exists rather than a code change.
+
+**ADVERSARIAL TESTS.** Two, paired on purpose, because the rule sits between
+two mistakes and only running both distinguishes it from either:
+
+* `test_no_dot_directory_anywhere_is_governed_text` plants a copy in
+  `.mutation-quarantine/<stamp>/` **and** a file in `docs/.cache/`. The second
+  is load-bearing: `.mutation-quarantine` is in `EXCLUDED_DIRS` as well, so a
+  test using only that name passes with the rule deleted. The unnamed
+  dot-directory is the one the class rule exists for.
+* `test_a_document_whose_own_name_begins_with_a_dot_is_still_governed` plants
+  `.release-notes.md` at the root. The over-correction is **fail-closed**, so
+  it looks like the safer choice; silently narrowing what retrieval may quote
+  is the same class of unreviewed change as admitting an extra document, in
+  the other direction.
+
+**MUTATIONS.** `C11` and `C12`, unchanged — they were already the right
+mutations. 12/12, sources restored byte-identical.
+
+**INVALIDATED CLAIMS.** D-2026-17's implicit claim that its repair was
+verified. It was implemented and asserted; it was not verified until now.
+---
+
+## §12 — the recheck of P0-1 … P0-6 after the sibling work
+
+Not "the earlier repairs are still in the file". The directive asks eight
+questions of each, and the eighth column is the one that matters: a mutation
+spec nobody runs on a hosted runner protects nothing.
+
+| | P0-1 lapse/budget | P0-2 identity | P0-3 destruction | P0-4 network | P0-5 child egress | P0-6 convergence |
+|---|---|---|---|---|---|---|
+| write path tested | yes | yes | yes | yes | n/a — prose | yes |
+| replay tested | yes | yes | yes | yes | n/a | n/a — no durable record |
+| second reader | yes | 28 of 37 actions, measured | yes | yes | n/a | n/a |
+| sibling mutation spec | `agent_scheduler`, `agent_cross_process`, `agent_lease_renewal`, `agent_incremental` | `agent_agents`, `agent_actions` | `agent_delegation`, `agent_memory_context`, `agent_secrets`, `agent_secret_provider` | `agent_netauth`, `agent_service_authority` | `stage10_authority` | `solver_failclosed` |
+| wired into hosted CI | yes | yes | yes | yes | yes | yes |
+
+`tools/workflow_contract.py` answers the "wired" row by construction rather
+than by inspection: it fails if any spec on disk appears in no workflow step.
+It reports 38 of 38.
+
+**The row that is not a tick.** P0-2's second reader covers 28 of 37 durable
+actions. The nine it does not are named in this ledger's follow-up list and
+printed by `tools/identity_inventory.py` on every CI run. That is a residual
+engineering gap, **not a boundary** — §13's test is whether ordinary work in
+this repository could implement it, and it could.
+
+**What the recheck actually found.** P0-6 did not survive it. The repair was
+correct and the class was open: `require_converged` had five call sites and
+sixteen consumers. See D-2026-21. This is the second time in this tranche
+that "the example is closed" and "the defect is closed" turned out to be
+different statements, which is the whole reason §12 exists as a separate
+step rather than as a closing sentence.
+
+---
+
+## §15 — the P0 acceptance gate, condition by condition
+
+The directive names twenty-three conditions and says not to write *P0
+complete* until all are true. Each is answered by something that refuses when
+it stops being true, or it is not answered.
+
+| # | condition | what makes it true, and what would notice if it stopped being |
+|---:|---|---|
+| 1 | retry budget / lapse semantics remain closed | `reauthorize_job_edge` names the handover edges; the second reader restates the budget bound so an overrun is a finding about the HISTORY. Mutations in `agent_scheduler`, `agent_cross_process`, `agent_lease_renewal`. |
+| 2 | every actor-bearing durable event classified | `docs/identity_inventory.json`, 37 actions. `tools/identity_inventory.py` fails if the file and the code disagree in either direction, and runs on every CI push. |
+| 3 | every actor-duplicate payload field bound to `ev.actor` | Each ACTOR-role field in the inventory names its write-path binding, its replay rule and a regression test that exists — the checker verifies the test exists, because five of my first draft's names did not. |
+| 4 | escalation raiser provenance enforced | `raise_escalation` binds `actor=raised_by`; the reducer refuses `esc.raised_by != ev.actor`. D-2026-11. |
+| 5 | escalation answer provenance remains enforced | Unchanged from D-2026-04 and re-covered by the new second reader, which refuses an answer from anyone but the assignee. |
+| 6 | message sender provenance enforced | `send` binds `actor=sender_instance`; the reducer refuses a mismatch. D-2026-12. |
+| 7 | duplicate message ids cannot mutate semantic identity | `MESSAGE_IMMUTABLE` names seven fields, not one; `message_identity_conflict` reports which one changed; one mutation per dropped field. D-2026-13. |
+| 8 | destructive authority remains explicitly governed | D-2026-05's guards plus the five existing revocation tests that were passing on arbitrary actors and now name the issuer. |
+| 9 | a decision cannot be reused for another operation in the same grant | `NetworkDecision` carries the exact authorized host, port, scheme and address; `pinned_ports` is retired. D-2026-14. |
+| 10 | unpinned networking is not unrelated-host authority | An unresolved request is authorized against the grant's address CLASSES at connect time, not against "any host on an allowed port". |
+| 11 | child-egress prose matches implementation | The Stage-10 docstring now separates SUPERVISOR/IN-PROCESS MEDIATION from CHILD/DESCENDANT OS CONTAINMENT and states which one this is. D-2026-15. |
+| 12 | failed 3D solves cannot influence scientific readiness | `require_converged` at every consumer — and this is the condition the §12 recheck failed on first pass. D-2026-21. |
+| 13 | failed solves do not quadrature an extrapolated window | The failed case branches before any interpolation; a spy asserts **zero** interpolant evaluations, paired with its anti-vacuity twin. D-2026-16. |
+| 14 | secret authority is internally consistent with the event-sourcing claim | `SecretStore` folds through `apply()` from the log; grants are reconstructed from records. Values stay process-local and neither they nor their digests reach a durable record — asserted directly. D-2026-18. |
+| 15 | escalations have an independent reader, or the claim is weakened | Both: `reconstruct_subsystems` gained a tenth subsystem that does not import `AgentDirectory`, **and** the CI step that said "for every subsystem" now says "for the 28 of 37 it covers". D-2026-19, D-2026-20. |
+| 16 | all corresponding tests are anti-vacuous | Every failure-injection test in this tranche has a paired positive: the converged path DOES evaluate the interpolant, the honest sequence DOES enter Mode D, the honest report DOES take three solves, the honest ensemble DOES evaluate its samples, the mesh-check branch DOES fire. |
+| 17 | every new mutation spec is wired into CI | `tools/workflow_contract.py`: 38 of 38, checked by the file's own contents rather than by assertion. |
+| 18 | every mutation is killed for the intended semantic reason | Each survivor in this tranche was diagnosed rather than papered over: E48 resolved to the grant's first address, R40 sent a state that was neither answered nor withdrawn, SC3 never reached Mode D, M39 could not tell two layers apart, G26 hit the write path instead of the reducer, SC24 ran with the mesh-check fraction at zero, SC25 was a mutation that did not restore its own defect, C11 and C12 were written and never run at all. One (S36) was dropped as equivalent-by-construction rather than forced. |
+| 19 | full affected tests green | Full local suite. Hosted `second-interpreter` and `cross-environment-3d` green at `104a6f1`; `full-suite` red on `package_consistency_check.py` only, which is the documented R59 host divergence — its pytest step passes and the job's own diagnostic names the runner's kernel. **`agent-substrate` was RED at `104a6f1`**, on step 47 of 55: `corpus_allowlist`, 10 of 12. See D-2026-22. Thirty-seven matrices before it were green and the seven steps after it were skipped, so that job's tail is unmeasured at that commit and is re-run here. |
+| 20 | defect ledger updated | D-2026-11 … D-2026-21, plus the PREMATURE_CLOSURE record and two ANALYST_CONCLUSION_ERROR records for my own wrong claims. |
+| 21 | PASS remains 0 | Unchanged; `package_consistency_check.py` asserts no PASS token in any output on every run. |
+| 22 | `automatic_gate_effect` remains NONE | Unchanged. |
+| 23 | PR #17 remains unmerged | Open, not merged, no merge requested. |
+
+---
+
 ## Open follow-up tracked from this ledger
 
 These are named here so they cannot be closed by silence. They are **not**
 claimed complete.
 
+0. **Nine durable actions have no independent reconstruction:**
+   `agent.claim`, `agent.message`, `file.read`, `network.result`,
+   `secret.access`, `secret.provision`, `task.compensation`,
+   `task.reexecution`, `task.separate_verification`. This is ordinary
+   repository engineering, **not a boundary** — the directive's test is
+   whether work here could implement it without unavailable external
+   evidence or privileges, and it could. The count is measured by
+   `tools/identity_inventory.py` and printed on every CI run, so it cannot
+   drift quietly in either direction.
+0b. **A test damages tracked files under mutation.** The harness reported
+   collateral during an `agent_netauth` run, restored it, and said the test
+   is unsafe because it does not undo its own writes in a `finally`. The
+   mutation name was not captured. Still open: the `solver_failclosed`
+   campaign since has reported "all sources restored byte-identical" on
+   every run, so whatever it was, it is not in that spec. To be identified
+   during the next full campaign, which runs every spec.
+
 1. **The admission-rule sweep across every `_sub_*` reducer**
    (D-2026-02 sibling sweep). `_sub_job_transition` and `_sub_lease_renew`
    now restate admission; the capability, agent, memory, network, secret and
    context reducers have not been re-read against that standard.
-2. **Escalations have no second reader at all.** `reconstruct_subsystems`
-   replays nine subsystems and `agent.escalation.*` is not among them, so
-   the human-decision records -- the ones D-2026-04 shows were forgeable --
-   are reconstructed by nobody. Stated as a boundary, not a claim.
+2. ~~**Escalations have no second reader at all.**~~ **CLOSED by D-2026-19.**
+   It was recorded here as a boundary and it was not one: it was ordinary
+   repository engineering, which is exactly the misclassification §13 warns
+   about. `reconstruct_subsystems` now replays `agent.escalation.*` as a
+   tenth subsystem, from an implementation that does not import
+   `AgentDirectory`. Kept visible rather than deleted so the misclassification
+   stays on the record.
+3. **The undeclared-write inventory is scoped to the TOOL, not to the RUN.**
+   `_undeclared_writes` compares a before/after inventory of
+   `spec.writable_scope`, which for both Stage-10 tools is the whole
+   `verification/stage10` prefix rather than the one run's workspace. So any
+   *other* principal writing anywhere under that prefix while a run is in
+   flight is attributed to that run, and the run fails EVIDENCE_FAILED for
+   files it never touched. Found on 2026-09-10 by running the suite in the
+   foreground while a background suite was still running: the audit-CLI
+   fixture's run failed with ten undeclared writes, every one of them a
+   `_pytest_governed/` log file belonging to the other process. Not a
+   production defect today -- the substrate is single-writer per log -- and
+   not a false negative: it fails closed. But it makes the check's meaning
+   "nothing changed in the shared scope" rather than "this run wrote only
+   what it declared", which is a weaker statement than the surrounding prose
+   claims, and it makes the suite unsafe to run concurrently with itself.

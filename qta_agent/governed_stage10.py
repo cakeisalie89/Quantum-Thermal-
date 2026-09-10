@@ -598,6 +598,38 @@ class GovernedStage10:
                     updated_seq=ev.seq)
             elif ev.action in (ACT_EVIDENCE, ACT_COMPENSATION,
                                ACT_SEPARATE_VERIFY, ACT_REEXECUTION):
+                if ev.action is ACT_COMPENSATION or (
+                        ev.action == ACT_COMPENSATION):
+                    # A DIAGNOSTIC DUPLICATE MUST AGREE WITH ITS SOURCE.
+                    #
+                    # `answered_by` here is a copy of the escalation's
+                    # answerer, carried so an auditor reading the
+                    # compensation record can see who authorized the undo
+                    # without joining two tables. The authority is the
+                    # escalation; this is a convenience.
+                    #
+                    # A convenience that nothing checks is a field a forged
+                    # record can set freely, and it names a PERSON as having
+                    # authorized destroying something. So it is compared to
+                    # the escalation it cites. Not folded into state -- a
+                    # compensation is a fact about the task rather than a
+                    # state of it -- but not taken on trust either.
+                    eid = p.get("authorized_by_escalation")
+                    named = p.get("answered_by")
+                    if eid:
+                        try:
+                            esc = self.agents.escalation(eid)
+                        except Exception:
+                            esc = None
+                        if esc is not None and named != esc.answered_by:
+                            raise TaskTransitionError(
+                                f"seq {ev.seq}: compensation of "
+                                f"{p.get('task_id')!r} says escalation "
+                                f"{eid!r} was answered by {named!r}; that "
+                                f"escalation was answered by "
+                                f"{esc.answered_by!r}. A record naming who "
+                                "authorized an undo may repeat the "
+                                "escalation and may not disagree with it")
                 # A compensation does not move the task. The task's outcome
                 # was and remains whatever it reached; what a compensation
                 # records is that somebody tried to undo its effect, which is

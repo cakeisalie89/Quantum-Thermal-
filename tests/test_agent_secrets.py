@@ -595,14 +595,164 @@ def test_the_granter_may_revoke_its_own_secret_grant():
     assert s.grants_in_force() == ()
 
 
-def test_this_store_has_no_replay_and_says_so():
-    """A stated boundary, pinned so it cannot quietly stop being true.
+# --------------------------------------------------------------------------
+# The log is the authority for secret GRANTS. The values are not in it.
+#
+# THIS BLOCK REPLACES A PIN THAT DID ITS JOB. A previous test asserted
+# `not hasattr(SecretStore, "apply")` -- the boundary "this store has no
+# replay" recorded so it could not quietly stop being true, with the note
+# that whoever added a reducer would have to come back and decide
+# deliberately whether the revocation rule belonged in it. A reducer was
+# added; the test failed; the decision was made here. That is the pin
+# working, not a test that got in the way.
+#
+# What was wrong with the old shape was not the missing reducer alone. The
+# store's in-process dicts WERE the authority and the log sat beside them as
+# an audit trail, which contradicts this architecture's own statement that
+# the log is the truth and everything else is derived from it.
+# --------------------------------------------------------------------------
 
-    If a reducer is ever added here, this test fails and whoever adds it has
-    to decide deliberately whether the revocation rule belongs in it. That
-    is the point: the gap is recorded, not hidden.
+def _logged(tmp_path, value="s3cr3t-value"):
+    log = EventLog(tmp_path / "log.jsonl")
+    s = SecretStore(log)
+    s.register("api-token", value)
+    s.issue(_grant(), actor="owner")
+    return log, s
+
+
+def test_grant_authority_survives_a_restart(tmp_path):
+    """It did not. A fresh store saw ZERO grants.
+
+    Fail-closed for USE, and it meant the durable record and the live state
+    were unrelated objects: the log said a grant existed and the system that
+    reads the log disagreed.
     """
-    assert not hasattr(SecretStore, "apply"), (
-        "SecretStore grew a reducer; the revocation authority check in "
-        "revoke() now needs a replay-side twin, and the comment in that "
-        "method saying there is no replay here is out of date")
+    log, _ = _logged(tmp_path)
+    fresh = SecretStore(log).load()
+    assert [g.grant_id for g in fresh.grants_in_force()] == ["sg1"]
+    g = fresh._grants["sg1"]
+    assert (g.subject, g.task_id, g.tool_id, g.secret_id) == (
+        ACTOR, TASK, TOOL, "api-token")
+
+
+def test_a_reconstructed_grant_without_its_value_refuses_by_VALUE_not_AUTHORITY(
+        tmp_path):
+    """The deliberate consequence of keeping values out of the log.
+
+    "I may not have it" and "nobody ever granted it" are different answers,
+    and the second would be a lie. The authority is reconstructed; the value
+    is deployment-supplied and absent until provisioned again.
+    """
+    log, _ = _logged(tmp_path)
+    fresh = SecretStore(log).load()          # authority yes, value no
+    assert "sg1" in fresh._grants
+    with pytest.raises(UnknownSecret):
+        fresh.resolve(SecretRef("api-token"), grant_id="sg1", actor=ACTOR,
+                      task_id=TASK, tool_id=TOOL, purpose="call-schema-api")
+
+    fresh.register("api-token", "s3cr3t-value")
+    assert fresh.resolve(SecretRef("api-token"), grant_id="sg1",
+                         actor=ACTOR, task_id=TASK, tool_id=TOOL,
+                         purpose="call-schema-api").reveal() == "s3cr3t-value"
+
+
+def test_an_authorized_revocation_survives_a_restart(tmp_path):
+    log, s = _logged(tmp_path)
+    s.revoke("sg1", actor="owner", reason="rotated")
+    fresh = SecretStore(log).load()
+    assert fresh.grants_in_force() == ()
+    fresh.register("api-token", "s3cr3t-value")
+    with pytest.raises(SecretRevoked):
+        fresh.resolve(SecretRef("api-token"), grant_id="sg1", actor=ACTOR,
+                      task_id=TASK, tool_id=TOOL, purpose="call-schema-api")
+
+
+def test_replay_refuses_a_forged_revocation_ITSELF(tmp_path):
+    """Not "the independent reader notices". This store refuses it.
+
+    A revocation appended around revoke() used to be re-read by nothing in
+    this module, which made a diagnostic reader the only enforcement.
+    """
+    log, _ = _logged(tmp_path)
+    log.append(actor="mallory", action=ACT_SECRET_GRANT, target="sg1",
+               payload={"grant_id": "sg1", "revoke": True, "reason": "dos"})
+    with pytest.raises(SecretError, match="granted by 'owner'"):
+        SecretStore(log).load()
+
+
+def test_replay_refuses_a_revocation_of_a_grant_never_issued(tmp_path):
+    log, _ = _logged(tmp_path)
+    log.append(actor="owner", action=ACT_SECRET_GRANT, target="sg-nope",
+               payload={"grant_id": "sg-nope", "revoke": True, "reason": "x"})
+    with pytest.raises(SecretError, match="never issued"):
+        SecretStore(log).load()
+
+
+def test_replay_refuses_a_grant_that_predates_its_own_record(tmp_path):
+    """Where a grant begins is the log's to say."""
+    log, _ = _logged(tmp_path)
+    g = _grant(grant_id="sg2")
+    body = dict(g.body(), issued_seq=0)
+    from qta_agent.secrets import grant_from_record
+    forged = grant_from_record(body)
+    log.append(actor="owner", action=ACT_SECRET_GRANT, target=TASK,
+               payload={"grant": body, "grant_digest": forged.digest()})
+    with pytest.raises(SecretError, match="predate its own record"):
+        SecretStore(log).load()
+
+
+def test_replay_refuses_a_rebound_grant_id(tmp_path):
+    log, _ = _logged(tmp_path)
+    other = _grant(subject="somebody-else")
+    body = dict(other.body(), issued_seq=1)
+    from qta_agent.secrets import grant_from_record
+    forged = grant_from_record(body)
+    log.append(actor="owner", action=ACT_SECRET_GRANT, target=TASK,
+               payload={"grant": body, "grant_digest": forged.digest()})
+    with pytest.raises(SecretError, match="different terms"):
+        SecretStore(log).load()
+
+
+def test_replay_refuses_a_grant_whose_digest_does_not_match_its_body(tmp_path):
+    log, _ = _logged(tmp_path)
+    g = _grant(grant_id="sg2")
+    log.append(actor="owner", action=ACT_SECRET_GRANT, target=TASK,
+               payload={"grant": dict(g.body(), issued_seq=1),
+                        "grant_digest": "d" * 64})
+    with pytest.raises(SecretError, match="hashes to"):
+        SecretStore(log).load()
+
+
+def test_an_expired_grant_stays_expired_after_a_restart(tmp_path):
+    log = EventLog(tmp_path / "log.jsonl")
+    s = SecretStore(log)
+    s.register("api-token", VALUE)
+    s.issue(_grant(expires_after_seq=0), actor="owner")
+    for i in range(3):
+        log.append(actor="filler", action="filler.tick", target=str(i),
+                   payload={})
+    fresh = SecretStore(log).load()
+    fresh.register("api-token", VALUE)
+    with pytest.raises(SecretExpired):
+        fresh.resolve(SecretRef("api-token"), grant_id="sg1", actor=ACTOR,
+                      task_id=TASK, tool_id=TOOL, purpose="call-schema-api")
+
+
+def test_NO_secret_bytes_or_digests_reach_the_durable_record(tmp_path):
+    """The line Option A is drawn at, asserted rather than asserted-about.
+
+    A digest of a low-entropy credential is an offline guessing oracle. The
+    record carries the GRANT's digest -- over ids and purposes -- and nothing
+    derived from the value.
+    """
+    import hashlib
+    value = "s3cr3t-value-with-entropy"
+    log, s = _logged(tmp_path, value=value)
+    s.revoke("sg1", actor="owner", reason="rotated")
+    blob = (tmp_path / "log.jsonl").read_text(encoding="utf-8")
+
+    assert value not in blob
+    assert hashlib.sha256(value.encode()).hexdigest() not in blob
+    assert hashlib.sha256(value.encode()).hexdigest()[:16] not in blob
+    import base64
+    assert base64.b64encode(value.encode()).decode() not in blob
