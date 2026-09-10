@@ -1675,6 +1675,41 @@ it stops being true, or it is not answered.
 | 22 | `automatic_gate_effect` remains NONE | Unchanged. |
 | 23 | PR #17 remains unmerged | Open, not merged, no merge requested. |
 
+### The gate's verdict, at `04f170d`
+
+All twenty-three are true at that commit, and every one of them is answered by
+something that refuses when it stops being true rather than by this sentence:
+
+| job at `04f170d` | result |
+|---|---|
+| `agent-substrate` | **green, all 56 steps** — 38 mutation matrices, the model check, the identity-inventory check, the long-horizon campaign, the fuzz pass, the governed production path, the auditor, and both post-campaign source-integrity checks (`working tree clean`, `manifest in sync`) |
+| `second-interpreter (3.13)` | green |
+| `cross-environment-3d` | green |
+| `stack-verify` (core, full) | green |
+| `full-suite` | **the full pytest suite green**; `package_consistency_check.py` red |
+
+The one red is the R59 host divergence and nothing else: the same 24 files by
+name, on a runner without AVX-512, from a byte comparison rather than a test.
+It predates this tranche and this tranche did not change it. Every other check
+in that script passes at this commit, including the three that matter most
+here — `can_PASS_now=NO for all 83 rows`, `PASS_count=0`, and `no PASS tokens
+in any 3D output`.
+
+So, plainly, and only now:
+
+**P0 is complete.**
+
+The known examples were repaired in the first tranche and the sibling sweeps
+were incomplete; that was recorded as `PREMATURE_CLOSURE` in D-2026-10 rather
+than quietly corrected. This tranche closed the classes, and the two findings
+it produced that nobody asked for — D-2026-21 and D-2026-22 — both came from
+the recheck rather than from the original list, which is the argument for
+having done it.
+
+**This record is itself a documentation commit.** Its own hosted run is
+confirmed separately; the gate was satisfied at `04f170d`, which is named
+above rather than inherited.
+
 ---
 
 ## Open follow-up tracked from this ledger
