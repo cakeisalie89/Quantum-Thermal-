@@ -1,6 +1,6 @@
 """A second implementation for the subsystems that had none.
 
-HOW MUCH IT COVERS, MEASURED. 28 of the 37 durable actions are
+HOW MUCH IT COVERS, MEASURED. 30 of the 37 durable actions are
 independently reconstructed. The nine that are not are named in
 docs/identity_inventory.json and the count is checked by
 tools/identity_inventory.py, so "the second reader covers every subsystem"
@@ -1140,3 +1140,236 @@ def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
     assert not leaked, (
         f"the second reader imports {leaked}; it would then agree with those "
         "layers by construction, including where they are wrong")
+
+
+# ---------------------------------------------------------------------------
+# D-2026-29 (P0-R14): claims and compensations, independently reconstructed.
+#
+# "28 of 37 durable actions have a second reader" stood beside a completion
+# matrix reading "39/39 complete, 0 residual gaps". Both were true and
+# neither said whether the nine uncovered actions MATTERED.
+#
+# Classifying them says so. Two of the nine change what the system permits or
+# whom it attributes a decision to:
+#
+#   * agent.claim is the INPUT to conflict resolution. Quorum counts claims,
+#     PREFER_ROLE selects among them by role, REQUIRE_HUMAN decides a
+#     disagreement is not an agent's to settle. A claim attributable to
+#     anyone manufactures or suppresses the disagreement two "independent"
+#     parties are said to have.
+#   * task.compensation names the PERSON who authorized destroying
+#     something, copied from the escalation that authorized it.
+#
+# The other seven are audit records of decisions taken elsewhere, and the
+# inventory now refuses a classification of authority-changing that has no
+# second reader -- so the gap cannot be widened by re-labelling it.
+# ---------------------------------------------------------------------------
+
+from qta_agent.agents import ACT_CLAIM  # noqa: E402
+from qta_agent.canonical import digest_bytes as _dg  # noqa: E402
+
+ACT_COMPENSATION = "task.compensation"
+VALUE = _dg(b"the value this claim is about")
+
+
+def _claimants(gov):
+    """Two agents that may claim, and one that holds no claiming role."""
+    d = gov.agents
+    d.register(identity(agent_id="P", instance_id="P",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.PROPOSER}), by="system")
+    d.register(identity(agent_id="V", instance_id="V",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.VERIFIER}), by="system")
+    d.register(identity(agent_id="S", instance_id="S",
+                        kind=PrincipalKind.AGENT,
+                        roles={AgentRole.SCHEDULER}), by="system")
+    return d
+
+
+def _claim(**over):
+    p = {"claim_id": "c1", "task_id": "t1", "subject": "peak_temperature",
+         "value_digest": VALUE, "by_instance": "P", "role": "PROPOSER"}
+    p.update(over)
+    return p
+
+
+def test_the_second_reader_follows_an_honest_claim(gov):
+    """Anti-vacuity, first: a reader that flagged every claim says nothing."""
+    d = _claimants(gov)
+    d.claim(claim_id="c1", task_id="t1", subject="peak_temperature",
+            value_digest=VALUE, by_instance="P", role=AgentRole.PROPOSER)
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    c = recon.claims["c1"]
+    assert (c["by_instance"], c["role"], c["value_digest"]) == (
+        "P", "PROPOSER", VALUE)
+
+
+def test_the_second_reader_follows_two_claims_that_disagree(gov):
+    """The case the reader exists for: a real disagreement, read honestly.
+
+    If this were flagged, the reader would be unable to tell a conflict from
+    a forgery -- and a conflict is what it has to be able to see, because a
+    conflict is what sends a decision to a person.
+    """
+    d = _claimants(gov)
+    other = _dg(b"a different value")
+    d.claim(claim_id="c1", task_id="t1", subject="peak_temperature",
+            value_digest=VALUE, by_instance="P", role=AgentRole.PROPOSER)
+    d.claim(claim_id="c2", task_id="t1", subject="peak_temperature",
+            value_digest=other, by_instance="V", role=AgentRole.VERIFIER)
+    recon = reconstruct_subsystems(gov.log)
+    assert recon.anomalies == [], recon.anomalies
+    assert {recon.claims["c1"]["value_digest"],
+            recon.claims["c2"]["value_digest"]} == {VALUE, other}
+
+
+def test_the_second_reader_refuses_a_claim_attributed_to_somebody_else(gov):
+    """A claim is attributed to the instance that recorded it."""
+    _claimants(gov)
+    recon = _forge(gov, ACT_CLAIM, _claim(), actor="V")
+    assert any("was made by 'P' and was appended by 'V'" in a
+               for a in recon.anomalies), recon.anomalies
+    assert "c1" not in recon.claims
+
+
+def test_the_second_reader_refuses_a_claim_from_a_stranger(gov):
+    """An unregistered principal has no roles, so it has no claims either."""
+    _claimants(gov)
+    recon = _forge(gov, ACT_CLAIM, _claim(by_instance="mallory"),
+                   actor="mallory")
+    assert any("is not a registered principal" in a
+               for a in recon.anomalies), recon.anomalies
+    assert "c1" not in recon.claims
+
+
+def test_the_second_reader_refuses_a_claim_in_a_role_nobody_granted(gov):
+    """The role is what PREFER_ROLE selects on.
+
+    S is registered and active, so this fails for the ROLE and for nothing
+    else -- which is what makes it a statement about the role check.
+    """
+    _claimants(gov)
+    recon = _forge(gov, ACT_CLAIM,
+                   _claim(by_instance="S", role="VERIFIER"), actor="S")
+    assert any("claims 'c1' as 'VERIFIER'" in a
+               for a in recon.anomalies), recon.anomalies
+    assert "c1" not in recon.claims
+
+
+def test_the_second_reader_refuses_a_claim_in_a_role_nobody_defined(gov):
+    _claimants(gov)
+    recon = _forge(gov, ACT_CLAIM, _claim(role="ORACLE"), actor="P")
+    assert any("not a role this reader knows" in a
+               for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_a_claim_from_a_retired_instance(gov):
+    """A party that has left does not get one more opinion."""
+    d = _claimants(gov)
+    d.retire(instance_id="P", by="P", reason="rotated out")
+    recon = _forge(gov, ACT_CLAIM, _claim(), actor="P")
+    assert any("was retired after seq" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert "c1" not in recon.claims
+
+
+def test_the_second_reader_refuses_a_claim_whose_value_is_prose(gov):
+    """Two claims are compared by digest, so a claim without one can never
+    disagree with anything -- which is a way to be counted by quorum without
+    ever being contradicted."""
+    _claimants(gov)
+    recon = _forge(gov, ACT_CLAIM, _claim(value_digest="about 900 K"),
+                   actor="P")
+    assert any("names its value as 'about 900 K'" in a
+               for a in recon.anomalies), recon.anomalies
+    assert "c1" not in recon.claims
+
+
+def test_the_second_reader_refuses_a_claim_recorded_twice(gov):
+    d = _claimants(gov)
+    d.claim(claim_id="c1", task_id="t1", subject="peak_temperature",
+            value_digest=VALUE, by_instance="P", role=AgentRole.PROPOSER)
+    recon = _forge(gov, ACT_CLAIM, _claim(value_digest=_dg(b"other")),
+                   actor="P")
+    assert any("recorded twice" in a for a in recon.anomalies), \
+        recon.anomalies
+    # ...and the first one is what stands.
+    assert recon.claims["c1"]["value_digest"] == VALUE
+
+
+# --- compensations ---------------------------------------------------------
+
+def _compensation(**over):
+    p = {"task_id": "t1", "compensated_tool": "stage10.emit_artifact",
+         "compensating_tool": "stage10.remove_artifact",
+         "authorized_by_escalation": "e1", "answered_by": "H",
+         "outcome": "SUCCEEDED"}
+    p.update(over)
+    return p
+
+
+def _answered(gov):
+    d = _opened(gov)
+    d.answer(escalation_id="e1", answered_by="H", answer="yes",
+             reason="checked and it holds")
+    return d
+
+
+def test_the_second_reader_follows_an_honest_compensation(gov):
+    """Anti-vacuity for every refusal below."""
+    _answered(gov)
+    recon = _forge(gov, ACT_COMPENSATION, _compensation(), actor="A",
+                   target="t1")
+    assert recon.anomalies == [], recon.anomalies
+    (rec,) = recon.compensations["t1"]
+    assert (rec["answered_by"], rec["authorized_by_escalation"]) == ("H", "e1")
+
+
+def test_the_second_reader_refuses_a_compensation_naming_another_answerer(
+        gov):
+    """The field names a PERSON as having authorized destroying something."""
+    _answered(gov)
+    recon = _forge(gov, ACT_COMPENSATION, _compensation(answered_by="H2"),
+                   actor="A", target="t1")
+    assert any("was answered by 'H2'" in a for a in recon.anomalies), \
+        recon.anomalies
+    # Recorded anyway: a compensation is a fact about the task, and hiding
+    # the forged one would lose the evidence that it happened.
+    assert recon.compensations["t1"]
+
+
+def test_the_second_reader_refuses_a_compensation_citing_no_escalation(gov):
+    _answered(gov)
+    recon = _forge(gov, ACT_COMPENSATION,
+                   _compensation(authorized_by_escalation=None),
+                   actor="A", target="t1")
+    assert any("names no escalation" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_a_compensation_citing_a_ghost(gov):
+    """Stricter than the primary, deliberately.
+
+    The primary looks the escalation up and, when the lookup fails, checks
+    nothing -- so a compensation authorized by a question nobody asked
+    passes it silently. Saying what the log does not support is this
+    reader's job.
+    """
+    _answered(gov)
+    recon = _forge(gov, ACT_COMPENSATION,
+                   _compensation(authorized_by_escalation="e-nonexistent"),
+                   actor="A", target="t1")
+    assert any("this log never carried" in a for a in recon.anomalies), \
+        recon.anomalies
+
+
+def test_the_second_reader_refuses_a_compensation_citing_an_open_question(
+        gov):
+    """A question nobody answered authorizes nothing."""
+    _opened(gov)
+    recon = _forge(gov, ACT_COMPENSATION, _compensation(answered_by=None),
+                   actor="A", target="t1")
+    assert any("which is 'OPEN'" in a for a in recon.anomalies), \
+        recon.anomalies

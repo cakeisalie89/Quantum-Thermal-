@@ -73,9 +73,11 @@ def test_independent_reader_coverage_is_MEASURED_not_claimed():
     """"The second reader covers every subsystem" was a claim. This measures.
 
     It is not true, and the number is recorded rather than rounded up: the
-    reader reconstructs 28 of 37 durable actions. Nine are not reconstructed
-    and are named in the inventory. Saying so is the alternative to a step
-    title that overstates it.
+    reader reconstructs 30 of 37 durable actions. The seven that are not are
+    named in the inventory, each classified as not authority-changing with
+    its reason. Saying so is the alternative to a step title that overstates
+    it -- and the step title itself is checked below, so the label cannot
+    drift away from the measurement either.
     """
     doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
     recorded = {e["action"] for e in doc["actions"]
@@ -147,8 +149,11 @@ from tools.identity_inventory import (  # noqa: E402
 
 #: A real durable action the second reader does NOT dispatch on, so every
 #: planted case below starts from a known negative rather than from one that
-#: would have counted anyway.
-UNCOVERED = "agent.claim"
+#: would have counted anyway. It was ``agent.claim`` until P0-R14 gave that
+#: one a reader, at which point every planted case quietly stopped proving
+#: anything -- and ``test_the_planted_action_is_uncovered_in_the_real_reader``
+#: is what said so.
+UNCOVERED = "agent.message"
 
 #: What the measurement this replaced would have said, reproduced here so
 #: the difference between the two is exercised rather than described.
@@ -407,3 +412,126 @@ def test_the_checker_refuses_an_ACTOR_field_missing_any_of_its_bindings(
                     return
     found = _with_inventory(tmp_path, monkeypatch, blank)
     assert any(f"records no {key}" in p for p in found), found
+
+
+# ---------------------------------------------------------------------------
+# D-2026-29 (P0-R14): "28 of 37 have a second reader" stood beside a
+# completion matrix reading "39/39 complete, 0 residual gaps", and nothing
+# reconciled the two. Both were true. Neither said whether the nine
+# uncovered actions mattered.
+#
+# The reconciliation is a CLASSIFICATION: an action is authority-changing
+# when a forged record of it would change what the system permits, what it
+# treats as canonical, or whom it attributes a decision to. Those may not be
+# uncovered; the rest may, and each says why in its own entry.
+# ---------------------------------------------------------------------------
+
+def test_every_action_is_classified_authority_changing_or_not():
+    doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    unjudged = sorted(e["action"] for e in doc["actions"]
+                      if not isinstance(e.get("authority_changing"), bool))
+    assert not unjudged, (
+        f"{len(unjudged)} action(s) carry no authority_changing judgement: "
+        f"{unjudged}")
+
+
+def test_every_classification_states_its_reason():
+    """A bare boolean is a claim nobody can review."""
+    doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    thin = sorted(e["action"] for e in doc["actions"]
+                  if len(str(e.get("authority_note", "")).strip()) < 20)
+    assert not thin, f"{thin} record no reason for their classification"
+
+
+def test_the_classification_is_not_all_one_way():
+    """Anti-vacuity. A table that says everything changes authority, or that
+    nothing does, has not distinguished anything -- and either answer would
+    satisfy every other assertion in this section."""
+    doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    values = [e["authority_changing"] for e in doc["actions"]]
+    assert any(values) and not all(values), (
+        "the authority_changing column partitions nothing")
+
+
+def test_every_authority_changing_action_has_a_second_reader():
+    """The rule that makes the coverage gap answerable rather than merely
+    reported."""
+    doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    gaps = sorted(e["action"] for e in doc["actions"]
+                  if e["authority_changing"]
+                  and e["independent_reader"] != "YES")
+    assert not gaps, (
+        f"{gaps} change authority and have no independent reader. Either "
+        "reconstruct them or say why they do not change authority")
+
+
+def test_the_uncovered_actions_are_exactly_the_ones_judged_harmless():
+    """And the set is named, so shrinking coverage has to come past here."""
+    doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
+    uncovered = {e["action"] for e in doc["actions"]
+                 if e["independent_reader"] != "YES"}
+    assert uncovered == {
+        "agent.message", "file.read", "network.result", "secret.access",
+        "secret.provision", "task.reexecution",
+        "task.separate_verification"}, sorted(uncovered)
+    assert uncovered == set(durable_actions()) - reconstructed_actions()
+
+
+def test_the_checker_refuses_an_unjudged_action(tmp_path, monkeypatch):
+    def unjudge(doc):
+        doc["actions"][0].pop("authority_changing", None)
+    found = _with_inventory(tmp_path, monkeypatch, unjudge)
+    assert any("no authority_changing classification" in p for p in found), \
+        found
+
+
+def test_the_checker_refuses_an_uncovered_authority_changing_action(
+        tmp_path, monkeypatch):
+    """The whole point of the classification, exercised.
+
+    ``agent.message`` is uncovered and judged harmless. Reclassify it as
+    authority-changing without giving it a reader and the inventory has to
+    refuse -- which is what stops the classification from being a way to
+    wave a gap through.
+    """
+    def reclassify(doc):
+        for e in doc["actions"]:
+            if e["action"] == "agent.message":
+                e["authority_changing"] = True
+    found = _with_inventory(tmp_path, monkeypatch, reclassify)
+    assert any("authority-changing and has no independent reader" in p
+               for p in found), found
+
+
+def test_the_checker_refuses_a_classification_with_no_reason(tmp_path,
+                                                             monkeypatch):
+    def blank(doc):
+        doc["actions"][0]["authority_note"] = ""
+    found = _with_inventory(tmp_path, monkeypatch, blank)
+    assert any("no reason for its authority_changing" in p for p in found), \
+        found
+
+
+def test_the_labels_that_quote_the_coverage_number_still_match_it():
+    """A number in a CI step title is a claim that drifts silently.
+
+    D-2026-19 put it there on purpose -- "for every subsystem" was the
+    overclaim it replaced -- and then the number moved when P0-R14 added two
+    readers. A label nothing checks is the same defect one layer out, so the
+    label is checked.
+    """
+    covered = len(reconstructed_actions())
+    total = len(durable_actions())
+    phrase = f"{covered} of {total}"
+
+    workflow = (ROOT / ".github" / "workflows"
+                / "agent-substrate.yml").read_text(encoding="utf-8")
+    assert phrase in workflow, (
+        f"the workflow's step title does not say {phrase!r}; it reports a "
+        "coverage number that is no longer the measured one")
+
+    spec = json.loads(
+        (ROOT / "tools" / "mutations"
+         / "agent_second_reader.json").read_text(encoding="utf-8"))
+    assert phrase in spec["title"], (
+        f"the mutation spec's title does not say {phrase!r}")

@@ -33,7 +33,13 @@ rather than asserted:
     present but branched on by nothing is reported as its own category
     rather than folded into either answer;
   * every field classified ACTOR must name a regression test, and that test
-    must exist.
+    must exist;
+  * every action must be classified AUTHORITY-CHANGING or not, with a
+    reason -- and an authority-changing action with no independent reader
+    fails. That is the rule that reconciles "28 of 37 have a second reader"
+    with a completion matrix reading 39/39: the gap is acceptable exactly
+    where a forged record changes nothing anyone is permitted to do, and
+    each such action has to say so in its own entry.
 
 WHAT IS REVIEWED RATHER THAN DERIVED
 
@@ -225,6 +231,37 @@ def problems() -> list:
             found.append(
                 f"{act}: recorded in {e.get('module')!r}, defined in "
                 f"{actions[act]!r}")
+        # AUTHORITY-CHANGING ACTIONS MUST HAVE A SECOND READER.
+        #
+        # "28 of 37" was a true number beside a completion matrix reading
+        # 39/39 with no residual gaps, and nothing reconciled the two. The
+        # reconciliation is this: an action is authority-changing when a
+        # forged record of it would change what the system permits, treats
+        # as canonical, or attributes to a person. Those may not be
+        # uncovered. The rest may, and each says why in the table.
+        #
+        # The judgement is reviewed, not derived -- deriving "does this
+        # change authority" from source would be guessing at intent. What is
+        # MECHANICAL is that the judgement and the coverage cannot drift
+        # apart without something refusing.
+        changing = e.get("authority_changing")
+        if not isinstance(changing, bool):
+            found.append(
+                f"{act}: records no authority_changing classification. An "
+                "action nobody has judged is one nobody can say needs a "
+                "second reader")
+        elif changing and e.get("independent_reader") != "YES":
+            found.append(
+                f"{act} is classified as authority-changing and has no "
+                "independent reader. Either reconstruct it or say why it "
+                "does not change authority; leaving both is the gap the "
+                "coverage number was reporting without reconciling")
+        if changing is not None and len(
+                str(e.get("authority_note", "")).strip()) < 20:
+            found.append(
+                f"{act}: records no reason for its authority_changing "
+                "classification. A bare boolean is a claim nobody can review")
+
         for fld in e.get("fields", []):
             role = fld.get("role")
             if role not in ROLES:

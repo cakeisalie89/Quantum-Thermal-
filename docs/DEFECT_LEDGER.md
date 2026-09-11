@@ -2524,6 +2524,149 @@ empty is the answer, not the reason not to ask.
 claimed" at a commit before this one as a statement about handling. It was a
 statement about the presence of thirty-seven strings in one file.
 
+## D-2026-29 — two true numbers, side by side, and nothing reconciling them
+
+**CLASS** — `COVERAGE_RECONCILIATION_DEFECT`, `VERIFIER_COVERAGE_GAP`.
+
+**AFFECTED COMMIT** — present since D-2026-19/20 recorded the measurement;
+still true at `643d2c7`.
+
+**DISCOVERED BY.** P0-R14 of the second reopening.
+
+**DEFECT.** Two statements stood next to each other in this repository:
+
+* `docs/completion_matrix.json`, validated on every run: **39/39 complete, 0
+  residual gaps**;
+* `tools/identity_inventory.py`, printed on every CI run: **28 of 37 durable
+  actions have an independent reader**.
+
+Both were true. Neither was wrong. And nothing anywhere said whether the nine
+uncovered actions *mattered* — so a reader could take the first as the summary
+and the second as a footnote, which is exactly the reading the first invites.
+
+The nine were listed in the ledger's own follow-up section as "ordinary
+repository engineering, not a boundary". That is an honest statement about
+whose job it is. It is not an answer to the question a reviewer actually has:
+**does a forged record of one of these change anything?**
+
+**THE RECONCILIATION IS A CLASSIFICATION, NOT A NUMBER.** An action is
+`authority_changing` when a forged record of it would change what the system
+permits, what it treats as canonical, or whom it attributes a decision to.
+Every one of the 37 is now classified in `docs/identity_inventory.json` with
+its reason, and the rule is enforced: **an authority-changing action with no
+independent reader is a failure**, not a footnote.
+
+26 of the 37 are authority-changing. Two of them had no second reader.
+
+**`agent.claim` — AUTHORITY-CHANGING, AND IT WAS UNCOVERED.** A claim is not a
+state change, and for a long time that was treated as the same thing as not
+being authority. It is the INPUT to conflict resolution: `QUORUM` counts
+claims, `PREFER_ROLE` selects among them by role, and `REQUIRE_HUMAN` decides
+that a disagreement is not an agent's to settle. So a claim attributable to
+anyone, or made in a role its author does not hold, manufactures or suppresses
+the disagreement two parties the system is about to call independent are said
+to have.
+
+The production reducer checks this — it was repaired for exactly that reason,
+and its comment says so. Which means a log carrying a forged claim **cannot be
+loaded by the primary at all**, so the comparison between the two readers
+never runs and the second reader is the only one left looking at the history.
+A second opinion that accepts a wider language than the first is not a second
+opinion on the logs that matter. That is the same shape as D-2026-02 and
+D-2026-19, recorded a third time.
+
+`_sub_claim` restates every rule in this module's own terms: the claim is
+attributed to the instance that recorded it; that instance is registered,
+active at this seq, and holds the role named; the role is one this reader
+knows; the value is a digest, because a claim carrying prose can be counted by
+a quorum and contradicted by nothing; and a claim id is not reused.
+
+**`task.compensation` — AUTHORITY-CHANGING FOR A DIFFERENT REASON.** It does
+not move the task, and this reader does not fold it into one either: "was
+compensated" and "did not happen" must not become the same answer. What it
+carries is `answered_by` — a copy of the escalation's answerer, so an auditor
+can see who authorized destroying something without joining two tables. A
+convenience nothing checks is a field a forged record sets freely, and it
+names a **person**.
+
+`_sub_compensation` restates the cross-check and is **stricter than the
+primary in one place, deliberately**: the primary looks the escalation up and,
+when the lookup fails, checks nothing — so a compensation authorized by a
+question nobody asked passes it silently. Here that is a finding, along with
+one citing an escalation that is still OPEN. Saying what the log does not
+support is this reader's job.
+
+**THE OTHER SEVEN, EACH WITH ITS REASON.** `agent.message`, `file.read`,
+`network.result`, `secret.access`, `secret.provision`, `task.reexecution`,
+`task.separate_verification`. Every one was traced to its consumer before
+being classified:
+
+* `network.result` reaches `NetworkAuthority.apply`, which folds grants and
+  service calls and, for a result, only advances its position in the log;
+* `SecretStore.apply` folds `secret.grant` and returns False for everything
+  else, so neither secret record changes a grant;
+* `file.read` is written **after** readpath's gate has decided, and the gate
+  consults capabilities and the path, never a past read;
+* `task.reexecution` and `task.separate_verification` are facts about HOW a
+  result was checked — the projection says so in a comment — and the
+  transition each justifies is itself recorded as a transition, which IS
+  reconstructed;
+* nothing consults `agent.message` to permit anything; its sender binding and
+  its redelivery immutability matter for audit, which is what D-2026-16 and
+  D-2026-17 were about.
+
+A forged one of these falsifies an audit trail. None of them permits anything.
+
+**COVERAGE IS NOW 30 OF 37, AND THE LABEL IS CHECKED.** The number appears in
+a CI step title, in a mutation spec title, in two test-module docstrings and
+in this ledger. D-2026-19 put it in the step title on purpose — "for every
+subsystem" was the overclaim it replaced — and then the number moved the
+moment two readers were added. A number in a label that nothing checks is this
+same defect one layer out, so
+`test_the_labels_that_quote_the_coverage_number_still_match_it` reads the
+measurement and requires the workflow and the spec to agree with it.
+
+**AND THE PLANTED-ACTION TESTS QUIETLY STOPPED PROVING ANYTHING.** D-2026-28's
+measurement tests all plant `agent.claim` into a synthetic source, because it
+was a real action the reader did not dispatch on. Giving it a reader made
+every one of those cases start from a positive, so the negative cases would
+have passed no matter what the classifier did.
+`test_the_planted_action_is_uncovered_in_the_real_reader` — the anti-vacuity
+assertion written one commit earlier — is what said so, within a minute. The
+anchor moved to `agent.message` and the comment records why it moved.
+
+**ADVERSARIAL TESTS.** Eight for claims and five for compensations, each
+refusal paired with an honest history it must not flag — including
+`test_the_second_reader_follows_two_claims_that_disagree`, because a reader
+that cannot tell a real conflict from a forged one is useless at exactly the
+moment a conflict is what sends a decision to a person. Plus the inventory's
+own: every action classified, every classification given a reason, the column
+asserted to partition (a table saying everything changes authority, or that
+nothing does, would satisfy every other assertion here), and the checker
+required to refuse an unjudged action, an unreasoned one, and an
+authority-changing one with no reader.
+
+**MUTATIONS.** `R75`–`R89` on `agent_second_reader.json`: one per restated
+claim rule, one per restated compensation rule, and one apiece that stops the
+reader covering either action at all — the quieter of the two ways coverage
+fails. Two are written as substitutions rather than deletions
+(`out.agents.get(actor, {...})`, `out.escalations.get(eid, {...})`) so the
+mutant produces a WRONG ANSWER instead of an `AttributeError`: a kill by
+crash says Python rejected the file, not that the check was load-bearing.
+
+**FORBIDDEN FAKE FIXES.** Reclassifying an uncovered action as
+not-authority-changing to make the rule pass — which is why every
+classification carries a reason and why
+`test_the_checker_refuses_an_uncovered_authority_changing_action` exists.
+Rounding 30 up to 37 by counting actions the reader mentions. Deleting the
+number from the step title so nothing can drift: the number is the claim, and
+a claim with no number was the overclaim D-2026-19 replaced.
+
+**INVALIDATED CLAIMS.** Any reading of "39/39, 0 residual gaps" as implying
+that every durable action has an independent reader. It never did, the
+inventory always said so, and until now the two numbers sat in different files
+with nothing obliging them to be read together.
+
 ---
 
 ## Hosted evidence, per commit
@@ -2547,12 +2690,47 @@ actually ran. Neither was true at `de7f0e6`.
 | D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
 | D-2026-26 | the cross-process `read-decide-write` mutation matrix | `b2787a0` | **`CURRENTLY_OPEN_FINDING`** until that step is green on a run of its own; the local matrix is 11/11 and local evidence is not the condition |
 | D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `f80caa8` | pending its own hosted run; local evidence is 74/74 and is recorded as local |
-| D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | this commit | pending its own hosted run; local evidence is 13/13 and is recorded as local |
+| D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | `643d2c7` | pending its own hosted run; local evidence is 13/13 and is recorded as local |
+| D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | this commit | pending its own hosted run; local evidence is 89/89 and is recorded as local |
 
 `de7f0e6` is retained in this table's history rather than deleted: a commit
 whose closure attempt failed is evidence about how the class was actually
 closed, and removing it would make the repair look like it worked the first
 time.
+
+---
+
+## The second reopening, finding by finding
+
+The three states above apply per FINDING, not per tranche. A tranche-level
+verdict is what produced "P0 complete" while D-2026-23 was open in the
+production caller's own docstring, so there is no tranche-level verdict here.
+
+`GATE_SATISFIED_AT_COMMIT` is about a commit and stays true forever.
+`CURRENTLY_CLOSED` means no open finding of that class AND the evidence the
+finding itself named has been re-run at the current head. Anything not yet
+green on its own commit's hosted run is `CURRENTLY_OPEN_FINDING`, including
+when the local evidence is complete — local evidence is evidence about this
+container.
+
+| finding | what it was | state | evidence |
+|---|---|---|---|
+| P0-R10 / D-2026-23 | two defect records described a repair no commit ever made | `CURRENTLY_CLOSED` | 18/18 mutations; the prose and the enforcement now agree, and a test sweeps the corpus for the claim |
+| P0-R11 / D-2026-24 | the address class was checked only where it was already known | `CURRENTLY_CLOSED` | 54/54; hosted at `b2787a0` |
+| P0-R11 hosted regression / D-2026-25 | a permitted class does not make an endpoint usable | `CURRENTLY_CLOSED` | 61/61; hosted at `b2787a0`, on that commit's own run |
+| D-2026-26 | a reconcile decision outlived the facts it was decided on | `CURRENTLY_OPEN_FINDING` | 11/11 locally; its named hosted step has not yet been green on a commit of its own |
+| P0-R12 / D-2026-27 | the second reader called the gate it exists to second-guess | `CURRENTLY_OPEN_FINDING` | 74/74 locally at `f80caa8`; hosted pending |
+| P0-R13 / D-2026-28 | the coverage number measured string presence | `CURRENTLY_OPEN_FINDING` | 13/13 locally at `643d2c7`; hosted pending |
+| P0-R14 / D-2026-29 | two true numbers, side by side, unreconciled | `CURRENTLY_OPEN_FINDING` | 89/89 locally at this commit; hosted pending |
+| P0-R15 | historical and current claims were not distinguished | this section, and the per-commit evidence table above |
+| P0-R16 | the pull request body read as a completion announcement | the body is relabelled; see the PR |
+
+**WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
+say it because the rule is *the gate has been re-run at the current head*, and
+a green local run is not that. Writing `CURRENTLY_CLOSED` beside "hosted
+pending" would be the same move as "P0 complete" — a state name doing the work
+that evidence is supposed to do. The rows move when the runs are green, and
+not before.
 
 ---
 
@@ -2577,6 +2755,22 @@ claimed complete.
    campaign since has reported "all sources restored byte-identical" on
    every run, so whatever it was, it is not in that spec. To be identified
    during the next full campaign, which runs every spec.
+
+   **A NEAR MISS WORTH RECORDING, BECAUSE IT LOOKED LIKE THE ANSWER.** The
+   `agent_second_reader` run for D-2026-29 reported exactly this condition
+   and named a mutation: `D8_a_capability_id_may_be_reissued` damaged
+   `tools/independent_verify.py`. It did not. **I** edited that file while
+   the matrix was running, the harness hashed it at baseline, and the
+   difference surfaced under whichever mutation happened to be in flight.
+   The harness then restored the file to its baseline, silently undoing the
+   edit -- which is the harness being right and me being careless.
+
+   Recorded rather than quietly dropped for two reasons: a named suspect is
+   how a real investigation goes wrong, and the next reader of this item
+   would otherwise find `D8` in a log and close the wrong thing. The
+   follow-up stays **open**, and the discipline it argues for is the one
+   that failed here: do not edit tracked sources while a mutation matrix
+   holds them.
 
 1. **The admission-rule sweep across every `_sub_*` reducer**
    (D-2026-02 sibling sweep). `_sub_job_transition` and `_sub_lease_renew`

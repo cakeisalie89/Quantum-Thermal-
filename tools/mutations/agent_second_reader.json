@@ -1,6 +1,6 @@
 {
-  "title": "The second reader, for the subsystems it covers -- 28 of 37 durable actions",
-  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left. R29-R40 attack the escalation rules. Until they existed this reader had no escalation reconstruction at all, while the campaign was described as covering the second reader for EVERY subsystem -- two statements that could not both be true. R41-R74 attack the rules restated for P0-R12 (D-2026-27). Until then the authority and task replays at the top of reconstruct.py imported authority.check and tasks.check and handed every replayed record back to them -- so a weakened production gate was reproduced faithfully by the reader whose entire purpose is to disagree with it, and the differential comparison came back empty. These mutations come in three kinds: disable one restated rule (the reader accepts what production refuses), drift one restated table away from production (the conformance tests must name the difference), and re-couple the reader to the gate by import or by call (the AST guards must notice, including when the import hides in a function body).",
+  "title": "The second reader, for the subsystems it covers -- 30 of 37 durable actions",
+  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left. R29-R40 attack the escalation rules. Until they existed this reader had no escalation reconstruction at all, while the campaign was described as covering the second reader for EVERY subsystem -- two statements that could not both be true. R41-R74 attack the rules restated for P0-R12 (D-2026-27). Until then the authority and task replays at the top of reconstruct.py imported authority.check and tasks.check and handed every replayed record back to them -- so a weakened production gate was reproduced faithfully by the reader whose entire purpose is to disagree with it, and the differential comparison came back empty. These mutations come in three kinds: disable one restated rule (the reader accepts what production refuses), drift one restated table away from production (the conformance tests must name the difference), and re-couple the reader to the gate by import or by call (the AST guards must notice, including when the import hides in a function body). R75-R84 attack the two readers P0-R14 added (D-2026-29). agent.claim and task.compensation were the only uncovered actions a forged record of which changes what the system permits or whom it attributes a decision to: claims are the input to conflict resolution, and a compensation names the PERSON who authorized destroying something. The remaining seven are classified as not authority-changing in docs/identity_inventory.json, each with its reason, and the inventory now refuses a classification of authority-changing that has no second reader.",
   "suites": [
     "tests/test_agent_second_reader.py",
     "tests/test_agent_differential.py",
@@ -524,6 +524,111 @@
       "find": "def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,",
       "replace": "def _delegate(req):\n    return check(req)\n\n\ndef _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,",
       "rationale": "a call back into the gate, with no import to give it away: the call-graph guard is what has to notice"
+    },
+    {
+      "name": "R75_a_claim_may_be_attributed_to_anyone",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    by = p.get(\"by_instance\")\n    if by != ev.actor:",
+      "replace": "    by = p.get(\"by_instance\")\n    if False:",
+      "rationale": "a claim is attributed to whoever it names, so one instance manufactures the disagreement two 'independent' parties are said to have"
+    },
+    {
+      "name": "R76_a_claim_may_name_a_role_nobody_defined",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    role = p.get(\"role\")\n    if role not in _AGENT_ROLES:",
+      "replace": "    role = p.get(\"role\")\n    if False:",
+      "rationale": "the role PREFER_ROLE selects on stops being one of a known set, so a claim can be filed under a role no identity could ever hold"
+    },
+    {
+      "name": "R77_the_role_vocabulary_gains_one_nobody_granted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_AGENT_ROLES = {\"PROPOSER\", \"EXECUTOR\", \"VERIFIER\", \"AUDITOR\", \"REVIEWER\",\n                \"SCHEDULER\"}",
+      "replace": "_AGENT_ROLES = {\"PROPOSER\", \"EXECUTOR\", \"VERIFIER\", \"AUDITOR\", \"REVIEWER\",\n                \"SCHEDULER\", \"ORACLE\"}",
+      "rationale": "this reader's roles drift from the directory's, and the divergence that was supposed to be the finding becomes the agreement"
+    },
+    {
+      "name": "R78_an_unregistered_claimant_holds_whatever_it_claims",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    ident = out.agents.get(ev.actor)\n    if ident is None:",
+      "replace": "    ident = out.agents.get(\n        ev.actor, {\"roles\": (role,), \"retired_seq\": None})\n    if ident is None:",
+      "rationale": "a principal the log never admitted is treated as holding the role it named, which is a quorum vote from nobody"
+    },
+    {
+      "name": "R79_a_retired_instance_may_still_claim",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if retired is not None and ev.seq >= retired:",
+      "replace": "    if False:",
+      "rationale": "a party that has left gets one more opinion, at the moment it matters"
+    },
+    {
+      "name": "R80_a_claim_may_be_made_in_a_role_the_instance_lacks",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if role not in (ident.get(\"roles\") or ()):",
+      "replace": "    if False:",
+      "rationale": "an instance claims as VERIFIER without holding it, and conflict resolution weighs the role it invented"
+    },
+    {
+      "name": "R81_a_claim_need_not_name_its_value_by_digest",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not _is_digest(p.get(\"value_digest\")):",
+      "replace": "    if False:",
+      "rationale": "a claim carrying prose can never be compared with another, so it is counted by quorum and contradicted by nothing"
+    },
+    {
+      "name": "R82_a_claim_id_may_be_reused",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cid in out.claims:\n        _note(out, ev, f\"claim {cid!r} recorded twice; the second would \"",
+      "replace": "    if False:\n        _note(out, ev, f\"claim {cid!r} recorded twice; the second would \"",
+      "rationale": "a later record replaces an assertion somebody may already have counted, which rewrites a vote after the count"
+    },
+    {
+      "name": "R83_the_second_reader_stops_covering_claims",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"agent.claim\":",
+      "replace": "        elif False:",
+      "rationale": "the reader agrees about claims by covering none of them, which is the quieter of the two ways coverage fails"
+    },
+    {
+      "name": "R84_a_compensation_need_not_name_what_authorized_it",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not eid:\n        _note(out, ev, f\"compensation of {tid!r} names no escalation; an \"",
+      "replace": "    if False:\n        _note(out, ev, f\"compensation of {tid!r} names no escalation; an \"",
+      "rationale": "an undo nobody authorized passes as an undo that authorized itself"
+    },
+    {
+      "name": "R85_a_cited_escalation_that_does_not_exist_agrees_with_the_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    esc = out.escalations.get(eid)\n    if esc is None:",
+      "replace": "    esc = out.escalations.get(\n        eid, {\"state\": \"ANSWERED\", \"answered_by\": named})\n    if esc is None:",
+      "rationale": "a compensation authorized by a question nobody asked confirms itself, which is the case the primary already misses"
+    },
+    {
+      "name": "R86_an_unanswered_question_may_authorize_an_undo",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if esc.get(\"state\") != \"ANSWERED\":",
+      "replace": "    if False:",
+      "rationale": "an OPEN or WITHDRAWN escalation authorizes destroying something, so raising the question is enough"
+    },
+    {
+      "name": "R87_a_compensation_may_name_a_different_person",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if named != esc.get(\"answered_by\"):",
+      "replace": "    if False:",
+      "rationale": "the field naming who authorized an undo stops being compared to the escalation, so a forged record picks the person it blames"
+    },
+    {
+      "name": "R88_compensations_are_not_recorded_at_all",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    out.compensations.setdefault(tid, []).append(record)",
+      "replace": "    out.compensations.setdefault(tid, [])",
+      "rationale": "the record of an undo disappears from the second reader, so the evidence that it happened is gone even when the checks below still run"
+    },
+    {
+      "name": "R89_the_second_reader_stops_covering_compensations",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"task.compensation\":",
+      "replace": "        elif False:",
+      "rationale": "the reader covers no compensation, and the name on an undo goes back to being checked by the primary alone"
     }
   ]
 }

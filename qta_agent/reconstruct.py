@@ -806,6 +806,19 @@ class SubsystemReconstruction:
     root_issuer: "str | None" = None
     #: escalation_id -> the question, its state and who decided it.
     escalations: dict = field(default_factory=dict)
+    #: claim_id -> what one instance asserted about one subject.
+    #:
+    #: Claims are the input to conflict resolution, so a claim attributable
+    #: to anyone is a way to manufacture or suppress a disagreement between
+    #: two parties the system is about to call independent.
+    claims: dict = field(default_factory=dict)
+    #: task_id -> the compensations recorded against it, in order.
+    #:
+    #: A compensation does not move the task -- it is a fact ABOUT one --
+    #: which is why it is kept as a list beside the tasks rather than folded
+    #: into them. What it carries that needs a second reader is the name of
+    #: the PERSON who authorized destroying something.
+    compensations: dict = field(default_factory=dict)
     #: service_id -> its contract as this reader rebuilt it.
     services: dict = field(default_factory=dict)
     #: "service_id/task_id" -> permitted calls counted from the log.
@@ -844,6 +857,12 @@ _BOOTSTRAP = "out-of-band-bootstrap"
 #: like every other vocabulary in this module.
 _ESC_OPEN = "OPEN"
 _ESC_TERMINAL = {"ANSWERED", "WITHDRAWN"}
+
+#: What an instance may be doing when it makes a claim. Spelled out rather
+#: than imported, like every other vocabulary in this module: if the
+#: directory's roles and these drift apart, the divergence is the finding.
+_AGENT_ROLES = {"PROPOSER", "EXECUTOR", "VERIFIER", "AUDITOR", "REVIEWER",
+                "SCHEDULER"}
 
 #: The fewest options an escalation may offer. A question with one answer is
 #: a notification and should not block anything; a question with none cannot
@@ -887,6 +906,10 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_agent_register(ev, p, out)
         elif a == "agent.retire":
             _sub_agent_retire(ev, p, out)
+        elif a == "agent.claim":
+            _sub_claim(ev, p, out)
+        elif a == "task.compensation":
+            _sub_compensation(ev, p, out)
         elif a == "agent.escalation":
             _sub_escalation(ev, p, out)
         elif a == "agent.escalation.answer":
@@ -1555,6 +1578,135 @@ def _sub_escalation_answer(ev, p: dict, out) -> None:
     cur["answered_seq"] = ev.seq
 
 
+def _sub_claim(ev, p: dict, out) -> None:
+    """Replay one claim, and ask whether whoever made it could have.
+
+    WHY A CLAIM NEEDS A SECOND READER AT ALL
+
+    A claim is not a state change, and for a long time that was treated as
+    the same thing as not being authority. It is the INPUT to conflict
+    resolution: quorum counts claims, PREFER_ROLE selects among them by
+    role, and REQUIRE_HUMAN decides that a disagreement is not an agent's to
+    settle. So a claim attributable to anyone, or made in a role its author
+    does not hold, is a way to manufacture a quorum or to invent the
+    disagreement that sends a decision to a person -- or to suppress one.
+
+    Every rule below is restated in this module's own terms, from the event
+    header and the identities THIS replay admitted, never from the payload's
+    own account of who made it.
+    """
+    cid = p.get("claim_id")
+    if not isinstance(cid, str) or not cid:
+        _note(out, ev, "claim names no claim_id")
+        return
+    if cid in out.claims:
+        _note(out, ev, f"claim {cid!r} recorded twice; the second would "
+                       "replace an assertion somebody may already have "
+                       "counted")
+        return
+
+    by = p.get("by_instance")
+    if by != ev.actor:
+        _note(out, ev, f"claim {cid!r} says it was made by {by!r} and was "
+                       f"appended by {ev.actor!r}; a claim is attributed to "
+                       "the instance that recorded it")
+        return
+
+    role = p.get("role")
+    if role not in _AGENT_ROLES:
+        _note(out, ev, f"claim {cid!r} is made in role {role!r}, which is "
+                       "not a role this reader knows")
+        return
+
+    ident = out.agents.get(ev.actor)
+    if ident is None:
+        _note(out, ev, f"{ev.actor!r} makes claim {cid!r} and is not a "
+                       "registered principal")
+        return
+    retired = ident.get("retired_seq")
+    if retired is not None and ev.seq >= retired:
+        _note(out, ev, f"{ev.actor!r} was retired after seq {retired} and "
+                       f"makes claim {cid!r} at seq {ev.seq}; a party that "
+                       "has left does not get one more opinion")
+        return
+    if role not in (ident.get("roles") or ()):
+        _note(out, ev, f"{ev.actor!r} holds "
+                       f"{list(ident.get('roles') or ())} and claims "
+                       f"{cid!r} as {role!r}; a role nobody granted is a "
+                       "role conflict resolution would weigh anyway")
+        return
+
+    if not _is_digest(p.get("value_digest")):
+        _note(out, ev, f"claim {cid!r} names its value as "
+                       f"{p.get('value_digest')!r}; a claim carries a digest "
+                       "so two of them can be compared without comparing "
+                       "prose, and one that does not can never disagree "
+                       "with anything")
+        return
+
+    out.claims[cid] = {
+        "claim_id": cid, "task_id": p.get("task_id"),
+        "subject": p.get("subject"), "value_digest": p.get("value_digest"),
+        "by_instance": ev.actor, "role": role, "claimed_seq": ev.seq,
+    }
+
+
+def _sub_compensation(ev, p: dict, out) -> None:
+    """Replay one compensation, and check the name it puts on the undo.
+
+    A compensation does not move the task and is not folded into one here
+    either: "was compensated" and "did not happen" must not become the same
+    answer. What it carries is ``answered_by`` -- a copy of the escalation's
+    answerer, so an auditor can see who authorized destroying something
+    without joining two tables.
+
+    A convenience nothing checks is a field a forged record sets freely, and
+    it names a PERSON. The primary compares it against the escalation it
+    cites; until now nothing else did, so a log the primary refuses -- which
+    is every log carrying one of these -- was read by no second opinion at
+    all.
+
+    This reader is stricter than the primary in one place, deliberately. The
+    primary looks the escalation up and, if the lookup fails, checks
+    nothing: a compensation citing an escalation that does not exist passes
+    it silently. Here that is a finding. The reader's job is to say what the
+    log does not support, and "authorized by a question nobody asked" is
+    exactly that.
+    """
+    tid = p.get("task_id", ev.target)
+    eid = p.get("authorized_by_escalation")
+    named = p.get("answered_by")
+    record = {
+        "task_id": tid, "compensating_tool": p.get("compensating_tool"),
+        "compensated_tool": p.get("compensated_tool"),
+        "authorized_by_escalation": eid, "answered_by": named,
+        "outcome": p.get("outcome"), "at_seq": ev.seq,
+    }
+    out.compensations.setdefault(tid, []).append(record)
+
+    if not eid:
+        _note(out, ev, f"compensation of {tid!r} names no escalation; an "
+                       "undo nobody authorized is an undo that authorized "
+                       "itself")
+        return
+    esc = out.escalations.get(eid)
+    if esc is None:
+        _note(out, ev, f"compensation of {tid!r} cites escalation {eid!r}, "
+                       "which this log never carried")
+        return
+    if esc.get("state") != "ANSWERED":
+        _note(out, ev, f"compensation of {tid!r} cites escalation {eid!r}, "
+                       f"which is {esc.get('state')!r}; a question nobody "
+                       "answered authorizes nothing")
+        return
+    if named != esc.get("answered_by"):
+        _note(out, ev, f"compensation of {tid!r} says escalation {eid!r} was "
+                       f"answered by {named!r}; that escalation was answered "
+                       f"by {esc.get('answered_by')!r}. A record naming who "
+                       "authorized an undo may repeat the escalation and may "
+                       "not disagree with it")
+
+
 def _sub_memory_write(ev, p: dict, out) -> None:
     entry = p.get("entry")
     if not isinstance(entry, dict):
@@ -1731,7 +1883,8 @@ def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
               "agents": recon.agents, "memory": recon.memory,
               "net_grants": recon.net_grants, "services": recon.services,
               "secret_grants": recon.secret_grants,
-              "escalations": recon.escalations}
+              "escalations": recon.escalations,
+              "claims": recon.claims}
     for name, theirs in tables.items():
         mine = primary.get(name)
         if mine is None:

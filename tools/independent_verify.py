@@ -146,6 +146,12 @@ def main() -> int:
         "services": len(subs.services),
         "agents": len(subs.agents),
         "memory": len(subs.memory),
+        "escalations": len(subs.escalations),
+        # Reported so this process says what it actually covered. A verifier
+        # that prints counts for the subsystems it happens to have had first
+        # is a verifier whose silence about the others reads as agreement.
+        "claims": len(subs.claims),
+        "compensations": sum(len(v) for v in subs.compensations.values()),
         "root_issuer": subs.root_issuer,
         "records": len(getattr(recs, "records", ()) or ()),
         "tasks": len(getattr(tasks, "tasks", ()) or ()),

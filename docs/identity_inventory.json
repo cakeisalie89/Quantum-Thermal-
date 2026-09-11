@@ -13,7 +13,7 @@
     {
       "action": "agent.claim",
       "module": "agents.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "by_instance",
@@ -29,7 +29,9 @@
           "note": "what the claim is ABOUT, not who made it"
         }
       ],
-      "note": "Claims are what conflict detection compares. No independent reader."
+      "note": "Claims are what conflict detection compares. Independently reconstructed as of D-2026-29.",
+      "authority_changing": true,
+      "authority_note": "Claims are the INPUT to conflict resolution: quorum counts them, PREFER_ROLE selects among them by role, and REQUIRE_HUMAN decides a disagreement is not an agent's to settle. A claim attributable to anyone, or made in a role its author does not hold, manufactures or suppresses the disagreement two 'independent' parties are said to have."
     },
     {
       "action": "agent.escalation",
@@ -45,7 +47,9 @@
           "note": "D-2026-11. The raiser may not answer, so a forged raiser also denies the named party the ability to answer"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Raising blocks work until a person acts, and the raiser may not answer their own question -- so naming somebody as the raiser is also a way to stop them answering it."
     },
     {
       "action": "agent.escalation.answer",
@@ -61,7 +65,9 @@
           "note": "D-2026-04. Every other check interrogates this field, so all of them passed on a borrowed name"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "A person's decision. The only thing in the system that no arrangement of roles may substitute for."
     },
     {
       "action": "agent.message",
@@ -82,7 +88,9 @@
           "note": "who it is addressed to; legitimately not the actor, and part of what message_id names"
         }
       ],
-      "note": "No independent reader. Messages reconstruct who told whom what."
+      "note": "No independent reader. Messages reconstruct who told whom what.",
+      "authority_changing": false,
+      "authority_note": "Nothing consults a message to permit anything. It is how a later reader reconstructs who told whom what, which makes its sender binding and its redelivery immutability matter for AUDIT rather than for authority. The reducer binds sender to actor and refuses a rewrite under a reused id."
     },
     {
       "action": "agent.register",
@@ -103,7 +111,9 @@
           "note": "the principal being admitted, never the registrar"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Admits a principal, including a HUMAN -- and an agent that can mint a HUMAN is one step from answering its own escalation."
     },
     {
       "action": "agent.retire",
@@ -116,7 +126,9 @@
           "note": "the principal being removed. The RETIRER is ev.actor and _check_may_retire authorizes it (D-2026-05)"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Removes a principal. Admission and removal are the same authority reached from two directions."
     },
     {
       "action": "capability.issue",
@@ -129,7 +141,9 @@
           "note": "the grantee. The MINTER is ev.actor, authorized by _authorize_mint against the root or the parent's subject"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Mints authority, with attenuation."
     },
     {
       "action": "capability.revoke",
@@ -142,7 +156,9 @@
           "note": "the grant withdrawn. The REVOKER is ev.actor, authorized against the issuer or the root (D-2026-05)"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Destroys authority somebody is relying on."
     },
     {
       "action": "capability.root",
@@ -158,7 +174,9 @@
           "note": "compared to ev.actor in the reducer; the write path binds them"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Names the one actor a log permits to mint grants at all."
     },
     {
       "action": "context.build",
@@ -171,7 +189,9 @@
           "note": "a manifest of what was available, by digest"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Records WHAT WAS AVAILABLE when an action was proposed. The module says in its own docstring that it decides nothing; authoritative replay is reconstruct.py, and that is a different question from this one."
     },
     {
       "action": "file.read",
@@ -184,7 +204,9 @@
           "note": "the READER is ev.actor; the payload names paths and digests"
         }
       ],
-      "note": "Audit record for a governed read. No independent reader."
+      "note": "Audit record for a governed read. No independent reader.",
+      "authority_changing": false,
+      "authority_note": "Written AFTER readpath's gate has already decided. The gate consults capabilities and the path, never a past file.read, so a forged one falsifies the audit trail and permits nothing."
     },
     {
       "action": "idempotency.bind",
@@ -200,7 +222,9 @@
           "note": "compared to ev.actor in the reducer; the write path binds them"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Binds a key to a task inside an owner's namespace. A forged bind makes a later submission resolve to somebody else's work."
     },
     {
       "action": "memory.status",
@@ -213,7 +237,9 @@
           "note": "the actor is ev.actor; RETRACTED and SUPERSEDED require the entry's author (D-2026-05), STALE and INVALIDATED do not"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Memory is explicitly NOT authority: an entry never reaches the evidence store, nothing in the authority path imports the module, and the layering test enforces the direction. Status changes what a reader is handed, not what anything is permitted to do."
     },
     {
       "action": "memory.write",
@@ -229,7 +255,9 @@
           "note": "compared to ev.actor in the reducer; the write path binds them"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Same as memory.status: remembered, not decided."
     },
     {
       "action": "network.grant",
@@ -242,7 +270,9 @@
           "note": "the grantee. The GRANTER is ev.actor, recorded and required on revocation (D-2026-05)"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Permits egress, to named hosts and ports."
     },
     {
       "action": "network.request",
@@ -255,7 +285,9 @@
           "note": "the requester, checked against the grant's subject by _covers rather than trusted as the writer"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Spends a service's per-task call budget, which is what stops an authorized destination from becoming an unbounded one."
     },
     {
       "action": "network.result",
@@ -268,7 +300,9 @@
           "note": "outcome and response digest"
         }
       ],
-      "note": "No independent reader."
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "The NetworkAuthority reducer folds grants and service calls; a result record only advances the reader's position in the log. It is the record of what came back, and it permits nothing."
     },
     {
       "action": "network.service",
@@ -281,7 +315,9 @@
           "note": "a service contract, by digest"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Registers the contract and the budget a request is then measured against."
     },
     {
       "action": "policy.decision",
@@ -294,7 +330,9 @@
           "note": "who the decision was about; the DECIDER is the policy engine and the writer is ev.actor"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "One decision under one policy version, bound to the request it authorized."
     },
     {
       "action": "policy.publish",
@@ -307,7 +345,9 @@
           "note": "the document and its digest"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Changes the rules in force from this seq on."
     },
     {
       "action": "record.create",
@@ -323,7 +363,9 @@
           "note": "compared to ev.actor in the reducer; the write path binds them"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Introduces an authority record."
     },
     {
       "action": "record.depend",
@@ -336,7 +378,9 @@
           "note": "an edge between two record ids"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Dependencies are what invalidation follows; a forged edge decides what goes STALE and what does not."
     },
     {
       "action": "record.transition",
@@ -349,7 +393,9 @@
           "note": "the ACTOR is ev.actor and the state machine authorizes it"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "The authority state machine itself, promotion included."
     },
     {
       "action": "scheduler.enqueue",
@@ -365,7 +411,9 @@
           "note": "compared to ev.actor in the reducer; the write path binds them"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Introduces work with a retry budget, and a forged one can arrive already holding the ownership its outcome edges check."
     },
     {
       "action": "scheduler.lease_renew",
@@ -378,7 +426,9 @@
           "note": "the RENEWER is ev.actor and must be the lease holder"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Extends possession, which is the precondition every outcome edge measures."
     },
     {
       "action": "scheduler.priority",
@@ -391,7 +441,9 @@
           "note": "priority and the role claimed for it"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Changes the ORDER work is handed out in. Nothing is permitted or refused by it; a job that jumps the queue still passes every gate the one behind it would have."
     },
     {
       "action": "scheduler.transition",
@@ -404,7 +456,9 @@
           "note": "ownership is decided from ev.actor against the lease holder (D-2026-01); lease_holder in the payload may only be SET on the hand-out edge"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Ownership, attempt accounting and the outcome of an attempt."
     },
     {
       "action": "secret.access",
@@ -417,7 +471,9 @@
           "note": "the RESOLVER is ev.actor; the payload names grant, secret, tool and purpose and no value"
         }
       ],
-      "note": "No independent reader."
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "SecretStore.apply folds secret.grant and nothing else. An access record is the audit trail of a use the grant already permitted."
     },
     {
       "action": "secret.grant",
@@ -430,7 +486,9 @@
           "note": "the grantee. The GRANTER is ev.actor, recorded and required on revocation, and re-authorized on replay (D-2026-18)"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Permits a secret to reach a named destination."
     },
     {
       "action": "secret.provision",
@@ -443,12 +501,14 @@
           "note": "a provider load; byte COUNT only, never the value"
         }
       ],
-      "note": "No independent reader."
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "Provisioning puts a VALUE in this process. The authority is the grant; this record carries the provider's description and a length, is folded by nothing, and permits nothing."
     },
     {
       "action": "task.compensation",
       "module": "governed_stage10.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "answered_by",
@@ -456,7 +516,9 @@
           "note": "a copy of the escalation's answerer, carried so an auditor need not join two tables. The authority is the escalation. Compared to it on replay, because a convenience nothing checks is a field a forged record sets freely -- and it names a PERSON as having authorized destroying something"
         }
       ],
-      "note": "No independent reader."
+      "note": "Independently reconstructed as of D-2026-29.",
+      "authority_changing": true,
+      "authority_note": "Does not move the task -- 'was compensated' and 'did not happen' must not become the same answer -- but it names the PERSON who authorized destroying something, copied from the escalation. A name nothing checks is a name a forged record chooses."
     },
     {
       "action": "task.create",
@@ -472,7 +534,9 @@
           "note": "D-2026-04 sibling sweep"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Introduces governed work in somebody's name."
     },
     {
       "action": "task.evidence",
@@ -485,7 +549,9 @@
           "note": "declared artifacts, by digest"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Attaches the artifacts a later evidence requirement is satisfied against."
     },
     {
       "action": "task.execution",
@@ -498,7 +564,9 @@
           "note": "the EXECUTOR is ev.actor; this record establishes it and task.transition may repeat but not change it"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Establishes executed_by, which is the actor verification has to differ from. The cheapest forgery against separation of duties is to omit it."
     },
     {
       "action": "task.reexecution",
@@ -511,7 +579,9 @@
           "note": "a re-run comparison"
         }
       ],
-      "note": "No independent reader."
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "A fact about HOW a result was checked. It moves no task; the transition it justifies is recorded as a transition, and that IS reconstructed."
     },
     {
       "action": "task.separate_verification",
@@ -524,7 +594,9 @@
           "note": "the VERIFIER is ev.actor, separated from the executor"
         }
       ],
-      "note": "No independent reader."
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "Same shape: the separate verifier's verdict is recorded, and the transition it justifies is a transition."
     },
     {
       "action": "task.transition",
@@ -537,7 +609,9 @@
           "note": "bound to REPLAYED STATE, not to the header: the executor comes from the execution record, and separation of duties is checked against it. bound to replayed state, which is stronger than the header"
         }
       ],
-      "note": ""
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "The task state machine itself."
     }
   ]
 }
