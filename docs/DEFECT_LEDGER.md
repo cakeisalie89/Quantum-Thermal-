@@ -3685,6 +3685,61 @@ looked at is the difference between a sweep and a claim about one.
 
 ---
 
+## D-2026-40 — my own new test overwrote a tracked provenance artefact, and the suite stayed green
+
+**CLASS** — `TEST_DAMAGES_TRACKED_FILE`. An instance of open follow-up **0b**,
+created by me, in the same session in which I wrote that the discipline it
+argues for is "do not edit tracked sources while a matrix holds them".
+
+**AFFECTED COMMIT** — `3f26b27`, which carries the damage.
+
+**DISCOVERED BY.** `tests/test_manifest_completeness.py` on the very next
+run, with `hash mismatch stage8_reports/ro_crate_validation_report.json`.
+
+**DEFECT.** `ro_crate_tools.validate()` wrote its verdict to a hard-coded
+path — `stage8_reports/ro_crate_validation_report.json`, a tracked artefact
+the RO-Crate step of the regeneration order produces and the manifest
+hashes. D-2026-39's new tests call `validate()` against throwaway crates, so
+each call overwrote the committed report with a verdict about a fixture:
+
+```
+-  "entities": 30,          +  "entities": 5,
+-  "referenced_files": 24,  +  "referenced_files": 1,
+-  "result": "VALID",       +  "result": "FAIL",
+```
+
+and `3f26b27` was committed with that in it.
+
+**WHY THE FULL SUITE DID NOT CATCH IT, WHICH IS THE PART WORTH KEEPING.**
+Pytest runs files in alphabetical order under `-p no:randomly`, and
+`test_manifest_completeness.py` sorts **before**
+`test_stage8_data_provenance.py`. So the manifest was verified, and then the
+damage was done. The suite exited 0 over a tree it had itself made
+inconsistent. Nothing in the pytest run asks the question the mutation
+harness asks after every matrix — whether the tracked tree is still the one
+it was handed.
+
+**REPAIR.** `validate()` takes a `report_path`, defaulting to
+`DEFAULT_VALIDATION_REPORT`, and the three tests pass a temporary one.
+`validate_hdf5_equivalence.main()` already took its report path, which is why
+D-2026-39's other three tests never had this problem — the same function
+shape, one file over, with the parameter already there.
+
+The guard is `test_the_crate_validator_writes_only_where_it_is_told`, and it
+is deliberately **order-independent**: it does not ask whether the tree is
+clean at some moment, which is a question whose answer depends on what ran
+before it. It asks whether the function can be made to write the default path
+while being handed another one, which is a property of the function.
+
+**WHAT THIS SAYS ABOUT FOLLOW-UP 0b.** It does not identify the historical
+instance 0b is about — that one was in an `agent_netauth` run and remains
+unidentified. It does show the class is live rather than historical, and that
+the mutation harness's post-run tree check is the thing that catches it,
+which the plain pytest suite has no equivalent of. Recorded as a gap rather
+than closed with a new instance that is not the one 0b names.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3758,16 +3813,17 @@ not bear on it.
 | D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
 | D-2026-26 | the cross-process `read-decide-write` mutation matrix | `b2787a0` | **`CURRENTLY_OPEN_FINDING`** until that step is green on a run of its own; the local matrix is 11/11 and local evidence is not the condition |
 | D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `f80caa8` | pending its own hosted run; local evidence is 74/74 and is recorded as local |
-| D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | `643d2c7` | pending its own hosted run; local evidence is 13/13 and is recorded as local |
+| D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | `ed1f569` | **`CURRENTLY_CLOSED`** — `agent-substrate` steps 24 ("identity inventory agrees with the code") and 25 (the inventory's own matrix) both `conclusion: success` on that commit's run. The job as a whole is red at step 26, which is a different finding's evidence and not this one's |
 | D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | `3d809f0` | pending its own hosted run; local evidence is 89/89 and is recorded as local |
 | D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | this commit | pending its own hosted run; local evidence is recorded as local |
 | D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | this commit | pending its own hosted run; local evidence is recorded as local |
-| D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | this commit | pending its own hosted run; local evidence is 34 anchors matching and the suites green, recorded as local |
+| D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | `ed1f569` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 12 (checkpointing) and step 9 (agent suites) `success`, `second-interpreter (3.13)` green as a job, and **no `POST-RUN BASELINE RED`**: at `9d7d3c2` that same matrix ended with it, and the fixture that produced it no longer depends on record length |
 | D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
 | D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
 | D-2026-37 (P1) | `full-suite`'s pytest step — the step that found it — green on this commit's own run | `e081c38` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite, not only the agent suites", `conclusion: success` at `e081c38`, on a hosted runner of the same kind that failed the timed guard at `423e51f`. The job as a whole is red on step 7, the byte gate, which is R59 and does not bear on this |
 | D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | this commit | pending its own hosted run; locally D2, D6, D101, D102 and D103 were applied one at a time and killed, two of them by the new parity tests |
 | D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | this commit | pending its own hosted run; locally both vacuous cases were reproduced before the guards and are refused after, and the real tree still reports EQUIVALENT over 88 of 88 and VALID over 24 referenced files |
+| D-2026-40 (P1) | `full-suite`'s pytest step, and the manifest-completeness suite inside it | this commit | pending its own hosted run; locally the tracked report is byte-identical before and after the stage-8 suite, measured rather than asserted |
 
 ### What `3d809f0`'s own run said
 
@@ -3814,6 +3870,49 @@ whose closure attempt failed is evidence about how the class was actually
 closed, and removing it would make the repair look like it worked the first
 time.
 
+### What `ed1f569`'s `agent-substrate` job actually said, step by step
+
+The job is red, and reading that as "no evidence" would be as wrong as
+reading it as "the matrices failed". Steps **1 through 25 are
+`conclusion: success`**; step 26, the second-reader matrix, is `failure`;
+steps 27-57 are `skipped` because the job stopped there.
+
+```
+killed:   96/100
+SURVIVED: ['R92_a_checkpoint_claim_need_not_name_a_head_hash',
+           'R98_the_replay_ignores_the_foundations_of_a_canonical_record',
+           'R99_the_replay_checks_only_the_immediate_foundations',
+           'R100_a_cycle_reads_as_sound_in_the_replay']
+all sources restored byte-identical (verified by re-hashing)
+```
+
+Those are **exactly** the four survivors D-2026-36 was opened for and fixed
+at `423e51f`. So this run is the hosted confirmation of the FINDING, at the
+last commit before the repair — not a new one.
+
+And what is NOT in that output matters as much: **no `POST-RUN BASELINE
+RED`.** At `9d7d3c2` the same job ended with it, naming
+`test_pruning_refuses_when_nothing_verifies_against_the_log`. The fixture no
+longer depends on a record-length coincidence, and the line is gone.
+
+**WHICH ROWS THIS MOVES, AND WHICH IT DOES NOT.** The rule is per finding and
+per NAMED evidence, so a job that is red overall still settles the rows whose
+evidence is a step that ran green — and settles nothing for the rest:
+
+| finding | its named evidence | step | verdict |
+|---|---|---|---|
+| D-2026-28 | the inventory step and the `identity_inventory` matrix | 24, 25 | both green → **closed** |
+| D-2026-34 | the `agent_checkpoint` matrix, the agent suites, `second-interpreter` | 12, 9, and its own job | all green → **closed** |
+| D-2026-27, D-2026-29 | the `agent_second_reader` matrix | 26 | red → stays open |
+| D-2026-30, D-2026-31 | `agent_checkpoint`/`agent_substrate` **and** `agent_second_reader` | 12/10 green, 26 red | the second half is red → stays open |
+| D-2026-26 | the cross-process `read-decide-write` matrix | 43 | skipped → stays open, and a skipped step is not a passed one |
+
+Five rows stay open on a run in which twenty-five steps passed. That is the
+rule doing its job rather than an accident of bookkeeping: the second-reader
+matrix is the evidence those five name, and it was red for a reason now
+repaired but not yet re-run.
+
+
 ---
 
 ## The second reopening, finding by finding
@@ -3836,19 +3935,20 @@ container.
 | P0-R11 hosted regression / D-2026-25 | a permitted class does not make an endpoint usable | `CURRENTLY_CLOSED` | 61/61; hosted at `b2787a0`, on that commit's own run |
 | D-2026-26 | a reconcile decision outlived the facts it was decided on | `CURRENTLY_OPEN_FINDING` | 11/11 locally; its named hosted step has not yet been green on a commit of its own |
 | P0-R12 / D-2026-27 | the second reader called the gate it exists to second-guess | `CURRENTLY_OPEN_FINDING` | 74/74 locally at `f80caa8`; hosted pending |
-| P0-R13 / D-2026-28 | the coverage number measured string presence | `CURRENTLY_OPEN_FINDING` | 13/13 locally at `643d2c7`; hosted pending |
+| P0-R13 / D-2026-28 | the coverage number measured string presence | `CURRENTLY_CLOSED` | the inventory step and its matrix are both green at `ed1f569`, on that commit's own run |
 | P0-R14 / D-2026-29 | two true numbers, side by side, unreconciled | `CURRENTLY_OPEN_FINDING` | 89/89 locally at this commit; hosted pending |
 | P0-R15 | historical and current claims were not distinguished | this section, and the per-commit evidence table above |
 | P0-R16 | the pull request body read as a completion announcement | the body is relabelled; see the PR |
 | P1 / D-2026-30 | a checkpoint pinned a snapshot and nothing anchored the pin | `CURRENTLY_OPEN_FINDING` | the claim is now a record under the hash chain; hosted evidence pending |
 | P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers — but the SECOND reader's half had no test in the suites its own spec runs until D-2026-36, so the code was right and the evidence for it was not there; hosted evidence pending |
 | P1 / D-2026-32 | the performance guard measured time while the work grew | `CURRENTLY_OPEN_FINDING` | 26 full verifications per governed run down to 11, counted by a guard rather than timed; the residual 8+3 is measured and recorded, not closed |
-| P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_OPEN_FINDING` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; hosted evidence pending |
+| P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_CLOSED` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; the checkpointing matrix is green at `ed1f569` with no POST-RUN BASELINE RED |
 | P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_CLOSED` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; the named hosted evidence is green at `ed1f569` |
 | P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
 | P1 / D-2026-37 | a guard claiming immunity to a busy machine, failed by a busy machine | `CURRENTLY_CLOSED` | the guard counts re-hashed records instead of timing them, asserting equality where it allowed 4x; anti-vacuity partner added; R49 corrected and downgraded to 37/39; the pytest step is green at `e081c38` on a hosted runner |
 | P1 / D-2026-38 | the second reader spoke a wider job language than the scheduler | `CURRENTLY_OPEN_FINDING` | `_JOB_EDGES` restated, `_JOB_SEALED` derived from it, `_JOB_INITIAL` narrowed to one state; five parity tests that fail by naming the difference; hosted evidence pending |
 | P1 / D-2026-39 | two verifiers reported a verdict over a scope of nothing | `CURRENTLY_OPEN_FINDING` | both refuse an empty scope and a partial one; the crate validator returns FAIL instead of a KeyError traceback; the sweep names what it did and did not examine; hosted evidence pending |
+| P1 / D-2026-40 | a test of mine overwrote a tracked artefact, and the suite's file order hid it | `CURRENTLY_OPEN_FINDING` | `validate()` takes a report path; the guard is order-independent; the damaged artefact committed at `3f26b27` is restored; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

@@ -1,10 +1,8 @@
 {
- "entities": 5,
+ "entities": 30,
  "limitation": "structural in-repo validator; no external conformance tool was executable in this sandbox",
- "problems": [
-  "entities carry a checksum that nothing verifies, because they are outside hasPart: ['unreferenced.txt']"
- ],
- "referenced_files": 1,
- "result": "FAIL",
+ "problems": [],
+ "referenced_files": 24,
+ "result": "VALID",
  "spec": "https://w3id.org/ro/crate/1.1"
 }

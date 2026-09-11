@@ -330,7 +330,8 @@ def test_a_crate_validation_over_nothing_is_refused(tmp_path):
 
     p = tmp_path / "crate.json"
     p.write_text(json.dumps(_minimal_crate([])))
-    assert R.validate(p) != 0, "a validation of nothing exited zero"
+    assert R.validate(p, tmp_path / "report.json") != 0, (
+        "a validation of nothing exited zero")
 
 
 def test_a_checksum_outside_hasPart_is_reported_as_unverified(tmp_path):
@@ -358,7 +359,7 @@ def test_a_checksum_outside_hasPart_is_reported_as_unverified(tmp_path):
     cwd = os.getcwd()
     os.chdir(ROOT)
     try:
-        assert R.validate(p) != 0
+        assert R.validate(p, tmp_path / "report.json") != 0
     finally:
         os.chdir(cwd)
 
@@ -377,7 +378,7 @@ def test_a_crate_missing_its_root_fails_rather_than_crashing(tmp_path):
     p = tmp_path / "crate.json"
     p.write_text(json.dumps({"@graph": [
         {"@id": "ro-crate-metadata.json", "@type": "CreativeWork"}]}))
-    assert R.validate(p) != 0
+    assert R.validate(p, tmp_path / "report.json") != 0
 
 
 def test_the_committed_crate_references_every_file_it_checksums():
@@ -393,6 +394,39 @@ def test_the_committed_crate_references_every_file_it_checksums():
                        if "sha256" in e and not e["@id"].startswith("#")
                        and e["@id"] not in parts)
     assert unchecked == [], unchecked
+
+
+def test_the_crate_validator_writes_only_where_it_is_told(tmp_path):
+    """D-2026-40, and the reason `validate` takes a report path at all.
+
+    It writes a TRACKED artefact by default. The tests above call it against
+    throwaway crates, and before this parameter existed each of those calls
+    overwrote `stage8_reports/ro_crate_validation_report.json` with a verdict
+    about the throwaway -- `"entities": 5, "referenced_files": 1,
+    "result": "FAIL"` -- which then got committed, because the full suite
+    stayed green: `test_manifest_completeness.py` runs alphabetically BEFORE
+    `test_stage8_data_provenance.py`, so the manifest was checked and then
+    the damage was done.
+
+    This test is order-independent on purpose. It does not ask whether the
+    tree is clean at some moment; it asks whether the function can be made to
+    write the default path when it was handed another one.
+    """
+    sys.path.insert(0, str(ROOT))
+    import ro_crate_tools as R
+
+    tracked = ROOT / R.DEFAULT_VALIDATION_REPORT
+    before = hashlib.sha256(tracked.read_bytes()).hexdigest()
+
+    p = tmp_path / "crate.json"
+    p.write_text(json.dumps(_minimal_crate([])))
+    out = tmp_path / "elsewhere.json"
+    R.validate(p, out)
+
+    assert out.exists(), "it did not write where it was told"
+    assert hashlib.sha256(tracked.read_bytes()).hexdigest() == before, (
+        "validate() wrote the tracked report while being handed another "
+        "path; a test that calls it is then a test that edits the repository")
 
 
 TESTS = [v for k, v in sorted(globals().items())

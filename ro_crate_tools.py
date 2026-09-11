@@ -161,7 +161,19 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
           f"{len(graph)} entities; sha256 {sha_file(dest)[:16]}...)")
 
 
-def validate(meta_path: Path = META) -> int:
+#: Where :func:`validate` writes its verdict. A parameter rather than a
+#: constant reached for inside the function, because the function writes a
+#: TRACKED artefact and a caller that only wants the verdict -- a test, say --
+#: must be able to say so. Without it, running the validator against a
+#: throwaway crate overwrote the committed report with a verdict about the
+#: throwaway, and the manifest then hashed a file that no longer existed in
+#: that form. Found immediately, by the manifest completeness suite, in the
+#: same session as the ledger item about tests that damage tracked files.
+DEFAULT_VALIDATION_REPORT = Path("stage8_reports/ro_crate_validation_report.json")
+
+
+def validate(meta_path: Path = META,
+             report_path: Path | None = None) -> int:
     doc: dict = json.loads(meta_path.read_text())
     g: list = doc["@graph"]
     ids = [e["@id"] for e in g]
@@ -252,8 +264,10 @@ def validate(meta_path: Path = META) -> int:
           f"{len(by['./']['hasPart'])} referenced files | "
           f"problems {len(problems)} {problems[:3]}")
     print(f"RESULT: {'VALID' if not problems else 'FAIL'}")
-    Path("stage8_reports").mkdir(exist_ok=True)
-    Path("stage8_reports/ro_crate_validation_report.json").write_text(
+    rep = Path(report_path) if report_path is not None \
+        else DEFAULT_VALIDATION_REPORT
+    rep.parent.mkdir(parents=True, exist_ok=True)
+    rep.write_text(
         json.dumps({"spec": SPEC, "entities": len(g),
                     "referenced_files": len(by["./"]["hasPart"]),
                     "problems": problems,

@@ -2423,8 +2423,8 @@
     },
     {
       "filename": "ro_crate_tools.py",
-      "size_bytes": 15474,
-      "sha256": "1f4394be5e64c5f4a02ee6b7d3e8d51366e17dc81c619a835a574f451ca455af",
+      "size_bytes": 16250,
+      "sha256": "31f262331e72738f6b34b51dc38fdad1db666aea2b6ec723cf03baa51530edd3",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2444,8 +2444,8 @@
     },
     {
       "filename": "tests/test_stage8_data_provenance.py",
-      "size_bytes": 15291,
-      "sha256": "5a24790dc243b59383bfc780b21c58638678b364888d7fd174f1c1604d31c025",
+      "size_bytes": 16902,
+      "sha256": "24fb7f497973b18c01de79b09082524a74ecebf29e0f5c7ae09d67f48cd25a21",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "534f96f9d5946b6fd6f13a8bbc8c21947da3dff55bbb5a2d91b535bd85eacf39",
+      "sha256": "11a4d7aa30a7a5f1904ca0ef577e85e0f5a2db965cb2cad9235de8cc218d00fd",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 220100,
-      "sha256": "9ad1bad8dbf9ce5a8260d0cfe5413058d179eefecdc671f941a0a7e7a236f4e7",
+      "size_bytes": 226223,
+      "sha256": "a5661008bf5dee739771e6ece0c2d48f941a82a6fece16165e3aaf8790fc3294",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
