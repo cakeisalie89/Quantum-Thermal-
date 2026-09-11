@@ -267,11 +267,20 @@ def test_a_forged_job_transition_from_the_wrong_state_is_refused(gov):
 
 
 def test_a_terminal_job_cannot_be_revived(gov):
+    """SUCCEEDED -> READY is refused, and NOT for being terminal.
+
+    The reader used to say "leaves terminal state SUCCEEDED", which is the
+    wrong reason: `SUCCEEDED -> INVALIDATED` is a move the machine has, so
+    SUCCEEDED is not a state nothing leaves. It is refused because the
+    machine has no edge to READY from there, and since D-2026-38 the reader
+    has the table that says so.
+    """
     _run(gov)
     (jid,) = list(reconstruct_subsystems(gov.log).jobs)
     recon = _forge(gov, "scheduler.transition",
                    {"job_id": jid, "src": "SUCCEEDED", "dst": "READY"})
-    assert any("leaves terminal state" in a for a in recon.anomalies)
+    assert any("not a move this machine has" in a
+               for a in recon.anomalies), recon.anomalies
 
 
 def test_a_policy_downgrade_is_reported(gov):
@@ -683,7 +692,10 @@ def test_the_second_reader_notices_a_budget_overrun(gov):
 def test_the_second_reader_refuses_an_enqueue_with_no_retry_budget(gov):
     """A count with no bound is a count nothing is measured against."""
     recon = _forge(gov, "scheduler.enqueue", {"job": {
-        "job_id": "j-nobudget", "state": "READY", "submitter": "mallory",
+        # WAITING, not READY: since D-2026-38 an enqueue naming any
+        # other state is refused before the budget rule is reached,
+        # and this test would pass for a reason it is not about.
+        "job_id": "j-nobudget", "state": "WAITING", "submitter": "mallory",
         "work_digest": "c" * 64, "priority": 0, "attempts": 0}})
     assert any("has nothing to be measured against" in a
                for a in recon.anomalies), recon.anomalies

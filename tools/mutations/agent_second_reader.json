@@ -17,8 +17,8 @@
     {
       "name": "D2_the_initial_job_states_include_a_terminal_one",
       "path": "qta_agent/reconstruct.py",
-      "find": "_JOB_INITIAL = {\"WAITING\", \"READY\"}",
-      "replace": "_JOB_INITIAL = {\"WAITING\", \"READY\", \"SUCCEEDED\"}",
+      "find": "_JOB_INITIAL = {\"WAITING\"}",
+      "replace": "_JOB_INITIAL = {\"WAITING\", \"SUCCEEDED\"}",
       "rationale": "a job that was never run is projected as having succeeded"
     },
     {
@@ -43,11 +43,11 @@
       "rationale": "the record chooses the state it is authorized against, which is the forged-source-state class this project has already been bitten by"
     },
     {
-      "name": "D6_a_terminal_job_may_be_revived",
+      "name": "D6_any_move_between_job_states_is_admitted",
       "path": "qta_agent/reconstruct.py",
-      "find": "    if cur[\"state\"] in _JOB_TERMINAL:",
+      "find": "    if (src, dst) not in _JOB_EDGES:",
       "replace": "    if False:",
-      "rationale": "a finished job is walked back into the queue and re-run, which is how a completed outcome gets replaced"
+      "rationale": "a move the machine does not have is folded: a job that was never dispatched reads as verified work, and one in a state nothing leaves is revived"
     },
     {
       "name": "D7_a_capability_may_predate_its_own_record",
@@ -706,6 +706,27 @@
       "find": "        def sound(rid, seen) -> bool:\n            if rid in verdict:\n                return verdict[rid]\n            if rid in seen:\n                return False",
       "replace": "        def sound(rid, seen) -> bool:\n            if rid in verdict:\n                return verdict[rid]\n            if rid in seen:\n                return True",
       "rationale": "the fail-closed answer to an unanswerable graph becomes yes in the reader whose job is to disagree"
+    },
+    {
+      "name": "D101_the_job_initial_state_widens_to_READY",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_JOB_INITIAL = {\"WAITING\"}",
+      "replace": "_JOB_INITIAL = {\"WAITING\", \"READY\"}",
+      "rationale": "D-2026-38: a job born READY has skipped the check that its dependencies hold, and production admits WAITING alone"
+    },
+    {
+      "name": "D102_the_sealed_states_are_hand_listed_again",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_JOB_SEALED = ({d for _, d in _JOB_EDGES} - {s for s, _ in _JOB_EDGES})",
+      "replace": "_JOB_SEALED = {\"SUCCEEDED\", \"FAILED\", \"CANCELLED\"}",
+      "rationale": "D-2026-38: the summary drifts from the table it summarises -- BLOCKED becomes revivable and SUCCEEDED becomes a state nothing leaves"
+    },
+    {
+      "name": "D103_the_job_edge_table_gains_a_move_production_lacks",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    (\"SUCCEEDED\", \"INVALIDATED\"),\n",
+      "replace": "    (\"SUCCEEDED\", \"INVALIDATED\"),\n    (\"WAITING\", \"SUCCEEDED\"),\n",
+      "rationale": "D-2026-38: the reader admits a move the scheduler does not have, which is the drift a parity test exists to name"
     }
   ]
 }

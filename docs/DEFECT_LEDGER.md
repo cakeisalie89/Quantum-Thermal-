@@ -3507,6 +3507,89 @@ move at all.
 
 ---
 
+## D-2026-38 — the second reader spoke a wider job language than the scheduler, and nothing compared the two
+
+**CLASS** — `TRUE_DEFECT` (the second reader admits forged moves), plus
+`MISSING_TEST` for the parity that would have caught it the day it drifted.
+
+**AFFECTED COMMIT** — since the job replay was written.
+
+**DISCOVERED BY.** Working the P1 list item recorded as "scheduler language
+parity". The authority and task machines have had restatement-vs-production
+tests since D-2026-27; the job machine, which is the one on the production
+scheduling path, had none, and the question "does anything compare these?"
+answered itself in one grep.
+
+**DEFECT.** `reconstruct.py` restates the scheduler's vocabulary rather than
+importing it, which is right and is the point of a second reader. What it
+restated was **less than the scheduler has**, and in the permissive
+direction:
+
+| the scheduler | the second reader | what that admits |
+|---|---|---|
+| `EDGES` — 18 moves | **no edge table at all** | any pair whose source matched the replay |
+| `INITIAL` = `WAITING`, enforced at enqueue | `_JOB_INITIAL` = `{WAITING, READY}` | a job born READY, past the check that its dependencies hold |
+| `SEALED` = {BLOCKED, CANCELLED, FAILED, INVALIDATED}, **derived from the table** | `_JOB_TERMINAL` = {SUCCEEDED, FAILED, CANCELLED}, hand-listed | a job revived out of BLOCKED; and SUCCEEDED called terminal though `SUCCEEDED -> INVALIDATED` is a move the machine has |
+| `OUTCOME_STATES` | `_JOB_OUTCOME` | — agreed |
+
+Reproduced before the repair, with a forged log and no mutation:
+
+```
+invented_edge   (WAITING -> SUCCEEDED): anomalies=NONE, final state 'SUCCEEDED'
+revive_blocked  (BLOCKED -> READY):     anomalies=NONE, final state 'READY'
+enqueue in READY:                       anomalies=NONE
+```
+
+A job that was never dispatched reads as verified work, and the reader whose
+job is to disagree said nothing. The reducer's own comment, twelve lines
+below the check that let it through, states the principle:
+
+> A second opinion that accepts a wider language than the first is not a
+> second opinion on the logs that matter.
+
+That comment is about the lease and attempt rules. The structural check it
+introduces — "everything above this point checks the SHAPE of the move" —
+was checking position and a hand-listed terminal set, not legality.
+
+**REPAIR.** `_JOB_EDGES`, 18 pairs, restated in this module's own terms for
+the same reason `_AUTH_EDGES` and `_TASK_EDGES` are. `_JOB_SEALED` is
+**derived** from it — as the scheduler derives its own `SEALED` from its own
+table — so the summary cannot drift from the thing it summarises, which is
+exactly how the set it replaces came to disagree. `_JOB_INITIAL` is one
+state. `_JOB_TERMINAL` and `_JOB_PENDING` are gone: a set nothing reads is a
+statement nothing tests, and the edge table now carries what they meant.
+
+The refusal distinguishes the two cases an operator would want distinguished:
+a move the machine does not have, and a move out of a state nothing leaves.
+
+**AND THE HALF THAT MAKES IT STAY FIXED.** Five parity tests, each failing by
+NAMING THE DIFFERENCE rather than reporting inequality: the edge tables, the
+initial state, the sealed sets (two independent derivations from two
+independently written tables), the outcome states, and every state the
+scheduler has appearing in the reader's table — the last catching a drift a
+pairwise edge comparison would miss. Plus the reproducer kept as a test and
+its anti-vacuity partner, because a reader that refused every transition
+would satisfy the first perfectly.
+
+Two mutation anchors moved with the code they name (`D2`, and `D6` renamed to
+what it now removes), and three were added: widening the initial state,
+hand-listing the sealed set again, and giving the reader a move the scheduler
+lacks. All five killed, applied one at a time, sources restored
+byte-identical — and **two of them are killed by the new parity tests**,
+which is what makes those tests load-bearing rather than decoration.
+
+**TWO TESTS WERE PASSING FOR REASONS THEY ARE NOT ABOUT, AND SAID SO.**
+Tightening the enqueue rule made
+`test_the_second_reader_refuses_an_enqueue_with_no_retry_budget` fail: its
+fixture enqueued in READY, which is now refused before the budget rule is
+reached. Fixed at the fixture, not at the assertion. And
+`test_a_terminal_job_cannot_be_revived` forged `SUCCEEDED -> READY` and
+asserted "leaves terminal state" — the wrong reason, since SUCCEEDED is not
+a state nothing leaves. It now asserts the edge message, and a new sibling
+covers the state that really is sealed.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3588,6 +3671,7 @@ not bear on it.
 | D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
 | D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
 | D-2026-37 (P1) | `full-suite` — the job that found it — green on this commit's own run, on a runner busy enough to have failed the old guard | this commit | pending its own hosted run; locally the whole performance suite is green and the counting probe reads 100/100 healthy against 251/1067 for the regression shape |
+| D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | this commit | pending its own hosted run; locally D2, D6, D101, D102 and D103 were applied one at a time and killed, two of them by the new parity tests |
 
 ### What `3d809f0`'s own run said
 
@@ -3667,6 +3751,7 @@ container.
 | P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_CLOSED` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; the named hosted evidence is green at `ed1f569` |
 | P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
 | P1 / D-2026-37 | a guard claiming immunity to a busy machine, failed by a busy machine | `CURRENTLY_OPEN_FINDING` | the guard counts re-hashed records instead of timing them, asserting equality where it allowed 4x; anti-vacuity partner added; R49 corrected and downgraded to 37/39; hosted evidence pending |
+| P1 / D-2026-38 | the second reader spoke a wider job language than the scheduler | `CURRENTLY_OPEN_FINDING` | `_JOB_EDGES` restated, `_JOB_SEALED` derived from it, `_JOB_INITIAL` narrowed to one state; five parity tests that fail by naming the difference; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

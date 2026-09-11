@@ -864,14 +864,50 @@ class SubsystemReconstruction:
 #: forged enqueue naming SUCCEEDED or DISPATCHED is the attack, and a second
 #: reader that asks the scheduler what counts as initial would inherit the
 #: scheduler's answer along with any mistake in it.
-_JOB_INITIAL = {"WAITING", "READY"}
+#:
+#: ONE state, not two. This read ``{"WAITING", "READY"}`` until D-2026-38,
+#: while the scheduler admits ``WAITING`` alone and refuses anything else at
+#: enqueue. A job born READY has skipped the check that its dependencies
+#: hold, and this reader folded one without a word.
+_JOB_INITIAL = {"WAITING"}
 
-#: Terminal job states. A transition out of one is a revival.
-_JOB_TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
+#: Every move the job machine has, restated here in this module's own terms
+#: for the same reason the authority and task edges are.
+#:
+#: This table did not exist until D-2026-38, and its absence was not a
+#: cosmetic gap. The only structural check on a job transition was that the
+#: source state agreed with the replay and was not in a hand-listed terminal
+#: set -- so `WAITING -> SUCCEEDED`, a move the scheduler does not have,
+#: replayed clean and left the job reading SUCCEEDED. A job that was never
+#: dispatched cannot have been verified, and the reader that exists to say
+#: so said nothing.
+_JOB_EDGES = frozenset({
+    ("WAITING", "READY"),
+    ("WAITING", "BLOCKED"),
+    ("READY", "DISPATCHED"),
+    ("READY", "BLOCKED"),
+    ("READY", "WAITING"),
+    ("DISPATCHED", "SUCCEEDED"),
+    ("DISPATCHED", "RETRY_WAIT"),
+    ("DISPATCHED", "FAILED"),
+    ("DISPATCHED", "READY"),
+    ("DISPATCHED", "BLOCKED"),
+    ("RETRY_WAIT", "READY"),
+    ("RETRY_WAIT", "FAILED"),
+    ("RETRY_WAIT", "BLOCKED"),
+    ("SUCCEEDED", "INVALIDATED"),
+    ("WAITING", "CANCELLED"),
+    ("READY", "CANCELLED"),
+    ("DISPATCHED", "CANCELLED"),
+    ("RETRY_WAIT", "CANCELLED"),
+})
 
-#: States a job waits in. Reaching one means it is nobody's right now, so
-#: whatever a lease said about ownership has stopped being true.
-_JOB_PENDING = {"RETRY_WAIT", "BLOCKED"}
+#: States nothing leaves, DERIVED from the table above rather than listed
+#: beside it -- a summary maintained by hand next to the thing it summarises
+#: is a second statement that can drift from the first, which is exactly how
+#: the set this replaces came to call SUCCEEDED terminal while
+#: ``SUCCEEDED -> INVALIDATED`` is a move the machine has.
+_JOB_SEALED = ({d for _, d in _JOB_EDGES} - {s for s, _ in _JOB_EDGES})
 
 #: Leaving DISPATCHED with a verdict on the attempt that was running. Named
 #: here, in strings, for the same reason as the sets above: a second reader
@@ -994,11 +1030,16 @@ def _sub_enqueue(ev, p: dict, out) -> None:
         return
     state = job.get("state")
     if state not in _JOB_INITIAL:
-        # A create introduces WORK, never a verdict. A job born SUCCEEDED
-        # was never run; one born DISPATCHED arrives holding the lease that
-        # the ownership check on its outcome edges would otherwise demand.
-        _note(out, ev, f"job {jid!r} is enqueued directly in {state!r}; an "
-                       "enqueue introduces work, not an outcome")
+        # A create introduces WORK, never a verdict and never a position
+        # further along than the start. A job born SUCCEEDED was never run;
+        # one born DISPATCHED arrives holding the lease that the ownership
+        # check on its outcome edges would otherwise demand; and one born
+        # READY -- which this reader used to admit, until D-2026-38 --
+        # arrives past the check that its dependencies hold.
+        _note(out, ev, f"job {jid!r} is enqueued directly in {state!r}; work "
+                       f"is introduced in {sorted(_JOB_INITIAL)[0]!r} and "
+                       "reaches anything else by a transition that is "
+                       "recorded")
         return
     if job.get("submitter") != ev.actor:
         _note(out, ev, f"job {jid!r} names submitter "
@@ -1046,8 +1087,19 @@ def _sub_job_transition(ev, p: dict, out) -> None:
         _note(out, ev, f"job {jid!r} claims src {src!r} but replay has it "
                        f"in {cur['state']!r}")
         return
-    if cur["state"] in _JOB_TERMINAL:
-        _note(out, ev, f"job {jid!r} leaves terminal state {src!r}")
+    if (src, dst) not in _JOB_EDGES:
+        # THE STRUCTURAL CHECK, AND IT USED TO BE A SUMMARY OF ONE.
+        #
+        # Until D-2026-38 this asked only whether the source was in a
+        # hand-listed terminal set, which let every move the machine does
+        # not have through: `WAITING -> SUCCEEDED` replayed clean and left
+        # the job reading SUCCEEDED, with no anomaly recorded.
+        if src in _JOB_SEALED:
+            _note(out, ev, f"job {jid!r} leaves terminal state {src!r}, "
+                           "which nothing leaves; the work is over")
+        else:
+            _note(out, ev, f"job {jid!r} moves {src!r} -> {dst!r}, which is "
+                           "not a move this machine has")
         return
 
     # WHO IS ALLOWED TO SAY THIS, AND WHAT MAY IT SAY ABOUT THE BUDGET.
@@ -1134,7 +1186,7 @@ def _sub_job_transition(ev, p: dict, out) -> None:
         cur["lease_renewals"] = p.get("lease_renewals", 0)
     if "attempts" in p:
         cur["attempts"] = p.get("attempts")
-    if dst in _JOB_TERMINAL or dst in _JOB_INITIAL or dst in _JOB_PENDING:
+    if dst != "DISPATCHED":
         # Leaving DISPATCHED drops the lease AND its renewal budget. A count
         # carried across would limit the next worker for reasons belonging to
         # a lease that no longer exists.

@@ -1289,3 +1289,124 @@ def test_an_anchor_two_records_back_is_otherwise_accepted(tmp_path):
     assert recon.anomalies == [], recon.anomalies
     assert recon.checkpoints[through]["head_hash_checked"] is False, (
         "the reader claims it checked a hash it cannot reach from here")
+
+
+# --- 5. the scheduler's language, restated and checked against production --
+#
+# D-2026-38. The second reader restates the job machine's vocabulary, which
+# is right: a reader that asked the scheduler what counts as initial would
+# inherit the scheduler's answer along with any mistake in it. What was
+# missing is the other half -- nothing compared the restatement with the
+# thing it restates, so the two had drifted, in the permissive direction:
+#
+#   production EDGES, 18 moves        the reader had NO edge table at all
+#   production INITIAL = WAITING      the reader admitted WAITING and READY
+#   production SEALED, 4 states       the reader's terminal set had 3, a
+#                                     different 3, and called SUCCEEDED
+#                                     terminal though SUCCEEDED -> INVALIDATED
+#                                     is a move the machine has
+#
+# So `WAITING -> SUCCEEDED` replayed clean and left the job reading
+# SUCCEEDED, and `BLOCKED -> READY` revived a job from a state nothing
+# leaves. The authority and task machines have had tests like these since
+# D-2026-27; the job machine, which is the one on the production scheduling
+# path, had none.
+#
+# These tests fail by NAMING THE DIFFERENCE, which is the whole value of a
+# restatement: agreement by construction would be unrecoverable.
+
+from qta_agent import scheduler as _sched  # noqa: E402
+
+
+def test_the_restated_job_edges_match_production():
+    production = {(e.src.value, e.dst.value) for e in _sched.EDGES}
+    restated = set(_R._JOB_EDGES)
+
+    assert restated == production, (
+        "the second reader's job edge table and the scheduler's disagree.\n"
+        f"  only in the scheduler: {sorted(production - restated)}\n"
+        f"  only in the reader:    {sorted(restated - production)}\n"
+        "An edge the reader lacks is a forged move it will admit; an edge "
+        "only the reader has is a refusal production never makes.")
+
+
+def test_the_restated_initial_state_matches_production():
+    """One state, and production enforces exactly that at enqueue."""
+    assert _R._JOB_INITIAL == {_sched.INITIAL.value}, (
+        f"the reader admits {sorted(_R._JOB_INITIAL)} at enqueue and the "
+        f"scheduler admits {_sched.INITIAL.value!r} alone; a job born past "
+        "the start has skipped whatever the start checks")
+
+
+def test_the_restated_sealed_states_match_production():
+    """And BOTH sides derive it from their own edge table, separately.
+
+    That is the part worth having: two independent derivations from two
+    independently written tables. A hand-listed set on either side would be
+    a third statement to keep in step, which is how the one this replaces
+    came to disagree with the machine it summarised.
+    """
+    assert _R._JOB_SEALED == {s.value for s in _sched.SEALED}, (
+        f"the reader derives {sorted(_R._JOB_SEALED)} as the states nothing "
+        f"leaves and the scheduler derives "
+        f"{sorted(s.value for s in _sched.SEALED)}")
+    assert "SUCCEEDED" not in _R._JOB_SEALED, (
+        "SUCCEEDED -> INVALIDATED is a move the machine has, so SUCCEEDED "
+        "is not a state nothing leaves; calling it one is what the old "
+        "hand-listed terminal set did")
+
+
+def test_the_restated_outcome_states_match_production():
+    assert _R._JOB_OUTCOME == {s.value for s in _sched.OUTCOME_STATES}, (
+        f"the reader guards {sorted(_R._JOB_OUTCOME)} as verdicts on an "
+        f"attempt and the scheduler guards "
+        f"{sorted(s.value for s in _sched.OUTCOME_STATES)}")
+
+
+def test_every_job_state_production_has_appears_in_the_restated_table():
+    """The drift that a pairwise comparison would miss.
+
+    A state the scheduler adds and the reader never hears about would not
+    show up as an edge difference if the new state's edges were also added
+    on both sides -- but it WOULD show up here the moment the scheduler has
+    a state the reader's table cannot name.
+    """
+    in_table = ({s for s, _ in _R._JOB_EDGES}
+                | {d for _, d in _R._JOB_EDGES})
+    assert {s.value for s in _sched.JobState} == in_table, (
+        f"the scheduler has states the reader's table does not name: "
+        f"{sorted({s.value for s in _sched.JobState} - in_table)}")
+
+
+def test_the_second_reader_refuses_a_move_the_machine_does_not_have(tmp_path):
+    """The reproducer, kept as a test rather than only as a story."""
+    log = EventLog(tmp_path / "invented.jsonl")
+    log.append(actor="sched", action="scheduler.enqueue", target="j1",
+               payload={"job": {"job_id": "j1", "state": "WAITING",
+                                "submitter": "sched", "max_attempts": 3,
+                                "attempts": 0, "depends_on": []}})
+    log.append(actor="sched", action="scheduler.transition", target="j1",
+               payload={"job_id": "j1", "src": "WAITING", "dst": "SUCCEEDED"})
+    recon = _subsystems(log)
+
+    assert any("not a move this machine has" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.jobs["j1"]["state"] == "WAITING", (
+        "the move was folded anyway: a job that was never dispatched now "
+        "reads as verified work")
+
+
+def test_the_second_reader_folds_a_move_the_machine_does_have(tmp_path):
+    """ANTI-VACUITY. A reader that refused every transition would satisfy
+    the test above and be useless."""
+    log = EventLog(tmp_path / "honest.jsonl")
+    log.append(actor="sched", action="scheduler.enqueue", target="j1",
+               payload={"job": {"job_id": "j1", "state": "WAITING",
+                                "submitter": "sched", "max_attempts": 3,
+                                "attempts": 0, "depends_on": []}})
+    log.append(actor="sched", action="scheduler.transition", target="j1",
+               payload={"job_id": "j1", "src": "WAITING", "dst": "READY"})
+    recon = _subsystems(log)
+
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.jobs["j1"]["state"] == "READY"
