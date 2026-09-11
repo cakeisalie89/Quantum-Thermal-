@@ -1088,3 +1088,204 @@ def test_diagnostic_mode_still_applies_a_task_state_it_can_name(tmp_path):
     assert recon.tasks["t1"]["state"] == "VALIDATED"
     assert any("role WORKER may not perform" in u
                for u in reconstruct_tasks(log).unauthorized)
+
+
+# --- 4. the transitive canonical rule, which had no test here --------------
+#
+# D-2026-36. `reconstruct.canonical_ids()` restates a rule `store.canonical()`
+# also applies: a record is canonical when its own state says so AND
+# everything it rests on is canonical too, transitively, with a cycle
+# resolving to no. The store side has four tests for it. The second reader
+# had none in the suites its own mutation specification runs, and four
+# mutations survived a hosted run saying exactly that:
+#
+#   R98  the replay ignores the foundations entirely
+#   R99  the replay checks only the IMMEDIATE foundations
+#   R100 a cycle reads as sound
+#   R92  a checkpoint claim need not name a head hash
+#
+# One test that would have caught R98 and R99 does exist -- in
+# tests/test_agent_substrate.py, which the `agent_second_reader` spec does
+# not run. So the rule was protected and the spec could not see it, and I
+# added the code and the mutations in the same commit without ever holding
+# evidence that they died. The tests below live in a suite the spec runs.
+
+from qta_agent.authority import Role as _Role, State as _State  # noqa: E402
+from qta_agent.store import AuthorityStore as _Store  # noqa: E402
+from qta_agent.reconstruct import reconstruct as _reconstruct_auth  # noqa: E402
+from qta_agent.reconstruct import (  # noqa: E402
+    compare as _compare, reconstruct_subsystems as _subsystems,
+)
+
+_EVIDENCE_DIGEST = "d" * 64
+
+
+def _promoted(store, rid, deps=()):
+    """One record driven to PROMOTED through the production gate."""
+    store.create(record_id=rid, kind="result", proposer="alice",
+                 policy_id="p1", depends_on=deps)
+    store.transition(record_id=rid, dst=_State.UNDER_REVIEW, actor="bob",
+                     role=_Role.VERIFIER)
+    store.transition(record_id=rid, dst=_State.VERIFIED, actor="bob",
+                     role=_Role.VERIFIER,
+                     evidence={"verification_report": _EVIDENCE_DIGEST})
+    return store.transition(record_id=rid, dst=_State.PROMOTED, actor="carol",
+                            role=_Role.PROMOTER, policy_id="p1",
+                            evidence={"policy_id": "p1"})
+
+
+def _chain(tmp_path, name):
+    """param <- result <- summary, all three promoted, both readers agreeing."""
+    store = _Store(EventLog(tmp_path / f"{name}.jsonl")).load()
+    _promoted(store, "param")
+    _promoted(store, "result", ("param",))
+    _promoted(store, "summary", ("result",))
+    return store
+
+
+def test_both_readers_call_a_sound_chain_canonical(tmp_path):
+    """ANTI-VACUITY FIRST, and it is not decoration here.
+
+    Every test below asserts that something is NOT canonical. Without this
+    one they would all pass against a reader that called nothing canonical
+    ever, which is the cheapest way to satisfy a rule about exclusion.
+    """
+    store = _chain(tmp_path, "sound")
+    recon = _reconstruct_auth(store.log)
+
+    assert recon.canonical_ids() == ("param", "result", "summary")
+    assert sorted(store.canonical()) == ["param", "result", "summary"]
+    assert _compare(store, recon) == ()
+
+
+def test_both_readers_drop_a_record_resting_on_a_revoked_foundation(
+        tmp_path):
+    """R98: the replay must not read the record's own state and stop there."""
+    store = _chain(tmp_path, "revoked")
+    store.transition(record_id="param", dst=_State.REVOKED, actor="carol",
+                     role=_Role.PROMOTER,
+                     evidence={"revocation_reason": _EVIDENCE_DIGEST})
+    recon = _reconstruct_auth(store.log)
+
+    # The STATES are untouched: a withdrawal does not rewrite its dependents,
+    # so a reader that only looked at each record's own state would call two
+    # of these three canonical.
+    assert recon.records["result"]["state"] == "PROMOTED"
+    assert recon.records["summary"]["state"] == "PROMOTED"
+
+    assert recon.canonical_ids() == ()
+    assert sorted(store.canonical()) == []
+    assert _compare(store, recon) == ()
+
+
+def test_both_readers_drop_the_GRANDCHILD_of_a_revoked_foundation(tmp_path):
+    """R99: immediate foundations are not enough, and this is the case.
+
+    `result` is excluded because `param` is revoked. `summary` rests on
+    `result`, whose STATE still reads PROMOTED -- so a reader checking each
+    dependency's state rather than its soundness leaves the grandchild
+    standing on the same withdrawn input. It is the one record that
+    separates the transitive rule from the shallow one.
+    """
+    store = _chain(tmp_path, "grandchild")
+    store.transition(record_id="param", dst=_State.REVOKED, actor="carol",
+                     role=_Role.PROMOTER,
+                     evidence={"revocation_reason": _EVIDENCE_DIGEST})
+    recon = _reconstruct_auth(store.log)
+
+    shallow = tuple(sorted(
+        rid for rid, rec in recon.records.items()
+        if rec["state"] == "PROMOTED"
+        and all(recon.records[d]["state"] == "PROMOTED"
+                for d in rec["depends_on"])))
+    assert shallow == ("summary",), (
+        "the fixture does not separate the two rules: a shallow reader would "
+        "reach the same answer as a transitive one, so this proves nothing")
+
+    assert "summary" not in recon.canonical_ids()
+    assert recon.canonical_ids() == ()
+    assert _compare(store, recon) == ()
+
+
+def test_both_readers_refuse_a_dependency_cycle(tmp_path):
+    """R100: the fail-closed answer when the graph cannot say.
+
+    A cycle is a modelling error, and "is this authority sound" has no other
+    safe answer than no. The reader whose job is to disagree is the last
+    place that should resolve an unanswerable graph in the permissive
+    direction.
+    """
+    store = _Store(EventLog(tmp_path / "cycle.jsonl")).load()
+    _promoted(store, "a")
+    _promoted(store, "b", ("a",))
+    # The store refuses a record naming a dependency that does not exist, so
+    # the cycle can only be closed afterwards.
+    store.add_dependency(record_id="a", depends_on=("b",), actor="carol")
+    recon = _reconstruct_auth(store.log)
+
+    assert recon.records["a"]["depends_on"] == ["b"], recon.records["a"]
+    assert recon.records["b"]["depends_on"] == ["a"], recon.records["b"]
+    assert recon.records["a"]["state"] == "PROMOTED"
+    assert recon.records["b"]["state"] == "PROMOTED"
+
+    assert recon.canonical_ids() == ()
+    assert sorted(store.canonical()) == []
+    assert _compare(store, recon) == ()
+
+
+def test_the_second_reader_refuses_an_anchor_naming_a_head_hash_of_prose(
+        tmp_path):
+    """R92: the position a claim is about must be bound to a history.
+
+    The sibling rule for `state_digest` has a test; this one did not. The
+    anchor here names a position that is NOT the record immediately before
+    it, which is the case that matters: when the claim sits directly after
+    the position it names, the reader compares the hash against the record
+    there and the lie dies on that comparison instead. Two records back,
+    there is nothing left but the digest rule.
+    """
+    log = EventLog(tmp_path / "anchor.jsonl")
+    for i in range(4):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "kind": "note",
+                            "proposer": "a"})
+    head = log.verify()
+    through = head.head_seq - 2
+
+    log.append(actor="checkpointer", action="checkpoint.state",
+               target=f"seq:{through}",
+               payload={"through_seq": through,
+                        "state_digest": "e" * 64,
+                        "head_hash": "the state as it stood"})
+    recon = _subsystems(log)
+
+    assert any("which is not a digest" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert through not in recon.checkpoints, (
+        "the claim was recorded anyway, so the position it is about is "
+        "pinned to a head hash no history has")
+
+
+def test_an_anchor_two_records_back_is_otherwise_accepted(tmp_path):
+    """ANTI-VACUITY for the test above: the DISTANCE is not what refused it.
+
+    If an anchor naming an older position were rejected on its own, the test
+    above would pass without the digest rule it exists for.
+    """
+    log = EventLog(tmp_path / "anchor_ok.jsonl")
+    for i in range(4):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "kind": "note",
+                            "proposer": "a"})
+    head = log.verify()
+    through = head.head_seq - 2
+
+    log.append(actor="checkpointer", action="checkpoint.state",
+               target=f"seq:{through}",
+               payload={"through_seq": through, "state_digest": "e" * 64,
+                        "head_hash": "f" * 64})
+    recon = _subsystems(log)
+
+    assert recon.anomalies == [], recon.anomalies
+    assert recon.checkpoints[through]["head_hash_checked"] is False, (
+        "the reader claims it checked a hash it cannot reach from here")

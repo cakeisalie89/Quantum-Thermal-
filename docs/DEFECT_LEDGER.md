@@ -3303,6 +3303,119 @@ session — this one and D-2026-34's — is the pattern, not the accident.
 
 ---
 
+## D-2026-36 — four enforcement points in the second reader, unprotected, and a verdict that overstated why
+
+**CLASS** — `MISSING_TEST` (two), `WRONG_TEST` / mis-scoped specification
+(two), plus an overclaiming report in the verifier itself.
+
+**AFFECTED COMMIT** — since `577572d`, the commit that made `canonical()`
+transitive and added the mutations that were supposed to prove it.
+
+**DISCOVERED BY.** The hosted `agent-substrate` job, which I had been reading
+as "the flaky checkpoint test" for four commits. It was not only that. The
+`agent_second_reader` matrix reported **96/100**, and the four survivors are
+the interesting part:
+
+```
+R92_a_checkpoint_claim_need_not_name_a_head_hash                  SURVIVED
+R98_the_replay_ignores_the_foundations_of_a_canonical_record      SURVIVED
+R99_the_replay_checks_only_the_immediate_foundations              SURVIVED
+R100_a_cycle_reads_as_sound_in_the_replay                         SURVIVED
+```
+
+All four reproduce at HEAD, applied by hand, one at a time, sources restored
+byte-identical after each.
+
+**DEFECT.** `reconstruct.canonical_ids()` restates the rule D-2026-31 put in
+`store.canonical()`: a record is canonical when its own state says so AND
+everything it rests on is canonical, transitively, with a cycle resolving to
+no. The store side has four tests for that rule. The second reader's half had
+**one** assertion anywhere in the tree — `canonical_ids() == ()` in a test
+about a forged edge, where the answer is empty for an unrelated reason.
+
+So the reader could have ignored foundations entirely, or checked only the
+immediate ones, or called a cycle sound, and the suites the spec runs would
+have stayed green. That is the definition this repository uses: a survivor
+means the check is not load-bearing.
+
+And R92: the sibling rule for `state_digest` — a snapshot is cited by digest
+or it is not cited — has a test. The `head_hash` rule beside it did not.
+
+**THE PART THAT IS ABOUT THE VERIFIER, NOT THE CODE.** A test that kills R98
+and R99 **does exist**: `test_both_readers_agree_about_a_withdrawn_foundation`,
+in `tests/test_agent_substrate.py`. The `agent_second_reader` specification
+does not list that suite, so the matrix never ran it.
+
+The harness then printed, for each survivor:
+
+```
+SURVIVED    <-- nothing detects this: ...
+```
+
+which is not what it measured. It measured that **the suites in this
+specification** went green with the check removed. "Nothing detects this" and
+"this spec's suites do not detect this" have different repairs — a missing
+test versus a mis-scoped specification — and the stronger sentence sends the
+reader after the wrong one. The wording is now scoped to what was run, and
+the summary names the suite list and says that a mis-scoped spec and a
+missing test look identical from inside the harness.
+
+**REPAIR.** Six tests in `tests/test_agent_differential.py`, which the spec
+does run, mirroring the store-side set onto the second reader and comparing
+the two readers rather than asserting one:
+
+| test | kills |
+|---|---|
+| a sound chain IS canonical in both readers | anti-vacuity for all of them |
+| a record on a revoked foundation, in both | R98 |
+| the GRANDCHILD of a revoked foundation, in both | R99 |
+| a dependency cycle, in both | R100 |
+| an anchor naming a head hash of prose | R92 |
+| an anchor two records back is otherwise accepted | anti-vacuity for R92 |
+
+The grandchild test carries its own anti-vacuity assertion: it computes what
+a *shallow* reader would answer and requires it to differ from the transitive
+one, so the fixture cannot quietly stop separating the two rules. The R92
+pair is there because the anchor in that test names a position two records
+back — if an older position were refused on its own, the digest rule would
+never be reached and the test would prove nothing.
+
+Verified one mutation at a time: all four killed, and R98 and R99 killed by
+the grandchild test **alone**, so neither rides on the other's failure.
+
+**IS THE MIS-SCOPING SYSTEMIC? I CHECKED, AND THE CHECK DOES NOT EXIST.** The
+obvious sweep is mechanical: for every specification, find the test suites
+that exercise the modules it mutates and are not in its suite list. Run that
+and every spec reports dozens — `agent_checkpoint` alone shows 34 — because
+the relation available to a script is "this suite imports that module", and
+in this repository almost every agent suite imports `events`, `store` or
+`governed_stage10`. The relation that would matter is "this suite tests the
+rule this mutation removes", and nothing derives that from source.
+
+**AND THE AUTOMATIC VERSION WAS COSTED, NOT ASSUMED.** The other mechanical
+repair is to re-run each SURVIVOR against a wider suite set and let the
+harness say which of the two cases it is. That is attractive because the cost
+is zero on a green run — survivors are supposed to be none — and it is paid
+only on a run that is already failing. Measured: the union of every
+specification's suites is 45 files and takes **7m46s** on this container. At
+four survivors that is half an hour added to a job that is already red, for
+an answer a reader can get by running one suite against one mutation.
+
+So it is not adopted, and the repair stands at the harness saying what it
+measured plus the summary line telling the reader to check the wider suite
+before recording a check as unprotected. Recorded with the number so that the
+next person to consider it does not have to re-measure, and so nobody
+concludes the sweep was skipped.
+
+**WHAT I GOT WRONG, PLAINLY.** I wrote the transitive rule and the mutations
+meant to prove it in the same commit, and never held evidence that those
+mutations died — the local matrices kept being killed by process cleanup in
+this container, and I treated "the code is right" as if it were the same
+claim. It is the claim this repository exists to distinguish from. Then I
+read four hosted failures as one flake because the first one I opened was.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3340,6 +3453,7 @@ and reading it is not optional.
 | D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | this commit | pending its own hosted run; local evidence is recorded as local |
 | D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | this commit | pending its own hosted run; local evidence is 34 anchors matching and the suites green, recorded as local |
 | D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | this commit | pending its own hosted run; locally the stage-8, manifest, stage-10 and allowlist suites are green and the equivalence validator reports EQUIVALENT with 0 problems |
+| D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
 
 ### What `3d809f0`'s own run said
 
@@ -3413,10 +3527,11 @@ container.
 | P0-R15 | historical and current claims were not distinguished | this section, and the per-commit evidence table above |
 | P0-R16 | the pull request body read as a completion announcement | the body is relabelled; see the PR |
 | P1 / D-2026-30 | a checkpoint pinned a snapshot and nothing anchored the pin | `CURRENTLY_OPEN_FINDING` | the claim is now a record under the hash chain; hosted evidence pending |
-| P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers; hosted evidence pending |
+| P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers — but the SECOND reader's half had no test in the suites its own spec runs until D-2026-36, so the code was right and the evidence for it was not there; hosted evidence pending |
 | P1 / D-2026-32 | the performance guard measured time while the work grew | `CURRENTLY_OPEN_FINDING` | 26 full verifications per governed run down to 11, counted by a guard rather than timed; the residual 8+3 is measured and recorded, not closed |
 | P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_OPEN_FINDING` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; hosted evidence pending |
 | P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_OPEN_FINDING` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; hosted evidence pending |
+| P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

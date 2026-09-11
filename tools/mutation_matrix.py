@@ -412,8 +412,20 @@ def main() -> int:
                 print(f"{name:{name_w}s}  KILLED      {by}")
                 results[name] = "KILLED"
             else:
-                print(f"{name:{name_w}s}  SURVIVED    <-- nothing detects "
-                      f"this: {m['rationale']}")
+                # "NOTHING DETECTS THIS" IS NOT WHAT WAS MEASURED.
+                #
+                # What was measured is that the suites in THIS specification
+                # went green with the check removed. A test that would have
+                # caught it may exist in a suite the spec does not list, and
+                # that is not a hypothetical: four survivors in
+                # `agent_second_reader` were reported this way while a test
+                # covering two of them sat in tests/test_agent_substrate.py,
+                # which that spec does not run (D-2026-36). The stronger
+                # sentence sent the reader looking for an unprotected check
+                # instead of a mis-scoped spec, and both are real findings
+                # with different repairs.
+                print(f"{name:{name_w}s}  SURVIVED    <-- no test in this "
+                      f"spec's suites detects this: {m['rationale']}")
                 results[name] = "SURVIVED"
     finally:
         for p, src in original.items():
@@ -447,6 +459,10 @@ def main() -> int:
               f"bounded test): {timeouts}")
     if survived:
         print(f"SURVIVED: {survived}")
+        print(f"  (not detected by: {suites}. Before recording an "
+              "unprotected check, confirm no suite OUTSIDE this list "
+              "already covers it -- a mis-scoped spec and a missing test "
+              "look identical from here.)")
     if anchors:
         print(f"ANCHOR DRIFT (tested nothing): {anchors}")
     if collateral:
