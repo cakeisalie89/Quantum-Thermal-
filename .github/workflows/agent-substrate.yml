@@ -181,7 +181,7 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/identity_inventory.json
-      - name: mutation matrix -- the second reader, for the 30 of 37 it covers
+      - name: mutation matrix -- the second reader, for the 31 of 38 it covers
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_second_reader.json

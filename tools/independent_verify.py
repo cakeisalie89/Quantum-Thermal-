@@ -151,6 +151,7 @@ def main() -> int:
         # that prints counts for the subsystems it happens to have had first
         # is a verifier whose silence about the others reads as agreement.
         "claims": len(subs.claims),
+        "checkpoint_anchors": len(subs.checkpoints),
         "compensations": sum(len(v) for v in subs.compensations.values()),
         "root_issuer": subs.root_issuer,
         "records": len(getattr(recs, "records", ()) or ()),

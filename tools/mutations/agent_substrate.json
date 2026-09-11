@@ -1,6 +1,6 @@
 {
   "title": "Agent substrate: state machine, log, projection, invalidation, reconstruction",
-  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that. S38 was REMOVED as equivalent, not because it survived: the guard immediately above the Record construction refuses any create whose claimed proposer differs from ev.actor, UNCONDITIONALLY and with no try/except between the two, so `proposer=ev.actor` and `proposer=p['proposer']` are the same value by the time either runs. Note the contrast with agents.py, where the equivalent-looking M37 is NOT equivalent: that guard is conditional on a registrar being claimed, so an empty one leaves the derivation observable. The equivalence here is asserted by a test over the guard's shape rather than by this sentence.",
+  "note": "Each mutation deletes exactly one enforcement point. The suite must fail. A survivor means that check is unprotected -- not that it is redundant. Five of these survived the first run because the tests provoked corruptions that tripped two checks at once; the isolating tests at the end of tests/test_agent_substrate.py fixed that. S38 was REMOVED as equivalent, not because it survived: the guard immediately above the Record construction refuses any create whose claimed proposer differs from ev.actor, UNCONDITIONALLY and with no try/except between the two, so `proposer=ev.actor` and `proposer=p['proposer']` are the same value by the time either runs. Note the contrast with agents.py, where the equivalent-looking M37 is NOT equivalent: that guard is conditional on a registrar being claimed, so an empty one leaves the derivation observable. The equivalence here is asserted by a test over the guard's shape rather than by this sentence. M47-M50 attack D-2026-31. The property suite asserted that no PROMOTED record depends on a STALE, REVOKED or REJECTED one; the audit suite asserted, deliberately, that exactly that state is reachable and is reported as a provenance gap. Both were written on purpose and only the second was true. canonical() now means promoted AND resting on foundations that are themselves canonical, transitively.",
   "suites": [
     "tests/test_agent_concurrency.py",
     "tests/test_agent_differential.py",
@@ -331,6 +331,34 @@
       "find": "             require_unique_link: bool = True) -> ReadResult:",
       "replace": "             require_unique_link: bool = False) -> ReadResult:",
       "rationale": "the same regression, one layer up where production reads live"
+    },
+    {
+      "name": "M47_canonical_ignores_its_foundations",
+      "path": "qta_agent/store.py",
+      "find": "            ok = all(sound(dep, seen | {rid}) for dep in rec.depends_on)",
+      "replace": "            ok = True",
+      "rationale": "canonical authority is reported for a record resting on a revoked foundation, which is the state the auditor calls a provenance gap and the enforcement path used to hand back as an answer"
+    },
+    {
+      "name": "M48_canonical_checks_only_the_immediate_foundations",
+      "path": "qta_agent/store.py",
+      "find": "            ok = all(sound(dep, seen | {rid}) for dep in rec.depends_on)",
+      "replace": "            ok = all(self._records[dep].state is State.PROMOTED\n                     for dep in rec.depends_on)",
+      "rationale": "only the direct dependencies are examined, so the grandchild stands on the same withdrawn input -- the exact shortcut invalidation.py was written against"
+    },
+    {
+      "name": "M49_a_dependency_cycle_reads_as_sound",
+      "path": "qta_agent/store.py",
+      "find": "                return False                  # a cycle decides nothing",
+      "replace": "                return True                   # a cycle decides nothing",
+      "rationale": "a graph that cannot say whether authority is sound answers yes, which is the one answer a fail-closed system may not give"
+    },
+    {
+      "name": "M50_a_record_that_is_not_promoted_can_still_be_canonical",
+      "path": "qta_agent/store.py",
+      "find": "            if rec is None or rec.state is not State.PROMOTED:",
+      "replace": "            if rec is None:",
+      "rationale": "the state machine stops deciding canonicity at all, so a PROPOSED or REVOKED record is returned as canonical authority"
     }
   ]
 }

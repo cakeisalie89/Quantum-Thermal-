@@ -1136,3 +1136,160 @@ def test_a_genuinely_malformed_record_still_says_malformed(tmp_path):
         list(_EL(path).read())
     assert not isinstance(exc.value, UnreadableForm)
     assert "unhashed extra fields" in str(exc.value)
+
+
+# ---------------------------------------------------------------------------
+# D-2026-31 (P1): canonical authority resting on a withdrawn foundation.
+#
+# Two parts of this repository said incompatible things about one condition:
+#
+#   * tests/test_agent_substrate_properties.py asserted, as an invariant
+#     checked after every rule, that no PROMOTED record depends on a STALE,
+#     REVOKED or REJECTED one;
+#   * tests/test_agent_audit.py asserts, deliberately and with an
+#     anti-vacuity partner, that exactly that state is REACHABLE and is
+#     reported by the auditor as a provenance gap -- "store.py applies one
+#     event at a time and never looks at dependents".
+#
+# Both were written on purpose. Only one can be true, and the second was:
+# revoking a foundation leaves every record promoted on the strength of it
+# PROMOTED, and store.canonical() returned them. Hypothesis found it the
+# first time it generated a revocation of a record with a promoted dependent,
+# which is the first time anything had.
+#
+# The resolution is not to make revocation cascade -- the auditor's report is
+# right, and a withdrawal must stay a single cheap act. It is that CANONICAL
+# now means what it says: promoted, and resting on foundations that are
+# themselves canonical.
+# ---------------------------------------------------------------------------
+
+def test_canonical_holds_when_the_foundations_hold(tmp_path):
+    """Anti-vacuity, first: the rule must not exclude a sound chain."""
+    s = _store(tmp_path)
+    _promote(s, "param")
+    _promote(s, "result", ("param",))
+    _promote(s, "summary", ("result",))
+    assert sorted(s.canonical()) == ["param", "result", "summary"]
+
+
+def test_canonical_excludes_a_record_resting_on_a_revoked_foundation(
+        tmp_path):
+    """The reproducer, deterministic and without hypothesis."""
+    s = _store(tmp_path)
+    _promote(s, "param")
+    _promote(s, "result", ("param",))
+    s.transition(record_id="param", dst=State.REVOKED, actor="carol",
+                 role=Role.PROMOTER, evidence={"revocation_reason": DIG})
+
+    # The STATE is untouched -- a withdrawal does not rewrite its dependents,
+    # and the audit gap for that is still the right report.
+    assert s.get("result").state is State.PROMOTED
+    # What changed is the answer to "what is canonical".
+    assert sorted(s.canonical()) == []
+
+
+def test_the_exclusion_is_transitive_not_just_immediate_children(tmp_path):
+    """The classic bug, in the other direction.
+
+    ``result`` is excluded because ``param`` is revoked. ``summary`` depends
+    on ``result``, whose STATE still reads PROMOTED -- so a rule that looked
+    only at each dependency's state would leave the grandchild standing on
+    the same withdrawn input.
+    """
+    s = _store(tmp_path)
+    _promote(s, "param")
+    _promote(s, "result", ("param",))
+    _promote(s, "summary", ("result",))
+    s.transition(record_id="param", dst=State.REVOKED, actor="carol",
+                 role=Role.PROMOTER, evidence={"revocation_reason": DIG})
+
+    assert s.get("summary").state is State.PROMOTED
+    assert s.get("result").state is State.PROMOTED
+    assert sorted(s.canonical()) == []
+
+
+def test_a_rejected_foundation_is_withdrawn_too(tmp_path):
+    """REVOKED is not the only way authority stops being there."""
+    s = _store(tmp_path)
+    s.create(record_id="param", kind="result", proposer="alice",
+             policy_id="p1")
+    s.transition(record_id="param", dst=State.REJECTED, actor="bob",
+                 role=Role.VERIFIER,
+                 evidence={"rejection_reason": DIG})
+    _promote(s, "result", ("param",))
+    assert s.get("result").state is State.PROMOTED
+    assert sorted(s.canonical()) == []
+
+
+def test_a_dependency_cycle_is_not_canonical(tmp_path):
+    """The fail-closed answer when the graph cannot say.
+
+    The store refuses to create a record naming a dependency that does not
+    exist, so a cycle arrives through ``depend()`` afterwards. Whichever way
+    the traversal enters it, the answer is no: a cycle is a modelling error
+    and "is this authority sound" has no other safe answer.
+    """
+    s = _store(tmp_path)
+    _promote(s, "a")
+    _promote(s, "b", ("a",))
+    s.add_dependency(record_id="a", depends_on=("b",), actor="carol")
+    assert sorted(s.canonical()) == []
+
+
+def test_both_readers_agree_about_a_withdrawn_foundation(tmp_path):
+    """The rule is restated in reconstruct.py, so the two must agree.
+
+    An empty diff between them is the only outcome that should ever occur,
+    and it is worth checking HERE because the condition is one the live
+    projection and the replay could easily answer differently: one holds
+    dataclasses, the other plain dicts, and neither asks the other.
+    """
+    s = _store(tmp_path)
+    _promote(s, "param")
+    _promote(s, "result", ("param",))
+    _promote(s, "summary", ("result",))
+    assert reconstruct(s.log).canonical_ids() == ("param", "result",
+                                                  "summary")
+
+    s.transition(record_id="param", dst=State.REVOKED, actor="carol",
+                 role=Role.PROMOTER, evidence={"revocation_reason": DIG})
+    assert reconstruct(s.log).canonical_ids() == ()
+    assert compare(s, reconstruct(s.log)) == ()
+
+
+def test_running_the_cascade_leaves_the_same_answer(tmp_path):
+    """The two routes to "not canonical" must not contradict each other.
+
+    Excluding a record from the canonical set does not mark it STALE, and
+    running the cascade does. Both have to end in the same verdict, or the
+    system would have an incentive to prefer whichever reading it liked.
+    """
+    from qta_agent.evidence import EvidenceStore
+    from qta_agent.invalidation import apply_invalidation
+
+    s = AuthorityStore(EventLog(tmp_path / "ev.jsonl"),
+                       evidence=EvidenceStore(tmp_path / "ev")).load()
+    report = s.evidence.put(b'{"verified": true}')
+
+    def promote(rid, deps=()):
+        s.create(record_id=rid, kind="result", proposer="alice",
+                 depends_on=deps)
+        s.transition(record_id=rid, dst=State.UNDER_REVIEW, actor="bob",
+                     role=Role.VERIFIER)
+        s.transition(record_id=rid, dst=State.VERIFIED, actor="bob",
+                     role=Role.VERIFIER,
+                     evidence={"verification_report": report})
+        s.transition(record_id=rid, dst=State.PROMOTED, actor="carol",
+                     role=Role.PROMOTER, policy_id="p1",
+                     evidence={"verification_report": report,
+                               "policy_id": "p1"})
+
+    promote("param")
+    promote("result", ("param",))
+    s.transition(record_id="param", dst=State.REVOKED, actor="carol",
+                 role=Role.PROMOTER, evidence={"revocation_reason": report})
+    before = sorted(s.canonical())
+
+    apply_invalidation(s, "param", reason="dependency revoked")
+    assert s.get("result").state is State.STALE
+    assert sorted(s.canonical()) == before == []

@@ -19,7 +19,7 @@ if ROOT not in sys.path:
 
 from qta_agent import checkpoint as cp_mod  # noqa: E402
 from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import digest  # noqa: E402
+from qta_agent.canonical import canonical_bytes, digest  # noqa: E402
 from dataclasses import replace  # noqa: E402
 from qta_agent.checkpoint import (  # noqa: E402
     Checkpoint, CheckpointAheadOfLog, CheckpointCorrupt, CheckpointError,
@@ -739,7 +739,18 @@ def test_a_checkpoint_describes_the_position_it_pins(tmp_path):
     assert store._loaded_through < log.verify().head_seq
 
     cp = store.checkpoint(checkpoints)
-    assert cp.seq == log.verify().head_seq
+    # THE POSITION THE SNAPSHOT DESCRIBES, WHICH IS NO LONGER THE HEAD.
+    #
+    # This read `cp.seq == log.verify().head_seq` until D-2026-30, and the
+    # intent has not changed: the checkpoint must pin the position its
+    # snapshot actually covers, not a stale one. What moved is the head --
+    # checkpoint() now appends a checkpoint.state record anchoring the claim
+    # in the log, and that record lands one past the position it describes,
+    # because a snapshot cannot contain the record announcing it.
+    head = log.verify().head_seq
+    assert cp.seq == head - 1
+    (anchor,) = [e for e in log.read() if e.action == "checkpoint.state"]
+    assert anchor.seq == head and anchor.payload["through_seq"] == cp.seq
     restored = AuthorityStore.load_from(
         EventLog(tmp_path / "log.jsonl"), checkpoints, blobs=evidence,
         evidence=evidence, require_checkpoint=True)
@@ -871,9 +882,20 @@ def test_a_store_with_nothing_to_prune_does_not_ask_the_harder_question(
     """
     log, store = _many(tmp_path, n=2)
     other = EventLog(tmp_path / "other.jsonl")
-    other.append(actor="a", action="record.create", target="z",
-                 payload={"record_id": "z", "state": "DRAFT",
-                          "title": "x", "kind": "note"})
+    # DELIBERATELY MUCH SHORTER THAN THE RECORDS `_many` WRITES.
+    #
+    # "Not usable against this log" is decided by byte offsets: a checkpoint
+    # is refused when it ends past the end of the log it is held against.
+    # This record used to carry the same four payload keys, which made it
+    # two bytes shorter than _many's -- and a record's length includes a
+    # float timestamp whose JSON repr varies by a byte or three. So the
+    # precondition held by a coincidence thin enough to lose, and one full
+    # run lost it: the assertion below fired, correctly, saying the fixture
+    # had stopped setting up the case.
+    #
+    # An empty payload is ~59 bytes shorter, which no timestamp can close.
+    # The assertion stays anyway: it is the thing that caught this.
+    other.append(actor="a", action="record.create", target="z", payload={})
 
     assert store.latest_usable(other) is None, (
         "the fixture does not set up the case: something here describes the "
@@ -973,3 +995,188 @@ def test_a_store_below_the_keep_count_is_not_verified_at_all(tmp_path):
 
     assert store.prune(empty, keep=8) == ()
     assert len(store.seqs()) == 3
+
+
+# ---------------------------------------------------------------------------
+# D-2026-30 (P1): a checkpoint pinned a snapshot and nothing anchored it.
+#
+# checkpoint.py says, in its own docstring:
+#
+#     WHAT AUTHENTICATES A CHECKPOINT
+#     Nothing in this module. Read that sentence again before relying on one.
+#
+# and then, two paragraphs earlier:
+#
+#     a false statement about the log is still just a false statement -- it
+#     cannot make a forged record authoritative, because anyone can re-run
+#     the full verification and find the disagreement.
+#
+# The second sentence is true of the LOG and was false of the SNAPSHOT.
+# Re-running the full verification confirms the log and finds no
+# disagreement, because a forged snapshot is not in the log. The claim "the
+# state at seq K is blob D" lived only in a file whose self-hash is
+# recomputable by whoever can write the file.
+#
+# It is now also a record, under the hash chain.
+# ---------------------------------------------------------------------------
+
+def _forged_checkpoint(cp, state_digest):
+    """The same checkpoint, pointing at a different snapshot, hash repaired.
+
+    Exactly what somebody with write access to the checkpoint directory can
+    produce, which is the threat the module's own docstring describes.
+    """
+    forged = replace(cp, state_digest=state_digest, hash="")
+    return replace(forged, hash=forged.recompute_hash())
+
+
+def test_a_checkpoint_is_anchored_by_a_record_in_the_log(tmp_path):
+    """Anti-vacuity for everything below: the honest path writes the anchor."""
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+
+    anchors = [ev for ev in log.read() if ev.action == "checkpoint.state"]
+    assert len(anchors) == 1, [e.action for e in log.read()]
+    (a,) = anchors
+    assert a.payload["through_seq"] == cp.seq
+    assert a.payload["state_digest"] == cp.state_digest
+    assert a.payload["head_hash"] == cp.head_hash
+    # ...and it lands AFTER the position it describes, because a snapshot
+    # cannot contain the record announcing it.
+    assert a.seq == cp.seq + 1
+
+
+def test_a_forged_snapshot_is_refused_even_though_the_log_verifies(tmp_path):
+    """The reproducer. Before D-2026-30 this loaded and read PROMOTED.
+
+    Nothing is done to the log. It verifies, fully, at the end -- which is
+    the whole point: the forgery was never in it.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+
+    honest = json.loads(blobs.get(cp.state_digest).decode("utf-8"))
+    honest["records"]["r1"]["state"] = State.PROMOTED.value
+    honest["records"]["r1"]["policy_id"] = "pol-forged"
+    forged_digest = blobs.put(canonical_bytes(honest),
+                              media_type="application/json")
+    cps.write(_forged_checkpoint(cp, forged_digest))
+
+    assert log.verify().ok, "the log is untouched and still verifies"
+    with pytest.raises(StoreError, match="the log records"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_the_forged_snapshot_would_otherwise_have_been_authoritative(tmp_path):
+    """What the refusal above is worth, stated rather than implied.
+
+    The forged snapshot promotes a record through an edge the gate refuses:
+    PROPOSED -> PROMOTED is not in the table at all, and VERIFIED ->
+    PROMOTED needs a distinct actor and an explicit policy. So the state it
+    carries is not merely wrong, it is unreachable -- and a load that
+    accepted it would have handed back a canonical record no history could
+    produce.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    cp = s.checkpoint(cps)
+    honest = json.loads(blobs.get(cp.state_digest).decode("utf-8"))
+    assert honest["records"]["r1"]["state"] == State.VERIFIED.value
+    honest["records"]["r1"]["state"] = State.PROMOTED.value
+    forged = AuthorityStore(log, evidence=blobs)
+    forged._restore(honest)
+    assert sorted(forged.canonical()) == ["r1"], (
+        "the snapshot this test forges really does make r1 canonical; "
+        "without that the refusal above would be about nothing")
+
+
+def test_a_checkpoint_with_no_anchor_in_the_log_is_refused(tmp_path):
+    """A checkpoint file for a log that never recorded one.
+
+    This is the shape a checkpoint written by an older build has, and the
+    shape an attacker produces by writing a file into the directory. Both
+    are refused, and for the same reason: a snapshot nothing in the hash
+    chain vouches for is a file.
+    """
+    log, blobs, s, _ = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    payload = canonical_bytes(s.snapshot())
+    dg = blobs.put(payload, media_type="application/json")
+    cps.write(cp_mod.create(log, state_digest=dg))      # no record appended
+    with pytest.raises(StoreError, match="not anchored in the log"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_an_anchor_for_a_different_position_does_not_vouch(tmp_path):
+    """One position, one projection.
+
+    An anchor exists in this log -- for an EARLIER checkpoint. A file naming
+    a later position is not vouched for by it, and a check that only asked
+    "is there an anchor anywhere" would pass this.
+    """
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)                                    # anchored, at seq K
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report, "policy_id": "pol-1"})
+
+    later = canonical_bytes(s.snapshot())
+    dg = blobs.put(later, media_type="application/json")
+    cps.write(cp_mod.create(log, state_digest=dg))        # unanchored, later
+    with pytest.raises(StoreError, match="not anchored in the log"):
+        AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+
+
+def test_the_honest_checkpointed_load_still_works_after_all_that(tmp_path):
+    """Anti-vacuity: a check that refused everything would pass every test
+    above and break the feature entirely."""
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    s.checkpoint(cps)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report, "policy_id": "pol-1"})
+
+    cheap = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    full = AuthorityStore(log, evidence=blobs).load()
+    assert cheap.snapshot() == full.snapshot()
+    assert cheap.get("r1").state is State.PROMOTED
+
+
+def test_a_later_anchor_in_the_tail_does_not_speak_for_this_checkpoint(
+        tmp_path):
+    """The position match, exercised where it is actually load-bearing.
+
+    A checkpointed load reads the tail from its own anchor forward, and that
+    tail contains every LATER checkpoint's anchor too. Without the match on
+    ``through_seq`` the first one encountered would be compared against this
+    checkpoint's snapshot, disagree, and refuse a load that is perfectly
+    sound.
+
+    An anchor for an EARLIER position can never appear in a later
+    checkpoint's tail, which is why the obvious version of this test proves
+    nothing: it sets up a case the reader cannot reach. This one is the
+    reachable direction.
+    """
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    first = s.checkpoint(cps)
+
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report, "policy_id": "pol-1"})
+    later = s.checkpoint(cps)
+    assert later.seq > first.seq
+    assert later.state_digest != first.state_digest, (
+        "both checkpoints pin the same snapshot, so a mismatch could not be "
+        "observed and this test would prove nothing")
+    # Leave only the older checkpoint, so the load starts from it and reads
+    # the later anchor on its way forward.
+    (tmp_path / "cp" / f"{later.seq:012d}.checkpoint.json").unlink()
+    assert cps.latest_usable(log).seq == first.seq
+
+    restored = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert restored.get("r1").state is State.PROMOTED

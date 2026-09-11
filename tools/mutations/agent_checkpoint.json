@@ -1,6 +1,6 @@
 {
   "title": "Checkpointing, incremental verification, and the projection snapshot",
-  "note": "A checkpoint caches a verification RESULT. These mutations delete the checks that keep it from becoming a second source of truth: the anchor is re-hashed rather than trusted, an incremental report is forced to admit it is incremental, and a checkpoint that does not describe the log in front of it is refused rather than used.",
+  "note": "A checkpoint caches a verification RESULT. These mutations delete the checks that keep it from becoming a second source of truth: the anchor is re-hashed rather than trusted, an incremental report is forced to admit it is incremental, and a checkpoint that does not describe the log in front of it is refused rather than used. C28-C34 attack D-2026-30: the checkpoint FILE pinned a snapshot and nothing anchored the pin, so a rewritten file naming a forged snapshot restored a canonical record no history could produce -- while the log itself went on verifying perfectly, because the forgery was never in it. The claim is now also a checkpoint.state record under the hash chain, and these remove one part of that binding each.",
   "suites": [
     "tests/test_agent_checkpoint.py",
     "tests/test_agent_substrate.py",
@@ -197,6 +197,41 @@
       "find": "        if len(present) <= keep:\n            return ()",
       "replace": "        if False:\n            return ()",
       "rationale": "a small store is pruned anyway, which is where the protected set is the only thing between a policy and an empty directory"
+    },
+    {
+      "name": "C28_a_checkpoint_need_not_be_anchored_in_the_log",
+      "path": "qta_agent/store.py",
+      "find": "        if not anchored:\n            raise StoreError(",
+      "replace": "        if False:\n            raise StoreError(",
+      "rationale": "a snapshot nothing in the hash chain vouches for is restored as a projection, which is D-2026-30 in one line"
+    },
+    {
+      "name": "C29_the_anchored_digest_is_not_compared",
+      "path": "qta_agent/store.py",
+      "find": "                    if p.get(\"state_digest\") != cp.state_digest:",
+      "replace": "                    if False:",
+      "rationale": "a rewritten checkpoint file naming a forged snapshot is confirmed by a record that says something else, and the comparison that exists to catch it is gone"
+    },
+    {
+      "name": "C31_an_anchor_for_any_position_vouches_for_any_checkpoint",
+      "path": "qta_agent/store.py",
+      "find": "                if p.get(\"through_seq\") == cp.seq:",
+      "replace": "                if True:",
+      "rationale": "an anchor for an EARLIER checkpoint is read as vouching for a later one, which is the check that asking 'is there an anchor anywhere' would fail"
+    },
+    {
+      "name": "C32_the_claim_is_never_written_to_the_log",
+      "path": "qta_agent/store.py",
+      "find": "        self.log.append(\n            actor=actor, action=ACT_CHECKPOINT_STATE,",
+      "replace": "        if False: self.log.append(\n            actor=actor, action=ACT_CHECKPOINT_STATE,",
+      "rationale": "checkpoints go back to being files nothing in the log attests, so every later load has to take one on trust"
+    },
+    {
+      "name": "C33_the_anchor_names_the_position_after_the_one_it_covers",
+      "path": "qta_agent/store.py",
+      "find": "            payload={\"through_seq\": cp.seq, \"state_digest\": dg,",
+      "replace": "            payload={\"through_seq\": cp.seq + 1, \"state_digest\": dg,",
+      "rationale": "the record claims to cover the record that announces it, and load_from's match on the position stops finding its anchor"
     }
   ]
 }

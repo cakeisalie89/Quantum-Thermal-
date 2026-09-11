@@ -428,9 +428,34 @@ class Reconstruction:
     head_hash: str = ""
 
     def canonical_ids(self) -> tuple:
-        return tuple(sorted(
-            rid for rid, r in self.records.items()
-            if r["state"] == _AUTH_PROMOTED))
+        """Records carrying canonical authority, foundations included.
+
+        Restated here in this reader's own terms, and it is worth saying
+        what the rule is rather than only that it is duplicated: a record is
+        canonical when its own state says so AND everything it rests on is
+        canonical too. Transitive, because excluding only the immediate
+        children leaves the grandchild standing on the same withdrawn input.
+
+        A cycle resolves to not canonical. The fail-closed answer to "is
+        this authority sound" when the graph cannot say is no.
+        """
+        verdict: dict = {}
+
+        def sound(rid, seen) -> bool:
+            if rid in verdict:
+                return verdict[rid]
+            if rid in seen:
+                return False
+            rec = self.records.get(rid)
+            if rec is None or rec["state"] != _AUTH_PROMOTED:
+                return False
+            ok = all(sound(dep, seen | {rid})
+                     for dep in rec.get("depends_on") or ())
+            verdict[rid] = ok
+            return ok
+
+        return tuple(sorted(rid for rid in self.records
+                            if sound(rid, frozenset())))
 
     def states(self) -> dict:
         return {rid: r["state"] for rid, r in self.records.items()}
@@ -812,6 +837,13 @@ class SubsystemReconstruction:
     #: to anyone is a way to manufacture or suppress a disagreement between
     #: two parties the system is about to call independent.
     claims: dict = field(default_factory=dict)
+    #: through_seq -> what a checkpoint anchor claimed about that position.
+    #:
+    #: A checkpoint FILE is authenticated by nothing; the claim it makes
+    #: about a projection is only evidence when the log carries it too. This
+    #: reader is where that claim is read back from the log by something
+    #: that is not the store.
+    checkpoints: dict = field(default_factory=dict)
     #: task_id -> the compensations recorded against it, in order.
     #:
     #: A compensation does not move the task -- it is a fact ABOUT one --
@@ -880,6 +912,15 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
     report = log.verify()
     report.raise_if_bad()
     out = SubsystemReconstruction(head_seq=report.head_seq)
+    # The record immediately before the one being folded, as (seq, hash).
+    #
+    # Held rather than a full seq -> hash index, deliberately: an index over
+    # every record would be memory proportional to the log for the sake of
+    # one check, and the honest writer anchors the position it just left. A
+    # claim about an older position is REPORTED as unchecked rather than
+    # treated as checked, which is the difference between a reader that
+    # knows its limits and one that implies it verified more than it did.
+    prev = (-1, "")
     for ev in log.read():
         out.events_replayed += 1
         p = ev.payload if isinstance(ev.payload, dict) else {}
@@ -906,6 +947,8 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_agent_register(ev, p, out)
         elif a == "agent.retire":
             _sub_agent_retire(ev, p, out)
+        elif a == "checkpoint.state":
+            _sub_checkpoint(ev, p, out, prev)
         elif a == "agent.claim":
             _sub_claim(ev, p, out)
         elif a == "task.compensation":
@@ -928,6 +971,7 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_grant(ev, p, out, out.secret_grants, "secret")
         elif a == "context.build":
             _sub_context(ev, p, out)
+        prev = (ev.seq, ev.hash)
     return out
 
 
@@ -1578,6 +1622,80 @@ def _sub_escalation_answer(ev, p: dict, out) -> None:
     cur["answered_seq"] = ev.seq
 
 
+def _sub_checkpoint(ev, p: dict, out, prev) -> None:
+    """Replay one checkpoint anchor: a claim about a projection's state.
+
+    WHY A SNAPSHOT NEEDS A RECORD AT ALL
+
+    A checkpoint file says "the state at seq K is blob D", and the checkpoint
+    module is explicit that nothing authenticates the file: its self-hash is
+    recomputable by whoever can write it. So the file alone could name any
+    blob, and a rewritten one restored a forged projection while the log went
+    on verifying perfectly -- because the forgery was never in the log.
+
+    Putting the claim in the log puts it under the hash chain. This reader is
+    the part that reads it back without asking the store what it meant.
+
+    WHAT THIS READER CAN AND CANNOT CHECK, SAID PLAINLY
+
+    It can check the shape, the ordering, and that one position is not given
+    two different states. It can check the claimed head hash only when the
+    claim names the position immediately before it, which is where an honest
+    writer puts it; for an older position it records that the hash was NOT
+    checked rather than leaving a reader to assume it was.
+    """
+    through = p.get("through_seq")
+    if not isinstance(through, int) or isinstance(through, bool):
+        _note(out, ev, "checkpoint anchor names no through_seq this reader "
+                       "can read")
+        return
+    if through >= ev.seq:
+        # The snapshot cannot contain the record announcing it, so a claim
+        # at or after its own position describes a projection that did not
+        # exist when it was written.
+        _note(out, ev, f"checkpoint anchor at seq {ev.seq} claims the state "
+                       f"through seq {through}; a snapshot cannot cover the "
+                       "record that announces it")
+        return
+
+    dg = p.get("state_digest")
+    if not _is_digest(dg):
+        _note(out, ev, f"checkpoint anchor for seq {through} names its "
+                       f"snapshot as {dg!r}; a snapshot is cited by digest "
+                       "or it is not cited")
+        return
+    hh = p.get("head_hash")
+    if not _is_digest(hh):
+        _note(out, ev, f"checkpoint anchor for seq {through} names head hash "
+                       f"{hh!r}, which is not a digest")
+        return
+
+    checked = False
+    if prev[0] == through:
+        if prev[1] != hh:
+            _note(out, ev, f"checkpoint anchor for seq {through} names head "
+                           f"hash {hh[:12]} and the record there hashes to "
+                           f"{str(prev[1])[:12]}; the claim is about a "
+                           "history this log does not have")
+            return
+        checked = True
+
+    seen = out.checkpoints.get(through)
+    if seen is not None and seen["state_digest"] != dg:
+        _note(out, ev, f"seq {through} is given two different states: "
+                       f"{seen['state_digest'][:12]} at seq "
+                       f"{seen['at_seq']} and {dg[:12]} here. One position "
+                       "has one projection, and a reader handed both has no "
+                       "way to say which a checkpoint file means")
+        return
+
+    out.checkpoints[through] = {
+        "through_seq": through, "state_digest": dg, "head_hash": hh,
+        "recorded_by": ev.actor, "at_seq": ev.seq,
+        "head_hash_checked": checked,
+    }
+
+
 def _sub_claim(ev, p: dict, out) -> None:
     """Replay one claim, and ask whether whoever made it could have.
 
@@ -1884,7 +2002,8 @@ def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
               "net_grants": recon.net_grants, "services": recon.services,
               "secret_grants": recon.secret_grants,
               "escalations": recon.escalations,
-              "claims": recon.claims}
+              "claims": recon.claims,
+              "checkpoints": recon.checkpoints}
     for name, theirs in tables.items():
         mine = primary.get(name)
         if mine is None:

@@ -2667,6 +2667,228 @@ that every durable action has an independent reader. It never did, the
 inventory always said so, and until now the two numbers sat in different files
 with nothing obliging them to be read together.
 
+## D-2026-30 — the checkpoint pinned a snapshot, and nothing anchored the pin
+
+**CLASS** — `AUTHORITY_DEFECT`, `EVIDENCE_BINDING_DEFECT`,
+`PROSE_OVERCLAIM`.
+
+**AFFECTED COMMIT** — present since checkpointing was added; still true at
+`3d809f0`.
+
+**DISCOVERED BY.** P1 of the second reopening, by reading
+`checkpoint.py`'s own docstring against what `store.load_from` does.
+
+**DEFECT.** `checkpoint.py` says, in these words:
+
+> **WHAT AUTHENTICATES A CHECKPOINT**
+>
+> Nothing in this module. Read that sentence again before relying on one.
+
+and, three paragraphs earlier:
+
+> a false statement about the log is still just a false statement -- it
+> cannot make a forged record authoritative, because anyone can re-run the
+> full verification and find the disagreement.
+
+The second sentence is true of the **log** and was false of the **snapshot**.
+A checkpoint file says *the state at seq K is blob D*. `AuthorityStore.
+load_from` restored blob D, replayed the tail, and handed the result back.
+Nothing compared D against anything in the hash chain, because the whole
+point of a checkpoint is not to read records 0..K.
+
+So: rewrite the checkpoint file with the same `seq`, the same `head_hash` and
+the same byte offsets, change `state_digest` to a snapshot you wrote yourself,
+recompute the file's self-hash — which anyone able to write the file can do —
+and the load succeeds. **The log is untouched and `verify()` returns ok.**
+Re-running the full verification finds no disagreement, because the forgery
+was never in the log.
+
+**WHAT THE FORGERY BUYS.** The reproducer promotes a record that the
+authority gate could not have promoted: `PROPOSED -> PROMOTED` is not an edge
+at all, and `VERIFIED -> PROMOTED` requires a distinct actor and an explicit
+policy identity. The restored projection reports it in `canonical()`. That is
+a canonical record no history could produce, handed back by a load that
+reported no problem.
+
+`loaded_prefix_verified = False` was the only signal, and it says the wrong
+thing: it means *the records before the checkpoint were not read*. They are
+fine. What was taken on faith is the snapshot, and nothing said so.
+
+**IMPLEMENTATION FIX — THE CLAIM GOES IN THE LOG.** A new durable action,
+`checkpoint.state`, appended by `AuthorityStore.checkpoint()`:
+
+```
+{"through_seq": K, "state_digest": D, "head_hash": H}
+```
+
+`load_from` now requires that record, matched on all three fields, in the
+tail it already reads and has already verified. A checkpoint with no such
+record is refused as unanchored; one whose digest disagrees is refused and
+says which side the log is on. The record is inside the hash chain, so
+rewriting it breaks `verify()` — which is the property the module's prose
+claimed and did not have.
+
+**ORDERING, WHICH IS NOT ARBITRARY.** The checkpoint is created first,
+against the head its snapshot describes, so `cp.seq` names that position. The
+record then lands at `cp.seq + 1`, inside the tail a checkpointed load
+replays. A snapshot cannot contain the record announcing it, and the second
+reader refuses a claim that says otherwise.
+
+If the process dies between the append and the file write, the log carries an
+anchor for a checkpoint nobody has: a fact about a blob that exists, and
+harmless. The reverse order would leave a checkpoint nothing anchors, which is
+exactly the state this record exists to make unloadable.
+
+**INDEPENDENT READER.** `checkpoint.state` is authority-changing — it is what
+authorizes restoring a projection instead of replaying the log — so D-2026-29's
+rule requires a second reader, and `_sub_checkpoint` is it. It checks the
+shape, that a claim does not cover its own position, that one position is not
+given two different states, and the claimed head hash **when the claim names
+the position immediately before it**, which is where an honest writer puts it.
+
+That last bound is stated rather than hidden. Verifying a claim about an older
+position would need a `seq -> hash` index over the whole log, which is memory
+proportional to the history for one check; the reader records
+`head_hash_checked: False` instead, so a reader of ITS output can tell a
+verified claim from an unverifiable one. A verifier that implies it checked
+more than it did is the defect this tranche keeps finding.
+
+**AN EXISTING TEST CHANGED ITS NUMBER, NOT ITS INTENT.**
+`test_a_checkpoint_describes_the_position_it_pins` asserted
+`cp.seq == log.verify().head_seq`. The head now advances by one when the
+anchor lands, so it asserts `cp.seq == head - 1` **and** that the anchor sits
+at `head` naming `through_seq == cp.seq`. The comment says why the number
+moved, because a silently adjusted assertion is how a test stops testing what
+it was written for.
+
+**ADVERSARIAL TESTS.** The reproducer, with the log asserted to verify at the
+end; a separate test proving the forged snapshot really would have been
+authoritative, so the refusal is about something; a checkpoint with no anchor
+at all; an anchor for a DIFFERENT position, which a check asking only "is
+there an anchor anywhere" would pass; and the honest checkpointed load still
+agreeing byte for byte with a full load, because a check that refused
+everything would satisfy all of the above while deleting the feature.
+
+**FORBIDDEN FAKE FIXES.** Signing the checkpoint file with a key stored beside
+it. Adding a second self-hash. Declaring the checkpoint directory trusted and
+moving on — the module already says it is exactly as trustworthy as its
+directory, and the fix is to stop needing that. Refusing checkpoints
+altogether: verification that grows without bound is verification somebody
+eventually switches off, which is the defect checkpointing exists to prevent.
+
+**INVALIDATED CLAIMS.** `checkpoint.py`'s statement that a false checkpoint
+"cannot make a forged record authoritative", at every commit before this one.
+It could, and the full verification it appealed to would not have noticed.
+
+## D-2026-31 — two suites said opposite things about canonical authority, and the weaker one was right
+
+**CLASS** — `AUTHORITY_DEFECT`, `CONTRADICTORY_SPECIFICATION`,
+`INVARIANT_OVERCLAIM`.
+
+**AFFECTED COMMIT** — present since dependency invalidation was written;
+still true at `3d809f0`.
+
+**DISCOVERED BY.** Hypothesis, in `tests/test_agent_substrate_properties.py`,
+the first time it generated a revocation of a record that had a promoted
+dependent. The example then persisted in the local database and the failure
+became deterministic, which is how it stopped being a curiosity.
+
+**DEFECT.** Two parts of this repository stated incompatible things about one
+condition, and both were written on purpose.
+
+The property suite asserted, as an invariant checked after **every** rule:
+
+> for every record whose state is PROMOTED, no dependency is STALE, REVOKED
+> or REJECTED.
+
+The audit suite asserted the opposite, with its own anti-vacuity partner and
+an explanation:
+
+> `store.py` applies one event at a time and never looks at dependents.
+> `qta_agent.invalidation` cascades ONLY when a caller runs it. So a cascade
+> nobody ran leaves a PROMOTED record resting on a REVOKED one, every
+> individual transition legal, and nothing in the enforcement path able to
+> notice.
+
+The second was true. Revoking a foundation left every record promoted on the
+strength of it PROMOTED, and **`store.canonical()` returned them** — which is
+the function the rest of the system asks when it wants to know what carries
+authority. The auditor reported the condition as a provenance gap, which is
+an observation after the fact, not an answer to *what is canonical now*.
+
+Reproduced without hypothesis in eight lines: promote `param`, promote
+`result` depending on it, revoke `param`. `result.state` is `PROMOTED` and
+`canonical()` returns `{"result"}`.
+
+**WHY THE INVARIANT NEVER FIRED BEFORE.** Nothing else in the machine
+produces a dead state under a live dependent. STALE arrives only through
+`apply_invalidation`, which cascades by construction, so the invariant held
+for the one path anybody drove. REVOKED and REJECTED arrive through ordinary
+transitions, and nothing had generated one over a promoted dependent.
+
+**IMPLEMENTATION FIX — CANONICAL MEANS WHAT IT SAYS.** A record is canonical
+when its state says so **and** everything it rests on is canonical too,
+transitively. Restated independently in `reconstruct.py`, so the two readers
+are answering the same question rather than one asking the other.
+
+Transitive by construction, because the shortcut is the bug
+`invalidation.py` was written against: excluding only the immediate children
+leaves the grandchild standing on the same withdrawn input, and its parent's
+`state` still reads PROMOTED. A dependency cycle resolves to **not**
+canonical: a cycle is a modelling error, and the fail-closed answer to "is
+this authority sound" when the graph cannot say is no.
+
+**WHAT WAS DELIBERATELY NOT DONE.** Revocation does not cascade. Making it
+cascade would turn a withdrawal — the one operation that must always be
+cheap and always available — into a multi-record write that can fail
+halfway, and it would contradict the audit suite's deliberate design rather
+than reconcile with it. A record's `state` still reads PROMOTED until
+somebody runs the cascade, and the provenance gap the auditor reports for
+that is still the right report. What changed is that reading the canonical
+set no longer hands back authority resting on an input nobody believes.
+
+**THE INVARIANT WAS RESTATED, NOT DELETED.** It now asserts the guarantee the
+system actually makes — nothing in `canonical()` rests on a withdrawn
+foundation, and the exclusion is transitive — and it additionally requires
+the **second reader to agree**, from the log alone. Two readers that disagree
+about what is canonical is precisely the divergence this package exists to
+surface, and the condition is one they could easily answer differently: one
+holds dataclasses, the other plain dicts, and neither asks the other.
+
+Restating an invariant to match the implementation is normally the fake fix
+this ledger forbids. It is not one here, and the distinction is worth being
+explicit about: the implementation was changed **in the same commit** so that
+the invariant asserts something stronger than the system previously provided.
+The old form asserted a property of `state` that nothing ever guaranteed; the
+new form asserts a property of `canonical()` that is now enforced at the only
+place it is read.
+
+**ADVERSARIAL TESTS.** Seven deterministic ones beside the property suite: a
+sound chain that must still be canonical (without it the rule could exclude
+everything and pass every other case), the revoked foundation, the transitive
+grandchild, a REJECTED foundation, a dependency cycle, agreement between the
+two readers before and after the withdrawal, and the two routes to "not
+canonical" — exclusion and the cascade — reaching the same verdict, so the
+system has no reading to prefer.
+
+**MUTATIONS.** `M47`–`M50` on the store and `R98`–`R100` on the second
+reader: ignore the foundations, check only the immediate ones, let a cycle
+read as sound, and stop letting the state machine decide canonicity at all.
+`M48` and `R99` are the interesting pair — they leave a check in place and
+make it shallow, which is the shape that passes a test written about one
+level of dependency.
+
+**FORBIDDEN FAKE FIXES.** Deleting the invariant because another suite
+contradicts it. Weakening it to "no PROMOTED record depends on a STALE one",
+which would make it true by dropping the two states that actually reach it.
+Making `apply_invalidation` run inside `transition` so the example goes away
+while a withdrawal gains a failure mode it did not have.
+
+**INVALIDATED CLAIMS.** Any reading of `store.canonical()` before this commit
+as "the records that carry authority". It was "the records whose own state
+field says PROMOTED", which is a different and weaker statement wherever a
+dependency graph exists.
+
 ---
 
 ## Hosted evidence, per commit
@@ -2691,7 +2913,49 @@ actually ran. Neither was true at `de7f0e6`.
 | D-2026-26 | the cross-process `read-decide-write` mutation matrix | `b2787a0` | **`CURRENTLY_OPEN_FINDING`** until that step is green on a run of its own; the local matrix is 11/11 and local evidence is not the condition |
 | D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `f80caa8` | pending its own hosted run; local evidence is 74/74 and is recorded as local |
 | D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | `643d2c7` | pending its own hosted run; local evidence is 13/13 and is recorded as local |
-| D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | this commit | pending its own hosted run; local evidence is 89/89 and is recorded as local |
+| D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | `3d809f0` | pending its own hosted run; local evidence is 89/89 and is recorded as local |
+| D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | this commit | pending its own hosted run; local evidence is recorded as local |
+| D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | this commit | pending its own hosted run; local evidence is recorded as local |
+
+### What `3d809f0`'s own run said
+
+| job | result |
+|---|---|
+| `stack-verify` (core and full) | green |
+| `second-interpreter (3.13)` | green |
+| `cross-environment-3d` | green |
+| `full-suite` | the **complete pytest suite green**, then `package_consistency_check.py` red on its two byte comparisons |
+| `agent-substrate` | still running when this was written; it carries the mutation matrices and the agent suites that D-2026-27, D-2026-28 and D-2026-29 name as their evidence, so those rows stay `CURRENTLY_OPEN_FINDING` |
+
+**The `full-suite` failure is R59, and it meets the classification rule.** §15
+allows R59 only when pytest passed **and** package-consistency actually ran.
+Both are true here: the suite finished at `[100%]` with six skips and no
+failures, and the package check then ran to completion and reported
+
+```
+[FAIL] generated vs packaged results_gate_table.csv byte-identical
+[FAIL] root canonical outputs byte-match the canonical regeneration
+       24 stale root copies (first 8 shown): [...]
+```
+
+The diagnostic step immediately before it printed the reason, in advance:
+
+```
+openblas runtime kernel: Haswell
+numpy SIMD found: ['X86_V3']
+```
+
+`X86_V3` is the AVX2 generation. The committed canonical outputs were
+produced with the SkylakeX kernel and numpy's AVX-512 loops, and
+`tools/blas_kernel_sensitivity.py` reproduces this host's answer on demand.
+The step's own text says what the failure below it would mean, and it meant
+that.
+
+Two details worth not glossing. The count here is **24 root canonical
+outputs**, while the sensitivity table records 23 of 63 **3D outputs** for
+Haswell with AVX2-only numpy — different file sets, not conflicting numbers.
+And the count is printed with its total at all, which is the repair to the
+slice-width defect R59 was partly made of, visibly working.
 
 `de7f0e6` is retained in this table's history rather than deleted: a commit
 whose closure attempt failed is evidence about how the class was actually
@@ -2724,6 +2988,8 @@ container.
 | P0-R14 / D-2026-29 | two true numbers, side by side, unreconciled | `CURRENTLY_OPEN_FINDING` | 89/89 locally at this commit; hosted pending |
 | P0-R15 | historical and current claims were not distinguished | this section, and the per-commit evidence table above |
 | P0-R16 | the pull request body read as a completion announcement | the body is relabelled; see the PR |
+| P1 / D-2026-30 | a checkpoint pinned a snapshot and nothing anchored the pin | `CURRENTLY_OPEN_FINDING` | the claim is now a record under the hash chain; hosted evidence pending |
+| P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

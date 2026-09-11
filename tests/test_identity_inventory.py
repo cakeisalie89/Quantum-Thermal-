@@ -73,7 +73,7 @@ def test_independent_reader_coverage_is_MEASURED_not_claimed():
     """"The second reader covers every subsystem" was a claim. This measures.
 
     It is not true, and the number is recorded rather than rounded up: the
-    reader reconstructs 30 of 37 durable actions. The seven that are not are
+    reader reconstructs 31 of 38 durable actions. The seven that are not are
     named in the inventory, each classified as not authority-changing with
     its reason. Saying so is the alternative to a step title that overstates
     it -- and the step title itself is checked below, so the label cannot

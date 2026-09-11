@@ -1,6 +1,6 @@
 {
-  "title": "The second reader, for the subsystems it covers -- 30 of 37 durable actions",
-  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left. R29-R40 attack the escalation rules. Until they existed this reader had no escalation reconstruction at all, while the campaign was described as covering the second reader for EVERY subsystem -- two statements that could not both be true. R41-R74 attack the rules restated for P0-R12 (D-2026-27). Until then the authority and task replays at the top of reconstruct.py imported authority.check and tasks.check and handed every replayed record back to them -- so a weakened production gate was reproduced faithfully by the reader whose entire purpose is to disagree with it, and the differential comparison came back empty. These mutations come in three kinds: disable one restated rule (the reader accepts what production refuses), drift one restated table away from production (the conformance tests must name the difference), and re-couple the reader to the gate by import or by call (the AST guards must notice, including when the import hides in a function body). R75-R84 attack the two readers P0-R14 added (D-2026-29). agent.claim and task.compensation were the only uncovered actions a forged record of which changes what the system permits or whom it attributes a decision to: claims are the input to conflict resolution, and a compensation names the PERSON who authorized destroying something. The remaining seven are classified as not authority-changing in docs/identity_inventory.json, each with its reason, and the inventory now refuses a classification of authority-changing that has no second reader.",
+  "title": "The second reader, for the subsystems it covers -- 31 of 38 durable actions",
+  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left. R29-R40 attack the escalation rules. Until they existed this reader had no escalation reconstruction at all, while the campaign was described as covering the second reader for EVERY subsystem -- two statements that could not both be true. R41-R74 attack the rules restated for P0-R12 (D-2026-27). Until then the authority and task replays at the top of reconstruct.py imported authority.check and tasks.check and handed every replayed record back to them -- so a weakened production gate was reproduced faithfully by the reader whose entire purpose is to disagree with it, and the differential comparison came back empty. These mutations come in three kinds: disable one restated rule (the reader accepts what production refuses), drift one restated table away from production (the conformance tests must name the difference), and re-couple the reader to the gate by import or by call (the AST guards must notice, including when the import hides in a function body). R75-R84 attack the two readers P0-R14 added (D-2026-29). agent.claim and task.compensation were the only uncovered actions a forged record of which changes what the system permits or whom it attributes a decision to: claims are the input to conflict resolution, and a compensation names the PERSON who authorized destroying something. The remaining seven are classified as not authority-changing in docs/identity_inventory.json, each with its reason, and the inventory now refuses a classification of authority-changing that has no second reader. R90-R97 attack the checkpoint-anchor reader added for D-2026-30. checkpoint.state is authority-changing -- it is what authorizes restoring a projection from a snapshot instead of replaying the log -- so R14's rule requires a second reader for it. R94 is the one to read: it does not remove a check, it makes the reader REPORT that it verified a head hash it never looked at. R98-R100 attack the same rule restated in the second reader (D-2026-31): what is canonical has to be the same question in both, or an empty diff means the two readers agreed about a verdict neither should have reached.",
   "suites": [
     "tests/test_agent_second_reader.py",
     "tests/test_agent_differential.py",
@@ -629,6 +629,83 @@
       "find": "        elif a == \"task.compensation\":",
       "replace": "        elif False:",
       "rationale": "the reader covers no compensation, and the name on an undo goes back to being checked by the primary alone"
+    },
+    {
+      "name": "R90_a_checkpoint_claim_may_cover_its_own_position",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if through >= ev.seq:",
+      "replace": "    if False:",
+      "rationale": "a claim covering the record that announces it is accepted, so a snapshot can describe a projection that did not exist when it was written"
+    },
+    {
+      "name": "R91_a_checkpoint_claim_need_not_cite_a_digest",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    dg = p.get(\"state_digest\")\n    if not _is_digest(dg):",
+      "replace": "    dg = p.get(\"state_digest\")\n    if False:",
+      "rationale": "the snapshot stops being cited by content, so the record vouches for nothing in particular"
+    },
+    {
+      "name": "R92_a_checkpoint_claim_need_not_name_a_head_hash",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    hh = p.get(\"head_hash\")\n    if not _is_digest(hh):",
+      "replace": "    hh = p.get(\"head_hash\")\n    if False:",
+      "rationale": "the position the claim is about stops being bound to a history"
+    },
+    {
+      "name": "R93_the_claimed_head_hash_is_not_checked_against_the_record_there",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if prev[1] != hh:",
+      "replace": "        if False:",
+      "rationale": "the one hash check this reader CAN make is removed, and a claim about a history this log does not have reads as confirmed"
+    },
+    {
+      "name": "R94_a_claim_about_an_older_position_is_recorded_as_checked",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    checked = False\n    if prev[0] == through:",
+      "replace": "    checked = True\n    if prev[0] == through:",
+      "rationale": "the reader reports that it verified a head hash it never looked at, which is the overclaim this whole tranche keeps finding"
+    },
+    {
+      "name": "R95_one_position_may_be_given_two_different_states",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    seen = out.checkpoints.get(through)\n    if seen is not None and seen[\"state_digest\"] != dg:",
+      "replace": "    seen = out.checkpoints.get(through)\n    if False:",
+      "rationale": "two contradictory claims about one position both stand, so a reader handed both cannot say which a checkpoint file means"
+    },
+    {
+      "name": "R96_a_checkpoint_claim_needs_no_readable_position",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(through, int) or isinstance(through, bool):",
+      "replace": "    if False:",
+      "rationale": "a record naming no position this reader can read is folded anyway"
+    },
+    {
+      "name": "R97_the_second_reader_stops_covering_checkpoint_anchors",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"checkpoint.state\":",
+      "replace": "        elif False:",
+      "rationale": "the record that authorizes restoring a projection from a snapshot has no second reader at all, which is the state D-2026-29's rule exists to refuse"
+    },
+    {
+      "name": "R98_the_replay_ignores_the_foundations_of_a_canonical_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            ok = all(sound(dep, seen | {rid})\n                     for dep in rec.get(\"depends_on\") or ())",
+      "replace": "            ok = True",
+      "rationale": "the second reader calls a record canonical while the record it rests on is revoked, so the two readers agree about a verdict one of them should have refused"
+    },
+    {
+      "name": "R99_the_replay_checks_only_the_immediate_foundations",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            ok = all(sound(dep, seen | {rid})\n                     for dep in rec.get(\"depends_on\") or ())",
+      "replace": "            ok = all(self.records[dep][\"state\"] == _AUTH_PROMOTED\n                     for dep in rec.get(\"depends_on\") or ())",
+      "rationale": "the grandchild is canonical in the replay and not in the projection, or the reverse; either way the differential comparison is what has to notice"
+    },
+    {
+      "name": "R100_a_cycle_reads_as_sound_in_the_replay",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        def sound(rid, seen) -> bool:\n            if rid in verdict:\n                return verdict[rid]\n            if rid in seen:\n                return False",
+      "replace": "        def sound(rid, seen) -> bool:\n            if rid in verdict:\n                return verdict[rid]\n            if rid in seen:\n                return True",
+      "rationale": "the fail-closed answer to an unanswerable graph becomes yes in the reader whose job is to disagree"
     }
   ]
 }

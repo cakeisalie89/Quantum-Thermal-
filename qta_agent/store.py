@@ -91,11 +91,26 @@ class Record:
 ACT_CREATE = "record.create"
 ACT_TRANSITION = "record.transition"
 ACT_DEPEND = "record.depend"
+#: The digest of a projection snapshot, recorded at the position it covers.
+#:
+#: A checkpoint file says "the state at seq K is blob D". Nothing
+#: authenticated that: the file's self-hash is recomputable by whoever can
+#: write the file, so a rewritten checkpoint pointing at a forged snapshot
+#: restored cleanly while the log itself still verified. The claim is now
+#: also made IN the log, where the hash chain covers it. See D-2026-30.
+ACT_CHECKPOINT_STATE = "checkpoint.state"
+
+#: Default actor for a checkpoint anchor. A snapshot asserts no authority
+#: over any record -- it is a statement about a POSITION -- so this record
+#: needs no role and grants none. It is still attributed, because an
+#: unattributed record in an audited log is a gap in the audit.
+CHECKPOINT_ACTOR = "checkpointer"
 
 #: The actions THIS reducer applies. Everything else on the log is either
 #: another subsystem's business (skipped) or unrecognised (refused) -- see
 #: :mod:`qta_agent.actions` for why those two cases must be told apart.
-OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND})
+OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND,
+                   ACT_CHECKPOINT_STATE})
 
 
 
@@ -246,6 +261,15 @@ class AuthorityStore:
             self._loaded_through = ev.seq
             return
         p = ev.payload
+        if ev.action == ACT_CHECKPOINT_STATE:
+            # A FACT ABOUT THE PROJECTION, NOT A CHANGE TO IT.
+            #
+            # Folding it into records would make "somebody took a snapshot"
+            # and "somebody changed a record" the same kind of event. It
+            # moves the position and nothing else; load_from reads it back
+            # out of the tail to check what a checkpoint file claims.
+            self._loaded_through = ev.seq
+            return
         key = p.get("idempotency_key")
         if key:
             self._applied_keys[key] = p.get("record_id", ev.target)
@@ -473,7 +497,8 @@ class AuthorityStore:
         self._loaded_through = through
 
     # ---- checkpointing -------------------------------------------------
-    def checkpoint(self, checkpoints, *, blobs=None):
+    def checkpoint(self, checkpoints, *, blobs=None,
+                   actor: str = CHECKPOINT_ACTOR):
         """Verify the log in full, snapshot the projection, pin both.
 
         The snapshot goes into a content-addressed blob store and the
@@ -486,6 +511,15 @@ class AuthorityStore:
         ``blobs`` defaults to the store's attached evidence store. Passing a
         separate one is allowed and is the right choice if snapshots should
         not share a retention policy with cited evidence.
+
+        THE SAME CLAIM IS ALSO WRITTEN TO THE LOG.
+
+        A checkpoint file is authenticated by nothing -- its self-hash is
+        recomputable by anyone who can write the file, and the checkpoint
+        module says so in its own docstring. So the file alone could say
+        "the state at seq K is blob D" about any blob at all. The claim is
+        therefore ALSO appended as a ``checkpoint.state`` record, where the
+        hash chain covers it and rewriting it breaks verification.
 
         Returns the written :class:`~qta_agent.checkpoint.Checkpoint`.
         """
@@ -512,6 +546,25 @@ class AuthorityStore:
         payload = canonical_bytes(self.snapshot())
         dg = target.put(payload, media_type="application/json")
         cp = cp_mod.create(self.log, state_digest=dg)
+
+        # THE CLAIM GOES IN THE LOG, WHERE THE HASH CHAIN COVERS IT.
+        #
+        # Order matters and is not arbitrary. The checkpoint is created
+        # FIRST, against the head the snapshot describes, so cp.seq names
+        # that position rather than the position of this record. The record
+        # then lands at cp.seq + 1, which puts it in the tail load_from
+        # replays -- the one stretch a checkpointed load does read.
+        #
+        # If the process dies between the append and the write below, the log
+        # carries an anchor for a checkpoint nobody has. That is a fact about
+        # a snapshot that exists in the blob store and is harmless; the
+        # reverse order would leave a checkpoint nothing anchors, which is
+        # the state this whole record exists to make unloadable.
+        self.log.append(
+            actor=actor, action=ACT_CHECKPOINT_STATE,
+            target=f"seq:{cp.seq}",
+            payload={"through_seq": cp.seq, "state_digest": dg,
+                     "head_hash": cp.head_hash})
         checkpoints.write(cp)
         return cp
 
@@ -566,8 +619,52 @@ class AuthorityStore:
         if not report_ok:
             raise ChainBroken("; ".join(report.problems) or "chain invalid")
 
+        # WHAT THE CHECKPOINT FILE SAYS, AGAINST WHAT THE LOG SAYS.
+        #
+        # Until D-2026-30 the snapshot was pinned only by the checkpoint
+        # file, whose self-hash anyone able to write the file can recompute.
+        # A rewritten checkpoint naming a forged snapshot loaded cleanly,
+        # produced a record the gate would have refused, and left the log
+        # verifying perfectly -- because the forgery was never in the log.
+        #
+        # The anchoring record is in the tail this load already reads and
+        # already verified, so the check costs nothing beyond the comparison.
+        anchored = False
         for ev in log.read_from(cp.anchor):
+            if ev.action == ACT_CHECKPOINT_STATE:
+                p = ev.payload if isinstance(ev.payload, dict) else {}
+                if p.get("through_seq") == cp.seq:
+                    if p.get("state_digest") != cp.state_digest:
+                        raise StoreError(
+                            f"checkpoint at seq {cp.seq} pins snapshot "
+                            f"{str(cp.state_digest)[:12]} but the log records "
+                            f"{str(p.get('state_digest'))[:12]} for that "
+                            "position. The log is what the projection is "
+                            "reconstructed from; a file claiming otherwise is "
+                            "claiming a state this history never reached.")
+                    # The head hash is NOT re-compared here, deliberately.
+                    #
+                    # verify_with above already required the record at the
+                    # checkpoint's offset to BE at cp.seq and to hash to
+                    # cp.head_hash. A checkpoint whose head hash is wrong
+                    # dies there, with a message about the log's bytes,
+                    # before this loop runs. A comparison here would be a
+                    # guard no mutation can kill -- which this repository
+                    # has removed four times already rather than keep as a
+                    # line that looks like protection and is not.
+                    #
+                    # The record still CARRIES head_hash: the second reader
+                    # checks it against the record actually at that seq,
+                    # which is a different question asked by a different
+                    # reader, and that one is killable.
+                    anchored = True
             store._apply(ev)
+        if not anchored:
+            raise StoreError(
+                f"checkpoint at seq {cp.seq} is not anchored in the log: no "
+                "checkpoint.state record names that position. A snapshot "
+                "nothing in the hash chain vouches for is a file, and a file "
+                "is not evidence about a history.")
         store._loaded_prefix_verified = False
         return store
 
@@ -592,8 +689,53 @@ class AuthorityStore:
         return dict(self._records)
 
     def canonical(self) -> dict:
+        """Records that carry canonical authority, foundations included.
+
+        A RECORD IS CANONICAL WHEN ITS STATE SAYS SO **AND** EVERYTHING IT
+        RESTS ON IS CANONICAL TOO.
+
+        This used to be the first half alone, and the second half was
+        somebody's job to remember. ``store.py`` applies one event at a time
+        and never looks at dependents; :mod:`qta_agent.invalidation` cascades
+        only when a caller runs it. So revoking a foundation left every
+        record promoted on the strength of it still PROMOTED, still returned
+        here, and still described as canonical authority -- with every
+        individual transition legal and nothing in the enforcement path able
+        to say otherwise. The auditor reported it as a provenance gap, which
+        is an observation after the fact rather than an answer to "what is
+        canonical right now".
+
+        It is transitive by construction, because the shortcut is the bug
+        :mod:`qta_agent.invalidation` was written against: marking, or here
+        excluding, only the immediate children leaves the grandchild
+        canonical on the same withdrawn input.
+
+        A dependency cycle resolves to NOT canonical. A cycle is a modelling
+        error, and the fail-closed answer to "is this authority sound" when
+        the graph cannot say is no.
+
+        This does not change any record's ``state``: a withdrawal still
+        leaves its dependents PROMOTED until a cascade runs, and the audit
+        gap for that is still the right report. What changes is that reading
+        the canonical set no longer hands back authority resting on an input
+        nobody believes any more.
+        """
+        verdict: dict = {}
+
+        def sound(rid: str, seen: frozenset) -> bool:
+            if rid in verdict:
+                return verdict[rid]
+            if rid in seen:
+                return False                  # a cycle decides nothing
+            rec = self._records.get(rid)
+            if rec is None or rec.state is not State.PROMOTED:
+                return False
+            ok = all(sound(dep, seen | {rid}) for dep in rec.depends_on)
+            verdict[rid] = ok
+            return ok
+
         return {k: v for k, v in self._records.items()
-                if v.state is State.PROMOTED}
+                if sound(k, frozenset())}
 
     # ---- writes -------------------------------------------------------
     def create(self, *, record_id: str, kind: str, proposer: str,

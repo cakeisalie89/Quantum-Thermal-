@@ -40,6 +40,10 @@ OWNERS: dict = {
     "record.create": "store",
     "record.transition": "store",
     "record.depend": "store",
+    #: The digest of a projection snapshot, at the log position it describes.
+    #: Written so a checkpoint's claim about state lives INSIDE the hash
+    #: chain rather than only in a file anyone can rewrite. See D-2026-30.
+    "checkpoint.state": "store",
     # qta_agent.governed_stage10 -- the durable task lifecycle
     "task.create": "governed_stage10",
     "task.transition": "governed_stage10",

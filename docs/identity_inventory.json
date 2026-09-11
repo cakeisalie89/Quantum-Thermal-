@@ -179,6 +179,28 @@
       "authority_note": "Names the one actor a log permits to mint grants at all."
     },
     {
+      "action": "checkpoint.state",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "authority_changing": true,
+      "authority_note": "It is what authorizes restoring a projection from a snapshot instead of replaying the log. A checkpoint FILE is authenticated by nothing -- its self-hash is recomputable by whoever can write it -- so until this record existed a rewritten file naming a forged snapshot restored cleanly, produced a record the authority gate would have refused, and left the log verifying perfectly. D-2026-30.",
+      "note": "A fact about a POSITION, not a change to any record: the store folds it by moving its position and nothing else. Independently reconstructed by _sub_checkpoint, which checks the shape, the ordering, that one position is not given two different states, and -- when the claim names the position immediately before it, where an honest writer puts it -- the claimed head hash against the record actually there. A claim about an older position is recorded as NOT hash-checked rather than left to look checked.",
+      "fields": [
+        {
+          "name": "through_seq",
+          "role": "NONE"
+        },
+        {
+          "name": "state_digest",
+          "role": "NONE"
+        },
+        {
+          "name": "head_hash",
+          "role": "NONE"
+        }
+      ]
+    },
+    {
       "action": "context.build",
       "module": "context.py",
       "independent_reader": "YES",

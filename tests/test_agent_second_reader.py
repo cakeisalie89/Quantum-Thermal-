@@ -1,6 +1,6 @@
 """A second implementation for the subsystems that had none.
 
-HOW MUCH IT COVERS, MEASURED. 30 of the 37 durable actions are
+HOW MUCH IT COVERS, MEASURED. 31 of the 38 durable actions are
 independently reconstructed. The nine that are not are named in
 docs/identity_inventory.json and the count is checked by
 tools/identity_inventory.py, so "the second reader covers every subsystem"
@@ -1373,3 +1373,104 @@ def test_the_second_reader_refuses_a_compensation_citing_an_open_question(
                    actor="A", target="t1")
     assert any("which is 'OPEN'" in a for a in recon.anomalies), \
         recon.anomalies
+
+
+# ---------------------------------------------------------------------------
+# D-2026-30 (P1): the checkpoint anchor, independently reconstructed.
+#
+# checkpoint.state is authority-changing -- it is what authorizes restoring a
+# projection from a snapshot instead of replaying the log -- so R14's rule
+# requires a second reader for it, and this is that reader's tests.
+#
+# What it can check is bounded and the bound is stated: shape, ordering, one
+# position not given two states, and the claimed head hash WHEN the claim
+# names the position immediately before it. A claim about an older position
+# is recorded as not hash-checked rather than left looking checked.
+# ---------------------------------------------------------------------------
+
+ACT_CHECKPOINT_STATE = "checkpoint.state"
+
+
+def _anchor(gov, **over):
+    """Append a checkpoint anchor naming the record just before it."""
+    head = gov.log.verify()
+    p = {"through_seq": head.head_seq, "state_digest": _dg(b"a projection"),
+         "head_hash": head.head_hash}
+    p.update(over)
+    gov.log.append(actor="checkpointer", action=ACT_CHECKPOINT_STATE,
+                   target=f"seq:{p['through_seq']}", payload=p)
+    return reconstruct_subsystems(gov.log)
+
+
+def test_the_second_reader_follows_an_honest_checkpoint_anchor(gov):
+    """Anti-vacuity, and the only case where the hash CAN be checked here."""
+    _run(gov)
+    recon = _anchor(gov)
+    assert recon.anomalies == [], recon.anomalies
+    (rec,) = list(recon.checkpoints.values())
+    assert rec["head_hash_checked"] is True
+    assert rec["recorded_by"] == "checkpointer"
+
+
+def test_the_second_reader_records_an_older_claim_as_unchecked(gov):
+    """The bound, asserted rather than described.
+
+    A claim about a position further back is structurally fine and this
+    reader cannot verify its hash without an index over the whole log. It
+    says so in the record instead of implying it checked.
+    """
+    _run(gov)
+    head = gov.log.verify().head_seq
+    recon = _anchor(gov, through_seq=head - 3)
+    assert recon.anomalies == [], recon.anomalies
+    (rec,) = list(recon.checkpoints.values())
+    assert rec["head_hash_checked"] is False
+
+
+def test_the_second_reader_refuses_a_claim_about_its_own_position(gov):
+    """A snapshot cannot contain the record announcing it."""
+    _run(gov)
+    head = gov.log.verify().head_seq
+    recon = _anchor(gov, through_seq=head + 1)
+    assert any("cannot cover the record that announces it" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.checkpoints == {}
+
+
+def test_the_second_reader_refuses_an_anchor_naming_the_wrong_head_hash(gov):
+    """The claim is about a history this log does not have."""
+    _run(gov)
+    recon = _anchor(gov, head_hash=_dg(b"some other history"))
+    assert any("history this log does not have" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.checkpoints == {}
+
+
+def test_the_second_reader_refuses_an_anchor_citing_prose_for_a_snapshot(gov):
+    _run(gov)
+    recon = _anchor(gov, state_digest="the usual state")
+    assert any("cited by digest or it is not cited" in a
+               for a in recon.anomalies), recon.anomalies
+
+
+def test_the_second_reader_refuses_two_states_for_one_position(gov):
+    """One position has one projection.
+
+    A reader handed two has no way to say which a checkpoint file means, and
+    a checkpoint file is exactly what this record exists to adjudicate.
+    """
+    _run(gov)
+    head = gov.log.verify().head_seq
+    _anchor(gov, through_seq=head - 2, state_digest=_dg(b"one state"))
+    recon = _anchor(gov, through_seq=head - 2, state_digest=_dg(b"another"))
+    assert any("two different states" in a for a in recon.anomalies), \
+        recon.anomalies
+    # The first one stands; a later record does not replace it.
+    assert recon.checkpoints[head - 2]["state_digest"] == _dg(b"one state")
+
+
+def test_the_second_reader_refuses_an_anchor_with_no_position(gov):
+    _run(gov)
+    recon = _anchor(gov, through_seq="recently")
+    assert any("no through_seq this reader can read" in a
+               for a in recon.anomalies), recon.anomalies

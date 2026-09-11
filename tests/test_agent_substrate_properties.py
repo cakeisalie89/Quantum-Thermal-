@@ -236,15 +236,51 @@ class AuthorityMachine(RuleBasedStateMachine):
 
     @invariant()
     def no_canonical_record_depends_on_a_stale_one(self):
-        """The whole point of transitive invalidation."""
+        """The whole point of transitive invalidation.
+
+        THIS ASSERTION USED TO BE ABOUT ``state`` AND WAS WRONG ABOUT THE
+        SYSTEM IT WAS CHECKING.
+
+        It read: for every record whose STATE is PROMOTED, no dependency is
+        STALE, REVOKED or REJECTED. That is not what the enforcement path
+        provides and never was. ``store.py`` applies one event at a time and
+        never looks at dependents; ``invalidation`` cascades only when a
+        caller runs it. So revoking a foundation leaves its dependents
+        PROMOTED until somebody runs the cascade, and
+        ``test_canonical_authority_resting_on_a_withdrawn_dependency_is_a_gap``
+        in the audit suite asserts exactly that, deliberately, as a
+        provenance gap the auditor reports.
+
+        Two parts of this repository therefore said incompatible things
+        about the same condition: one that it could not happen, one that it
+        could and was reported. Hypothesis found the gap the first time it
+        generated a revocation of a record with a promoted dependent.
+
+        The resolution was not to delete this invariant. It is stated here
+        against the guarantee the system now actually makes -- **canonical**
+        excludes authority resting on a withdrawn foundation, transitively,
+        because ``store.canonical()`` was changed in the same commit to
+        answer that way. A record's ``state`` still reads PROMOTED until a
+        cascade runs, and the audit gap for that is still the right report.
+        """
         recs = self.store.all_records()
         dead = {State.STALE, State.REVOKED, State.REJECTED}
-        for rid, rec in recs.items():
-            if rec.state is not State.PROMOTED:
-                continue
-            for dep in rec.depends_on:
+        canonical = self.store.canonical()
+        for rid in canonical:
+            for dep in recs[rid].depends_on:
                 assert recs[dep].state not in dead, (
                     f"canonical {rid} depends on {dep} in {recs[dep].state}")
+                assert dep in canonical, (
+                    f"canonical {rid} depends on {dep}, which is not "
+                    "canonical; the exclusion has to be transitive or the "
+                    "grandchild stands on the same withdrawn input")
+        # ...and the second reader has to agree about it, from the log
+        # alone. Two readers that disagree about what is canonical is the
+        # divergence this whole package exists to surface.
+        recon = reconstruct(self.store.log)
+        assert recon.canonical_ids() == tuple(sorted(canonical)), (
+            f"live {sorted(canonical)} vs replay "
+            f"{list(recon.canonical_ids())}")
 
     @invariant()
     def reconstruction_always_agrees(self):
