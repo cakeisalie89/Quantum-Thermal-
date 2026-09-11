@@ -60,6 +60,27 @@
       "find": "            if record_id in self._records:\n                raise StoreError(f\"record {record_id!r} already exists\")\n            for dep in depends_on:",
       "replace": "            if False:\n                raise StoreError(f\"record {record_id!r} already exists\")\n            for dep in depends_on:",
       "rationale": "a record id is a claim to a name; two creates make one of the two proposers the recorded author of a record they did not write, and the replay refuses the second"
+    },
+    {
+      "name": "X10_reconcile_writes_a_decision_it_made_against_older_facts",
+      "path": "qta_agent/scheduler.py",
+      "find": "            return move(expected_revision=job.revision, **kw)",
+      "replace": "            return move(**kw)",
+      "rationale": "restores the hosted failure exactly: the give-up vs requeue choice is made from the scan and written later, so a job dispatched in between is requeued with its budget already spent and the next hand-out exceeds it"
+    },
+    {
+      "name": "X11_dispatch_hands_out_an_attempt_the_budget_does_not_have",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.attempts >= job.max_attempts:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {job.attempts} attempt(s) \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {job.attempts} attempt(s) \"",
+      "rationale": "the budget at the edge that spends it. Without it the invariant is emergent from two return-edge checks, and anything that reaches READY with the count spent gets one more attempt"
+    },
+    {
+      "name": "X12_replay_accepts_a_history_that_outspends_its_budget",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if want > job.max_attempts:\n            raise JobTransitionError(",
+      "replace": "        if False:\n            raise JobTransitionError(",
+      "rationale": "the reducer bounded the count's arithmetic and not its size, so a forged hand-out record replayed clean. The write path only stops callers who were not attacking"
     }
   ]
 }

@@ -59,7 +59,8 @@ from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.policy import PolicyStore  # noqa: E402
 from qta_agent.scheduler import (  # noqa: E402
-    ACT_JOB_TRANSITION, JobState, Scheduler, default_policy,
+    ACT_JOB_TRANSITION, JobState, JobTransitionError, Scheduler,
+    default_policy,
 )
 from qta_agent.store import AuthorityStore  # noqa: E402
 
@@ -957,3 +958,241 @@ def test_the_attacker_is_named_by_the_record_it_wrote(tmp_path):
     assert len(forged) == 1
     assert forged[0].actor == "mallory-0"
     assert forged[0].seq >= 0
+
+
+# ===========================================================================
+# D-2026-26 -- THE RETRY BUDGET, AND THE DECISION THAT OUTLIVED ITS FACTS.
+#
+# The long campaign above failed on the HOSTED runner at 250 rounds:
+#
+#     j-0 was attempted 4 times against a budget of 3
+#
+# and passed here every time. Six worker processes on more cores give the
+# scan and the write enough room to be interleaved; fewer cores do not. The
+# assertion that caught it is the one D-2026-01 added, still doing its job.
+#
+# reconcile() scans expired_leases() into a list, decides give-up vs requeue
+# from what it READ, and writes later. Between the two another process can
+# dispatch the job -- spending an attempt -- and let that lease lapse too.
+# The stale decision then requeues a job whose budget is gone: READY at
+# attempts == max_attempts, and the next dispatch makes it max+1.
+#
+# D-2026-01 fixed the RULE (lapses count against the budget). It did not bind
+# the DECISION to the state it was decided against.
+#
+# Three layers, three tests. Each targets one of them, because a fixture
+# invalid in three ways would pass whichever guard fired first and prove
+# nothing about the other two.
+# ===========================================================================
+
+def _budget_world(tmp_path, max_attempts=3):
+    log, sched = _world(tmp_path)
+    sched.enqueue(job_id="j", work_digest="d" * 64, submitter="sub",
+                  max_attempts=max_attempts)
+    sched.reconcile(actor="rec")
+    sched.catch_up()
+    return log, sched
+
+
+def _reopen(tmp_path):
+    """A second scheduler over the SAME log, without re-publishing policy.
+
+    `_world` publishes the default policy, which a second call cannot do --
+    the policy store refuses a version it has already seen, and rightly.
+    """
+    return _open_scheduler(str(tmp_path / "log.jsonl"))
+
+
+def _burn_one_attempt(sched, tag):
+    """Dispatch, let the lease lapse, requeue. Costs exactly one attempt."""
+    sched.catch_up()
+    sched.dispatch(job_id="j", worker=f"w{tag}", lease_id=f"L{tag}",
+                   lease_seqs=1)
+    for _ in range(4):
+        sched.log.append(actor="filler", action="noop", target="x", payload={})
+    sched.catch_up()
+    sched.reconcile(actor="rec")
+    sched.catch_up()
+
+
+def test_a_stale_reconcile_decision_cannot_requeue_a_spent_job(tmp_path):
+    """THE hosted failure, made deterministic.
+
+    The competing dispatch is injected INSIDE reconcile's write window --
+    after the scan chose "requeue", before that choice is written -- because
+    that is the window, and a stress test large enough to hit it by luck is
+    not a regression test.
+    """
+    _log, sched = _budget_world(tmp_path)
+    _burn_one_attempt(sched, 0)                       # attempts -> 1
+    sched.catch_up()
+    sched.dispatch(job_id="j", worker="w1", lease_id="L1", lease_seqs=1)
+    for _ in range(4):
+        sched.log.append(actor="filler", action="noop", target="x", payload={})
+    sched.catch_up()
+    assert sched.get("j").attempts == 2, sched.get("j")
+
+    stale = _reopen(tmp_path)
+    real = Scheduler.transition
+    fired = []
+
+    def interleave(self, **kw):
+        if not fired:
+            fired.append(1)
+            other = _reopen(tmp_path)
+            other.reconcile(actor="rec-b")            # requeue at attempts 2
+            other.catch_up()
+            other.dispatch(job_id="j", worker="w3", lease_id="L3",
+                           lease_seqs=1)              # attempts -> 3
+            for _ in range(4):
+                other.log.append(actor="filler", action="noop", target="x",
+                                 payload={})
+            other.catch_up()
+        return real(self, **kw)
+
+    Scheduler.transition = interleave
+    try:
+        stale.reconcile(actor="rec-a")
+    finally:
+        Scheduler.transition = real
+    assert fired, "the interleaving never fired; this test proves nothing"
+
+    job = _reopen(tmp_path).get("j")
+    assert job.attempts <= job.max_attempts, job
+    assert job.state is not JobState.READY, (
+        f"the job is READY at {job.attempts} of {job.max_attempts} "
+        "attempt(s); the next dispatch spends one it does not have")
+
+
+def test_dispatch_refuses_a_job_whose_budget_is_already_spent(tmp_path):
+    """The WRITE PATH, on its own.
+
+    Reaching READY with the budget spent is no longer possible through this
+    scheduler's own reconcile -- that is the point of the first fix -- so the
+    state is built from a DURABLE RECORD instead: a lapsed-lease handover
+    written without the budget rule, which is exactly what an older writer,
+    another implementation, or a hand-edited log produces. Replay accepts it
+    (READY at attempts == max is a legal state; it is the NEXT hand-out that
+    is not), so this test is about dispatch and nothing else.
+    """
+    _log, sched = _budget_world(tmp_path, max_attempts=2)
+    _burn_one_attempt(sched, 0)                       # attempts -> 1
+    sched.catch_up()
+    sched.dispatch(job_id="j", worker="w1", lease_id="L1", lease_seqs=1)
+    for _ in range(4):
+        sched.log.append(actor="filler", action="noop", target="x", payload={})
+    sched.catch_up()
+    assert sched.get("j").attempts == 2, sched.get("j")
+
+    # The handover a budget-unaware reconciler would have written.
+    sched.log.append(
+        actor="scheduler", action=ACT_JOB_TRANSITION, target="j",
+        payload={"job_id": "j", "src": "DISPATCHED", "dst": "READY",
+                 "reason": "lease lapsed", "lease_id": "",
+                 "lease_holder": "", "lease_expires_after_seq": -1})
+    fresh = _reopen(tmp_path)
+    job = fresh.get("j")
+    assert job.state is JobState.READY and job.attempts == job.max_attempts, job
+
+    with pytest.raises(JobTransitionError, match="already spent"):
+        fresh.dispatch(job_id="j", worker="w9", lease_id="L9", lease_seqs=5)
+
+
+def test_replay_refuses_a_history_that_spends_more_than_its_budget(tmp_path):
+    """The REPLAY, against a record no caller of ours would write.
+
+    The reducer bounded the count's ARITHMETIC -- moves by one, only on the
+    hand-out edge -- and never compared the result to the budget, so a forged
+    record replayed clean. The write path only stops callers who were not
+    attacking.
+
+    The job has to be genuinely READY with its budget spent first, or the
+    forged record is refused by the STATE rule and this passes for the wrong
+    reason. It did exactly that on its first run and left the mutation alive.
+    """
+    _log, sched = _budget_world(tmp_path, max_attempts=1)
+    sched.catch_up()
+    sched.dispatch(job_id="j", worker="w0", lease_id="L0", lease_seqs=1)
+    for _ in range(4):
+        sched.log.append(actor="filler", action="noop", target="x", payload={})
+    sched.catch_up()
+    assert sched.get("j").attempts == 1, sched.get("j")
+
+    # The lapsed handover a budget-unaware reconciler writes: legal, and it
+    # leaves the count alone. READY at attempts == max is a legal state; it
+    # is the next hand-out that is not.
+    sched.log.append(
+        actor="scheduler", action=ACT_JOB_TRANSITION, target="j",
+        payload={"job_id": "j", "src": "DISPATCHED", "dst": "READY",
+                 "reason": "lease lapsed", "lease_id": "",
+                 "lease_holder": "", "lease_expires_after_seq": -1})
+    staged = _reopen(tmp_path).get("j")
+    assert staged.state is JobState.READY, staged
+    assert staged.attempts == staged.max_attempts == 1, staged
+
+    # Now the forged hand-out: one attempt past the budget.
+    sched.log.append(
+        actor="mallory", action=ACT_JOB_TRANSITION, target="j",
+        payload={"job_id": "j", "src": "READY", "dst": "DISPATCHED",
+                 "attempts": 2, "lease_id": "LX", "lease_holder": "mallory",
+                 "lease_expires_after_seq": 9999})
+    with pytest.raises(JobTransitionError, match="budget"):
+        _reopen(tmp_path)
+
+
+def test_a_budget_spent_by_LAPSES_ALONE_reaches_a_terminal_state(tmp_path):
+    """The liveness half, which the count alone does not say.
+
+    D-2026-01's invariant is "a job whose retry budget is spent reaches a
+    TERMINAL state" -- not merely "attempts never exceeds max_attempts". The
+    difference matters because the new dispatch guard satisfies the second
+    while the first can still be broken: delete reconcile's give-up branch
+    and the job is requeued forever, dispatch refuses it forever, and it sits
+    READY with nobody ever running it and nothing ever failing it.
+
+    That is how a guard added for one invariant masked the mutation covering
+    another. A worker that dies reports nothing, so lapses are the only thing
+    that can spend its budget.
+    """
+    _log, sched = _budget_world(tmp_path, max_attempts=2)
+    for tag in range(6):                    # more rounds than the budget
+        sched.catch_up()
+        job = sched.get("j")
+        if job.state is not JobState.READY:
+            break
+        sched.dispatch(job_id="j", worker=f"w{tag}", lease_id=f"L{tag}",
+                       lease_seqs=1)
+        for _ in range(4):
+            sched.log.append(actor="filler", action="noop", target="x",
+                             payload={})
+        sched.catch_up()
+        sched.reconcile(actor="rec")        # the worker never reports
+    sched.catch_up()
+    job = sched.get("j")
+    assert job.state is JobState.FAILED, (
+        f"the job is {job.state.value} at {job.attempts} of "
+        f"{job.max_attempts} attempt(s) after repeated lapses. A budget that "
+        "leaves the job READY forever bounds the count and not the work")
+    assert job.attempts <= job.max_attempts, job
+
+
+def test_an_honest_campaign_still_spends_its_whole_budget(tmp_path):
+    """Anti-vacuity for all three.
+
+    A rule that refused the SECOND attempt would satisfy every assertion
+    above while breaking retries entirely. The budget must be spendable down
+    to its last attempt, and only then refuse.
+    """
+    _log, sched = _budget_world(tmp_path, max_attempts=3)
+    _burn_one_attempt(sched, 0)
+    _burn_one_attempt(sched, 1)
+    sched.catch_up()
+    assert sched.get("j").attempts == 2, sched.get("j")
+    assert sched.get("j").state is JobState.READY
+
+    sched.dispatch(job_id="j", worker="w2", lease_id="L2", lease_seqs=50)
+    sched.catch_up()
+    job = sched.get("j")
+    assert job.attempts == 3 == job.max_attempts, job
+    assert job.state is JobState.DISPATCHED, (
+        "the third attempt of a budget of three must be handed out")

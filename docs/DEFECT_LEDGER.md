@@ -2049,6 +2049,131 @@ accidental runtime type error.
 the repair direction was right. The repair exposed a second, cross-layer loss
 in the same code path. Both facts belong on the record.
 
+---
+
+## D-2026-26 — a reconcile decision outlived the facts it was decided on
+
+**CLASS** — `CONCURRENCY_DEFECT`, `AUTHORITY_DEFECT`,
+`HOSTED_INTEGRATION_DEFECT`.
+
+**AFFECTED COMMIT** — present since the scheduler's `reconcile` was written;
+surfaced at `d16179c`.
+
+**DISCOVERED BY.** Hosted CI, in the step *before* the one being watched. The
+R11 network fix was pushed and `agent-substrate` failed at step 9 — the agent
+suites — with
+
+```
+j-0 was attempted 4 times against a budget of 3
+```
+
+from `test_a_long_mixed_campaign_never_leaves_an_unreplayable_log[250]`. The
+assertion that caught it is the one D-2026-01 added, still doing its job three
+tranches later.
+
+**DEFECT.** `reconcile()` scans `expired_leases()` into a list, decides
+give-up-versus-requeue from **what it read**, and writes later. Between the
+scan and the write another process can dispatch the job — spending an attempt
+— and let that lease lapse too. The stale decision then requeues a job whose
+budget is now gone: it becomes READY at `attempts == max_attempts`, and the
+next dispatch makes it `max + 1`.
+
+`dispatch()` uses `expected_revision` for precisely this class of race.
+`reconcile()`'s `move()` did not.
+
+**WHY LOCAL EVIDENCE SAID NOTHING.** Six worker processes on a bigger runner
+give the scan and the write enough room to interleave. Six local runs of the
+same parameterisation passed. A stress test large enough to hit this by luck is
+not a regression test, so the reproducer injects the competing dispatch
+**inside** reconcile's write window — after the scan chose "requeue", before
+that choice is written.
+
+**WHAT D-2026-01 FIXED AND WHAT IT DID NOT.** It fixed the RULE: a lapse counts
+against the budget, and the give-up branch became reachable. It did not bind
+the DECISION to the state it was decided against. The rule was right and was
+applied to a world that had moved.
+
+**IMPLEMENTATION FIX.** `move_decided(job, ...)` passes
+`expected_revision=job.revision`, so a job that moved between scan and write is
+refused and the next reconcile decides against the world as it now is — which
+is what `reconcile`'s docstring already promised.
+
+**WRITE-PATH FIX.** `dispatch()` now refuses when `attempts >= max_attempts`.
+The budget was consulted only on the RETURN edges, so "attempts never exceeds
+max_attempts" held only as long as nothing could reach READY with the budget
+gone. An invariant that depends on every other path being right is not an
+invariant; `dispatch` is the line that increments the count, so it is the one
+place that can state it locally.
+
+**REPLAY FIX.** The reducer bounded the count's *arithmetic* — moves by one,
+only on the hand-out edge — and never compared the result to the budget, so a
+forged hand-out record replayed clean. It now refuses `want > max_attempts`.
+Replay is where a hand-written record has to be refused; the write path only
+stops callers who were not attacking.
+
+**INDEPENDENT-READER.** Already present and unchanged: `_sub_job_transition`
+reports a budget overrun as a finding about the history, deliberately checked
+after the fold so that it is a statement about the whole log rather than about
+one edge.
+
+**MY OWN FIX MASKED AN EXISTING MUTATION.** `X6` — *a lapsed lease does not
+spend the retry budget* — had been killed by the long campaign. After the
+`dispatch` guard it **survived**: with reconcile's give-up branch deleted the
+job is requeued forever, but dispatch now refuses it, so `attempts` never
+exceeds `max_attempts` and the campaign assertion is satisfied. The job simply
+sits READY forever with nobody running it and nothing failing it.
+
+The count was never the whole invariant. D-2026-01 states it as *"a job whose
+retry budget is spent reaches a TERMINAL state"*, and
+`test_a_budget_spent_by_LAPSES_ALONE_reaches_a_terminal_state` asserts that
+half directly. A new guard for one invariant hid the mutation covering
+another, which is the exact shape this ledger already records twice.
+
+**AND THE REPLAY TEST PASSED FOR THE WRONG REASON.** Its first version forged a
+hand-out against a job that was FAILED, so replay refused it by the STATE rule
+and `X12` survived. `FAILED` is terminal, so the staging record was illegal
+too. The job is now brought to READY-with-spent-budget by the lapsed handover a
+budget-unaware reconciler writes — legal, and it leaves the count alone —
+before the forged record is appended.
+
+**ADVERSARIAL TESTS.** Four, one per layer plus anti-vacuity, because a fixture
+invalid in three ways would pass whichever guard fired first and prove nothing
+about the other two: the stale decision, the write path, the replay, and
+`test_an_honest_campaign_still_spends_its_whole_budget` — a rule refusing the
+*second* attempt would satisfy all three while breaking retries entirely.
+
+**MUTATIONS.** `X10` restores the stale write, `X11` removes the hand-out
+guard, `X12` removes the replay bound. With `X6` back to a real kill: 11/11.
+
+**AND THE HAND-OUT GUARD CREATED A LIVENESS HOLE, CAUGHT BY ANTI-VACUITY.**
+With `dispatch` refusing a spent budget, a job that reaches READY with its
+count gone can never run — and `reconcile`'s give-up branch only scans jobs
+with an expired LEASE, so nothing could ever fail it either. It would sit in
+the queue forever.
+
+Nothing asserted that directly. What caught it was the long campaign's
+anti-vacuity line — *"a run that never requeued, retried or failed anything is
+not exercising the transitions this is about"* — which noticed the campaign had
+stopped recording FAILED at all. A test written to refuse a vacuous run found a
+liveness regression in the code it was not looking at.
+
+`reconcile` now fails a PENDING job whose budget is spent, so the invariant is
+*a job whose retry budget is spent reaches a terminal state* from **either**
+side: dying mid-attempt (the lease path) or sitting with nothing left to spend
+(the pending path). That state is reachable from a budget-unaware writer and
+from an older implementation's record, not only from the guard that exposed it.
+
+**FORBIDDEN FAKE FIXES.** Widening the campaign's assertion to
+`attempts <= max_attempts + 1`. Making `reconcile` re-read inside its own loop
+without binding the decision — that narrows the window instead of closing it.
+Treating the hosted failure as flake: it reproduces deterministically once the
+interleaving is written down.
+
+**INVALIDATED CLAIMS.** Any reading of D-2026-01 as having closed the retry
+budget. It closed the rule. The decision that applies the rule was unguarded,
+and `attempts <= max_attempts` was one scan-write window away from being false
+the whole time.
+
 ### The gate's verdict, at `04f170d`
 
 All twenty-three are true at that commit, and every one of them is answered by

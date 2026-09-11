@@ -1331,6 +1331,21 @@ class Scheduler:
         if not isinstance(lease_seqs, int) or isinstance(lease_seqs, bool) \
                 or lease_seqs < 1:
             raise SchedulerError("lease_seqs must be an int >= 1")
+        # THE BUDGET, WHERE THE ATTEMPT IS SPENT.
+        #
+        # It used to be consulted only on the RETURN edges -- report() and
+        # reconcile() deciding whether to requeue -- so "attempts never
+        # exceeds max_attempts" held only as long as nothing could reach
+        # READY with the budget already gone. A stale reconcile decision did
+        # exactly that. An invariant that depends on every other path being
+        # right is not an invariant; this is the one place that can state it
+        # locally, because this is the line that increments the count.
+        if job.attempts >= job.max_attempts:
+            raise JobTransitionError(
+                f"refusing to dispatch {job_id!r}: {job.attempts} attempt(s) "
+                f"already spent against a budget of {job.max_attempts}. A job "
+                "that reaches READY with its budget gone is a defect "
+                "upstream, and handing it out again would hide it")
         return self.transition(
             job_id=job_id, dst=JobState.DISPATCHED, actor=actor,
             # The revision this dispatch decided against. Between the
@@ -1515,6 +1530,29 @@ class Scheduler:
             except (JobTransitionError, SchedulerError):
                 return None
 
+        def move_decided(job, **kw):
+            """A convergence step BOUND TO THE STATE IT WAS DECIDED AGAINST.
+
+            The scan above reads every expired lease, and the give-up vs
+            requeue choice below is made from what it read. The write happens
+            later. Between the two, another process can dispatch the job --
+            spending an attempt -- and let that lease lapse too, and then
+            this call requeues a job whose budget is now gone. It becomes
+            READY at attempts == max_attempts, the next dispatch makes it
+            max+1, and the retry budget bounded nothing.
+
+            Found by the hosted long campaign at 250 rounds, which this
+            container never reproduced: six worker processes give the scan
+            and the write enough room to be interleaved, and fewer cores do
+            not.
+
+            The revision is what makes the decision and the write one
+            statement. A job that moved is refused, and the NEXT reconcile
+            decides against the world as it now is -- which is what this
+            method's docstring already promised.
+            """
+            return move(expected_revision=job.revision, **kw)
+
         for job in self.expired_leases():
             lapsed = (f"lease {job.lease_id!r} lapsed after seq "
                       f"{job.lease_expires_after_seq}")
@@ -1533,8 +1571,8 @@ class Scheduler:
                 # caught it was written expecting the budget to hold.
                 note = (f"{lapsed}, and the retry budget of "
                         f"{job.max_attempts} attempt(s) is spent")
-                gave_up = move(
-                    job_id=job.job_id, dst=JobState.FAILED, actor=actor,
+                gave_up = move_decided(
+                    job, job_id=job.job_id, dst=JobState.FAILED, actor=actor,
                     reason=note, last_failure=note, lease_id="",
                     lease_holder="", lease_expires_after_seq=-1)
                 if gave_up is not None:
@@ -1542,8 +1580,8 @@ class Scheduler:
                     self._block_dependents_of(job.job_id, actor=actor,
                                               why=note)
                 continue
-            requeued = move(
-                job_id=job.job_id, dst=JobState.READY, actor=actor,
+            requeued = move_decided(
+                job, job_id=job.job_id, dst=JobState.READY, actor=actor,
                 reason=lapsed,
                 lease_id="", lease_holder="", lease_expires_after_seq=-1)
             if requeued is not None:
@@ -1555,6 +1593,35 @@ class Scheduler:
             if job.state not in PENDING:
                 continue
             at = self.at_seq()
+            # A PENDING JOB WITH ITS BUDGET GONE IS STUCK, NOT WAITING.
+            #
+            # The give-up branch above only sees jobs with an expired LEASE,
+            # so it reaches a job that died mid-attempt. It never reaches one
+            # sitting in READY with the count already spent -- and dispatch
+            # now refuses those, so nothing would ever run it and nothing
+            # would ever fail it. The queue would carry it forever.
+            #
+            # That state is reachable from a budget-unaware writer, from an
+            # older implementation's record, and (before this) from the
+            # dispatch guard itself. Found by the long campaign's
+            # anti-vacuity assertion: adding the dispatch guard stopped the
+            # campaign ever recording a FAILED transition, and the test that
+            # exists to refuse a run where nothing interesting happened said
+            # so immediately.
+            if (isinstance(job.max_attempts, int)
+                    and job.attempts >= job.max_attempts):
+                note = (f"{job.attempts} of {job.max_attempts} attempt(s) "
+                        "spent and the job is still pending; there is no "
+                        "attempt left to hand out")
+                moved = move_decided(job, job_id=job_id, dst=JobState.FAILED,
+                                     actor=actor, reason=note,
+                                     last_failure=note, lease_id="",
+                                     lease_holder="",
+                                     lease_expires_after_seq=-1)
+                if moved is not None:
+                    moves.append(moved)
+                    self._block_dependents_of(job_id, actor=actor, why=note)
+                continue
             r = self.readiness(job, at_seq=at, resolve=resolve,
                                capabilities=capabilities)
             if r.fatal and job.state is not JobState.BLOCKED:
@@ -1733,6 +1800,20 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
                 f"seq {seq}: {job.job_id!r} has {job.attempts} attempts and "
                 f"this record sets {want}. The count is what max_attempts "
                 "bounds, so a record that may rewrite it may retry forever.")
+        # AND THE COUNT IS BOUNDED, not merely arithmetically consistent.
+        #
+        # The rule above says only that the number moves by one and only on
+        # the hand-out edge. It never compared the result to the budget, so a
+        # history in which a job is handed out past max_attempts replayed
+        # clean -- and REPLAY is where a forged or hand-written record has to
+        # be refused, since the write path only stops callers who were not
+        # attacking.
+        if want > job.max_attempts:
+            raise JobTransitionError(
+                f"seq {seq}: {job.job_id!r} is handed out for attempt {want} "
+                f"against a budget of {job.max_attempts}. The budget is what "
+                "bounds the count, and a history that spends more than it was "
+                "given is not one this reader will rebuild.")
     if (payload.get("lease_holder") or payload.get("lease_id")) and not (
             job.state is JobState.READY and dst is JobState.DISPATCHED):
         raise JobTransitionError(
