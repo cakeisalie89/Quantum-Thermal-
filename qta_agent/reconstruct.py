@@ -4,11 +4,24 @@ This module exists to answer one question without trusting the running
 system: *given only the log, what is canonical?*
 
 It is written as a SECOND implementation on purpose. It does not import
-:class:`~qta_agent.store.AuthorityStore` and does not share its reducer. If
-both agree, that is differential evidence -- two implementations reading the
-same evidence reached the same verdict. Reusing the store's reducer here would
-make the comparison circular and worthless, which is why the duplication is
-deliberate rather than an oversight.
+:class:`~qta_agent.store.AuthorityStore` and does not share its reducer, and
+it does not import the modules whose decisions it re-checks -- not their
+enums, not their tables, and above all not their ``check`` functions. If both
+agree, that is differential evidence: two implementations reading the same
+evidence reached the same verdict. Reusing the store's reducer, or calling
+the gate to ask whether the gate would have allowed something, would make the
+comparison circular and worthless, which is why the duplication is deliberate
+rather than an oversight.
+
+That duplication was, for a long time, only HALF true here. The nine
+subsystems below restated every rule in plain strings; the two machines at
+the top of this file -- authority records and tasks -- imported
+``authority.check`` and ``tasks.check`` and handed each replayed record
+straight back to them. A weakened production gate would have been reproduced
+faithfully by the reader that exists to notice it, and the differential
+comparison would have come back empty: the most reassuring possible output
+from two readers that never disagreed about anything. Both are restated now,
+in the block under the imports.
 
 Where the store folds events into dataclasses through ``dataclasses.replace``,
 this walks the log with plain dictionaries and re-derives each field from
@@ -20,10 +33,14 @@ It trusts NOTHING except the log's bytes:
   * not the store's projection,
   * not conversation history or a model's recollection.
 
-Every transition is re-authorized against the state machine during replay. An
-event that the machine would refuse today is reported rather than applied --
-which is how a log written by a compromised or older writer, or under a since
-changed policy, becomes visible instead of being silently absorbed.
+Every transition is re-authorized during replay against THIS module's own
+statement of the rules. An event those rules would refuse today is reported
+rather than applied -- which is how a log written by a compromised or older
+writer, or under a since changed policy, becomes visible instead of being
+silently absorbed. Whether this module's statement of the rules still matches
+production's is a question for the conformance tests, which can name a
+difference; it is not a question a reader that called production could ever
+have asked.
 
 TWO MACHINES, THE SAME TREATMENT
 
@@ -34,6 +51,10 @@ out to re-authorize forged records against a starting state the record itself
 declared. A second implementation is the defence against that class -- not
 because the second one is more careful, but because two readers that disagree
 say so, and a single reader with a hole says nothing at all.
+
+Both now judge records the same way as well: against restated rules, with a
+refusal recorded as a string rather than raised as somebody else's exception
+type.
 
 The two replays differ in what they do about a refusal, and deliberately.
 ``governed_stage10.projection`` is ENFORCEMENT: it raises, because a reader
@@ -46,32 +67,347 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from . import actions
-from .authority import (
-    INITIAL,
-    Role,
-    State,
-    TransitionError,
-    TransitionRequest,
-    check,
-)
 from .events import EventLog
-from .tasks import (
-    INITIAL as TASK_INITIAL,
-)
-from .tasks import (
-    TERMINAL as TASK_TERMINAL,
-)
-from .tasks import (
-    Lease,
-    Task,
-    TaskRole,
-    TaskState,
-    TaskTransition,
-    TaskTransitionError,
-)
-from .tasks import (
-    check as task_check,
-)
+
+# ---------------------------------------------------------------------------
+# THE RULES, RESTATED.
+#
+# This module used to import ``authority.check`` and ``tasks.check`` and hand
+# each replayed record to them. That made the "independent" re-authorization a
+# call back into the implementation it exists to check: if the production gate
+# was wrong, this reader was wrong in the same way and the differential
+# comparison came back empty -- the most reassuring possible output from two
+# readers that never actually disagreed about anything.
+#
+# The docstring on :class:`SubsystemReconstruction` below already said so, in
+# those words, about the nine subsystems it covers. The two machines at the
+# TOP of this file -- authority records and tasks -- were the ones still doing
+# it, which is the shape of defect this whole module exists to find: the rule
+# was written down, the rule was right, and the code beside it did the other
+# thing.
+#
+# So: everything a replayed record is judged against is spelled out here, in
+# plain strings and plain dicts, derived from nothing. That has a cost -- two
+# statements of the same rule can drift -- and the cost is paid deliberately:
+#
+#   * drift is a TEST failure, not a silent agreement. The conformance tests
+#     in tests/test_agent_differential.py compare these tables element by
+#     element against the production ones and name the difference.
+#   * agreement by construction is not recoverable by any test at all. A
+#     reader that calls the gate agrees with a broken gate perfectly, and
+#     there is no assertion that can see it from outside.
+#
+# A restatement that is merely a copy of the table is still worth having for
+# the second reason. It is not worth pretending it is more than that: two
+# statements can share a MISUNDERSTANDING that the log cannot reveal, so an
+# empty diff here is evidence, not proof.
+# ---------------------------------------------------------------------------
+
+#: Every authority state this reader knows. A record naming anything else is
+#: reported rather than applied: a state this reader cannot reason about is
+#: not a state it may silently carry forward.
+_AUTH_STATES = frozenset({
+    "PROPOSED", "UNDER_REVIEW", "VERIFIED", "PROMOTED", "STALE",
+    "SUPERSEDED", "REVOKED", "REJECTED",
+})
+
+#: Who may act on an authority record.
+_AUTH_ROLES = frozenset({"PROPOSER", "VERIFIER", "PROMOTER", "SYSTEM"})
+
+#: Where a record is born.
+_AUTH_INITIAL = "PROPOSED"
+
+#: States nothing may leave (I2). Leaving one is a revival, and recovery is a
+#: NEW record with new evidence, which leaves a trail.
+_AUTH_TERMINAL = frozenset({"REVOKED", "REJECTED"})
+
+#: The one state carrying canonical authority.
+_AUTH_PROMOTED = "PROMOTED"
+
+
+@dataclass(frozen=True)
+class _Rule:
+    """One permitted authority transition, as this reader states it."""
+
+    #: Roles permitted to trigger it. Empty would mean nobody.
+    roles: frozenset
+    #: Evidence keys that must be present, and digest-shaped unless the key
+    #: is an identity rather than content.
+    evidence: frozenset = frozenset()
+    #: True when the actor must differ from the record's proposer (I4).
+    distinct_actor: bool = False
+
+
+#: The authority transition graph. (src, dst) -> the rule that permits it.
+#: Any pair absent from this table is forbidden, which is what makes the
+#: forbidden states unreachable rather than merely unwritten.
+_AUTH_EDGES = {
+    ("PROPOSED", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"})),
+    ("PROPOSED", "REJECTED"): _Rule(
+        frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
+    ("UNDER_REVIEW", "VERIFIED"): _Rule(
+        frozenset({"VERIFIER"}), frozenset({"verification_report"}), True),
+    ("UNDER_REVIEW", "REJECTED"): _Rule(
+        frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
+    # I1: the ONLY edge into PROMOTED, and it needs a different actor.
+    ("VERIFIED", "PROMOTED"): _Rule(
+        frozenset({"PROMOTER"}),
+        frozenset({"verification_report", "policy_id"}), True),
+    ("VERIFIED", "STALE"): _Rule(
+        frozenset({"SYSTEM"}), frozenset({"invalidated_by"})),
+    ("PROMOTED", "STALE"): _Rule(
+        frozenset({"SYSTEM"}), frozenset({"invalidated_by"})),
+    ("PROMOTED", "SUPERSEDED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"superseded_by"})),
+    ("PROMOTED", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+    ("VERIFIED", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+    # I3: STALE returns only through re-verification.
+    ("STALE", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"})),
+    ("STALE", "SUPERSEDED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"superseded_by"})),
+    ("STALE", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+    ("SUPERSEDED", "REVOKED"): _Rule(
+        frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
+}
+
+#: Evidence keys that name an IDENTITY rather than a piece of content, and so
+#: are required to be present and non-empty rather than digest-shaped. Stated
+#: as a set rather than as a special case buried in a loop so that adding a
+#: second such key is a decision somebody makes on purpose.
+_AUTH_IDENTITY_EVIDENCE = frozenset({"policy_id"})
+
+_HEX = frozenset("0123456789abcdef")
+
+
+def _is_digest(value: object) -> bool:
+    """True for a lowercase 64-character sha256 hex digest, and nothing else.
+
+    Restated rather than imported for the same reason as everything else
+    here. Uppercase is rejected deliberately: one logical digest with two
+    spellings makes a set of digests contain duplicates that compare unequal.
+    """
+    return (isinstance(value, str) and len(value) == 64
+            and all(c in _HEX for c in value))
+
+
+def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,
+                  policy_id):
+    """Why this authority transition would be refused, or None if it stands.
+
+    A STRING rather than an exception, because this reader diagnoses instead
+    of enforcing: one bad record must not hide the twenty after it.
+    """
+    if src not in _AUTH_STATES:
+        return (f"{src!r} is not an authority state this reader knows, so it "
+                "cannot say what may follow it")
+    if dst not in _AUTH_STATES:
+        return (f"{dst!r} is not an authority state this reader knows; a "
+                "record may not invent one")
+    if role not in _AUTH_ROLES:
+        return (f"{role!r} is not a role this reader knows; a record may not "
+                "invent the authority it acts under")
+
+    if src in _AUTH_TERMINAL:
+        return (f"I2: {src} is terminal; {record_id} cannot leave it. Create "
+                "a new record with new evidence instead.")
+
+    rule = _AUTH_EDGES.get((src, dst))
+    if rule is None:
+        return (f"no edge {src} -> {dst}; permitted targets are "
+                f"{sorted(d for (s, d) in _AUTH_EDGES if s == src)}")
+
+    if role not in rule.roles:
+        return (f"role {role} may not perform {src} -> {dst}; requires one "
+                f"of {sorted(rule.roles)}")
+
+    if rule.distinct_actor:
+        if proposer is None:
+            return (f"I4: {src} -> {dst} requires a distinct actor, but the "
+                    "record's proposer is unknown; refusing rather than "
+                    "assuming separation of duties")
+        if actor == proposer:
+            return (f"I4: {actor!r} proposed {record_id} and may not also "
+                    f"perform {src} -> {dst}")
+
+    missing = sorted(rule.evidence - set(evidence))
+    if missing:
+        return f"I6: {src} -> {dst} requires evidence {missing}"
+
+    for key in sorted(rule.evidence):
+        val = evidence.get(key)
+        if key in _AUTH_IDENTITY_EVIDENCE:
+            if not isinstance(val, str) or not val:
+                return f"I5: {key} must be a non-empty id"
+            continue
+        if not _is_digest(val):
+            return (f"I6: evidence {key!r} must be a sha256 digest, got "
+                    f"{type(val).__name__}; evidence is referenced by content "
+                    "so it cannot be altered after being cited")
+
+    if dst == _AUTH_PROMOTED and policy_id is None:
+        return "I5: promotion requires an explicit policy identity in force"
+    return None
+
+
+#: Every task state this reader knows.
+_TASK_STATES = frozenset({
+    "CREATED", "VALIDATED", "QUEUED", "LEASED", "EXECUTING", "COMPLETED",
+    "FAILED", "TIMED_OUT", "CANCELLED", "VERIFIED", "REJECTED", "INVALIDATED",
+})
+
+#: Who may move a task.
+_TASK_ROLES = frozenset({"SUBMITTER", "SCHEDULER", "WORKER", "VERIFIER",
+                         "SYSTEM"})
+
+_TASK_INITIAL = "CREATED"
+
+#: Finished work. No further PROGRESS is possible from these -- which is not
+#: the same as sealed: VERIFIED -> INVALIDATED records a fact ABOUT finished
+#: work, and is in the table below for exactly that reason.
+_TASK_TERMINAL = frozenset({"VERIFIED", "REJECTED", "CANCELLED",
+                            "INVALIDATED"})
+
+_TASK_LEASED = "LEASED"
+_TASK_QUEUED = "QUEUED"
+_TASK_COMPLETED = "COMPLETED"
+_TASK_VERIFIED = "VERIFIED"
+
+
+@dataclass(frozen=True)
+class _TaskRule:
+    """One permitted task transition, as this reader states it."""
+
+    roles: frozenset
+    #: True when the actor must differ from the one that executed the task.
+    distinct_actor: bool = False
+    #: True when the mover must hold the task's current, unexpired lease.
+    lease: bool = False
+
+
+#: States a task may be cancelled from: every pre-terminal one.
+_TASK_CANCELLABLE = ("CREATED", "VALIDATED", "QUEUED", "LEASED", "EXECUTING")
+
+#: The task transition graph.
+_TASK_EDGES = {
+    ("CREATED", "VALIDATED"): _TaskRule(
+        frozenset({"SUBMITTER", "SCHEDULER"})),
+    ("CREATED", "REJECTED"): _TaskRule(
+        frozenset({"SUBMITTER", "SCHEDULER"})),
+    ("VALIDATED", "QUEUED"): _TaskRule(frozenset({"SCHEDULER"})),
+    ("QUEUED", "LEASED"): _TaskRule(frozenset({"SCHEDULER", "WORKER"})),
+    ("LEASED", "EXECUTING"): _TaskRule(frozenset({"WORKER"}), lease=True),
+    ("EXECUTING", "COMPLETED"): _TaskRule(frozenset({"WORKER"}), lease=True),
+    ("EXECUTING", "FAILED"): _TaskRule(frozenset({"WORKER"}), lease=True),
+    ("EXECUTING", "TIMED_OUT"): _TaskRule(frozenset({"WORKER", "SYSTEM"})),
+    # The ONLY edge into VERIFIED, and it needs a different actor.
+    ("COMPLETED", "VERIFIED"): _TaskRule(
+        frozenset({"VERIFIER"}), distinct_actor=True),
+    ("COMPLETED", "REJECTED"): _TaskRule(
+        frozenset({"VERIFIER"}), distinct_actor=True),
+    **{(s, "CANCELLED"): _TaskRule(
+        frozenset({"SUBMITTER", "SCHEDULER", "SYSTEM"}))
+       for s in _TASK_CANCELLABLE},
+    # A lapsed lease returns the work to the queue rather than stranding it.
+    ("LEASED", "QUEUED"): _TaskRule(frozenset({"SCHEDULER", "SYSTEM"})),
+    ("EXECUTING", "QUEUED"): _TaskRule(frozenset({"SCHEDULER", "SYSTEM"})),
+    # Retry paths for the outcomes that are retryable.
+    ("FAILED", "QUEUED"): _TaskRule(frozenset({"SCHEDULER"})),
+    ("TIMED_OUT", "QUEUED"): _TaskRule(frozenset({"SCHEDULER"})),
+    # An input changed, so a prior verification no longer describes it.
+    ("VERIFIED", "INVALIDATED"): _TaskRule(frozenset({"SYSTEM"})),
+}
+
+#: The fields a lease record must carry, and the one it may. Restated so that
+#: a lease shape this build cannot interpret is a finding rather than a
+#: TypeError from somebody else's constructor.
+_LEASE_REQUIRED = frozenset({"lease_id", "holder", "granted_seq",
+                             "expires_after_seq"})
+_LEASE_OPTIONAL = frozenset({"holder_process"})
+
+
+def _parse_lease(raw):
+    """The lease as plain fields, or None if this reader cannot read it."""
+    if not isinstance(raw, dict) or not raw:
+        return None
+    keys = set(raw)
+    if not _LEASE_REQUIRED <= keys:
+        return None
+    if not keys <= (_LEASE_REQUIRED | _LEASE_OPTIONAL):
+        return None
+    return dict(raw)
+
+
+def _task_refusal(*, task_id, src, dst, actor, role, at_seq, lease, lease_id,
+                  executed_by, result_digest):
+    """Why this task transition would be refused, or None if it stands."""
+    if src not in _TASK_STATES:
+        return (f"{src!r} is not a task state this reader knows, so it "
+                "cannot say what may follow it")
+    if dst not in _TASK_STATES:
+        return (f"{dst!r} is not a task state this reader knows; a record "
+                "may not invent one")
+    if role not in _TASK_ROLES:
+        return (f"{role!r} is not a task role this reader knows; a record "
+                "may not invent the authority it acts under")
+
+    rule = _TASK_EDGES.get((src, dst))
+    if rule is None:
+        if src in _TASK_TERMINAL:
+            return (f"{src} is terminal; task {task_id} cannot leave it. "
+                    "Recovery is a NEW task, which leaves a trail; reviving "
+                    "this one would not.")
+        return (f"no edge {src} -> {dst}; permitted targets are "
+                f"{sorted(d for (s, d) in _TASK_EDGES if s == src)}")
+
+    if role not in rule.roles:
+        return (f"role {role} may not perform {src} -> {dst}; requires one "
+                f"of {sorted(rule.roles)}")
+
+    if rule.lease:
+        if not lease:
+            return (f"{src} -> {dst} requires the task's lease, and it holds "
+                    "none")
+        if lease_id != lease.get("lease_id"):
+            return (f"lease {lease_id!r} is not this task's lease "
+                    f"({lease.get('lease_id')!r}); a worker reporting on work "
+                    "it does not own is reporting on work someone else may "
+                    "have redone")
+        if lease.get("holder") != actor:
+            return (f"lease {lease.get('lease_id')!r} is held by "
+                    f"{lease.get('holder')!r}, not {actor!r}")
+        end = lease.get("expires_after_seq")
+        # Not a special case for bools, deliberately: production compares
+        # ``at_seq <= expires_after_seq`` and Python's True IS 1 there, so a
+        # reader that refused booleans would disagree with the gate about an
+        # input the gate accepts. The check is for a value nothing can order
+        # against a sequence number at all -- where production raises a
+        # TypeError out of the middle of a replay and this reader says so.
+        if not isinstance(end, int):
+            return (f"lease {lease.get('lease_id')!r} names no sequence it "
+                    "expires after, so nothing can say whether it is live")
+        if at_seq > end:
+            return (f"lease {lease.get('lease_id')!r} lapsed after seq "
+                    f"{end}; the log is at {at_seq}. A worker back from the "
+                    "dead does not get to report success.")
+
+    if rule.distinct_actor:
+        if executed_by is None:
+            return (f"{src} -> {dst} requires an actor distinct from the "
+                    "executor, but no executor is recorded; refusing rather "
+                    "than assuming independence")
+        if actor == executed_by:
+            return (f"{actor!r} executed {task_id} and may not also perform "
+                    f"{src} -> {dst}. An agent that verifies its own work "
+                    "has not verified anything.")
+
+    if dst == _TASK_COMPLETED and not _is_digest(result_digest or ""):
+        return ("COMPLETED requires the digest of the execution result; a "
+                "completion with no result to point at is an assertion")
+    return None
+
 
 
 @dataclass
@@ -94,7 +430,7 @@ class Reconstruction:
     def canonical_ids(self) -> tuple:
         return tuple(sorted(
             rid for rid, r in self.records.items()
-            if r["state"] == State.PROMOTED.value))
+            if r["state"] == _AUTH_PROMOTED))
 
     def states(self) -> dict:
         return {rid: r["state"] for rid, r in self.records.items()}
@@ -134,7 +470,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
                 "record_id": rid,
                 "kind": p.get("kind"),
                 "proposer": p.get("proposer"),
-                "state": p.get("state", INITIAL.value),
+                "state": p.get("state", _AUTH_INITIAL),
                 "revision": 1,
                 "evidence": dict(p.get("evidence", {})),
                 "depends_on": list(p.get("depends_on", [])),
@@ -142,7 +478,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
                 "created_seq": ev.seq,
                 "updated_seq": ev.seq,
                 "stale_reason": None,
-                "history": [(ev.seq, p.get("state", INITIAL.value))],
+                "history": [(ev.seq, p.get("state", _AUTH_INITIAL))],
             }
 
         elif action == "record.transition":
@@ -157,24 +493,36 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
                     f"seq {ev.seq}: {rid} claims src {src_claimed} but replay "
                     f"has it in {cur['state']}")
             if reauthorize:
-                try:
-                    check(TransitionRequest(
-                        record_id=rid,
-                        src=State(cur["state"]),
-                        dst=State(p["dst"]),
-                        actor=ev.actor,
-                        role=Role(p["role"]),
-                        evidence={**cur["evidence"], **p.get("evidence", {})},
-                        proposer=cur["proposer"],
-                        policy_id=p.get("policy_id") or cur["policy_id"]))
-                except (TransitionError, ValueError) as exc:
+                # Judged against THIS module's restatement of the rules, not
+                # by calling authority.check. A second reader that asks the
+                # gate whether the gate would have allowed something agrees
+                # with a broken gate perfectly.
+                refusal = _auth_refusal(
+                    record_id=rid,
+                    src=cur["state"],
+                    dst=p.get("dst"),
+                    actor=ev.actor,
+                    role=p.get("role"),
+                    evidence={**cur["evidence"], **p.get("evidence", {})},
+                    proposer=cur["proposer"],
+                    policy_id=p.get("policy_id") or cur["policy_id"])
+                if refusal is not None:
                     out.unauthorized.append(
                         f"seq {ev.seq}: {rid} {cur['state']} -> "
                         f"{p.get('dst')} "
-                        f"would be refused today: {exc}")
+                        f"would be refused today: {refusal}")
                     # Do NOT apply. An unauthorized transition must not become
                     # canonical merely because it is present in the log.
                     continue
+            if p.get("dst") not in _AUTH_STATES:
+                # Reachable only with reauthorize=False, which is a DIAGNOSTIC
+                # mode and not a permissive one: a state this reader cannot
+                # name is not a state it may carry forward as though it had
+                # understood it.
+                out.anomalies.append(
+                    f"seq {ev.seq}: {rid} moves to {p.get('dst')!r}, which is "
+                    "not an authority state this reader knows; not applied")
+                continue
             cur["state"] = p["dst"]
             cur["revision"] += 1
             cur["evidence"].update(p.get("evidence", {}))
@@ -252,7 +600,7 @@ class TaskReconstruction:
 
     def verified_ids(self) -> tuple:
         return tuple(sorted(tid for tid, t in self.tasks.items()
-                            if t["state"] == TaskState.VERIFIED.value))
+                            if t["state"] == _TASK_VERIFIED))
 
 
 def reconstruct_tasks(log: EventLog, *,
@@ -313,11 +661,11 @@ def reconstruct_tasks(log: EventLog, *,
                 "task_id": tid, "tool_id": p.get("tool_id"),
                 "submitter": p.get("submitter"),
                 "inputs_digest": p.get("inputs_digest"),
-                "state": TASK_INITIAL.value, "revision": 1,
+                "state": _TASK_INITIAL, "revision": 1,
                 "executed_by": None, "result_digest": None,
                 "lease": None, "depends_on": list(p.get("depends_on") or ()),
                 "created_seq": ev.seq, "updated_seq": ev.seq,
-                "artifacts": {}, "history": [(ev.seq, TASK_INITIAL.value)],
+                "artifacts": {}, "history": [(ev.seq, _TASK_INITIAL)],
             }
             continue
 
@@ -356,9 +704,8 @@ def reconstruct_tasks(log: EventLog, *,
                 "actor that verification has to differ from")
         lease = None
         if p.get("lease"):
-            try:
-                lease = Lease(**p["lease"])
-            except TypeError:
+            lease = _parse_lease(p["lease"])
+            if lease is None:
                 out.anomalies.append(
                     f"seq {ev.seq}: {tid} carries a lease record this build "
                     "cannot interpret")
@@ -367,28 +714,25 @@ def reconstruct_tasks(log: EventLog, *,
             # forger who names a convenient src would otherwise have every
             # pair in the table available, which is exactly the defect the
             # production projection had.
-            probe = Task(
-                task_id=tid, tool_id=cur["tool_id"] or "",
-                submitter=cur["submitter"] or "",
-                inputs_digest=cur["inputs_digest"] or "",
-                state=TaskState(cur["state"]), revision=cur["revision"],
-                lease=_lease_of(cur) or lease,
+            #
+            # And judged by _task_refusal above rather than by tasks.check:
+            # the executor the separation-of-duties rule measures against
+            # comes from the execution record this replay saw, and the rule
+            # itself is stated here so that weakening the production one does
+            # not quietly weaken this reader too.
+            held = _lease_of(cur) or lease
+            refusal = _task_refusal(
+                task_id=tid, src=cur["state"], dst=p.get("dst"),
+                actor=ev.actor, role=p.get("role"), at_seq=ev.seq,
+                lease=held,
+                lease_id=(p.get("lease_id")
+                          or (held.get("lease_id") if held else None)),
                 executed_by=cur["executed_by"],
-                result_digest=cur["result_digest"])
-            try:
-                task_check(TaskTransition(
-                    task_id=tid, src=TaskState(cur["state"]),
-                    dst=TaskState(p["dst"]), actor=ev.actor,
-                    role=TaskRole(p["role"]), at_seq=ev.seq,
-                    lease_id=(p.get("lease_id")
-                              or (probe.lease.lease_id if probe.lease
-                                  else None)),
-                    executed_by=cur["executed_by"],
-                    result_digest=p.get("result_digest")), probe)
-            except (TaskTransitionError, ValueError, KeyError) as exc:
+                result_digest=p.get("result_digest"))
+            if refusal is not None:
                 out.unauthorized.append(
                     f"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} "
-                    f"would be refused today: {exc}")
+                    f"would be refused today: {refusal}")
                 # Do NOT apply. Presence in the log is not authority.
                 continue
 
@@ -398,10 +742,17 @@ def reconstruct_tasks(log: EventLog, *,
         # transition drops it at the next step and then refuses the
         # completion -- which is what this replay did until the differential
         # test compared it against the live projection and disagreed.
-        dst = TaskState(p["dst"])
-        if dst is TaskState.LEASED:
+        dst = p.get("dst")
+        if dst not in _TASK_STATES:
+            # Reachable only with reauthorize=False. See the authority replay
+            # for why this is an anomaly rather than a silent application.
+            out.anomalies.append(
+                f"seq {ev.seq}: {tid} moves to {dst!r}, which is not a task "
+                "state this reader knows; not applied")
+            continue
+        if dst == _TASK_LEASED:
             cur["lease"] = dict(p["lease"]) if p.get("lease") else None
-        elif dst is TaskState.QUEUED or dst in TASK_TERMINAL:
+        elif dst == _TASK_QUEUED or dst in _TASK_TERMINAL:
             # Requeued or finished work holds nothing: a lease that outlives
             # the work it owned is a lease somebody else has to wait out.
             cur["lease"] = None
@@ -1492,14 +1843,14 @@ def compare_bindings(ledger, recon) -> tuple:
 
 
 def _lease_of(cur: dict):
-    """Rebuild the lease this replay is currently holding, if any."""
-    raw = cur.get("lease")
-    if not raw:
-        return None
-    try:
-        return Lease(**raw)
-    except TypeError:                      # pragma: no cover - malformed
-        return None
+    """The lease this replay is currently holding, if any.
+
+    Plain fields rather than a :class:`~qta_agent.tasks.Lease`: constructing
+    the production dataclass here would import the layer this reader exists
+    to second-guess, and would inherit its idea of what a lease record even
+    looks like.
+    """
+    return _parse_lease(cur.get("lease"))
 
 
 def compare_tasks(projection, recon: TaskReconstruction) -> tuple:

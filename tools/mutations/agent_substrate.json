@@ -139,8 +139,8 @@
     {
       "name": "M19_apply_unauthorized_transitions",
       "path": "qta_agent/reconstruct.py",
-      "find": "                    continue\n            cur[\"state\"] = p[\"dst\"]",
-      "replace": "                    pass\n            cur[\"state\"] = p[\"dst\"]",
+      "find": "                    # canonical merely because it is present in the log.\n                    continue",
+      "replace": "                    # canonical merely because it is present in the log.\n                    pass",
       "rationale": "replay would apply a transition the state machine forbids, so a forged log entry would reconstruct cleanly"
     },
     {
@@ -188,21 +188,21 @@
     {
       "name": "M26_task_replay_applies_unauthorized_records",
       "path": "qta_agent/reconstruct.py",
-      "find": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {exc}\")\n                # Do NOT apply. Presence in the log is not authority.\n                continue",
-      "replace": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {exc}\")",
+      "find": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {refusal}\")\n                # Do NOT apply. Presence in the log is not authority.\n                continue",
+      "replace": "                out.unauthorized.append(\n                    f\"seq {ev.seq}: {tid} {cur['state']} -> {p.get('dst')} \"\n                    f\"would be refused today: {refusal}\")",
       "rationale": "a transition the machine forbids becomes state in the independent replay, so the two readers agree on a history neither should accept"
     },
     {
       "name": "M27_task_replay_drops_the_lease_each_transition",
       "path": "qta_agent/reconstruct.py",
-      "find": "        if dst is TaskState.LEASED:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
+      "find": "        if dst == _TASK_LEASED:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
       "replace": "        if True:\n            cur[\"lease\"] = dict(p[\"lease\"]) if p.get(\"lease\") else None",
       "rationale": "the replay loses the lease at the step after LEASED and then refuses every completion, so it diverges from the live projection on every healthy run"
     },
     {
       "name": "M28_task_replay_keeps_a_finished_tasks_lease",
       "path": "qta_agent/reconstruct.py",
-      "find": "        elif dst is TaskState.QUEUED or dst in TASK_TERMINAL:",
+      "find": "        elif dst == _TASK_QUEUED or dst in _TASK_TERMINAL:",
       "replace": "        elif False:",
       "rationale": "a lease outlives the work it owned, so requeued work is still owned by a worker that finished"
     },

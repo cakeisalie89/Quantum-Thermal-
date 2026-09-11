@@ -1125,12 +1125,17 @@ def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
             for alias in node.names:
                 imported.add(alias.name)
 
+    # authority and tasks joined this list late, and their absence from it
+    # was the finding: the two machines at the top of reconstruct.py imported
+    # the very check() functions they exist to second-guess, while this test
+    # stood over the nine subsystems below them saying the separation held.
     forbidden = {"agents", "scheduler", "policy", "capability", "memory",
-                 "netauth", "secrets", "context",
+                 "netauth", "secrets", "context", "authority", "tasks",
                  "qta_agent.agents", "qta_agent.scheduler",
                  "qta_agent.policy", "qta_agent.capability",
                  "qta_agent.memory", "qta_agent.netauth",
-                 "qta_agent.secrets", "qta_agent.context"}
+                 "qta_agent.secrets", "qta_agent.context",
+                 "qta_agent.authority", "qta_agent.tasks"}
     leaked = sorted(imported & forbidden)
     assert not leaked, (
         f"the second reader imports {leaked}; it would then agree with those "

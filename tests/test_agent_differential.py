@@ -135,10 +135,26 @@ def test_the_reconstruction_shares_no_reducer_with_the_projection():
     assert "tasks.apply_transition" not in imported, (
         "reconstruct reused the projection's transition applier, which makes "
         "every comparison in this file circular while still passing")
-    # It MAY import the transition table -- re-authorizing against a
-    # different table would compare two different questions -- but it must
-    # derive the resulting state itself.
-    assert "tasks.check" in imported or "tasks" in imported
+    # THIS ASSERTION USED TO SAY THE OPPOSITE.
+    #
+    # It read:
+    #
+    #     # It MAY import the transition table -- re-authorizing against a
+    #     # different table would compare two different questions -- but it
+    #     # must derive the resulting state itself.
+    #     assert "tasks.check" in imported or "tasks" in imported
+    #
+    # which made the coupling a REQUIREMENT: the second reader had to call
+    # the gate it exists to second-guess, and a test stood guard over that.
+    # The concern behind it was real -- two tables that drift compare two
+    # different questions -- but the remedy was the wrong one. Drift is now
+    # a conformance failure with a named difference (see the tests below);
+    # agreement by construction was a failure nothing outside could see.
+    assert not {i for i in imported
+                if i == "tasks" or i.startswith("tasks.")
+                or i == "authority" or i.startswith("authority.")}, (
+        "reconstruct imports the authorization gates it exists to check "
+        "independently; it would then agree with a weakened gate perfectly")
 
 
 # --- the divergence the second reader exists to catch -----------------------
@@ -411,3 +427,664 @@ def test_an_honest_create_is_not_flagged_by_the_second_reader(gov):
     recon = reconstruct_tasks(gov.log)
     assert not recon.anomalies, recon.anomalies
     assert recon.tasks[run.task_id]["submitter"] == SUBMITTER_ID
+
+
+# ---------------------------------------------------------------------------
+# D-2026-27 (P0-R12): the second reader used to ask the first reader whether
+# the first reader would have allowed it.
+#
+# reconstruct.py imported authority.check and tasks.check and handed every
+# replayed record straight back to them. Everything below asserts the three
+# things that makes necessary:
+#
+#   1. THE COUPLING IS GONE, checked over the parsed source rather than over
+#      prose about the separation.
+#   2. THE RESTATEMENT IS FAITHFUL, element by element, so that drift between
+#      the two statements is a named difference rather than a silent one.
+#      This is the concern the old assertion was trying to serve; it is
+#      served here, where it cannot make the reader circular.
+#   3. THE RESTATEMENT IS LOAD-BEARING: weaken the production gate at runtime
+#      and the second reader still refuses. That is the property the whole
+#      module claims and the one the import made impossible.
+#
+# Every rule restated in reconstruct.py gets a pair below: a record the rule
+# refuses, and a neighbouring record it does not. A refusal that fires for
+# everything proves nothing about the rule it is named after.
+# ---------------------------------------------------------------------------
+import ast as _ast  # noqa: E402
+
+from qta_agent import authority as _authority  # noqa: E402
+from qta_agent import reconstruct as _R  # noqa: E402
+from qta_agent import tasks as _tasks  # noqa: E402
+from qta_agent.canonical import digest_bytes as _digest_bytes  # noqa: E402
+from qta_agent.reconstruct import reconstruct as _reconstruct  # noqa: E402
+
+_DG = _digest_bytes(b"a report")
+_DG2 = _digest_bytes(b"a result")
+
+
+def _recon_source_tree():
+    path = ROOT / "qta_agent" / "reconstruct.py"
+    return _ast.parse(path.read_text(encoding="utf-8"))
+
+
+def test_the_second_reader_imports_neither_authorization_gate():
+    """No import of authority or tasks, under any spelling.
+
+    Checked as parsed imports, not as text: this file's own prose names both
+    modules repeatedly, and a substring search would fail for explaining the
+    separation correctly.
+    """
+    imported: set = set()
+    for node in _ast.walk(_recon_source_tree()):
+        if isinstance(node, _ast.ImportFrom) and node.module:
+            imported.add(node.module.lstrip("."))
+        elif isinstance(node, _ast.Import):
+            imported.update(a.name for a in node.names)
+
+    leaked = sorted(
+        i for i in imported
+        if i.split(".")[-1] in {"authority", "tasks"}
+        or i in {"authority", "tasks"})
+    assert not leaked, (
+        f"the second reader imports {leaked}; every rule it re-checks would "
+        "then come from the implementation it is re-checking")
+
+
+def test_the_second_reader_calls_no_function_named_check():
+    """The import guard's blind spot: a late import inside a function body.
+
+    ``from .tasks import check`` at module scope is what the guard above
+    catches. ``from .tasks import check`` inside ``reconstruct_tasks`` would
+    slip past a check that only looked at the top of the file, so the call
+    graph is inspected too: nothing in this module may call a bare ``check``
+    or ``task_check``.
+    """
+    called: set = set()
+    for node in _ast.walk(_recon_source_tree()):
+        if not isinstance(node, _ast.Call):
+            continue
+        fn = node.func
+        if isinstance(fn, _ast.Name):
+            called.add(fn.id)
+        elif isinstance(fn, _ast.Attribute):
+            called.add(fn.attr)
+
+    forbidden = sorted(called & {"check", "task_check", "apply_transition",
+                                 "find_edge", "allowed_targets"})
+    assert not forbidden, (
+        f"the second reader calls {forbidden}; a reader that asks the gate "
+        "whether the gate would have allowed something agrees with a broken "
+        "gate perfectly")
+
+
+# --- 2. the restatement is faithful ----------------------------------------
+
+def test_the_restated_authority_vocabulary_matches_production():
+    """Drift between the two statements is a named difference, not silence.
+
+    This is the ONLY thing in the system that compares them. It lives here,
+    in a test that may import both, rather than in the reader, where the
+    comparison would have to be made by calling one of them.
+    """
+    assert {s.value for s in _authority.State} == _R._AUTH_STATES
+    assert {r.value for r in _authority.Role} == _R._AUTH_ROLES
+    assert {s.value for s in _authority.TERMINAL} == _R._AUTH_TERMINAL
+    assert _authority.INITIAL.value == _R._AUTH_INITIAL
+    assert {s.value for s in _authority.CANONICAL} == {_R._AUTH_PROMOTED}
+
+
+def test_the_restated_authority_edges_match_production():
+    live = {
+        (e.src.value, e.dst.value): (
+            frozenset(r.value for r in e.roles),
+            frozenset(e.requires_evidence),
+            e.requires_distinct_actor,
+        )
+        for e in _authority.EDGES
+    }
+    mine = {
+        pair: (rule.roles, rule.evidence, rule.distinct_actor)
+        for pair, rule in _R._AUTH_EDGES.items()
+    }
+    assert sorted(live) == sorted(mine), (
+        f"edges only in production: {sorted(set(live) - set(mine))}; "
+        f"only in the second reader: {sorted(set(mine) - set(live))}")
+    for pair in sorted(live):
+        assert live[pair] == mine[pair], (
+            f"{pair} differs: production {live[pair]}, "
+            f"second reader {mine[pair]}")
+
+
+def test_the_restated_task_vocabulary_matches_production():
+    assert {s.value for s in _tasks.TaskState} == _R._TASK_STATES
+    assert {r.value for r in _tasks.TaskRole} == _R._TASK_ROLES
+    assert {s.value for s in _tasks.TERMINAL} == _R._TASK_TERMINAL
+    assert _tasks.INITIAL.value == _R._TASK_INITIAL
+
+
+def test_the_restated_task_edges_match_production():
+    live = {
+        (e.src.value, e.dst.value): (
+            frozenset(r.value for r in e.roles),
+            e.requires_distinct_actor,
+            e.requires_lease,
+        )
+        for e in _tasks.EDGES
+    }
+    mine = {
+        pair: (rule.roles, rule.distinct_actor, rule.lease)
+        for pair, rule in _R._TASK_EDGES.items()
+    }
+    assert sorted(live) == sorted(mine), (
+        f"edges only in production: {sorted(set(live) - set(mine))}; "
+        f"only in the second reader: {sorted(set(mine) - set(live))}")
+    for pair in sorted(live):
+        assert live[pair] == mine[pair], (
+            f"{pair} differs: production {live[pair]}, "
+            f"second reader {mine[pair]}")
+
+
+def test_the_restated_lease_shape_matches_production():
+    """A lease this reader accepts is one the production record can hold."""
+    import dataclasses
+
+    fields = {f.name for f in dataclasses.fields(_tasks.Lease)}
+    required = {f.name for f in dataclasses.fields(_tasks.Lease)
+                if f.default is dataclasses.MISSING}
+    assert required == _R._LEASE_REQUIRED
+    assert fields - required == _R._LEASE_OPTIONAL
+
+
+def test_the_restated_digest_rule_matches_production():
+    """Including the cases that are not 64 lowercase hex characters."""
+    from qta_agent.canonical import is_digest
+
+    for value in ("a" * 64, "A" * 64, "a" * 63, "a" * 65, "", "g" * 64,
+                  "0123456789abcdef" * 4, None, 7, b"a" * 64,
+                  "a" * 63 + "\n"):
+        assert is_digest(value) == _R._is_digest(value), value
+
+
+# --- 3. the restatement is load-bearing ------------------------------------
+#
+# Weaken the production gate at runtime and ask the second reader again. It
+# must reach the same refusal from its own rules. Each of these would have
+# FAILED before D-2026-27: the reader called the weakened function.
+
+def _auth_log(tmp_path, name, moves, *, proposer="alice", create=None):
+    """A record and a sequence of transitions, straight into the log."""
+    log = EventLog(tmp_path / f"{name}.jsonl")
+    payload = {"record_id": "r1", "kind": "claim", "proposer": proposer,
+               "evidence": {}, "depends_on": [], "policy_id": None}
+    payload.update(create or {})
+    log.append(actor=proposer or "nobody", action="record.create",
+               target="r1", payload=payload)
+    for actor, move in moves:
+        log.append(actor=actor, action="record.transition", target="r1",
+                   payload={"record_id": "r1", **move})
+    return log
+
+
+_REVIEW = ("bob", {"src": "PROPOSED", "dst": "UNDER_REVIEW",
+                   "role": "VERIFIER"})
+_VERIFY = ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                   "role": "VERIFIER",
+                   "evidence": {"verification_report": _DG}})
+_SELF_VERIFY = ("alice", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                          "role": "VERIFIER",
+                          "evidence": {"verification_report": _DG}})
+
+
+def test_the_second_reader_refuses_a_self_verification_a_weakened_gate_allows(
+        tmp_path, monkeypatch):
+    """Separation of duties, with the production rule switched off."""
+    import dataclasses
+
+    req = _authority.TransitionRequest(
+        record_id="r1", src=_authority.State.UNDER_REVIEW,
+        dst=_authority.State.VERIFIED, actor="alice",
+        role=_authority.Role.VERIFIER,
+        evidence={"verification_report": _DG}, proposer="alice")
+
+    # Today's gate refuses it. Asserted so the weakening below is a CHANGE.
+    with pytest.raises(_authority.TransitionError, match="I4"):
+        _authority.check(req)
+
+    weak = tuple(dataclasses.replace(e, requires_distinct_actor=False)
+                 for e in _authority.EDGES)
+    monkeypatch.setattr(_authority, "EDGES", weak)
+    monkeypatch.setattr(_authority, "_BY_PAIR",
+                        {(e.src, e.dst): e for e in weak})
+
+    # Anti-vacuity: the weakening is real, and it reaches the gate.
+    assert _authority.check(req) is not None
+
+    log = _auth_log(tmp_path, "weak_i4", [_REVIEW, _SELF_VERIFY])
+    recon = _reconstruct(log)
+    assert any("I4:" in u for u in recon.unauthorized), recon.unauthorized
+    assert recon.records["r1"]["state"] == "UNDER_REVIEW"
+
+
+def test_the_second_reader_refuses_an_edge_a_weakened_gate_invents(
+        tmp_path, monkeypatch):
+    """I1: promotion requires prior verification, even if the table forgets.
+
+    The mutation here is an ADDITION rather than a removal, because that is
+    how this invariant actually dies: not by deleting the VERIFIED ->
+    PROMOTED edge but by adding a shortcut beside it.
+    """
+    shortcut = _authority.Edge(
+        _authority.State.PROPOSED, _authority.State.PROMOTED,
+        frozenset({_authority.Role.PROMOTER}), reason="a shortcut")
+    weak = _authority.EDGES + (shortcut,)
+    monkeypatch.setattr(_authority, "EDGES", weak)
+    monkeypatch.setattr(_authority, "_BY_PAIR",
+                        {(e.src, e.dst): e for e in weak})
+
+    req = _authority.TransitionRequest(
+        record_id="r1", src=_authority.State.PROPOSED,
+        dst=_authority.State.PROMOTED, actor="carol",
+        role=_authority.Role.PROMOTER, proposer="alice", policy_id="pol-1")
+    assert _authority.check(req) is not None          # anti-vacuity
+
+    log = _auth_log(tmp_path, "weak_i1", [
+        ("carol", {"src": "PROPOSED", "dst": "PROMOTED", "role": "PROMOTER",
+                   "policy_id": "pol-1"})])
+    recon = _reconstruct(log)
+    assert any("no edge PROPOSED -> PROMOTED" in u
+               for u in recon.unauthorized), recon.unauthorized
+    assert recon.canonical_ids() == ()
+
+
+def test_the_second_reader_refuses_a_self_verified_task_a_weakened_gate_allows(
+        tmp_path, monkeypatch):
+    """The same mutation on the other machine."""
+    import dataclasses
+
+    weak = tuple(dataclasses.replace(e, requires_distinct_actor=False)
+                 for e in _tasks.EDGES)
+    monkeypatch.setattr(_tasks, "EDGES", weak)
+    monkeypatch.setattr(_tasks, "_BY_PAIR",
+                        {(e.src, e.dst): e for e in weak})
+
+    task = _tasks.Task(task_id="t1", tool_id="probe", submitter="alice",
+                       inputs_digest=_DG, state=_tasks.TaskState.COMPLETED,
+                       executed_by="worker", result_digest=_DG2)
+    req = _tasks.TaskTransition(
+        task_id="t1", src=_tasks.TaskState.COMPLETED,
+        dst=_tasks.TaskState.VERIFIED, actor="worker",
+        role=_tasks.TaskRole.VERIFIER, at_seq=99)
+    # Anti-vacuity: the weakening is real, and it reaches the gate.
+    assert _tasks.check(req, task) is not None
+
+    log = _task_log(tmp_path, "weak_task_i4", _SELF_VERIFIED_CHAIN)
+    recon = reconstruct_tasks(log)
+    assert any("may not also perform" in u for u in recon.unauthorized), \
+        recon.unauthorized
+    assert recon.verified_ids() == ()
+
+
+def test_the_second_reader_refuses_a_lapsed_lease_a_weakened_gate_allows(
+        tmp_path, monkeypatch):
+    """Possession, with the production requirement switched off."""
+    import dataclasses
+
+    weak = tuple(dataclasses.replace(e, requires_lease=False)
+                 for e in _tasks.EDGES)
+    monkeypatch.setattr(_tasks, "EDGES", weak)
+    monkeypatch.setattr(_tasks, "_BY_PAIR",
+                        {(e.src, e.dst): e for e in weak})
+
+    task = _tasks.Task(task_id="t1", tool_id="probe", submitter="alice",
+                       inputs_digest=_DG, state=_tasks.TaskState.LEASED,
+                       lease=_tasks.Lease(lease_id="L1", holder="worker",
+                                          granted_seq=0,
+                                          expires_after_seq=0))
+    req = _tasks.TaskTransition(
+        task_id="t1", src=_tasks.TaskState.LEASED,
+        dst=_tasks.TaskState.EXECUTING, actor="worker",
+        role=_tasks.TaskRole.WORKER, at_seq=99, lease_id="L1")
+    assert _tasks.check(req, task) is not None        # anti-vacuity
+
+    log = _task_log(tmp_path, "weak_task_lease", _LAPSED_LEASE_CHAIN)
+    recon = reconstruct_tasks(log)
+    assert any("lapsed after seq" in u for u in recon.unauthorized), \
+        recon.unauthorized
+    assert recon.tasks["t1"]["state"] == "LEASED"
+
+
+def _task_log(tmp_path, name, moves, *, submitter="alice"):
+    """A task and a sequence of records, straight into the log."""
+    log = EventLog(tmp_path / f"{name}.jsonl")
+    log.append(actor=submitter, action="task.create", target="t1",
+               payload={"task_id": "t1", "tool_id": "probe",
+                        "submitter": submitter, "inputs_digest": _DG})
+    for actor, action, body in moves:
+        log.append(actor=actor, action=action, target="t1",
+                   payload={"task_id": "t1", **body})
+    return log
+
+
+def _tr(actor, src, dst, role, **extra):
+    return (actor, ACT_TASK_TRANSITION,
+            {"src": src, "dst": dst, "role": role, **extra})
+
+
+_LEASE = {"lease_id": "L1", "holder": "worker", "granted_seq": 2,
+          "expires_after_seq": 9999}
+_DEAD_LEASE = {"lease_id": "L1", "holder": "worker", "granted_seq": 2,
+               "expires_after_seq": 0}
+
+#: Up to the moment work is owned and running.
+_TO_EXECUTING = [
+    _tr("alice", "CREATED", "VALIDATED", "SUBMITTER"),
+    _tr("alice", "VALIDATED", "QUEUED", "SCHEDULER"),
+    _tr("worker", "QUEUED", "LEASED", "WORKER", lease=_LEASE),
+    _tr("worker", "LEASED", "EXECUTING", "WORKER", lease_id="L1"),
+]
+
+_EXECUTION = ("worker", "task.execution",
+              {"result_digest": _DG2, "outcome": "COMPLETED",
+               "tool_id": "probe"})
+
+#: ...and through a legitimate completion.
+_TO_COMPLETED = _TO_EXECUTING + [
+    _EXECUTION,
+    _tr("worker", "EXECUTING", "COMPLETED", "WORKER", lease_id="L1",
+        result_digest=_DG2),
+]
+
+#: The executor verifying its own work.
+_SELF_VERIFIED_CHAIN = _TO_COMPLETED + [
+    _tr("worker", "COMPLETED", "VERIFIED", "VERIFIER"),
+]
+
+#: Possession that ran out before the work was reported.
+_LAPSED_LEASE_CHAIN = [
+    _tr("alice", "CREATED", "VALIDATED", "SUBMITTER"),
+    _tr("alice", "VALIDATED", "QUEUED", "SCHEDULER"),
+    _tr("worker", "QUEUED", "LEASED", "WORKER", lease=_DEAD_LEASE),
+    _tr("worker", "LEASED", "EXECUTING", "WORKER", lease_id="L1"),
+]
+
+
+# --- the paired matrix: every restated rule, refused and not refused -------
+#
+# A refusal that fires for everything proves nothing about the rule it is
+# named after, so each row that expects a refusal has a neighbour that
+# expects none, differing only in the thing the rule is about.
+
+_AUTH_MATRIX = [
+    ("honest-review", {}, [_REVIEW], None),
+    ("role-not-permitted", {},
+     [("bob", {"src": "PROPOSED", "dst": "UNDER_REVIEW",
+               "role": "PROMOTER"})],
+     "role PROMOTER may not perform PROPOSED -> UNDER_REVIEW"),
+
+    ("honest-reject", {},
+     [("bob", {"src": "PROPOSED", "dst": "REJECTED", "role": "VERIFIER",
+               "evidence": {"rejection_reason": _DG}})], None),
+    ("leaves-a-terminal-state", {},
+     [("bob", {"src": "PROPOSED", "dst": "REJECTED", "role": "VERIFIER",
+               "evidence": {"rejection_reason": _DG}}),
+      ("bob", {"src": "REJECTED", "dst": "UNDER_REVIEW",
+               "role": "VERIFIER"})],
+     "I2: REJECTED is terminal"),
+
+    ("honest-verify", {}, [_REVIEW, _VERIFY], None),
+    ("verified-by-its-own-proposer", {}, [_REVIEW, _SELF_VERIFY],
+     "I4: 'alice' proposed r1"),
+    ("verified-with-no-proposer-on-record", {"proposer": None},
+     [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                        "role": "VERIFIER",
+                        "evidence": {"verification_report": _DG}})],
+     "the record's proposer is unknown"),
+
+    ("verified-with-no-evidence", {},
+     [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                        "role": "VERIFIER"})],
+     "requires evidence ['verification_report']"),
+    ("verified-with-prose-for-evidence", {},
+     [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                        "role": "VERIFIER",
+                        "evidence": {"verification_report": "trust me"}})],
+     "must be a sha256 digest"),
+    ("verified-with-an-uppercase-digest", {},
+     [_REVIEW, ("bob", {"src": "UNDER_REVIEW", "dst": "VERIFIED",
+                        "role": "VERIFIER",
+                        "evidence": {"verification_report": "A" * 64}})],
+     "must be a sha256 digest"),
+
+    ("honest-promotion", {},
+     [_REVIEW, _VERIFY,
+      ("carol", {"src": "VERIFIED", "dst": "PROMOTED", "role": "PROMOTER",
+                 "evidence": {"verification_report": _DG,
+                              "policy_id": "pol-1"},
+                 "policy_id": "pol-1"})], None),
+    ("promotion-with-no-policy-in-force", {},
+     [_REVIEW, _VERIFY,
+      ("carol", {"src": "VERIFIED", "dst": "PROMOTED", "role": "PROMOTER",
+                 "evidence": {"verification_report": _DG,
+                              "policy_id": "pol-1"}})],
+     "I5: promotion requires an explicit policy identity"),
+    ("promotion-citing-an-empty-policy", {},
+     [_REVIEW, _VERIFY,
+      ("carol", {"src": "VERIFIED", "dst": "PROMOTED", "role": "PROMOTER",
+                 "evidence": {"verification_report": _DG, "policy_id": ""},
+                 "policy_id": "pol-1"})],
+     "I5: policy_id must be a non-empty id"),
+
+    ("no-such-edge", {},
+     [("carol", {"src": "PROPOSED", "dst": "PROMOTED", "role": "PROMOTER",
+                 "policy_id": "pol-1"})],
+     "no edge PROPOSED -> PROMOTED"),
+    ("a-state-nobody-defined", {},
+     [("bob", {"src": "PROPOSED", "dst": "ASCENDED", "role": "VERIFIER"})],
+     "'ASCENDED' is not an authority state this reader knows"),
+    ("a-role-nobody-defined", {},
+     [("bob", {"src": "PROPOSED", "dst": "UNDER_REVIEW", "role": "GOD"})],
+     "'GOD' is not a role this reader knows"),
+    ("moving-out-of-a-state-nobody-defined", {"create": {"state": "LIMBO"}},
+     [("bob", {"src": "LIMBO", "dst": "UNDER_REVIEW", "role": "VERIFIER"})],
+     "'LIMBO' is not an authority state this reader knows"),
+]
+
+
+@pytest.mark.parametrize(
+    "case,kwargs,moves,expected",
+    [(c, k, m, e) for c, k, m, e in _AUTH_MATRIX],
+    ids=[c for c, _, _, _ in _AUTH_MATRIX])
+def test_the_restated_authority_rules_decide_each_case(
+        tmp_path, case, kwargs, moves, expected):
+    """One row per restated rule, and one neighbour per row that is allowed.
+
+    The pairing is the point. ``verified-with-prose-for-evidence`` only says
+    something about the digest rule because ``honest-verify`` -- the same
+    move with a real digest -- is not refused.
+    """
+    log = _auth_log(tmp_path, f"m_{case}".replace("-", "_"), moves, **kwargs)
+    recon = _reconstruct(log)
+    if expected is None:
+        assert not recon.unauthorized, recon.unauthorized
+    else:
+        assert any(expected in u for u in recon.unauthorized), (
+            f"{case}: expected {expected!r}, got {recon.unauthorized}")
+
+
+_TASK_MATRIX = [
+    ("honest-run-through-verified",
+     _TO_COMPLETED + [_tr("checker", "COMPLETED", "VERIFIED", "VERIFIER")],
+     None),
+
+    ("executing-with-no-lease-at-all",
+     [_tr("alice", "CREATED", "VALIDATED", "SUBMITTER"),
+      _tr("alice", "VALIDATED", "QUEUED", "SCHEDULER"),
+      _tr("worker", "QUEUED", "LEASED", "WORKER"),
+      _tr("worker", "LEASED", "EXECUTING", "WORKER")],
+     "requires the task's lease, and it holds none"),
+    ("executing-citing-somebody-elses-lease",
+     _TO_EXECUTING[:3] + [
+         _tr("worker", "LEASED", "EXECUTING", "WORKER", lease_id="L2")],
+     "is not this task's lease"),
+    ("executing-on-a-lease-held-by-another-worker",
+     _TO_EXECUTING[:3] + [
+         _tr("mallory", "LEASED", "EXECUTING", "WORKER", lease_id="L1")],
+     "is held by 'worker', not 'mallory'"),
+    ("executing-after-possession-ran-out", _LAPSED_LEASE_CHAIN,
+     "lapsed after seq 0"),
+    ("executing-on-a-lease-with-no-expiry-this-reader-can-read",
+     [_tr("alice", "CREATED", "VALIDATED", "SUBMITTER"),
+      _tr("alice", "VALIDATED", "QUEUED", "SCHEDULER"),
+      _tr("worker", "QUEUED", "LEASED", "WORKER",
+          lease={**_LEASE, "expires_after_seq": "soon"}),
+      _tr("worker", "LEASED", "EXECUTING", "WORKER", lease_id="L1")],
+     "names no sequence it expires after"),
+
+    ("completed-with-no-result-to-point-at",
+     _TO_EXECUTING + [_EXECUTION,
+                      _tr("worker", "EXECUTING", "COMPLETED", "WORKER",
+                          lease_id="L1")],
+     "COMPLETED requires the digest of the execution result"),
+
+    ("verified-by-the-actor-that-executed-it", _SELF_VERIFIED_CHAIN,
+     "may not also perform COMPLETED -> VERIFIED"),
+    ("verified-with-no-executor-on-record",
+     _TO_EXECUTING + [
+         _tr("worker", "EXECUTING", "COMPLETED", "WORKER", lease_id="L1",
+             result_digest=_DG2),
+         _tr("checker", "COMPLETED", "VERIFIED", "VERIFIER")],
+     "no executor is recorded"),
+
+    ("invalidating-a-verified-task-is-allowed",
+     _TO_COMPLETED + [_tr("checker", "COMPLETED", "VERIFIED", "VERIFIER"),
+                      _tr("system", "VERIFIED", "INVALIDATED", "SYSTEM")],
+     None),
+    ("requeueing-a-verified-task-is-not",
+     _TO_COMPLETED + [_tr("checker", "COMPLETED", "VERIFIED", "VERIFIER"),
+                      _tr("alice", "VERIFIED", "QUEUED", "SCHEDULER")],
+     "VERIFIED is terminal"),
+
+    ("cancelling-running-work-is-allowed",
+     _TO_EXECUTING + [_tr("alice", "EXECUTING", "CANCELLED", "SCHEDULER")],
+     None),
+    ("verifying-a-task-that-never-ran",
+     [_tr("checker", "CREATED", "VERIFIED", "VERIFIER")],
+     "no edge CREATED -> VERIFIED"),
+    ("validated-by-a-role-that-may-not",
+     [_tr("worker", "CREATED", "VALIDATED", "WORKER")],
+     "role WORKER may not perform CREATED -> VALIDATED"),
+    ("a-task-state-nobody-defined",
+     [_tr("alice", "CREATED", "DONE", "SUBMITTER")],
+     "'DONE' is not a task state this reader knows"),
+    ("a-task-role-nobody-defined",
+     [_tr("alice", "CREATED", "VALIDATED", "BOSS")],
+     "'BOSS' is not a task role this reader knows"),
+]
+
+
+@pytest.mark.parametrize(
+    "case,moves,expected", _TASK_MATRIX,
+    ids=[c for c, _, _ in _TASK_MATRIX])
+def test_the_restated_task_rules_decide_each_case(
+        tmp_path, case, moves, expected):
+    """One row per restated task rule, paired the same way."""
+    log = _task_log(tmp_path, f"t_{case}".replace("-", "_"), moves)
+    recon = reconstruct_tasks(log)
+    if expected is None:
+        assert not recon.unauthorized, recon.unauthorized
+    else:
+        assert any(expected in u for u in recon.unauthorized), (
+            f"{case}: expected {expected!r}, got {recon.unauthorized}")
+
+
+def test_a_lease_record_this_reader_cannot_read_is_reported(tmp_path):
+    """Not silently treated as no lease, and not a crash either.
+
+    The production dataclass raised TypeError on a shape it could not take,
+    and this module caught it. Restating the shape means the reader has to
+    say what it expects, which is also the only way the anomaly can name the
+    problem instead of the exception type.
+    """
+    log = _task_log(tmp_path, "bad_lease", [
+        _tr("alice", "CREATED", "VALIDATED", "SUBMITTER"),
+        _tr("alice", "VALIDATED", "QUEUED", "SCHEDULER"),
+        _tr("worker", "QUEUED", "LEASED", "WORKER",
+            lease={"lease_id": "L1", "holder": "worker"}),
+        _tr("worker", "LEASED", "EXECUTING", "WORKER", lease_id="L1")])
+    recon = reconstruct_tasks(log)
+    assert any("cannot interpret" in a for a in recon.anomalies), \
+        recon.anomalies
+    assert any("holds none" in u for u in recon.unauthorized), \
+        recon.unauthorized
+    assert recon.tasks["t1"]["state"] == "LEASED"
+
+
+def test_a_well_formed_lease_is_not_reported(tmp_path):
+    """Anti-vacuity for the rule above."""
+    log = _task_log(tmp_path, "good_lease", _TO_EXECUTING)
+    recon = reconstruct_tasks(log)
+    assert not recon.anomalies, recon.anomalies
+    assert not recon.unauthorized, recon.unauthorized
+    assert recon.tasks["t1"]["state"] == "EXECUTING"
+
+
+# --- the diagnostic mode is not a permissive one ---------------------------
+
+def test_diagnostic_mode_still_refuses_a_state_this_reader_cannot_name(
+        tmp_path):
+    """``reauthorize=False`` turns the GATE off, not the vocabulary.
+
+    Callers use it to ask "what does this log say, taking every record at
+    face value" -- a question about history, not a licence to fold a state
+    nothing in the system defines into the answer. A record moving to
+    ASCENDED would otherwise be projected as being in ASCENDED, and every
+    later reader of that projection would be confidently wrong about a state
+    that does not exist.
+    """
+    log = _auth_log(tmp_path, "diag_auth", [
+        ("bob", {"src": "PROPOSED", "dst": "ASCENDED", "role": "VERIFIER"})])
+    recon = _reconstruct(log, reauthorize=False)
+    assert not recon.unauthorized, recon.unauthorized       # the gate is off
+    assert any("not an authority state this reader knows" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.records["r1"]["state"] == "PROPOSED"
+
+
+def test_diagnostic_mode_still_applies_a_state_it_can_name(tmp_path):
+    """Anti-vacuity: with the gate off, a known state IS folded in.
+
+    Including one the gate would have refused -- that is what the mode is
+    for, and it is what makes the assertion above about the VOCABULARY
+    rather than about the rules.
+    """
+    log = _auth_log(tmp_path, "diag_auth_ok", [
+        ("alice", {"src": "PROPOSED", "dst": "UNDER_REVIEW",
+                   "role": "PROPOSER"})])
+    recon = _reconstruct(log, reauthorize=False)
+    assert not recon.anomalies, recon.anomalies
+    assert recon.records["r1"]["state"] == "UNDER_REVIEW"
+    # ...and with the gate on, the same record is refused.
+    assert any("role PROPOSER may not perform" in u
+               for u in _reconstruct(log).unauthorized)
+
+
+def test_diagnostic_mode_still_refuses_a_task_state_it_cannot_name(tmp_path):
+    log = _task_log(tmp_path, "diag_task", [
+        _tr("alice", "CREATED", "DONE", "SUBMITTER")])
+    recon = reconstruct_tasks(log, reauthorize=False)
+    assert not recon.unauthorized, recon.unauthorized
+    assert any("not a task state this reader knows" in a
+               for a in recon.anomalies), recon.anomalies
+    assert recon.tasks["t1"]["state"] == "CREATED"
+
+
+def test_diagnostic_mode_still_applies_a_task_state_it_can_name(tmp_path):
+    """Anti-vacuity, and the same shape: a refused move is still folded."""
+    log = _task_log(tmp_path, "diag_task_ok", [
+        _tr("worker", "CREATED", "VALIDATED", "WORKER")])
+    recon = reconstruct_tasks(log, reauthorize=False)
+    assert not recon.anomalies, recon.anomalies
+    assert recon.tasks["t1"]["state"] == "VALIDATED"
+    assert any("role WORKER may not perform" in u
+               for u in reconstruct_tasks(log).unauthorized)

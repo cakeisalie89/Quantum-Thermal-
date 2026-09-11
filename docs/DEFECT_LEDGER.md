@@ -2174,6 +2174,186 @@ budget. It closed the rule. The decision that applies the rule was unguarded,
 and `attempts <= max_attempts` was one scan-write window away from being false
 the whole time.
 
+## D-2026-27 — the second reader asked the first reader whether the first reader would have allowed it
+
+**CLASS** — `VERIFIER_INDEPENDENCE_DEFECT`, `AUTHORITY_DEFECT`,
+`CIRCULAR_EVIDENCE_DEFECT`.
+
+**AFFECTED COMMIT** — present since `reconstruct.py` was written; still true at
+`b2787a0`.
+
+**DISCOVERED BY.** P0-R12 of the second reopening. Not by a failing test —
+every test passed, and that is the finding.
+
+**DEFECT.** `qta_agent/reconstruct.py` is the package's independent reader: the
+thing that answers *given only the log, what is canonical?* without trusting
+the running system. For the nine subsystems at the bottom of the module it does
+exactly that, in plain strings and plain dicts, and says so in
+`SubsystemReconstruction`'s docstring:
+
+> a second reader that lives beside the first, imports the first's enums and
+> calls the first's helpers is not a second reader — it is the same decision
+> run twice, agreeing with itself.
+
+The two machines at the **top** of the same module did that. `reconstruct()`
+imported `authority.check`, `TransitionRequest`, `State` and `Role` and handed
+each replayed record straight to the production gate. `reconstruct_tasks()`
+imported `tasks.check`, `TaskTransition`, `TaskState`, `TaskRole`, `Task` and
+`Lease` and did the same. Thirty-one lines across the module.
+
+**WHAT THAT COSTS.** Everything the differential comparison claims:
+
+* Weaken a production rule and the second reader is weakened identically. It
+  cannot disagree with the gate about a question it asks the gate.
+* An empty diff between the two readers then means *the reducers fold the same
+  way*, which is a much smaller claim than the one the module's docstring
+  makes, and nothing distinguishes the two claims from outside.
+* The failure is **silent by construction**. There is no assertion that can
+  detect it from the outputs, because both readers produce the same correct
+  answer right up until the moment production is wrong, and then they produce
+  the same wrong one.
+
+`separate_verify.py`'s docstring named the decay path exactly — *"one future
+edit importing the primary reducer 'to remove the duplication' turns the
+comparison circular while it goes on reporting agreement"* — and the import it
+describes was already there, in the reader that subprocess runs.
+
+**AND A TEST STOOD GUARD OVER THE COUPLING.**
+`test_the_reconstruction_shares_no_reducer_with_the_projection` ended with
+
+```python
+# It MAY import the transition table -- re-authorizing against a
+# different table would compare two different questions -- but it must
+# derive the resulting state itself.
+assert "tasks.check" in imported or "tasks" in imported
+```
+
+so the coupling was not an oversight that survived review; it was a
+**requirement** something asserted. The concern behind it is real — two tables
+that drift compare two different questions — but the remedy inverted the
+module's purpose to serve it.
+
+`test_the_second_reader_imports_none_of_the_layers_it_reads` listed eight
+forbidden layers and omitted `authority` and `tasks`: the two it was actually
+standing in front of.
+
+**IMPLEMENTATION FIX.** Every load-bearing rule restated in `reconstruct.py`'s
+own terms, following the pattern the nine subsystems below already used:
+
+* `_AUTH_STATES`, `_AUTH_ROLES`, `_AUTH_INITIAL`, `_AUTH_TERMINAL`,
+  `_AUTH_PROMOTED`, and `_AUTH_EDGES` — all fourteen edges with their roles,
+  required evidence and separation-of-duties flags.
+* `_auth_refusal()` — terminality (I2), edge existence, role membership,
+  distinct actor (I4), evidence presence and digest shape (I6), policy
+  identity in force (I5), in production's order.
+* `_TASK_STATES`, `_TASK_ROLES`, `_TASK_INITIAL`, `_TASK_TERMINAL` and
+  `_TASK_EDGES` — all twenty-two edges including the five cancellation edges
+  and `VERIFIED -> INVALIDATED`, which is why terminality is checked only
+  where no edge exists.
+* `_task_refusal()` — edge existence with the distinct terminal message, role
+  membership, lease possession (exists, id matches, holder is the actor, not
+  lapsed), separation of duties, and `COMPLETED` requiring a result digest.
+* `_is_digest()` — 64 lowercase hex characters, written as a set membership
+  rather than a compiled pattern.
+* `_parse_lease()` — the lease record's shape, so an unreadable one is a named
+  anomaly rather than somebody else's `TypeError`.
+
+`reconstruct.py` now imports nothing from `authority` or `tasks`, and calls no
+function named `check`.
+
+**THE RESTATEMENT IS A COST, PAID ON PURPOSE.** Two statements of one rule can
+drift. The alternative cannot be recovered by any test at all: a reader that
+calls the gate agrees with a broken gate perfectly and there is nothing to
+assert. So drift is moved into the open — conformance tests compare the two
+tables element by element and name the difference — and the reader stays
+uncoupled. An empty diff is still evidence and not proof: two statements can
+share a misunderstanding the log cannot reveal.
+
+**A REFUSAL IS NOW A STRING, NOT AN EXCEPTION.** This module diagnoses rather
+than enforces; raising somebody else's exception type was the shape that made
+importing it feel natural. Two consequences fell out:
+
+* A payload naming a state or role nothing defines used to reach
+  `State(...)`/`TaskState(...)` and raise `ValueError`, which `reconstruct()`
+  caught and `reconstruct_tasks()` did not — so a malformed record crashed the
+  reader that promises never to raise on content. Both now report it.
+* A lease whose `expires_after_seq` is not orderable against a sequence number
+  made production's `is_live` raise `TypeError` out of the middle of a replay.
+  It is now a finding. Booleans are deliberately *not* special-cased: Python's
+  `True` is `1` in that comparison, so refusing them would be drift.
+
+**`reauthorize=False` IS A DIAGNOSTIC MODE, NOT A PERMISSIVE ONE.** It turns
+the gate off so a caller can ask what the log says at face value. It does not
+license folding a state nothing defines into the answer, so both replays still
+refuse to apply one, and paired tests assert that a KNOWN state — including one
+the gate would refuse — is still folded in.
+
+**ADVERSARIAL TESTS.** Three kinds, because the three ways this defect comes
+back are different:
+
+1. **The coupling is gone.** `test_the_second_reader_imports_neither_authorization_gate`
+   over parsed imports (this file's prose names both modules constantly, so a
+   substring search would fail for being right), and
+   `test_the_second_reader_calls_no_function_named_check` over the call graph —
+   because an import guard that reads only the top of the file misses
+   `from .tasks import check` inside a function body.
+2. **The restatement is faithful.** Five conformance tests comparing states,
+   roles, initial, terminal, both edge tables, the lease shape, and `_is_digest`
+   against `canonical.is_digest` over eleven inputs including uppercase,
+   off-by-one lengths, bytes and `None`.
+3. **The restatement is load-bearing.** Four tests that weaken the PRODUCTION
+   table at runtime — separation of duties off, a `PROPOSED -> PROMOTED`
+   shortcut added, task separation off, lease possession off — assert the
+   weakened gate now ACCEPTS what it used to refuse (anti-vacuity: the
+   weakening is real and reaches the gate), and then require the second reader
+   to refuse anyway. Every one of these fails on the old code.
+
+**PAIRED MATRICES.** Seventeen authority rows and seventeen task rows, each
+refusing row sitting beside a row that differs only in the thing its rule is
+about: `verified-with-prose-for-evidence` says something about the digest rule
+only because `honest-verify` — the same move with a real digest — is not
+refused. `requeueing-a-verified-task-is-not` is paired with
+`invalidating-a-verified-task-is-allowed`, which is what keeps "terminal" from
+being read as "sealed".
+
+**MUTATIONS.** `R41`–`R74` on `tools/mutations/agent_second_reader.json`, in
+three kinds matching the three test kinds: disable one restated rule, drift one
+restated table away from production, and re-couple the reader to the gate by
+import (at module scope AND inside a function body) or by call.
+
+**FORBIDDEN FAKE FIXES.** Keeping the imports and adding a comment that the
+duplication is deliberate. Restating the rules and then calling production
+"to check the restatement" — that is the same circularity with an extra step.
+Deleting the conformance tests because they duplicate the tables: they are the
+only thing that can see drift, and drift is the price of independence.
+Asserting the two readers agree on honest logs and calling that independence —
+they agreed before, on everything, which is precisely the problem.
+
+**INVALIDATED CLAIMS.** Any reading of the differential suite as evidence that
+two independent implementations agreed about authority records or tasks, at any
+commit before this one. They agreed about the fold. The authorization decision
+was made once, by production, and read back twice.
+
+**WHERE THE INDEPENDENCE STOPS, STATED RATHER THAN IMPLIED.** After this fix
+`reconstruct.py` imports exactly two things from the package, and neither is
+an accident:
+
+* `events.EventLog` — the log's reader. Shared **deliberately**: the two
+  readers must be looking at the same bytes, or a disagreement between them
+  says nothing about either one's rules. A second parser would be a different
+  and much smaller claim.
+* `actions` — the manifest of which action strings this package writes,
+  used to tell *another subsystem's event* from *an event nothing here
+  writes*. That is a question about what EXISTS, not about what is ALLOWED,
+  and its answer changes no authorization decision: an action misclassified
+  either way is counted or reported, never applied.
+
+Beyond those, the reader shares nothing — including `canonical.is_digest`,
+which it now restates, because the digest-shape rule is load-bearing for I6.
+
+This paragraph is here so that "independent" names a checkable boundary
+instead of a mood. The AST guards enforce it.
+
 ### The gate's verdict, at `04f170d`
 
 All twenty-three are true at that commit, and every one of them is answered by
@@ -2230,6 +2410,35 @@ hostile review reading the live source found D-2026-23 and further findings
 recorded above it. The chronology is the point and is left intact: gate
 satisfied → external review found a sibling defect → P0 reopened → repaired →
 gate re-run.
+
+---
+
+## Hosted evidence, per commit
+
+A gate condition is satisfied **for a commit** when that commit's own hosted
+run is green. It is never inherited from a parent: `de7f0e6` passed locally
+and its own hosted run then failed with
+
+```
+TypeError: AF_INET address must be a pair (host, port)
+```
+
+which is what made D-2026-25 a `HOSTED_INTEGRATION_DEFECT` rather than a
+finished repair. That failure is recorded as a **failed R11 closure attempt**,
+not as R59: R59 is host-CPU-dependent byte divergence, and it is only
+available as a classification when pytest passed *and* package-consistency
+actually ran. Neither was true at `de7f0e6`.
+
+| defect | evidence required | commit | state |
+|---|---|---|---|
+| D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
+| D-2026-26 | the cross-process `read-decide-write` mutation matrix | `b2787a0` | **`CURRENTLY_OPEN_FINDING`** until that step is green on a run of its own; the local matrix is 11/11 and local evidence is not the condition |
+| D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | this commit | pending its own hosted run; local evidence is 74/74 and is recorded as local |
+
+`de7f0e6` is retained in this table's history rather than deleted: a commit
+whose closure attempt failed is evidence about how the class was actually
+closed, and removing it would make the repair look like it worked the first
+time.
 
 ---
 
