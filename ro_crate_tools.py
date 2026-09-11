@@ -172,6 +172,45 @@ def validate(meta_path: Path = META) -> int:
                for e in g):
         problems.append("root dataset entity missing")
     by = {e["@id"]: e for e in g}
+    if "./" not in by or "#simulation-action" not in by:
+        # Without these the checks below index a dict that has no such key,
+        # and the validator dies with a KeyError traceback instead of
+        # returning a verdict. A crash is not a refusal.
+        print(f"RO-Crate validation: {len(g)} entities | problems "
+              f"{len(problems)} {problems[:3]}")
+        print("RESULT: FAIL")
+        return 1
+
+    # A VALIDATION OF NOTHING IS NOT A VALIDATION (D-2026-39).
+    #
+    # Every checksum this function verifies is verified inside the loop
+    # below, over `hasPart`. Handed a crate with a well-formed root, a
+    # CreateAction and `"hasPart": []`, the loop ran zero times, nothing was
+    # checked, and this printed RESULT: VALID and exit 0 -- writing
+    # `"result": "VALID"` into a report the manifest hashes. Reproduced
+    # before this guard existed, in the same sweep that found the same shape
+    # in validate_hdf5_equivalence.py, which shares this step of the
+    # regeneration order.
+    #
+    # The second half is scope COMPLETENESS rather than mere non-emptiness:
+    # an entity that carries a checksum and sits outside `hasPart` is one
+    # this loop never reaches. Contextual entities -- the `#`-prefixed ones,
+    # which describe things that are not files in this tree -- are excluded,
+    # because `#stage7-input-zip` is legitimately one of those and a rule
+    # that flagged it would be a rule about the wrong thing.
+    parts = {p["@id"] for p in by["./"]["hasPart"]}
+    if not parts:
+        problems.append(
+            "the crate references no files, so no checksum was verified; a "
+            "validation with an empty scope is not a validation")
+    unchecked = sorted(e["@id"] for e in g
+                       if "sha256" in e and not e["@id"].startswith("#")
+                       and e["@id"] not in parts)
+    if unchecked:
+        problems.append(
+            f"entities carry a checksum that nothing verifies, because they "
+            f"are outside hasPart: {unchecked}")
+
     for part in by["./"]["hasPart"]:
         rid = part["@id"]
         if rid not in by:

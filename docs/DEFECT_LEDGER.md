@@ -3590,6 +3590,101 @@ covers the state that really is sealed.
 
 ---
 
+## D-2026-39 — two verifiers that checked nothing and said so in the affirmative
+
+**CLASS** — `VACUOUS_VERIFIER`, twice, in a class this repository had already
+named and swept once.
+
+**AFFECTED COMMIT** — since both verifiers were written.
+
+**DISCOVERED BY.** Working the P1 item recorded as "verifier anti-vacuity" —
+by sweep, not by a failing run. Worth stating plainly given the week: the two
+findings before this one were both handed to me by hosted CI after I had
+shipped them.
+
+**THE CLASS WAS ALREADY ON THE RECORD.** `tools/performance_baseline.py`
+calls it "the vacuous ... defect"; `test_the_recorder_refuses_to_record_nothing`
+says outright:
+
+> This repository already carries that defect once, in a verifier that
+> compared zero files and printed IDENTICAL.
+
+The class was identified, one sibling was fixed, and **the sweep stopped
+there**. Both instances below sit in the same step of
+`MANIFEST_BOUNDARY.md`'s regeneration order, which describes them together:
+"verifiers that also **emit a tracked report**".
+
+**INSTANCE 1 — `validate_hdf5_equivalence.py`.** Every check appends to
+`problems`, so the verdict was `EQUIVALENT` exactly when nothing went wrong,
+including when nothing happened. Handed a mapping with no outputs and an
+HDF5 file carrying a well-formed `/provenance` group:
+
+```
+equivalence: {'sources_checked': 0, 'datasets_checked': 0, ...} | problems 0
+RESULT: EQUIVALENT
+exit code: 0
+report result field: EQUIVALENT
+```
+
+That word is written into `stage8_reports/hdf5_equivalence_report.json`,
+which the RO-Crate publishes as an entity. The counts were printed all along
+and that is not enough: the VERDICT travels, and a downstream reader sees the
+word, not the zero beside it.
+
+Note what masked it. A first attempt at the reproducer failed — but on
+"extra unmapped dataset groups" and then on eight `/provenance missing attr`
+problems, neither of which has anything to do with equivalence. The vacuity
+was shielded by incidental checks, which is why the fixture in the test is
+deliberately well-formed.
+
+`build_hdf5.py` already refuses an incomplete output set. The validator that
+checks its work did not.
+
+**INSTANCE 2 — `ro_crate_tools.py validate`, found by sweeping for the
+first's siblings.** Every checksum it verifies is verified inside a loop over
+`hasPart`. With `hasPart` empty the loop runs zero times:
+
+```
+RO-Crate validation: 3 entities | 0 referenced files | problems 0 []
+RESULT: VALID
+exit code: 0
+```
+
+Also written into a tracked report, `stage8_reports/ro_crate_validation_report.json`.
+
+**REPAIR, IN THE STRONGER FORM.** "Did you check anything" is the weak
+question; "did you check what you said you would" is the one worth asking.
+
+* The equivalence validator compares `sources_checked` against the mapping's
+  own declared `n_governed`, so a mapping truncated to three outputs is
+  refused as well as an empty one.
+* The crate validator refuses an empty `hasPart` **and** reports any entity
+  carrying a checksum that sits outside it — a hash nothing verifies is
+  decoration. Contextual `#`-prefixed entities are excluded, because
+  `#stage7-input-zip` is legitimately one and a rule that flagged it would be
+  a rule about the wrong thing. That exclusion was measured against the real
+  crate before it was written, not assumed.
+
+**AND A CRASH IS NOT A REFUSAL.** The crate validator appended "root dataset
+entity missing" and then indexed `by["./"]` anyway, so a crate without a root
+died with a KeyError traceback instead of returning a verdict — in a
+repository that keeps a whole suite named `test_hostile_input_no_traceback`.
+It now returns FAIL.
+
+**WHAT THE SWEEP FOUND ALREADY GUARDED**, recorded so the next reader does
+not redo it: `completion_matrix`, `fuzz_substrate`, `performance_baseline`,
+`repo_scope`, `workflow_contract`, `package_consistency_check`,
+`_stage10_index_tool` and `mutation_matrix` each carry an explicit
+anti-vacuity guard. `tools/independent_verify.py` does not refuse an empty
+log — correctly, since an empty log is a legitimate state — but publishes
+`events_replayed` and a per-subsystem count beside its verdict, with a
+comment saying why. Not examined: `stage6_preservation_check`,
+`manuscript_consistency_check`, `verify_release`, `tools/audit_log`,
+`tools/model_check`, `qta_agent/separate_verify`. Saying which ones were not
+looked at is the difference between a sweep and a claim about one.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3670,8 +3765,9 @@ not bear on it.
 | D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | this commit | pending its own hosted run; local evidence is 34 anchors matching and the suites green, recorded as local |
 | D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
 | D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
-| D-2026-37 (P1) | `full-suite` — the job that found it — green on this commit's own run, on a runner busy enough to have failed the old guard | this commit | pending its own hosted run; locally the whole performance suite is green and the counting probe reads 100/100 healthy against 251/1067 for the regression shape |
+| D-2026-37 (P1) | `full-suite`'s pytest step — the step that found it — green on this commit's own run | `e081c38` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite, not only the agent suites", `conclusion: success` at `e081c38`, on a hosted runner of the same kind that failed the timed guard at `423e51f`. The job as a whole is red on step 7, the byte gate, which is R59 and does not bear on this |
 | D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | this commit | pending its own hosted run; locally D2, D6, D101, D102 and D103 were applied one at a time and killed, two of them by the new parity tests |
+| D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | this commit | pending its own hosted run; locally both vacuous cases were reproduced before the guards and are refused after, and the real tree still reports EQUIVALENT over 88 of 88 and VALID over 24 referenced files |
 
 ### What `3d809f0`'s own run said
 
@@ -3750,8 +3846,9 @@ container.
 | P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_OPEN_FINDING` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; hosted evidence pending |
 | P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_CLOSED` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; the named hosted evidence is green at `ed1f569` |
 | P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
-| P1 / D-2026-37 | a guard claiming immunity to a busy machine, failed by a busy machine | `CURRENTLY_OPEN_FINDING` | the guard counts re-hashed records instead of timing them, asserting equality where it allowed 4x; anti-vacuity partner added; R49 corrected and downgraded to 37/39; hosted evidence pending |
+| P1 / D-2026-37 | a guard claiming immunity to a busy machine, failed by a busy machine | `CURRENTLY_CLOSED` | the guard counts re-hashed records instead of timing them, asserting equality where it allowed 4x; anti-vacuity partner added; R49 corrected and downgraded to 37/39; the pytest step is green at `e081c38` on a hosted runner |
 | P1 / D-2026-38 | the second reader spoke a wider job language than the scheduler | `CURRENTLY_OPEN_FINDING` | `_JOB_EDGES` restated, `_JOB_SEALED` derived from it, `_JOB_INITIAL` narrowed to one state; five parity tests that fail by naming the difference; hosted evidence pending |
+| P1 / D-2026-39 | two verifiers reported a verdict over a scope of nothing | `CURRENTLY_OPEN_FINDING` | both refuse an empty scope and a partial one; the crate validator returns FAIL instead of a KeyError traceback; the sweep names what it did and did not examine; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

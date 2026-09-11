@@ -2417,14 +2417,14 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "1181581f8b97fa811ba75cdf90f7c2d6e57c4cd255af22d5919adbe0237fe963",
+      "sha256": "f80dce9b0bc212904016d4559ab7e332f0182b9bc6175e92708ea48075601900",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "ro_crate_tools.py",
-      "size_bytes": 13428,
-      "sha256": "76bc52b443fd16f8a50ba3ecc8adbe4cc533d3c5b34a17c907a6ab98300c2484",
+      "size_bytes": 15474,
+      "sha256": "1f4394be5e64c5f4a02ee6b7d3e8d51366e17dc81c619a835a574f451ca455af",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2444,15 +2444,15 @@
     },
     {
       "filename": "tests/test_stage8_data_provenance.py",
-      "size_bytes": 7373,
-      "sha256": "a688e628d62f3c64fa74fc586ab7450106cb7cdb8974bc674e30eba277c8222e",
+      "size_bytes": 15291,
+      "sha256": "5a24790dc243b59383bfc780b21c58638678b364888d7fd174f1c1604d31c025",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "validate_hdf5_equivalence.py",
-      "size_bytes": 5968,
-      "sha256": "1b93fc65ef764b0c218d2a128f6829a0201422278f702ae03a2685316be9c0f1",
+      "size_bytes": 7698,
+      "sha256": "1eb7c912bf1481f0b99e3202c16518d07b3d3429379238bf13c8f29c2f8d4860",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "b07ba44502ea3d5d35ac9fcc4f10782e3c7e8acecd88b314a69a62bcd7257078",
+      "sha256": "534f96f9d5946b6fd6f13a8bbc8c21947da3dff55bbb5a2d91b535bd85eacf39",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 214952,
-      "sha256": "26a12ca24c29c7c09c0a31c1b6460fc511ca60d692490804ba29082439f160fb",
+      "size_bytes": 220100,
+      "sha256": "9ad1bad8dbf9ce5a8260d0cfe5413058d179eefecdc671f941a0a7e7a236f4e7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

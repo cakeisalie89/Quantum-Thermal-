@@ -113,6 +113,37 @@ def main(h5_path: str = "qta_scientific_results.h5",
                 problems.append(f"/provenance missing attr {a}")
         if int(p.attrs.get("scientific_gate_PASS_count", -1)) != 0:
             problems.append("provenance PASS-count not zero")
+    # A COMPARISON OF NOTHING IS NOT AN EQUIVALENCE (D-2026-39).
+    #
+    # Every check above appends to `problems`, so the verdict below was
+    # "EQUIVALENT" exactly when nothing went wrong -- including when nothing
+    # happened. Handed a mapping with no outputs and an HDF5 file carrying a
+    # well-formed `/provenance` group, this compared 0 sources and 0
+    # datasets, printed RESULT: EQUIVALENT, exited 0, and wrote
+    # `"result": "EQUIVALENT"` into a report the RO-Crate publishes as an
+    # entity. Reproduced before this guard existed.
+    #
+    # The counts were printed all along. That is not enough: the VERDICT is
+    # what travels, and a downstream reader of the crate sees the word and
+    # not the zero beside it. `build_hdf5.py` already refuses an incomplete
+    # output set; the validator that checks its work did not.
+    #
+    # Stated against the mapping's own declared total rather than against
+    # zero, so a mapping truncated to three outputs is refused too -- "did
+    # you check anything" is the weak form of the question, and "did you
+    # check what you said you would" is the one worth asking.
+    declared = mapping.get("n_governed")
+    if not isinstance(declared, int) or isinstance(declared, bool) \
+            or declared < 1:
+        problems.append(
+            f"the mapping declares n_governed={declared!r}; a comparison "
+            "with no stated scope cannot report equivalence")
+    elif stats["sources_checked"] != declared:
+        problems.append(
+            f"compared {stats['sources_checked']} source(s) against a "
+            f"declared {declared}; an equivalence over part of the set is "
+            "not the equivalence this report is read as claiming")
+
     rep.parent.mkdir(parents=True, exist_ok=True)
     rep.write_text(json.dumps(
         {"schema_version": "1.0.0", "h5": h5_path,
