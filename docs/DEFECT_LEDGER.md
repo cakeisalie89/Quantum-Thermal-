@@ -3715,9 +3715,32 @@ Pytest runs files in alphabetical order under `-p no:randomly`, and
 `test_manifest_completeness.py` sorts **before**
 `test_stage8_data_provenance.py`. So the manifest was verified, and then the
 damage was done. The suite exited 0 over a tree it had itself made
-inconsistent. Nothing in the pytest run asks the question the mutation
+inconsistent. Nothing *inside the pytest run* asks the question the mutation
 harness asks after every matrix — whether the tracked tree is still the one
 it was handed.
+
+**AND SOMETHING ELSE DID ASK IT, WHICH I SHOULD NOT UNDERSTATE.** The
+repository has a third guard for this class, and it worked: the Snakefile's
+`s10_canonical_untouched` rule — "the substrate did not touch the canonical
+tree" — failed at `3f26b27` naming the file exactly:
+
+```
+AssertionError in Snakefile line 446:
+{'entries': 559, 'mismatches': 1,
+ 'mismatch_names': ['stage8_reports/ro_crate_validation_report.json'],
+ 'detached_hash_ok': True,
+ 'note': 'Stage-10 adapters wrote only under verification/'}
+```
+
+Three hosted jobs went red on that single cause — `stack-verify (core)`,
+`stack-verify (full)` and, through its own derived-artifact step,
+`agent-substrate` — within one commit of the damage being pushed. So the
+correct statement is narrower than "nothing catches this": the canonical-tree
+guard catches it, in a job the pytest suite does not run, and what the pytest
+suite lacks is that check inside itself. The repair above is still the right
+one — a function that writes a tracked artefact should take the path — but
+the class was not unguarded, and saying it was would have been the same kind
+of overstatement this ledger keeps recording.
 
 **REPAIR.** `validate()` takes a `report_path`, defaulting to
 `DEFAULT_VALIDATION_REPORT`, and the three tests pass a temporary one.
