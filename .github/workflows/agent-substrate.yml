@@ -173,6 +173,14 @@ jobs:
         # until somebody says what identity it carries.
         run: |
           uv run python tools/identity_inventory.py
+      - name: mutation matrix -- the identity inventory and its measurement
+        # The coverage number used to be a substring search over the second
+        # reader's text, so a name in a comment counted as a handler. These
+        # attack the parse-tree measurement that replaced it, and the
+        # checker's own refusals, which were almost all unexercised.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/identity_inventory.json
       - name: mutation matrix -- the second reader, for the 28 of 37 it covers
         run: |
           uv run python tools/mutation_matrix.py \

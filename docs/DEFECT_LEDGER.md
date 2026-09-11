@@ -2411,6 +2411,119 @@ recorded above it. The chronology is the point and is left intact: gate
 satisfied → external review found a sibling defect → P0 reopened → repaired →
 gate re-run.
 
+## D-2026-28 — the coverage number measured string presence, not handling
+
+**CLASS** — `MEASUREMENT_DEFECT`, `VERIFIER_SELF_DEFENCE_GAP`.
+
+**AFFECTED COMMIT** — present since `tools/identity_inventory.py` was written
+to close D-2026-19/20; still true at `f80caa8`.
+
+**DISCOVERED BY.** P0-R13 of the second reopening. The number it reported was
+correct. That is the finding.
+
+**DEFECT.** `reconstructed_actions()` was one line:
+
+```python
+src = (PKG / "reconstruct.py").read_text(encoding="utf-8")
+return {a for a in durable_actions() if f'"{a}"' in src}
+```
+
+and the CI step above it says the independent-reader coverage is *measured
+rather than claimed*. It measured whether the action's name occurred anywhere
+in the second reader's TEXT. So an action counted as independently
+reconstructed when it was named:
+
+* in the module docstring — which, in `reconstruct.py`, **lists the
+  subsystems the reader does not cover**;
+* in an anomaly message saying a record could not be interpreted;
+* in a comment explaining why something is deliberately not handled;
+* in a commented-out handler somebody disabled.
+
+And it counted as *not* reconstructed when the handler was written with
+single quotes, because the pattern was `f'"{a}"'`. One rule, wrong in both
+directions.
+
+**WHY THAT MATTERS MORE THAN THE NUMBER.** The 28-of-37 figure appears in the
+CI step title, in `docs/identity_inventory.json`, in the second reader's own
+test-module docstring, and in this ledger. It is the answer to *how much of
+the system has an independent reader*, which is the claim P0-R12 was about.
+A measurement that can be satisfied by a mention is a measurement that
+**cannot detect the removal of the thing it measures**: delete a handler,
+leave the action's name in the docstring above it, and the number does not
+move.
+
+The old function's docstring conceded the hole and argued it away: *"A reader
+that mentions an action without handling it would be counted here wrongly --
+which is why the mutations attack the handlers rather than this list."* That
+is an argument that the number is defended somewhere else. It is not an
+argument that the number is right, and the number is what the step title
+reports.
+
+**IMPLEMENTATION FIX.** `reconstruction_coverage()` parses `reconstruct.py`
+and classifies every durable action into three categories:
+
+| category | meaning |
+|---|---|
+| `DISPATCHED` | the literal is in a position that decides which branch runs: either side of a comparison, an element of a set/list/tuple literal (how `owned` and `_AUTHORITY_ACTIONS` are consulted), or a dict key |
+| `MENTIONED` | the name is in the source and nothing branches on it |
+| `ABSENT` | not in the source at all |
+
+`reconstructed_actions()` returns only `DISPATCHED`. Comments never appear in
+a parse tree, so a commented-out handler is excluded for free rather than by a
+rule somebody has to remember. Quote style stops being a fact about coverage.
+
+`MENTIONED` is its own category rather than being folded into either answer,
+because it is exactly the case a reader could look at and reasonably believe
+was covered — and the whole finding is that believing it was once enough. It
+is printed by the CLI and asserted empty by a test, so introducing one is a
+decision somebody has to make past an assertion.
+
+**THE NUMBER DID NOT CHANGE.** Still 28 of 37, the same nine uncovered. The
+measurement changed, not the answer — which is the point: it was right by
+luck, and nothing would have said so when it stopped being.
+
+**AND THE CHECKER'S OWN REFUSALS WERE ALMOST ALL UNEXERCISED.** `problems()`
+has six refusals and one test ran one of them. For a file whose entire job is
+to refuse, a branch nobody has seen fire is a branch nobody knows fires. Each
+now has a test that damages a copy of the inventory and requires the specific
+complaint, with `test_the_unmodified_inventory_produces_no_problems` as the
+anti-vacuity partner for all of them: without it, a helper that damaged the
+file on the way in would make every one pass for the wrong reason.
+
+**A SURVIVOR, AND WHAT IT SAID.** `I9` — *an ACTOR field need not record a
+write path or a replay* — survived the first run. `test_every_ACTOR_field_
+names_a_test_that_exists` asserts on the document directly, so the branch in
+`problems()` saying the same thing had never run. Classified `MISSING_TEST`
+and killed with one case per key, because a check firing for
+`regression_test` alone would satisfy a single blanked-field test while
+leaving the write path and the replay unbound. Blanking `regression_test` is
+also not caught by the rule below it — that one skips an empty name, which is
+precisely the shape this refuses.
+
+**TESTED AGAINST PLANTED SOURCES.** The measurement takes the second reader's
+text as a parameter, so the tests can hand it a file where the old and new
+definitions disagree. A test that only ever sees the real file — where they
+happen to agree — cannot tell them apart. The first version instead pointed
+`PKG` at a temporary directory, which also emptied `durable_actions()`; it
+failed with a `KeyError`, which was the honest outcome, because it was
+measuring an empty universe.
+
+**MUTATIONS.** A new spec, `tools/mutations/identity_inventory.json`, wired
+into `agent-substrate.yml` — the tool had none at all, which is its own small
+instance of this defect class. `I1` restores the substring measurement
+verbatim; `I2`–`I6` remove one dispatch position or one category each;
+`I7`–`I13` remove one of the checker's refusals each. 13/13 killed.
+
+**FORBIDDEN FAKE FIXES.** Keeping the substring search and adding a comment
+that it is approximately right. Widening the pattern to both quote styles —
+that fixes the false negative and leaves the false positive, which is the
+dangerous half. Deleting the `MENTIONED` category because it is empty today:
+empty is the answer, not the reason not to ask.
+
+**INVALIDATED CLAIMS.** Any reading of "28 of 37, measured rather than
+claimed" at a commit before this one as a statement about handling. It was a
+statement about the presence of thirty-seven strings in one file.
+
 ---
 
 ## Hosted evidence, per commit
@@ -2433,7 +2546,8 @@ actually ran. Neither was true at `de7f0e6`.
 |---|---|---|---|
 | D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
 | D-2026-26 | the cross-process `read-decide-write` mutation matrix | `b2787a0` | **`CURRENTLY_OPEN_FINDING`** until that step is green on a run of its own; the local matrix is 11/11 and local evidence is not the condition |
-| D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | this commit | pending its own hosted run; local evidence is 74/74 and is recorded as local |
+| D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `f80caa8` | pending its own hosted run; local evidence is 74/74 and is recorded as local |
+| D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | this commit | pending its own hosted run; local evidence is 13/13 and is recorded as local |
 
 `de7f0e6` is retained in this table's history rather than deleted: a commit
 whose closure attempt failed is evidence about how the class was actually

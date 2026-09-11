@@ -22,6 +22,16 @@ rather than asserted:
     ``reconstruct.py`` actually dispatches on. That is the check that turns
     "the second reader covers every subsystem" from a claim into a
     measurement -- and the first time it ran, it said 28 of 37;
+
+    "dispatches on" is meant literally, and did not used to be. The first
+    version of that measurement asked whether the action's name occurred
+    anywhere in the second reader's TEXT, so a name in a docstring, in an
+    anomaly message, or in a comment saying the action is deliberately not
+    handled counted as coverage -- and an action dispatched on in single
+    quotes counted as nothing. It is read from the parse tree now, and only
+    from positions that decide which branch runs. An action whose name is
+    present but branched on by nothing is reported as its own category
+    rather than folded into either answer;
   * every field classified ACTOR must name a regression test, and that test
     must exist.
 
@@ -72,16 +82,119 @@ def durable_actions() -> dict:
     return out
 
 
-def reconstructed_actions() -> set:
-    """Actions the independent reader names, measured from its source.
+#: What this module can say about an action from the second reader's source.
+#:
+#: The middle one is the whole point. Its first version had two categories --
+#: the action string occurs in the file, or it does not -- and reported the
+#: first as "independently reconstructed".
+DISPATCHED = "DISPATCHED"    # the reader branches on it
+MENTIONED = "MENTIONED"      # the string is there; nothing branches on it
+ABSENT = "ABSENT"            # not in the source at all
 
-    Every string literal in reconstruct.py that is also a known action. A
-    reader that mentions an action without handling it would be counted here
-    wrongly -- which is why the mutations attack the handlers rather than
-    this list.
+
+def _dispatch_literals(source: str) -> set:
+    """String constants in a DISPATCH position, from the parsed source.
+
+    A dispatch position is one whose value decides which branch runs:
+
+      * either side of a comparison -- ``action == "task.create"``, and the
+        containers of an ``in`` test, which is how ``owned`` and
+        ``_AUTHORITY_ACTIONS`` are consulted;
+      * an element of a set, list or tuple literal -- the vocabularies those
+        membership tests are written against;
+      * a key of a dict literal, for a table-driven dispatch.
+
+    Everything else -- a docstring, a comment, an error message, a name in
+    prose -- is not here, which is the entire difference between this and
+    what it replaced.
+
+    Comments never appear in the tree at all, so a commented-out handler is
+    excluded for free rather than by a rule somebody has to remember.
     """
-    src = (PKG / "reconstruct.py").read_text(encoding="utf-8")
-    return {a for a in durable_actions() if f'"{a}"' in src}
+    out: set = set()
+
+    def literals(node) -> set:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return {node.value}
+        if isinstance(node, (ast.Set, ast.List, ast.Tuple)):
+            return {e.value for e in node.elts
+                    if isinstance(e, ast.Constant)
+                    and isinstance(e.value, str)}
+        return set()
+
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Compare):
+            out |= literals(node.left)
+            for c in node.comparators:
+                out |= literals(c)
+        elif isinstance(node, (ast.Set, ast.List, ast.Tuple)):
+            out |= literals(node)
+        elif isinstance(node, ast.Dict):
+            for k in node.keys:
+                out |= literals(k)
+    return out
+
+
+def reconstruction_coverage(source: str | None = None) -> dict:
+    """``{action: DISPATCHED | MENTIONED | ABSENT}`` for every known action.
+
+    ``source`` overrides the second reader's text, so the MEASUREMENT can be
+    tested against planted files. It is a parameter rather than a patched
+    module global because the alternative -- pointing ``PKG`` at a temporary
+    directory -- also empties ``durable_actions()``, and a classifier asked
+    to classify nothing agrees with everything.
+
+    MEASURED FROM THE PARSE TREE, NOT FROM THE TEXT.
+
+    This function used to be one line::
+
+        return {a for a in durable_actions() if f'"{a}"' in src}
+
+    which counted an action as independently reconstructed when its name
+    appeared ANYWHERE in reconstruct.py -- including in the module docstring
+    that lists what the reader does not cover, in an anomaly message, or in a
+    comment explaining why something is deliberately not handled. It was also
+    quote-sensitive: an action dispatched on in single quotes did not count
+    at all, so the same rule could overstate coverage and understate it.
+
+    The number it produced happened to be right. "Happened to be right" is
+    the state this repository treats as a defect, because nothing would have
+    said so when it stopped being.
+    """
+    src = (source if source is not None
+           else (PKG / "reconstruct.py").read_text(encoding="utf-8"))
+    dispatched = _dispatch_literals(src)
+    out = {}
+    for action in durable_actions():
+        if action in dispatched:
+            out[action] = DISPATCHED
+        elif action in src:
+            # A bare substring search, deliberately: this category is not
+            # coverage, so over-reporting is the safe direction. Requiring
+            # quotes here would reproduce the old rule's other defect -- a
+            # name inside an f-string, or written with the other quote
+            # character, would read as absent.
+            out[action] = MENTIONED
+        else:
+            out[action] = ABSENT
+    return out
+
+
+def reconstructed_actions(source: str | None = None) -> set:
+    """Actions the independent reader actually branches on."""
+    return {a for a, kind in reconstruction_coverage(source).items()
+            if kind == DISPATCHED}
+
+
+def mentioned_but_not_dispatched(source: str | None = None) -> set:
+    """Named in the second reader's source, and handled by nothing there.
+
+    Reported rather than folded into either side: an action in this set is
+    one somebody might reasonably believe is covered, and the whole finding
+    behind this function is that believing it was once enough.
+    """
+    return {a for a, kind in reconstruction_coverage(source).items()
+            if kind == MENTIONED}
 
 
 def problems() -> list:
@@ -155,10 +268,13 @@ def _test_exists(name: str) -> bool:
 
 def summary() -> dict:
     actions = durable_actions()
-    recon = reconstructed_actions()
+    coverage = reconstruction_coverage()
+    recon = {a for a, k in coverage.items() if k == DISPATCHED}
     return {"durable_actions": len(actions),
             "independently_reconstructed": len(recon),
-            "not_reconstructed": sorted(set(actions) - recon)}
+            "not_reconstructed": sorted(set(actions) - recon),
+            "mentioned_but_not_dispatched": sorted(
+                a for a, k in coverage.items() if k == MENTIONED)}
 
 
 def main() -> int:
@@ -168,6 +284,14 @@ def main() -> int:
     if s["not_reconstructed"]:
         print(f"NOT reconstructed ({len(s['not_reconstructed'])}):")
         for a in s["not_reconstructed"]:
+            print(f"    {a}")
+    if s["mentioned_but_not_dispatched"]:
+        # Named in the second reader and handled by nothing in it. Printed
+        # separately because this is the category the old measurement
+        # silently counted as coverage.
+        print(f"named but not dispatched on "
+              f"({len(s['mentioned_but_not_dispatched'])}):")
+        for a in s["mentioned_but_not_dispatched"]:
             print(f"    {a}")
     found = problems()
     if found:
