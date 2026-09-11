@@ -745,3 +745,45 @@ def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
     # And the derivation must be reaching every row, not defaulting.
     assert set(states) <= {CM.EV_COVERS, CM.EV_PREDATES,
                            CM.EV_UNRESOLVABLE, CM.EV_NEVER_RUN}
+
+
+# --- counts the matrix asserts about artifacts it can be checked against ---
+
+def test_the_spec_count_the_matrix_claims_is_the_count_that_runs():
+    """R51 said "34 committed specs run in CI" while 39 ran (D-2026-47).
+
+    Nothing was missing -- all 39 specs exist and all 39 are invoked. The
+    number simply stopped tracking its subject as specs were added, in the
+    row whose whole job is to say how much mutation coverage there is.
+
+    A count in prose is a claim with no owner. This gives it one.
+
+    WORTH RECORDING ABOUT THE MEASUREMENT ITSELF: the first attempt to check
+    this used `tools/mutations/[a-z_]*\\.json` and reported that
+    stage10_authority.json was never invoked -- because the character class
+    has no digits and could not match its name. A scan that silently drops
+    part of its subject reads exactly like a finding about that part. The
+    pattern below takes digits, and the two-way comparison means a spec that
+    is invoked but absent is caught as well as one present but never run.
+    """
+    root = pathlib.Path(__file__).resolve().parent.parent
+    on_disk = {p.name for p in (root / "tools" / "mutations").glob("*.json")}
+    invoked = set()
+    for wf in (root / ".github" / "workflows").glob("*.yml"):
+        invoked |= {m.split("/")[-1] for m in re.findall(
+            r"tools/mutations/[A-Za-z0-9_]+\.json",
+            wf.read_text(encoding="utf-8"))}
+
+    assert on_disk == invoked, (
+        f"specs on disk but never invoked: {sorted(on_disk - invoked)}; "
+        f"invoked but absent: {sorted(invoked - on_disk)}")
+
+    row = next(r for r in CM.load()["rows"] if r["id"] == "R51")
+    claimed = re.search(r"(\d+) committed specs run in CI", row["evidence"])
+    assert claimed, (
+        "R51 no longer states how many specs run in CI; that sentence is "
+        "the coverage claim this row exists to make")
+    assert int(claimed.group(1)) == len(on_disk), (
+        f"R51 claims {claimed.group(1)} committed specs run in CI; "
+        f"{len(on_disk)} do. Update the row in the commit that adds or "
+        "removes a spec, so the change is reviewed rather than absorbed")

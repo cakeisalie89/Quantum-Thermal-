@@ -4482,14 +4482,49 @@ run at all — "a hole with a green tick over it", in this file's own words
 about a different guard. Counting has no floor. Measured: full replay 802
 re-hashes, checkpoint load **3**.
 
-**THE RESIDUE, NAMED.** Thirteen guards now count; two still time, and they
-are exactly the two operations that hash nothing, so there is no unit to
-count and no honest conversion: `Scheduler.ready_queue` (a projection query)
-and `EvidenceStore.get` (a digest-to-bytes lookup). Both are annotated in
-place as residue rather than left looking like the others. Their exposure is
-the one that failed the append guard; neither has failed yet, which is an
-observation and not a guarantee, and if one does the answer is a countable
-unit rather than a wider bound.
+**THE RESIDUE, NAMED — AND THE FIRST COUNT OF IT WAS WRONG.** This entry
+originally said "thirteen guards count; two still time". THREE still timed.
+
+The scan that produced the tally classified each test by which HELPER it
+called — `_per_call`, `_time`, `_time_min` — and
+`test_one_governed_operation_does_not_get_slower_as_the_history_grows` times
+inline with `time.perf_counter()` instead. It matched no helper, fell
+through both buckets, and was reported as neither. It then failed the next
+hosted run at **5.88x against a 4.0 ceiling**, on a tree whose property was
+intact.
+
+That is the D-2026-47 error committed one entry earlier: a scan whose scope
+silently excludes part of its subject, reporting a tally as measured when
+the instrument could not see all of it. Both times the blind spot was in
+what the pattern could match, and both times the number looked exactly as
+authoritative as a correct one.
+
+Rescanned by what the code DOES rather than what it calls — any
+`perf_counter`, `monotonic`, `process_time` or `time()` call anywhere in the
+test — the answer is 13 counted, 3 timed, and the third is now converted
+too.
+
+Its unit is worth recording, because the obvious one reads zero.
+`_count_full_passes` counts `EventLog.read`, and the scheduler never calls
+it: catching up incrementally is D-2026-32's own repair, so the guard for a
+quadratic history path cannot be built on the counter that repair made
+silent. Re-hashes are what a history re-read shows up as. Measured, the
+work is IDENTICAL at both sizes:
+
+```
+prefix=  50 -> 239 re-hashes
+prefix=1200 -> 239 re-hashes
+difference : 0   (history grew by 1150 records)
+```
+
+So it asserts equality, like the others.
+
+**WHAT ACTUALLY REMAINS TIMED: two.** `Scheduler.ready_queue` (a projection
+query) and `EvidenceStore.get` (a digest-to-bytes lookup) hash nothing, so
+there is no unit to count and no honest conversion. Both are annotated in
+place as residue rather than left looking like the others. Neither has
+failed yet, which is an observation and not a guarantee, and if one does the
+answer is a countable unit rather than a wider bound.
 
 **ANTI-VACUITY.** Five assertions now read `large - small == LARGE - SMALL`,
 and a counter wired to something that does not grow would satisfy all five
@@ -4505,6 +4540,66 @@ had no callers left. Deleting them is the same judgement applied to
 statement nothing tests, and `_time_min`'s docstring — the "better
 estimator, not a looser bound" lesson — is superseded by the stronger answer
 and carried forward into the converted guards.
+
+
+---
+
+## D-2026-47 — a coverage count that stopped tracking what it counted
+
+**CLASS** — `STALE_ANCHOR` in prose: a number that was true, describes a
+thing that changed, and has no owner.
+
+**DISCOVERED BY.** The P2 item recorded as "stale counts", by extracting
+every numeric claim from the completion matrix and checking the ones that
+can be checked.
+
+**DEFECT.** R51's evidence — the row whose subject is how much mutation
+coverage exists — opened with:
+
+> 34 committed specs run in CI
+
+Thirty-nine run. Nothing was missing: all 39 spec files exist and all 39 are
+invoked, and the two sets match exactly in both directions. The number
+simply stopped tracking its subject as specs were added, in the sentence
+that is the row's entire claim.
+
+That is a small error with a specific shape worth naming: a count in prose
+is a claim with no owner. Every other coverage figure in this repository is
+produced by the thing it describes; this one was typed, and typed numbers
+decay silently while reading exactly as they did when true.
+
+**REPAIR.** The row now says 39 and says how it came to say 34.
+`test_the_spec_count_the_matrix_claims_is_the_count_that_runs` gives it an
+owner: it compares the spec files on disk against the specs the workflows
+invoke — **in both directions**, so a spec present but never run and a spec
+invoked but absent are each caught — and then requires R51's stated number
+to equal that count. Verified by restoring 34, which fails the test naming
+both figures, and restoring 39, which passes.
+
+**AND THE MEASUREMENT THAT FOUND IT WAS ITSELF WRONG FIRST.** The initial
+scan for invoked specs used
+
+```
+tools/mutations/[a-z_]*\.json
+```
+
+and reported that `stage10_authority.json` is never invoked by CI — which
+would have been a far more serious finding, since D-2026-41's evidence names
+that matrix. It was false. The character class has no digits, so the pattern
+could not match the name it was searching for, and a scan that silently
+drops part of its subject reads exactly like a finding about that part.
+
+The workflow step was there all along, on a continuation line, twelve lines
+above where I stopped reading. What caught it was checking the surprising
+result against the primary source rather than reporting it: step 55 is
+literally named "mutation matrix -- Stage-10 write authority and retrieval
+trust", and a step that does not exist does not get a name.
+
+This is the same defect class as the finding it was hunting — a check whose
+scope quietly excludes part of what it claims to cover — committed by the
+instrument in the act of auditing. It is recorded because the near miss is
+the useful part: the wrong answer was alarming, and alarming wrong answers
+are the ones that get believed.
 
 
 ---

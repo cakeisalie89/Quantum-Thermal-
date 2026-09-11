@@ -704,24 +704,38 @@ def test_one_governed_operation_does_not_get_slower_as_the_history_grows(
         pol.publish(default_policy(), actor="owner")
         sched = Scheduler(log, policy=pol, policy_id="scheduler.default",
                           capacity={"slots": 64}).load()
-        t0 = time.perf_counter()
-        for i in range(20):
-            jid = f"m{i}"
-            sched.enqueue(job_id=jid, work_digest=digest({"m": i}),
-                          submitter="p1")
-            sched.reconcile()
-            sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{i}",
-                           lease_seqs=200)
-            sched.report(job_id=jid, worker="w1")
-        return time.perf_counter() - t0
+        def twenty():
+            for i in range(20):
+                jid = f"m{i}"
+                sched.enqueue(job_id=jid, work_digest=digest({"m": i}),
+                              submitter="p1")
+                sched.reconcile()
+                sched.dispatch(job_id=jid, worker="w1", lease_id=f"L{i}",
+                               lease_seqs=200)
+                sched.report(job_id=jid, worker="w1")
+        return _count_rehashes(twenty)
 
+    # COUNTED, NOT TIMED (D-2026-46 follow-up). This guard timed inline with
+    # time.perf_counter() rather than through _per_call, so the scan that
+    # converted the other six classified it as neither timed nor counted and
+    # I reported "two remain timed" when three did. It then failed a hosted
+    # run at 5.88x against a 4.0 ceiling, on a tree whose property was
+    # intact: measured here, the work is IDENTICAL at both history sizes.
+    #
+    # Note the unit. _count_full_passes reads zero here, because the
+    # scheduler catches up incrementally and never calls EventLog.read --
+    # which is D-2026-32's own repair. Re-hashes are what a history re-read
+    # would show up as, so they are the unit that can still see the
+    # regression this test exists for.
     short = cycle_cost(50)
     long = cycle_cost(1200)
-    _record("governed_operation_vs_history", long / short, 4.0)
-    assert long < short * 4.0, (
-        f"twenty governed operations cost {long * 1000:.0f} ms behind 1200 "
-        f"records and {short * 1000:.0f} ms behind 50 -- the per-operation "
-        "cost is growing with the history, which is the quadratic campaign")
+    _record("governed_operation_vs_history", long / short if short else 1, 1.0)
+    assert long == short, (
+        f"twenty governed operations cost {long} re-hashes behind 1200 "
+        f"records and {short} behind 50. Equal is the property: the "
+        "per-operation cost must not know how long the history is. Measured "
+        "at 239 and 239 when this was written, with the history 1150 "
+        "records longer")
 
 
 # ---- the tracked history -------------------------------------------------
