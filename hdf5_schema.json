@@ -4198,7 +4198,7 @@
     10
    ],
    "source_output": "thermal_3d_hotspots.csv",
-   "source_sha256": "0d6f0f20cc3866eb5d6b33e604fb4e9fbb3a9c959f56eac7fbf24032b4af9b6c",
+   "source_sha256": "cf0022bbc7a23d9fe5d64c89996bce89459ec0a72bbd524851c94fc24d30c74d",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"

@@ -88,18 +88,42 @@ class Thermal3DResult:
         g = self.grid
         Tpk = self.T.max(axis=1)                       # (n_cells,) peak over time
         kpk = self.T.argmax(axis=1)
-        order = np.argsort(Tpk)[::-1][:top_n]
+        # THE RANK AMONG SYMMETRY-EQUIVALENT CELLS WAS ROUNDING NOISE.
+        #
+        # A symmetric beam heats four cells to the same peak by construction,
+        # and the model does not compute them equal: measured, they differ in
+        # the last places of the mantissa (~1e-14 relative) because each
+        # accumulates its reduction in a different order. Ranking on the raw
+        # value therefore ranked them BY THEIR ROUNDING ERROR, and a host
+        # whose BLAS kernel accumulates differently produced a different
+        # order with identical reported temperatures. That is how D-2026-48
+        # found this: the coordinates permuted while T_peak_K did not move.
+        #
+        # There is nothing to stabilise. `np.argsort` is deterministic and no
+        # two peaks are exactly equal, so neither a stable sort nor a
+        # tie-break on the index would change anything -- the KEY has to stop
+        # carrying digits the model does not determine. Cells whose peak is
+        # identical as REPORTED now rank by cell index, which is a fact about
+        # the grid rather than about one accumulation order.
+        rank_key = np.array([float(f"{v:{PEAK_FMT}}") for v in Tpk])
+        order = np.lexsort((np.arange(Tpk.size), -rank_key))[:top_n]
         rows = []
         for rank, flat in enumerate(order, start=1):
             ix, iy, iz = np.unravel_index(flat, self._shape)
             rows.append({"rank": rank,
                          "x_m": f"{g.xc[ix]:.6e}", "y_m": f"{g.yc[iy]:.6e}",
                          "z_m": f"{g.zc[iz]:.6e}",
-                         "T_peak_K": f"{Tpk[flat]:.9e}",
+                         "T_peak_K": f"{Tpk[flat]:{PEAK_FMT}}",
                          "t_at_peak_s": f"{self.t[kpk[flat]]:.9e}",
                          "T_final_K": f"{self.T[flat, -1]:.9e}",
                          "label": LABEL})
         return rows
+
+
+#: How ``T_peak_K`` is reported, and therefore the resolution the hotspot
+#: ranking is allowed to see. One constant for both so the rank can never be
+#: decided by a digit the file does not print.
+PEAK_FMT = ".9e"
 
 
 def jacobian_sparsity_7pt(nx: int, ny: int, nz: int) -> sp.csr_matrix:

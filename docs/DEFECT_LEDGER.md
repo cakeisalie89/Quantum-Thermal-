@@ -4967,13 +4967,10 @@ the second adds one further zero-crossing and no decisions. In both:
   clearing methane before Mode D.
 - **9 apparent sign flips in `thermal_3d_hotspots.csv` are not sign flips.**
   `T_peak_K` is identical to every digit; the coordinates permute. The peaks
-  are symmetry-degenerate and the rank order among tied peaks follows
-  whichever comparison the sort happened to win. A ranked output with no
-  stable tie-break is nondeterministic by construction, and that one is a
-  real defect rather than an artifact of reading. It is recorded here and
-  not repaired in this commit: the repair changes a committed canonical
-  output and therefore the whole derived chain, which belongs in its own
-  commit with its own regeneration.
+  are symmetry-degenerate, and the rank order among them is not a physical
+  quantity. Repaired in D-2026-49, which also corrects what this paragraph
+  first said about the mechanism: it called the cause a missing stable
+  tie-break, and measuring it showed there are no ties to break.
 - **180 ordinary precision divergences**, largest relative difference 0.68.
   That figure looks alarming and is not: it sits on
   `energy_ledger_cumulative_3d.csv`'s `phase_residual_J`, which is
@@ -4982,6 +4979,16 @@ the second adds one further zero-crossing and no decisions. In both:
   to move it and the relative difference is 33% of the noise floor. Naming
   it by its relative difference alone would have been the error this ledger
   keeps recording: classifying by a proxy instead of by the quantity.
+
+**HOSTED EVIDENCE.** `full-suite` at `c8ce388`
+(job 103449077811), step 8. The runner reproduced the local forced-dispatch
+prediction to every figure: 87 files compared, **24 differing — the same 24
+its own byte gate calls stale root copies**, 6215 leaves, DECISION 0,
+ZERO_CROSSING 28, SIGN_FLIP 9, PRECISION 180 with a largest relative
+difference of 6.822e-01, and the same zero-crossing list by name and value.
+Step 7 refused in the same job, on the same two file sets, for the reason it
+always did. That pairing is the whole claim: the bytes differ and no
+decision does.
 
 **REPAIR.** `tools/cross_env_semantics.py` asks the question in the unit
 that can answer it. It strips numeric tokens from both sides and compares
@@ -5039,3 +5046,84 @@ mirrors the byte gate's set and
 `test_the_exemption_matches_the_one_the_byte_gate_already_uses` reads the
 literal out of `package_consistency_check.py` by AST and requires the two to
 be equal, so neither can drift alone.
+
+## D-2026-49 — a rank decided by the digits the file does not print
+
+**CLASS** — `WRONG_SPECIFICATION`: an ordering derived from a quantity the
+model does not determine to that precision, so the output carried a fact
+about one accumulation order as though it were a fact about the system.
+
+**DISCOVERED BY.** D-2026-48's semantic comparison, as the class it could
+not classify: nine divergences in `thermal_3d_hotspots.csv` that the tool
+called `SIGN_FLIP` and that are not sign flips. `T_peak_K` was identical to
+every printed digit on both hosts; the coordinates permuted.
+
+**DEFECT.** `hotspot_rows` ranked cells by
+
+```python
+order = np.argsort(Tpk)[::-1][:top_n]
+```
+
+A symmetric beam heats four cells to the same peak by construction. The
+model does not compute them to be equal: measured on the committed
+configuration, the top quartet is
+
+```
+flat=528  0x1.b75d6826d70f5p+3
+flat=540  0x1.b75d6826d70c5p+3
+flat=648  0x1.b75d6826d70bdp+3
+flat=660  0x1.b75d6826d708cp+3
+```
+
+— four distinct float64 values, agreeing to about 1e-14 relative and
+printing identically at the `.9e` the file reports. Each cell accumulates
+its reduction in a different order, so the ranking among them WAS the
+rounding error. On a host whose BLAS kernel accumulates differently the
+order changed while every reported temperature stayed the same, which is
+what the byte gate had been reporting as three stale files without being
+able to say that much.
+
+**The first diagnosis in D-2026-48 was wrong and is corrected there.** It
+called this a ranked output with no stable tie-break. There are no ties:
+`np.argsort` is deterministic, no two peaks are exactly equal, and neither a
+stable sort nor a tie-break on the cell index would have changed one row.
+Checking it cost one query — print the candidates as hex — and the plausible
+story would otherwise have produced a fix that changed nothing and a ledger
+entry claiming it had.
+
+**REPAIR.** The key stops carrying digits the model does not determine.
+`PEAK_FMT` is now one constant used both to serialise `T_peak_K` and to
+build the sort key, so a rank can never be decided by a digit the file does
+not print; cells whose peak is identical as reported are ordered by cell
+index, which is a fact about the grid.
+
+```python
+rank_key = np.array([float(f"{v:{PEAK_FMT}}") for v in Tpk])
+order = np.lexsort((np.arange(Tpk.size), -rank_key))[:top_n]
+```
+
+Verified by running the solver under the committed dispatch and under
+`OPENBLAS_CORETYPE=Haswell` with numpy's AVX-512 loops disabled: the ten
+ranked rows are now the same cells in the same order on both, where before
+the coordinates permuted. Measured end to end by the instrument that found
+it, over the same 87-file comparison: **SIGN_FLIP falls from 9 to 0**, and
+PRECISION from 180 to 179 with its largest relative difference dropping
+6.822e-01 -> 3.279e-01, because that outlier WAS a permuted coordinate
+rather than a quantity. What is left at 3.279e-01 is the energy-ledger
+residual, which is the rounding floor and belongs there. The table also now reads as what it is — each
+peak's four symmetric copies consecutive, in coordinate order — instead of
+interleaved by noise.
+
+**WHAT THIS DOES NOT FIX, stated because the same run shows it.** Across
+those two dispatches the ranked rows still differ, now in the reported value
+rather than the ordering: `1.373015220e+01` against `1.373015221e+01`, the
+tenth significant digit. That difference was always present and the
+reshuffling hid it, so the repair makes the file MORE divergent to `cmp` and
+more honest to read. It also leaves a residual: if a peak's printed value
+itself differs between hosts, two cells can still rank differently. The rank
+now depends only on what the file shows, which is the property worth having;
+it is not host-independence, and nothing here claims it is.
+
+The byte gate is no greener for this either. The 27 zero-crossings and 180
+precision divergences are untouched, so `package_consistency_check.py` still
+refuses on a foreign runner exactly as before.
