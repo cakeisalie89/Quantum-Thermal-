@@ -2997,8 +2997,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 30293,
-      "sha256": "ae5927edf7ea500b6be392d874a068a802ac241639883262729832ae9b6da987",
+      "size_bytes": 31408,
+      "sha256": "1249963abb6f76b1998ac0eafb17ffd7c1dd6899c7da25982c0577ab38370106",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "69731824b8634c80d18bdcb00633bb2f3c9b12e2e12437ea62f3cf0d4cbf8788",
+      "sha256": "5f0dabcd7ab8d619cbdf598645b38d124fc395f17494904a6e2a4d2bb14bc27f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 273380,
-      "sha256": "539d9b06c6e29c196c40aa1a45716e02ee1e5437bca32ae3b34d799534d8fd2d",
+      "size_bytes": 281102,
+      "sha256": "c976457e7d8f324fcd545d9bd2d9b876f0bdefe6eb82ef4a7382951342172409",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4030,6 +4030,20 @@
       "sha256": "1f857c5b49d307b8ef25467fdc3e90b6f8bf4f00b2f32d315794cd17bd2a942c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_cross_env_semantics.py",
+      "size_bytes": 8856,
+      "sha256": "7204aed6e4047871d088f580e3a019a5eecf941a2cd957bbb9f16a789c7c2705",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tools/cross_env_semantics.py",
+      "size_bytes": 13670,
+      "sha256": "7075dbfe734bff25b43f3abe4191a64768d535acdf12e3d446c44ed69c2d70ee",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."

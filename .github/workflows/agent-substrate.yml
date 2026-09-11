@@ -459,6 +459,23 @@ jobs:
         # outputs'. It is not silenced, not tolerated and not exempted: the
         # byte gate is supposed to refuse here, and R59 records why.
         run: uv run python package_consistency_check.py
+      - name: did a DECISION change, or only a digit
+        # ALWAYS, and that is the whole point. The step above is EXPECTED to
+        # fail on a runner whose dispatch differs, and `set -e` would then
+        # skip the only step that can say what its failure MEANS -- the same
+        # ordering defect this job already had once, when the byte gate ran
+        # ahead of the suite and the broadest signal never executed.
+        #
+        # package_consistency_check.py has already regenerated the canonical
+        # tree into outputs/ by the time it refuses, so this compares THIS
+        # runner's own regeneration against the committed copies. That is a
+        # real cross-environment comparison on hardware that actually
+        # differs, for free, and unlike the byte gate it can pass here.
+        if: always()
+        # No --json. The tool can write a full report and nothing here would
+        # upload it, and a report that cannot be retrieved is the shape of
+        # the problem R59 spent months on. The log IS the evidence.
+        run: uv run python tools/cross_env_semantics.py outputs/ .
 
   second-interpreter:
     # The guarantees under test are pure-Python and stdlib-only. Running them

@@ -4912,3 +4912,130 @@ claimed complete.
    "nothing changed in the shared scope" rather than "this run wrote only
    what it declared", which is a weaker statement than the surrounding prose
    claims, and it makes the suite unsafe to run concurrently with itself.
+
+## D-2026-48 — the only cross-environment instrument counted files
+
+**CLASS** — `WRONG_SPECIFICATION`: a check whose unit cannot express the
+property anyone actually cares about, so its output licenses no statement
+either way.
+
+**DISCOVERED BY.** Reading the `full-suite` failure at `8c268ab`, where step
+5 — the full pytest suite — passed for the first time and left the byte gate
+as the only red. A red that is the only red is worth reading properly.
+
+**DEFECT.** R59 was thoroughly investigated and never answered. Two
+instruments existed: `package_consistency_check.py`, which reports "24 stale
+root copies", and `tools/blas_kernel_sensitivity.py`, which attributes those
+copies to the BLAS kernel and numpy's SIMD dispatch and reproduces a GitHub
+runner exactly — 40 of 63 files, the same 23 by name. That attribution is
+correct and this entry does not disturb it.
+
+Both count FILES. Byte-identity emits the same output whether a residual's
+last digit moved or a gate flipped from CONDITIONAL to PASS, so neither
+instrument could distinguish the two, and "expected red, see R59" was as far
+as the evidence could reach. The package could not say whether its own
+forecasts were host-independent — not because nobody looked, but because
+nothing in the repository measured in a unit that could answer.
+
+**WHAT THE MEASUREMENT FOUND.** Reproduced locally by forcing
+`OPENBLAS_CORETYPE=Haswell` with numpy's AVX-512 loops disabled, which
+regenerates `results_gate_table.csv` at SHA `f6e09148410108d7` — the exact
+value the hosted runner reported at `8c268ab`.
+
+Two scopes were measured and they agree, which is why both are named here
+rather than one being quoted as "the" result. Over the 3D collector's set:
+62 files, 23 differing, 4871 leaves. Over the full canonical regeneration
+that CI compares — the set `package_consistency_check.py` reports on: 87
+files, **24 differing, which is the same 24 the hosted runner called stale
+root copies**, 6215 leaves. The classification below is the first figure's;
+the second adds one further zero-crossing and no decisions. In both:
+
+- **0 of 83 gate decisions change.** Every `status`, `can_PASS_now`,
+  `threshold` and `reason` is identical. But the invariance is STRUCTURAL,
+  not earned: most thresholds in this package read `REQUIRES_MEASUREMENT`,
+  and a gate cannot flip on a number that is not yet compared to anything.
+  That reason stops holding the day hardware supplies a threshold, so it is
+  recorded as a fact about today rather than a property of the model.
+- **27 exact-zero → nonzero transitions.** `n_CH4_modeC_1m3` is
+  `0.000000000e+00` in all 120 rows of the committed
+  `gas_transport_profile.csv` and nonzero in 18 of 120 on AVX2 hardware, up
+  to `1.56e-02 m^-3`. `RESIDUAL_SPECIES_MODE_D_CHECK` publishes
+  `CH4=0.00e+00` and computes `CH4=4.00e-09` there. Both readings are the
+  same physics — 0.016 molecules per cubic metre is some twenty orders below
+  one molecule in the chamber — but only one of them is a claim of
+  EXACTNESS, and the package makes it about the mode whose whole job is
+  clearing methane before Mode D.
+- **9 apparent sign flips in `thermal_3d_hotspots.csv` are not sign flips.**
+  `T_peak_K` is identical to every digit; the coordinates permute. The peaks
+  are symmetry-degenerate and the rank order among tied peaks follows
+  whichever comparison the sort happened to win. A ranked output with no
+  stable tie-break is nondeterministic by construction, and that one is a
+  real defect rather than an artifact of reading. It is recorded here and
+  not repaired in this commit: the repair changes a committed canonical
+  output and therefore the whole derived chain, which belongs in its own
+  commit with its own regeneration.
+- **180 ordinary precision divergences**, largest relative difference 0.68.
+  That figure looks alarming and is not: it sits on
+  `energy_ledger_cumulative_3d.csv`'s `phase_residual_J`, which is
+  `3.70e-23 J` against source terms of `1.26e-17 J`. The residual IS the
+  accumulated rounding error, so a different accumulation order is expected
+  to move it and the relative difference is 33% of the noise floor. Naming
+  it by its relative difference alone would have been the error this ledger
+  keeps recording: classifying by a proxy instead of by the quantity.
+
+**REPAIR.** `tools/cross_env_semantics.py` asks the question in the unit
+that can answer it. It strips numeric tokens from both sides and compares
+what is LEFT: if the residue differs, a status, boolean, unit or label
+changed, and that is a changed claim whatever the numbers did. Only then are
+the numbers classified, into `ZERO_CROSSING` (a published exactness the
+other environment contradicts), `SIGN_FLIP`, and `PRECISION`.
+
+It refuses on exactly one thing — a decision-bearing token that is not
+identical — because that is the only class here that is unambiguous. The
+others are measured and reported and never refused. A gate that goes red for
+benign reasons is how R59 became background noise for months, and rebuilding
+that in a new file would have been a poor trade.
+
+The byte gate is NOT weakened, exempted or replaced, and CI is no greener
+for this commit: `package_consistency_check.py` still refuses on a runner
+whose dispatch differs, for the reason it always did. The new step runs with
+`if: always()` precisely because the old one is expected to fail first, and
+compares that runner's own regeneration — already sitting in `outputs/` by
+the time the byte gate refuses — against the committed copies. Same two file
+sets, two different questions: "do these differ" and "is any difference a
+decision".
+
+`check_scope` refuses a verdict drawn from an empty comparison, because "no
+decision changed" is trivially true of nothing and a renamed output
+directory produces exactly that. The scope numbers — 62 files, 4871 leaves —
+travel in the report rather than being left implied.
+
+Verified by positive control: flipping one token of
+`thermal_3d_readiness.json` from `FORECAST_ONLY_IMPLEMENTED` to
+`VALIDATED_ON_HARDWARE` — the precise claim this package exists to prevent —
+is refused, while `cmp` reports it identically to a moved digit. Every
+refusal test in `tests/test_cross_env_semantics.py` is paired with the
+control that proves the rule names a real condition.
+
+**ONE ERROR WORTH RECORDING, because it is this ledger's recurring one.**
+The first wiring compared every file in `outputs/` against the root copy of
+the same NAME, and was immediately refused on
+`deep_surrogate_readiness.json`: `TRAINED_NOT_TRUSTED` at the root,
+`NOT_IMPLEMENTED` in `outputs/`. That is not an environment difference at
+all. `MANIFEST_BOUNDARY.md` states that `outputs/` is not a mirror of the
+root, and those two files are different artifacts from different stages —
+the root copy is the deep layer's authoritative record, the other a stub the
+direct expdesign engine emits into its own run directory.
+`package_consistency_check.py` already carried `_REGEN_EXEMPT` for exactly
+this, with the reason in a comment above it.
+
+So the scope had been chosen by name match — a proxy — rather than by
+membership in the declared canonical set, which is the same substitution
+recorded against a helper name in D-2026-46 and a path spelling before it.
+Had it not refused on the first run it would have shipped a gate that goes
+red on every host for a reason that has nothing to do with the environment:
+precisely the unreadable red this entry exists to end. `REGEN_EXEMPT` now
+mirrors the byte gate's set and
+`test_the_exemption_matches_the_one_the_byte_gate_already_uses` reads the
+literal out of `package_consistency_check.py` by AST and requires the two to
+be equal, so neither can drift alone.
