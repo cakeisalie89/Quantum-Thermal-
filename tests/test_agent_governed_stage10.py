@@ -1756,3 +1756,106 @@ def test_the_supervisor_IS_bound_during_a_governed_run(gov):
         "of them should be. If a guard has been removed, the module "
         "docstring's IN-PROCESS MEDIATION paragraph is now false")
     assert all("no egress grant" in w for _r, w in seen), seen
+
+
+# ---------------------------------------------------------------------------
+# D-2026-41: the projection verified one read of the log and folded another.
+#
+# `projection()` called `self.log.verify().raise_if_bad()` and then
+# `self.log.read()` -- two passes over a file another process is appending
+# to. A record landing between them is folded WITHOUT its chain link ever
+# being checked by that call, under a docstring reading "Rebuild task state
+# from the verified log. Fail closed."
+#
+# It was also the more expensive shape. A warm governed run made 11 verify()
+# calls and 19 passes over the log; the eight extra were exactly the eight
+# projection() calls reading a second time. `read_verified()` returns the
+# records verify() already parsed, so the fix is one pass instead of two --
+# stronger AND cheaper, which is not the usual trade.
+# ---------------------------------------------------------------------------
+
+def _forged_line(path, *, task_id="t-forged", actor="mallory"):
+    """A record with valid field types and a chain link that does not hold."""
+    last = json.loads(path.read_text().splitlines()[-1])
+    rec = dict(last)
+    rec.update({
+        "seq": last["seq"] + 1, "action": "task.create", "actor": actor,
+        "target": task_id, "event_id": "f" * 32, "prev_hash": "0" * 64,
+        "hash": "1" * 64,
+        "payload": {"task_id": task_id, "tool_id": "stage10.emit_artifact",
+                    "submitter": actor, "inputs_digest": "b" * 64,
+                    "depends_on": []},
+    })
+    return json.dumps(rec, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def test_a_record_landing_mid_projection_is_not_folded_unverified(gov):
+    """THE defect, with the window held open deliberately.
+
+    The forged record arrives after the verification pass has finished
+    reading and before the projection's own read begins -- which is a window
+    a concurrent writer occupies by accident and an attacker on purpose.
+    """
+    _run(gov)
+    path = gov.log.path
+    forged = _forged_line(path)
+
+    from qta_agent.events import EventLog as _EL
+    real_read, state = _EL.read, {"n": 0}
+
+    def read_then_append(self, *, strict=True):
+        out = real_read(self, strict=strict)
+        state["n"] += 1
+        if state["n"] == 1 and self.path == path:
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(forged)
+        return out
+
+    _EL.read = read_then_append
+    try:
+        proj = gov.projection()
+    except Exception:
+        # Refusing outright is also correct and stronger; either way the
+        # forgery must not become state.
+        proj = None
+    finally:
+        _EL.read = real_read
+
+    assert state["n"] >= 1, (
+        "the window was never opened: this test patched a read that did not "
+        "happen, so it proves nothing about the projection")
+    if proj is not None:
+        assert "t-forged" not in proj.tasks, (
+            "a record whose chain link does not hold was folded into the "
+            "projection, attributing work to an actor nobody authorized")
+    assert not gov.log.verify().ok, (
+        "the fixture did not actually break the chain, so the assertion "
+        "above would hold for a projection that checks nothing")
+
+
+def test_the_projection_reads_the_log_once(gov):
+    """The cheaper half, guarded so it cannot quietly go back to two.
+
+    Counting is the point: a timing assertion here would be at the mercy of
+    the runner, which is the lesson of D-2026-37 one file over.
+    """
+    _run(gov)
+    from qta_agent.events import EventLog as _EL
+
+    real_read, n = _EL.read, {"c": 0}
+
+    def counting(self, *, strict=True):
+        if self.path == gov.log.path:
+            n["c"] += 1
+        return real_read(self, strict=strict)
+
+    _EL.read = counting
+    try:
+        gov.projection()
+    finally:
+        _EL.read = real_read
+
+    assert n["c"] == 1, (
+        f"projection() made {n['c']} passes over the log; it verified one "
+        "read and folded another until D-2026-41, and the second pass is "
+        "both the window and the cost")

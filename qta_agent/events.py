@@ -461,7 +461,44 @@ class EventLog:
     # ---- verification -------------------------------------------------
     def verify(self, *, expected_head: ChainState | None = None,
                use_witness: bool = True) -> VerifyReport:
-        """Verify the whole chain. Fail closed; report every problem found."""
+        """Verify the whole chain. Fail closed; report every problem found.
+
+        Returns the report alone. A caller that also wants the records must
+        use :meth:`read_verified` rather than reading the file again --
+        see the window that second read opens, documented there.
+        """
+        return self.read_verified(expected_head=expected_head,
+                                  use_witness=use_witness)[0]
+
+    def read_verified(self, *, expected_head: ChainState | None = None,
+                      use_witness: bool = True) -> tuple:
+        """``(report, events)`` from ONE pass over the file.
+
+        WHY THIS EXISTS, AND WHAT READING TWICE COSTS
+
+        :meth:`verify` already parses every record in order to check it, so
+        handing the list back costs nothing. What it buys is coherence. A
+        caller that verifies and then reads again is looking at two
+        different reads of a file another process is appending to, and the
+        second one returns records the first never checked. Reproduced, with
+        a record whose chain link is broken landing in that window:
+        `governed_stage10.projection()` folded it and reported a task
+        attributed to an actor nobody authorized, from a log that did not
+        verify -- under a docstring reading "rebuild task state from the
+        verified log. Fail closed."
+
+        It is also cheaper, which is the unusual part: one pass instead of
+        two. A warm governed run made 11 ``verify()`` calls and **19** passes
+        over the log, the extra eight being exactly the eight
+        ``projection()`` calls reading a second time.
+
+        WHAT IT STILL DOES NOT CLOSE. Records are read once, so nothing can
+        land between the check and the fold. A rewrite of EARLIER bytes
+        while this pass is in flight is a different matter and this does not
+        address it; that is the threat model :meth:`verify` lives in
+        generally, and the filesystem is trusted to the extent stated in
+        :mod:`qta_agent.checkpoint`.
+        """
         problems: list = []
         notes: list = []
         # THE WITNESS IS SAMPLED FIRST, AND THE ORDER IS THE WHOLE POINT.
@@ -486,8 +523,8 @@ class EventLog:
         try:
             events = self.read(strict=True)
         except EventLogError as exc:
-            return VerifyReport(False, 0, -1, ZERO_DIGEST,
-                                problems + [str(exc)])
+            return (VerifyReport(False, 0, -1, ZERO_DIGEST,
+                                 problems + [str(exc)]), [])
 
         prev_hash = ZERO_DIGEST
         prev_wall = None
@@ -501,8 +538,8 @@ class EventLog:
         head_seq = events[-1].seq if events else -1
         head_hash = events[-1].hash if events else ZERO_DIGEST
         self._check_witness(head_seq, head_hash, witness, problems, notes)
-        return VerifyReport(not problems, len(events), head_seq, head_hash,
-                            problems, notes)
+        return (VerifyReport(not problems, len(events), head_seq, head_hash,
+                             problems, notes), events)
 
     # The two verification paths -- whole-chain and from-an-anchor -- share
     # these. Two copies of "what makes a record acceptable" would drift, and

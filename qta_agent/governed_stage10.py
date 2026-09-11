@@ -550,10 +550,16 @@ class GovernedStage10:
         The whole point of a durable lifecycle: this answers "what was this
         task doing when the machine died" by replay, not by inference.
         """
-        self.log.verify().raise_if_bad()
+        # ONE pass, and the records that come back are the ones that were
+        # checked. Verifying and then reading again looked equivalent and is
+        # not: a record landing between the two calls is folded without its
+        # chain link ever being checked by this call, and a forged one was
+        # (D-2026-41). It is also half the file reads.
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         tasks: dict = {}
         seq = -1
-        for ev in self.log.read():
+        for ev in events:
             seq = ev.seq
             p = ev.payload
             if ev.action == ACT_TASK_CREATE:

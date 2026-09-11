@@ -132,6 +132,13 @@
       "find": "            with socket_guard(self.network, actor=verifier, task_id=task_id,\n                              tool_id=tool_id):",
       "replace": "            if True:",
       "rationale": "the SECOND guarded block a governed run enters -- re-execution under verification. It is the one that masked W5: a spy keeping only the last executor entry recorded this call's refusal and reported the execution guard as present"
+    },
+    {
+      "name": "G_R1_the_projection_reads_the_log_a_second_time",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()",
+      "replace": "        self.log.verify().raise_if_bad()\n        events = self.log.read()",
+      "rationale": "D-2026-41: a record landing between the verification and the read is folded without its chain link ever being checked, and the run costs eight extra whole-log passes"
     }
   ]
 }

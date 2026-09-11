@@ -784,46 +784,75 @@ def test_the_recorder_refuses_to_record_nothing():
 # the history.
 # ---------------------------------------------------------------------------
 
-def _count_full_verifications(fn):
-    """Run ``fn`` and return (calls, records read) for EventLog.verify."""
+def _count_full_passes(fn):
+    """Run ``fn`` and return (passes, records read) for EventLog.read.
+
+    WHY ``read`` AND NOT ``verify`` (D-2026-41)
+
+    This counted calls to ``EventLog.verify`` and called them "full chain
+    verifications". They were not the same thing, and the gap was not small:
+    a warm governed run made **11 verify() calls and 19 passes over the
+    log**, because ``projection()`` verified and then read the file AGAIN.
+    The ceiling was 13, the real number was 19, and the guard passed --
+    because it counted the wrong unit.
+
+    Counting passes also survives the repair that closed the window. With
+    ``read_verified`` there are two entry points to a whole-chain check, so
+    a probe watching one of them would have reported 11 -> 3 and read like
+    an improvement it was not measuring. A pass over the file is a pass over
+    the file whichever function asked for it.
+    """
     from qta_agent.events import EventLog as _EL
 
-    seen = {"calls": 0, "records": 0}
-    real = _EL.verify
+    seen = {"passes": 0, "records": 0}
+    real = _EL.read
 
-    def counting(self):
-        report = real(self)
-        seen["calls"] += 1
-        seen["records"] += max(report.head_seq + 1, 0)
-        return report
+    def counting(self, *, strict: bool = True):
+        events = real(self, strict=strict)
+        seen["passes"] += 1
+        seen["records"] += len(events)
+        return events
 
-    _EL.verify = counting
+    _EL.read = counting
     try:
         fn()
     finally:
-        _EL.verify = real
-    return seen["calls"], seen["records"]
+        _EL.read = real
+    return seen["passes"], seen["records"]
 
 
-#: Full chain verifications one governed Stage-10 run may perform.
+#: Whole-log PASSES one governed Stage-10 run may make. Every number here was
+#: measured, none chosen:
 #:
-#: Eleven on a warm caller, and every one of them is named: eight from
-#: ``projection()`` -- six inside ``_move``, one in ``run``, one in
-#: ``recover`` -- and three from ``capability.issue``, which verifies to
-#: establish the seq a grant is in force from.
+#:     first run, brand-new caller and EMPTY log : 14   <-- the maximum
+#:     second run, same caller (now warm)        : 11
+#:     third run, same caller                    : 11
+#:     fresh caller over an EXISTING log         : 13
+#:     same caller again                         : 11
 #:
-#: Thirteen on the FIRST run of a fresh caller, because ``_head_seq`` starts
-#: by verifying the whole chain once, fail-closed, before it has an anchor to
-#: advance from. That is the one full pass the incremental path is built on
-#: and it happens once per caller, not once per operation.
+#: Records read grow (167, 398, 653, 1067, 1196) and passes do not. That
+#: flatness is the property this guards; the ceiling is just where it sits.
 #:
-#: The number is a CEILING on a count, not a target. What it stops is the
-#: regression that occasioned it: eighteen head reads that each walked the
-#: whole log, twenty-six full passes per run. It is deliberately not 1 --
-#: the residual eight and three are a measured, recorded gap (D-2026-32),
-#: not a closed one, and writing 1 here would assert something this code
-#: does not do.
-MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN = 13
+#: Eleven on a warm caller: eight from ``projection()`` -- six inside
+#: ``_move``, one in ``run``, one in ``recover`` -- and three from
+#: ``capability.issue``, which verifies to establish the seq a grant is in
+#: force from. The extra two or three on a cold caller are ``_head_seq``
+#: verifying the whole chain once, fail-closed, before it has an anchor to
+#: advance from: once per caller, not once per operation.
+#:
+#: READ THIS BEFORE CONCLUDING THE BOUND WAS LOOSENED. It was 13, and it is
+#: now 14, and that is a TIGHTENING. Until D-2026-41 this counted ``verify()``
+#: CALLS while calling them full chain verifications, and a warm run made 11
+#: of those while making 19 passes over the log -- ``projection()`` verified
+#: and then read the file again. Against the unit named, the true figures
+#: were 19 warm and 22 on a fresh log, both far above the ceiling of 13 that
+#: was never compared with them. Closing that window removed eight passes per
+#: run; 14 is the measured maximum of what remains.
+#:
+#: It is deliberately not 1 -- the residual eight and three are a measured,
+#: recorded gap (D-2026-32), not a closed one, and writing 1 here would
+#: assert something this code does not do.
+MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN = 14
 
 
 def _governed(tmp_path, name: str):
@@ -857,35 +886,35 @@ def test_a_governed_run_verifies_the_whole_chain_a_bounded_number_of_times(
                 inputs={"out_dir": g.out_rel, "name": f"a{i}.json",
                         "payload": {"label": "MODEL_ONLY", "value": i}})
 
-        first_calls, first_records = _count_full_verifications(one(0))
+        first_calls, first_records = _count_full_passes(one(0))
         for i in range(1, 4):
             one(i)()
-        later_calls, later_records = _count_full_verifications(one(4))
+        later_calls, later_records = _count_full_passes(one(4))
 
-        assert first_calls <= MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN, (
-            f"a governed run made {first_calls} full chain verifications on "
+        assert first_calls <= MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN, (
+            f"a governed run made {first_calls} whole-log passes on "
             f"a fresh log; the ceiling is "
-            f"{MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN}")
-        assert later_calls <= MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN, (
-            f"a governed run made {later_calls} full chain verifications "
+            f"{MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN}")
+        assert later_calls <= MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN, (
+            f"a governed run made {later_calls} whole-log passes "
             f"behind a longer history, against a ceiling of "
-            f"{MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN}; the COUNT is "
+            f"{MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN}; the COUNT is "
             "growing with the log, which is the shape that made this "
             "quadratic")
         assert later_calls <= first_calls, (
-            f"{first_calls} verifications on a fresh log and {later_calls} "
+            f"{first_calls} passes on a fresh log and {later_calls} "
             "behind a longer one: the count is a function of the history")
         # Anti-vacuity: the measurement has to be seeing something. A run
         # that verified nothing would satisfy every assertion above.
         assert first_calls > 0 and later_records > first_records, (
-            "the probe recorded no verification work at all, so the "
+            "the probe recorded no log reading at all, so the "
             "assertions above are about nothing")
     finally:
         if base.exists():
             shutil.rmtree(base)
 
 
-def test_the_verification_probe_can_actually_see_a_regression(tmp_path):
+def test_the_pass_probe_can_actually_see_a_regression(tmp_path):
     """Anti-vacuity for the ceiling.
 
     A counter that always reported zero would pass the test above no matter
@@ -899,10 +928,37 @@ def test_the_verification_probe_can_actually_see_a_regression(tmp_path):
                payload={"record_id": "r", "kind": "k", "proposer": "a"})
 
     def over_the_ceiling():
-        for _ in range(MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN + 1):
+        for _ in range(MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN + 1):
             _EL.verify(log)
 
-    calls, records = _count_full_verifications(over_the_ceiling)
-    assert calls == MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN + 1
-    assert calls > MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN
-    assert records == calls, "each verification read the one record there is"
+    calls, records = _count_full_passes(over_the_ceiling)
+    assert calls == MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN + 1
+    assert calls > MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN
+    assert records == calls, "each pass read the one record there is"
+
+
+def test_the_probe_counts_BOTH_ways_into_a_whole_chain_check(tmp_path):
+    """D-2026-41: two entry points, and a probe watching one of them lies.
+
+    `verify()` and `read_verified()` both walk the whole log. A probe that
+    counted `verify` calls would have reported this loop as zero work, and
+    would have reported the D-2026-41 repair as 11 passes becoming 3 -- an
+    improvement it was not measuring, in the direction that makes a guard
+    look better while the system does the same thing.
+    """
+    from qta_agent.events import EventLog as _EL
+
+    log = EventLog(tmp_path / "both.jsonl")
+    log.append(actor="a", action="record.create", target="r",
+               payload={"record_id": "r", "kind": "k", "proposer": "a"})
+
+    def three_each():
+        for _ in range(3):
+            _EL.verify(log)
+        for _ in range(3):
+            _EL.read_verified(log)
+
+    passes, _ = _count_full_passes(three_each)
+    assert passes == 6, (
+        f"the probe saw {passes} passes where six whole-log reads happened; "
+        "a check reached through the other entry point is still a check")

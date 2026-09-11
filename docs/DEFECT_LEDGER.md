@@ -3763,6 +3763,99 @@ than closed with a new instance that is not the one 0b names.
 
 ---
 
+## D-2026-41 — the projection verified one read of the log and folded another
+
+**CLASS** — `TRUE_DEFECT` (a coherent-read window on the production path),
+plus a measurement that named a quantity it was not counting.
+
+**AFFECTED COMMIT** — since the governed caller was written.
+
+**DISCOVERED BY.** Working the P1 item recorded as "Stage-10 coherent read".
+
+**DEFECT.** `GovernedStage10.projection()` read:
+
+```python
+self.log.verify().raise_if_bad()
+for ev in self.log.read():
+```
+
+Two passes over a file that other processes append to. The records folded
+are not the records checked. Reproduced, with a record whose chain link does
+not hold landing in the window:
+
+```
+tasks before: ['task-b82e5fafacd3']
+tasks after : ['t-forged', 'task-b82e5fafacd3']
+FORGED TASK FOLDED: True
+and the log now fails verification: True
+```
+
+A task attributed to `mallory`, folded into the projection the governed path
+acts on, from a log that does not verify — under a docstring reading
+"Rebuild task state from the verified log. Fail closed."
+
+**AND THE SAME SHAPE WAS COSTING EIGHT PASSES A RUN.** Counted directly:
+
+```
+one governed run on a warm caller:
+  EventLog.verify() calls : 11
+  EventLog.read() passes  : 19   <-- the actual file passes
+  passes the probe does not count: 8
+```
+
+The eight are exactly the eight `projection()` calls reading a second time.
+
+**REPAIR.** `EventLog.read_verified()` returns `(report, events)` from ONE
+pass — `verify()` already parses every record to check it, so handing the
+list back costs nothing — and `verify()` now delegates to it, so there is one
+implementation of the chain check rather than two. `projection()` uses it.
+After: **11 passes on a warm caller, 14 at most.** Stronger and cheaper,
+which is not the usual trade.
+
+Stated narrowly, because the window is not all windows: records are read
+once, so nothing can land between the check and the fold. A rewrite of
+EARLIER bytes while the pass is in flight is a different matter and this does
+not address it. That is the threat model `verify()` lives in generally, and
+`qta_agent.checkpoint` already says how far the filesystem is trusted.
+
+**THE MEASUREMENT WAS NAMING THE WRONG QUANTITY, AND IT IS THE GUARD
+D-2026-32 BUILT.** `MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN = 13` counted
+calls to `EventLog.verify` and called them full chain verifications. A warm
+run made 11 of those and 19 passes. **The ceiling was 13, the real figure was
+19, and the guard passed** — because it counted the wrong unit. On a fresh
+log it was 22.
+
+The probe now counts `EventLog.read`, which is a pass over the file whichever
+function asked for it, and the constant is `MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN`.
+Every number in its docstring is measured:
+
+| case | passes | records read |
+|---|---|---|
+| first run, brand-new caller and EMPTY log | **14** | 167 |
+| second run, same caller (now warm) | 11 | 398 |
+| third run, same caller | 11 | 653 |
+| fresh caller over an EXISTING log | 13 | 1067 |
+| same caller again | 11 | 1196 |
+
+Records grow, passes do not. That flatness is the property; the ceiling is
+where it sits.
+
+**THE CEILING WENT FROM 13 TO 14 AND THAT IS A TIGHTENING, WHICH NEEDS
+SAYING.** Raising a bound is the move this repository forbids without an
+argument. The argument is the unit: against passes, the figures before the
+repair were 19 warm and 22 cold, both far above a ceiling of 13 that was
+never compared with them. Fourteen is the measured maximum of what remains
+after eight passes per run were removed.
+
+And the switch of unit was not cosmetic. With two entry points into a
+whole-chain check, a probe watching `verify()` alone would have reported the
+repair as **11 calls becoming 3** — an improvement it was not measuring, in
+the direction that makes a guard look better while the system does the same
+work. `test_the_probe_counts_BOTH_ways_into_a_whole_chain_check` is there
+because that reading was available and wrong.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3847,6 +3940,7 @@ not bear on it.
 | D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | this commit | pending its own hosted run; locally D2, D6, D101, D102 and D103 were applied one at a time and killed, two of them by the new parity tests |
 | D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | `d425d47` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run. Step 7, the byte gate, is red and is R59 |
 | D-2026-40 (P1) | `full-suite`'s pytest step, and the manifest-completeness suite inside it | `d425d47` | **`CURRENTLY_CLOSED`** — step 5 `success`, and `agent-substrate` step 8 ("derived artifacts are in step with their sources") `success` on the same commit: the step that was red at `3f26b27` for this exact file |
+| D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `stage10_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
 
 ### What `3d809f0`'s own run said
 
@@ -3972,6 +4066,7 @@ container.
 | P1 / D-2026-38 | the second reader spoke a wider job language than the scheduler | `CURRENTLY_OPEN_FINDING` | `_JOB_EDGES` restated, `_JOB_SEALED` derived from it, `_JOB_INITIAL` narrowed to one state; five parity tests that fail by naming the difference; hosted evidence pending |
 | P1 / D-2026-39 | two verifiers reported a verdict over a scope of nothing | `CURRENTLY_CLOSED` | both refuse an empty scope and a partial one; the crate validator returns FAIL instead of a KeyError traceback; the sweep names what it did and did not examine; the pytest step is green at `d425d47` |
 | P1 / D-2026-40 | a test of mine overwrote a tracked artefact, and the suite's file order hid it | `CURRENTLY_CLOSED` | `validate()` takes a report path; the guard is order-independent; the artefact is restored, and the canonical-tree step that caught it is green again at `d425d47` |
+| P1 / D-2026-41 | the projection verified one read of the log and folded another | `CURRENTLY_OPEN_FINDING` | `read_verified()` returns the records it checked, in one pass; 19 passes per warm run down to 11; the guard counts passes rather than `verify()` calls; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

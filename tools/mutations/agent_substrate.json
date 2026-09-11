@@ -359,6 +359,13 @@
       "find": "            if rec is None or rec.state is not State.PROMOTED:",
       "replace": "            if rec is None:",
       "rationale": "the state machine stops deciding canonicity at all, so a PROPOSED or REVOKED record is returned as canonical authority"
+    },
+    {
+      "name": "M51_read_verified_hands_back_records_it_did_not_check",
+      "path": "qta_agent/events.py",
+      "find": "        try:\n            events = self.read(strict=True)\n        except EventLogError as exc:\n            return (VerifyReport(False, 0, -1, ZERO_DIGEST,\n                                 problems + [str(exc)]), [])",
+      "replace": "        try:\n            events = self.read(strict=True)\n        except EventLogError as exc:\n            return (VerifyReport(True, 0, -1, ZERO_DIGEST,\n                                 problems), events if False else [])",
+      "rationale": "D-2026-41: an unparseable log reports ok and the caller folds whatever came back"
     }
   ]
 }
