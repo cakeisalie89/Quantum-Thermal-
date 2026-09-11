@@ -4190,6 +4190,30 @@ was updated with it and now asserts the hedge as well as the heading — in
 that test the suite really is the culprit, and the wording still has to
 leave the other possibility open.
 
+**AND THE SAME OMISSION A THIRD TIME, WITHIN THE HOUR.** `55ab53a` was
+pushed with `final_manifest.json` regenerated and `docs/corpus_allowlist.json`
+not, because the last edit before committing was to this file — which is a
+corpus document. `stack-verify (core)` went red on its own commit and
+`tools/corpus_allowlist.py` named it exactly:
+
+```
+CORPUS ALLOWLIST DRIFT
+  1 allowlisted document(s) no longer hash to what the allowlist records:
+  ['docs/DEFECT_LEDGER.md']. Regenerate the allowlist in the commit that
+  changes the document, so the change is reviewed rather than absorbed
+```
+
+Three times in one session: the crate after a source edit, the HDF5 chain
+after a governed output, and now the allowlist after this file. Each time I
+regenerated the artifact I was thinking about and stopped. The chain is
+documented, ordered, and enforced by four independent checkers, and all
+three were caught by them within minutes — which is the system working. What
+it says about the operator is that "regenerate the derived chain" is not one
+action but several, and treating it as one is a habit that costs a red run
+every time. The regeneration order in `MANIFEST_BOUNDARY.md` is the list; the
+fix is to run it rather than to remember it.
+
+
 
 ---
 
