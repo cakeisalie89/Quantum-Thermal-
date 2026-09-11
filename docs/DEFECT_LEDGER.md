@@ -4415,6 +4415,100 @@ enforcement -- rather than absorbed into a count nobody reads.
 
 ---
 
+## D-2026-46 — six timing guards, one converted, and the argument for the rest
+
+**CLASS** — `WRONG_TEST` (a correct property measured by an instrument that
+cannot hold it), plus `ARCHITECTURAL_MISUNDERSTANDING`: a stated reason for
+leaving five siblings alone, falsified by a hosted run.
+
+**DISCOVERED BY.** `full-suite` step 5 at `bf8a2f8`, which went red on a
+tree whose property was intact:
+
+```
+appending 800 records cost 37.1x appending 100; linear is about 8x and
+quadratic about 64x.
+assert 37.06185812898332 < 20.0
+```
+
+Measured here immediately afterwards: **8.07**, linear to three significant
+figures. The runner was busy; the code was not slow.
+
+**WHAT MAKES IT A DEFECT RATHER THAN A FLAKE.** D-2026-37 had already found
+this shape, converted `test_per_append_cost_does_not_grow_with_history` from
+wall time to counting re-hashes, and written down why the others could stay:
+
+> Every other ratio guard compares two SIZES with an 8x spread, so healthy
+> reads about 8 and quadratic about 64 and a busy runner cannot move a
+> measurement across that gap.
+
+A busy runner moved it to 37.1 — past the 20.0 ceiling, more than four times
+the healthy value, well into the gap the argument called uncrossable. The
+reasoning was careful and it was wrong, and it was wrong in the direction
+that costs a red run on correct code, which is how a ceiling gets widened,
+and widened again, until the guard cannot see the regression it exists for.
+The file says so itself, one function above: *"The answer to a noisy
+measurement is a better estimator, not a looser bound."*
+
+**THE SWEEP CLOSED THE EXAMPLE.** One guard converted, five left timed on an
+argument that had not been tested. That is the failure this ledger keeps
+recording, committed by the fix for the previous instance of it.
+
+**REPAIR — LINEARITY AS AN EQUALITY.** Counting re-hashes gives an exact
+work unit, and it turns out every guard shares one invariant: if the work is
+linear, going from SMALL to LARGE records costs exactly `LARGE - SMALL` more
+re-hashes. Measured, identical in all five, 700 = 800 - 100:
+
+| guard | SMALL | LARGE | difference |
+|---|---|---|---|
+| appending | 99 | 799 | 700 |
+| `verify()` | 100 | 800 | 700 |
+| `AuthorityStore.load()` | 101 | 801 | 700 |
+| `reconstruct()` | 100 | 800 | 700 |
+| `AuditIndex.from_log()` | 100 | 800 | 700 |
+
+`assert_linear_in_records` asserts that difference. It needs no tolerance,
+no ceiling and no estimator, and quadratic growth misses it by orders of
+magnitude rather than by a factor a scheduler could supply.
+
+**TWO MORE CONVERTED, AND ONE OF THEM WAS SKIPPING ITSELF.**
+`test_incremental_verification_does_not_grow_with_the_prefix` becomes an
+equality — a fixed 10-record tail costs exactly 10 re-hashes behind a
+100-record prefix and behind an 800-record one — where the timed form
+allowed a 3.0x window a prefix-dependent cost could sit inside.
+
+`test_checkpoint_load_beats_a_full_replay` called `pytest.skip` when the
+full load fell below the measurement floor, so on a fast machine it did not
+run at all — "a hole with a green tick over it", in this file's own words
+about a different guard. Counting has no floor. Measured: full replay 802
+re-hashes, checkpoint load **3**.
+
+**THE RESIDUE, NAMED.** Thirteen guards now count; two still time, and they
+are exactly the two operations that hash nothing, so there is no unit to
+count and no honest conversion: `Scheduler.ready_queue` (a projection query)
+and `EvidenceStore.get` (a digest-to-bytes lookup). Both are annotated in
+place as residue rather than left looking like the others. Their exposure is
+the one that failed the append guard; neither has failed yet, which is an
+observation and not a guarantee, and if one does the answer is a countable
+unit rather than a wider bound.
+
+**ANTI-VACUITY.** Five assertions now read `large - small == LARGE - SMALL`,
+and a counter wired to something that does not grow would satisfy all five
+while measuring nothing.
+`test_counting_re_hashes_would_SEE_a_quadratic_append_path` builds the
+original defect's shape — re-verifying the whole chain on every append — and
+requires both that the count explodes and that `assert_linear_in_records`
+rejects it.
+
+**DEAD CODE REMOVED WITH IT.** `_time_min`, `_ratio`, `_time` and `REPEATS`
+had no callers left. Deleting them is the same judgement applied to
+`scheduler.py` in D-2026-43 an hour earlier: a helper nothing calls is a
+statement nothing tests, and `_time_min`'s docstring — the "better
+estimator, not a looser bound" lesson — is superseded by the stronger answer
+and carried forward into the converted guards.
+
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted

@@ -108,13 +108,7 @@ CURVE_SIZES = (100, 400, 1600)
 EXPONENT_CEILING = 1.45
 
 
-def _ratio(small_s: float, large_s: float) -> float:
-    if small_s < MIN_MEASURABLE_S:
-        pytest.skip(
-            f"the small case took {small_s * 1000:.1f} ms, below the "
-            f"{MIN_MEASURABLE_S * 1000:.0f} ms floor where a ratio means "
-            "anything on this machine")
-    return large_s / small_s
+
 
 
 def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
@@ -208,36 +202,39 @@ def _fill(path: Path, n: int) -> EventLog:
     return log
 
 
-def _time(fn) -> float:
-    gc.collect()
-    t0 = time.perf_counter()
-    fn()
-    return time.perf_counter() - t0
 
 
-#: How many times a build is repeated before its cost is taken. Timing noise
-#: is ONE-SIDED -- a scheduler, a neighbour on the machine or a cold page cache
-#: can only make a run slower -- so the minimum is the robust estimator and the
-#: mean is not.
-REPEATS = 3
 
 
-def _time_min(build, reps: int = REPEATS) -> float:
-    """Best-of-``reps`` seconds for ``build(i)``, which must have side effects.
 
-    ``build`` takes the repetition index so each run can use its own path: the
-    operation under test appends to a file, so repeating it in place would
-    measure something different each time.
 
-    This exists because the first version measured each size ONCE. Locally
-    that gave a ratio near 2; on a shared hosted runner it gave 11.2 against a
-    10.0 ceiling, and the guard failed on noise rather than on a regression.
-    The answer to a noisy measurement is a better estimator, not a looser
-    bound -- widening the ceiling would have made the guard unable to see the
-    regression it exists for.
+
+
+def assert_linear_in_records(name, small_count, large_count):
+    """Linearity as an EQUALITY, not a ratio under a ceiling.
+
+    If the work is linear in the number of records, then going from SMALL to
+    LARGE records costs exactly LARGE - SMALL more units of work. That is a
+    sharper statement than "the ratio is under 20", it needs no tolerance,
+    and no busy machine can move it. Quadratic growth misses it by orders of
+    magnitude rather than by a factor a scheduler could supply.
+
+    Measured for every guard converted in D-2026-46, and identical in all
+    five: 700 = 800 - 100.
+
+        append                  99 -> 799
+        verify()               100 -> 800
+        AuthorityStore.load()  101 -> 801
+        reconstruct()          100 -> 800
+        AuditIndex.from_log()  100 -> 800
     """
-    build(-1)                                   # warm-up, not measured
-    return min(_time(lambda i=i: build(i)) for i in range(reps))
+    grew = large_count - small_count
+    assert grew == LARGE - SMALL, (
+        f"{name}: going from {SMALL} to {LARGE} records cost "
+        f"{grew} extra re-hashes, not {LARGE - SMALL}. Linear means the "
+        f"extra work IS the extra records; quadratic here would be about "
+        f"{(LARGE ** 2 - SMALL ** 2) // 2}. Counts: {small_count} -> "
+        f"{large_count}")
 
 
 # ---- the append path -----------------------------------------------------
@@ -246,15 +243,28 @@ def test_appending_a_history_is_not_quadratic_in_its_length(tmp_path):
 
     Before the fix this ratio was about 13 for a 4x size increase. Linear is
     about 4.
+
+    WHY THIS COUNTS AND NO LONGER TIMES (D-2026-46)
+
+    It asserted `ratio < 20.0` on wall time, and a hosted runner failed it at
+    **37.1** while the property was intact -- measured here immediately
+    afterwards at 8.07, which is linear to three significant figures.
+
+    D-2026-37 converted the sibling guard below to counting and left this one
+    timed, with a stated reason:
+
+        "Every other ratio guard compares two SIZES with an 8x spread, so
+         healthy reads about 8 and quadratic about 64 and a busy runner
+         cannot move a measurement across that gap."
+
+    A busy runner moved it to 37.1. The argument was reasonable and it was
+    wrong, and it was wrong in the direction that costs a red run on a
+    correct tree -- which is how a guard gets widened, and then gets widened
+    again, until it cannot see the regression it exists for.
     """
-    small = _time_min(lambda i: _fill(tmp_path / f"small{i}.jsonl", SMALL))
-    large = _time_min(lambda i: _fill(tmp_path / f"large{i}.jsonl", LARGE))
-    ratio = _ratio(small, large)
-    assert ratio < LINEAR_CEILING, (
-        f"appending {LARGE} records cost {ratio:.1f}x appending {SMALL}; "
-        f"linear is about {FACTOR:.0f}x and quadratic about "
-        f"{FACTOR ** 2:.0f}x. A verification whose cost grows without bound "
-        "is one that gets switched off.")
+    small = _count_rehashes(lambda: _fill(tmp_path / "small.jsonl", SMALL))
+    large = _count_rehashes(lambda: _fill(tmp_path / "large.jsonl", LARGE))
+    assert_linear_in_records("appending", small, large)
 
 
 def _count_rehashes(fn) -> int:
@@ -362,13 +372,12 @@ def test_the_per_append_probe_can_actually_see_growth(tmp_path):
 
 # ---- reading and verification -------------------------------------------
 def test_full_verification_is_linear(tmp_path):
+    """Counted, not timed -- see assert_linear_in_records (D-2026-46)."""
     _fill(tmp_path / "small.jsonl", SMALL)
     _fill(tmp_path / "large.jsonl", LARGE)
-    small = _per_call(lambda: EventLog(tmp_path / "small.jsonl").verify())
-    large = _per_call(lambda: EventLog(tmp_path / "large.jsonl").verify())
-    assert large / small < LINEAR_CEILING, (
-        f"verifying {LARGE} records cost {large / small:.1f}x verifying "
-        f"{SMALL}; linear is about {FACTOR:.0f}x")
+    small = _count_rehashes(lambda: EventLog(tmp_path / "small.jsonl").verify())
+    large = _count_rehashes(lambda: EventLog(tmp_path / "large.jsonl").verify())
+    assert_linear_in_records("full verification", small, large)
 
 
 def test_incremental_verification_does_not_grow_with_the_prefix(tmp_path):
@@ -377,45 +386,52 @@ def test_incremental_verification_does_not_grow_with_the_prefix(tmp_path):
     Verifying a fixed tail must cost the same whether the prefix is short or
     long; if it does not, the anchor is being ignored.
     """
+    # COUNTED, NOT TIMED (D-2026-46). A fixed tail is a fixed amount of
+    # work, so the honest assertion is EQUALITY -- where the timed form
+    # allowed a 3.0x window, inside which a prefix-dependent cost could sit
+    # unnoticed on any machine quiet enough. Measured: 10 re-hashes for a
+    # 10-record tail, at both prefix lengths.
     results = {}
     for name, n in (("small", SMALL), ("large", LARGE)):
         log = _fill(tmp_path / f"{name}.jsonl", n)
         anchor = log.anchor_at(n - 10)
-        results[name] = _per_call(
+        results[name] = _count_rehashes(
             lambda log=log, a=anchor: log.verify_from(a))
-    assert results["large"] / results["small"] < 3.0, (
-        "verifying a fixed-size tail got slower as the prefix grew; the "
-        "anchor is not being used")
+    assert results["large"] == results["small"] == 10, (
+        f"verifying a fixed 10-record tail cost {results['small']} re-hashes "
+        f"behind a {SMALL}-record prefix and {results['large']} behind "
+        f"{LARGE}. Equal is the property; anything else means the anchor is "
+        "not being used and the prefix is being re-read")
 
 
 def test_projection_load_is_linear(tmp_path):
     _fill(tmp_path / "small.jsonl", SMALL)
     _fill(tmp_path / "large.jsonl", LARGE)
-    small = _per_call(
+    small = _count_rehashes(
         lambda: AuthorityStore(EventLog(tmp_path / "small.jsonl")).load())
-    large = _per_call(
+    large = _count_rehashes(
         lambda: AuthorityStore(EventLog(tmp_path / "large.jsonl")).load())
-    assert large / small < LINEAR_CEILING
+    assert_linear_in_records("authority-store load", small, large)
 
 
 def test_independent_reconstruction_is_linear(tmp_path):
     _fill(tmp_path / "small.jsonl", SMALL)
     _fill(tmp_path / "large.jsonl", LARGE)
-    small = _per_call(
+    small = _count_rehashes(
         lambda: reconstruct(EventLog(tmp_path / "small.jsonl")))
-    large = _per_call(
+    large = _count_rehashes(
         lambda: reconstruct(EventLog(tmp_path / "large.jsonl")))
-    assert large / small < LINEAR_CEILING
+    assert_linear_in_records("independent reconstruction", small, large)
 
 
 def test_audit_index_construction_is_linear(tmp_path):
     _fill(tmp_path / "small.jsonl", SMALL)
     _fill(tmp_path / "large.jsonl", LARGE)
-    small = _per_call(
+    small = _count_rehashes(
         lambda: AuditIndex.from_log(EventLog(tmp_path / "small.jsonl")))
-    large = _per_call(
+    large = _count_rehashes(
         lambda: AuditIndex.from_log(EventLog(tmp_path / "large.jsonl")))
-    assert large / small < LINEAR_CEILING
+    assert_linear_in_records("audit-index construction", small, large)
 
 
 # ---- checkpointing -------------------------------------------------------
@@ -431,17 +447,26 @@ def test_checkpoint_load_beats_a_full_replay(tmp_path):
     store = AuthorityStore(log, evidence=evidence).load()
     store.checkpoint(checkpoints)
 
-    full = _time(lambda: AuthorityStore(
+    # COUNTED, NOT TIMED (D-2026-46), and that also removes a SKIP.
+    #
+    # The timed form called pytest.skip when the full load fell below the
+    # measurement floor -- on a fast machine this guard simply did not run,
+    # which this file's own _per_call docstring calls "a hole with a green
+    # tick over it". Counting has no floor, so the guard always runs.
+    #
+    # Measured at LARGE=800: full replay 802 re-hashes, checkpoint load 3.
+    full = _count_rehashes(lambda: AuthorityStore(
         EventLog(tmp_path / "log.jsonl"), evidence=evidence).load())
-    cached = _time(lambda: AuthorityStore.load_from(
+    cached = _count_rehashes(lambda: AuthorityStore.load_from(
         EventLog(tmp_path / "log.jsonl"), checkpoints, blobs=evidence,
         evidence=evidence, require_checkpoint=True))
-    if full < MIN_MEASURABLE_S:
-        pytest.skip("the full load is below the timing floor here")
     assert cached < full, (
-        f"loading from a checkpoint took {cached:.3f}s and a full replay "
-        f"{full:.3f}s; a checkpoint that saves nothing is a second source of "
-        "truth with no benefit")
+        f"loading from a checkpoint re-hashed {cached} records and a full "
+        f"replay {full}; a checkpoint that saves nothing is a second source "
+        "of truth with no benefit")
+    assert cached < full / 10, (
+        f"the checkpoint saved only {full - cached} of {full} re-hashes. It "
+        "is meant to make the prefix free, not slightly cheaper")
 
 
 # ---- the scheduler -------------------------------------------------------
@@ -461,12 +486,27 @@ def test_scheduler_readiness_is_not_quadratic_in_the_queue(tmp_path):
     large_sched = build(LARGE // 3)
     small = _per_call(lambda: small_sched.ready_queue(at_seq=10_000))
     large = _per_call(lambda: large_sched.ready_queue(at_seq=10_000))
+    # THE ONE GUARD IN THIS FILE STILL ON WALL TIME, AND WHY.
+    #
+    # D-2026-46 converted the other five to counting re-hashes. ready_queue
+    # hashes nothing -- it is a projection query over state already folded --
+    # so there is no work unit to count and no honest conversion. It keeps
+    # the timed form and the doubled ceiling, and it is named here as the
+    # residue rather than left to look like the others.
+    #
+    # Its exposure is the same one that failed the append guard at 37.1x
+    # against a 20.0 ceiling. It has not failed yet; that is an observation,
+    # not a guarantee, and if it does the answer is a countable unit rather
+    # than a wider bound.
     assert large / small < LINEAR_CEILING * 2, (
         "computing the ready queue got disproportionately slower as the "
         "queue grew")
 
 
 # ---- the evidence store --------------------------------------------------
+# THE SECOND AND LAST TIMED GUARD. EvidenceStore.get resolves a digest to
+# bytes; it verifies nothing and hashes nothing, so there is no work unit to
+# count and no honest conversion (D-2026-46). Timed, and named as residue.
 def test_evidence_lookup_does_not_degrade_as_the_store_fills(tmp_path):
     """Directory fan-out, asserted rather than assumed."""
     store = EvidenceStore(tmp_path / "evidence")
@@ -962,3 +1002,36 @@ def test_the_probe_counts_BOTH_ways_into_a_whole_chain_check(tmp_path):
     assert passes == 6, (
         f"the probe saw {passes} passes where six whole-log reads happened; "
         "a check reached through the other entry point is still a check")
+
+
+def test_counting_re_hashes_would_SEE_a_quadratic_append_path(tmp_path):
+    """ANTI-VACUITY for every guard D-2026-46 converted.
+
+    Five assertions now read `large - small == LARGE - SMALL`. A counter
+    wired to something that does not grow would satisfy all five and measure
+    nothing, which is exactly the failure mode this file keeps finding
+    elsewhere.
+
+    So: a deliberately quadratic append path -- one that re-verifies the
+    whole chain on every append, which is what the original defect did --
+    must be caught, and caught by a mile rather than by a tolerance.
+    """
+    log = EventLog(tmp_path / "q.jsonl")
+
+    def quadratic_fill(n):
+        for i in range(n):
+            log.append(actor="p", action="record.create", target=f"q{i}",
+                       payload={"record_id": f"q{i}", "kind": "k",
+                                "proposer": "p"})
+            log.verify()                # the shape of the original defect
+
+    small = _count_rehashes(lambda: quadratic_fill(SMALL // 10))
+    linear_would_be = SMALL // 10
+    assert small > linear_would_be * 3, (
+        f"a quadratic append path re-hashed {small} times for "
+        f"{linear_would_be} appends; the counter cannot see the regression "
+        "the five converted guards exist to rule out")
+
+    with pytest.raises(AssertionError, match="extra re-hashes"):
+        assert_linear_in_records("a deliberately quadratic path",
+                                 small, small * 40)
