@@ -932,8 +932,8 @@
     },
     {
       "filename": "qta_multiphysics/integrated_layers.py",
-      "size_bytes": 8162,
-      "sha256": "afdc31e8171afa3d6a78ef62067989b89fce82663b0b2647228f7c00204af4a0",
+      "size_bytes": 10201,
+      "sha256": "ca4e8f7c5f155c491a012f63b731c21748f406f9afd48859191de404cd425efa",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "integrated forecast-layer orchestrator"
     },
@@ -1443,8 +1443,8 @@
     },
     {
       "filename": "qta_multiphysics/species_transport_3d.py",
-      "size_bytes": 11346,
-      "sha256": "da9b76bc94698d412afc4178439ff72eab8c6ab9c05ddb3102c2e6ad396e5f37",
+      "size_bytes": 12201,
+      "sha256": "82cc530d35cc5bdb815a976313a530654e6d7489ca92af9e74313f13c766a4fa",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -1618,8 +1618,8 @@
     },
     {
       "filename": "qta_multiphysics/coupling_ledger_3d.py",
-      "size_bytes": 6803,
-      "sha256": "4e6c1245f57e57fd126cf88f0a5be2e26b9d092033534c766d814e4d1b6ba289",
+      "size_bytes": 7363,
+      "sha256": "a00e0c17e719e93d65d2425690e2119de55b834315230f00540a9f7d6aa529a8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -2017,8 +2017,8 @@
     },
     {
       "filename": "qta_multiphysics/measurement_ingest_3d.py",
-      "size_bytes": 15078,
-      "sha256": "6511e33bbc44464c457ab50f6011b00cb882a46f2476a55578abd9d68a28a751",
+      "size_bytes": 16048,
+      "sha256": "78a0a433785e393d616d3cdbdbba3c1e47598be246a9e8d2f9ec00c779268e69",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "954d4c14a99e70f696dd88f31960fd071322f28ced8278f816e3f261fccd3f13",
+      "sha256": "dcabade0e470d81fe1dfd515499d8fe03c1d90dbe39de15d23802af14be6bf76",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 259831,
-      "sha256": "5cbcf3ec9d86cc5045d8553062986be5c9da084f4ad0d9bc70ce257ef22bef1c",
+      "size_bytes": 264469,
+      "sha256": "3866b12da63041a70e22244f94cfc16152faac72632c4b701809e5bf51731dae",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4021,6 +4021,13 @@
       "filename": "tests/hw_reviewer_fixtures.py",
       "size_bytes": 3052,
       "sha256": "060fdaf320cfd160c1321918a981afe022f7f82b62c05f311aba2302551b5095",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tests/test_optimized_mode_invariants.py",
+      "size_bytes": 6352,
+      "sha256": "1f857c5b49d307b8ef25467fdc3e90b6f8bf4f00b2f32d315794cd17bd2a942c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     }

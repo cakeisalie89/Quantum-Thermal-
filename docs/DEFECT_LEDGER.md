@@ -4322,6 +4322,99 @@ Writing one does not confer immunity; running the mutation does.
 
 ---
 
+## D-2026-45 — `PASS = 0` was enforced by a statement Python deletes on request
+
+**CLASS** — `TRUE_DEFECT`, fail-OPEN, on the package's central scientific
+claim.
+
+**AFFECTED COMMIT** — since the gate writer was written.
+
+**DISCOVERED BY.** The P2 item recorded as "production assertions under
+`python -O`".
+
+**THE DEFECT.** `_write_gate_csv` is the function that emits the canonical
+gate table. It held the three claims this repository exists to make:
+
+```python
+for r in rows:
+    assert r["status"] in _ALLOWED_STATES, f"illegal gate state {r['status']}"
+    assert r["can_PASS_now"] == "NO"
+    assert r["measured_in_this_system"] == "false"
+```
+
+`assert` is a debugging construct whose documented contract is that it MAY
+VANISH. Under `python -O` it does. Reproduced:
+
+```
+=== normal python ===
+refused: illegal gate state PASS
+file written? False
+
+=== python -O ===
+WROTE THE FILE. Does it contain a PASS row? True
+    FORGED,,,,,,,PASS,,,true,,YES,,,
+```
+
+A row claiming `status=PASS`, `can_PASS_now=YES` and
+`measured_in_this_system=true` written into the canonical gate table, with
+no error and exit 0.
+
+**AND THE INTAKE BOUNDARY, THE SAME WAY.** `ingest_and_compare` refuses a
+measurement file whose `schema_version` is not this one — with an `assert`,
+inside the `try` whose `except` produces `REJECTED_FILE`:
+
+```
+normal:  ingestion_status: REJECTED_FILE
+-O:      ingestion_status: OK
+```
+
+Both fail OPEN, which is the wrong direction twice over: the invariant is
+that no PASS row exists and that foreign schemas do not enter, so losing
+each check produces exactly the artifact the invariant forbids.
+
+**TWO MORE, DIFFERENT IN KIND.** `coupling_ledger_3d._c` let an arbitrary
+status string into the ledger whose whole job is a closed honesty
+vocabulary. And `species_transport_3d` asserted `T is not None` before
+computing a mean free path: under `-O` that becomes a `TypeError` somewhere
+inside the arithmetic, which the directive is explicit about — a refusal
+must be an intentional governed refusal, not an accidental runtime type
+failure. The two are told apart by whoever reads the traceback and by
+nothing else.
+
+**THE SUBSTRATE WAS ALREADY CLEAN, WHICH IS WHY THIS IS P2 AND NOT WORSE.**
+`qta_agent` and `tools/` carry ZERO asserts. Every authority decision in
+this repository is already a real refusal. The defect is confined to the
+scientific tree, and the worst of it sits in the one function that writes
+the number the whole package is judged by.
+
+**REPAIR.** Four sites converted to explicit raises. The intake's raise
+stays INSIDE its own `try`, so the function still answers with a report
+rather than an exception: the caller's contract is unchanged, only the
+flag-dependence is gone. The remaining three asserts are self-checks on
+values the same function just constructed, or on module constants, and are
+enumerated by site.
+
+**THE TEST HAS TO START A SECOND INTERPRETER.** `-O` is decided at compile
+time; there is no way to un-strip an assert inside a running process.
+Anything patched in-process would be testing something else and reporting it
+as this. `tests/test_optimized_mode_invariants.py` runs each probe under
+both builds as a subprocess, and carries an anti-vacuity case asserting the
+two builds really differ (`0 True` vs `1 False`) — without it, both
+parametrised cases would run the same build twice and pass while measuring
+half of what they claim.
+
+Verified against the original code: `[python -O]` fails on both invariants
+while `[python]` PASSES. That asymmetry is the finding — an ordinary test
+run cannot see this defect at all.
+
+**AND A SCAN, SO THE NEXT ONE CANNOT ARRIVE QUIETLY.**
+`test_no_new_assert_has_taken_over_an_enforcing_path` refuses any assert in
+`qta_agent` or `tools/`, and pins the scientific tree's remaining sites by
+file. A new one has to be classified by a person -- self-check or
+enforcement -- rather than absorbed into a count nobody reads.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -4410,6 +4503,7 @@ not bear on it.
 | D-2026-42 (P1) | `full-suite`'s pytest step, which carries the four hardware suites, plus `package_consistency_check.py` for the regenerated readiness artifact | `5c7002f` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run, and inside step 7 the line `[PASS] multiphysics: hardware governance (read-only, no hardware data, human-only review, automatic_gate_effect=NONE, ...)` on the regenerated artifact. Step 7 as a whole is red on exactly two byte comparisons, and that runner printed `openblas runtime kernel: Haswell` / `numpy SIMD found: ['X86_V3']` — no AVX-512, which is R59's signature and not this change |
 | D-2026-43 | `agent-substrate` step 43, the `agent_cross_process` matrix, which must read 11/11 | this commit | pending its own hosted run; locally X4 is killed by the new regression, the unreplayable log is reproduced, and the shadowed-definition scan is verified against a reintroduced duplicate |
 | D-2026-44 | `agent-substrate` step 7 ("completion matrix is self-consistent") and step 46, the `completion_matrix` mutation spec, now 18 | this commit | pending its own hosted run; locally 18/18 with C15 killed by the delimiter test it exposed, and the summary prints both axes |
+| D-2026-45 | `full-suite`'s pytest step, which now carries `tests/test_optimized_mode_invariants.py` | this commit | pending its own hosted run; locally both invariants hold under `python -O` in a subprocess, and the three tests fail against the assert-based code |
 
 ### What `3d809f0`'s own run said
 
@@ -4554,6 +4648,7 @@ container.
 | P1 / D-2026-42 | the hardware gate's HUMAN authority was a self-declaration | `CURRENTLY_CLOSED` | a reviewer must resolve to a roster entry of kind HUMAN whose registration chain reaches the out-of-band bootstrap; the roster ships empty, so nothing is admitted and the reports say so; the preservation check asks the validator instead of grepping for it; mutations 11 → 21; the pytest step AND the hardware-governance assertion are green at `5c7002f` |
 | D-2026-43 | a guard that was correct, documented and untested, and 38 lines the interpreter never reached | `CURRENTLY_OPEN_FINDING` | X4 killed by a regression that reproduces the unreplayable log; the anti-vacuity partner keeps the lapsed-lease requeue working; the dead copy removed with a substrate-wide AST scan behind it; the harness no longer reports an inference as a finding; hosted evidence pending |
 | D-2026-44 | "must cite a run id" was satisfied by a sentence saying there was no run | `CURRENTLY_OPEN_FINDING` | the evidence axis is derived by recomputing each row's implementation digest, not stored; 14 rows' prose no longer names a run while denying one; the summary prints 0/39 covered beside 37/39 complete; mutations 12 → 18; hosted evidence pending |
+| D-2026-45 | `PASS = 0` was enforced by a statement `python -O` deletes | `CURRENTLY_OPEN_FINDING` | four sites converted from `assert` to intentional governed refusals; the gate table and the measurement intake both failed OPEN under `-O` and now refuse identically in both builds; a subprocess suite tests both builds with an anti-vacuity case proving they differ; a scan keeps the substrate at zero asserts; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and
