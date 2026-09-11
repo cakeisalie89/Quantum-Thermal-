@@ -1548,8 +1548,8 @@
     },
     {
       "filename": "thermal_3d_verification_report.json",
-      "size_bytes": 4054,
-      "sha256": "c482faf54329a660529dcf15e0ff55ad952f35c4314c56de26be8c31fd484fcb",
+      "size_bytes": 4079,
+      "sha256": "1d8f4461d7b88bb35228334d242d7b3d5a0999578fb04d358f9e08e630ba1121",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "f07e00eaeb0b15fd210bbfe0aae6bc9ad5cbf95cb7f2ddb3e47b7dc0f88cf67e",
+      "sha256": "c7e5bd36fba8b87af0c1849ed2ec3a8de84fa13f94a61e160376ffdf8fa4f636",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 177822,
-      "sha256": "1bf83a6337760fa6ce50f2c465cf6ccde03ab0840f88cfa6d7b939477c20af4e",
+      "size_bytes": 182445,
+      "sha256": "99ff142d4e1de02218fcbf984f9b728d8570967f4d6d4a1ea7747d8700264e2e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

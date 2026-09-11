@@ -2996,6 +2996,84 @@ guard as evidence that one governed run costs a bounded amount of work. It
 was evidence that one governed run takes a bounded amount of TIME, on a
 history short enough for the subprocess to dominate.
 
+## D-2026-33 — a canonical output went stale when the code that writes it changed, and R59 hid it for four commits
+
+**CLASS** — `STALE_DERIVED_ARTEFACT`, `MISCLASSIFIED_FAILURE`.
+
+**AFFECTED COMMIT** — since the P0-R6 / D-2026-21 convergence work landed on
+this branch; surfaced at `577572d`.
+
+**DISCOVERED BY.** Hosted CI, on a runner that happened to have the same
+arithmetic as the canonical set — so the one real divergence was not buried
+among two dozen host-dependent ones.
+
+**DEFECT.** `thermal_3d_verification_report.json`, the committed canonical
+copy, was stale. The branch's own P0-R6 work added a `converged` flag to the
+3D solver's energy accounting (`thermal_3d_transient.py`, so that a failed
+solve cannot be read as a successful one), that flag flows through
+`verification_3d.py` into the report, and **the committed artefact was never
+regenerated.** It carried `"converged": null` where a regeneration produces
+`"converged": true`.
+
+One added line. No numeric value changed at all.
+
+**WHY IT TOOK FOUR COMMITS TO SEE, AND WHY THAT IS THE INTERESTING PART.**
+`package_consistency_check.py` reports the files whose committed copy differs
+from a fresh regeneration. On the non-AVX-512 runners this branch kept drawing,
+that list was **24 files long** — R59, the host-CPU-dependent divergence — and
+the stale one sat inside it, indistinguishable by name from twenty-three files
+that differ for a reason nobody can fix.
+
+At `577572d` the job drew a runner reporting
+
+```
+openblas runtime kernel: SkylakeX
+numpy SIMD found: ['X86_V3', 'X86_V4', 'AVX512_ICL']
+```
+
+— the canonical configuration. `results_gate_table.csv` matched byte for byte,
+62 of 63 root outputs matched, and the list came back with **exactly one
+name**. A real defect is visible only when the noise it hides in goes quiet.
+
+**THE MISCLASSIFICATION THIS ALMOST BECAME.** I had just posted a comment on
+PR #17 explaining that `full-suite` was red for R59 and that there was nothing
+to fix. That comment was correct about `3d809f0`, where both the count (24)
+and the diagnostic line (Haswell / `X86_V3`) supported it. Applying it to
+`577572d` without re-reading the log would have filed a stale artefact under
+a known-unfixable heading and left it there.
+
+The §15 rule for classifying a failure as R59 — *pytest passed AND
+package-consistency actually ran* — is necessary and **not sufficient**. Both
+conditions held at `577572d` and the failure was still this PR's. The rule
+that was missing: **R59 is a statement about host arithmetic, so it is only
+available when the host's arithmetic actually differs.** The diagnostic step
+prints exactly that, and on this run it said the host matched.
+
+**IMPLEMENTATION FIX.** The canonical copy is regenerated. Verified before
+committing it, on this container:
+
+* a full 3D regeneration produces **36 of 37 outputs byte-identical** to the
+  committed copies, so this host reproduces the canonical set and refreshing
+  one file cannot smuggle in local arithmetic;
+* the only file differing is this one, and its only difference is the
+  `converged` field;
+* `package_consistency_check.py` then returns `RESULT: PASS (all consistency
+  checks passed)` locally.
+
+**WHY THIS IS NOT THE FORBIDDEN "REWRITE A CANONICAL OUTPUT".** That
+prohibition is about R59: rewriting an output so a host-arithmetic divergence
+stops being reported, which destroys the comparison. This is the opposite
+case. The code that writes the artefact changed deliberately and under review,
+the artefact is derived, and leaving it stale is what makes the byte gate
+report a difference nobody can act on. The distinguishing test is whether the
+numbers moved: here nothing numeric changed, one structural field was added,
+and 36 of 37 siblings were untouched.
+
+**INVALIDATED CLAIMS.** Any reading of this branch's earlier `full-suite`
+failures as *entirely* R59. The 24-file list at `3d809f0` contained 23
+host-divergent files and one stale artefact, and nothing then distinguished
+them.
+
 ---
 
 ## Hosted evidence, per commit
@@ -3013,6 +3091,16 @@ finished repair. That failure is recorded as a **failed R11 closure attempt**,
 not as R59: R59 is host-CPU-dependent byte divergence, and it is only
 available as a classification when pytest passed *and* package-consistency
 actually ran. Neither was true at `de7f0e6`.
+
+**AND THOSE TWO CONDITIONS ARE NECESSARY WITHOUT BEING SUFFICIENT.** Both held
+at `577572d` and the failure was still not R59: it was a stale canonical
+artefact (D-2026-33), visible only because that runner's arithmetic matched
+the canonical set, so the drift list came back one name long instead of
+twenty-four. The missing condition is the obvious one once it has cost
+something: **R59 is a claim about host arithmetic, so it is available only
+when the diagnostic step says the host's arithmetic differs.** That step
+prints the OpenBLAS kernel and numpy's SIMD set immediately before the check,
+and reading it is not optional.
 
 | defect | evidence required | commit | state |
 |---|---|---|---|
