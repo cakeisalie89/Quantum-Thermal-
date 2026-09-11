@@ -3416,6 +3416,97 @@ read four hosted failures as one flake because the first one I opened was.
 
 ---
 
+## D-2026-37 — a guard that claimed to be immune to a busy machine, failing on a busy machine
+
+**CLASS** — `WRONG_TEST` (a property measured in units that do not hold it),
+plus a claim in two places that the failure falsified.
+
+**AFFECTED COMMIT** — since the guard was written; surfaced at `423e51f`.
+
+**DISCOVERED BY.** Hosted `full-suite` at `423e51f`, failing pytest — not the
+byte gate this time:
+
+```
+FAILED tests/test_agent_performance.py::test_per_append_cost_does_not_grow_with_history
+AssertionError: a burst of 100 appends onto a history of 400 cost 4.7x the
+same burst onto an empty log
+assert 4.738645984077977 < 4.0
+```
+
+**IS IT A REGRESSION? NO, AND THAT WAS MEASURED BEFORE IT WAS CLAIMED.** The
+ratio was run seven times in this container at the same commit: **0.92, 1.02,
+1.04, 1.04, 1.05, 0.92, 0.94**. The property holds with four times the margin
+the ceiling asks for. Nothing in D-2026-34's change to `events.py` adds work
+proportional to history — `verify_from` traded one `stat()` for one `fstat()`,
+the same syscall count.
+
+**THE DEFECT IS THE GUARD, AND THE SHAPE OF IT IS SPECIFIC.** The suite's own
+docstring said:
+
+> A machine ten times slower than this one passes them all, which is the
+> point.
+
+True of a ratio between two SIZES: an 8x spread puts healthy at about 8 and
+quadratic at about 64, and no amount of CPU steal moves a measurement across
+an order of magnitude. **Not** true of this guard, which compares the same
+size at two different TIMES. It has no size signal at all — the only thing
+separating pass from fail is how the machine felt during each of two bursts,
+and a shared runner is not uniformly slow, it is slow in bursts. The word
+missing from the docstring was *uniformly*, and it was doing all the work.
+
+An earlier repair had already been tried on this same guard: a `min()`-of-N
+estimator, with a comment saying "the answer to a noisy measurement is a
+better estimator, not a looser bound". That was right and insufficient. A
+better estimator narrows the distribution; it cannot supply a discriminator
+that is not there.
+
+**REPAIR: COUNT, DO NOT TIME.** The property is "the append path does not do
+more work as the history grows", and the work is countable: every record a
+verification checks is re-hashed exactly once, and every append hashes the
+one record it writes. `_count_rehashes` patches `Event.recompute_hash` and
+counts — the same move D-2026-32 made for the governed-run guard, one file
+over.
+
+Measured here:
+
+| configuration | burst onto empty | burst onto 400 |
+|---|---|---|
+| `full_verify_every = 0` (the default, incremental) | 100 | **100** |
+| `full_verify_every = 50` (whole-chain checking, the regression shape) | 251 | **1067** |
+
+So the guard now asserts **equality**, where the old one allowed fourfold
+growth, and it cannot be moved by a busy machine in either direction. This is
+not a loosened gate; it is a strictly stricter one. `test_the_per_append_probe_can_actually_see_growth`
+is its anti-vacuity partner: a counter that always returned the same number
+would satisfy an equality assertion perfectly, so the partner turns periodic
+whole-chain verification back on and requires the count to rise.
+
+**THE CLAIM AUDIT, IN BOTH PLACES IT WAS WRONG.** The suite docstring now says
+*uniformly* slower, and says where that stops being true and what was done
+about it. R49 in the completion matrix said "a guard fails on shape, not on
+wall time, so a slow machine cannot fail it" — a hosted machine had just
+failed one — and is corrected and downgraded to
+`DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`. **37/39, two open.**
+
+**AND THE GAP IS NAMED RATHER THAN CLOSED BY REWRITING.** Seven guards still
+assert on a wall-clock ratio. Each compares two sizes with a wide spread,
+none has produced a false failure, and converting them wholesale on the
+strength of an argument about the one that did fail is how a suite gets
+rewritten instead of repaired. What is honestly missing is that their
+robustness is a judgement about spread rather than a measurement, and nothing
+records how close any of them has come to its ceiling on a hosted runner.
+That is the residual gap on R49, and the counting probe is the pattern if one
+of them starts to drift.
+
+**WHAT I ALMOST DID.** The quick reading was "4.74 against 4.0 on a shared
+runner, that is noise, re-run it". That reading is available for every
+timing guard forever, and it is how a guard stops being a guard. The rule
+this repository already has — *flake is not a root cause* — is what sent me
+to measure the ratio locally first and then to look at why the number could
+move at all.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3496,6 +3587,7 @@ not bear on it.
 | D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | this commit | pending its own hosted run; local evidence is 34 anchors matching and the suites green, recorded as local |
 | D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
 | D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
+| D-2026-37 (P1) | `full-suite` — the job that found it — green on this commit's own run, on a runner busy enough to have failed the old guard | this commit | pending its own hosted run; locally the whole performance suite is green and the counting probe reads 100/100 healthy against 251/1067 for the regression shape |
 
 ### What `3d809f0`'s own run said
 
@@ -3574,6 +3666,7 @@ container.
 | P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_OPEN_FINDING` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; hosted evidence pending |
 | P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_CLOSED` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; the named hosted evidence is green at `ed1f569` |
 | P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
+| P1 / D-2026-37 | a guard claiming immunity to a busy machine, failed by a busy machine | `CURRENTLY_OPEN_FINDING` | the guard counts re-hashed records instead of timing them, asserting equality where it allowed 4x; anti-vacuity partner added; R49 corrected and downgraded to 37/39; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

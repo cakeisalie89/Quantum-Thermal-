@@ -20,8 +20,26 @@ the argument for a committed guard rather than a benchmark somebody ran once.
 WHAT THESE TESTS DO NOT CLAIM
 
 They do not say the system is fast. They say it has not become
-asymptotically worse. A machine ten times slower than this one passes them
-all, which is the point.
+asymptotically worse. A machine ten times UNIFORMLY slower than this one
+passes them all, which is the point.
+
+AND WHERE THAT STOPS BEING TRUE, WHICH IS NOT A DETAIL
+
+Uniformly is the load-bearing word, and it was missing here until a hosted
+runner removed it. A shared machine is not uniformly slow: it is slow in
+bursts, and the two measurements a ratio is built from are taken at
+different moments. A guard comparing two SIZES survives that, because an 8x
+spread puts healthy (about 8) and quadratic (about 64) an order of magnitude
+apart and no amount of CPU steal moves a measurement across that gap. A
+guard comparing the SAME size at two different TIMES has no such separation,
+and `test_per_append_cost_does_not_grow_with_history` failed a hosted run at
+4.74 against a 4.0 ceiling while the property was intact -- measured 0.92 to
+1.05 here immediately afterwards.
+
+The answer was not a looser bound. That guard now COUNTS the records the
+append path re-hashes instead of timing it, which is strictly stricter (it
+asserts equality where the old one allowed 4x) and cannot be moved by a busy
+machine at all. D-2026-37, and the same move D-2026-32 made one file over.
 """
 from __future__ import annotations
 
@@ -43,6 +61,7 @@ if str(ROOT) not in sys.path:
 from qta_agent.audit import AuditIndex  # noqa: E402
 from qta_agent.canonical import digest  # noqa: E402
 from qta_agent.checkpoint import CheckpointStore  # noqa: E402
+from qta_agent.events import Event as _Event  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.policy import PolicyStore  # noqa: E402
@@ -238,11 +257,52 @@ def test_appending_a_history_is_not_quadratic_in_its_length(tmp_path):
         "is one that gets switched off.")
 
 
+def _count_rehashes(fn) -> int:
+    """Run ``fn`` and return how many log records it re-hashed.
+
+    Every record a verification checks is re-hashed exactly once, and every
+    append hashes the one record it writes. So this counts the work the
+    append path actually does, in units that do not move when the runner is
+    busy -- the same move D-2026-32 made for the governed-run guard, applied
+    to the guard that kept failing on noise.
+    """
+    seen = {"n": 0}
+    real = _Event.recompute_hash
+
+    def counting(self):
+        seen["n"] += 1
+        return real(self)
+
+    _Event.recompute_hash = counting
+    try:
+        fn()
+    finally:
+        _Event.recompute_hash = real
+    return seen["n"]
+
+
 def test_per_append_cost_does_not_grow_with_history(tmp_path):
     """The same property stated the way it is actually felt.
 
     A user does not notice 'the total is quadratic'; they notice that the
     thousandth append is slower than the first.
+
+    WHY THIS ONE COUNTS AND DOES NOT TIME (D-2026-37)
+
+    It used to assert ``ratio < 4.0`` on wall time, and it failed a hosted
+    run at 4.74 while the property it guards was intact: measured seven times
+    here afterwards the ratio was 0.92-1.05. It is the most noise-exposed
+    shape in this file, and for a structural reason. Every other ratio guard
+    compares two SIZES with an 8x spread, so healthy reads about 8 and
+    quadratic about 64 and a busy runner cannot move a measurement across
+    that gap. This one compares the same size at two different TIMES, so it
+    has no size signal at all: the only thing separating pass from fail is
+    how the machine felt during each burst.
+
+    Counting re-hashes is not a looser bound -- it is a stricter one. The
+    assertion below is EQUALITY, where the old one allowed a 4x growth, and
+    it cannot be moved by a busy machine in either direction. The partner
+    test shows the count still sees the regression the guard exists for.
     """
     log = EventLog(tmp_path / "log.jsonl")
 
@@ -253,14 +313,51 @@ def test_per_append_cost_does_not_grow_with_history(tmp_path):
                                 "proposer": "p"})
 
     burst(20)                                   # warm-up, not measured
-    first = min(_time(lambda: burst(SMALL)) for _ in range(REPEATS))
+    first = _count_rehashes(lambda: burst(SMALL))
     for _ in range(3):
         burst(SMALL)
-    last = min(_time(lambda: burst(SMALL)) for _ in range(REPEATS))
-    ratio = _ratio(first, last)
-    assert ratio < 4.0, (
-        f"a burst of {SMALL} appends onto a history of {SMALL * 4} cost "
-        f"{ratio:.1f}x the same burst onto an empty log")
+    last = _count_rehashes(lambda: burst(SMALL))
+
+    assert first == SMALL, (
+        f"{SMALL} appends onto an empty log re-hashed {first} records; one "
+        "per append is what an incremental writer does, and a different "
+        "number here means this probe is not measuring the append path")
+    assert last == first, (
+        f"a burst of {SMALL} appends onto a history of {SMALL * 4} re-hashed "
+        f"{last} records against {first} onto an empty log. Per-append work "
+        "that grows with history is the regression this guard exists for: a "
+        "verification whose cost grows without bound is one that gets "
+        "switched off.")
+
+
+def test_the_per_append_probe_can_actually_see_growth(tmp_path):
+    """ANTI-VACUITY for the guard above, and it is load-bearing.
+
+    A counter that always returned the same number would satisfy an equality
+    assertion perfectly. So reintroduce the growth deliberately -- periodic
+    whole-chain verification, which is exactly the shape the incremental
+    writer replaced -- and require the count to rise with the history.
+    """
+    log = EventLog(tmp_path / "log.jsonl")
+    log.full_verify_every = SMALL // 2          # the regression, on purpose
+
+    def burst(n):
+        for i in range(n):
+            log.append(actor="p", action="record.create", target=f"x{i}",
+                       payload={"record_id": f"x{i}", "kind": "k",
+                                "proposer": "p"})
+
+    burst(20)
+    first = _count_rehashes(lambda: burst(SMALL))
+    for _ in range(3):
+        burst(SMALL)
+    last = _count_rehashes(lambda: burst(SMALL))
+
+    assert last > first * 2, (
+        f"with whole-chain verification every {log.full_verify_every} "
+        f"appends, a burst onto a history of {SMALL * 4} re-hashed {last} "
+        f"records against {first} onto an empty log. If that does not grow, "
+        "the probe cannot see the regression the guard above rules out")
 
 
 # ---- reading and verification -------------------------------------------

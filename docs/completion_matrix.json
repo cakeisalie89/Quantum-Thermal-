@@ -1517,7 +1517,7 @@
     {
       "id": "R49",
       "requirement": "Performance regression guards on critical paths",
-      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/checkpoint.py",
@@ -1535,7 +1535,7 @@
       "authority_owner": "n/a",
       "evidence": "ratio guards across two history sizes; SHAPE guards fitting log-time against log-size at three sizes (100/400/1600) with the fit itself checked against a genuinely quadratic and a genuinely linear operation; a per-operation guard measuring the cost of twenty governed operations behind a 50-record history and behind a 1200-record one; and a positive control: reintroducing the quadratic append makes the ratio guard read 11.5x against a 10.0 ceiling",
       "provenance": "every guard that fits a shape publishes its number when QTA_PERF_OUT is set; tools/performance_baseline.py collects them and appends to docs/performance_baseline.json with the commit and the time",
-      "failure_semantics": "a guard fails on shape, not on wall time, so a slow machine cannot fail it and a fast one cannot hide a regression. A measurement the clock cannot resolve even over 512 repetitions skips and says so rather than reporting a number derived from noise",
+      "failure_semantics": "a guard fails on shape or on a COUNT, not on wall time -- with one qualification this row used to omit. A ratio guard survives a machine that is UNIFORMLY slower; a shared runner is not uniformly slower, it is slow in bursts, and the two measurements a ratio is built from are taken at different moments. Guards comparing two SIZES survive that (an 8x spread puts healthy at about 8 and quadratic at about 64). The one guard comparing the same size at two different TIMES did not: it failed a hosted run at 4.74 against a 4.0 ceiling while the property was intact, and now counts re-hashed records instead of seconds (D-2026-37) -- equality where it used to allow 4x. A measurement the clock cannot resolve even over 512 repetitions skips and says so rather than reporting a number derived from noise",
       "recovery": "n/a",
       "retry": "n/a",
       "idempotency": "n/a",
@@ -1554,7 +1554,9 @@
       "fuzzing": "none",
       "differential": "none",
       "hosted_ci": "pending: added after run 33939090740",
-      "residual_gaps": [],
+      "residual_gaps": [
+        "Seven guards still assert on a wall-clock ratio: the four LINEAR_CEILING comparisons, the scheduler-readiness one, and the two checkpoint/evidence comparisons. Each compares two SIZES with a wide spread, which is why none has produced a false failure and why they were not converted wholesale with D-2026-37 -- converting a guard that is not failing, on the strength of an argument about one that was, is how a suite gets rewritten instead of repaired. The gap is that the argument for their robustness is a judgement about spread rather than a measurement, and nothing here records how close any of them has come to its ceiling on a hosted runner. The counting probe used by D-2026-32 and D-2026-37 is the pattern if one of them starts to drift."
+      ],
       "boundaries": [
         {
           "limit": "the file-descriptor and child-process leak checks read /proc and shell out to ps, so they assert nothing on a platform without them; the timing guards run everywhere, the leak guards do not.",

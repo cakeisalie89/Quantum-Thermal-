@@ -80,10 +80,17 @@ def test_the_matrix_does_not_claim_scientific_authority():
 #: and is named like a health question, so a store holding checkpoints for a
 #: log nobody has audits ok.
 #:
-#: The direction of this edit is the point. The number is an output of the
+#: 38 -> 37 on D-2026-37. R49 (performance regression guards) claimed "a
+#: guard fails on shape, not on wall time, so a slow machine cannot fail
+#: it". A hosted runner failed one at 4.74 against a 4.0 ceiling while the
+#: property it guards was intact. That guard now counts re-hashed records;
+#: the row moves because seven others still assert on a wall-clock ratio and
+#: the argument for their robustness is a judgement, not a measurement.
+#:
+#: The direction of these edits is the point. The number is an output of the
 #: rows, not a target to hold: a finding that shows a row is not complete
 #: moves the row, and this line follows it down as readily as up.
-EXPECTED_COMPLETE = 38
+EXPECTED_COMPLETE = 37
 
 #: And how many rows there ARE, which is a different number and was not
 #: treated as one. The assertion below used to read
