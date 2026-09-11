@@ -2889,6 +2889,113 @@ as "the records that carry authority". It was "the records whose own state
 field says PROMOTED", which is a different and weaker statement wherever a
 dependency graph exists.
 
+## D-2026-32 — the performance guard measured time, and the work grew underneath it
+
+**CLASS** — `MEASUREMENT_DEFECT`, `QUADRATIC_PATH`, `IMPLEMENTATION_VS_DESIGN`.
+
+**AFFECTED COMMIT** — present since `governed_stage10.py` was written; still
+true at `577572d`.
+
+**DISCOVERED BY.** P1 of the second reopening, by instrumenting
+`EventLog.verify` and counting rather than timing.
+
+**DEFECT.** One governed Stage-10 run performed **twenty-six full chain
+verifications**. Measured on a fresh log, six consecutive runs:
+
+| run | head | `verify()` calls | records read |
+|---:|---:|---:|---:|
+| 0 | 26 | 27 | 391 |
+| 1 | 49 | 26 | 972 |
+| 2 | 73 | 26 | 1576 |
+| 3 | 98 | 26 | 2206 |
+| 4 | 124 | 26 | 2862 |
+| 5 | 151 | 26 | 3544 |
+
+Records read per run grows by about 650 each time — twenty-six passes over
+roughly twenty-five new events. Per-run work is linear in the history and the
+total is quadratic.
+
+Eighteen of those twenty-six were `self.log.verify().head_seq`: the caller
+wanted **where the head is** and paid for a verification of the entire history
+to find out. The write path never had this problem — `append` has always
+carried an anchor and re-checked only the tail. It was the READ of the head
+that went back to the beginning.
+
+`EventLog.advance` exists for exactly this and names the pattern in its own
+docstring:
+
+> Doing that with a full read made each governed operation cost the whole
+> history: a profile of 120 campaign cycles spent 10 of 13 seconds inside
+> `read()`, and doubling the campaign length quadrupled its wall time. **That
+> is the quadratic defect this repository has already recorded twice, in a
+> third place.**
+
+This was the third place. The mechanism was built, the docstring described
+it, and the production caller did the other thing — which is the shape
+D-2026-23 was recorded for.
+
+**WHY THE GUARD THAT EXISTS DID NOT SEE IT.**
+`test_one_governed_operation_does_not_get_slower_as_the_history_grows`
+measures **wall time**, and records a ratio of ~1.1 against a ceiling of 4.0.
+It is a real guard and it was measuring the wrong quantity: a governed run is
+dominated by a subprocess, so hashing three thousand records is microseconds
+against 1.2 seconds. Extrapolate ten thousand runs — a quarter-million events,
+six and a half million records re-hashed per run — and the ratio the guard
+watches would still have been about 1.1 for most of the way there.
+
+A time guard on a subprocess-dominated operation cannot see the growth of the
+work inside it. That is the same defect class as D-2026-28: a measurement
+named after one thing, measuring another, and right by luck.
+
+**IMPLEMENTATION FIX.** `GovernedStage10._head_seq()` holds an anchor. The
+first call verifies the whole chain and fails closed; after that `advance()`
+verifies only the records this caller has not seen, and refuses to move past
+a broken chain. Every record is verified exactly once per caller instead of
+twenty-six times per run. `projection()` still verifies in full, because a
+reader that cannot say which records went through the gate must not hand back
+a state.
+
+Twenty-six becomes eleven, and the records read at run 5 fall from 3,544 to
+1,484.
+
+**WHAT IS NOT CLOSED, AND IS RECORDED RATHER THAN ROUNDED.** Eleven full
+verifications remain per run, and every one is named: **eight** from
+`projection()` — six inside `_move`, one in `run`, one in `recover` — and
+**three** from `capability.issue`, which verifies to establish the seq a grant
+is in force from. Per-run work therefore still grows with the history, by
+about 270 records per run rather than 650.
+
+Closing the rest means making `projection()` incremental — holding a folded
+state and an anchor, as `AuthorityStore` does — which is a real change to the
+production projection and is **not** made here. The honest state of this
+finding is *deeply implemented with a measured residual gap*, and the residual
+is written into the guard's own constant so nobody has to rediscover it.
+
+**THE GUARD THAT REPLACES THE ASSUMPTION.**
+`test_a_governed_run_verifies_the_whole_chain_a_bounded_number_of_times`
+counts **full chain verifications**, not milliseconds, and requires the count
+not to grow with the history. Thirteen on the first run of a fresh caller —
+the one full pass the incremental path is built on — and eleven thereafter.
+Putting `self.log.verify().head_seq` back into the production caller takes the
+count straight past the ceiling.
+
+It has an anti-vacuity partner that drives the count past the ceiling on
+purpose and requires the probe to notice, because a counter that always
+reported zero would satisfy the ceiling for any implementation at all. And
+the main test asserts the later run read MORE records than the first — a run
+that verified nothing would otherwise pass every line of it.
+
+**FORBIDDEN FAKE FIXES.** Raising the time guard's ceiling. Replacing the
+head reads with `log.head()`, which returns the witness and drops the chain
+check — that is buying the speed by deleting the guarantee, and `advance()`
+exists so the two are not a trade. Writing `1` into the ceiling because it
+would be nicer: the residual eight and three are real.
+
+**INVALIDATED CLAIMS.** Any reading of the governed-operation performance
+guard as evidence that one governed run costs a bounded amount of work. It
+was evidence that one governed run takes a bounded amount of TIME, on a
+history short enough for the subprocess to dominate.
+
 ---
 
 ## Hosted evidence, per commit
@@ -2990,6 +3097,7 @@ container.
 | P0-R16 | the pull request body read as a completion announcement | the body is relabelled; see the PR |
 | P1 / D-2026-30 | a checkpoint pinned a snapshot and nothing anchored the pin | `CURRENTLY_OPEN_FINDING` | the claim is now a record under the hash chain; hosted evidence pending |
 | P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers; hosted evidence pending |
+| P1 / D-2026-32 | the performance guard measured time while the work grew | `CURRENTLY_OPEN_FINDING` | 26 full verifications per governed run down to 11, counted by a guard rather than timed; the residual 8+3 is measured and recorded, not closed |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

@@ -28,6 +28,7 @@ from __future__ import annotations
 import gc
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -661,3 +662,150 @@ def test_the_recorder_refuses_to_record_nothing():
     src = (ROOT / "tools" / "performance_baseline.py").read_text(
         encoding="utf-8")
     assert "recorded nothing" in src and "vacuous" in src
+
+
+# ---------------------------------------------------------------------------
+# D-2026-32 (P1): the time guard could not see the work.
+#
+# test_one_governed_operation_does_not_get_slower_as_the_history_grows above
+# measures WALL TIME and passed at a ratio of ~1.1 against a ceiling of 4.0,
+# while one governed Stage-10 run was performing TWENTY-SIX full chain
+# verifications -- reading 391 records on the first run of a fresh log and
+# 3,544 on the sixth. A governed run is dominated by a subprocess, so hashing
+# three thousand records is microseconds against 1.2 seconds. The guard was
+# real, it was measuring the wrong quantity, and it would have stayed green
+# for a very long time.
+#
+# EventLog.advance exists for precisely this and says so in its own
+# docstring: "That is the quadratic defect this repository has already
+# recorded twice, in a third place." This was the third place. The WRITE path
+# was never the problem -- append has always carried an anchor -- it was the
+# READ of the head that went back to the beginning, eighteen times per run.
+#
+# What this test locks is the thing the time guard cannot see: the number of
+# FULL chain verifications one governed operation performs must not grow with
+# the history.
+# ---------------------------------------------------------------------------
+
+def _count_full_verifications(fn):
+    """Run ``fn`` and return (calls, records read) for EventLog.verify."""
+    from qta_agent.events import EventLog as _EL
+
+    seen = {"calls": 0, "records": 0}
+    real = _EL.verify
+
+    def counting(self):
+        report = real(self)
+        seen["calls"] += 1
+        seen["records"] += max(report.head_seq + 1, 0)
+        return report
+
+    _EL.verify = counting
+    try:
+        fn()
+    finally:
+        _EL.verify = real
+    return seen["calls"], seen["records"]
+
+
+#: Full chain verifications one governed Stage-10 run may perform.
+#:
+#: Eleven on a warm caller, and every one of them is named: eight from
+#: ``projection()`` -- six inside ``_move``, one in ``run``, one in
+#: ``recover`` -- and three from ``capability.issue``, which verifies to
+#: establish the seq a grant is in force from.
+#:
+#: Thirteen on the FIRST run of a fresh caller, because ``_head_seq`` starts
+#: by verifying the whole chain once, fail-closed, before it has an anchor to
+#: advance from. That is the one full pass the incremental path is built on
+#: and it happens once per caller, not once per operation.
+#:
+#: The number is a CEILING on a count, not a target. What it stops is the
+#: regression that occasioned it: eighteen head reads that each walked the
+#: whole log, twenty-six full passes per run. It is deliberately not 1 --
+#: the residual eight and three are a measured, recorded gap (D-2026-32),
+#: not a closed one, and writing 1 here would assert something this code
+#: does not do.
+MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN = 13
+
+
+def _governed(tmp_path, name: str):
+    from qta_agent.evidence import EvidenceStore as _ES
+    from qta_agent.governed_stage10 import GovernedStage10
+
+    base = ROOT / "verification" / "stage10" / f"_pytest_perf_{name}"
+    if base.exists():
+        shutil.rmtree(base)
+    base.mkdir(parents=True)
+    g = GovernedStage10(root=ROOT, log=EventLog(base / "log.jsonl"),
+                        evidence=_ES(base / "evidence"))
+    g.out_rel = f"verification/stage10/_pytest_perf_{name}/out"
+    return g, base
+
+
+def test_a_governed_run_verifies_the_whole_chain_a_bounded_number_of_times(
+        tmp_path):
+    """The count, and that it does not grow with the history.
+
+    Two runs, the second behind a longer log. If the number of full
+    verifications were a function of the history this would show it, and if
+    somebody puts ``self.log.verify().head_seq`` back into the production
+    caller the count goes straight past the ceiling.
+    """
+    g, base = _governed(tmp_path, "verifycount")
+    try:
+        def one(i):
+            return lambda: g.run(
+                tool_id="stage10.emit_artifact",
+                inputs={"out_dir": g.out_rel, "name": f"a{i}.json",
+                        "payload": {"label": "MODEL_ONLY", "value": i}})
+
+        first_calls, first_records = _count_full_verifications(one(0))
+        for i in range(1, 4):
+            one(i)()
+        later_calls, later_records = _count_full_verifications(one(4))
+
+        assert first_calls <= MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN, (
+            f"a governed run made {first_calls} full chain verifications on "
+            f"a fresh log; the ceiling is "
+            f"{MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN}")
+        assert later_calls <= MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN, (
+            f"a governed run made {later_calls} full chain verifications "
+            f"behind a longer history, against a ceiling of "
+            f"{MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN}; the COUNT is "
+            "growing with the log, which is the shape that made this "
+            "quadratic")
+        assert later_calls <= first_calls, (
+            f"{first_calls} verifications on a fresh log and {later_calls} "
+            "behind a longer one: the count is a function of the history")
+        # Anti-vacuity: the measurement has to be seeing something. A run
+        # that verified nothing would satisfy every assertion above.
+        assert first_calls > 0 and later_records > first_records, (
+            "the probe recorded no verification work at all, so the "
+            "assertions above are about nothing")
+    finally:
+        if base.exists():
+            shutil.rmtree(base)
+
+
+def test_the_verification_probe_can_actually_see_a_regression(tmp_path):
+    """Anti-vacuity for the ceiling.
+
+    A counter that always reported zero would pass the test above no matter
+    what the production caller did. This drives the count past the ceiling
+    deliberately and requires the probe to notice.
+    """
+    from qta_agent.events import EventLog as _EL
+
+    log = EventLog(tmp_path / "probe.jsonl")
+    log.append(actor="a", action="record.create", target="r",
+               payload={"record_id": "r", "kind": "k", "proposer": "a"})
+
+    def over_the_ceiling():
+        for _ in range(MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN + 1):
+            _EL.verify(log)
+
+    calls, records = _count_full_verifications(over_the_ceiling)
+    assert calls == MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN + 1
+    assert calls > MAX_FULL_VERIFICATIONS_PER_GOVERNED_RUN
+    assert records == calls, "each verification read the one record there is"

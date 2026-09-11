@@ -440,6 +440,8 @@ class GovernedStage10:
         #: are launched, and gets default-deny over its own mapping.
         self.tool_modules = dict(_TOOL_MODULE)
         self.executor = Executor(self.registry, workspace=self.root)
+        #: Where this caller's verification has reached. See :meth:`_head_seq`.
+        self._head_anchor = None
 
         # Every subsystem projects the SAME log. That is the arrangement the
         # action registry exists to permit, and it is what makes the audit of
@@ -495,6 +497,53 @@ class GovernedStage10:
                     by="system")
 
     # ---- projection ----------------------------------------------------
+    def _head_seq(self) -> int:
+        """The current head, verifying only what this caller has not seen.
+
+        WHY THIS IS NOT ``self._head_seq()``
+
+        It was, at eighteen call sites, and one governed run made twenty-six
+        full chain verifications. Measured: a run on a six-run-old log read
+        3,544 records to answer "where is the head" twenty-six times, against
+        391 on the first run. Per-run work grows linearly with the history and
+        the total is quadratic -- which is the defect
+        :meth:`~qta_agent.events.EventLog.advance` was written for, and its
+        docstring says so: *"That is the quadratic defect this repository has
+        already recorded twice, in a third place."* This was the third place.
+
+        The write path was never the problem: ``append`` has always carried
+        an anchor and re-checked only the tail. It was the READ of the head
+        that went back to the beginning, every time.
+
+        SAME GUARANTEE, NOT A WEAKER ONE
+
+        The first call verifies the whole chain and fails closed. Afterwards
+        every record is verified exactly once, by ``advance``, which refuses
+        to move past a broken chain -- rather than the whole history being
+        re-verified twenty-six times per run. ``projection()`` still verifies
+        in full, because a reader that cannot say which records went through
+        the gate must not hand back a state.
+
+        WHY THE EXISTING PERFORMANCE GUARD DID NOT SEE IT
+
+        ``test_one_governed_operation_does_not_get_slower_as_the_history_
+        grows`` measures WALL TIME, and a governed run is dominated by a
+        subprocess. Hashing three thousand records is microseconds against a
+        1.2-second run, so the ratio stayed at 1.1 against a ceiling of 4.0
+        while the work underneath it grew without bound. A time guard on a
+        subprocess-dominated operation cannot see the growth of the work
+        inside it, which is why the test beside this change counts RECORDS.
+        """
+        if self._head_anchor is None:
+            report = self.log.verify()
+            report.raise_if_bad()
+            if report.head_seq < 0:
+                return -1
+            self._head_anchor = self.log.anchor_at(report.head_seq)
+            return report.head_seq
+        _, self._head_anchor = self.log.advance(self._head_anchor)
+        return self._head_anchor.seq
+
     def projection(self) -> TaskProjection:
         """Rebuild task state from the verified log. Fail closed.
 
@@ -814,7 +863,7 @@ class GovernedStage10:
             task = self._move(task, TaskState.REJECTED, submitter,
                               TaskRole.SUBMITTER, note=str(exc))
             return GovernedRun(task_id, task.state, "REJECTED", "", {},
-                               self.log.verify().head_seq, str(exc),
+                               self._head_seq(), str(exc),
                                policy_identity=decision.identity,
                                policy_digest=decision.policy_digest)
 
@@ -862,7 +911,7 @@ class GovernedStage10:
         # the lease. Recorded in the log so the issued set is a projection of
         # a verified history rather than something the caller asserts.
         cap_id = f"cap-{uuid.uuid4().hex[:8]}"
-        head = self.log.verify().head_seq
+        head = self._head_seq()
         cap = issue(capability_id=cap_id, subject=worker,
                     action=Action.EXECUTE_TOOL, task_id=task_id,
                     tool_id=tool_id, scope=(WORKSPACE_PREFIX,),
@@ -881,14 +930,14 @@ class GovernedStage10:
         read_cap = issue(capability_id=read_cap_id, subject=verifier,
                          action=Action.READ_PATHS, task_id=task_id,
                          scope=read_scope(READ_ROOT_ID, WORKSPACE_PREFIX),
-                         issued_seq=self.log.verify().head_seq + 1,
+                         issued_seq=self._head_seq() + 1,
                          expires_after_seq=lease.expires_after_seq,
                          issued_wall_time=time.time())
         self.capabilities.issue(read_cap, actor="scheduler")
         # Projected back out of the log. If the issuance were not recorded,
         # or were recorded with different terms, the executor would be
         # checking against something that does not exist.
-        caps = self.capabilities.in_force(self.log.verify().head_seq)
+        caps = self.capabilities.in_force(self._head_seq())
 
         # What was available to this run, recorded by digest. The manifest is
         # not the prompt -- nothing here calls a model -- but the question it
@@ -983,7 +1032,7 @@ class GovernedStage10:
                                         detail=result.reason)
             return GovernedRun(task_id, task.state, result.outcome.value,
                                result_digest, {},
-                               self.log.verify().head_seq, detail,
+                               self._head_seq(), detail,
                                job_id=job_id, job_state=job.state.value,
                                policy_identity=decision.identity,
                                policy_digest=decision.policy_digest,
@@ -1016,7 +1065,7 @@ class GovernedStage10:
                 failure=FailureClass.EVIDENCE_FAILED, detail=drift)
             return GovernedRun(task_id, task.state, result.outcome.value,
                                result_digest, artifacts,
-                               self.log.verify().head_seq, drift,
+                               self._head_seq(), drift,
                                job_id=job_id, job_state=job.state.value,
                                policy_identity=decision.identity,
                                policy_digest=decision.policy_digest,
@@ -1125,7 +1174,7 @@ class GovernedStage10:
 
         return GovernedRun(task_id, task.state, result.outcome.value,
                            result_digest, artifacts,
-                           self.log.verify().head_seq, why,
+                           self._head_seq(), why,
                            job_id=job_id, job_state=job.state.value,
                            policy_identity=decision.identity,
                            policy_digest=decision.policy_digest,
@@ -1200,7 +1249,7 @@ class GovernedStage10:
                     unmet = sorted(d for d in deps if d not in done)
                     results[sid] = GovernedRun(
                         "", TaskState.CREATED, "BLOCKED", "", {},
-                        self.log.verify().head_seq,
+                        self._head_seq(),
                         f"step {sid!r} was never dispatched: it depends on "
                         f"{unmet}, which did not succeed")
                 break
@@ -1296,7 +1345,7 @@ class GovernedStage10:
                 tool_id=undo.tool_id, actor=actor, task_id=task_id,
                 inputs=inputs, argv=argv, cwd=self.root,
                 capabilities=self.capabilities.in_force(
-                    self.log.verify().head_seq),
+                    self._head_seq()),
                 capability_id=cap_id,
                 limits=Limits(wall_seconds=undo.timeout_s),
                 env=self._tool_environment())
@@ -1332,7 +1381,7 @@ class GovernedStage10:
         """
         cap_id = f"cap-undo-{uuid.uuid4().hex[:8]}"
         undo = self.registry.compensator_for(self._tool_of(task_id))
-        head = self.log.verify().head_seq
+        head = self._head_seq()
         self.capabilities.issue(
             issue(capability_id=cap_id, subject=actor,
                   action=Action.EXECUTE_TOOL, task_id=task_id,
@@ -1356,7 +1405,7 @@ class GovernedStage10:
         would be exactly that.
         """
         cap_id = f"cap-reverify-{uuid.uuid4().hex[:8]}"
-        head = self.log.verify().head_seq
+        head = self._head_seq()
         self.capabilities.issue(
             issue(capability_id=cap_id, subject=verifier,
                   action=Action.EXECUTE_TOOL, task_id=task_id,
@@ -1413,7 +1462,7 @@ class GovernedStage10:
         Returns one record per action, and appends NOTHING when there is
         nothing to recover, so a supervisor may call it on every start.
         """
-        head = self.log.verify().head_seq
+        head = self._head_seq()
         projection = self.projection()
         # TaskProjection.expired_leases() has existed since the lifecycle was
         # written, documented as "the scheduler's input for returning
@@ -1508,7 +1557,7 @@ class GovernedStage10:
         is not permission: a record from another host says nothing about
         what is running here.
         """
-        head = self.log.verify().head_seq
+        head = self._head_seq()
         projection = self.projection()
         acted: list = []
         for task in sorted(projection.tasks.values(),
@@ -1654,7 +1703,7 @@ class GovernedStage10:
 
         return GovernedRun(
             prior.task_id, state, outcome, "", artifacts,
-            self.log.verify().head_seq, reason,
+            self._head_seq(), reason,
             job_id=prior.job_id, job_state=job_state,
             idempotency_key=prior.key, duplicate_of=prior.task_id,
             escalation_id=escalation_id)
@@ -1716,7 +1765,7 @@ class GovernedStage10:
             task_id=task_id, purpose=f"governed Stage-10 run of {tool_id}",
             policy_identity=decision.identity,
             policy_digest=decision.policy_digest,
-            at_seq=self.log.verify().head_seq)
+            at_seq=self._head_seq())
         builder.add(item_id="owner-instruction",
                     tier=Tier.OWNER_INSTRUCTION,
                     text=("produce the declared Stage-10 artifact; touch no "
@@ -1745,7 +1794,7 @@ class GovernedStage10:
               lease: Lease | None = None, lease_id: str | None = None,
               executed_by: str | None = None,
               result_digest: str | None = None, note: str = "") -> Task:
-        at = self.log.verify().head_seq + 1
+        at = self._head_seq() + 1
         req = TaskTransition(
             task_id=task.task_id, src=task.state, dst=dst, actor=actor,
             role=role, at_seq=at,
@@ -1888,7 +1937,7 @@ class GovernedStage10:
             # tricked into one would hold the other.
             verify_cap = self._reverification_capability(
                 task_id, verifier, tool_id)
-            fresh = self.capabilities.in_force(self.log.verify().head_seq)
+            fresh = self.capabilities.in_force(self._head_seq())
             with socket_guard(self.network, actor=verifier, task_id=task_id,
                               tool_id=tool_id):
                 result = self.executor.run(
@@ -1999,7 +2048,7 @@ class GovernedStage10:
         if not artifacts:
             return False, ("the run produced no artifacts; a completion with "
                            "nothing to point at is not verifiable")
-        caps = self.capabilities.in_force(self.log.verify().head_seq)
+        caps = self.capabilities.in_force(self._head_seq())
         with GovernedReader(self.log, root_id=READ_ROOT_ID,
                             root_path=self.root, capabilities=caps) as reader:
             for rel, dg in sorted(artifacts.items()):
