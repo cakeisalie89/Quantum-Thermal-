@@ -4280,7 +4280,7 @@
    "ordering_policy": "byte-exact source bytes",
    "schema_version": "1.0.0",
    "source_output": "thermal_3d_readiness.json",
-   "source_sha256": "42ccba47e70f561f7ef22b6ae23f4457d1f5d0650caad2738629c62a0e484a4e",
+   "source_sha256": "76db15a1c51be9bd2720b000b7ef43155a6665e86a76a41b5d3d216b79d4e5ed",
    "string_encoding": "UTF-8"
   },
   {

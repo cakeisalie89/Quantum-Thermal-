@@ -64,6 +64,15 @@
       "default_execution": "NO_HARDWARE_DATA (deterministic; hardware paths are operator-invoked only)",
       "repetition_requirements": "UNKNOWN (not plan-specified)",
       "review_authoring": "human-only; tools may verify, never author or promote",
+      "review_authority": {
+        "roster": "hardware_reviewers.json",
+        "roster_present": true,
+        "n_registered_reviewers": 0,
+        "roster_problems": [],
+        "enforced_by": "reviewer_id must resolve to a roster entry of kind HUMAN whose registration chain reaches OUT_OF_BAND_BOOTSTRAP",
+        "not": "authentication; the roster is a declaration, and whoever can write it holds this authority",
+        "consequence_today": "no reviewer is registered, so no review record can be valid and no gate-evidence dossier can have entries"
+      },
       "custody_caveat": "documented chain is ordered and stage-complete; this does not prove the absence of undocumented custody gaps",
       "raw_data_policy": "references + sizes + SHA-256 only; raw acquisition files stay outside the source",
       "automatic_gate_effect": "NONE",

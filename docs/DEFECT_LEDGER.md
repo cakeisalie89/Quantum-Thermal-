@@ -3856,6 +3856,213 @@ because that reading was available and wrong.
 
 ---
 
+## D-2026-42 — the hardware gate's HUMAN authority was a self-declaration
+
+**CLASS** — `TRUE_DEFECT` (an authority claim enforced by asking the
+attacker to confess), plus `WRONG_TEST`: the test that held the rule closed
+the example and not the class.
+
+**AFFECTED COMMIT** — since the hardware-governance layer was written.
+
+**DISCOVERED BY.** Working the P1 item recorded as "hardware HUMAN
+authority".
+
+**WHAT THE REPOSITORY SAID.** In three places. The module docstring: "No
+tool authors a review record or promotes evidence automatically."
+`governance_summary()`: `"review_authoring": "human-only; tools may verify,
+never author or promote"`. `authorities.json`: "human-only review
+authoring".
+
+**WHAT THE CODE DID.**
+
+```python
+if rev.get("authored_by_tool"):
+    reasons.append("review records authored by tools are invalid by "
+                   "governance rule")
+```
+
+and `reviewer_id` checked only for being a non-empty string. So the rule was:
+a tool that admits to being a tool is refused. Reproduced against the code as
+it stood:
+
+```
+validate_review_record(tool-authored) -> True []
+dossier n_entries: 1  n_excluded: 0
+ADMITTED, reviewer recorded as: {'reviewer_id': 'automated-evidence-promoter-v3', ...}
+TOOL-AUTHORED REVIEW ADMITTED TO GATE-EVIDENCE DOSSIER: True
+```
+
+A reviewer whose id is literally the name of a program, accepted as the human
+review that admits a hardware record into a gate-evidence dossier.
+
+**AND THE TEST THAT WAS SUPPOSED TO HOLD IT.**
+
+```python
+def test_review_completeness_and_human_only():
+    ...
+    ok, why = validate_review_record({**REVIEW, "authored_by_tool": True})
+    assert not ok and any("human" in w or "tools" in w for w in why)
+```
+
+It is named `human_only`, and what it proves is that an *honest* tool is
+refused. Mutation `H6_a_review_authored_by_a_tool_is_accepted` was killed by
+it, and the matrix read 11/11. Both were true. Neither was about the rule.
+
+**THE SAME SHAPE ON THE REQUEST PATH, TWICE.**
+`validate_matrix_update_request` enforced separation of duties as
+`doc["requester"] in doc["review_ids"]` — two strings nobody had resolved —
+and never looked up `review_ids` at all:
+
+```
+invented review_ids                     -> True []
+requester as reviewer, different case   -> True []
+```
+
+A request citing two reviews that do not exist validated; so did one whose
+requester was the reviewer under a change of case. Respelling turned one
+subject into two and the separation agreed.
+
+**REPAIR.** A reviewer identity must now RESOLVE. `hardware_reviewers.json`
+declares the roster; `resolve_reviewer()` requires an entry of kind `HUMAN`,
+not retired at the date claimed, whose `registered_by` chain reaches
+`OUT_OF_BAND_BOOTSTRAP` — refusing self-registration, cycles, and
+registration by a `TOOL`. That is the standard `qta_agent/agents.py` already
+holds `PrincipalKind.HUMAN` to, and the reason this repository has two
+authority systems and only one of them was enforcing.
+
+`validate_review_record`, `build_evidence_dossier` and
+`validate_matrix_update_request` all decide through it. The dossier loads
+the roster ONCE and threads it down, so one dossier is decided against one
+authority rather than against whatever the file said at each record.
+`authored_by_tool` is still refused and is no longer load-bearing; the
+comment above the new check says which one is holding the rule up.
+
+**WHAT THIS IS NOT, AND THE MODULE SAYS SO IN ITS OWN VOICE.** It is not
+authentication. `agents.py` already put this plainly — "It cannot
+authenticate a human… an installation that lets an agent perform the
+bootstrap has given the agent human authority, and nothing in this file can
+prevent that" — and the same holds here: whoever can write
+`hardware_reviewers.json` holds hardware-review authority. What changes is
+that the authority is a named file that can be read and diffed, that refuses
+to vouch for itself, and that refuses every review when it is absent or
+empty instead of accepting every one.
+
+**THE ROSTER SHIPS EMPTY, AND THAT IS THE TRUE STATE.** No hardware data
+exists, no review has been performed, nobody has been registered out of
+band. So today no review record can be valid and no gate-evidence dossier
+can have entries — the same shape as "this repository has no human
+decisions", which is what `agents.py` says about escalations. It follows
+that `matrix_update_examples/valid_example.json` is no longer *valid*
+outright, and the test that asserted `ok` now asserts the two-sided thing:
+every refusal it draws is a reviewer-authority refusal (so it really is the
+structurally complete example it is for), and there is at least one (so
+"valid example" is not read as "acceptable request").
+
+**ANTI-VACUITY.** A dossier with no entries has two causes — nobody
+registered, every record deficient — and they are not the same state.
+`reviewer_authority` in the dossier and `review_authority` in
+`governance_summary()` (and so in `thermal_3d_readiness.json`) report which
+roster decided, whether it was present, how many reviewers it held, and what
+the basis is. `test_the_roster_this_repository_ships_registers_nobody`
+asserts the shipped count is zero, so a future registration has to be
+acknowledged where a reader will see it.
+
+**THE TESTS HAD TO MOVE, AND THAT IS THE POINT.** Ten existing tests failed
+after the change, all for one reason: their reviewer was nobody. They were
+repaired at the fixture — `tests/hw_reviewer_fixtures.py` registers the
+reviewer those fixtures are authored by — and every call site in the
+hardware suites now names the roster it decides under. That the positive
+tests previously passed with an unregistered reviewer is the finding
+restated: they were testing record completeness and hash binding and getting
+the authority check for free, because there wasn't one.
+
+**AND A GREP WAS STANDING IN FOR THE RULE.**
+`stage6_preservation_check.py` verified requester/reviewer separation with
+
+```python
+check("requester/reviewer separation enforced by governance",
+      "requester may not be a reviewer" in
+      Path("qta_multiphysics/hardware_governance_3d.py").read_text())
+```
+
+A sentence in a source file survives the rule being deleted around it. It now
+builds a document that must be refused for exactly that reason and asks the
+validator. `qta_multiphysics/stage7_boundary_models.py` keeps its own copy of
+the separation rule as a fast shape check, and
+`test_constructing_the_model_is_not_the_authority` holds a document the model
+admits and governance refuses, so the weaker copy cannot be mistaken for the
+authority.
+
+**MUTATIONS.** `tools/mutations/hardware_governance.json` goes 11 → 21.
+H12–H21 attack the resolution itself: the kind, the chain of trust, the
+bootstrap, retirement, exact naming, the two request-side identities, the
+malformed-roster refusal, and the reviewer count the dossier reports about
+its own authority.
+
+**H17, H18 AND H19 SURVIVED THE FIRST RUN, AND THE HARNESS SAID WHY BEFORE I
+DID.** Its note on a survivor: *"confirm no suite OUTSIDE this list already
+covers it — a mis-scoped spec and a missing test look identical from here."*
+They were covered, by `tests/test_stage6_roadmap.py` and
+`tests/test_stage7_boundary.py`, which the spec did not name. The spec listed
+the module's intake and dossier suites while mutating its request path too.
+Recorded rather than fixed quietly, because SURVIVED was the correct output
+and the wrong conclusion; the suites are now named and the run reads 21/21.
+
+**WHAT VERIFYING THIS COST, AND THE TWO THINGS THE CHECKERS CAUGHT ME DOING.**
+The full suite came back with seven failures, none of them in the code above.
+
+*One: I left the derived chain half-regenerated, which is D-2026-35's class,
+and I did it three weeks after writing that entry.* This change edits hashed
+SOURCE files (`stage6_preservation_check.py` among them) and one governed
+OUTPUT (`thermal_3d_readiness.json`, via `governance_summary()`). I
+regenerated `final_manifest.json` and the corpus allowlist and stopped, as
+though the manifest were the only hash authority. It is not. The RO-Crate
+carries its own checksums, and the HDF5 mapping, schema and artifact carry
+theirs. So `test_ro_crate_cli_validate_subcommand_works` ran the CLI, which
+correctly recomputed
+
+```
+"problems": ["checksum mismatch: stage6_preservation_check.py"],
+"result": "FAIL"
+```
+
+and wrote it over the tracked `VALID` report — moving a manifest-hashed file
+mid-run, which took `test_manifest_completeness` (3), `test_manifest_policy`
+(2) and `test_stage8_data_provenance` down with it. One omission, six
+failures.
+
+`MANIFEST_BOUNDARY.md` describes my exact mistake in its own words:
+"`ro_crate_tools.py` run before a later source edit (leaving a stale
+`qta_full_sim.py` checksum in the crate)". The document recording the lesson
+was in the repository the whole time.
+
+Run properly, the chain propagates by exactly the amount the change warrants,
+and the diff sizes are the evidence rather than the claim: the readiness file
+hashes to `76db15a1…`, which appears once in `hdf5_output_mapping.json` and
+once in `hdf5_schema.json`; the rebuilt artifact hashes to `a5a9dfe4…`, which
+appears once in the equivalence report; the crate rebuilds to `VALID`; the
+manifest goes last. Four files, one line each.
+
+*And my first diagnosis was wrong in a way worth keeping.* I said the manifest
+cluster was an artifact of my having regenerated the manifest while the suite
+was running. I had done that, and it was not the cause. The cause was a stale
+crate, and the difference matters: one is a scheduling accident, the other is
+a tree that was internally inconsistent and would have stayed that way.
+
+*Two: the isolation scan caught my comments.*
+`test_no_gate_computing_module_references_the_substrate` failed on
+`qta_multiphysics/hardware_governance_3d.py`, because three comments named
+the agent substrate's module while pointing at it as the precedent for this
+repair. No import, no dependency — and the scan is right anyway. It is
+textual, with no exception for gate modules and none for comments, and the
+cheapest guarantee that no gate depends on the substrate is that the string
+never appears in one. The rule predates the prose. The names are gone, a
+comment says why the sibling is described and not named, and
+`authorities.json` carries the cross-reference where it costs nothing.
+Widening the scan to admit a comment was the one repair not available.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3927,20 +4134,21 @@ not bear on it.
 | defect | evidence required | commit | state |
 |---|---|---|---|
 | D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
-| D-2026-26 | the cross-process `read-decide-write` mutation matrix | `b2787a0` | **`CURRENTLY_OPEN_FINDING`** until that step is green on a run of its own; the local matrix is 11/11 and local evidence is not the condition |
-| D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `f80caa8` | pending its own hosted run; local evidence is 74/74 and is recorded as local |
+| D-2026-26 | the cross-process `read-decide-write` mutation matrix | `423e51f` | **`CURRENTLY_OPEN_FINDING`**, and for the first time for a REASON rather than a skip: step 43 ran at `423e51f` and **failed**, 10/11, survivor `X4_a_record_the_reducer_will_reject_is_written_anyway`. Every earlier run skipped this step because the job died at 26. Opened as D-2026-43 |
+| D-2026-27 (P0-R12) | `agent_second_reader` mutation matrix, and the agent suites | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding |
 | D-2026-28 (P0-R13) | `identity_inventory` mutation matrix, and the inventory step | `ed1f569` | **`CURRENTLY_CLOSED`** — `agent-substrate` steps 24 ("identity inventory agrees with the code") and 25 (the inventory's own matrix) both `conclusion: success` on that commit's run. The job as a whole is red at step 26, which is a different finding's evidence and not this one's |
-| D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | `3d809f0` | pending its own hosted run; local evidence is 89/89 and is recorded as local |
-| D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | this commit | pending its own hosted run; local evidence is recorded as local |
-| D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | this commit | pending its own hosted run; local evidence is recorded as local |
+| D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding; step 24, the inventory, is success on the same run |
+| D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding; step 12, checkpointing, is success on the same run |
+| D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding; steps 9 and 10, the agent suites and the substrate matrix, are success on the same run |
 | D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | `ed1f569` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 12 (checkpointing) and step 9 (agent suites) `success`, `second-interpreter (3.13)` green as a job, and **no `POST-RUN BASELINE RED`**: at `9d7d3c2` that same matrix ended with it, and the fixture that produced it no longer depends on record length |
 | D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
-| D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
+| D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding. `ed1f569`'s run had this same step red with exactly R92, R98, R99 and R100; the step that named the finding is the step that now passes |
 | D-2026-37 (P1) | `full-suite`'s pytest step — the step that found it — green on this commit's own run | `e081c38` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite, not only the agent suites", `conclusion: success` at `e081c38`, on a hosted runner of the same kind that failed the timed guard at `423e51f`. The job as a whole is red on step 7, the byte gate, which is R59 and does not bear on this |
-| D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | this commit | pending its own hosted run; locally D2, D6, D101, D102 and D103 were applied one at a time and killed, two of them by the new parity tests |
+| D-2026-38 (P1) | `agent-substrate` — the `agent_second_reader` matrix, now 103 mutations | `423e51f` | **`CURRENTLY_CLOSED`** — `agent-substrate` step 26, "mutation matrix -- the second reader", `conclusion: success` at `423e51f` (12:30:33 → 13:11:44). Steps 1–42 are all success on that run. The job as a whole is red at step 43, which is D-2026-26's evidence and a separate finding, on the commit that carries all 103 |
 | D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | `d425d47` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run. Step 7, the byte gate, is red and is R59 |
 | D-2026-40 (P1) | `full-suite`'s pytest step, and the manifest-completeness suite inside it | `d425d47` | **`CURRENTLY_CLOSED`** — step 5 `success`, and `agent-substrate` step 8 ("derived artifacts are in step with their sources") `success` on the same commit: the step that was red at `3f26b27` for this exact file |
 | D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `stage10_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
+| D-2026-42 (P1) | `full-suite`'s pytest step, which carries `tests/test_hardware_governance.py`, `tests/test_review_binding.py`, `tests/test_stage6_roadmap.py` and `tests/test_stage7_boundary.py`, plus `package_consistency_check.py` for the regenerated readiness artifact | this commit | pending its own hosted run; locally the tool-authored review is refused, 12 of the 13 new tests fail without the resolution, and the `hardware_governance` matrix reads 21/21 |
 
 ### What `3d809f0`'s own run said
 
@@ -4024,6 +4232,21 @@ evidence is a step that ran green — and settles nothing for the rest:
 | D-2026-30, D-2026-31 | `agent_checkpoint`/`agent_substrate` **and** `agent_second_reader` | 12/10 green, 26 red | the second half is red → stays open |
 | D-2026-26 | the cross-process `read-decide-write` matrix | 43 | skipped → stays open, and a skipped step is not a passed one |
 
+### What `423e51f`'s own run said
+
+The run the check-ins had been waiting for since D-2026-36 was opened.
+
+| step | name | conclusion |
+|---|---|---|
+| 1–25 | lint, contract, matrix, derived artifacts, agent suites, and fifteen mutation matrices | success |
+| **26** | **the second reader** | **success** |
+| 27–42 | scope, recovery, idempotency, ownership, delegation, job graphs, separate verify, compensation, service authority, lease renewal, model check, hardware gate, convergence, fuzz harness, incremental | success |
+| **43** | **read-decide-write across processes** | **failure — 10/11, survivor X4** |
+| 44–57 | everything after it | skipped |
+
+Six rows close on step 26. Step 43 is a new finding: it had been skipped in
+every previous run, so this is the first time it has reported anything at all.
+
 Five rows stay open on a run in which twenty-five steps passed. That is the
 rule doing its job rather than an accident of bookkeeping: the second-reader
 matrix is the evidence those five name, and it was red for a reason now
@@ -4050,7 +4273,7 @@ container.
 | P0-R10 / D-2026-23 | two defect records described a repair no commit ever made | `CURRENTLY_CLOSED` | 18/18 mutations; the prose and the enforcement now agree, and a test sweeps the corpus for the claim |
 | P0-R11 / D-2026-24 | the address class was checked only where it was already known | `CURRENTLY_CLOSED` | 54/54; hosted at `b2787a0` |
 | P0-R11 hosted regression / D-2026-25 | a permitted class does not make an endpoint usable | `CURRENTLY_CLOSED` | 61/61; hosted at `b2787a0`, on that commit's own run |
-| D-2026-26 | a reconcile decision outlived the facts it was decided on | `CURRENTLY_OPEN_FINDING` | 11/11 locally; its named hosted step has not yet been green on a commit of its own |
+| D-2026-26 | a reconcile decision outlived the facts it was decided on | `CURRENTLY_OPEN_FINDING` | 11/11 locally, and the hosted step finally RAN at `423e51f` and read 10/11. The survivor is a different defect (D-2026-43), not this one; this row stays open because its step has still never been green |
 | P0-R12 / D-2026-27 | the second reader called the gate it exists to second-guess | `CURRENTLY_OPEN_FINDING` | 74/74 locally at `f80caa8`; hosted pending |
 | P0-R13 / D-2026-28 | the coverage number measured string presence | `CURRENTLY_CLOSED` | the inventory step and its matrix are both green at `ed1f569`, on that commit's own run |
 | P0-R14 / D-2026-29 | two true numbers, side by side, unreconciled | `CURRENTLY_OPEN_FINDING` | 89/89 locally at this commit; hosted pending |
@@ -4061,12 +4284,13 @@ container.
 | P1 / D-2026-32 | the performance guard measured time while the work grew | `CURRENTLY_OPEN_FINDING` | 26 full verifications per governed run down to 11, counted by a guard rather than timed; the residual 8+3 is measured and recorded, not closed |
 | P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_CLOSED` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; the checkpointing matrix is green at `ed1f569` with no POST-RUN BASELINE RED |
 | P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_CLOSED` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; the named hosted evidence is green at `ed1f569` |
-| P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
+| P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_CLOSED` | six tests in a suite the spec runs; the SURVIVED wording scoped to the suites actually run; **step 26 is green at `423e51f`** — the same step that was red at `ed1f569` naming exactly R92, R98, R99 and R100 |
 | P1 / D-2026-37 | a guard claiming immunity to a busy machine, failed by a busy machine | `CURRENTLY_CLOSED` | the guard counts re-hashed records instead of timing them, asserting equality where it allowed 4x; anti-vacuity partner added; R49 corrected and downgraded to 37/39; the pytest step is green at `e081c38` on a hosted runner |
-| P1 / D-2026-38 | the second reader spoke a wider job language than the scheduler | `CURRENTLY_OPEN_FINDING` | `_JOB_EDGES` restated, `_JOB_SEALED` derived from it, `_JOB_INITIAL` narrowed to one state; five parity tests that fail by naming the difference; hosted evidence pending |
+| P1 / D-2026-38 | the second reader spoke a wider job language than the scheduler | `CURRENTLY_CLOSED` | `_JOB_EDGES` restated, `_JOB_SEALED` derived from it, `_JOB_INITIAL` narrowed to one state; five parity tests that fail by naming the difference; step 26 green at `423e51f`, the commit carrying all 103 |
 | P1 / D-2026-39 | two verifiers reported a verdict over a scope of nothing | `CURRENTLY_CLOSED` | both refuse an empty scope and a partial one; the crate validator returns FAIL instead of a KeyError traceback; the sweep names what it did and did not examine; the pytest step is green at `d425d47` |
 | P1 / D-2026-40 | a test of mine overwrote a tracked artefact, and the suite's file order hid it | `CURRENTLY_CLOSED` | `validate()` takes a report path; the guard is order-independent; the artefact is restored, and the canonical-tree step that caught it is green again at `d425d47` |
 | P1 / D-2026-41 | the projection verified one read of the log and folded another | `CURRENTLY_OPEN_FINDING` | `read_verified()` returns the records it checked, in one pass; 19 passes per warm run down to 11; the guard counts passes rather than `verify()` calls; hosted evidence pending |
+| P1 / D-2026-42 | the hardware gate's HUMAN authority was a self-declaration | `CURRENTLY_OPEN_FINDING` | a reviewer must resolve to a roster entry of kind HUMAN whose registration chain reaches the out-of-band bootstrap; the roster ships empty, so nothing is admitted and the reports say so; the preservation check asks the validator instead of grepping for it; mutations 11 → 21; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

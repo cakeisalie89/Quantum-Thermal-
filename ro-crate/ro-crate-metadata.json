@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "176429",
+   "contentSize": "177021",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -207,7 +207,7 @@
    "contentSize": "139219",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "56be57dc7363f9e4804b5887b321869445ca874279fa5772e3a807f70725f8fc"
+   "sha256": "47f5a6d85db75c4842e916d703e84ef860109c0ba3cdc1d015c10ea2a9cb0e7c"
   },
   {
    "@id": "hdf5_schema.json",
@@ -215,7 +215,7 @@
    "contentSize": "150481",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "20533ec5ce1890e81d7b3abf14890d39e3200d99b3ed64a4614bbcee10c1b7b5"
+   "sha256": "a240c68cfa2bf88ce9d7c1fe158d9db5f3c11c091bee2789308e29ab227e271e"
   },
   {
    "@id": "manifest_hash.txt",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "1993425",
+   "contentSize": "1993991",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "fedb6ffb631c48706b421b093c620cc88c9193d25474bd758a1548ad2c743e1b"
+   "sha256": "a5a9dfe4cea911081ece4e91817ce221beef2aeb2ecc0d596beb5c5440383200"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -302,10 +302,10 @@
   {
    "@id": "stage6_preservation_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "7521",
+   "contentSize": "8212",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",
-   "sha256": "821830665d09a64b074b81db371776b6c1c5319a2689ec52f372add8a4ca249e"
+   "sha256": "8d84957ac7e6999b74dc157eeb2bb69bff65873d1c8ce0cc4c8273951247990f"
   },
   {
    "@id": "stage7_reports/environment_provenance.json",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "ad65f2a972fc00334d272098cd6dc780a251cea662322a047ead8057769741c2"
+   "sha256": "a28fb7f0a328691a351dbd90e0b0dbe69d4a969bb65009203b999fa3e971cf12"
   },
   {
    "@id": "uv.lock",

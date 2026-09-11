@@ -197,16 +197,20 @@
    "note": "process quantities phase-locked; residual-gas diagnostics any-mode; HARDWARE refused pending validation-plan governance; band semantics band-relative, never sigma"
   },
   "hardware_governance": {
-   "authority": "qta_multiphysics/hardware_governance_3d.py :: DATA_CLASSES, schema_validate_hardware, build_quarantine_report, build_evidence_dossier, append_audit/verify_audit_chain (schema 1.0; read-only; automatic_gate_effect=NONE)",
+   "authority": "qta_multiphysics/hardware_governance_3d.py :: DATA_CLASSES, schema_validate_hardware, build_quarantine_report, build_evidence_dossier, load_reviewer_roster/resolve_reviewer, append_audit/verify_audit_chain (schema 1.0; read-only; automatic_gate_effect=NONE)",
    "owner": "hardware_governance_3d",
    "schema_version": "1.0",
    "plan_authority": "validation_matrix.csv (experiment ids; repetition requirements UNKNOWN until specified)",
    "consumers": [
     "runner_3d (readiness summary only)",
     "package_consistency_check.py",
-    "tests/test_hardware_governance.py"
+    "tests/test_hardware_governance.py",
+    "stage6_preservation_check.py (asks the validator; does not grep for it)",
+    "tests/test_review_binding.py",
+    "tests/hw_reviewer_fixtures.py"
    ],
-   "note": "no hardware data exists; default execution deterministic; raw files outside the source (references + SHA-256 only); human-only review authoring"
+   "note": "no hardware data exists; default execution deterministic; raw files outside the source (references + SHA-256 only); human-only review authoring is ENFORCED by resolving reviewer_id against hardware_reviewers.json to an entry of kind HUMAN whose registration chain reaches OUT_OF_BAND_BOOTSTRAP -- it was previously asserted here and in the module docstring while the code refused only a review that set authored_by_tool (D-2026-42). The roster is a DECLARATION, not authentication: whoever can write it holds this authority. It registers nobody today, so no review record is valid and no gate-evidence dossier can have entries.",
+   "reviewer_authority": "hardware_reviewers.json (declared roster; empty)"
   },
   "validation_roadmap": {
    "authority": "experiment_registry.json + experiment_gate_coverage.json + experiment_matrix_coverage.json + campaign_registry.json (built deterministically by build_stage6_registries.py; playbooks rendered by build_stage6_playbooks.py) :: schema 1.0.0",

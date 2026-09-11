@@ -4061,7 +4061,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "42ccba47e70f561f7ef22b6ae23f4457d1f5d0650caad2738629c62a0e484a4e"
+   "sha256": "76db15a1c51be9bd2720b000b7ef43155a6665e86a76a41b5d3d216b79d4e5ed"
   },
   {
    "byte_preservation": true,

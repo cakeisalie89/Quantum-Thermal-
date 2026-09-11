@@ -2005,7 +2005,8 @@
         "authorities.json",
         "qta_agent/__init__.py",
         "qta_multiphysics/hardware_governance_3d.py",
-        "tools/repo_scope.py"
+        "tools/repo_scope.py",
+        "hardware_reviewers.json"
       ],
       "callers": [
         "tests/test_agent_substrate_isolation.py",
@@ -2015,7 +2016,7 @@
       "production_caller": null,
       "persistent_state": "none",
       "authority_owner": "authorities.json :: agent_authority_substrate",
-      "evidence": "automatic_gate_effect=NONE, enforced by an import scan over tracked AND untracked-unignored files -- the set a file joins the moment anybody commits. The other half of the same claim is qta_multiphysics/hardware_governance_3d.py, which decides whether an unreviewed hardware claim becomes evidence: automatic_gate_effect is NONE in every report it emits, a quarantined record is told it has no evidentiary standing, and a review must be authored by a human and bound to THIS record by digest. Mutation testing found 8 of those 11 checks deletable with no test noticing -- most of them masked by a fixture that was also failing a different check -- and all 11 are covered now",
+      "evidence": "automatic_gate_effect=NONE, enforced by an import scan over tracked AND untracked-unignored files -- the set a file joins the moment anybody commits. The other half of the same claim is qta_multiphysics/hardware_governance_3d.py, which decides whether an unreviewed hardware claim becomes evidence: automatic_gate_effect is NONE in every report it emits, a quarantined record is told it has no evidentiary standing, and a review must be bound to THIS record by digest AND authored by a reviewer who RESOLVES, in hardware_reviewers.json, to an entry of kind HUMAN whose registration chain reaches OUT_OF_BAND_BOOTSTRAP. THIS ROW SAID 'a review must be authored by a human' WHILE THAT WAS FALSE: until D-2026-42 the only refusal was a review that set authored_by_tool, so a program that omitted the flag authored a review that admitted a record into a gate-evidence dossier, and the mutation that killed the check killed the CONFESSING case. Mutation testing had earlier found 8 of 11 checks deletable with no test noticing; the spec is now 21 mutations and the ten added with D-2026-42 attack the reviewer resolution itself",
       "provenance": "none",
       "failure_semantics": "the isolation suite fails if anything outside qta_agent and its allowlisted tests imports the substrate, and it fails on the machine that introduced the importer rather than on a runner an hour later",
       "recovery": "none",
@@ -2028,7 +2029,10 @@
         "tests/test_agent_substrate_isolation.py",
         "tests/test_hardware_governance.py",
         "tests/test_repo_contract.py",
-        "tests/test_single_source_of_truth.py"
+        "tests/test_single_source_of_truth.py",
+        "tests/test_review_binding.py",
+        "tests/test_stage6_roadmap.py",
+        "tests/test_stage7_boundary.py"
       ],
       "property_tests": [],
       "mutation_tests": [
@@ -2049,6 +2053,11 @@
           "limit": "a mutation harness replaces existing text, so it cannot express the attack on this property, which would be to ADD an import",
           "reason": "architectural_by_design",
           "detail": "the structural scan stands in for it, asserted over the whole import graph rather than a list of known offenders, and over tracked PLUS untracked-unignored files so a new importer cannot pass by not being committed yet"
+        },
+        {
+          "limit": "the reviewer roster is a DECLARATION, not authentication: nothing here can establish that an entry corresponds to a person, or that a review attributed to one was written by them. Whoever can write hardware_reviewers.json holds hardware-review authority",
+          "reason": "requires_external_identity_authority",
+          "detail": "the same limit qta_agent/agents.py states for PrincipalKind.HUMAN, and for the same reason: a registration record is not a proof of personhood. What the roster buys is that the authority is named, readable and diffable, that it refuses to vouch for itself (self-registration, cycles and registration by a TOOL are all refused), and that it fails closed when absent or empty rather than open. It registers nobody today, so no review record is valid and no gate-evidence dossier can have entries"
         }
       ],
       "blocker": null
