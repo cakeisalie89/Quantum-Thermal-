@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "e128db6295a93c492b10be28c55e5bee2524f8b6771674a1208cda417a940e4e",
+      "sha256": "e61e546933a14eed446dc4ab7f17a96f50cc2a7e87c018609fef657067bf972e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 202262,
-      "sha256": "30f6cc70c409af3fae3ad9903eddec4c08017d7450257265df072f0af15edd90",
+      "size_bytes": 204541,
+      "sha256": "3b877226b74751b98a9e00a269df3182f65b0275319b11bd1575ad16942c3cff",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

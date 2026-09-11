@@ -3442,6 +3442,48 @@ when the diagnostic step says the host's arithmetic differs.** That step
 prints the OpenBLAS kernel and numpy's SIMD set immediately before the check,
 and reading it is not optional.
 
+**AND THERE IS A CHECK STRONGER THAN ALL THREE, WHICH WAS AVAILABLE ALL
+ALONG.** The three conditions are things you read off the failing run. The
+decisive one is a POSITIVE CONTROL: run `package_consistency_check.py` on a
+host whose arithmetic MATCHES the canonical set, and see whether the drift
+list is empty. If it is, the names on the failing runner are host arithmetic
+and nothing genuinely stale is hiding among them. If it is not, the names
+that survive are the defect — which is exactly how D-2026-33 was found, by
+accident, because one runner happened to match.
+
+Run at `ed1f569`, in this container:
+
+```
+openblas runtime kernel: SkylakeX
+numpy SIMD found: ['X86_V3', 'X86_V4']
+...
+RESULT: PASS (all consistency checks passed)
+```
+
+`X86_V4` is the AVX-512 generation, so this container IS the canonical
+configuration. Every one of the 24 files the hosted runner called stale
+regenerates byte-identically here, and `results_gate_table.csv` matches too.
+So the hosted `full-suite` failure at `ed1f569` is R59 **established**, not
+R59 inferred from a matching pattern — and the count of genuinely stale files
+among the twenty-four is zero, measured rather than assumed.
+
+The rule is therefore: the three conditions make R59 *available*; a green
+byte gate on a canonical-arithmetic host makes it *established*. Reach for the
+second whenever a host that can run it is to hand, because the first is what
+let D-2026-33 sit inside the list for four commits.
+
+### What `ed1f569`'s own run said
+
+| job | result |
+|---|---|
+| `stack-verify` (core and full) | green |
+| `full-suite` | the **complete pytest suite green** — including `test_mapping_registry_valid_and_complete` and `test_repository_manifest_is_in_sync`, which is D-2026-35's named evidence — then `package_consistency_check.py` red on its two byte comparisons, established above as R59 |
+| `agent-substrate`, `second-interpreter`, `cross-environment-3d` | superseded by `423e51f` before reporting; not treated as passed |
+
+The pytest half of that run is the hosted evidence D-2026-35 named, and it is
+green. The row moves on that basis; the byte-gate half of the same job does
+not bear on it.
+
 | defect | evidence required | commit | state |
 |---|---|---|---|
 | D-2026-24, D-2026-25 (P0-R11) | agent suites, second interpreter, full pytest, network-authority mutation matrix — all on the same commit | `b2787a0` | **`CURRENTLY_CLOSED`** — all four green on that commit's own run; the mutation matrix ran rather than being skipped |
@@ -3452,7 +3494,7 @@ and reading it is not optional.
 | D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | this commit | pending its own hosted run; local evidence is recorded as local |
 | D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | this commit | pending its own hosted run; local evidence is recorded as local |
 | D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | this commit | pending its own hosted run; local evidence is 34 anchors matching and the suites green, recorded as local |
-| D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | this commit | pending its own hosted run; locally the stage-8, manifest, stage-10 and allowlist suites are green and the equivalence validator reports EQUIVALENT with 0 problems |
+| D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | `ed1f569` | **`CURRENTLY_CLOSED`** — the complete pytest suite is green on that commit's own hosted run, `test_mapping_registry_valid_and_complete` included. The same job's byte-gate step is red and is R59, established by a positive control on a canonical-arithmetic host |
 | D-2026-36 (P1) | `agent-substrate` — specifically the `agent_second_reader` matrix at 100/100 | this commit | pending its own hosted run; locally each of R92, R98, R99, R100 was applied by hand and killed, sources restored byte-identical |
 
 ### What `3d809f0`'s own run said
@@ -3530,7 +3572,7 @@ container.
 | P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers — but the SECOND reader's half had no test in the suites its own spec runs until D-2026-36, so the code was right and the evidence for it was not there; hosted evidence pending |
 | P1 / D-2026-32 | the performance guard measured time while the work grew | `CURRENTLY_OPEN_FINDING` | 26 full verifications per governed run down to 11, counted by a guard rather than timed; the residual 8+3 is measured and recorded, not closed |
 | P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_OPEN_FINDING` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; hosted evidence pending |
-| P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_OPEN_FINDING` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; hosted evidence pending |
+| P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_CLOSED` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; the named hosted evidence is green at `ed1f569` |
 | P1 / D-2026-36 | four second-reader enforcement points had nothing behind them, and the verdict said more than it measured | `CURRENTLY_OPEN_FINDING` | six tests in a suite the spec runs; R92/R98/R99/R100 killed one at a time by hand; the SURVIVED wording scoped to the suites actually run; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
