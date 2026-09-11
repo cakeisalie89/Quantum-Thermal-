@@ -848,44 +848,6 @@ class Scheduler:
             _ProbeEvent(seq=self._seen_through + 1, actor=actor,
                         action=action, target=target, payload=payload))
 
-    def _probe_copy(self) -> "Scheduler":
-        """A throwaway projection with this one's state, for a dry run.
-
-        The job records are frozen dataclasses and every reducer replaces
-        rather than mutates, so copying the two dicts is enough: nothing the
-        probe folds can reach back into this projection.
-        """
-        probe = Scheduler(self.log, policy=self.policy,
-                          policy_id=self.policy_id,
-                          capacity=dict(self.capacity))
-        probe._jobs = dict(self._jobs)
-        probe._keys = dict(self._keys)
-        probe._loaded_through = self._loaded_through
-        probe._seen_through = self._seen_through
-        return probe
-
-    def _dry_run(self, *, actor: str, action: str, target: str,
-                 payload: dict) -> None:
-        """Would the reducer accept this record, from where we stand now?
-
-        THE ORDERING THIS FIXES. The reducer-authorized writes -- lease
-        renewal above all -- appended FIRST and folded second, so a refusal
-        (a lapsed lease, a stale lease id, a renewal past the bound) was
-        raised only after the record was durable. The caller saw exactly the
-        right exception, and the log was left unreplayable: every later
-        load() hit the same refusal, now with nothing to catch it and no way
-        to remove the record.
-
-        A dry run against a throwaway copy answers the question without
-        writing anything. It is NOT a substitute for the reducer's own check
-        -- that is the authority, and it still runs on every replay against
-        every record, including ones this writer never saw. It is what stops
-        this writer producing a record the authority will reject.
-        """
-        self._probe_copy().apply(
-            _ProbeEvent(seq=self._seen_through + 1, actor=actor,
-                        action=action, target=target, payload=payload))
-
     def _append_decided(self, decide):
         """Re-read, decide and write, all under the log's writer lock.
 

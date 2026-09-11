@@ -589,8 +589,16 @@ def test_a_file_a_mutated_build_damaged_is_restored_and_kept(tmp_path):
 
     proc = _run(tmp_path, spec)
 
-    assert "TESTS DAMAGED TRACKED FILES" in proc.stdout, proc.stdout
+    assert "TRACKED FILES CHANGED DURING A MUTATION" in proc.stdout, \
+        proc.stdout
     assert victim in proc.stdout, proc.stdout
+    # AND IT MUST NOT NAME A CULPRIT IT CANNOT SEE. The heading said "TESTS
+    # DAMAGED TRACKED FILES ... the test is unsafe", which is an inference
+    # reported as a finding: an editor or a script touching the tree during
+    # the run produces the identical observation, and that misreading cost
+    # real time once (D-2026-43). Here the suite REALLY is the culprit, and
+    # the wording still has to leave the other possibility open.
+    assert "nothing here can tell them apart" in proc.stdout, proc.stdout
     # Restored: the next mutation does not run against corrupted inputs.
     assert (tmp_path / victim).read_text(encoding="utf-8") == \
         "the original contents\n"

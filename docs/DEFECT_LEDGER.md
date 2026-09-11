@@ -4063,6 +4063,136 @@ Widening the scan to admit a comment was the one repair not available.
 
 ---
 
+## D-2026-43 — the transition path's guard was correct, documented, and untested
+
+**CLASS** — `MISSING_TEST` on a production guard, plus a second
+`TRUE_DEFECT` in the same file: 38 lines of unreachable code.
+
+**AFFECTED COMMIT** — since the guard was written.
+
+**DISCOVERED BY.** `agent-substrate` step 43 at `423e51f`, which had been
+SKIPPED in every previous run because the job died at step 26. The first
+time it reported anything, it reported this. Confirmed again at `d425d47`:
+two commits, two runners, identical result, so no re-run was spent ruling
+out a flake.
+
+```
+X4_a_record_the_reducer_will_reject_is_written_anyway   SURVIVED
+killed: 10/11
+```
+
+**IT IS NOT A MIS-SCOPED SPEC, AND THAT WAS CHECKED FIRST.** The harness
+says so on every survivor — "confirm no suite OUTSIDE this list already
+covers it" — and that warning had already been right once this same day,
+for H17–H19 in `hardware_governance`. So all **39** agent suites were run
+against the mutant, not the one the spec names. Every one passed. The
+coverage is genuinely absent.
+
+**THE DEFECT.** `Scheduler.transition()` builds a record, checks
+`check_edge`, and calls `_dry_run` before writing. Its own comment says
+why:
+
+> check_edge above asks whether the state machine permits this edge. The
+> reducer asks more: … whether a requeue is reclaiming a lease that is still
+> live … Writing a record that satisfies the first and not the second leaves
+> a log nobody can replay — which is what reconcile did the moment another
+> process re-leased a job between the scan and the write.
+
+Reproduced, on the real API, with and without the guard:
+
+| | guard present | guard deleted |
+|---|---|---|
+| caller sees | `JobTransitionError` | `JobTransitionError` — *the same message* |
+| records | 4 → 4 | 4 → **5** |
+| replayable | **True** | **False** |
+
+**THAT TABLE IS THE FINDING.** The caller cannot tell the two apart. The
+exception is correct, identical, and raised in both. What differs is
+whether the refusal arrives before the record or after it — and a refusal
+that arrives after the record is durable is not a refusal. Every later
+`load()` hits it again with nothing to catch it, and an authority log that
+cannot be rebuilt cannot be repaired either, because the history *is* the
+authority.
+
+**WHY IT HID, NAMED EXACTLY.** The sibling test exists:
+`test_a_refused_lease_renewal_writes_nothing` pins this property for the
+`_dry_run` on the RENEWAL path, and pins it well. The identical guard on
+the TRANSITION path — the reconcile-requeue race the comment describes —
+never got one. A guard can be written, commented, correct, and load-bearing,
+and still have nothing behind it; being right is not the same as being
+tested, and a reviewer reading that comment would have believed it, because
+it is true.
+
+**REPAIR.** `test_a_refused_REQUEUE_writes_nothing` reproduces the live-lease
+requeue and asserts the record count is unchanged AND the log still replays
+— verified to fail without the guard (`assert 5 == 4`).
+`test_the_requeue_guard_is_not_refusing_everything` is its anti-vacuity
+partner: a guard that refused every requeue would satisfy the first
+perfectly, so the lapsed-lease requeue must still go through, on the same
+edge, from the same actor.
+
+**AND THE FILE CARRIED A SECOND DEFECT, FOUND ON THE WAY.**
+`qta_agent/scheduler.py` held **two byte-identical copies** of
+`_probe_copy` and `_dry_run`, 38 lines apart. Python kept the second and
+discarded the first. Present in `HEAD`, confirmed against `git show` rather
+than assumed from the working tree.
+
+Nothing had failed, because the copies agreed. What makes it worth more
+than a deletion is what happens when they stop: someone repairs `_dry_run`,
+edits the copy their editor jumped to, runs the suite, sees green, and has
+changed nothing. And a mutation anchored inside such a block matches TWICE,
+which this harness reports as `ANCHOR DRIFT -- TESTED NOTHING` rather than
+as a kill, so the coverage it appears to have is also not there. No anchor
+currently falls inside the block — checked, all `scheduler.py` anchors match
+exactly once — so nothing was masked yet.
+
+The copy is gone, and the check is a permanent test over the WHOLE
+substrate, `test_no_definition_in_the_substrate_is_silently_shadowed`,
+rather than a one-line deletion: an AST scan of every module and class in
+`qta_agent/` for a name defined twice in one scope. Verified by
+reintroducing the duplicate, which it names by file, symbol and both line
+numbers. Two instances existed, both here; closing the example would have
+left the class open.
+
+**AND A THIRD THING, WHICH I CAUSED AND THE HARNESS CAUGHT.** The
+`agent_cross_process` matrix confirming this repair finished 11/11 and then
+reported:
+
+```
+TESTS DAMAGED TRACKED FILES under mutation (restored, but the test is
+unsafe -- it must undo its own writes in a finally):
+  X5_the_witness_is_sampled_after_the_log: ['docs/DEFECT_LEDGER.md']
+```
+
+No test did that. I was writing this entry while the matrix ran, and
+`_restore` did what it exists for: reverted the file to the snapshot and
+kept the discarded bytes under `.mutation-quarantine/`, from which this
+entry was recovered intact. That mitigation exists because the same thing
+happened twice before, and `QUARANTINE`'s own docstring says so — "a
+rewritten completion matrix, and then this file's own previous version of
+this fix". Mine is the third, and it cost a copy instead of the work, which
+is exactly what the mitigation was built to achieve.
+
+It is also the second time in this session that I edited the tree while a
+verification run was in flight; the first invalidated a nineteen-minute
+pytest run through the manifest. The pattern is mine rather than the
+tooling's, and it is recorded here instead of tidied away.
+
+**WHAT DID NEED FIXING IS THE WORDING.** "TESTS DAMAGED TRACKED FILES … the
+test is unsafe" reports as a finding something the harness cannot observe.
+All it sees is that a tracked file differs from the snapshot taken before
+that mutation ran; a test writing outside its `tmp_path`, an editor, and a
+regeneration script in another shell are indistinguishable from there. The
+heading now reads "TRACKED FILES CHANGED DURING A MUTATION", names the
+mutation as the TIME rather than the CAUSE, and says outright that nothing
+there can tell them apart. `test_a_file_a_mutated_build_damaged_is_restored_and_kept`
+was updated with it and now asserts the hedge as well as the heading — in
+that test the suite really is the culprit, and the wording still has to
+leave the other possibility open.
+
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -4148,7 +4278,8 @@ not bear on it.
 | D-2026-39 (P1) | `full-suite`'s pytest step, which carries `tests/test_stage8_data_provenance.py` | `d425d47` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run. Step 7, the byte gate, is red and is R59 |
 | D-2026-40 (P1) | `full-suite`'s pytest step, and the manifest-completeness suite inside it | `d425d47` | **`CURRENTLY_CLOSED`** — step 5 `success`, and `agent-substrate` step 8 ("derived artifacts are in step with their sources") `success` on the same commit: the step that was red at `3f26b27` for this exact file |
 | D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `stage10_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
-| D-2026-42 (P1) | `full-suite`'s pytest step, which carries `tests/test_hardware_governance.py`, `tests/test_review_binding.py`, `tests/test_stage6_roadmap.py` and `tests/test_stage7_boundary.py`, plus `package_consistency_check.py` for the regenerated readiness artifact | this commit | pending its own hosted run; locally the tool-authored review is refused, 12 of the 13 new tests fail without the resolution, and the `hardware_governance` matrix reads 21/21 |
+| D-2026-42 (P1) | `full-suite`'s pytest step, which carries the four hardware suites, plus `package_consistency_check.py` for the regenerated readiness artifact | `5c7002f` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run, and inside step 7 the line `[PASS] multiphysics: hardware governance (read-only, no hardware data, human-only review, automatic_gate_effect=NONE, ...)` on the regenerated artifact. Step 7 as a whole is red on exactly two byte comparisons, and that runner printed `openblas runtime kernel: Haswell` / `numpy SIMD found: ['X86_V3']` — no AVX-512, which is R59's signature and not this change |
+| D-2026-43 | `agent-substrate` step 43, the `agent_cross_process` matrix, which must read 11/11 | this commit | pending its own hosted run; locally X4 is killed by the new regression, the unreplayable log is reproduced, and the shadowed-definition scan is verified against a reintroduced duplicate |
 
 ### What `3d809f0`'s own run said
 
@@ -4290,7 +4421,8 @@ container.
 | P1 / D-2026-39 | two verifiers reported a verdict over a scope of nothing | `CURRENTLY_CLOSED` | both refuse an empty scope and a partial one; the crate validator returns FAIL instead of a KeyError traceback; the sweep names what it did and did not examine; the pytest step is green at `d425d47` |
 | P1 / D-2026-40 | a test of mine overwrote a tracked artefact, and the suite's file order hid it | `CURRENTLY_CLOSED` | `validate()` takes a report path; the guard is order-independent; the artefact is restored, and the canonical-tree step that caught it is green again at `d425d47` |
 | P1 / D-2026-41 | the projection verified one read of the log and folded another | `CURRENTLY_OPEN_FINDING` | `read_verified()` returns the records it checked, in one pass; 19 passes per warm run down to 11; the guard counts passes rather than `verify()` calls; hosted evidence pending |
-| P1 / D-2026-42 | the hardware gate's HUMAN authority was a self-declaration | `CURRENTLY_OPEN_FINDING` | a reviewer must resolve to a roster entry of kind HUMAN whose registration chain reaches the out-of-band bootstrap; the roster ships empty, so nothing is admitted and the reports say so; the preservation check asks the validator instead of grepping for it; mutations 11 → 21; hosted evidence pending |
+| P1 / D-2026-42 | the hardware gate's HUMAN authority was a self-declaration | `CURRENTLY_CLOSED` | a reviewer must resolve to a roster entry of kind HUMAN whose registration chain reaches the out-of-band bootstrap; the roster ships empty, so nothing is admitted and the reports say so; the preservation check asks the validator instead of grepping for it; mutations 11 → 21; the pytest step AND the hardware-governance assertion are green at `5c7002f` |
+| D-2026-43 | a guard that was correct, documented and untested, and 38 lines the interpreter never reached | `CURRENTLY_OPEN_FINDING` | X4 killed by a regression that reproduces the unreplayable log; the anti-vacuity partner keeps the lapsed-lease requeue working; the dead copy removed with a substrate-wide AST scan behind it; the harness no longer reports an inference as a finding; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

@@ -630,3 +630,46 @@ def test_every_io_layer_entry_names_a_module_that_exists():
     stale = sorted(set(IO_LAYER) - modules)
     assert not stale, (
         f"IO_LAYER exempts {stale}, which are not modules in this package")
+
+
+# ---- D-2026-43: a definition that is never reached ------------------------
+
+def test_no_definition_in_the_substrate_is_silently_shadowed():
+    """A name defined twice in one scope: the first is dead and nothing says so.
+
+    Found while diagnosing D-2026-43. qta_agent/scheduler.py carried TWO
+    byte-identical copies of `_probe_copy` and `_dry_run`, 38 lines apart.
+    Python kept the second and discarded the first, silently. Nothing failed,
+    because the copies agreed.
+
+    What makes it worth a permanent test rather than a one-line deletion is
+    what happens when they STOP agreeing. Someone repairs `_dry_run`, edits
+    the copy their editor jumped to, runs the suite, sees green, and has
+    changed nothing -- the interpreter is running the other one. And a
+    mutation anchored inside such a block matches twice, which this
+    repository's harness reports as ANCHOR DRIFT -- TESTED NOTHING rather
+    than as a kill, so the coverage it looks like is not there either.
+
+    The scan is over the whole substrate, not over the file that had the
+    defect: closing the example would leave the class open.
+    """
+    root = Path(__file__).resolve().parent.parent / "qta_agent"
+    shadowed = []
+    for path in sorted(root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        scopes = [tree] + [n for n in ast.walk(tree)
+                           if isinstance(n, ast.ClassDef)]
+        for scope in scopes:
+            seen = {}
+            for node in scope.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if node.name in seen:
+                        where = getattr(scope, "name", "<module>")
+                        shadowed.append(
+                            f"{path.name}: {where}.{node.name} defined at "
+                            f"line {seen[node.name]} is overridden at line "
+                            f"{node.lineno}")
+                    seen[node.name] = node.lineno
+    assert not shadowed, (
+        "a definition in the substrate is dead code the interpreter never "
+        "reaches:\n  " + "\n  ".join(shadowed))

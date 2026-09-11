@@ -466,10 +466,21 @@ def main() -> int:
     if anchors:
         print(f"ANCHOR DRIFT (tested nothing): {anchors}")
     if collateral:
-        print("TESTS DAMAGED TRACKED FILES under mutation (restored, but the "
-              "test is unsafe -- it must undo its own writes in a finally):")
+        # WHO CHANGED THE FILE IS NOT SOMETHING THIS CAN SEE. All it
+        # observed is that a tracked file differed from the snapshot taken
+        # before this mutation ran. The usual cause is a test writing
+        # outside its tmp_path -- and it said so as a fact, naming the test,
+        # which is a claim it cannot support: an editor, a regeneration
+        # script or another shell touching the tree during the run produces
+        # exactly the same observation. That misattribution sent a reader
+        # hunting an innocent test once, which is the whole cost of stating
+        # an inference as a finding (D-2026-43).
+        print("TRACKED FILES CHANGED DURING A MUTATION (restored; discarded "
+              "content kept under .mutation-quarantine/). If a test wrote "
+              "them it must undo its own writes in a finally; if something "
+              "outside this run did, nothing here can tell them apart:")
         for name, files in sorted(collateral.items()):
-            print(f"  {name}: {files}")
+            print(f"  changed while {name} was running: {files}")
     if drifted:
         print(f"SOURCES NOT RESTORED: {drifted}")
     else:

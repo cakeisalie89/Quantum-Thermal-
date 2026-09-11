@@ -510,6 +510,78 @@ def test_a_refused_lease_renewal_writes_nothing(tmp_path):
     _replayable(tmp_path)
 
 
+def test_a_refused_REQUEUE_writes_nothing(tmp_path):
+    """The transition path's half of the same guard. D-2026-43.
+
+    `test_a_refused_lease_renewal_writes_nothing` above pins this property
+    for the `_dry_run` on the RENEWAL path. The identical guard on the
+    TRANSITION path had none, and the mutation that deletes it
+    (X4_a_record_the_reducer_will_reject_is_written_anyway) survived every
+    suite in this repository -- not just the one its spec runs; all 39 agent
+    suites were run against the mutant and none of them failed.
+
+    The reason it hides is that THE CALLER CANNOT TELL. Measured, with the
+    guard and without it:
+
+        guard present:  refused, 4 records -> 4, replayable True
+        guard deleted:  refused, 4 records -> 5, replayable False
+
+    The same exception, with the same message, either way. What changes is
+    whether the refusal arrives before the record or after it, and a refusal
+    after the record is durable is not a refusal -- every later load() hits
+    it again with nothing to catch it, and an authority log that cannot be
+    rebuilt cannot be repaired, because the history is the authority.
+
+    The race this stands for is the one `transition`'s own comment names:
+    reconcile() scans, decides to requeue a job whose lease looked lapsed,
+    and another process re-leases it before the write lands. check_edge says
+    DISPATCHED -> READY is a real edge. The reducer asks the further
+    question -- is this reclaiming a lease that is still live -- and says no.
+    """
+    log, sched = _world(tmp_path)
+    sched.enqueue(job_id="j1", work_digest=WORK, submitter="sub")
+    sched.reconcile()
+    # A lease with a long life, so "still live" is the only thing wrong.
+    sched.dispatch(job_id="j1", worker="w1", lease_id="L1", lease_seqs=10_000)
+    assert sched.get("j1").lease_is_live(log.verify().head_seq), (
+        "this test is about a LIVE lease; if it has lapsed the refusal "
+        "below is a different one and the case proves nothing")
+
+    before = EventLog(tmp_path / "log.jsonl").verify().count
+    with pytest.raises(JobTransitionError, match="live lease"):
+        sched.transition(job_id="j1", dst=JobState.READY, actor="scheduler",
+                         reason="requeue decided from a scan that is stale")
+
+    assert EventLog(tmp_path / "log.jsonl").verify().count == before, (
+        "the record was written and THEN refused: the log now carries a "
+        "transition its own reducer rejects, and no later load() can pass")
+    _replayable(tmp_path)
+
+
+def test_the_requeue_guard_is_not_refusing_everything(tmp_path):
+    """Anti-vacuity for the test above.
+
+    A guard that refused every requeue would satisfy it perfectly. The
+    requeue this queue is built to do -- a supervisor returning work whose
+    lease really has lapsed -- has to still go through, and go through on
+    the same edge, from the same actor.
+    """
+    log, sched = _world(tmp_path)
+    sched.enqueue(job_id="j1", work_digest=WORK, submitter="sub")
+    sched.reconcile()
+    sched.dispatch(job_id="j1", worker="w1", lease_id="L1", lease_seqs=1)
+    for i in range(4):                      # move the log past the lease
+        sched.enqueue(job_id=f"filler-{i}", work_digest=digest({"f": i}),
+                      submitter="sub")
+    sched._fold_new()
+    assert not sched.get("j1").lease_is_live(log.verify().head_seq)
+
+    sched.transition(job_id="j1", dst=JobState.READY, actor="scheduler",
+                     reason="lease lapsed; returning the work")
+    assert sched.get("j1").state is JobState.READY
+    _replayable(tmp_path)
+
+
 def test_a_refused_transition_writes_nothing(tmp_path):
     """The same property on the authority store."""
     from qta_agent.authority import TransitionError
