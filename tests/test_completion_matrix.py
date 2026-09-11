@@ -9,6 +9,7 @@ its evidence.
 """
 from __future__ import annotations
 
+import pathlib
 import re
 import sys
 from pathlib import Path
@@ -202,6 +203,11 @@ def _row(**over):
         "tests": ["tests/test_agent_scheduler.py"],
         "property_tests": [], "mutation_tests": [], "fuzzing": "none",
         "differential": "none", "hosted_ci": "n/a",
+        # The evidence axis (D-2026-44). A well-formed row has to SAY what a
+        # hosted runner has checked, and "nothing yet" is a legitimate thing
+        # to say -- it is saying nothing that the schema now refuses.
+        "hosted_evidence": {"runs": [], "commit": None,
+                            "implementation_sha256": None},
         "residual_gaps": ["a real remaining gap, stated"],
         # A list, not the "" that `{f: "" for f in REQUIRED}` supplies.
         # The validator refuses a non-list, correctly, and this helper is
@@ -337,22 +343,141 @@ def test_a_real_production_caller_is_still_accepted():
                 if "is a test" in p]
 
 
-def test_the_validator_refuses_a_hosted_claim_with_no_run_id():
-    """'green', 'passing' and 'should be fine' are not evidence.
+def test_a_row_with_no_run_may_not_name_one_in_its_prose():
+    """The defect the OLD rule was defeated by, kept as its replacement.
 
-    A run id is a thing a reader can open. This field has drifted before --
-    it once listed only successes while five runs had failed -- and prose
-    is what lets it.
+    The old rule was "hosted_ci must contain a run id, not a mood", and the
+    regex that enforced it accepted
+
+        pending: added after run 33939090740
+
+    -- a sentence whose meaning is that NO hosted run covers this row,
+    passing a check about citing runs because it names one while denying
+    it. Fourteen rows were classified COMPLETE on that string (D-2026-44).
+
+    So the prose is no longer where the claim lives. What remains checkable
+    about prose is the contradiction: recording no run, and naming one.
     """
-    for prose in ("green", "passing on every push", "CI is fine"):
-        problems = CM.validate({"rows": [_row(hosted_ci=prose)]})
-        assert any("names no run id" in p for p in problems), prose
+    row = _row(hosted_ci="pending: added after run 33939090740",
+               hosted_evidence={"runs": [], "commit": None,
+                                "implementation_sha256": None})
+    problems = CM.validate({"rows": [row]})
+    assert any("records NO run, and hosted_ci still names one" in p
+               for p in problems), problems
 
 
-def test_a_hosted_claim_citing_a_run_is_accepted():
-    row = _row(hosted_ci="agent-substrate.yml run 34015444218 (success)")
+def test_a_run_cited_without_a_commit_is_refused():
+    """A run not tied to a commit cannot be checked against any code.
+
+    This is the whole finding in one rule: 21 rows cited two runs, and the
+    commit those runs were for was never written down anywhere in the row.
+    """
+    row = _row(hosted_evidence={"runs": ["34015444218"], "commit": None,
+                                "implementation_sha256": None})
+    assert any("no commit" in p for p in CM.validate({"rows": [row]})), \
+        CM.validate({"rows": [row]})
+
+
+def test_a_commit_cited_without_a_digest_is_refused():
+    row = _row(hosted_evidence={"runs": ["34015444218"], "commit": "abc1234",
+                                "implementation_sha256": None})
+    assert any("nothing can be recomputed" in p
+               for p in CM.validate({"rows": [row]}))
+
+
+def test_a_well_formed_evidence_record_is_accepted():
+    """The control: the guards above must name a condition, not refuse all."""
+    row = _row(hosted_evidence={"runs": ["34015444218"], "commit": "abc1234",
+                                "implementation_sha256": "a" * 64})
     assert not [p for p in CM.validate({"rows": [row]})
-                if "run id" in p]
+                if "hosted_evidence" in p or "run id" in p]
+
+
+# --- the digest is what makes the evidence axis measurable ----------------
+
+def test_absence_is_part_of_the_implementation_digest():
+    """A file that did not exist then must not hash as though it did.
+
+    Not hypothetical: 33 of the 39 rows name at least one implementation
+    file that postdates the run they cited. R22 cited two runs as its
+    evidence while naming five files that were not in the tree when those
+    runs went green.
+    """
+    paths = ["a.py", "b.py"]
+    both = CM.implementation_digest(
+        paths, lambda p: b"x", lambda p: [])
+    one = CM.implementation_digest(
+        paths, lambda p: (b"x" if p == "a.py" else None), lambda p: [])
+    assert both != one, (
+        "a row whose implementation file was absent at the cited commit "
+        "hashes the same as one where it was present")
+
+
+def test_the_absent_marker_is_a_DELIMITER_and_not_only_a_flag():
+    """The test above is weaker than its name, and the harness said so.
+
+    C15 removes the ``ABSENT`` marker and writes nothing for a missing
+    file. The test above still passes over that mutation: the PATH is
+    hashed either way, so present-vs-absent still changes the digest, and
+    the assertion never notices what was lost.
+
+    What the marker actually provides is a DELIMITER. Without it, the
+    digest input for a list of absent files is their names concatenated,
+    and concatenation is ambiguous -- reproduced rather than argued:
+
+        implementation ['ab']     and ['a', 'b']
+        both absent, no marker -> fb8e20fc2e4c3f24...  (identical)
+        both absent, marker    -> 42c13e28... / 4f2a96d0...  (distinct)
+
+    Two different implementation lists hashing the same is a digest that
+    cannot say which row's evidence it is. Kept as its own test because
+    the first one reads as though it covers this and does not.
+    """
+    absent = lambda p: None                                    # noqa: E731
+    nodirs = lambda p: []                                      # noqa: E731
+    assert CM.implementation_digest(["ab"], absent, nodirs) != \
+        CM.implementation_digest(["a", "b"], absent, nodirs), (
+            "two different implementation lists hash identically, so the "
+            "digest cannot identify the code a run covered")
+
+
+def test_a_file_added_to_a_named_directory_changes_the_digest():
+    """Rows name directories, and a spec ADDED to one is coverage the run
+    did not have."""
+    before = CM.implementation_digest(
+        ["d"], lambda p: b"x", lambda p: ["d/one.json"])
+    after = CM.implementation_digest(
+        ["d"], lambda p: b"x", lambda p: ["d/one.json", "d/two.json"])
+    assert before != after
+
+
+def test_evidence_that_still_covers_the_code_is_reported_as_covering():
+    """ANTI-VACUITY. Every row in the live matrix derives PREDATES or worse,
+    so a derivation that always said PREDATES would look identical.
+    """
+    row = _row(implementation=["a.py"])
+    read, listdir = (lambda p: b"unchanged"), (lambda p: [])
+    row["hosted_evidence"] = {
+        "runs": ["34015444218"], "commit": "abc1234",
+        "implementation_sha256": CM.implementation_digest(
+            ["a.py"], read, listdir)}
+    assert CM.evidence_state(row, read, listdir) == CM.EV_COVERS
+    # and one byte later it does not
+    assert CM.evidence_state(row, lambda p: b"changed", listdir) == \
+        CM.EV_PREDATES
+
+
+def test_a_cited_run_with_no_recorded_commit_is_not_called_stale():
+    """"I cannot tell" is not "I checked and it is old".
+
+    Four rows cite real runs whose commit was never recorded. Reporting
+    them as PREDATES would claim a measurement nobody made.
+    """
+    row = _row(hosted_evidence={"runs": ["34015444218"],
+                                "commit": "UNRECORDED",
+                                "implementation_sha256": None})
+    assert CM.evidence_state(row, lambda p: b"x", lambda p: []) == \
+        CM.EV_UNRESOLVABLE
 
 
 def test_none_is_an_honest_hosted_answer():
@@ -572,3 +697,51 @@ def test_the_fuzz_staleness_guard_names_the_target_it_found():
 def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
     assert not _problems(residual_gaps=[
         "no fuzzing of the LCVD solver, which lives outside this package"])
+
+
+# --- what the SHIPPED matrix says on the evidence axis ---------------------
+
+#: Rows whose hosted evidence covers the implementation they describe, in the
+#: matrix as committed. It is zero, and zero is the finding (D-2026-44): 21
+#: rows cite two runs from a commit 99 behind head, 4 cite runs whose commit
+#: was never recorded, and 14 have never had a hosted run at all.
+EXPECTED_EVIDENCE_COVERS = 0
+
+
+def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
+    """The number that has to be read next to "37/39 complete".
+
+    "37/39 complete" is a statement about what is BUILT, and it was the only
+    number this matrix printed. A reader takes it for a statement about what
+    has been CHECKED. Those are different axes and the gap between them is
+    total: every row is complete on the first and none is covered on the
+    second.
+
+    Pinned here so that improving it is a deliberate act somebody has to
+    come and change this constant for, rather than something that drifts in
+    either direction unnoticed -- which is exactly how 21 rows came to cite
+    runs 33905260267 and 33909571694 long after the code moved away from
+    them.
+    """
+    rows = CM.load()["rows"]
+
+    def _rd(p):
+        q = pathlib.Path(p)
+        return q.read_bytes() if q.is_file() else None
+
+    def _ls(p):
+        q = pathlib.Path(p)
+        return (sorted(str(x) for x in q.rglob("*") if x.is_file())
+                if q.is_dir() else [])
+
+    states = [CM.evidence_state(r, _rd, _ls) for r in rows]
+    covers = [s for s in states if s == CM.EV_COVERS]
+    assert len(covers) == EXPECTED_EVIDENCE_COVERS, (
+        f"{len(covers)} rows now have hosted evidence covering their "
+        f"implementation, not {EXPECTED_EVIDENCE_COVERS}. If a hosted run "
+        "has genuinely caught up with the code, say so here in the same "
+        "commit that records it")
+    assert len(states) == len(rows), "every row must derive a state"
+    # And the derivation must be reaching every row, not defaulting.
+    assert set(states) <= {CM.EV_COVERS, CM.EV_PREDATES,
+                           CM.EV_UNRESOLVABLE, CM.EV_NEVER_RUN}

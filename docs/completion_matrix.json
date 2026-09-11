@@ -62,7 +62,16 @@
           "detail": "only the external system knows its own state, and this environment cannot ask it. The record says the compensating tool ran to a given outcome, and the report says in words that it does not establish more -- because a report that reads like confirmation is the fabrication the whole declaration exists to avoid"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "472ec351f3b4a37417b8275f25ecd83788b86e4f04c0c13df479df3429dd0556",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R22",
@@ -121,7 +130,16 @@
           "detail": "a budget the far side agreed to would be the far side's to enforce. What this bounds is what the governed path will do, which is the part that is ours -- and the count is taken from the log, so it survives a restart rather than resetting at the moment a task most needs it not to"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "8a637ac15c4dbb8f259e7bb310b02c3fac540eb73a9943ae4320af6447d4256e",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R23",
@@ -173,7 +191,16 @@
           "detail": "reaping a process whose parent has exited is init's job. Measured rather than assumed -- an earlier wording said such a grandchild 'outlives its parent', and what survives is an entry, not a running process"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "88ba6a04b76ff355f53cdcaa93c4179f1bc7865d10befaf2acc3885adc9e115e",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R24",
@@ -221,7 +248,16 @@
           "detail": "the module says what flock does and does not promise over NFS; testing it would need a second machine"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "e7f828d07dddaa42eaf1c0d36f4dbb77a0eee8b1204a3c939e89882b532c248d",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R25",
@@ -271,7 +307,16 @@
           "detail": "the advisory lock that serializes writers is a POSIX flock, and its behaviour over NFS or SMB cannot be observed from one machine with one filesystem. The module says so at the lock rather than only here, because the person who needs to know is reading that code"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "17200ab72d22ef887c52b1e7dfc8cfde0be8f3e7d2b4b8b220dd2485c3cee3fd",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R26",
@@ -312,7 +357,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py fuzzes job_from_record, so a malformed durable job record is refused rather than projected",
       "differential": "job state, attempts and lease ownership are rebuilt by an independent reader that refuses a job born in an outcome state, born holding a lease, or revived from terminal",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -326,7 +371,13 @@
           "detail": "split-brain is tested with real concurrent processes on ONE host, which is the strongest form observable from here. What cannot be observed is flock's behaviour over NFS or SMB, and the module says so at the lock rather than only in this row"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R27",
@@ -362,7 +413,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -376,7 +427,13 @@
           "detail": "the hash chain makes the RECORD tamper-evident, which is a different property from proving who wrote it"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R28",
@@ -413,7 +470,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -427,7 +484,13 @@
           "detail": "so delivery is a named seam with a stated contract, and the sinks shipped are the honest ones -- a line on stderr an operator or a hosted job's log actually keeps, and a recorder a test can assert against. The governed path installs the stream sink, so an UNCERTAIN external outcome is visible in the run's own output rather than only to whoever thinks to query"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R29",
@@ -465,7 +528,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py targets 'policy' (document records) and 'policy_decision' (a recorded verdict folded against a live store, so the re-derivation path is what is fuzzed)",
       "differential": "policy versions and recorded decisions are rebuilt by an independent reader that refuses a downgrade republish",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -479,7 +542,13 @@
           "detail": "This module requires the discharge to cite SOMETHING an auditor can follow; it cannot verify that the digest is evidence OF the thing the obligation names, because only the discharging subsystem knows what that would look like. The receipt makes the claim checkable by a human, not self-proving"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R30",
@@ -540,7 +609,16 @@
           "detail": "Deterministic, and not what an operator expects of 'expires' -- the trade is deliberate: every reader of the same log at the same position reaches the same verdict, which a wall clock cannot promise"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "3c4dcc36184a9948ba39772d8a6327841c66ce11d77dac496a7eb2ab0ec81cc2",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R31",
@@ -606,7 +684,16 @@
           "detail": "the targets are case-sensitive. A guard that assumed otherwise would refuse valid reads on the platforms this actually runs on, to protect against a platform it does not"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "8c8bbee4bd792e6130f22933b2cee943906892991889061febbcac9b16991288",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R32",
@@ -643,7 +730,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py targets 'url' (parse_target), 'host_match' (label-wise host matching) and 'egress_grant' (grant records)",
       "differential": "network grants are rebuilt by an independent reader that refuses a rebound grant id",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -657,7 +744,13 @@
           "detail": "this substrate makes outbound requests and accepts none. A Direction enum with an unused INBOUND member would describe an authority nothing enforces, which is the shape of a control that is really a comment. If something here ever listens, the member and its enforcement arrive together"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R33",
@@ -697,7 +790,7 @@
       ],
       "fuzzing": "none",
       "differential": "secret grants are rebuilt by an independent reader that refuses a rebound grant id",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -726,7 +819,13 @@
           "detail": "Containing it would mean confining the interpreter that hosts the substrate -- a kernel sandbox or a separate network namespace -- which is a deployment property and not something a library can hold about its own process. Inside that limit the stronger of the two checks is already the one that does not depend on the caller: NetworkAuthority.authorize refuses BY VALUE when a body carries a registered secret no grant pairs with that host."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R34",
@@ -761,7 +860,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -775,7 +874,13 @@
           "detail": "a token budget needs the tokenizer of the model that will read the context, which is a dependency on a model this package deliberately does not know about"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R35",
@@ -829,7 +934,16 @@
           "detail": "evidence_status travels with every hit and the disclaimer is in the result document. What a downstream reader concludes from a governed sentence is outside anything this module can enforce, and claiming otherwise would be the same overreach the label exists to prevent"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "646211052e79fe318b86edaa1d171eb701e89e9273113c69b8cb71cee4c90c40",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R36",
@@ -865,7 +979,7 @@
       ],
       "fuzzing": "none",
       "differential": "memory entries are rebuilt by an independent reader that refuses a forged author and an un-retraction",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -879,7 +993,13 @@
           "detail": "counting retracted and superseded text toward the bound would make 'keep writing' and 'keep history' mutually exclusive, and the history is the point. What the bound protects is what a projection holds in memory and what a recall has to search"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R37",
@@ -914,7 +1034,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -928,7 +1048,13 @@
           "detail": "the machinery is exercised in tests; the production path raises no escalation, and manufacturing one to demonstrate the feature would be the artificial wiring this project refuses"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R38",
@@ -982,7 +1108,16 @@
           "detail": "verify_in_separate_process takes the interpreter as an argument precisely so 'separate dependency set' is testable rather than aspirational, and the hosted job is where a genuinely different interpreter exists to point it at"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "52297bfe58cede2fdf5fece820a1165bdf158386d8cbbb646b01ff3b8664ed85",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R39",
@@ -1040,7 +1175,16 @@
           "detail": "performing a compensation needs the external system to participate; automating it locally would be claiming an exactly-once guarantee nothing supports"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "0665a0d5441ce272efce8475b3796645ce8e77a912b7f0366ca9787feab57cb6",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R40",
@@ -1097,7 +1241,16 @@
           "detail": "verification cost is already bounded -- verify_from(anchor) checks the tail and checkpoints let a reader start from a verified position, so 'O(n) forever' is not what verification costs. What rotation would bound is storage, and bounding storage on an append-only authority log means discarding history, which is the thing being protected"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "85434d61c2ec17405a1d5de7a4222514bbcfa25784129686fadc7ebdd7c25efc",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R41",
@@ -1141,7 +1294,16 @@
           "detail": "authentication needs a key authority this repository does not contain, and an HMAC with a key sitting beside the data it authenticates would be a control that reads like one and is not. The message at the check says this, so a reader does not infer more than the hash provides"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "5017c33999ba5e98d0bc002d3d23839fd7fdd5005a88b5641a67450c20372bf0",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R42",
@@ -1195,7 +1357,16 @@
           "detail": "the alternative is reconstruct.py importing the modules it exists to check, which would make every comparison circular while still passing"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "a86bb44914c405c67fa5ba4d756511b957379ee6b46351dc8d3d88bd8840d129",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R43",
@@ -1239,7 +1410,16 @@
           "detail": "deriving them would require the agent to read the scientific tree's data model, and the import isolation that keeps a gate from depending on an authority verdict is the property this whole package exists to hold. The edges are declared by whoever asserts the dependency, and the transitive consequence of one changing is complete"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "7b089a6d08e8d2ef60537fb973e4e73e6beb56b917806bdf9c6bb834682b74a0",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R44",
@@ -1291,7 +1471,15 @@
           "detail": "the executor builds the child's environment from an allowlist rather than inheriting it, and raw tool output never enters the log, so a secret should not be there to redact. The net runs anyway because the cost of being wrong about that is a credential in a collector, and a net that matches key names cannot recognise a secret that arrived under an innocent one"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33937802263"
+        ],
+        "commit": "UNRECORDED",
+        "implementation_sha256": null,
+        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+      }
     },
     {
       "id": "R45",
@@ -1340,7 +1528,15 @@
           "detail": "seq is the log's own order and every reader agrees on it, which is why between_seq is the exact query and between_wall is offered for finding the region to ask about. An incident arrives as a time; the reasoning has to happen in positions"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33937802263"
+        ],
+        "commit": "UNRECORDED",
+        "implementation_sha256": null,
+        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+      }
     },
     {
       "id": "R46",
@@ -1378,7 +1574,7 @@
       ],
       "fuzzing": "none",
       "differential": "primary projection compared field-for-field against the independent reconstruction after a crash",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1397,7 +1593,13 @@
           "detail": "there is one filesystem on this host and no way to mount a second kind, so the assumption cannot be varied and therefore cannot be tested. It is stated here so that a deployment onto storage that does not provide it knows which property it is taking away."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R47",
@@ -1435,7 +1637,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1454,7 +1656,13 @@
           "detail": "the kernel offers no way to deliver a signal at a chosen instruction inside another process's syscall, so the interesting instant cannot be selected -- only raced for, which is a slower way of sampling the same space. The two halves are covered separately and deterministically: tests/test_agent_fault_injection.py kills at every durable boundary and manufactures the mid-write on-disk state directly, and this row covers concurrent writers that all survive."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R48",
@@ -1493,7 +1701,7 @@
       ],
       "fuzzing": "none",
       "differential": "primary projection compared field-for-field against the independent reconstruction over the whole history",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1512,7 +1720,13 @@
           "detail": "a wall clock is a thing each host decides for itself, and an authority that trusted one would be delegating its verdict to whichever machine happened to run the job. Removing this limit would mean introducing exactly the dependency the design excludes; what the campaign can do instead, and does, is advance the sequence number and require every expiry to fall where the log says it falls."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R49",
@@ -1553,7 +1767,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [
         "Seven guards still assert on a wall-clock ratio: the four LINEAR_CEILING comparisons, the scheduler-readiness one, and the two checkpoint/evidence comparisons. Each compares two SIZES with a wide spread, which is why none has produced a false failure and why they were not converted wholesale with D-2026-37 -- converting a guard that is not failing, on the strength of an argument about one that was, is how a suite gets rewritten instead of repaired. The gap is that the argument for their robustness is a judgement about spread rather than a measurement, and nothing here records how close any of them has come to its ceiling on a hosted runner. The counting probe used by D-2026-32 and D-2026-37 is the pattern if one of them starts to drift."
       ],
@@ -1574,7 +1788,13 @@
           "detail": "three points have a slope and not a confidence interval, and more points would cost run time without changing what the guard is FOR -- the defects it exists to catch have been, three times now, whole orders of growth rather than logarithmic factors. The fit's discriminating power is not assumed: test_the_exponent_fit_can_actually_see_a_quadratic hands it a quadratic operation and a linear one and requires it to separate them."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R50",
@@ -1608,7 +1828,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py: 23 targets, 2000 cases in CI under line-coverage measurement with a floor, plus a SEQUENCE target that drives the real scheduler and authority state machines through fuzzed programmes of up to 48 operations",
       "differential": "none",
-      "hosted_ci": "pending: added after run 33939090740",
+      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1627,7 +1847,13 @@
           "detail": "a fuzzer chooses an order and runs it; two processes do not have an order to choose, which is what makes their races a different kind of question. That kind is covered by tests/test_agent_cross_process.py, where real processes race and the same replay invariant is asserted -- and where it found three defects. Generating cross-process schedules would need deterministic scheduling of real processes, which is a property of the kernel rather than of this harness."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+      }
     },
     {
       "id": "R51",
@@ -1688,7 +1914,16 @@
           "detail": "a mutation matrix asks 'would anything notice if this check stopped checking', and a solver has no checks -- it has equations, whose correctness is a question for convergence studies, dimensional analysis and the differential comparisons in R53, all of which this repository has and none of which is mutation testing. The part of the scientific tree that DOES hold checks is the gate deciding what counts as evidence, and that is exactly the part now covered."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "791e42b514c22f086a4f6dbe6d505cc1af3dd600312c0e2159694cfeacf71ec9",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R52",
@@ -1756,7 +1991,16 @@
           "detail": "exhaustive exploration of an interleaving needs deterministic control of when each process runs, which the kernel does not offer to a program about other programs; a user-space scheduler would be exploring ITS interleavings rather than the operating system's. What that campaign can do it does, and it earned its place -- three defects, including one that left a perfect hash chain nobody could replay."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "34189e98a8daa95708838ac125a73c410704dded2dbbd100c84aa72e6ae56292",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R53",
@@ -1811,7 +2055,16 @@
           "detail": "the layering makes accidental sharing impossible and deliberate sharing visible in review; it cannot make two readings of the same specification independent"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "a86bb44914c405c67fa5ba4d756511b957379ee6b46351dc8d3d88bd8840d129",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R54",
@@ -1875,7 +2128,16 @@
           "detail": "the alternative is worse and is the reason this is a choice rather than an oversight: skipping a record the reducer cannot apply would let a forger prune history by writing something unapplicable, turning an availability attack into an integrity one. What is bought for it is asserted in test_a_forgery_denies_service_and_that_is_the_choice_that_was_made -- everything written before the forgery is intact, the chain still verifies, and the forged record is attributable to the actor that wrote it."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "a970952a7148b4ee234c0f56465b2b5aad3553212b5a2ad6ca4edd70c2604070",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R55",
@@ -1945,7 +2207,16 @@
           "detail": "Exactly-once is a property of a PROTOCOL between two parties, not of one party's bookkeeping: the counterparty has to expose an idempotency key it honours, or join a transaction, and no such counterparty is in this repository or can be added to it by writing more code on this side. Everything that IS on this side is implemented -- request identity as a digest of the canonical serialization, an owner-scoped binding whose owner comes from the event's actor rather than the payload, the binding made durable BEFORE dispatch so a crash in between is recoverable as already-submitted, a declared compensation, and an execution the supervisor cannot resolve reported as UNCERTAIN with that compensation quoted. Resolving the uncertainty by assumption is the one thing that would close the gap on paper, and it is the thing this system exists not to do."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "9ba0dfcf1bb29531f4ce14a68d567f50bd2f5b1a85c400ad5e5fde2928efe091",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R56",
@@ -1995,7 +2266,16 @@
           "detail": "the alternative is a second inventory that can disagree with the repository, which is the drift this file exists to prevent"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "44a00aebddd9658d7f78a7d4967284fceeb828bbc5b2371c57b9e764fcc36128",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R57",
@@ -2060,7 +2340,16 @@
           "detail": "the same limit qta_agent/agents.py states for PrincipalKind.HUMAN, and for the same reason: a registration record is not a proof of personhood. What the roster buys is that the authority is named, readable and diffable, that it refuses to vouch for itself (self-registration, cycles and registration by a TOOL are all refused), and that it fails closed when absent or empty rather than open. It registers nobody today, so no review record is valid and no gate-evidence dossier can have entries"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "33905260267",
+          "33909571694"
+        ],
+        "commit": "a3515e7",
+        "implementation_sha256": "986edb79535eaa5859548addc1404dea430bd58ab6f579930241de292c4fa700",
+        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+      }
     },
     {
       "id": "R58",
@@ -2116,7 +2405,25 @@
           "detail": "this sandbox cannot pull layer blobs; the workflow's conclusion is read from the API at job level"
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "34015444218",
+          "33995744418",
+          "33997735547",
+          "33997922862",
+          "33998171857",
+          "33998895626",
+          "34000716613",
+          "34009496581",
+          "34010167285",
+          "34011780850",
+          "34012217103"
+        ],
+        "commit": "UNRECORDED",
+        "implementation_sha256": null,
+        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+      }
     },
     {
       "id": "R59",
@@ -2172,7 +2479,20 @@
           "detail": "Its signed URL points at productionresultssa14.blob.core.windows.net, which this environment's egress policy refuses with a 403 on CONNECT, and the job-logs API serves only a tail. No code in this repository reaches a host the network refuses. It also no longer decides anything: the number it was wanted for -- 'an 8-file divergence' -- was the slice width in package_consistency_check.py, which printed _drift[:8] with no count beside it, and the divergence it would have described is now measured at 23 of 63 with both of its causes named."
         }
       ],
-      "blocker": null
+      "blocker": null,
+      "hosted_evidence": {
+        "runs": [
+          "34296217403",
+          "102293316307",
+          "102293316177",
+          "34234780850",
+          "34216535309",
+          "34234781324"
+        ],
+        "commit": "UNRECORDED",
+        "implementation_sha256": null,
+        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+      }
     }
   ]
 }

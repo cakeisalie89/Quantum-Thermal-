@@ -39,6 +39,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -68,8 +69,82 @@ REQUIRED = (
     "provenance", "failure_semantics", "recovery", "retry", "idempotency",
     "cancellation", "concurrency", "security_boundary", "tests",
     "property_tests", "mutation_tests", "fuzzing", "differential",
-    "hosted_ci", "residual_gaps", "boundaries", "blocker",
+    "hosted_ci", "hosted_evidence", "residual_gaps", "boundaries", "blocker",
 )
+
+#: THE EVIDENCE AXIS, WHICH IS NOT THE IMPLEMENTATION AXIS.
+#:
+#: ``classification`` says how completely a requirement is BUILT.
+#: ``hosted_evidence`` says what a hosted runner has actually CHECKED, and
+#: conflating the two is what let 35 of 39 rows read as verified while
+#: citing runs that could not have covered them (D-2026-44).
+#:
+#: The row records only facts about the run: which runs, at which commit,
+#: and the digest of this row's implementation files AS THEY WERE when that
+#: run went green. The VERDICT is derived here, by recomputing that digest
+#: from the working tree. A row cannot assert that its evidence is current,
+#: for the same reason a review record cannot assert that its author is a
+#: human: a self-declared field is not an authority.
+#:
+#: Derived states, never stored:
+EV_NEVER_RUN = "NEVER_RUN"
+EV_COVERS = "COVERS_CURRENT_IMPLEMENTATION"
+EV_PREDATES = "PREDATES_CURRENT_IMPLEMENTATION"
+#: Runs are cited but the commit they ran on was never written down, so what
+#: they covered cannot be recomputed. Distinct from PREDATES on purpose:
+#: "this evidence is stale" and "I cannot tell whether this evidence is
+#: stale" are different states, and reporting the second as the first
+#: claims a measurement that was not made.
+EV_UNRESOLVABLE = "COMMIT_NOT_RECORDED"
+
+
+def implementation_digest(paths, read, listdir) -> str:
+    """Digest the row's implementation, however the bytes are fetched.
+
+    ``read(path)`` returns bytes or None when the path is not a file;
+    ``listdir(path)`` returns the files beneath it when it is a directory,
+    and an empty list otherwise. Both are supplied by the caller, so the
+    same function digests a git commit and a working tree -- which is the
+    point: one side is what the hosted run tested, the other is what is
+    there now.
+
+    ABSENCE IS PART OF THE DIGEST. A row whose implementation file did not
+    exist at the cited commit must not hash as though it did, and that case
+    is not hypothetical: 33 of the 39 rows name at least one file that
+    postdates the run they cite.
+
+    A DIRECTORY IS DIGESTED BY ITS MEMBERSHIP, for the same reason. Rows
+    name `tools/mutations`, and a spec ADDED to it since the run is exactly
+    the coverage the run did not have.
+
+    Deliberately independent of git history: this has to give the same
+    answer in a shallow CI checkout, where there is nothing to diff against.
+    """
+    h = hashlib.sha256()
+    expanded = []
+    for p in paths:
+        members = listdir(p)
+        expanded.extend(members if members else [p])
+    for p in sorted(set(expanded)):
+        blob = read(p)
+        h.update(p.encode("utf-8"))
+        h.update(b"\x00ABSENT\x00" if blob is None
+                 else b"\x00" + hashlib.sha256(blob).hexdigest().encode())
+    return h.hexdigest()
+
+
+def evidence_state(row, read, listdir) -> str:
+    """What a hosted runner has checked about THIS row, as it stands now."""
+    ev = row.get("hosted_evidence") or {}
+    if not ev.get("runs"):
+        return EV_NEVER_RUN
+    if not ev.get("commit") or ev.get("commit") == "UNRECORDED" \
+            or not ev.get("implementation_sha256"):
+        return EV_UNRESOLVABLE
+    now = implementation_digest(row.get("implementation") or [],
+                                read, listdir)
+    return (EV_COVERS if now == ev.get("implementation_sha256")
+            else EV_PREDATES)
 
 #: WHY A BOUNDARY IS NOT A GAP, and why this vocabulary is closed.
 #:
@@ -378,13 +453,52 @@ def validate(doc: dict) -> list:
         # A hosted-CI claim must cite a RUN, not a mood. "green", "passing"
         # and "should be fine" are all things this field has been tempted to
         # say; a run id is a thing somebody can open.
+        # THE RULE THIS REPLACES, AND WHY IT HAD TO GO.
+        #
+        # It was: hosted_ci must contain a run id, "not a mood". The regex
+        # `\b\d{8,}\b` then accepted "pending: added after run 33939090740"
+        # -- a sentence whose MEANING is that no hosted run covers this row,
+        # passing a check about citing runs because it names one while
+        # denying it. Fourteen rows were classified COMPLETE on that string
+        # (D-2026-44).
+        #
+        # The evidence now lives in `hosted_evidence`, which is checkable,
+        # and the prose is held to the one thing prose can get wrong here:
+        # naming a run when there is none.
+        ev = row.get("hosted_evidence")
         hosted = row.get("hosted_ci") or ""
-        if hosted and hosted.lower() not in ("none", "n/a"):
-            if not re.search(r"\b\d{8,}\b", hosted):
+        if not isinstance(ev, dict):
+            problems.append(f"{rid}: hosted_evidence must be an object")
+        else:
+            runs = ev.get("runs")
+            if not isinstance(runs, list):
+                problems.append(f"{rid}: hosted_evidence.runs must be a list")
+                runs = []
+            for r_id in runs:
+                if not re.fullmatch(r"\d{8,}", str(r_id)):
+                    problems.append(
+                        f"{rid}: hosted_evidence.runs has {r_id!r}, which is "
+                        "not a run id somebody can open")
+            if runs:
+                if not ev.get("commit"):
+                    problems.append(
+                        f"{rid}: cites runs with no commit. A run that is "
+                        "not tied to a commit cannot be checked against the "
+                        "code it is supposed to have covered")
+                dig = ev.get("implementation_sha256")
+                if ev.get("commit") not in (None, "UNRECORDED") and (
+                        not isinstance(dig, str)
+                        or not re.fullmatch(r"[0-9a-f]{64}", dig)):
+                    problems.append(
+                        f"{rid}: hosted_evidence names a commit but no "
+                        "well-formed implementation_sha256, so nothing can "
+                        "be recomputed from it")
+            elif re.search(r"\b\d{8,}\b", hosted):
                 problems.append(
-                    f"{rid}: hosted_ci says {hosted[:60]!r} but names no run "
-                    "id. A hosted claim with no run behind it is the one "
-                    "kind of evidence a reader cannot check for themselves")
+                    f"{rid}: hosted_evidence records NO run, and hosted_ci "
+                    f"still names one: {hosted[:70]!r}. That is the exact "
+                    "shape the old rule accepted -- a run id present in a "
+                    "sentence saying no run applies")
 
         # BOUNDARIES: what the row does not claim, and why it cannot.
         bounds = row.get("boundaries")
@@ -528,6 +642,30 @@ def main() -> int:
             print(f"  {counts[cls]:3d}  {cls}")
     done = counts.get(COMPLETE, 0)
     blocked = sum(counts.get(c, 0) for c in BLOCKED)
+    # TWO AXES, PRINTED TOGETHER, BECAUSE ONE OF THEM ALONE MISLEADS.
+    # "37/39 complete" is a statement about what is BUILT. It was the only
+    # number this ever printed, and a reader took it for a statement about
+    # what had been CHECKED -- while zero rows had hosted evidence covering
+    # their current implementation (D-2026-44).
+    from pathlib import Path as _P
+    def _rd(p):
+        q = _P(p)
+        return q.read_bytes() if q.is_file() else None
+    def _ls(p):
+        q = _P(p)
+        return (sorted(str(x) for x in q.rglob("*") if x.is_file())
+                if q.is_dir() else [])
+    ev_counts = {}
+    for r in rows:
+        st = evidence_state(r, _rd, _ls)
+        ev_counts[st] = ev_counts.get(st, 0) + 1
+    print("\nhosted evidence, derived by recomputing each row's "
+          "implementation digest:")
+    for state in (EV_COVERS, EV_PREDATES, EV_UNRESOLVABLE, EV_NEVER_RUN):
+        print(f"  {ev_counts.get(state, 0):3d}  {state}")
+    print(f"  {ev_counts.get(EV_COVERS, 0)}/{total} rows have hosted "
+          "evidence that covers the code they describe")
+
     print(f"\n{done}/{total} complete, {blocked} blocked, "
           f"{total - done - blocked} open")
 

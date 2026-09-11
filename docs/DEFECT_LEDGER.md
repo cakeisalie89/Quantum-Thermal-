@@ -4217,6 +4217,111 @@ fix is to run it rather than to remember it.
 
 ---
 
+## D-2026-44 — "must cite a run id" was satisfied by a sentence saying there was no run
+
+**CLASS** — `TRUE_DEFECT` in a validator rule, `WRONG_SPECIFICATION` in the
+matrix it validates, and a `WRONG_TEST` of my own found by the harness while
+repairing them.
+
+**AFFECTED COMMIT** — since the matrix was built.
+
+**DISCOVERED BY.** The P1 item recorded as "implementation-vs-evidence
+split".
+
+**THE RULE, AND ITS OWN STATEMENT OF PURPOSE.**
+
+```python
+# A hosted-CI claim must cite a RUN, not a mood. "green", "passing"
+# and "should be fine" are all things this field has been tempted to
+# say; a run id is a thing somebody can open.
+if not re.search(r"\b\d{8,}\b", hosted):
+```
+
+**WHAT SATISFIED IT.** Fourteen rows, each classified
+`COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT`:
+
+```
+"hosted_ci": "pending: added after run 33939090740"
+```
+
+A sentence whose MEANING is that no hosted run has ever covered the row,
+passing a check about citing runs **because it names one in the act of
+denying it**. The regex found `33939090740` and stopped asking.
+
+**AND THE OTHER TWENTY-ONE.** They cite runs `33905260267` and
+`33909571694` — runs #1 and #2 of the workflow, at `a3515e7`, **99 commits**
+behind head. Every one of those rows has had implementation files change
+since. Worse, and checkable: **33 of the 39 rows name at least one
+implementation file that did not exist at the commit they cite**. R22 offers
+those two runs as its evidence while naming five files — `tools.py`,
+`readpath.py`, `netauth.py`, `secrets.py`, `capability.py` — that were not in
+the tree when they ran. The cited run could not have tested the named
+implementation.
+
+**THE TWO AXES.** `classification` says what is BUILT. Nothing said what had
+been CHECKED, and the summary printed only the first number:
+
+```
+37/39 complete, 0 blocked, 2 open
+```
+
+A reader takes that for both. Measured, it is not:
+
+```
+hosted evidence, derived by recomputing each row's implementation digest:
+    0  COVERS_CURRENT_IMPLEMENTATION
+   21  PREDATES_CURRENT_IMPLEMENTATION
+    4  COMMIT_NOT_RECORDED
+   14  NEVER_RUN
+  0/39 rows have hosted evidence that covers the code they describe
+```
+
+Both lines print together now. Neither is the answer on its own.
+
+**REPAIR, AND WHY THE VERDICT IS COMPUTED RATHER THAN STORED.** A row
+records only facts about the run: which runs, at which commit, and the
+digest of that row's implementation AS IT WAS then. `evidence_state()`
+recomputes the digest from the working tree and derives the verdict. A row
+cannot declare its own evidence current, for the same reason a review record
+cannot declare its own author human (D-2026-42): a self-declared field is
+not an authority. The digest is deliberately independent of git history, so
+it gives the same answer in CI's shallow checkout, where there is nothing to
+diff against.
+
+`COMMIT_NOT_RECORDED` is a fourth state on purpose. Four rows cite real runs
+whose commit nobody wrote down; calling them `PREDATES` would report a
+measurement that was not made. "This is stale" and "I cannot tell whether
+this is stale" are different, and the matrix now says which it means.
+
+**THE RULE THAT REPLACED IT** holds prose to the one thing prose can get
+wrong here: naming a run when the evidence record says there is none. Run
+ceremony — the commit, the digest — is checked structurally, where a regex
+cannot be talked out of it.
+
+**AND THE HARNESS CAUGHT MY OWN TEST BEING WEAKER THAN ITS NAME.** C15
+removes the `ABSENT` marker from the digest, and
+`test_absence_is_part_of_the_implementation_digest` — written in this same
+commit, for this exact mutation — passed over it. The path is hashed either
+way, so present-vs-absent still changes the digest and the assertion never
+noticed what was lost. The marker's real job is DELIMITING, and without it
+path boundaries are ambiguous:
+
+```
+implementation ['ab']  and  ['a', 'b'], both absent
+  without the marker -> fb8e20fc2e4c3f24...   IDENTICAL
+  with the marker    -> 42c13e28... / 4f2a96d0...   distinct
+```
+
+Two different implementation lists hashing the same is a digest that cannot
+say whose evidence it is. Not an equivalent mutation — a real weakness, and
+17/18 was the only reason I looked. Both tests are kept: the first is true
+and reads as though it covers this; the second says what the marker is for.
+
+I had written a ledger entry about exactly this class earlier the same day.
+Writing one does not confer immunity; running the mutation does.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -4304,6 +4409,7 @@ not bear on it.
 | D-2026-41 (P1) | `full-suite`'s pytest step, and `agent-substrate`'s `stage10_authority` and `agent_substrate` matrices | this commit | pending its own hosted run; locally the forged record is refused, the projection makes one pass, and G_R1 and M51 were applied by hand and killed |
 | D-2026-42 (P1) | `full-suite`'s pytest step, which carries the four hardware suites, plus `package_consistency_check.py` for the regenerated readiness artifact | `5c7002f` | **`CURRENTLY_CLOSED`** — step 5, "the FULL pytest suite", `conclusion: success` on that commit's own run, and inside step 7 the line `[PASS] multiphysics: hardware governance (read-only, no hardware data, human-only review, automatic_gate_effect=NONE, ...)` on the regenerated artifact. Step 7 as a whole is red on exactly two byte comparisons, and that runner printed `openblas runtime kernel: Haswell` / `numpy SIMD found: ['X86_V3']` — no AVX-512, which is R59's signature and not this change |
 | D-2026-43 | `agent-substrate` step 43, the `agent_cross_process` matrix, which must read 11/11 | this commit | pending its own hosted run; locally X4 is killed by the new regression, the unreplayable log is reproduced, and the shadowed-definition scan is verified against a reintroduced duplicate |
+| D-2026-44 | `agent-substrate` step 7 ("completion matrix is self-consistent") and step 46, the `completion_matrix` mutation spec, now 18 | this commit | pending its own hosted run; locally 18/18 with C15 killed by the delimiter test it exposed, and the summary prints both axes |
 
 ### What `3d809f0`'s own run said
 
@@ -4447,6 +4553,7 @@ container.
 | P1 / D-2026-41 | the projection verified one read of the log and folded another | `CURRENTLY_OPEN_FINDING` | `read_verified()` returns the records it checked, in one pass; 19 passes per warm run down to 11; the guard counts passes rather than `verify()` calls; hosted evidence pending |
 | P1 / D-2026-42 | the hardware gate's HUMAN authority was a self-declaration | `CURRENTLY_CLOSED` | a reviewer must resolve to a roster entry of kind HUMAN whose registration chain reaches the out-of-band bootstrap; the roster ships empty, so nothing is admitted and the reports say so; the preservation check asks the validator instead of grepping for it; mutations 11 → 21; the pytest step AND the hardware-governance assertion are green at `5c7002f` |
 | D-2026-43 | a guard that was correct, documented and untested, and 38 lines the interpreter never reached | `CURRENTLY_OPEN_FINDING` | X4 killed by a regression that reproduces the unreplayable log; the anti-vacuity partner keeps the lapsed-lease requeue working; the dead copy removed with a substrate-wide AST scan behind it; the harness no longer reports an inference as a finding; hosted evidence pending |
+| D-2026-44 | "must cite a run id" was satisfied by a sentence saying there was no run | `CURRENTLY_OPEN_FINDING` | the evidence axis is derived by recomputing each row's implementation digest, not stored; 14 rows' prose no longer names a run while denying one; the summary prints 0/39 covered beside 37/39 complete; mutations 12 → 18; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and
