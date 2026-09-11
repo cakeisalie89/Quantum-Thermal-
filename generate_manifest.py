@@ -282,6 +282,20 @@ def check() -> int:
         return 1
     print(f"manifest in sync ({len(listed)} files; "
           f"{len(DETACHED)} detached by policy)")
+    # WHAT "IN SYNC" DOES NOT MEAN, said out loud because it misled someone.
+    #
+    # This compares the manifest against the tracked tree: every file is
+    # listed, every listed hash matches the bytes on disk. It says nothing
+    # about whether two DERIVED artifacts agree with each other -- the HDF5
+    # mapping's recorded digest for a governed output, say, against that
+    # output's actual bytes. The manifest is last in the regeneration chain
+    # and hashes whatever it finds, including a stale link earlier in the
+    # chain, which is exactly how D-2026-35 passed this check and failed the
+    # suite one commit later.
+    print("  (coverage and hashes only -- it does not check that derived "
+          "artifacts agree with their sources; after changing a governed "
+          "output run the regeneration order in MANIFEST_BOUNDARY.md and "
+          "then the test suite)")
     return 0
 
 

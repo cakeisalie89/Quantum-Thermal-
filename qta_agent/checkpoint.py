@@ -50,6 +50,13 @@ log re-checks 495 records instead of 0. A checkpoint *ahead* of the log is not
 safe and not slow -- it means records were removed, and it is refused. That is
 the same signal the separately-witnessed head gives, arrived at independently,
 which is why both exist.
+
+A checkpoint of a DIFFERENT log is the third case, and it is not detectable
+from the log's size or its head witness: two unrelated logs of similar length
+answer both questions identically. :func:`describes` is the one that reads the
+record, and :func:`check_against` is the one that does not; which of them a
+caller wants depends on whether a real verification follows. Every function
+here says which it uses.
 """
 from __future__ import annotations
 
@@ -231,6 +238,11 @@ def verify_with(log: EventLog, cp: Checkpoint) -> "object":
     :meth:`EventLog.verify`; there is no argument to this function that
     upgrades its answer, because an API where the weak and strong results are
     the same type and the same call is an API where they get confused.
+
+    ``check_against`` and not :func:`describes`: ``verify_from`` below binds
+    the anchor to this log's bytes itself, and then verifies the tail, so the
+    stronger pre-check would read the same record twice to reach the same
+    answer. :func:`describes` is for callers who stop at the answer.
     """
     check_against(log, cp)
     return log.verify_from(cp.anchor)
@@ -269,6 +281,36 @@ def check_against(log: EventLog, cp: Checkpoint) -> None:
         raise CheckpointAheadOfLog(
             f"checkpoint names seq {cp.seq} but the head witness records "
             f"{witness.seq}; the log was truncated after the checkpoint")
+
+
+def describes(log: EventLog, cp: Checkpoint) -> None:
+    """Raise unless ``cp`` describes ``log`` at the position it names.
+
+    THE DIFFERENCE FROM :func:`check_against`, AND WHY IT MATTERS
+
+    ``check_against`` answers the cheaper question -- *could* ``cp`` describe
+    ``log`` -- from the log's size and its head witness. Both are properties
+    of the log's SHAPE, and two entirely different logs of similar length
+    have the same shape. So a checkpoint of one log passes ``check_against``
+    on the other, its offsets seek into the middle of some unrelated record,
+    and nothing has noticed.
+
+    That is tolerable where a full verification follows immediately and will
+    catch it -- :func:`verify_with` is that case. It is not tolerable where
+    the answer is itself the decision: which checkpoints to DELETE, or which
+    snapshot to restore a projection from. This is the check for those.
+
+    It reads exactly one record (:meth:`EventLog.check_anchor`), so it costs
+    a seek, and it still verifies nothing: the prefix is unread, the tail is
+    unread. It establishes only that the checkpoint is about this log.
+    """
+    check_against(log, cp)
+    try:
+        log.check_anchor(cp.anchor)
+    except EventLogError as exc:
+        raise CheckpointMismatch(
+            f"checkpoint at seq {cp.seq} does not describe this log: {exc}"
+        ) from exc
 
 
 #: How many checkpoints :meth:`CheckpointStore.prune` keeps by position.
@@ -365,11 +407,20 @@ class CheckpointStore:
         return None
 
     def latest_usable(self, log: EventLog) -> Checkpoint | None:
-        """The newest checkpoint that both parses and describes ``log``."""
+        """The newest checkpoint that both parses and describes ``log``.
+
+        "Describes" is :func:`describes`, not :func:`check_against`: the
+        record at the checkpoint's offset must BE the record it names. The
+        weaker test made this method stop the backwards walk at the first
+        checkpoint whose offsets merely fit inside the file -- which is what
+        a checkpoint of a DIFFERENT log of similar length does -- and so
+        return one that does not describe ``log`` while an older one that
+        did sat unexamined below it. See D-2026-34.
+        """
         for seq in reversed(self.seqs()):
             try:
                 cp = self.read(seq)
-                check_against(log, cp)
+                describes(log, cp)
             except CheckpointError:
                 continue
             return cp

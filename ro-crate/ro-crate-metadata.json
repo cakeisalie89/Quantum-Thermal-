@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "176120",
+   "contentSize": "176428",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -207,7 +207,7 @@
    "contentSize": "139219",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "a12bc0a5b97f8a704ddd62d4920d06a8c4a87978a82abd0b0a460eb7bfcd8846"
+   "sha256": "56be57dc7363f9e4804b5887b321869445ca874279fa5772e3a807f70725f8fc"
   },
   {
    "@id": "hdf5_schema.json",
@@ -215,7 +215,7 @@
    "contentSize": "150481",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "a4dae6b82144281fb04b6ebe1239f1540fab65d72285745314a2a9170157ff25"
+   "sha256": "20533ec5ce1890e81d7b3abf14890d39e3200d99b3ed64a4614bbcee10c1b7b5"
   },
   {
    "@id": "manifest_hash.txt",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "1993400",
+   "contentSize": "1993425",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "86c852610ceba5a6d1b82ef9642e158495b8178a7f616b664af346a808c75219"
+   "sha256": "fedb6ffb631c48706b421b093c620cc88c9193d25474bd758a1548ad2c743e1b"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "ce176d737d7b2793a07bd4e2de7c198d88902faea9484d0258b6045b0549c1d4"
+   "sha256": "ad65f2a972fc00334d272098cd6dc780a251cea662322a047ead8057769741c2"
   },
   {
    "@id": "uv.lock",

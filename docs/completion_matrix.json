@@ -1102,7 +1102,7 @@
     {
       "id": "R41",
       "requirement": "Checkpointing",
-      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
       "implementation": [
         "qta_agent/checkpoint.py"
       ],
@@ -1114,8 +1114,8 @@
       "authority_owner": "checkpoint.create / CheckpointStore",
       "evidence": "snapshot pinned by content digest",
       "provenance": "full_verification flag travels with the checkpoint",
-      "failure_semantics": "fail-closed. A corrupt checkpoint is walked past rather than fatal, and reported by audit(). prune refuses keep < 1, and refuses to prune at all when nothing in the store verifies against the log -- deleting on that basis would act on a conclusion the store cannot support, since the LOG may be the thing that is wrong",
-      "recovery": "latest_usable walks backwards to the newest checkpoint that both parses and describes the log. prune is defined against THAT rather than against recency: keeping the newest N by number can delete the only checkpoint recovery could start from while carefully preserving several that describe a log nobody has",
+      "failure_semantics": "fail-closed. A corrupt checkpoint is walked past rather than fatal, and reported by audit(). prune refuses keep < 1, and refuses to prune at all when nothing in the store describes the log -- deleting on that basis would act on a conclusion the store cannot support, since the LOG may be the thing that is wrong. Before D-2026-34 that refusal could be defeated by a foreign log that was merely long enough, and eight of ten checkpoints were deleted in a reproduction of exactly the case the refusal exists for",
+      "recovery": "latest_usable walks backwards to the newest checkpoint that both parses and describes the log, where DESCRIBES means checkpoint.describes(): the record at the checkpoint's offset is read and must BE the record the checkpoint names. This row said the same sentence while the code tested it with check_against, which compares the log's SIZE and head witness and so accepts a checkpoint of any different log of similar length (D-2026-34). prune is defined against latest_usable rather than against recency: keeping the newest N by number can delete the only checkpoint recovery could start from while carefully preserving several that describe a log nobody has",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
@@ -1130,8 +1130,10 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
-      "residual_gaps": [],
+      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green) -- BOTH PREDATE the D-2026-34 repair and its two new mutations (E26, E27). The spec is 34 mutations, killed locally; per-commit hosted state is tracked in docs/DEFECT_LEDGER.md, not here",
+      "residual_gaps": [
+        "audit() answers a parse question and is named like a health question. It takes no log, so it cannot say whether ANY checkpoint in the store describes one -- a store of checkpoints for a log nobody has audits ok. Its docstring says what it does, and no production code gates on it, so this is engineering not done rather than a defect: an optional log argument reporting 'nothing here describes this log' is the missing piece. Found while fixing D-2026-34, which is the same shape one level down -- a weaker question answered in place of the one asked."
+      ],
       "boundaries": [
         {
           "limit": "the self-hash detects CORRUPTION, not tampering: anyone who can rewrite the file can recompute the hash",

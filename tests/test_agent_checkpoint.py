@@ -187,7 +187,7 @@ def test_an_anchor_whose_offsets_no_longer_line_up_is_refused(tmp_path):
     log = _log(tmp_path, n=5)
     anchor = log.anchor_at(3)
     log.path.write_text("x" + log.path.read_text())   # shift everything by 1
-    with pytest.raises(ChainBroken):
+    with pytest.raises(ChainBroken, match="does not describe the bytes"):
         log.verify_from(anchor)
 
 
@@ -371,12 +371,23 @@ def test_a_checkpoint_ahead_of_the_log_is_refused(tmp_path):
         cp_mod.check_against(log, cp)
 
 
-def test_a_checkpoint_for_a_different_log_is_refused(tmp_path):
+def test_a_checkpoint_for_a_SHORTER_different_log_is_refused_by_size(tmp_path):
+    """And ONLY by size -- which is the whole of what `check_against` knows.
+
+    The name this test used to carry said "for a different log", which is
+    more than it shows: `log_b` is refused for being two records long, not
+    for being a different log. A different log of ADEQUATE length passes
+    here, and that gap was D-2026-34. The pair that shows it is
+    `test_could_describe_and_does_describe_are_different_questions`.
+    """
     log_a = _log(tmp_path, n=8, name="a.jsonl")
     log_b = _log(tmp_path, n=2, name="b.jsonl")
     cp = cp_mod.create(log_a)
-    with pytest.raises(CheckpointAheadOfLog):
+    with pytest.raises(CheckpointAheadOfLog) as exc:
         cp_mod.check_against(log_b, cp)
+    assert "byte(s) are missing" in str(exc.value), (
+        "refused for some reason other than the log being too short, so "
+        "this test is not about what it says it is about")
 
 
 def test_a_checkpoint_from_another_canonical_form_is_refused(tmp_path):
@@ -604,6 +615,38 @@ def test_a_rolled_back_head_witness_invalidates_a_checkpoint(tmp_path):
     assert log.path.stat().st_size == cp.next_offset
 
 
+def test_check_anchor_binds_an_anchor_to_a_log_and_verifies_nothing_else(
+        tmp_path):
+    """The primitive underneath `describes`, and the limit of it.
+
+    It answers one question -- is the record this anchor names the record at
+    that offset in THIS log -- and it must answer it without reading the
+    prefix or the tail. A damaged record on either side of the anchor is
+    therefore invisible to it, and `verify` is what finds those. Asserting
+    that here keeps the cheap check from being mistaken for the strong one:
+    the two live one method apart.
+    """
+    log = _log(tmp_path, n=8)
+    anchor = log.anchor_at(3)
+
+    assert log.check_anchor(anchor).seq == 3
+
+    lines = log.path.read_text().splitlines()
+    rec = json.loads(lines[6])
+    rec["actor"] = "somebody-else"                  # AFTER the anchor
+    lines[6] = json.dumps(rec, separators=(",", ":"), sort_keys=True)
+    rec0 = json.loads(lines[0])
+    rec0["actor"] = "somebody-else"                 # and BEFORE it
+    lines[0] = json.dumps(rec0, separators=(",", ":"), sort_keys=True)
+    log.path.write_text("\n".join(lines) + "\n")
+
+    assert not log.verify().ok, (
+        "the fixture does not set up the case: nothing is damaged, so "
+        "check_anchor passing below says nothing about its scope")
+    # Unchanged bytes at the anchor, so it still binds -- by design.
+    assert log.check_anchor(log.anchor_at(3)).seq == 3
+
+
 def test_an_anchor_claiming_the_wrong_seq_is_refused(tmp_path):
     """E22: seq, with the hash deliberately correct.
 
@@ -783,6 +826,18 @@ def _many(tmp_path, n=12):
     return log, store
 
 
+def _foreign(tmp_path, n, name="other.jsonl", pad=""):
+    """A log sharing no content with `_many`'s, of a deliberately UNHELPFUL
+    length: `pad` makes its records LONGER, so every size comparison passes
+    and only content can tell the two logs apart."""
+    other = EventLog(tmp_path / name)
+    for i in range(n):
+        other.append(actor="a", action="record.create", target=f"z{pad}{i}",
+                     payload={"record_id": f"z{pad}{i}", "state": "DRAFT",
+                              "title": f"x{pad}", "kind": "note"})
+    return other
+
+
 def test_pruning_keeps_the_newest_and_removes_the_rest(tmp_path):
     log, store = _many(tmp_path, n=12)
     before = store.seqs()
@@ -850,13 +905,19 @@ def test_pruning_refuses_when_nothing_verifies_against_the_log(tmp_path):
     """Deleting on that basis acts on a conclusion the store cannot support:
     the LOG may be the thing that is wrong."""
     log, store = _many(tmp_path, n=10)
-    empty = EventLog(tmp_path / "empty.jsonl")
-    empty.append(actor="a", action="record.create", target="z",
-                 payload={"record_id": "z", "state": "DRAFT",
-                          "title": "x", "kind": "note"})
+    # LONGER than _many's records, not shorter. This test used to set the
+    # case up by making the foreign record short enough for the size
+    # comparison to reject it -- a two-byte margin including a float
+    # timestamp, which one hosted run lost, and the test failed with DID NOT
+    # RAISE. Nothing here depends on length now (D-2026-34): these are
+    # different logs because their CONTENT differs, and `describes` reads it.
+    foreign = _foreign(tmp_path, n=1, name="foreign.jsonl", pad="zzzzzzz")
+    assert store.latest_usable(foreign) is None, (
+        "the fixture does not set up the case: something here describes the "
+        "foreign log, so this would pass without the refusal under test")
 
     with pytest.raises(CheckpointError) as exc:
-        store.prune(empty, keep=2)
+        store.prune(foreign, keep=2)
     assert "in doubt" in str(exc.value)
     assert len(store.seqs()) == 10, "it deleted while refusing"
 
@@ -881,21 +942,20 @@ def test_a_store_with_nothing_to_prune_does_not_ask_the_harder_question(
     and nothing exercised it.
     """
     log, store = _many(tmp_path, n=2)
-    other = EventLog(tmp_path / "other.jsonl")
-    # DELIBERATELY MUCH SHORTER THAN THE RECORDS `_many` WRITES.
+    # WHY THIS IS THE LONG FOREIGN LOG AND NOT A SHORT ONE.
     #
-    # "Not usable against this log" is decided by byte offsets: a checkpoint
-    # is refused when it ends past the end of the log it is held against.
-    # This record used to carry the same four payload keys, which made it
-    # two bytes shorter than _many's -- and a record's length includes a
-    # float timestamp whose JSON repr varies by a byte or three. So the
-    # precondition held by a coincidence thin enough to lose, and one full
-    # run lost it: the assertion below fired, correctly, saying the fixture
-    # had stopped setting up the case.
+    # "Not usable against this log" used to be decided by byte offsets
+    # alone: a checkpoint was refused when it ended past the end of the log
+    # it was held against. So this fixture set the case up by being SHORT,
+    # by a two-byte margin that included a float timestamp -- and its
+    # sibling above lost that margin on a hosted run. Widening the margin
+    # here closed the example; D-2026-34 closed the class, in production,
+    # where "describes this log" now reads the record rather than the size.
     #
-    # An empty payload is ~59 bytes shorter, which no timestamp can close.
-    # The assertion stays anyway: it is the thing that caught this.
-    other.append(actor="a", action="record.create", target="z", payload={})
+    # Being longer is the stronger fixture under that rule: the size
+    # comparison passes, and the refusal comes from content or not at all.
+    # The assertion stays anyway -- it is the thing that caught this.
+    other = _foreign(tmp_path, n=1, pad="zzzzzzz")
 
     assert store.latest_usable(other) is None, (
         "the fixture does not set up the case: something here describes the "
@@ -1177,6 +1237,145 @@ def test_a_later_anchor_in_the_tail_does_not_speak_for_this_checkpoint(
     # the later anchor on its way forward.
     (tmp_path / "cp" / f"{later.seq:012d}.checkpoint.json").unlink()
     assert cps.latest_usable(log).seq == first.seq
+
+    restored = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
+    assert restored.get("r1").state is State.PROMOTED
+
+
+# ==========================================================================
+# D-2026-34: "USABLE" WAS DECIDED BY THE LOG'S SIZE, NOT BY THE LOG
+#
+# `latest_usable` documented itself as "the newest checkpoint that both
+# parses and DESCRIBES `log`" and tested that with `check_against`, which
+# documents itself as answering whether a checkpoint COULD describe a log:
+# it compares the checkpoint's end offset against `stat().st_size` and its
+# seq against the head witness. Both are properties of the log's SHAPE.
+#
+# Two different logs of similar length have the same shape. So a checkpoint
+# of one passed against the other, its offsets seeking into the middle of an
+# unrelated record, and the two consumers of that answer acted on it:
+#
+#   * `prune` protects everything from the newest usable checkpoint upward
+#     and REFUSES outright when nothing is usable, because deleting on that
+#     basis acts on a conclusion the store cannot support. Against a foreign
+#     log of ten longer records it did not refuse -- it found seq 9 "usable"
+#     and deleted eight checkpoints while the log was exactly as in doubt as
+#     the refusal describes.
+#
+#   * `load_from` walks backwards so that an older valid checkpoint is still
+#     reachable when the newest is not. A foreign checkpoint that merely fit
+#     stopped the walk at the top, and the load failed on it rather than
+#     continuing to the one that could have restored the projection.
+#
+# The fix is that "describes" now means what the word means: `describes()`
+# reads the one record at the checkpoint's offset and requires it to BE the
+# record the checkpoint names. It is O(1) -- a seek and a line -- and still
+# verifies nothing, which is why `check_against` keeps existing for
+# `verify_with`, where a full verification follows immediately anyway.
+#
+# THE TEST DEFECT THIS ALSO CLOSES. Two tests below set up "no checkpoint
+# describes this log" by making the foreign log's records SHORTER, so that
+# the size comparison rejected them. That precondition held by a two-byte
+# margin including a float timestamp whose JSON repr varies by a byte or
+# three; one hosted run lost it and `test_pruning_refuses...` failed with
+# DID NOT RAISE. The first fix widened the margin -- which closed the
+# example, in a file where the same fixture shape appears twice. Now no
+# margin is load-bearing at all: the records differ in CONTENT, which is
+# what "a different log" actually means, and no timestamp can close that.
+# ==========================================================================
+
+def test_could_describe_and_does_describe_are_different_questions(tmp_path):
+    """The paired test for the rule: `describes` must name a real condition.
+
+    If `check_against` refused this pair too, the stronger check would be
+    decoration and every test below would pass without it.
+    """
+    log, store = _many(tmp_path, n=10)
+    other = _foreign(tmp_path, n=10, pad="zzzzzzz")
+    cp = store.read(9)
+
+    check_against(other, cp)            # accepts: the shape fits
+
+    with pytest.raises(CheckpointMismatch) as exc:
+        cp_mod.describes(other, cp)
+    assert "does not describe this log" in str(exc.value)
+
+
+def test_pruning_refuses_when_the_log_only_LOOKS_big_enough(tmp_path):
+    """THE defect. Every checkpoint fits inside the foreign log by size, so
+    the weak test called the newest usable and pruning proceeded -- deleting
+    evidence in exactly the situation its refusal exists for."""
+    log, store = _many(tmp_path, n=10)
+    other = _foreign(tmp_path, n=10, pad="zzzzzzz")
+    assert other.path.stat().st_size > log.path.stat().st_size, (
+        "the fixture does not set up the case: the foreign log is smaller, "
+        "so the size comparison alone would reject these checkpoints")
+    for seq in store.seqs():
+        check_against(other, store.read(seq))    # every one of them fits
+
+    assert store.latest_usable(other) is None
+
+    with pytest.raises(CheckpointError, match="in doubt"):
+        store.prune(other, keep=2)
+    assert len(store.seqs()) == 10, "it deleted while the log was in doubt"
+
+
+def test_the_backwards_walk_passes_over_a_checkpoint_that_merely_fits(
+        tmp_path):
+    """Walking backwards is the whole design: an older valid checkpoint is
+    strictly better than none. A foreign checkpoint at a HIGHER seq that fit
+    by size stopped the walk at the top, so the older one that actually
+    described the log was never reached."""
+    log = EventLog(tmp_path / "log.jsonl")
+    store = CheckpointStore(tmp_path / "cp")
+    for i in range(6):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+        store.write(create(log))
+    mine = store.latest().seq
+    for i in range(6, 12):               # the log keeps moving; no new cps
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+
+    other = _foreign(tmp_path, n=8)
+    foreign = create(other)
+    store.write(foreign)
+
+    assert foreign.seq > mine, "the foreign checkpoint must be the newer one"
+    check_against(log, foreign)          # and it fits this log by size
+    assert foreign.head_hash != log.anchor_at(foreign.seq).head_hash, (
+        "the two logs agree at that seq, so there is nothing to tell apart")
+
+    assert store.latest_usable(log).seq == mine, (
+        "the walk stopped at a checkpoint that does not describe this log, "
+        "leaving the one that does unexamined below it")
+
+
+def test_a_checkpointed_load_falls_back_to_one_it_can_actually_use(tmp_path):
+    """The consumer harm, end to end: recovery failed on a checkpoint that
+    only fit, while the checkpoint it needed was sitting underneath."""
+    log, blobs, s, report = _promoted_store(tmp_path)
+    cps = CheckpointStore(tmp_path / "cp")
+    real = s.checkpoint(cps)
+    s.transition(record_id="r1", dst=State.PROMOTED, actor="pm",
+                 role=Role.PROMOTER, policy_id="pol-1",
+                 evidence={"verification_report": report,
+                           "policy_id": "pol-1"})
+
+    # A checkpoint of a DIFFERENT log, newer by seq, small enough to fit
+    # inside this one, pinning no snapshot -- so nothing could load from it.
+    other = EventLog(tmp_path / "other.jsonl")
+    for i in range(real.seq + 2):
+        other.append(actor="a", action="record.create", target=f"z{i}",
+                     payload={})
+    foreign = create(other)
+    cps.write(foreign)
+
+    assert foreign.seq > real.seq
+    assert foreign.state_digest is None
+    check_against(log, foreign)          # the weak test accepts it
 
     restored = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
     assert restored.get("r1").state is State.PROMOTED

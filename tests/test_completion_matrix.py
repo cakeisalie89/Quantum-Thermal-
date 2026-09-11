@@ -71,7 +71,27 @@ def test_the_matrix_does_not_claim_scientific_authority():
 #: Rows that must be COMPLETE for this file to pass, and the count that must
 #: hold. Written down so that changing it is an edit somebody makes on
 #: purpose, in the commit that changes it, rather than a number that drifts.
-EXPECTED_COMPLETE = 39
+#:
+#: 39 -> 38 on D-2026-35. R41 (Checkpointing) is now
+#: DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS: `latest_usable` decided "describes
+#: this log" from the log's SIZE, and the row said the same sentence the code
+#: did. The defect is fixed; what moved the row is the gap the fix exposed
+#: and did not close -- `CheckpointStore.audit()` answers a parse question
+#: and is named like a health question, so a store holding checkpoints for a
+#: log nobody has audits ok.
+#:
+#: The direction of this edit is the point. The number is an output of the
+#: rows, not a target to hold: a finding that shows a row is not complete
+#: moves the row, and this line follows it down as readily as up.
+EXPECTED_COMPLETE = 38
+
+#: And how many rows there ARE, which is a different number and was not
+#: treated as one. The assertion below used to read
+#: ``len(rows) == EXPECTED_COMPLETE``, which is true only while every row is
+#: complete -- an equality that held by circumstance, written down as a rule.
+#: It fired the moment a row moved, saying "one of the two numbers is wrong"
+#: about two numbers that were both right.
+EXPECTED_ROWS = 39
 
 
 def test_the_matrix_is_not_completed_silently():
@@ -93,9 +113,11 @@ def test_the_matrix_is_not_completed_silently():
         f"{len(complete)} rows are complete and this test expects "
         f"{EXPECTED_COMPLETE}. If that is right, say so here in the same "
         "change; if it is not, the matrix moved without anybody deciding to")
-    assert len(rows) == EXPECTED_COMPLETE, (
-        f"{len(rows)} rows in a matrix whose complete count is "
-        f"{EXPECTED_COMPLETE}; one of the two numbers is wrong")
+    assert len(rows) == EXPECTED_ROWS, (
+        f"{len(rows)} rows against an expected {EXPECTED_ROWS}; a row was "
+        "added or removed, which is a decision that belongs in this file too")
+    assert EXPECTED_COMPLETE <= EXPECTED_ROWS, (
+        "more complete rows expected than rows exist")
 
     # AND COMPLETE MEANS WHAT IT SAYS. A row cannot reach it by having
     # nothing written in it.

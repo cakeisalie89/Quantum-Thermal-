@@ -391,7 +391,72 @@ def test_state_a_mutation_leaves_behind_is_caught_after_the_run(tmp_path):
     proc = _run(tmp_path, spec)
     assert "ANCHOR DRIFT" not in proc.stdout, proc.stdout
     assert "POST-RUN BASELINE RED" in proc.stdout, proc.stdout
+    # AND THE DIAGNOSIS MUST BE THE RESIDUE ONE. The file is still there, so
+    # the re-check fails again, and only then may the harness say that
+    # something survived the run.
+    assert "fails again on the restored tree" in proc.stdout, proc.stdout
+    assert "look for state outside the mutated sources" in proc.stdout
     assert proc.returncode != 0
+
+
+#: A suite whose FIRST test fails on its THIRD invocation and on no other.
+#: The harness runs the baseline once (1), the single mutation (2), then the
+#: post-run baseline (3) -- a baseline re-run happens only when the first one
+#: is red, which is the NON-DETERMINISTIC path and not this one. First in the
+#: file deliberately: `-x` stops at the first failure, so a counter sitting
+#: after the killed test would not be reached on the mutation run and the
+#: count would not line up.
+COUNTING_SRC = '''import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+from pkg import mod
+
+
+def test_fails_on_the_third_run_only():
+    counter = Path(__file__).resolve().parent / ".runs"
+    n = int(counter.read_text()) + 1 if counter.exists() else 1
+    counter.write_text(str(n))
+    assert n != 3, f"run {n}"
+
+
+def test_guard_a_rejects():
+    with pytest.raises(ValueError):
+        mod.check_a(-1)
+'''
+
+
+def test_a_post_run_failure_that_does_not_reproduce_is_not_called_residue(
+        tmp_path):
+    """THE PAIR for the message above, and the reason it was rewritten.
+
+    Green before, red after, sources byte-identical, nothing left behind --
+    that signature was printed as "something outside the mutated sources
+    survived the run", which is a conclusion the evidence does not support. A
+    NONDETERMINISTIC test produces it exactly, and did, on four hosted runs
+    of the checkpoint spec (D-2026-34), sending the reader after a stray file
+    that never existed.
+
+    Here the harness sees red on a tree it restored byte-identical, and the
+    re-check passes. The message must then say what it actually knows, and
+    must NOT name residue.
+    """
+    spec = _project(
+        tmp_path, suite_src=COUNTING_SRC,
+        mutations=[{"name": "M1_guard_a_removed", "path": "pkg/mod.py",
+                    "find": "    if x < 0:", "replace": "    if 0:",
+                    "rationale": "guard a stops guarding"}])
+    proc = _run(tmp_path, spec)
+
+    assert "POST-RUN BASELINE RED" in proc.stdout, proc.stdout
+    assert "re-running those tests alone" in proc.stdout, proc.stdout
+    assert "Do not conclude that something survived" in proc.stdout
+    assert "look for state outside the mutated sources" not in proc.stdout, (
+        "the harness named residue for a failure that did not reproduce")
+    assert proc.returncode != 0, "a red post-run baseline is still a failure"
 
 
 # ---- restoration between mutations, not only at the end -----------------

@@ -597,6 +597,89 @@ class EventLog:
                     return Anchor(seq, ev.hash, start, offset)
         raise EventLogError(f"no record at seq {seq}")
 
+    def _open_for(self, anchor: "Anchor"):
+        """Open the log for anchored reading, or say the log is not there.
+
+        A missing log is a chain failure for an anchored caller, not an OS
+        error to be raised through: something produced an anchor for a log
+        that no longer exists.
+        """
+        try:
+            return self.path.open("rb")
+        except FileNotFoundError:
+            raise ChainBroken(
+                f"anchor claims seq {anchor.seq} but the log does not "
+                "exist") from None
+
+    def _read_anchored(self, fh, anchor: "Anchor") -> "Event":
+        """The record ``anchor`` names, read from ``fh``, or raise.
+
+        One seek and one line: the anchor's byte range must hold exactly one
+        record, that record must sit at the anchor's seq, must hash to the
+        anchor's hash, and must hash to its own. Shared by every caller that
+        needs to know an anchor belongs to THIS log, so there is one
+        statement of what "belongs" means rather than one per caller.
+
+        The size comes from ``fstat`` on the open handle rather than ``stat``
+        on the path, so the length checked is the length of the file actually
+        being read. A path can be replaced between the two calls; a handle
+        cannot.
+        """
+        size = os.fstat(fh.fileno()).st_size
+        if anchor.next_offset > size:
+            raise ChainBroken(
+                f"TRUNCATED: anchor ends at byte {anchor.next_offset} but the "
+                f"log is {size} bytes; {anchor.next_offset - size} byte(s) "
+                "are missing")
+        fh.seek(anchor.record_offset)
+        raw = fh.readline()
+        if anchor.record_offset + len(raw) != anchor.next_offset:
+            raise ChainBroken(
+                f"anchor at seq {anchor.seq} does not describe the bytes "
+                "now at its offset; the log was rewritten")
+        try:
+            rec = json.loads(raw.decode("utf-8"))
+            _validate_field_types(rec, f"anchor seq {anchor.seq}")
+            anchored = Event(**rec)
+        except (UnicodeDecodeError, ValueError, TypeError,
+                EventLogError) as exc:
+            raise ChainBroken(
+                f"anchor at seq {anchor.seq} does not point at a valid "
+                f"record: {exc}") from exc
+        if anchored.seq != anchor.seq:
+            raise ChainBroken(
+                f"anchor claims seq {anchor.seq} but the record there is "
+                f"seq {anchored.seq}")
+        if anchored.hash != anchor.head_hash:
+            raise ChainBroken(
+                f"anchor expects hash {anchor.head_hash[:12]} at seq "
+                f"{anchor.seq}, found {anchored.hash[:12]}")
+        if anchored.recompute_hash() != anchored.hash:
+            raise ChainBroken(
+                f"seq {anchor.seq}: the anchored record does not hash to "
+                "its own stored hash")
+        return anchored
+
+    def check_anchor(self, anchor: "Anchor") -> "Event":
+        """Raise unless ``anchor`` names a record that is in THIS log.
+
+        O(1), and the cheapest honest answer to "does this anchor belong
+        here". Not a verification: the prefix is not read and the tail is not
+        read, so this says nothing about the chain. It says the one thing a
+        byte count cannot -- that the bytes at the anchor's offset are the
+        record it claims, in the log it was handed, rather than a record of
+        the same LENGTH in a different log.
+
+        That distinction is not academic. Two logs of similar length agree on
+        every question answerable from ``stat()``, and an anchor taken from
+        one will seek happily into the other, land mid-record, and read a
+        fragment. Any caller deciding something durable from "this anchor
+        fits" -- what to delete, which snapshot to restore from -- needs this
+        one and not that one.
+        """
+        with self._open_for(anchor) as fh:
+            return self._read_anchored(fh, anchor)
+
     def verify_from(self, anchor: "Anchor", *,
                     use_witness: bool = True) -> VerifyReport:
         """Verify only the records after ``anchor``, TRUSTING the prefix.
@@ -626,46 +709,8 @@ class EventLog:
             except EventLogError as exc:
                 problems.append(str(exc))
 
-        try:
-            size = self.path.stat().st_size
-        except FileNotFoundError:
-            raise ChainBroken(
-                f"anchor claims seq {anchor.seq} but the log does not "
-                "exist") from None
-        if anchor.next_offset > size:
-            raise ChainBroken(
-                f"TRUNCATED: anchor ends at byte {anchor.next_offset} but the "
-                f"log is {size} bytes; {anchor.next_offset - size} byte(s) "
-                "are missing")
-
-        with self.path.open("rb") as fh:
-            fh.seek(anchor.record_offset)
-            raw = fh.readline()
-            if anchor.record_offset + len(raw) != anchor.next_offset:
-                raise ChainBroken(
-                    f"anchor at seq {anchor.seq} does not describe the bytes "
-                    "now at its offset; the log was rewritten")
-            try:
-                rec = json.loads(raw.decode("utf-8"))
-                _validate_field_types(rec, f"anchor seq {anchor.seq}")
-                anchored = Event(**rec)
-            except (UnicodeDecodeError, ValueError, TypeError,
-                    EventLogError) as exc:
-                raise ChainBroken(
-                    f"anchor at seq {anchor.seq} does not point at a valid "
-                    f"record: {exc}") from exc
-            if anchored.seq != anchor.seq:
-                raise ChainBroken(
-                    f"anchor claims seq {anchor.seq} but the record there is "
-                    f"seq {anchored.seq}")
-            if anchored.hash != anchor.head_hash:
-                raise ChainBroken(
-                    f"anchor expects hash {anchor.head_hash[:12]} at seq "
-                    f"{anchor.seq}, found {anchored.hash[:12]}")
-            if anchored.recompute_hash() != anchored.hash:
-                raise ChainBroken(
-                    f"seq {anchor.seq}: the anchored record does not hash to "
-                    "its own stored hash")
+        with self._open_for(anchor) as fh:
+            anchored = self._read_anchored(fh, anchor)
 
             tail = [ev for ev, _, _ in
                     self._read_tail(fh, anchor.next_offset, problems)]

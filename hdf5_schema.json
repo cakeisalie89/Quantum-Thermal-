@@ -4302,7 +4302,7 @@
    "ordering_policy": "byte-exact source bytes",
    "schema_version": "1.0.0",
    "source_output": "thermal_3d_verification_report.json",
-   "source_sha256": "c482faf54329a660529dcf15e0ff55ad952f35c4314c56de26be8c31fd484fcb",
+   "source_sha256": "1d8f4461d7b88bb35228334d242d7b3d5a0999578fb04d358f9e08e630ba1121",
    "string_encoding": "UTF-8"
   },
   {

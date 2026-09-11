@@ -68,29 +68,29 @@
     {
       "name": "E21_anchor_hash_not_checked",
       "path": "qta_agent/events.py",
-      "find": "            if anchored.hash != anchor.head_hash:",
-      "replace": "            if False:",
+      "find": "        if anchored.hash != anchor.head_hash:",
+      "replace": "        if False:",
       "rationale": "an anchor could name any hash and verification would resume anyway"
     },
     {
       "name": "E22_anchor_seq_not_checked",
       "path": "qta_agent/events.py",
-      "find": "            if anchored.seq != anchor.seq:",
-      "replace": "            if False:",
+      "find": "        if anchored.seq != anchor.seq:",
+      "replace": "        if False:",
       "rationale": "an anchor could claim a position the record does not hold"
     },
     {
       "name": "E23_anchor_record_not_rehashed",
       "path": "qta_agent/events.py",
-      "find": "            if anchored.recompute_hash() != anchored.hash:",
-      "replace": "            if False:",
+      "find": "        if anchored.recompute_hash() != anchored.hash:",
+      "replace": "        if False:",
       "rationale": "the record the whole tail chains from would never be re-hashed"
     },
     {
       "name": "E24_anchor_offsets_not_checked",
       "path": "qta_agent/events.py",
-      "find": "            if anchor.record_offset + len(raw) != anchor.next_offset:",
-      "replace": "            if False:",
+      "find": "        if anchor.record_offset + len(raw) != anchor.next_offset:",
+      "replace": "        if False:",
       "rationale": "a rewritten log would be verified from a seek landing mid-record"
     },
     {
@@ -232,6 +232,20 @@
       "find": "            payload={\"through_seq\": cp.seq, \"state_digest\": dg,",
       "replace": "            payload={\"through_seq\": cp.seq + 1, \"state_digest\": dg,",
       "rationale": "the record claims to cover the record that announces it, and load_from's match on the position stops finding its anchor"
+    },
+    {
+      "name": "E26_describes_degenerates_to_could_describe",
+      "path": "qta_agent/checkpoint.py",
+      "find": "    check_against(log, cp)\n    try:\n        log.check_anchor(cp.anchor)",
+      "replace": "    check_against(log, cp)\n    try:\n        pass",
+      "rationale": "D-2026-34: a checkpoint of a different log of similar length would describe this one, so prune would delete while the log is in doubt"
+    },
+    {
+      "name": "E27_latest_usable_asks_the_weaker_question",
+      "path": "qta_agent/checkpoint.py",
+      "find": "                cp = self.read(seq)\n                describes(log, cp)",
+      "replace": "                cp = self.read(seq)\n                check_against(log, cp)",
+      "rationale": "D-2026-34: the backwards walk stops at a checkpoint that merely fits, leaving the one that describes the log unexamined below it"
     }
   ]
 }

@@ -3076,6 +3076,233 @@ them.
 
 ---
 
+## D-2026-34 — "usable" was decided by the log's size, and a test's precondition rode on two bytes
+
+**CLASS** — `TRUE_DEFECT` (production), plus `WRONG_TEST` and a
+`SIBLING_SWEEP_OMISSION` of my own making.
+
+**AFFECTED COMMIT** — since checkpointing landed; surfaced at `9d7d3c2`.
+
+**DISCOVERED BY.** The hosted `second-interpreter (3.13)` job at `9d7d3c2`,
+which failed one test with `DID NOT RAISE CheckpointError`. That test was the
+SIBLING of one I had fixed two commits earlier, in the same file, for the
+same reason — and I did not sweep the file when I fixed the first one. The
+class this project exists to close, committed by me, in the act of closing it.
+
+**THE TEST DEFECT.** `prune` refuses when no checkpoint verifies against the
+log. Two tests set that condition up by making the foreign log's single
+record SHORTER than the checkpointed log's records, so that a byte-offset
+comparison would reject every checkpoint. The margin was two bytes — the
+difference between `t0` and `z` twice — and a record's length includes a
+wall-clock float whose JSON repr varies by a byte or three. So the
+precondition held by coincidence, and one hosted run lost the coin flip.
+
+The first fix widened the margin to ~59 bytes on ONE of the two tests. That
+is the move the directive names: it closed the example.
+
+**THE PRODUCTION DEFECT UNDERNEATH IT — AND THIS IS THE REAL FINDING.** The
+reason a byte margin could set up "no checkpoint describes this log" at all
+is that `CheckpointStore.latest_usable` decided exactly that question with
+`check_against`, whose own docstring says it answers the weaker one:
+
+> Raise unless ``cp`` **could** describe ``log``. Cheap; reads no records.
+
+It compares the checkpoint's end offset against `stat().st_size` and its seq
+against the head witness. Both are properties of the log's SHAPE. Two
+entirely different logs of similar length have the same shape, so a
+checkpoint of one passed against the other, and its offsets seeked into the
+middle of an unrelated record. `latest_usable`'s docstring meanwhile claimed
+the strong reading — "the newest checkpoint that both parses and **describes**
+`log`" — and both of its consumers acted on that claim:
+
+* **`prune` deleted evidence in the exact situation its refusal exists for.**
+  Against a foreign log of ten longer records, it found seq 9 "usable" and
+  removed eight of ten checkpoints. Reproduced before the fix:
+
+  ```
+  latest_usable(other) -> 9
+  REMOVED WHILE THE LOG IS IN DOUBT: (0, 1, 2, 3, 4, 5, 6, 7)
+  ```
+
+  Its docstring calls that "the one arrangement worse than an oversized
+  store".
+
+* **`load_from` stopped its backwards walk at the top.** Walking backwards is
+  the whole design — an older valid checkpoint is strictly better than none —
+  and a foreign checkpoint that merely fit ended the walk before the
+  describing one was reached, so a recoverable store failed to recover.
+
+**REPAIR.** "Describes" now means what the word means.
+
+`EventLog.check_anchor(anchor)` reads the one record the anchor names and
+requires it to BE that record: the byte range must hold exactly one record,
+at the anchor's seq, hashing to the anchor's hash and to its own. It is O(1)
+— a seek and a line — and it verifies nothing else, which is stated in its
+docstring rather than left to be assumed. The rules it applies were already
+in `verify_from`; they now live in `_read_anchored`, which both callers
+share, so each rule exists in exactly one place.
+
+`checkpoint.describes(log, cp)` is `check_against` plus that binding, and
+`latest_usable` calls it. `check_against` keeps existing and keeps its weaker
+contract, because `verify_with` follows it immediately with a real
+verification that would catch any disagreement anyway.
+
+**THE TESTS NO LONGER DEPEND ON LENGTH AT ALL.** Both fixtures now use a
+foreign log whose records are deliberately LONGER, so every size comparison
+passes and only content can tell the two logs apart — the harder direction,
+and the one no timestamp can flip. `test_could_describe_and_does_describe_are_different_questions`
+is their anti-vacuity pair: it asserts `check_against` ACCEPTS the same pair
+`describes` refuses, so the stronger check is proved to name a real
+condition rather than being decoration.
+
+**A THIRD TEST WAS OVERCLAIMING AND IS RENAMED.**
+`test_a_checkpoint_for_a_different_log_is_refused` refused `log_b` for being
+two records long, not for being a different log. It is now
+`test_a_checkpoint_for_a_SHORTER_different_log_is_refused_by_size` and
+asserts the message it actually depends on. A test whose name claims more
+than its assertion is a claim audit finding wherever it appears.
+
+**MUTATION ANCHORS DRIFTED IN THE REPAIR, AND THAT WAS CAUGHT.** Extracting
+`_read_anchored` dedented four anchors in `agent_checkpoint.json` (E21–E24),
+which then matched **0 times** — absent, not passing — and the deduplication
+of the truncation rule briefly made E25 match twice. All five are repaired,
+and two mutations are added for the new rule: `E26` degenerates `describes`
+back to `check_against`, `E27` points `latest_usable` at the weak check. Both
+are killed by the tests above; the spec is 34 mutations.
+
+**AND THE HARNESS MISDIAGNOSED IT, FOUR TIMES, IN WRITING.** The
+`agent-substrate` job was red at `f80caa8`, `3d809f0`, `577572d` and
+`9d7d3c2` — four commits — and the checkpoint matrix inside it reported
+**32/32 killed, all sources restored byte-identical**, followed by:
+
+```
+POST-RUN BASELINE RED -- the matrix left this tree in a state the suite
+rejects: ['test_pruning_refuses_when_nothing_verifies_against_the_log']
+Restoration was byte-identical but not complete; something outside the
+mutated sources survived the run.
+```
+
+The first line is an observation. The second is a **conclusion the harness
+cannot draw from what it measured**: a nondeterministic test produces that
+signature exactly — green before, red after, sources byte-identical, nothing
+left behind — and that is what this was. The message sends the reader after a
+stray file that was never there, which is expensive in a repository that
+already has an open follow-up (0b) about a test damaging tracked files.
+
+So the harness now asks one more question it can actually answer: it re-runs
+the named tests on the tree as restored. If they pass, it says so and says
+what that does and does not license:
+
+> ...but re-running those tests alone on the SAME restored tree passes. The
+> tree is not simply broken: either the test is nondeterministic or it
+> depends on state the rest of the suite sets up. Do not conclude that
+> something survived the run without evidence of the thing.
+
+If they fail again, the residue wording stands — now earned. Both branches
+are tested (`test_state_a_mutation_leaves_behind_is_caught_after_the_run`
+asserts the residue message; its new pair asserts the other one and asserts
+the residue wording is ABSENT), and `H19` mutates the re-check away.
+
+Note what this does NOT do: it does not make the run pass. A red post-run
+baseline still fails the matrix. The repair is to the diagnosis, not to the
+verdict.
+
+**WHAT I GOT WRONG, PLAINLY.** I fixed one instance of a fixture defect and
+did not look for its sibling twelve lines below it in the same file. The
+hosted run found it. And the byte-margin framing was itself the wrong level:
+the fixture was only fragile because production was deciding a content
+question with a size comparison, which no amount of margin would have fixed.
+
+---
+
+## D-2026-35 — the fix for a stale artefact left four artefacts pinning the old one
+
+**CLASS** — `STALE_DERIVED_ARTEFACT`, `SIBLING_SWEEP_OMISSION`. Mine, again,
+in the commit that closed the previous one.
+
+**AFFECTED COMMIT** — `a956dea`, which is HEAD of this branch as this is
+written. Hosted `full-suite` is RED there, and this is why.
+
+**DISCOVERED BY.** The hosted `full-suite` job at `a956dea`, failing
+`tests/test_stage8_data_provenance.py::test_mapping_registry_valid_and_complete`
+— reproduced locally before any of the repair below.
+
+**DEFECT.** D-2026-33 regenerated `thermal_3d_verification_report.json`, a
+governed output. `MANIFEST_BOUNDARY.md` documents a regeneration order for
+exactly that situation, because several generators hash artefacts that
+earlier generators rewrite. `a956dea` ran the manifest half of that order and
+none of the HDF5 half, so three tracked artefacts kept pinning the digest the
+regeneration had just invalidated:
+
+| artefact | what it held |
+|---|---|
+| `hdf5_output_mapping.json` | `sha256` for that output: `c482faf5…`, one line |
+| `hdf5_schema.json` | the same digest, one line |
+| `qta_scientific_results.h5` | the output's **bytes**, under `/native_json` — a stale COPY of a governed output inside the artifact that is supposed to be equivalent to it |
+
+`validate_hdf5_equivalence.py` said so as soon as it was asked:
+`RESULT: FAIL`, 1 problem, 469 datasets where the tree records 470.
+
+A fourth file, `verification/snakemake/canonical_outputs.done.json`, also
+pins the old digest and is **not** a defect: `verification/` is gitignored,
+so that file is a local workspace marker, not part of the repository. Checked
+rather than assumed, because "four files matched the grep" was the first
+reading.
+
+**WHY THE COMMIT'S OWN CHECKS DID NOT SAY SO.** `generate_manifest.py --check`
+printed `manifest in sync (559 files; 2 detached by policy)` and that was
+true. The manifest is LAST in the regeneration chain and hashes whatever it
+finds, including a stale link earlier in the chain; "in sync" means every
+tracked file is listed and every listed hash matches the bytes on disk, and
+says nothing about whether two derived artefacts agree with each other. I
+read the stronger claim off the weaker check — the same shape as D-2026-34,
+committed the same day.
+
+`package_consistency_check.py`, the byte gate that compares committed copies
+against fresh regenerations, could not have separated this from the
+twenty-three R59 host-arithmetic differences it reports on a non-AVX-512
+runner. The suite could, and did, one commit later.
+
+**REPAIR.** The documented order, from the point the change actually entered
+the chain — `qta_full_sim.py` deliberately NOT re-run, since regenerating the
+canonical outputs on this host would rewrite them with this host's
+arithmetic:
+
+```
+build_hdf5_mapping.py     -> one digest in each of mapping and schema
+build_hdf5.py             -> qta_scientific_results.h5 rebuilt
+validate_hdf5_equivalence.py -> RESULT: EQUIVALENT, 470 datasets, 0 problems
+ro_crate_tools.py / validate -> 30 entities, 24 files, VALID
+tools/corpus_allowlist.py --write
+generate_manifest.py
+```
+
+And `generate_manifest.py --check` now prints what it does **not** check,
+beneath the line that misled me:
+
+> (coverage and hashes only — it does not check that derived artifacts agree
+> with their sources; after changing a governed output run the regeneration
+> order in MANIFEST_BOUNDARY.md and then the test suite)
+
+**AND THE GUARD THAT CAUGHT THE MATRIX MOVING WAS HALF WRONG ITSELF.**
+Downgrading R41 fired `test_the_matrix_is_not_completed_silently`, which is
+exactly its job: the complete count is written down so that moving it is a
+decision somebody makes on purpose. Its second assertion was
+`len(rows) == EXPECTED_COMPLETE` — true only while every row is complete, an
+equality that held by circumstance and was written down as a rule. It
+reported "one of the two numbers is wrong" about two numbers that were both
+right. The row count is now its own constant, `EXPECTED_ROWS`, and the
+comment says which mistake that fixes. The same shape, one more time: an
+identity that happened to hold, stated as an invariant.
+
+**WHAT I GOT WRONG, PLAINLY.** I regenerated a governed output, ran the
+manifest, saw "in sync", and committed without running the suite that gates
+derived artefacts. The documented order exists precisely because this is easy
+to get wrong, and I did not open it. Two sibling-sweep omissions in one
+session — this one and D-2026-34's — is the pattern, not the accident.
+
+---
+
 ## Hosted evidence, per commit
 
 A gate condition is satisfied **for a commit** when that commit's own hosted
@@ -3111,6 +3338,8 @@ and reading it is not optional.
 | D-2026-29 (P0-R14) | `agent_second_reader` mutation matrix, and the inventory step | `3d809f0` | pending its own hosted run; local evidence is 89/89 and is recorded as local |
 | D-2026-30 (P1) | `agent_checkpoint` and `agent_second_reader` mutation matrices | this commit | pending its own hosted run; local evidence is recorded as local |
 | D-2026-31 (P1) | `agent_substrate` and `agent_second_reader` mutation matrices, and the property suite | this commit | pending its own hosted run; local evidence is recorded as local |
+| D-2026-34 (P1) | `agent_checkpoint` mutation matrix, the agent suites, and `second-interpreter` — the job that found it | this commit | pending its own hosted run; local evidence is 34 anchors matching and the suites green, recorded as local |
+| D-2026-35 (P1) | `full-suite` — the job that found it — green on this commit's own run | this commit | pending its own hosted run; locally the stage-8, manifest, stage-10 and allowlist suites are green and the equivalence validator reports EQUIVALENT with 0 problems |
 
 ### What `3d809f0`'s own run said
 
@@ -3186,6 +3415,8 @@ container.
 | P1 / D-2026-30 | a checkpoint pinned a snapshot and nothing anchored the pin | `CURRENTLY_OPEN_FINDING` | the claim is now a record under the hash chain; hosted evidence pending |
 | P1 / D-2026-31 | two suites said opposite things about canonical authority | `CURRENTLY_OPEN_FINDING` | `canonical()` excludes withdrawn foundations, transitively, in both readers; hosted evidence pending |
 | P1 / D-2026-32 | the performance guard measured time while the work grew | `CURRENTLY_OPEN_FINDING` | 26 full verifications per governed run down to 11, counted by a guard rather than timed; the residual 8+3 is measured and recorded, not closed |
+| P1 / D-2026-34 | "usable" was decided by the log's size, and my own fix closed the example | `CURRENTLY_OPEN_FINDING` | `describes()` reads the record the checkpoint names; both fixtures rebased on content; E21-E25 anchor drift repaired, E26/E27 added; hosted evidence pending |
+| P1 / D-2026-35 | the fix for a stale artefact left three artefacts pinning the old digest | `CURRENTLY_OPEN_FINDING` | the HDF5 half of the documented regeneration order run; equivalence EQUIVALENT with 470 datasets; `--check` now says what it does not check; hosted evidence pending |
 
 **WHY SO MANY ROWS SAY `CURRENTLY_OPEN_FINDING` WHILE THE WORK IS DONE.** They
 say it because the rule is *the gate has been re-run at the current head*, and

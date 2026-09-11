@@ -36,8 +36,10 @@ rather than asserted:
     must exist;
   * every action must be classified AUTHORITY-CHANGING or not, with a
     reason -- and an authority-changing action with no independent reader
-    fails. That is the rule that reconciles "28 of 37 have a second reader"
-    with a completion matrix reading 39/39: the gap is acceptable exactly
+    fails. That is the rule that reconciles the pair of true numbers this
+    was written for -- "28 of 37 have a second reader" beside a completion
+    matrix reading 39/39, neither of them current now, both of them
+    unreconciled then: the gap is acceptable exactly
     where a forged record changes nothing anyone is permitted to do, and
     each such action has to say so in its own entry.
 

@@ -130,6 +130,13 @@
       "find": "    return 0 if not (survived or anchors or timeouts or drifted or collateral\n                     or still_dirty or post_rc) else 1",
       "replace": "    return 0 if not (survived or anchors or drifted or collateral\n                     or still_dirty or post_rc) else 1",
       "rationale": "the harness reports the condition and passes anyway, which is what let two timeout-only kills sit in the specs until somebody read the report closely"
+    },
+    {
+      "name": "H19_a_post_run_failure_is_always_called_residue",
+      "path": "tools/mutation_matrix.py",
+      "find": "        recheck_rc, _ = run_suite(suites, args.python, only=post_failed)\n        if recheck_rc == 0:",
+      "replace": "        recheck_rc, _ = run_suite(suites, args.python, only=post_failed)\n        if False:",
+      "rationale": "D-2026-34: a nondeterministic test produces the same signature as leftover state, and the harness names the one it cannot establish"
     }
   ]
 }

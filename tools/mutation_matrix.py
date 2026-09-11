@@ -143,8 +143,11 @@ def _restore(paths: list) -> None:
                     *paths], capture_output=True, text=True)
 
 
-def run_suite(suites: list, python: str) -> tuple:
+def run_suite(suites: list, python: str, *, only: list | None = None) -> tuple:
     """Return (returncode, [failed test names]). ``-x`` stops at the first.
+
+    ``only`` narrows the run to named tests (``-k``), for re-asking a
+    question about a specific failure rather than re-running everything.
 
     THE STALE-BYTECODE TRAP, AND WHY EVERY RUN GETS A PRIVATE CACHE
 
@@ -181,9 +184,10 @@ def run_suite(suites: list, python: str) -> tuple:
         # group, and the caller is this harness. The run then dies looking
         # like an infrastructure problem rather than like the mutation doing
         # exactly what it was written to do.
+        select = ["-k", " or ".join(only)] if only else []
         proc = subprocess.run(
             [python, "-m", "pytest", *suites, "-q", "--no-header", "-x",
-             "--tb=no", "-p", "no:randomly"],
+             "--tb=no", "-p", "no:randomly", *select],
             cwd=str(ROOT), capture_output=True, text=True,
             timeout=SUITE_TIMEOUT_S, start_new_session=True, env=env)
     finally:
@@ -470,8 +474,32 @@ def main() -> int:
     if post_rc != 0:
         print("POST-RUN BASELINE RED -- the matrix left this tree in a state "
               f"the suite rejects: {post_failed}")
-        print("Restoration was byte-identical but not complete; something "
-              "outside the mutated sources survived the run.")
+        # WHICH OF THREE EXPLANATIONS, rather than asserting one.
+        #
+        # This block used to print "something outside the mutated sources
+        # survived the run" as a conclusion. It is a hypothesis, and a
+        # NONDETERMINISTIC TEST produces the identical signature: green
+        # before, red after, sources byte-identical, nothing left behind.
+        # That is not hypothetical either -- it happened on four hosted runs
+        # of this spec, and the message sent the reader hunting a stray file
+        # that was never there (D-2026-34).
+        #
+        # So the harness asks one more question it can actually answer: does
+        # the named test still fail on the tree as restored? Re-running it
+        # alone cannot distinguish nondeterminism from suite-order coupling,
+        # and the message says so instead of picking one.
+        recheck_rc, _ = run_suite(suites, args.python, only=post_failed)
+        if recheck_rc == 0:
+            print("...but re-running those tests alone on the SAME restored "
+                  "tree passes. The tree is not simply broken: either the "
+                  "test is nondeterministic or it depends on state the rest "
+                  "of the suite sets up. Do not conclude that something "
+                  "survived the run without evidence of the thing.")
+        else:
+            print("...and it fails again on the restored tree, in isolation. "
+                  "Restoration was byte-identical but not complete; look for "
+                  "state outside the mutated sources -- a data file a test "
+                  "wrote, a cache, a directory that now exists.")
     return 0 if not (survived or anchors or timeouts or drifted or collateral
                      or still_dirty or post_rc) else 1
 
