@@ -5281,43 +5281,93 @@ widening that spec's suites to cover a crash-recovery concern. It moved to
 `agent_recovery.json`, whose suites already include that file, and is
 killed there.
 
-## D-2026-51 — OPEN, UNDIAGNOSED: one checkpoint race, seen once, not reproduced
+## D-2026-51 — a checkpoint refused the ordinary state of a live log
 
-**STATUS — OPEN.** This entry closes nothing. It exists so that a failure
-that was observed does not quietly become a failure that was forgotten.
+**CLASS** — `WRONG_SPECIFICATION` at a composition: two components each
+correct alone, wrong together. Recorded OPEN and undiagnosed first; this
+entry replaces that with the diagnosis and the repair.
 
-**WHAT WAS SEEN.** `tests/test_agent_checkpoint.py::
+**HOW IT WAS SEEN.** `tests/test_agent_checkpoint.py::
 test_appending_while_a_checkpoint_is_taken_leaves_both_consistent` failed
-once, in a local full-suite run, while working on D-2026-50. It is a
-threading test: an appender thread appends continuously while the main
-thread takes 40 checkpoints, and it asserts that every checkpoint still
-describes the log afterwards — a reader racing a writer, the same family as
-the cross-process campaign in D-2026-50.
+once locally during D-2026-50 and could not be reproduced — 1 failure
+against 35 passes, including 24 under six parallel streams. It was written
+down as neither a flake nor a defect, because both would have been guesses,
+and what would close it was named: the traceback.
 
-**WHAT IS KNOWN.** It passes 10/10 in isolation, 24/24 under six parallel
-streams, and in the next full suite. The single-snapshot repair of
-D-2026-50 was ALREADY in place when it failed, so that change neither
-caused it nor fixed it. Total: one failure, 35 passes.
+**WHAT CLOSED IT.** `agent-substrate` at `2514a20` — a commit that changed
+only the ledger, the allowlist and the manifest — went red at step 12, the
+checkpointing mutation matrix, which had been green at `bf2f902`. None of
+those files can affect that matrix, so the failure was nondeterministic by
+elimination before anything was read. The harness said the rest itself:
 
-**WHY IT IS NOT DIAGNOSED, which is the part worth recording.** The test
-asserts `assert not errors, errors`, so the exception that the appender or
-the checkpoint loop hit was in the traceback. It is not in this entry
-because the suite was run as `pytest -q 2>&1 | tail -6` and the traceback
-scrolled past the six lines that were kept. The failure was reproducible
-exactly once and the evidence of it was discarded by the command that
-observed it.
+> killed: 34/34
+> all sources restored byte-identical (verified by re-hashing)
+> POST-RUN BASELINE RED -- the matrix left this tree in a state the suite
+> rejects: ['test_appending_while_a_checkpoint_is_taken_leaves_both_consistent']
+> ...but re-running those tests alone on the SAME restored tree passes.
 
-That is a defect in method, not in the code under test, and it is the same
-shape as several entries above: an instrument that answers a narrower
-question than the one being asked. `tail -6` answers "did it pass"; the
-question was "what happened". A run cheap enough to repeat is not evidence
-cheap enough to throw away — full output to a file, then read what is
-needed.
+Not mutation residue, then: sources verified identical by re-hashing. That
+narrowed it to the harness's own disjunction — nondeterministic, or
+dependent on state the rest of the suite sets up — and named the context to
+reproduce in. Running the spec's five suites together locally reproduced it
+in **1 run of 8**, with the traceback kept this time:
 
-**WHAT WOULD CLOSE IT.** The traceback. Until an occurrence is captured,
-calling this a flake would be a guess, and calling it a defect would be a
-different guess. It is neither here: it is an observation with a
-reproduction rate of roughly 1 in 35 whole-suite runs and no explanation.
+```
+checkpoint: ChainBroken('refusing to checkpoint a log that does not verify
+  -- a checkpoint past a break makes the break invisible to every later
+  verification: ... partial final record (JSONDecodeError); the log was
+  truncated mid-append and the 10 complete record(s) before it are intact')
+```
+
+**DEFECT.** `checkpoint.create` verified the log and refused unless
+`report.ok`. The test's appender thread appends continuously, so a reader
+catches a write in flight: `verify()` sees a torn final line, classifies it
+correctly as a partial append, records it as a problem — which is right, and
+D-2026-50 explains why it must stay a problem — and `create` refuses.
+
+Both halves are behaving exactly as designed. The composition is the defect:
+**a live log is torn constantly**, so a checkpoint path that refuses on a
+torn tail refuses at random under concurrent load. In a deployment it would
+fail intermittently for the entire life of the system, and the failure would
+look like this one: unreproducible, and blamed on the test.
+
+The refusal's own stated reason shows the boundary. It protects against a
+checkpoint recorded PAST a break, which would hide it from later
+verification. A partial final append is not past anything: `head_seq` is the
+last COMPLETE record, so the checkpoint names a position strictly BEFORE the
+torn bytes and cannot conceal them. The refusal was right about damage and
+wrong about the ordinary state of a log being written to.
+
+**REPAIR.** `VerifyReport.torn_tail_only()` — true when the torn tail is the
+single entry in `problems`. It can be that simple because the torn-tail
+message is appended before the chain walk and before the witness check, so
+anything else objecting adds a second entry. `create` now refuses unless the
+report is ok OR the only complaint is a torn tail, and then checkpoints the
+verified prefix that D-2026-50's repair made available — before that change
+`verify()` returned `count=0` and there was no prefix to name.
+
+**IT IS NOT A SOFTER `ok`, AND THE TESTS SAY SO.** A record removed from the
+middle plus a torn tail still refuses; a witness recording a seq the log no
+longer reaches still refuses; a clean log reports no torn tail at all, which
+is the control without which `torn_tail_only()` could return True always and
+the other three would still pass. The checkpoint's POSITION is asserted, not
+merely the absence of an exception: `cp.seq == 4` on a five-record log whose
+sixth append is half-written.
+
+**VERIFIED.** The five suites that reproduced it 1-in-8 now run **16 of 16
+clean**. The checkpointing matrix is 36/36 with `C1` re-anchored and two
+mutations added for the new condition:
+`C34_the_torn_tail_tolerance_swallows_every_failure` widens it to accept any
+failing log, and `C35_torn_tail_only_stops_checking_for_other_problems` drops
+the "nothing else objected" half. Both are killed, C35 by the narrowness
+test written for it.
+
+**THE METHOD NOTE FROM THE OPEN VERSION STANDS.** That entry could not be
+closed because the suite had been run as `pytest -q 2>&1 | tail -6` and the
+traceback scrolled past the six lines kept. What closed it was a hosted
+harness that kept its own evidence and said precisely what it did and did
+not know. A run cheap enough to repeat is not evidence cheap enough to throw
+away.
 
 ## HOSTED EVIDENCE — the first complete `agent-substrate` run
 

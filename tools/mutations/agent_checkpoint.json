@@ -12,9 +12,9 @@
     {
       "name": "C1_checkpoint_a_broken_log",
       "path": "qta_agent/checkpoint.py",
-      "find": "        if not report.ok:\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
+      "find": "        if not report.ok and not report.torn_tail_only():\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
       "replace": "        if False:\n            raise ChainBroken(\n                \"refusing to checkpoint a log",
-      "rationale": "a checkpoint past a break makes the break invisible to every later verification"
+      "rationale": "a checkpoint past a break would hide it from every later verification; re-anchored after D-2026-51 narrowed the refusal to exclude a torn final append"
     },
     {
       "name": "C2_skip_checkpoint_self_hash",
@@ -246,6 +246,20 @@
       "find": "                cp = self.read(seq)\n                describes(log, cp)",
       "replace": "                cp = self.read(seq)\n                check_against(log, cp)",
       "rationale": "D-2026-34: the backwards walk stops at a checkpoint that merely fits, leaving the one that describes the log unexamined below it"
+    },
+    {
+      "name": "C34_the_torn_tail_tolerance_swallows_every_failure",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        if not report.ok and not report.torn_tail_only():",
+      "replace": "        if False:",
+      "rationale": "the D-2026-51 tolerance widened to accept ANY log that does not verify, so a checkpoint could be written past a real break -- the exact thing the refusal exists for"
+    },
+    {
+      "name": "C35_torn_tail_only_stops_checking_for_other_problems",
+      "path": "qta_agent/events.py",
+      "find": "        return self.truncated_tail and len(self.problems) == 1",
+      "replace": "        return self.truncated_tail",
+      "rationale": "a torn tail ALONGSIDE a broken chain or a witness that outruns the log would report as torn-tail-only, so damage and truncation would become checkpointable"
     }
   ]
 }

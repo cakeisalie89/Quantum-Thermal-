@@ -196,7 +196,25 @@ def create(log: EventLog, *, state_digest: str | None = None,
 
     if require_full_verification:
         report = log.verify()
-        if not report.ok:
+        # A TORN FINAL LINE IS NOT A BREAK, AND THE RATIONALE BELOW SAYS SO.
+        #
+        # Refusing protects against a checkpoint recorded PAST a break,
+        # which would hide it from every later verification. A partial final
+        # append is not past anything: `head_seq` is the last COMPLETE
+        # record, so the checkpoint names a position strictly before the
+        # torn bytes and cannot conceal them.
+        #
+        # It has to be tolerated because a live log is torn CONSTANTLY --
+        # any reader can catch an appender mid-write. Refusing on it made
+        # checkpointing a concurrent log fail at random: roughly one run in
+        # eight of the five suites here, and a hosted mutation matrix's
+        # post-run baseline (D-2026-51). The refusal was right about damage
+        # and wrong about the ordinary state of a log being written to.
+        #
+        # Narrow on purpose: `torn_tail_only()` is False the moment anything
+        # else objects, including a witness that records a seq the log no
+        # longer reaches -- so a real truncation still refuses here.
+        if not report.ok and not report.torn_tail_only():
             raise ChainBroken(
                 "refusing to checkpoint a log that does not verify -- a "
                 "checkpoint past a break makes the break invisible to every "

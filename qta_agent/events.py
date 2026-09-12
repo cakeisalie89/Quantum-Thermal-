@@ -276,6 +276,21 @@ class VerifyReport:
     #: recovered instead of being indistinguishable from a corrupt one.
     truncated_tail: bool = False
 
+    def torn_tail_only(self) -> bool:
+        """True when the ONLY complaint is a partial final append.
+
+        The torn-tail message is appended before the chain walk and before
+        the witness check, so if it is the single entry in ``problems``
+        nothing else objected: the records through ``head_seq`` are a
+        verified chain and the damage is strictly after them.
+
+        A caller may use this to act on the verified PREFIX. It is not a
+        softer ``ok`` and does not become one: a real break, or a witness
+        recording a seq the log no longer reaches, adds a second problem and
+        this goes False.
+        """
+        return self.truncated_tail and len(self.problems) == 1
+
     def raise_if_bad(self) -> "VerifyReport":
         if not self.ok:
             raise ChainBroken("; ".join(self.problems) or "chain invalid")

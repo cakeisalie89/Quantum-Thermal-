@@ -979,6 +979,76 @@ def test_a_store_with_nothing_to_prune_does_not_ask_the_harder_question(
         store.prune(other, keep=3)
 
 
+def _live_log(tmp_path, n=5):
+    log = EventLog(tmp_path / "log.jsonl")
+    for i in range(n):
+        log.append(actor="a", action="record.create", target=f"t{i}",
+                   payload={"record_id": f"t{i}", "state": "DRAFT",
+                            "title": "x", "kind": "note"})
+    return log
+
+
+def test_a_checkpoint_can_be_taken_while_an_append_is_in_flight(tmp_path):
+    """D-2026-51. A live log is torn constantly -- any reader can catch an
+    appender mid-write -- and refusing on that made checkpointing a
+    concurrent log fail at random.
+
+    The checkpoint names the last COMPLETE record, so it sits strictly
+    before the torn bytes and cannot conceal them. That is the whole reason
+    this is safe, and it is why the position is asserted rather than only
+    the absence of an exception.
+    """
+    log = _live_log(tmp_path, 5)
+    log.path.write_bytes(log.path.read_bytes() + b'{"seq": 5, "actor": "a')
+
+    report = log.verify()
+    assert not report.ok and report.torn_tail_only()
+
+    cp = create(log)
+    assert cp.seq == 4, (
+        "the checkpoint must name the last COMPLETE record, not the torn one")
+
+
+def test_a_real_break_under_a_torn_tail_still_refuses_the_checkpoint(tmp_path):
+    """THE ONE THAT KEEPS THE TOLERANCE NARROW.
+
+    Damage plus a torn tail is still damage: a second problem is enough for
+    torn_tail_only() to go False, and the refusal stands.
+    """
+    log = _live_log(tmp_path, 5)
+    lines = log.path.read_bytes().split(b"\n")
+    broken = b"\n".join(lines[:2] + lines[3:])          # a record removed
+    log.path.write_bytes(broken + b'{"seq": 9, "actor": "a')
+    report = log.verify()
+    assert not report.torn_tail_only(), report.problems[:3]
+    with pytest.raises(ChainBroken):
+        create(log)
+
+
+def test_a_witness_that_outruns_the_log_still_refuses_the_checkpoint(tmp_path):
+    """The truncation case specifically: records LOST under a torn tail must
+    not become checkpointable just because the tail is torn."""
+    log = _live_log(tmp_path, 5)
+    lines = log.path.read_bytes().split(b"\n")
+    log.path.write_bytes(b"\n".join(lines[:3]) + b'\n{"seq": 3, "act')
+    report = log.verify()
+    assert any(x.startswith("TRUNCATED") for x in report.problems), (
+        report.problems[:3])
+    assert not report.torn_tail_only()
+    with pytest.raises(ChainBroken):
+        create(log)
+
+
+def test_a_clean_log_does_not_report_a_torn_tail(tmp_path):
+    """The control. Without it torn_tail_only() could return True always and
+    the three tests above would still pass."""
+    log = _live_log(tmp_path, 5)
+    report = log.verify()
+    assert report.ok
+    assert not report.torn_tail_only()
+    assert create(log).seq == 4
+
+
 def test_appending_while_a_checkpoint_is_taken_leaves_both_consistent(
         tmp_path):
     """A checkpoint names a position; the log keeps moving past it.
