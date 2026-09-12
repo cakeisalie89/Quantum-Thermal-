@@ -5127,3 +5127,112 @@ it is not host-independence, and nothing here claims it is.
 The byte gate is no greener for this either. The 27 zero-crossings and 180
 precision divergences are untouched, so `package_consistency_check.py` still
 refuses on a foreign runner exactly as before.
+
+## D-2026-50 — a crashed log and a corrupt log got the same answer
+
+**CLASS** — `TRUE_DEFECT` in the durability claim, surfaced by a test that
+was asserting the outcome of a race.
+
+**DISCOVERED BY.** `second-interpreter (3.13)` going red at `34a9d68` on
+`test_a_worker_process_killed_mid_execution_leaves_a_recoverable_log`. The
+commit it failed on changed a 3D solver's hotspot ranking and touched
+nothing in `qta_agent/`, so the first question was whether it was this
+change's. It is not — and it is not somebody else's either: `qta_agent/`
+does not exist on the base branch, so the substrate and this test are both
+this PR's work. Ownership established by checking, not assumed either way.
+
+**DEFECT.** `read(strict=True)` raised `MalformedEvent` on any unparseable
+line, and `read_verified` turned that into
+
+```python
+return (VerifyReport(False, 0, -1, ZERO_DIGEST, problems + [str(exc)]), [])
+```
+
+A SIGKILL between two appends leaves a clean log; a SIGKILL *inside* an
+append leaves a half-written final line. The second is the ordinary crash
+signature — the reader's own non-strict path calls it "the expected crash
+signature" in a comment — and on that path `verify()` answered `ok=False`
+with **`count=0`**: every complete record in the log discarded because the
+last one was torn. A governed substrate whose durability story is "rebuild
+from the log" could not rebuild anything from the exact failure it exists to
+survive, and could not tell that log apart from a corrupt one.
+
+The strict message said "if this is the final line the log was truncated
+mid-append" — it posed the question and then answered it by throwing the log
+away. The rest of the file was one read away the whole time.
+
+**Why it stayed hidden.** The test kills a real process in a tight append
+loop and asserts `report.ok`. Which landing it gets is the scheduler's
+choice, and it had been getting the clean one; 15 consecutive local runs
+still do. A hosted 3.13 runner landed mid-write. So the test was not flaky
+in the sense that licenses a re-run — it was **asserting the outcome of a
+race**, and the outcome it lost is the one the test is named for.
+
+**REPAIR.** The reader now answers the question it was posing. On an
+unparseable line in strict mode it reads the rest of the file: if anything
+complete follows, that is damage and `MalformedEvent` is raised as before;
+if nothing follows, it raises `TruncatedTail`, which carries the records
+that WERE complete. `read_verified` catches that case, keeps the records,
+checks the chain over them as usual, and sets `truncated_tail` on the
+report.
+
+**`ok` IS STILL FALSE, and the first version of this repair got that
+wrong.** Making a torn tail verify cleanly was the obvious way to turn the
+red test green, and it is a defect. Two existing tests said so within one
+run: `test_a_partial_trailing_line_is_reported_as_truncation`, which pins
+the refusal deliberately, and — the one that matters —
+`test_the_log_refuses_to_grow_onto_a_partial_line`, whose docstring had
+already written down the consequence:
+
+> The next append is where a partial line either gets noticed or gets
+> buried under a valid record that makes the file parse again.
+
+Had `verify()` returned ok, the next `append()` would have proceeded onto
+the partial line and the record after it would have made the file parse
+again, burying the torn bytes where nothing could find them afterwards.
+Chasing a green check would have traded a recoverable crash for silent
+corruption. The tests caught it because they were written to state the
+consequence rather than the behaviour.
+
+So the refusal stands and only the loss was repaired: `truncated_tail` says
+which kind of refusal it is, and `count` and the returned events are the
+complete records before the tear. Whether records were LOST remains the
+witness's question: `_check_witness` still reports `TRUNCATED` when the
+witness records a seq the log no longer reaches. Verified directly — a log
+cut from 5 records to 3 with a torn tail returns `ok=False` with
+`TRUNCATED: witness records seq 4 but the log ends at 2`, and now also
+reports the 3 that survived. Same refusal, strictly more information.
+
+The landings are now tested directly instead of raced for: a torn final
+append is refused AND yields all five records, readable and in order; a
+clean log carries no problems and `truncated_tail=False` (the control,
+without which the flag could be hardwired); an unparseable record with
+complete records after it stays refused as damage with `count=0`, because
+what follows damage cannot be trusted to be the original chain. The fourth
+is the one that must not be softened by the others — records actually
+missing are still `TRUNCATED`. Verified by reverting the distinction: two
+of the four fail, including that one, and both controls pass.
+
+The SIGKILL test now asserts the property that holds on BOTH landings
+rather than on the lucky one: the complete records are there either way,
+and if the tail is torn the log is still refused. Asserting `ok` was what
+made it a race in the first place, and tolerating the tear to keep that
+assertion would have been fixing the thermometer.
+
+**MUTATION COVERAGE.** Two anchors went stale on this edit and were
+re-anchored to the same intent, not deleted: `M51` (the `except
+EventLogError` return, which the new clause separated from its `try`) and
+`F9` (the strict branch, now inverted). Two mutations were added for the
+new logic. `M52_a_torn_tail_stops_being_a_refusal` demotes the problem to a
+note — the mistake above, now a permanent tripwire — and is killed.
+
+`R53_damage_after_the_tear_is_read_as_a_torn_tail` makes the reader skip
+the look-ahead, so corruption mid-log would be recovered from rather than
+refused. It first SURVIVED, and the reason is the one the harness warns
+about in its own docstring: a mis-scoped spec and a missing test look
+identical from here. The killing test exists — it just lives in
+`test_agent_crash_recovery.py`, which `agent_substrate.json` does not list.
+Recording it as an unprotected check would have been false; so would
+widening that spec's suites to cover a crash-recovery concern. It moved to
+`agent_recovery.json`, whose suites already include that file, and is
+killed there.

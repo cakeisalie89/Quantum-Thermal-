@@ -178,8 +178,98 @@ for i in range(1000):
         proc.wait(timeout=10)
 
     report = EventLog(log_path).verify()
-    assert report.ok, report.problems[:3]
+    # A SIGKILL has two landings and the scheduler picks. Asserting `ok` for
+    # whichever one arrived is how this test passed for weeks and then went
+    # red on a hosted runner (D-2026-50). The property that holds on BOTH is
+    # recoverability: the complete records are there either way.
     assert report.count >= 1, "at least the first append must have survived"
+    if report.truncated_tail:
+        # Landed mid-write. Still refused -- the next append must not bury
+        # the torn line -- but every complete record before it is readable.
+        assert not report.ok, "a torn line must keep refusing"
+        assert any("truncated mid-append" in x for x in report.problems)
+    else:
+        assert report.ok, report.problems[:3]
+
+
+# ---- 3b. the two landings a SIGKILL has, each on purpose -----------------
+#
+# The test above kills a real process mid-loop, so WHICH landing it gets is
+# up to the scheduler: between two appends (a clean log) or inside one (a
+# partial final line). It asserted `report.ok` for whichever it happened to
+# get, and for a long time it got the clean one. On a hosted 3.13 runner it
+# got the other, and `verify()` answered count=0 -- every record in the log
+# discarded because the last one was half-written. See D-2026-50.
+#
+# These construct both landings directly, so neither depends on losing or
+# winning a race, and the third states the property that must NOT be
+# softened in the process: a log missing records is still damage.
+
+def _log_with(tmp_path, n):
+    from qta_agent.events import EventLog as _EL
+    log = _EL(tmp_path / "log.jsonl")
+    for i in range(n):
+        log.append(actor="w1", action="probe", target="t", payload={"i": i})
+    return tmp_path / "log.jsonl"
+
+
+def test_a_partial_final_append_still_yields_every_complete_record(tmp_path):
+    """The landing the hosted runner found. The torn line is the crash
+    signature; the records before it are a chain and are still a chain."""
+    p = _log_with(tmp_path, 5)
+    p.write_bytes(p.read_bytes() + b'{"seq": 5, "actor": "w1", "act')
+    report = EventLog(p).verify()
+    # STILL REFUSED, and that is deliberate: see
+    # test_the_log_refuses_to_grow_onto_a_partial_line for what tolerating
+    # it would cost. What changed is everything below.
+    assert not report.ok
+    assert report.truncated_tail is True
+    assert report.count == 5, "the complete records must survive the torn one"
+    assert [e.payload["i"] for e in EventLog(p).read_verified()[1]] == [
+        0, 1, 2, 3, 4], "and they must be readable, not merely counted"
+
+
+def test_a_clean_kill_between_appends_is_not_reported_as_truncated(tmp_path):
+    """The control. Without it `truncated_tail` could be hardwired True and
+    the test above would still pass."""
+    report = EventLog(_log_with(tmp_path, 5)).verify()
+    assert report.ok and report.count == 5
+    assert report.truncated_tail is False
+    assert not report.problems
+
+
+def test_an_unparseable_record_with_records_after_it_is_still_damage(tmp_path):
+    """The line between the two. A torn FINAL append is recoverable; an
+    unparseable record in the middle is corruption and must stay refused."""
+    p = _log_with(tmp_path, 5)
+    lines = p.read_bytes().split(b"\n")
+    p.write_bytes(b"\n".join(lines[:2] + [b'{"broken'] + lines[2:]))
+    report = EventLog(p).verify()
+    assert not report.ok
+    assert report.truncated_tail is False
+    assert report.count == 0, (
+        "corruption in the middle yields nothing: unlike a torn tail, what "
+        "follows the damage cannot be trusted to be the original chain")
+    assert any("NOT the final line" in x for x in report.problems), (
+        report.problems[:3])
+
+
+def test_records_actually_lost_are_still_TRUNCATED_even_with_a_torn_tail(
+        tmp_path):
+    """THE ONE THAT MUST NOT BE SOFTENED BY THE REST.
+
+    Tolerating a torn tail must not tolerate a log that is SHORT. The
+    witness is the authority on how far the log reached, and a truncation
+    -- accidental or deliberate -- still fails closed.
+    """
+    p = _log_with(tmp_path, 5)
+    lines = p.read_bytes().split(b"\n")
+    p.write_bytes(b"\n".join(lines[:3]) + b'\n{"seq": 3, "act')
+    report = EventLog(p).verify()
+    assert not report.ok, "a log missing records must never verify"
+    assert any(x.startswith("TRUNCATED") for x in report.problems), (
+        report.problems[:3])
+    assert report.count == 3, "what survived is still reported, and is 3"
 
 
 # ---- 4. capability granted -> revoked ------------------------------------

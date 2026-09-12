@@ -64,9 +64,9 @@
     {
       "name": "F9_a_partial_trailing_line_is_read_as_the_end_of_the_log",
       "path": "qta_agent/events.py",
-      "find": "                    if strict:\n                        raise MalformedEvent(",
-      "replace": "                    if False:\n                        raise MalformedEvent(",
-      "rationale": "verify() stops reporting a log it could not fully read, so a crash mid-append becomes indistinguishable from a clean end and the next append grows onto the damage"
+      "find": "                    if not strict:\n                        break",
+      "replace": "                    if True:\n                        break",
+      "rationale": "a partial trailing line would be silently treated as the end of the log in strict mode too; re-anchored after D-2026-50 inverted this branch"
     },
     {
       "name": "F10_a_checkpoint_altered_in_place_is_restored_anyway",

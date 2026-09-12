@@ -363,9 +363,16 @@
     {
       "name": "M51_read_verified_hands_back_records_it_did_not_check",
       "path": "qta_agent/events.py",
-      "find": "        try:\n            events = self.read(strict=True)\n        except EventLogError as exc:\n            return (VerifyReport(False, 0, -1, ZERO_DIGEST,\n                                 problems + [str(exc)]), [])",
-      "replace": "        try:\n            events = self.read(strict=True)\n        except EventLogError as exc:\n            return (VerifyReport(True, 0, -1, ZERO_DIGEST,\n                                 problems), events if False else [])",
-      "rationale": "D-2026-41: an unparseable log reports ok and the caller folds whatever came back"
+      "find": "        except EventLogError as exc:\n            return (VerifyReport(False, 0, -1, ZERO_DIGEST,\n                                 problems + [str(exc)]), [])",
+      "replace": "        except EventLogError as exc:\n            return (VerifyReport(True, 0, -1, ZERO_DIGEST,\n                                 problems), [])",
+      "rationale": "a read that raised would be reported as a clean verification; re-anchored after D-2026-50 split the torn-tail case out of this except clause"
+    },
+    {
+      "name": "M52_a_torn_tail_stops_being_a_refusal",
+      "path": "qta_agent/events.py",
+      "find": "            events, truncated_tail = exc.events, True\n            problems.append(str(exc))",
+      "replace": "            events, truncated_tail = exc.events, True\n            notes.append(str(exc))",
+      "rationale": "THE MISTAKE THE FIRST REPAIR MADE. Demoting the torn tail to a note makes verify() return ok, so the next append proceeds onto the partial line and buries it under a record that makes the file parse again"
     }
   ]
 }

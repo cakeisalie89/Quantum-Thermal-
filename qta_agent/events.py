@@ -144,6 +144,26 @@ class MalformedEvent(EventLogError):
     """A record is unparseable or structurally invalid."""
 
 
+class TruncatedTail(MalformedEvent):
+    """The FINAL line is a partial append: the expected crash signature.
+
+    Distinct from :class:`MalformedEvent` because the two need different
+    answers. A half-written last record is what a SIGKILL between two
+    appends leaves behind and the complete records before it are intact; an
+    unparseable record with more records AFTER it is damage. Treating both
+    as "unparseable" cost every record in the log -- see D-2026-50.
+
+    Carries the records that were complete, because throwing them away is
+    precisely how a recoverable log became indistinguishable from a corrupt
+    one.
+    """
+
+    def __init__(self, message: str, events: list, lineno: int):
+        super().__init__(message)
+        self.events = events
+        self.lineno = lineno
+
+
 class UnreadableForm(MalformedEvent):
     """The record is in a canonical form this build does not read.
 
@@ -248,6 +268,13 @@ class VerifyReport:
     prefix_verified: bool = True
     #: Last seq that was trusted without being re-checked; -1 when none were.
     unverified_through: int = -1
+    #: True when the final line was a partial append -- the ordinary crash
+    #: signature. ``ok`` is still False: a torn line must keep refusing, or
+    #: the next append buries it under a record that makes the file parse
+    #: again. What this adds is that ``count`` and the returned events are
+    #: now the complete records BEFORE the tear, so a crashed log can be
+    #: recovered instead of being indistinguishable from a corrupt one.
+    truncated_tail: bool = False
 
     def raise_if_bad(self) -> "VerifyReport":
         if not self.ok:
@@ -426,14 +453,27 @@ class EventLog:
                 try:
                     rec = json.loads(raw.decode("utf-8"))
                 except (UnicodeDecodeError, ValueError) as exc:
-                    # A partial trailing line is the expected crash signature.
-                    if strict:
+                    if not strict:
+                        break
+                    # A partial trailing line is the expected crash
+                    # signature -- and it is ONLY that when nothing follows
+                    # it. This used to raise either way under a message
+                    # saying "if this is the final line", which left the
+                    # question open and made the caller answer it by
+                    # discarding the whole log. Look instead: the rest of
+                    # the file is one read away.
+                    if fh.read().strip():
                         raise MalformedEvent(
                             f"line {lineno}: unparseable "
-                            f"({type(exc).__name__});"
-                            " if this is the final line the log was truncated "
-                            "mid-append") from exc
-                    break
+                            f"({type(exc).__name__}) and NOT the final "
+                            "line -- complete records follow it, so this is "
+                            "damage rather than a torn final append") from exc
+                    raise TruncatedTail(
+                        f"line {lineno}: partial final record "
+                        f"({type(exc).__name__}); the log was truncated "
+                        f"mid-append and the {len(events)} complete "
+                        "record(s) before it are intact",
+                        events, lineno) from exc
                 if not isinstance(rec, dict):
                     raise MalformedEvent(
                         f"line {lineno}: record is "
@@ -520,8 +560,24 @@ class EventLog:
                 witness = self.head()
             except EventLogError as exc:
                 problems.append(str(exc))
+        truncated_tail = False
         try:
             events = self.read(strict=True)
+        except TruncatedTail as exc:
+            # NOT a return, and NOT a pass either.
+            #
+            # The complete records are kept and checked below -- discarding
+            # them was the defect (D-2026-50): a log whose only damage is a
+            # half-written last line could not give up a single record.
+            #
+            # But this stays a PROBLEM, so `ok` is still False. A torn line
+            # must keep refusing, because the next append is where it either
+            # gets noticed or gets buried under a valid record that makes
+            # the file parse again -- and a buried torn record is damage
+            # nothing can find afterwards. `truncated_tail` says which kind
+            # of refusal this is; it does not soften it.
+            events, truncated_tail = exc.events, True
+            problems.append(str(exc))
         except EventLogError as exc:
             return (VerifyReport(False, 0, -1, ZERO_DIGEST,
                                  problems + [str(exc)]), [])
@@ -539,7 +595,8 @@ class EventLog:
         head_hash = events[-1].hash if events else ZERO_DIGEST
         self._check_witness(head_seq, head_hash, witness, problems, notes)
         return (VerifyReport(not problems, len(events), head_seq, head_hash,
-                             problems, notes), events)
+                             problems, notes,
+                             truncated_tail=truncated_tail), events)
 
     # The two verification paths -- whole-chain and from-an-anchor -- share
     # these. Two copies of "what makes a record acceptable" would drift, and

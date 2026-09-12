@@ -97,6 +97,13 @@
       "find": "        stranded = list(projection.expired_leases())",
       "replace": "        stranded = []",
       "rationale": "the ordinary lapsed-lease case stops being recovered; only the process-liveness path remains, which does not cover a holder on another host"
+    },
+    {
+      "name": "R53_damage_after_the_tear_is_read_as_a_torn_tail",
+      "path": "qta_agent/events.py",
+      "find": "                    if fh.read().strip():",
+      "replace": "                    if False:",
+      "rationale": "an unparseable record with complete records AFTER it would be treated as the ordinary crash signature, so corruption in the middle of the log would be recovered from rather than refused"
     }
   ]
 }
