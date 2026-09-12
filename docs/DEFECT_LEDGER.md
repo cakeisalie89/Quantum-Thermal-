@@ -5318,3 +5318,84 @@ needed.
 calling this a flake would be a guess, and calling it a defect would be a
 different guess. It is neither here: it is an observation with a
 reproduction rate of roughly 1 in 35 whole-suite runs and no explanation.
+
+## HOSTED EVIDENCE — the first complete `agent-substrate` run
+
+Not a defect. A record, because for weeks the honest answer to "does the
+substrate's own verification actually pass end to end on hosted hardware"
+was that nobody knew: the job had never finished.
+
+**THE RUN.** `agent-substrate`, job 103481104861 in run 34667096079, head
+`bf2f902`, 02:14:19Z -> 05:27:15Z on 2026-09-12. **All 57 steps green,
+conclusion success, 3h 13m.** Every previous run died before the end —
+step 43 on several, step 9 on the one before this.
+
+Three things that had never been observed before are now observed:
+
+- **Step 43** (`read-decide-write across processes`) is green. It is where
+  run after run stopped, so everything past it was unmeasured rather than
+  passing.
+- **Steps 44-57**, all green and all seen for the first time: durability
+  under a failing filesystem (44), external secret providers (45), the
+  completion matrix validator (46), the second governed workflow (47), the
+  cross-environment measurement (48), corpus membership (49), the allowlist
+  describing the committed corpus (50), long horizon at elevated scale (51),
+  parser and trust-boundary fuzzing (52), the governed production path
+  actually running (53), the read-only auditor answering for that run (54),
+  Stage-10 write authority and retrieval trust (55).
+- **Steps 56 and 57**, read from the log rather than inferred from the
+  conclusion: `working tree clean` and `manifest in sync (565 files; 2
+  detached by policy)`. Mutation testing restored every source and the
+  substrate did not touch the canonical tree.
+
+**WHAT A GREEN MUTATION STEP MEANS HERE, checked rather than assumed.**
+`tools/mutation_matrix.py` ends with
+
+```python
+return 0 if not (survived or anchors or timeouts or drifted or collateral ...)
+```
+
+so a step passing rules out survivors AND stale anchors AND timeouts AND
+source drift AND collateral damage, not merely "the command ran". That is
+what makes the step numbers below evidence instead of decoration.
+
+**WHAT IT COVERS.** Stated as the steps that exercise each item, which is
+checkable, rather than as a claim that one step proves one defect:
+
+| Defect | Steps that exercise it, all green |
+|---|---|
+| D-2026-43 (a record the reducer rejects is written anyway) | 9, 18, 43 |
+| D-2026-44 (completion-matrix evidence axis) | 9, 46 |
+| D-2026-45 (`python -O` deletes the enforcement) | 9, 39 |
+| D-2026-46 (timing guards converted to counting) | 9 |
+| D-2026-47 (a coverage count with no owner) | 9, 46 |
+| D-2026-49 (a rank decided by digits the file omits) | 9 |
+| D-2026-50 (a crashed log and a corrupt log) | 9, 28, 43, 44 |
+| D-2026-48's four new mutations (E12-E15) | 48 |
+
+Step 48 green is the one worth naming twice: the mutations added for
+`tools/cross_env_semantics.py` — strip the residue check, demote a zero
+crossing, accept an empty comparison, exempt every file — were all killed on
+hosted hardware, not only in the sandbox that wrote them.
+
+**AND THE MEASUREMENT THAT EXPLAINS D-2026-50's LAST FAILURE.** At `715dabf`
+the `full-suite` job's step 5, which runs the FULL pytest suite, was green
+for fifteen minutes while `agent-substrate`'s step 9 ran the same agent
+tests on a different runner, at the same commit, in the same workflow, and
+went red on the six-worker campaign. Same bytes, same tests, two concurrent
+hosted runners, one red and one green.
+
+That is as direct as evidence gets that the look-ahead failure was
+timing-dependent rather than deterministic, which is exactly what the
+single-snapshot diagnosis predicts and what a genuine logic error would
+not. At `bf2f902` step 9 is green — so the repair is confirmed on the
+hardware that found the defect, rather than assumed from a sandbox that
+passed eight times out of eight before the defect was known.
+
+**WHAT THIS DOES NOT SETTLE.** `full-suite` step 7 is still red at
+`bf2f902`, for the reason it has always been red: `package_consistency_
+check.py`'s byte gate refuses on a runner whose CPU dispatch differs from
+the committed outputs' (R59, D-2026-48). Step 8 alongside it reports 0
+decision changes over 24 differing files. Nothing here makes the package
+byte-reproducible across hosts and nothing here claims to. D-2026-51 also
+remains OPEN: no log in this run carries the traceback that would close it.
