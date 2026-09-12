@@ -442,44 +442,54 @@ class EventLog:
         events: list = []
         if not self.path.exists():
             return events
-        with self.path.open("rb") as fh:
-            for lineno, raw in enumerate(fh, 1):
-                if len(raw) > MAX_EVENT_BYTES:
+        # ONE SNAPSHOT, and under concurrency that is the whole point.
+        #
+        # Deciding whether a torn line is the LAST line is a comparison
+        # between two facts, and they have to come from the same bytes.
+        # Iterating the handle and then asking it what remains asks at two
+        # different times: five other processes append to this log, so a
+        # line that was final when it was parsed can have a complete record
+        # after it a microsecond later, and the reader then calls a crash
+        # signature "damage". That is not hypothetical -- it is what a
+        # six-worker campaign did on a hosted runner while passing here
+        # eight times out of eight. Read once; classify against that.
+        blob = self.path.read_bytes()
+        lines = blob.splitlines(keepends=True)
+        for lineno, raw in enumerate(lines, 1):
+            if len(raw) > MAX_EVENT_BYTES:
+                raise MalformedEvent(
+                    f"line {lineno}: {len(raw)} bytes exceeds the "
+                    f"{MAX_EVENT_BYTES}-byte bound")
+            if not raw.strip():
+                continue
+            try:
+                rec = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError) as exc:
+                if not strict:
+                    break
+                # A partial trailing line is the expected crash signature
+                # -- and it is ONLY that when nothing follows it IN THIS
+                # SNAPSHOT. The message used to say "if this is the final
+                # line", leaving the question open and making the caller
+                # answer it by discarding the whole log.
+                if any(x.strip() for x in lines[lineno:]):
                     raise MalformedEvent(
-                        f"line {lineno}: {len(raw)} bytes exceeds the "
-                        f"{MAX_EVENT_BYTES}-byte bound")
-                if not raw.strip():
-                    continue
-                try:
-                    rec = json.loads(raw.decode("utf-8"))
-                except (UnicodeDecodeError, ValueError) as exc:
-                    if not strict:
-                        break
-                    # A partial trailing line is the expected crash
-                    # signature -- and it is ONLY that when nothing follows
-                    # it. This used to raise either way under a message
-                    # saying "if this is the final line", which left the
-                    # question open and made the caller answer it by
-                    # discarding the whole log. Look instead: the rest of
-                    # the file is one read away.
-                    if fh.read().strip():
-                        raise MalformedEvent(
-                            f"line {lineno}: unparseable "
-                            f"({type(exc).__name__}) and NOT the final "
-                            "line -- complete records follow it, so this is "
-                            "damage rather than a torn final append") from exc
-                    raise TruncatedTail(
-                        f"line {lineno}: partial final record "
-                        f"({type(exc).__name__}); the log was truncated "
-                        f"mid-append and the {len(events)} complete "
-                        "record(s) before it are intact",
-                        events, lineno) from exc
-                if not isinstance(rec, dict):
-                    raise MalformedEvent(
-                        f"line {lineno}: record is "
-                        f"{type(rec).__name__}, not an object")
-                _validate_field_types(rec, f"line {lineno}")
-                events.append(Event(**rec))
+                        f"line {lineno}: unparseable "
+                        f"({type(exc).__name__}) and NOT the final "
+                        "line -- complete records follow it, so this is "
+                        "damage rather than a torn final append") from exc
+                raise TruncatedTail(
+                    f"line {lineno}: partial final record "
+                    f"({type(exc).__name__}); the log was truncated "
+                    f"mid-append and the {len(events)} complete "
+                    "record(s) before it are intact",
+                    events, lineno) from exc
+            if not isinstance(rec, dict):
+                raise MalformedEvent(
+                    f"line {lineno}: record is "
+                    f"{type(rec).__name__}, not an object")
+            _validate_field_types(rec, f"line {lineno}")
+            events.append(Event(**rec))
         return events
 
     def head(self) -> ChainState | None:

@@ -101,8 +101,8 @@
     {
       "name": "R53_damage_after_the_tear_is_read_as_a_torn_tail",
       "path": "qta_agent/events.py",
-      "find": "                    if fh.read().strip():",
-      "replace": "                    if False:",
+      "find": "                if any(x.strip() for x in lines[lineno:]):",
+      "replace": "                if False:",
       "rationale": "an unparseable record with complete records AFTER it would be treated as the ordinary crash signature, so corruption in the middle of the log would be recovered from rather than refused"
     }
   ]

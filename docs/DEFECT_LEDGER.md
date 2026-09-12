@@ -5236,6 +5236,33 @@ and if the tail is torn the log is still refused. Asserting `ok` was what
 made it a race in the first place, and tolerating the tear to keep that
 assertion would have been fixing the thermometer.
 
+**AND THE LOOK-AHEAD ITSELF WAS A RACE.** The first implementation
+iterated the open handle and then asked that same handle what remained:
+
+```python
+if fh.read().strip():        # two questions, two moments
+```
+
+Whether a torn line is the LAST line is a comparison, and both halves have
+to come from the same bytes. Under concurrency they did not. Five other
+processes append to a shared log, so a line that is final when it is parsed
+can have a complete record after it a microsecond later, and the reader then
+calls the ordinary crash signature "damage" and raises.
+`test_a_long_mixed_campaign_never_leaves_an_unreplayable_log` — six workers,
+250 rounds — did exactly that on a hosted runner, inside a worker rather
+than at the final verification, while passing eight times out of eight here.
+
+Worth being exact about blame: the OLD code raised on any unparseable line
+whatever followed it, so that campaign would have failed identically before
+this repair. The look-ahead did not create the failure; it made a decision
+that needed a consistent view of the file and took two views instead.
+
+`read()` now takes one snapshot — `read_bytes()` once, then classify against
+those lines — which removes the second moment entirely.
+`test_the_reader_classifies_against_a_single_snapshot_of_the_file` counts
+the reads rather than racing for the symptom, and fails if a second look is
+added back.
+
 **MUTATION COVERAGE.** Two anchors went stale on this edit and were
 re-anchored to the same intent, not deleted: `M51` (the `except
 EventLogError` return, which the new clause separated from its `try`) and
@@ -5253,3 +5280,41 @@ Recording it as an unprotected check would have been false; so would
 widening that spec's suites to cover a crash-recovery concern. It moved to
 `agent_recovery.json`, whose suites already include that file, and is
 killed there.
+
+## D-2026-51 — OPEN, UNDIAGNOSED: one checkpoint race, seen once, not reproduced
+
+**STATUS — OPEN.** This entry closes nothing. It exists so that a failure
+that was observed does not quietly become a failure that was forgotten.
+
+**WHAT WAS SEEN.** `tests/test_agent_checkpoint.py::
+test_appending_while_a_checkpoint_is_taken_leaves_both_consistent` failed
+once, in a local full-suite run, while working on D-2026-50. It is a
+threading test: an appender thread appends continuously while the main
+thread takes 40 checkpoints, and it asserts that every checkpoint still
+describes the log afterwards — a reader racing a writer, the same family as
+the cross-process campaign in D-2026-50.
+
+**WHAT IS KNOWN.** It passes 10/10 in isolation, 24/24 under six parallel
+streams, and in the next full suite. The single-snapshot repair of
+D-2026-50 was ALREADY in place when it failed, so that change neither
+caused it nor fixed it. Total: one failure, 35 passes.
+
+**WHY IT IS NOT DIAGNOSED, which is the part worth recording.** The test
+asserts `assert not errors, errors`, so the exception that the appender or
+the checkpoint loop hit was in the traceback. It is not in this entry
+because the suite was run as `pytest -q 2>&1 | tail -6` and the traceback
+scrolled past the six lines that were kept. The failure was reproducible
+exactly once and the evidence of it was discarded by the command that
+observed it.
+
+That is a defect in method, not in the code under test, and it is the same
+shape as several entries above: an instrument that answers a narrower
+question than the one being asked. `tail -6` answers "did it pass"; the
+question was "what happened". A run cheap enough to repeat is not evidence
+cheap enough to throw away — full output to a file, then read what is
+needed.
+
+**WHAT WOULD CLOSE IT.** The traceback. Until an occurrence is captured,
+calling this a flake would be a guess, and calling it a defect would be a
+different guess. It is neither here: it is an observation with a
+reproduction rate of roughly 1 in 35 whole-suite runs and no explanation.

@@ -254,6 +254,37 @@ def test_an_unparseable_record_with_records_after_it_is_still_damage(tmp_path):
         report.problems[:3])
 
 
+def test_the_reader_classifies_against_a_single_snapshot_of_the_file(
+        tmp_path, monkeypatch):
+    """Whether a torn line is the LAST line is a comparison, and both halves
+    have to come from the same bytes.
+
+    The first version of this repair iterated the open handle and then asked
+    that handle what remained, which asks at two different times. Five other
+    processes append to a shared log: a line that is final when it is parsed
+    can have a complete record after it a microsecond later, and the reader
+    then calls the ordinary crash signature "damage". A six-worker campaign
+    did exactly that on a hosted runner while passing eight of eight here,
+    which is why this asserts the property instead of racing for it.
+    """
+    p = _log_with(tmp_path, 3)
+    p.write_bytes(p.read_bytes() + b'{"seq": 3, "act')
+
+    reads = []
+    real = Path.read_bytes
+
+    def counting(self):
+        if self == p:
+            reads.append(1)
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", counting)
+    EventLog(p).read(strict=False)
+    assert reads == [1], (
+        f"the log was consulted {len(reads)} time(s) in one read(); a "
+        "classification split across two of them is a race")
+
+
 def test_records_actually_lost_are_still_TRUNCATED_even_with_a_torn_tail(
         tmp_path):
     """THE ONE THAT MUST NOT BE SOFTENED BY THE REST.

@@ -64,8 +64,8 @@
     {
       "name": "F9_a_partial_trailing_line_is_read_as_the_end_of_the_log",
       "path": "qta_agent/events.py",
-      "find": "                    if not strict:\n                        break",
-      "replace": "                    if True:\n                        break",
+      "find": "                if not strict:\n                    break",
+      "replace": "                if True:\n                    break",
       "rationale": "a partial trailing line would be silently treated as the end of the log in strict mode too; re-anchored after D-2026-50 inverted this branch"
     },
     {
