@@ -15,6 +15,8 @@ import math
 import numpy as np
 from dataclasses import dataclass
 from scipy.integrate import solve_ivp
+
+from .numerics import require_integrated
 from .units import K_B, AMU, require_positive, require_nonnegative, require_fraction
 
 
@@ -84,6 +86,7 @@ def evolve_coverage(specs, fluxes, T_surface_K, t_end, theta0=None, purge_1_s=0.
     t_eval = np.linspace(0.0, t_end, n_eval)
     so = solve_ivp(rhs, (0.0, t_end), theta0, method="BDF", t_eval=t_eval,
                    rtol=1e-7, atol=1e-12, max_step=t_end / 20.0)
+    require_integrated(so, "surface coverage")
     out = {names[i]: np.clip(so.y[i], 0.0, 1.0) for i in range(len(names))}
     return out, t_eval
 

@@ -11,6 +11,65 @@ import numpy as np
 import scipy.sparse as sp
 
 
+#: A solve that did not converge carries no scientific authority. Any consumer
+#: -- Mode-C readiness, Mode-D start, eligibility forecasts, reduction checks,
+#: derived metrics -- must deny authority rather than read the numbers anyway.
+SOLVER_OK = "ok"
+
+
+class SolverFailure(RuntimeError):
+    """A numerical solve did not converge; downstream authority is denied."""
+
+
+def require_converged(result, what: str):
+    """Fail closed on a non-converged solve.
+
+    solver_status used to be reported alongside the metrics as a passive
+    string while ready_terms was computed from the same result regardless, so
+    a failed BDF integration could still produce FORECAST_READY_IF_MEASURED.
+    Readiness is now unreachable without convergence.
+
+    WHY THIS LIVES HERE AND NOT BESIDE THE 1D COUPLED SOLVER, WHERE IT WAS
+    WRITTEN. Because it was written where the defect was found and applied
+    only there. For a long time it had exactly two call sites, both in
+    ``run_coupled``, while ``run_mode_sequence_3d`` -- whose own docstring
+    says it runs the canonical mode order "exactly mirroring the 1D/2D
+    coupled_mode_solver" -- mirrored everything about it except this. A rule
+    that lives inside one of the things it governs is a rule the next sibling
+    does not inherit, so it lives in the numerics layer that every solver
+    already depends on.
+    """
+    status = getattr(result, "solver_status", None)
+    if status != SOLVER_OK:
+        raise SolverFailure(
+            f"{what}: solver_status={status!r} (expected {SOLVER_OK!r}); "
+            "readiness, eligibility and derived metrics are denied")
+    return result
+
+
+def require_integrated(sol_obj, what: str):
+    """Fail closed on a raw ``solve_ivp`` result that did not finish.
+
+    The counterpart of :func:`require_converged` for call sites that hold a
+    scipy ``OdeResult`` rather than one of this repository's result objects.
+    Both say the same thing in the vocabulary of the layer they sit in.
+
+    WHY IT IS NEEDED SEPARATELY. A failed integration does not return
+    garbage; it returns a SHORTER trajectory. ``so.y`` holds the points
+    reached, every one of them finite, so ``assert_finite`` passes and the
+    values look ordinary. Callers that pair ``so.y`` with the ``t_eval`` they
+    asked for then carry two arrays of different lengths, and the one that
+    describes time is the one that is still full length.
+    """
+    if not getattr(sol_obj, "success", False):
+        raise SolverFailure(
+            f"{what}: the integration did not finish "
+            f"(status={getattr(sol_obj, 'status', None)!r}, "
+            f"{getattr(sol_obj, 'message', '')!r}); a truncated trajectory is "
+            "shorter, not wrong-looking, so nothing downstream would notice")
+    return sol_obj
+
+
 def assert_finite(arr, name="array"):
     a = np.asarray(arr, dtype=float)
     if not np.all(np.isfinite(a)):

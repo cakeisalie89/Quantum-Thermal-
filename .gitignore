@@ -14,3 +14,15 @@ uv.lock.bak
 
 # Rust extension build artifacts (the optional kernel is built on demand)
 rust/**/target/
+.mutation-recovery.json
+.mutation-quarantine/
+
+# Bounded-execution scratch. qta_agent/execution.py makes one of these per
+# run with tempfile.mkdtemp(prefix=".exec-", dir=cwd) and removes it in its
+# `finally` -- it holds a child process's stdout and stderr while the run is
+# in flight and is never work product. A process that dies before that
+# `finally` (SIGKILL, a killed test session) leaks one, and because
+# generate_manifest.py refuses any path that is untracked and not ignored,
+# an unrelated crash then reports MANIFEST DRIFT. Observed in this
+# repository, on a test session killed mid-run.
+.exec-*/

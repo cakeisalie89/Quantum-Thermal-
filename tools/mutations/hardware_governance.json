@@ -1,0 +1,161 @@
+{
+  "title": "The gate between an unreviewed hardware claim and evidence",
+  "note": "R51 said the scientific tree had no mutation coverage at all, and this is the part of it that matters most: hardware_governance_3d.py decides whether a measurement record counts as reviewed evidence, and PASS staying at zero is exactly the claim that rests on it. H1-H4 attack the intake boundary -- a record that fails its schema must be REJECTED rather than quarantined, and a quarantined record must never acquire evidentiary standing. H5-H9 attack the review binding, which is the confused-deputy surface here: a review must be authored by a human, must decide ACCEPT_AS_EVIDENCE explicitly, and must bind to THIS record by digest rather than merely naming its id, or a reviewed record can be swapped for an unreviewed one after the fact. H10-H11 attack the two constants a reader takes at face value: automatic_gate_effect NONE and can_PASS_now NO. H12-H21 were added with D-2026-42, which found that all of the above ran on top of a reviewer identity that resolved to nothing: H6 killed a review that CONFESSED to being tool-authored, and a program that simply omitted the flag authored a review that admitted a record into a dossier. These attack the resolution itself -- the kind, the chain of trust back to the out-of-band bootstrap, retirement, exact naming, and the two request-side identities -- plus the count the dossier reports about its own authority.",
+  "suites": [
+    "tests/test_hardware_governance.py",
+    "tests/test_review_binding.py",
+    "tests/test_stage6_roadmap.py",
+    "tests/test_stage7_boundary.py",
+    "tests/test_independent_gate_recomputation.py"
+  ],
+  "mutations": [
+    {
+      "name": "H1_a_schema_invalid_record_is_quarantined_instead_of_rejected",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        ok, reasons = schema_validate_hardware(rec)\n        if not ok:\n            rejected.append(",
+      "replace": "        ok, reasons = schema_validate_hardware(rec)\n        if False:\n            rejected.append(",
+      "rationale": "a structurally broken record enters the quarantine report as an ordinary unreviewed claim, so the intake boundary stops distinguishing 'incomplete' from 'not a record at all'"
+    },
+    {
+      "name": "H2_an_unreviewed_record_reaches_the_dossier",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if not ok or rec.get(\"data_class\") != \"HARDWARE_REVIEWED\":",
+      "replace": "        if False:",
+      "rationale": "the dossier is what a reader treats as evidence; admitting a HARDWARE_UNVERIFIED record makes an unreviewed claim indistinguishable from a reviewed one"
+    },
+    {
+      "name": "H3_the_data_class_is_no_longer_checked",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if not ok or rec.get(\"data_class\") != \"HARDWARE_REVIEWED\":",
+      "replace": "        if not ok:",
+      "rationale": "half of H2: the schema is still enforced and the class that says a human looked at this is not"
+    },
+    {
+      "name": "H4_a_record_with_hard_deficiencies_is_admitted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        hard = [x for x in defs if \"UNRESOLVED_REQUIREMENT\" not in x]\n        if hard:",
+      "replace": "        hard = [x for x in defs if \"UNRESOLVED_REQUIREMENT\" not in x]\n        if False:",
+      "rationale": "completeness stops meaning zero deficiencies, so a record missing calibration or custody enters the dossier alongside a complete one"
+    },
+    {
+      "name": "H5_a_review_that_did_not_accept_is_treated_as_acceptance",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if not rok or rev.get(\"decision\") != \"ACCEPT_AS_EVIDENCE\":",
+      "replace": "        if not rok:",
+      "rationale": "a REJECT review admits the record it rejected, which is the strongest possible inversion of a human decision"
+    },
+    {
+      "name": "H6_a_review_authored_by_a_tool_is_accepted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    if rev.get(\"authored_by_tool\"):\n        reasons.append(\"review records authored by tools are invalid by \"",
+      "replace": "    if False:\n        reasons.append(\"review records authored by tools are invalid by \"",
+      "rationale": "an HONEST tool's review is accepted: a review that sets authored_by_tool stops being refused. Note carefully what this does NOT show, because the rationale here used to say 'the human in the loop becomes optional' and that was an overstatement of its own subject: a tool that simply omitted the flag was accepted with this check intact, and did admit a record into a dossier (D-2026-42). H12 is the mutation for the rule; this one is for the courtesy in front of it"
+    },
+    {
+      "name": "H7_a_review_need_not_bind_to_the_record_it_reviewed",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "            actual = compute_record_sha256(record)\n            if actual.lower() != claimed.lower():",
+      "replace": "            actual = compute_record_sha256(record)\n            if False:",
+      "rationale": "the reviewed record can be modified or replaced after the review, and the review keeps applying to whatever now carries its measurement_id"
+    },
+    {
+      "name": "H8_a_review_with_no_digest_binds_to_anything",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    elif record is not None:\n        reasons.append(\"review has no record_sha256 to bind against\")",
+      "replace": "    elif record is not None:\n        pass",
+      "rationale": "the same as H7 by omission: a review that names no digest is accepted, so binding becomes optional rather than required"
+    },
+    {
+      "name": "H9_a_malformed_digest_is_accepted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        if len(claimed) != 64 or any(c not in \"0123456789abcdef\"\n                                     for c in claimed.lower()):",
+      "replace": "        if False:",
+      "rationale": "'-' or 'pending' becomes a valid binding, and the comparison below either never runs or compares against nonsense"
+    },
+    {
+      "name": "H10_the_quarantine_report_claims_a_gate_effect",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "AUTOMATIC_GATE_EFFECT = \"NONE\"",
+      "replace": "AUTOMATIC_GATE_EFFECT = \"ADVANCES_GATE\"",
+      "rationale": "every report in this module states automatic_gate_effect, and NONE is the sentence that keeps an unreviewed hardware claim from moving a gate on its own. A reader takes it at face value"
+    },
+    {
+      "name": "H11_a_quarantined_claim_is_given_standing",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "            \"standing\": \"unreviewed hardware claim -- no evidentiary \"\n                        \"standing; never enters dossiers\",",
+      "replace": "            \"standing\": \"provisional evidence pending review\",",
+      "rationale": "the quarantine report is read by people deciding what to trust, and 'provisional evidence' and 'no evidentiary standing' license completely different actions"
+    },
+    {
+      "name": "H12_the_reviewer_identity_is_never_resolved",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    _, who = resolve_reviewer(rev.get(\"reviewer_id\"), roster,\n                              at=rev.get(\"review_date\"))\n    reasons += who",
+      "replace": "    _, who = resolve_reviewer(rev.get(\"reviewer_id\"), roster,\n                              at=rev.get(\"review_date\"))\n    _ = who",
+      "rationale": "the reviewer is looked up and the answer thrown away, which is the state the module was in before D-2026-42: reviewer_id becomes any non-empty string again and 'human-only review authoring' rests on the authored_by_tool confession alone"
+    },
+    {
+      "name": "H13_any_roster_entry_may_review_whatever_kind_it_is",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    if e.get(\"kind\") != \"HUMAN\":\n        reasons.append(",
+      "replace": "    if False:\n        reasons.append(",
+      "rationale": "an entry registered as kind TOOL or SERVICE authors reviews, so the roster stops distinguishing the parties it exists to distinguish"
+    },
+    {
+      "name": "H14_a_reviewer_may_register_itself",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    if by == rid:\n        return [f\"{rid!r} registered itself; only the out-of-band bootstrap \"",
+      "replace": "    if False:\n        return [f\"{rid!r} registered itself; only the out-of-band bootstrap \"",
+      "rationale": "an entry that names itself as its own registrar is accepted, so anyone who can append one line to the roster mints hardware-review authority without a chain of trust reaching the bootstrap"
+    },
+    {
+      "name": "H15_a_reviewer_registered_by_a_tool_is_accepted",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    if reg.get(\"kind\") != \"HUMAN\":\n        return [f\"{rid!r} was registered by {by!r}, whose kind is \"",
+      "replace": "    if False:\n        return [f\"{rid!r} was registered by {by!r}, whose kind is \"",
+      "rationale": "a TOOL entry vouches for a HUMAN entry, which is the hardware-side form of an agent minting a human principal"
+    },
+    {
+      "name": "H16_a_retired_reviewer_still_reviews",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    ret = e.get(\"retired_on\")\n    if ret:",
+      "replace": "    ret = e.get(\"retired_on\")\n    if False:",
+      "rationale": "retirement stops meaning anything, so a review dated after a reviewer left is indistinguishable from one dated before"
+    },
+    {
+      "name": "H17_a_respelled_reviewer_resolves_to_somebody_else",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    e = reviewers.get(reviewer_id)\n    if e is None:\n        near = [k for k in reviewers if k.lower() == reviewer_id.lower()]",
+      "replace": "    e = reviewers.get(reviewer_id) or next(\n        (v for k, v in reviewers.items()\n         if k.lower() == str(reviewer_id).lower()), None)\n    if e is None:\n        near = [k for k in reviewers if k.lower() == reviewer_id.lower()]",
+      "rationale": "case-insensitive resolution makes two spellings one subject, which defeats the requester/reviewer separation from the other side: the requester respells themselves into the reviewer list and the identity check agrees"
+    },
+    {
+      "name": "H18_a_matrix_update_request_never_resolves_its_reviewers",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "        for rid in doc[\"review_ids\"]:\n            _, why_rev = resolve_reviewer(rid, roster,\n                                          at=doc.get(\"request_date\"))\n            reasons += [f\"review_id: {w}\" for w in why_rev]",
+      "replace": "        for rid in doc[\"review_ids\"]:\n            pass",
+      "rationale": "review_ids go back to being strings nobody looks up, so a request citing reviews that do not exist validates -- reproduced with two invented ids before D-2026-42"
+    },
+    {
+      "name": "H19_a_matrix_update_request_never_resolves_its_requester",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    _, why_req = resolve_reviewer(doc[\"requester\"], roster,\n                                  at=doc.get(\"request_date\"))\n    reasons += [f\"requester: {w}\" for w in why_req]",
+      "replace": "    _, why_req = resolve_reviewer(doc[\"requester\"], roster,\n                                  at=doc.get(\"request_date\"))\n    _ = why_req",
+      "rationale": "any string may propose a validation-matrix status change, which is the authority the request document exists to carry"
+    },
+    {
+      "name": "H20_a_roster_that_cannot_name_one_subject_is_used_anyway",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "    if roster.get(\"problems\"):\n        return None, list(roster[\"problems\"])",
+      "replace": "    if False:\n        return None, list(roster[\"problems\"])",
+      "rationale": "a roster holding two ids that differ only in case, or the same id twice, is resolved against instead of refused; the naming authority stops being able to say which subject a review means and answers anyway"
+    },
+    {
+      "name": "H21_the_dossier_does_not_say_which_authority_decided_it",
+      "path": "qta_multiphysics/hardware_governance_3d.py",
+      "find": "                \"n_registered_reviewers\": len(roster.get(\"reviewers\") or {}),",
+      "replace": "                \"n_registered_reviewers\": 1,",
+      "rationale": "the dossier reports a reviewer count it did not measure, so an empty dossier can no longer be read as 'nobody is registered' rather than 'every record was deficient' -- the anti-vacuity statement becomes a constant"
+    }
+  ],
+  "suites_note": "H17-H19 SURVIVED on the first run of the extended spec, and the harness says what to check before recording that as a missing test: whether a suite outside this list already covers it. It did. validate_matrix_update_request and the reviewer resolution it calls are exercised from tests/test_stage6_roadmap.py and tests/test_stage7_boundary.py, and tests/test_review_binding.py holds the review-to-record binding this spec also mutates. The spec was mis-scoped -- it named the module's intake and dossier suites and mutated its request path too -- and a mis-scoped spec and a missing test look identical from inside the harness. Recorded rather than fixed silently, because 'SURVIVED' was the correct output and the wrong conclusion."
+}

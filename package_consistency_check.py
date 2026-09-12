@@ -358,10 +358,23 @@ else:
         gen_outputs_dir, PKG, _REGEN_EXEMPT)
     if _unreadable:
         fail("every regenerated output is readable",
-             f"UNREADABLE_EXISTING_OUTPUT: {_unreadable[:8]}")
+             f"UNREADABLE_EXISTING_OUTPUT: {len(_unreadable)} unreadable"
+             + (f" (first 8 shown): {_unreadable[:8]}"
+                if len(_unreadable) > 8 else f": {_unreadable}"))
     if _drift:
+        # THE COUNT FIRST, then a sample. This printed `_drift[:8]` alone,
+        # and a hosted run that diverged in twenty files reported eight
+        # names -- which was then read, here and in the completion matrix,
+        # as "an 8-file divergence". R59 spent a long time trying to
+        # re-read the provenance of a number that was the slice width.
+        #
+        # A truncated list is fine. A truncated list that looks like a
+        # total is a measurement that reports the wrong quantity, which is
+        # the failure this project keeps finding in its own instruments.
         fail("root canonical outputs byte-match the canonical regeneration",
-             f"stale root copies: {_drift[:8]}")
+             f"{len(_drift)} stale root copies"
+             + (f" (first 8 shown): {_drift[:8]}" if len(_drift) > 8
+                else f": {_drift}"))
     elif not _unreadable:
         ok("root canonical outputs byte-match the canonical regeneration "
            "(exempt by design: deep_surrogate_readiness.json)")

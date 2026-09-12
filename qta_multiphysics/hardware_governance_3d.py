@@ -48,6 +48,15 @@ INTERPRETATION = ("evidence assembly for HUMAN gate review only; not "
                   "validation; automatic_gate_effect=NONE")
 REPS_UNKNOWN = "UNKNOWN (not plan-specified)"
 
+#: The declared reviewer roster. See :func:`load_reviewer_roster`.
+REVIEWER_ROSTER_PATH = "hardware_reviewers.json"
+#: The one ``registered_by`` value that terminates a chain of trust without
+#: naming another roster entry. An installation that writes this into an
+#: entry has registered a reviewer out of band, and has said so in a place
+#: that can be read back.
+REVIEWER_BOOTSTRAP = "OUT_OF_BAND_BOOTSTRAP"
+REVIEWER_KINDS = ("HUMAN", "TOOL", "SERVICE")
+
 DATA_CLASSES = ("SYNTHETIC", "HARDWARE_UNVERIFIED", "HARDWARE_REVIEWED")
 CUSTODY_REQUIRED_STAGES = ("acquisition", "archive", "ingestion")
 
@@ -269,14 +278,191 @@ def compute_record_sha256(rec) -> str:
     return hashlib.sha256(canonical_record_bytes(rec)).hexdigest()
 
 
-def validate_review_record(rev, record=None) -> tuple:
-    """Validate a human review, and BIND it to the exact record reviewed.
+# ------------------------- who may author a review -------------------------
+#
+# WHAT THIS SECTION IS FOR, SAID BEFORE THE CODE
+#
+# This module has always claimed "human-only review authoring": it is in the
+# module docstring, in governance_summary(), and in the authority registry.
+# What enforced it was ``if rev.get("authored_by_tool")`` -- a refusal that
+# fires only when the author confesses -- and a reviewer_id that was any
+# non-empty string. A program that simply did not set the flag authored a
+# review, and the review admitted a hardware record into a gate-evidence
+# dossier (D-2026-42).
+#
+# WHY A SIBLING MODULE IS DESCRIBED HERE AND NEVER NAMED. The agent
+# substrate is the other place in this repository that holds a HUMAN
+# principal to a registration chain, and it is the right thing to point
+# at. It is pointed at by description only: tests/test_agent_substrate_
+# isolation.py scans the gate-computing tree for that package's NAME,
+# with no exception for gate modules and none for comments, and it is
+# right to be that blunt -- the cheapest guarantee that no gate depends
+# on the substrate is that the string never appears here. It caught
+# these very comments. authorities.json carries the cross-reference,
+# where naming it costs nothing.
+#
+# WHAT IS AND IS NOT FIXED BELOW. A reviewer_id must now RESOLVE, against a
+# declared roster, to an entry of kind HUMAN whose own registration traces to
+# the out-of-band bootstrap. That is the same standard the agent substrate
+# holds its HUMAN principals to (named in authorities.json; deliberately
+# NOT named here -- see below), and it is worth being exact about what it
+# buys, because that substrate already says it plainly: it cannot
+# authenticate a person. The roster is a DECLARATION. Whoever can write it holds hardware
+# review authority. What changes is that the authority is named, is a file
+# that can be read and diffed, refuses to vouch for itself, and -- when it is
+# absent or empty, as it is in this repository -- refuses EVERY review rather
+# than accepting every one.
 
-    record_sha256 used to be checked only for being non-empty, so a review
-    could be paired with a modified record carrying the same measurement_id
-    and the dossier would accept it and copy the stale hash straight through.
-    When ``record`` is supplied the hash is now recomputed from the record's
-    canonical form and must match exactly.
+
+def load_reviewer_roster(path=None) -> dict:
+    """Load the declared reviewer roster.
+
+    Returns ``{"source", "present", "reviewers", "problems"}``. ``present``
+    distinguishes "there is no roster" from "the roster names nobody"; both
+    refuse every review, and a report that cannot tell them apart cannot say
+    whether its scope was empty on purpose.
+
+    A roster that cannot serve as a naming authority is returned with
+    ``problems`` and no reviewers: duplicate ids, or two ids differing only
+    in case. The second is not pedantry -- an identity comparison that treats
+    ``A`` and ``a`` as the same subject is how the requester/reviewer
+    separation used to be defeated, and one that treats them as different
+    subjects while a human reads one name is how it would be defeated next.
+    A roster containing both is refused instead of resolved either way.
+    """
+    p = Path(REVIEWER_ROSTER_PATH if path is None else path)
+    out = {"source": str(p), "present": False, "reviewers": {},
+           "problems": []}
+    if not p.exists():
+        out["problems"].append(f"no reviewer roster at {p}")
+        return out
+    out["present"] = True
+    try:
+        doc = json.loads(p.read_text())
+    except Exception as exc:
+        out["problems"].append(f"reviewer roster {p} is not JSON: {exc}")
+        return out
+    entries = doc.get("reviewers")
+    if not isinstance(entries, list):
+        out["problems"].append(f"reviewer roster {p} has no 'reviewers' list")
+        return out
+    seen, folded = {}, {}
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict) or not e.get("reviewer_id"):
+            out["problems"].append(f"roster entry {i} has no reviewer_id")
+            continue
+        rid = e["reviewer_id"]
+        if rid in seen:
+            out["problems"].append(f"roster names {rid!r} twice")
+            continue
+        low = rid.lower()
+        if low in folded:
+            out["problems"].append(
+                f"roster names both {folded[low]!r} and {rid!r}, which differ "
+                "only in case; the roster cannot decide which subject a "
+                "review means")
+            continue
+        seen[rid] = e
+        folded[low] = rid
+    if out["problems"]:
+        return out
+    out["reviewers"] = seen
+    return out
+
+
+def _registration_chain(rid, reviewers, seen=None) -> list:
+    """Reasons why ``rid``'s registration does not trace to the bootstrap.
+
+    Empty list means it does. The walk mirrors the agent substrate's HUMAN
+    registry: an entry is usable only if a HUMAN who is themselves usable
+    registered it, or the bootstrap did. Self-registration and cycles are refused by name, because
+    a roster whose entries vouch for each other is a list of names, which is
+    what this section exists to stop being enough.
+    """
+    seen = seen or []
+    if rid in seen:
+        return [f"registration chain for {rid!r} is a cycle "
+                f"({' -> '.join(seen + [rid])})"]
+    e = reviewers.get(rid)
+    if e is None:
+        return [f"registrar {rid!r} is not in the roster"]
+    by = e.get("registered_by")
+    if not by:
+        return [f"{rid!r} declares no registered_by"]
+    if by == REVIEWER_BOOTSTRAP:
+        return []
+    if by == rid:
+        return [f"{rid!r} registered itself; only the out-of-band bootstrap "
+                f"({REVIEWER_BOOTSTRAP}) may terminate a chain of trust"]
+    reg = reviewers.get(by)
+    if reg is None:
+        return [f"{rid!r} was registered by {by!r}, which is not in the "
+                "roster"]
+    if reg.get("kind") != "HUMAN":
+        return [f"{rid!r} was registered by {by!r}, whose kind is "
+                f"{reg.get('kind')!r}; only a HUMAN may register a reviewer"]
+    return _registration_chain(by, reviewers, seen + [rid])
+
+
+def resolve_reviewer(reviewer_id, roster, at=None) -> tuple:
+    """``(entry_or_None, reasons)`` for one reviewer identity.
+
+    ``at`` is the ISO date the identity is being claimed for -- a review's
+    own date. A reviewer retired before then did not write it.
+    """
+    if roster is None:
+        roster = load_reviewer_roster()
+    if roster.get("problems"):
+        return None, list(roster["problems"])
+    if not isinstance(reviewer_id, str) or not reviewer_id:
+        return None, ["reviewer_id is missing or not a string"]
+    reviewers = roster.get("reviewers") or {}
+    if not reviewers:
+        return None, [f"the reviewer roster at {roster.get('source')} "
+                      "registers nobody, so no identity can be a reviewer"]
+    e = reviewers.get(reviewer_id)
+    if e is None:
+        near = [k for k in reviewers if k.lower() == reviewer_id.lower()]
+        if near:
+            return None, [
+                f"reviewer_id {reviewer_id!r} is not registered; the roster "
+                f"has {near[0]!r}, which is a DIFFERENT identity (matching "
+                "is exact and case-sensitive)"]
+        return None, [f"reviewer_id {reviewer_id!r} is not registered in "
+                      f"{roster.get('source')}"]
+    reasons = []
+    if e.get("kind") != "HUMAN":
+        reasons.append(
+            f"reviewer {reviewer_id!r} is registered as kind "
+            f"{e.get('kind')!r}; only a HUMAN may author a review")
+    ret = e.get("retired_on")
+    if ret:
+        if at is None or str(at) >= str(ret):
+            reasons.append(f"reviewer {reviewer_id!r} was retired on {ret}")
+    reasons += _registration_chain(reviewer_id, reviewers)
+    return (None if reasons else e), reasons
+
+
+def validate_review_record(rev, record=None, roster=None) -> tuple:
+    """Validate a human review, BIND it to the record, and RESOLVE its author.
+
+    Three separate things, and they used to be one and a half.
+
+    * record_sha256 was once checked only for being non-empty, so a review
+      could be paired with a modified record carrying the same
+      measurement_id. When ``record`` is supplied the hash is recomputed
+      from the record's canonical form and must match exactly.
+    * reviewer_id was once any non-empty string, and "human-only" rested on
+      ``authored_by_tool`` -- a refusal that fires only when the author
+      confesses. It must now resolve through :func:`resolve_reviewer`.
+      ``authored_by_tool`` is still refused, but it is no longer what is
+      holding the rule up: it is a courtesy for an honest tool, kept because
+      it costs nothing, and a review that omits it is now refused anyway.
+
+    ``roster`` defaults to the declared roster on disk. Passing one
+    explicitly is how a caller validates against a roster it already loaded;
+    passing ``{"source": ..., "present": False, "reviewers": {}}`` is how a
+    caller says "no authority", and every review is then refused.
     """
     reasons = []
     if not isinstance(rev, dict):
@@ -292,6 +478,10 @@ def validate_review_record(rev, record=None) -> tuple:
     if rev.get("authored_by_tool"):
         reasons.append("review records authored by tools are invalid by "
                        "governance rule")
+    # THE LOAD-BEARING HUMAN CHECK. Not the flag above it.
+    _, who = resolve_reviewer(rev.get("reviewer_id"), roster,
+                              at=rev.get("review_date"))
+    reasons += who
 
     claimed = rev.get("record_sha256") or ""
     if claimed:
@@ -348,11 +538,25 @@ def build_quarantine_report(records, raw_base_dir=None) -> dict:
 
 def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None,
                           campaign_id=None, matrix_items=None,
-                          run_ids=None, manifest_refs=None):
+                          run_ids=None, manifest_refs=None, roster=None):
     """Only complete HARDWARE_REVIEWED records with a valid
     ACCEPT_AS_EVIDENCE human review enter (correction #3). Completeness =
     zero deficiencies except the standing unresolved repetition
-    requirement, which forces readiness INCOMPLETE (correction #1)."""
+    requirement, which forces readiness INCOMPLETE (correction #1).
+
+    The roster is loaded ONCE here and threaded into every review check, so
+    one dossier is decided against one authority. Loading it per record
+    would let the authority change halfway down the list, and the dossier
+    would then report a verdict no single roster ever gave.
+
+    ``reviewer_authority`` in the report says which roster decided and how
+    many reviewers it could offer. A dossier with no entries because nobody
+    is registered and a dossier with no entries because every record was
+    deficient are different states, and a reader who cannot tell them apart
+    cannot tell whether this check examined anything (cf. D-2026-39).
+    """
+    if roster is None:
+        roster = load_reviewer_roster()
     entries, excluded = [], []
     for rec in records:
         rid = rec.get("measurement_id", "(missing)")
@@ -363,7 +567,8 @@ def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None,
             continue
         rev = reviews.get(rid)
         # Bind the review to THIS record, not merely to its measurement_id.
-        rok, rwhy = validate_review_record(rev, record=rec) if rev else \
+        rok, rwhy = validate_review_record(rev, record=rec,
+                                           roster=roster) if rev else \
             (False, ["no review record"])
         if not rok or rev.get("decision") != "ACCEPT_AS_EVIDENCE":
             excluded.append({"measurement_id": rid,
@@ -404,6 +609,17 @@ def build_evidence_dossier(gate_id, records, reviews, raw_base_dir=None,
             "campaign_id": campaign_id, "run_ids": run_ids or [],
             "matrix_items": matrix_items or [],
             "manifest_refs": manifest_refs or [],
+            "reviewer_authority": {
+                "roster": roster.get("source"),
+                "roster_present": roster.get("present"),
+                "n_registered_reviewers": len(roster.get("reviewers") or {}),
+                "roster_problems": list(roster.get("problems") or []),
+                "basis": "declared roster resolved to kind HUMAN with a "
+                         "registration chain reaching "
+                         + REVIEWER_BOOTSTRAP,
+                "not": "authentication; this package cannot establish that "
+                       "a roster entry is a person or that a review "
+                       "attributed to one was written by them"},
             "permitted_claims": ["consistency/evidence context for human "
                                  "review only"],
             "forbidden_claims": FORBIDDEN_CLAIMS,
@@ -466,11 +682,27 @@ def load_experiment_registry():
     return {e["experiment_id"]: e for e in _REG_CACHE["experiments"]}
 
 
-def validate_matrix_update_request(doc) -> tuple:
+def validate_matrix_update_request(doc, roster=None) -> tuple:
     """Validate + cross-check a HUMAN-authored matrix update request.
     Tooling may archive it (append_audit); tooling never applies it,
     never changes a gate, never mutates a parameter, never creates PASS,
-    and never treats the requester as the reviewer."""
+    and never treats the requester as the reviewer.
+
+    "HUMAN-authored" is now checked rather than asserted. ``requester`` and
+    every ``review_ids`` entry must resolve through
+    :func:`resolve_reviewer`, which is also what closed the separation rule
+    below: ``doc["requester"] in doc["review_ids"]`` compared two strings
+    nobody had resolved, so respelling the requester -- a change of case was
+    enough -- made one person into two subjects and the separation passed
+    (D-2026-42). Identities that must resolve cannot be respelled into
+    existence.
+
+    Consequence, stated so it is not discovered as a surprise: in THIS
+    repository the roster registers nobody, so no matrix update request can
+    be valid today. That is the same state the agent substrate describes for
+    escalations -- the mechanism exists, its input does not -- and it is
+    the honest reading of a package where PASS is zero.
+    """
     req = ("request_id", "item", "current_status", "proposed_status",
            "experiment_ids", "dossier_refs", "raw_data_refs",
            "calibration_refs", "uncertainty_refs", "review_ids",
@@ -489,10 +721,21 @@ def validate_matrix_update_request(doc) -> tuple:
         reasons.append("automatic_application must be false (requests "
                        "configured for automatic application are "
                        "invalid)")
+    if roster is None:
+        roster = load_reviewer_roster()
+    _, why_req = resolve_reviewer(doc["requester"], roster,
+                                  at=doc.get("request_date"))
+    reasons += [f"requester: {w}" for w in why_req]
     if not doc["review_ids"]:
         reasons.append("at least one review_id is required")
-    elif doc["requester"] in doc["review_ids"]:
-        reasons.append("requester may not be a reviewer")
+    else:
+        for rid in doc["review_ids"]:
+            _, why_rev = resolve_reviewer(rid, roster,
+                                          at=doc.get("request_date"))
+            reasons += [f"review_id: {w}" for w in why_rev]
+        # Decided on resolved identity, not on the spelling in the document.
+        if doc["requester"] in doc["review_ids"]:
+            reasons.append("requester may not be a reviewer")
     if not doc["experiment_ids"]:
         reasons.append("at least one experiment_id is required")
     else:
@@ -523,7 +766,17 @@ FORBIDDEN_CLAIMS = [
 
 
 def governance_summary() -> dict:
-    """Deterministic default-execution record: no hardware data exists."""
+    """Deterministic default-execution record: no hardware data exists.
+
+    ``review_authority`` reports the roster this package would decide
+    against and how many reviewers it holds. It is in the readiness artifact
+    rather than only in this docstring because "human-only review authoring"
+    was asserted in three places -- the module docstring, this summary and
+    the authority registry -- while the code refused only a review that
+    confessed to being tool-authored. A claim about who may act belongs
+    where a reader can check it against a number.
+    """
+    roster = load_reviewer_roster()
     return {"schema_version": SCHEMA_VERSION,
             "data_classes": list(DATA_CLASSES),
             "default_execution": "NO_HARDWARE_DATA (deterministic; "
@@ -531,6 +784,20 @@ def governance_summary() -> dict:
             "repetition_requirements": REPS_UNKNOWN,
             "review_authoring": "human-only; tools may verify, never author "
                                 "or promote",
+            "review_authority": {
+                "roster": roster["source"],
+                "roster_present": roster["present"],
+                "n_registered_reviewers": len(roster["reviewers"]),
+                "roster_problems": list(roster["problems"]),
+                "enforced_by": "reviewer_id must resolve to a roster entry "
+                               "of kind HUMAN whose registration chain "
+                               "reaches " + REVIEWER_BOOTSTRAP,
+                "not": "authentication; the roster is a declaration, and "
+                       "whoever can write it holds this authority",
+                "consequence_today": "no reviewer is registered, so no "
+                                     "review record can be valid and no "
+                                     "gate-evidence dossier can have "
+                                     "entries"},
             "custody_caveat": CUSTODY_CAVEAT,
             "raw_data_policy": "references + sizes + SHA-256 only; raw "
                                "acquisition files stay outside the source",

@@ -156,10 +156,10 @@
   {
    "@id": "Snakefile",
    "@type": "SoftwareSourceCode",
-   "contentSize": "21156",
+   "contentSize": "42433",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "e36ee82c0bd289daaa6d2fed5cd5e94c7f08b70ab411cca29daa0cc66693a705"
+   "sha256": "ed102c43d4722f5ae0f8922df06b406cc25e6317956933dafccc8133b7393328"
   },
   {
    "@id": "campaign_registry.json",
@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "132886",
+   "contentSize": "177929",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -207,7 +207,7 @@
    "contentSize": "139219",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "a12bc0a5b97f8a704ddd62d4920d06a8c4a87978a82abd0b0a460eb7bfcd8846"
+   "sha256": "f30716b3411447a8273a3cc7532c2436cb304dc4372b32a537c2fa0167a57ece"
   },
   {
    "@id": "hdf5_schema.json",
@@ -215,7 +215,7 @@
    "contentSize": "150481",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "a4dae6b82144281fb04b6ebe1239f1540fab65d72285745314a2a9170157ff25"
+   "sha256": "5e748cafe6e5e6b925a14b501f4cc7fb4769e70023822dd2e4b9e1d7acaf9188"
   },
   {
    "@id": "manifest_hash.txt",
@@ -236,10 +236,10 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "112463",
+   "contentSize": "113291",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "94060fdf47bab77a13e75e14834ef66f248d2f526e0273be1db51d6d1f18af03"
+   "sha256": "a0a9f48729cfa64621c3388f04431460ea505bbb3265a50a7932e0b4e349f30f"
   },
   {
    "@id": "pyproject.toml",
@@ -260,18 +260,18 @@
   {
    "@id": "qta_multiphysics/runner_3d.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "15974",
+   "contentSize": "16818",
    "description": "3-D reduced-CI layer runner",
    "name": "runner_3d.py",
-   "sha256": "ec76c664e97bb8ba774e55832d64d5587359916de1231ae52f58e9047a851542"
+   "sha256": "ed0f0529b1ca03ce23f8229eba3d84ac74c95c87d88cb0fb3dc518ef662c7bee"
   },
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "1993400",
+   "contentSize": "1993991",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "86c852610ceba5a6d1b82ef9642e158495b8178a7f616b664af346a808c75219"
+   "sha256": "e571754a18fa9c4bc92c2c2e4c0cc8facb5e705d225c32379c6320a20dc1832d"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -302,10 +302,10 @@
   {
    "@id": "stage6_preservation_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "7521",
+   "contentSize": "8212",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",
-   "sha256": "821830665d09a64b074b81db371776b6c1c5319a2689ec52f372add8a4ca249e"
+   "sha256": "8d84957ac7e6999b74dc157eeb2bb69bff65873d1c8ce0cc4c8273951247990f"
   },
   {
    "@id": "stage7_reports/environment_provenance.json",
@@ -321,7 +321,7 @@
    "contentSize": "503",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "ce176d737d7b2793a07bd4e2de7c198d88902faea9484d0258b6045b0549c1d4"
+   "sha256": "f656933a77fbebaf69b8ade557fd505e93097017c074b79a17e5ab3c9f3e6ee8"
   },
   {
    "@id": "uv.lock",

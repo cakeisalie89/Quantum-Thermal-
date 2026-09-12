@@ -1,0 +1,95 @@
+{
+  "title": "Repository scope and the workflow contract",
+  "note": "Two guards that protect other guards. repo_scope answers 'what files are in this repository' -- a question three separate red pushes got wrong by asking git grep, which sees tracked files only, so a file one commit from existing was invisible. workflow_contract answers 'does CI still run what the matrix says it runs' -- a claim that lives in YAML, which no local test would otherwise notice changing. Both are the enforcement for rows whose property is otherwise structural: R57 is enforced by an ABSENCE, and R58 by a file nothing executes locally.",
+  "suites": [
+    "tests/test_repo_contract.py",
+    "tests/test_agent_substrate_isolation.py",
+    "tests/test_agent_netauth.py"
+  ],
+  "mutations": [
+    {
+      "name": "W1_the_scope_is_tracked_files_only",
+      "path": "tools/repo_scope.py",
+      "find": "            [\"git\", \"-C\", str(base), \"ls-files\", \"--cached\", \"--others\",\n             \"--exclude-standard\", \"--\", pattern],",
+      "replace": "            [\"git\", \"-C\", str(base), \"ls-files\", \"--\", pattern],",
+      "rationale": "the blind spot returns: a new file importing what it must not is invisible until it is committed, so the suite goes green locally and the pushed tree is red -- three times over"
+    },
+    {
+      "name": "W2_the_scope_sweeps_in_ignored_files",
+      "path": "tools/repo_scope.py",
+      "find": "         \"--exclude-standard\", \"--\", pattern],",
+      "replace": "         \"--\", pattern],",
+      "rationale": "a quarantined mutation copy or a build artifact fails guards about code that is not in the repository, which is how a structural check becomes noise people disable"
+    },
+    {
+      "name": "W3_the_scope_stops_skipping_the_retired_corpus",
+      "path": "tools/repo_scope.py",
+      "find": "        if not rel or rel.startswith(_SKIP):",
+      "replace": "        if not rel:",
+      "rationale": "attic/ is TRACKED -- the retired corpus, kept for history -- so removing the skip sweeps every retired module into guards about live code"
+    },
+    {
+      "name": "W4_non_test_references_counts_tests_as_production",
+      "path": "tools/repo_scope.py",
+      "find": "    return files_matching(re.escape(symbol), root=root, include_tests=False)",
+      "replace": "    return files_matching(re.escape(symbol), root=root, include_tests=True)",
+      "rationale": "a defence whose only callers are its own tests passes the 'has a production caller' check -- the exact defect this project has hit three times"
+    },
+    {
+      "name": "W5_the_symbol_search_is_not_escaped",
+      "path": "tools/repo_scope.py",
+      "find": "    return files_matching(re.escape(symbol), root=root, include_tests=False)",
+      "replace": "    return files_matching(symbol, root=root, include_tests=False)",
+      "rationale": "a symbol containing regex metacharacters silently searches for something else, so a missing caller reads as present"
+    },
+    {
+      "name": "W6_the_content_search_ignores_the_file_set",
+      "path": "tools/repo_scope.py",
+      "find": "    for rel in repository_files(pattern, root=base,\n                                include_tests=include_tests):",
+      "replace": "    for rel in sorted(str(q.relative_to(base))\n                      for q in base.rglob(pattern)):",
+      "rationale": "the search and the file set disagree again, which is the disagreement this module exists to remove"
+    },
+    {
+      "name": "W7_a_missing_ci_job_is_not_reported",
+      "path": "tools/workflow_contract.py",
+      "find": "        if not re.search(rf\"^  {re.escape(name)}:\\s*$\", body, re.MULTILINE)))",
+      "replace": "        if False))",
+      "rationale": "the full-suite or second-interpreter job can be deleted and every local check still passes, while the matrix keeps claiming the coverage"
+    },
+    {
+      "name": "W8_a_missing_ci_command_is_not_reported",
+      "path": "tools/workflow_contract.py",
+      "find": "        if \" \".join(cmd.split()) not in flat))",
+      "replace": "        if False))",
+      "rationale": "the freshness checks, the matrix validator or the full pytest run can be removed from CI without anything noticing"
+    },
+    {
+      "name": "W9_an_unwired_mutation_spec_is_not_reported",
+      "path": "tools/workflow_contract.py",
+      "find": "        if rel not in flat:\n            out.append(rel)",
+      "replace": "        if False:\n            out.append(rel)",
+      "rationale": "a mutation matrix that exists on disk and runs in no CI step protects nothing on any push, and the row citing it claims hosted coverage it does not have"
+    },
+    {
+      "name": "W10_an_unpinned_action_is_not_reported",
+      "path": "tools/workflow_contract.py",
+      "find": "        if not re.fullmatch(r\"[0-9a-f]{40}\", sha):",
+      "replace": "        if False:",
+      "rationale": "a moving tag becomes acceptable, so the workflow that verifies this repository runs whatever that tag points at today"
+    },
+    {
+      "name": "W11_the_uses_scan_is_anchored_to_end_of_line",
+      "path": "tools/workflow_contract.py",
+      "find": "    for m in re.finditer(r\"^\\s*(?:-\\s+)?uses:\\s*(\\S+)\", body,\n                         re.MULTILINE):",
+      "replace": "    for m in re.finditer(r\"^\\s*(?:-\\s+)?uses:\\s*(\\S+)\\s*$\", body,\n                         re.MULTILINE):",
+      "rationale": "every real uses: line here carries a trailing '# v4' comment, so the scan matches NOTHING and reports 'every action pinned' having examined zero actions -- the quiet failure its own test caught"
+    },
+    {
+      "name": "W12_the_uses_scan_matches_prose",
+      "path": "tools/workflow_contract.py",
+      "find": "    for m in re.finditer(r\"^\\s*(?:-\\s+)?uses:\\s*(\\S+)\", body,\n                         re.MULTILINE):",
+      "replace": "    for m in re.finditer(r\"uses:\\s*(\\S+)\", body):",
+      "rationale": "the workflow's own header comment about pinning is reported as an unpinned action; a guard whose first finding is its own documentation is one nobody believes"
+    }
+  ]
+}

@@ -44,12 +44,52 @@ def _csv_cell(v) -> str:
     return s
 
 
+class GateTableRefusal(Exception):
+    """A row was offered to the canonical gate table that may not be in it."""
+
+
 def _write_gate_csv(path: Path, rows: list) -> None:
+    """Write the gate table, refusing any row that breaks the zero-PASS rule.
+
+    THESE WERE `assert` STATEMENTS, AND `python -O` DELETES THOSE.
+
+    `PASS = 0`, `can_PASS_now = NO` and `measured_in_this_system = false` are
+    the three claims this package exists to hold, and in the function that
+    EMITS them they were enforced by statements the interpreter removes when
+    given a flag. Reproduced (D-2026-45):
+
+        normal:  refused -- illegal gate state PASS, no file written
+        -O:      FORGED,,,,,,,PASS,,,true,,YES,,,   written, no error
+
+    A refusal that an optimisation flag can switch off is not a refusal. It
+    also fails OPEN, which is the wrong direction for a gate table: the
+    invariant is that no PASS row exists, so losing the check produces
+    exactly the artifact the invariant forbids.
+
+    Raising is not a style preference here. `assert` is a DEBUGGING
+    construct whose contract is that it may vanish; an enforcement point has
+    the opposite contract.
+    """
     lines = [",".join(_GATE_HEADER)]
     for r in rows:
-        assert r["status"] in _ALLOWED_STATES, f"illegal gate state {r['status']}"
-        assert r["can_PASS_now"] == "NO"
-        assert r["measured_in_this_system"] == "false"
+        if r["status"] not in _ALLOWED_STATES:
+            raise GateTableRefusal(
+                f"gate {r.get('gate_id', '(unnamed)')!r} offers status "
+                f"{r['status']!r}, which is not in {sorted(_ALLOWED_STATES)}. "
+                "The canonical gate table carries no PASS row by "
+                "construction, and this is where that is decided")
+        if r["can_PASS_now"] != "NO":
+            raise GateTableRefusal(
+                f"gate {r.get('gate_id', '(unnamed)')!r} claims "
+                f"can_PASS_now={r['can_PASS_now']!r}; no gate in this "
+                "package can PASS now, and saying so in the table would "
+                "make the artifact disagree with the claim it carries")
+        if r["measured_in_this_system"] != "false":
+            raise GateTableRefusal(
+                f"gate {r.get('gate_id', '(unnamed)')!r} claims "
+                f"measured_in_this_system={r['measured_in_this_system']!r}. "
+                "Nothing in this package is measured; MODEL_ONLY / "
+                "FORECAST_ONLY is not a label, it is the state")
         lines.append(",".join(_csv_cell(r.get(k, "")) for k in _GATE_HEADER))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

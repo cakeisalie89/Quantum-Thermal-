@@ -119,13 +119,25 @@ check("gate distribution 47/23/2/11 with scientific PASS = 0",
       dist == Counter({"CONDITIONAL": 47, "BLOCKED": 23,
                        "DERIVED_CHECK": 11, "UNKNOWN": 2}), str(dist))
 
+from qta_multiphysics.hardware_governance_3d import (      # noqa: E402
+    validate_matrix_update_request as _hg_validate_request)
+
 req = json.loads(Path("matrix_update_examples/valid_example.json")
                  .read_text())
 check("automatic_application remains false in the exemplar",
       req["automatic_application"] is False)
+# A grep for the sentence "requester may not be a reviewer" used to stand in
+# for the rule. A sentence in a source file is not a refusal; it survives the
+# rule being deleted around it, and it says nothing about whether the check
+# can be walked past. Ask the validator instead, on a document built to be
+# refused for exactly this reason (D-2026-42).
+_sep = json.loads(Path("matrix_update_examples/valid_example.json")
+                  .read_text())
+_sep["review_ids"] = [_sep["requester"]]
+_sep_ok, _sep_why = _hg_validate_request(_sep)
 check("requester/reviewer separation enforced by governance",
-      "requester may not be a reviewer" in
-      Path("qta_multiphysics/hardware_governance_3d.py").read_text())
+      (not _sep_ok) and any("requester may not be a reviewer" in w
+                            for w in _sep_why), str(_sep_why))
 
 # ---- Stage-7 / 7.5 / 8 preservation ----
 for f in ("pyproject.toml", "uv.lock", "Snakefile",

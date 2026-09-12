@@ -294,11 +294,30 @@ def ingest_and_compare(path="synthetic_measurements_example.json",
                 "n_accepted": 0, "n_rejected": 0, "accepted": [],
                 "rejected": [], "coverage": {"n_banded": 0, "n_inside": 0,
                                              "fraction": "null"}}
+    # THESE WERE `assert` STATEMENTS INSIDE THE try, AND -O DELETED THEM.
+    #
+    # The intake boundary refuses a file whose schema_version is not this
+    # one. Under `python -O` both asserts vanished, the wrong-version file
+    # fell through to be ingested, and the report said so (D-2026-45):
+    #
+    #     normal:  ingestion_status: REJECTED_FILE
+    #     -O:      ingestion_status: OK
+    #
+    # Raising explicitly keeps the refusal, and keeps it INSIDE the except
+    # below so the function still answers with a report rather than an
+    # exception: the caller's contract is unchanged, only the flag-
+    # dependence is gone.
     try:
         doc = json.loads(p.read_text())
-        assert doc.get("schema_version") == SCHEMA_VERSION
+        if doc.get("schema_version") != SCHEMA_VERSION:
+            raise ValueError(
+                f"schema_version {doc.get('schema_version')!r} is not "
+                f"{SCHEMA_VERSION!r}; a measurement file of another schema "
+                "is not this schema's file")
         records = doc["measurements"]
-        assert isinstance(records, list)
+        if not isinstance(records, list):
+            raise ValueError(
+                f"'measurements' is {type(records).__name__}, not a list")
     except Exception as e:            # noqa: BLE001
         return {**base, "ingestion_status": "REJECTED_FILE",
                 "reason": f"malformed measurement file: {e!r}",

@@ -14,6 +14,8 @@ import numpy as np
 from dataclasses import dataclass, field
 from scipy.integrate import solve_ivp
 
+from .numerics import require_integrated
+
 from .grids import Grid1D
 from .units import require_positive, require_nonnegative
 
@@ -133,5 +135,6 @@ def solve_gas_transport_1d(specs=None, n=120, line_length_m=0.5, t_end=2.0,
         t_eval = np.linspace(0.0, t_end, n_eval)
         so = solve_ivp(rhs, (0.0, t_end), n0, method="BDF", t_eval=t_eval,
                        rtol=rtol, atol=atol, max_step=t_end / 20.0)
+        require_integrated(so, f"gas transport: {sp.name}")
         sols[sp.name] = np.clip(so.y, 0.0, None)
     return GasTransport1DResult(grid, t_eval, sols, specs, regions)

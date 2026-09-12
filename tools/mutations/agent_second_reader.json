@@ -1,0 +1,732 @@
+{
+  "title": "The second reader, for the subsystems it covers -- 31 of 38 durable actions",
+  "note": "R42 and R53 said the same thing from two directions: only authority records and tasks had an independent reconstruction, so the scheduler, policy, capability, agent, memory, network, secret and context projections were compared against a fresh replay of THEMSELVES -- which shares their reducer and therefore cannot see a shared misunderstanding. Every mutation here either makes the second reader agree with a forged history (so the differential check agrees with the attacker) or blinds it to a subsystem entirely (so it agrees by covering nothing, which is the quieter failure). R18-R24 attack the ownership and attempt-accounting rules. Before they existed the reader checked only the SHAPE of a transition -- job exists, src matches, not a revival -- and applied the payload verbatim, so it accepted a strictly wider language than the production reducer. That is the worst place for the gap to be: a log the primary refuses cannot be loaded, the two readers are never compared, and the permissive one is the only reader left. R29-R40 attack the escalation rules. Until they existed this reader had no escalation reconstruction at all, while the campaign was described as covering the second reader for EVERY subsystem -- two statements that could not both be true. R41-R74 attack the rules restated for P0-R12 (D-2026-27). Until then the authority and task replays at the top of reconstruct.py imported authority.check and tasks.check and handed every replayed record back to them -- so a weakened production gate was reproduced faithfully by the reader whose entire purpose is to disagree with it, and the differential comparison came back empty. These mutations come in three kinds: disable one restated rule (the reader accepts what production refuses), drift one restated table away from production (the conformance tests must name the difference), and re-couple the reader to the gate by import or by call (the AST guards must notice, including when the import hides in a function body). R75-R84 attack the two readers P0-R14 added (D-2026-29). agent.claim and task.compensation were the only uncovered actions a forged record of which changes what the system permits or whom it attributes a decision to: claims are the input to conflict resolution, and a compensation names the PERSON who authorized destroying something. The remaining seven are classified as not authority-changing in docs/identity_inventory.json, each with its reason, and the inventory now refuses a classification of authority-changing that has no second reader. R90-R97 attack the checkpoint-anchor reader added for D-2026-30. checkpoint.state is authority-changing -- it is what authorizes restoring a projection from a snapshot instead of replaying the log -- so R14's rule requires a second reader for it. R94 is the one to read: it does not remove a check, it makes the reader REPORT that it verified a head hash it never looked at. R98-R100 attack the same rule restated in the second reader (D-2026-31): what is canonical has to be the same question in both, or an empty diff means the two readers agreed about a verdict neither should have reached.",
+  "suites": [
+    "tests/test_agent_second_reader.py",
+    "tests/test_agent_differential.py",
+    "tests/test_agent_hostile_campaign.py"
+  ],
+  "mutations": [
+    {
+      "name": "D1_a_job_may_be_born_in_any_state",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if state not in _JOB_INITIAL:",
+      "replace": "    if False:",
+      "rationale": "the second reader accepts a job born SUCCEEDED or DISPATCHED, so the differential check confirms a forged outcome instead of contradicting it"
+    },
+    {
+      "name": "D2_the_initial_job_states_include_a_terminal_one",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_JOB_INITIAL = {\"WAITING\"}",
+      "replace": "_JOB_INITIAL = {\"WAITING\", \"SUCCEEDED\"}",
+      "rationale": "a job that was never run is projected as having succeeded"
+    },
+    {
+      "name": "D3_the_submitter_comes_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if job.get(\"submitter\") != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "a forged enqueue is attributed to whoever it names, and separation of duties is measured from that field"
+    },
+    {
+      "name": "D4_a_job_may_be_enqueued_holding_a_lease",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if job.get(\"lease_holder\") or job.get(\"lease_id\"):",
+      "replace": "    if False:",
+      "rationale": "the enqueue supplies the ownership precondition its own outcome edges will check"
+    },
+    {
+      "name": "D5_a_forged_source_state_is_accepted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"state\"] != src:\n        _note(out, ev, f\"job {jid!r} claims src {src!r} but replay has it \"",
+      "replace": "    if False:\n        _note(out, ev, f\"job {jid!r} claims src {src!r} but replay has it \"",
+      "rationale": "the record chooses the state it is authorized against, which is the forged-source-state class this project has already been bitten by"
+    },
+    {
+      "name": "D6_any_move_between_job_states_is_admitted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if (src, dst) not in _JOB_EDGES:",
+      "replace": "    if False:",
+      "rationale": "a move the machine does not have is folded: a job that was never dispatched reads as verified work, and one in a state nothing leaves is revived"
+    },
+    {
+      "name": "D7_a_capability_may_predate_its_own_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if issued != ev.seq:",
+      "replace": "    if False:",
+      "rationale": "a grant appended late reads as authority in force over everything that already happened"
+    },
+    {
+      "name": "D8_a_capability_id_may_be_reissued",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        _note(out, ev, f\"capability {cid!r} is issued twice with different \"\n                       \"terms; two grants sharing an id cannot be told apart\")\n        return",
+      "replace": "        out.capabilities[cid] = {\"capability_id\": cid, \"subject\": p.get(\"subject\"), \"action\": p.get(\"action\"), \"task_id\": p.get(\"task_id\"), \"tool_id\": p.get(\"tool_id\"), \"scope\": tuple(p.get(\"scope\") or ()), \"issued_seq\": issued, \"expires_after_seq\": p.get(\"expires_after_seq\"), \"revoked_seq\": None, \"body\": {k: v for k, v in p.items() if k != \"task_id\"}}\n        return",
+      "rationale": "a live grant is replaced by one nobody reviewed, and anything citing the id now cites the replacement"
+    },
+    {
+      "name": "D9_an_agent_may_mint_a_human",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if kind == \"HUMAN\" and registrar is not None and \\\n            registrar.get(\"kind\") != \"HUMAN\":",
+      "replace": "    if False:",
+      "rationale": "the second reader accepts an invented human, so the confederate that answers the escalation looks legitimate to both readers"
+    },
+    {
+      "name": "D10_a_memory_entry_names_its_own_author",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if entry.get(\"author\") != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "a note is attributed to whoever the payload names, and authorship is what a conflict comparison rests on"
+    },
+    {
+      "name": "D11_a_retracted_memory_may_be_revived",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"status\"] == \"RETRACTED\" and new != \"RETRACTED\":",
+      "replace": "    if False:",
+      "rationale": "a withdrawn note is un-withdrawn by a forged event; the author never really withdrew it"
+    },
+    {
+      "name": "D12_a_malformed_memory_write_is_projected_anyway",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(entry, dict):\n        _note(out, ev, \"memory.write carries no entry; a record this reader \"",
+      "replace": "    if False:\n        _note(out, ev, \"memory.write carries no entry; a record this reader \"",
+      "rationale": "the reader crashes or silently skips on the payload shape that once made a whole store unloadable with a raw KeyError"
+    },
+    {
+      "name": "D13_a_grant_id_may_be_rebound",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        _note(out, ev, f\"{what} grant {gid!r} is re-issued with different \"\n                       \"terms; the live grant would be replaced by one \"\n                       \"nobody reviewed\")\n        return",
+      "replace": "        table[gid] = {\"grant_id\": gid, \"digest\": p.get(\"grant_digest\"), \"issued_seq\": ev.seq, \"revoked_seq\": None, \"body\": grant}\n        return",
+      "rationale": "an egress or secret grant is silently repointed at another host, and both readers now agree it always pointed there"
+    },
+    {
+      "name": "D14_a_policy_downgrade_is_accepted_silently",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if versions and version is not None and \\\n            versions[-1][\"version\"] is not None and \\\n            version < versions[-1][\"version\"]:",
+      "replace": "    if False:",
+      "rationale": "a superseded rule set is republished and answers questions about the range it was already replaced over"
+    },
+    {
+      "name": "D15_the_comparison_reports_nothing",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                if got != want:\n                    out.append(Divergence(f\"{name}/{key}\", fld, want, got))",
+      "replace": "                if False:\n                    out.append(Divergence(f\"{name}/{key}\", fld, want, got))",
+      "rationale": "the differential check can no longer fail, which makes every agreement it reports meaningless"
+    },
+    {
+      "name": "D16_the_comparison_ignores_a_missing_subsystem",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if a is None:\n                out.append(Divergence(f\"{name}/{key}\", \"presence\", None,\n                                      \"present in the second reader\"))",
+      "replace": "            if a is None:\n                continue\n            if False:\n                out.append(Divergence(f\"{name}/{key}\", \"presence\", None,\n                                      \"present in the second reader\"))",
+      "rationale": "an object one reader holds and the other does not stops being a divergence, so a forged record that only reaches one projection is invisible"
+    },
+    {
+      "name": "D17_the_second_reader_skips_the_scheduler_entirely",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if a == \"scheduler.enqueue\":",
+      "replace": "        if False:",
+      "rationale": "the reader agrees by covering nothing, which is the quieter failure: an empty second projection diffs clean against anything"
+    },
+    {
+      "name": "R18_the_reader_does_not_ask_who_signed_an_outcome",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if cur.get(\"lease_holder\") != ev.actor:\n            _note(out, ev, f\"job {jid!r} is held by \"",
+      "replace": "        if False:\n            _note(out, ev, f\"job {jid!r} is held by \"",
+      "rationale": "the second reader projects a verdict written by somebody who was not running the work. The primary refuses such a log outright, so the two readers are never compared on it -- this reader is the only one looking"
+    },
+    {
+      "name": "R19_the_reader_accepts_an_outcome_after_possession_ran_out",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if not holds:\n            _note(out, ev, f\"job {jid!r} had possession only to seq {end!r} \"",
+      "replace": "        if False:\n            _note(out, ev, f\"job {jid!r} had possession only to seq {end!r} \"",
+      "rationale": "a worker back from the dead decides an outcome for work that may already have been redone, and the independent reconstruction agrees with it"
+    },
+    {
+      "name": "R20_the_reader_lets_a_live_lease_be_reclaimed",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if (src == \"DISPATCHED\" and dst in {\"READY\", \"FAILED\"}\n            and cur.get(\"lease_holder\") != ev.actor and holds):",
+      "replace": "    if False:",
+      "rationale": "the handover edges are guarded by the fact they assert. Drop the check and a record claiming a lapse that did not happen replays clean"
+    },
+    {
+      "name": "R21_the_reader_takes_the_attempt_count_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        allowed = have + 1 if charge else have",
+      "replace": "        allowed = want",
+      "rationale": "the count the retry budget is measured against becomes whatever the record says it is, so an independently reconstructed history shows a budget that never runs down"
+    },
+    {
+      "name": "R22_the_reader_lets_a_transition_grant_possession",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if grants and not (src == \"READY\" and dst == \"DISPATCHED\"):",
+      "replace": "    if False:",
+      "rationale": "ownership is taken at hand-out and dropped on the way back. Allow any edge to carry it and a record names its own owner"
+    },
+    {
+      "name": "R23_the_reader_judges_possession_where_the_record_LANDED",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    holds = bool(cur.get(\"lease_id\")) and isinstance(end, int) and (\n        (ev.seq - 1) <= end)",
+      "replace": "    holds = bool(cur.get(\"lease_id\")) and isinstance(end, int) and (\n        ev.seq <= end)",
+      "rationale": "off by one in the direction that FAILS CLOSED, which is why it would survive a test written in the comfortable middle: a report decided at the last legal position lands one past it and is refused as late. The second reader would report an anomaly against an entirely honest log"
+    },
+    {
+      "name": "R24_the_reader_does_not_carry_the_retry_budget",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    budget = job.get(\"max_attempts\")\n    if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:",
+      "replace": "    budget = job.get(\"max_attempts\")\n    if False:",
+      "rationale": "an enqueue that states no bound is accepted silently, and the count in the reconstruction has nothing to be measured against"
+    },
+    {
+      "name": "R25_the_reader_takes_the_submitter_from_the_payload",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if p.get(\"submitter\") != ev.actor:",
+      "replace": "            if False:",
+      "rationale": "the primary refuses a create naming a submitter it is not, so such a log never reaches compare_tasks. A silent second reader leaves nothing in the system saying anything about the forgery"
+    },
+    {
+      "name": "R26_the_reader_lets_anyone_revoke_a_capability",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ev.actor != cur.get(\"issued_by\") and ev.actor != out.root_issuer:",
+      "replace": "    if False:",
+      "rationale": "the mint side of this reader asks whether the actor could create the grant; without this, nothing asks whether it could destroy one"
+    },
+    {
+      "name": "R27_the_reader_lets_anyone_revoke_a_grant",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if ev.actor != cur.get(\"granted_by\"):",
+      "replace": "        if False:",
+      "rationale": "for secret grants this reader is not a second opinion but the only one -- SecretStore has no reducer, so nothing else re-reads such a record"
+    },
+    {
+      "name": "R28_the_reader_lets_anyone_retire_a_human",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if cur.get(\"kind\") == \"HUMAN\" and not live_human:",
+      "replace": "        if False:",
+      "rationale": "this reader refuses an agent that ADMITS a human and would accept one that removes every human there is"
+    },
+    {
+      "name": "R29_the_reader_does_not_check_who_raised_it",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if esc.get(\"raised_by\") != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "an escalation is attributed to whoever asked it; without this an agent opens one in a person's name, which is false attribution and also stops that person answering, since the raiser may not"
+    },
+    {
+      "name": "R30_the_reader_accepts_an_escalation_born_answered",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if state != _ESC_OPEN:",
+      "replace": "    if False:",
+      "rationale": "a question born ANSWERED was never asked and carries a decision nobody is recorded as having made"
+    },
+    {
+      "name": "R31_the_reader_accepts_a_question_with_one_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if len(set(options)) < _ESC_MIN_OPTIONS:",
+      "replace": "    if False:",
+      "rationale": "an answer that cannot be checked against what was asked is a conversation, not a decision"
+    },
+    {
+      "name": "R32_the_reader_lets_an_escalation_be_raised_twice",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if eid in out.escalations:",
+      "replace": "    if False:",
+      "rationale": "the second record replaces a question somebody may already have answered"
+    },
+    {
+      "name": "R33_the_reader_lets_a_decided_escalation_be_decided_again",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"state\"] != _ESC_OPEN:",
+      "replace": "    if False:",
+      "rationale": "a recorded human decision is rewritten by a later record, and terminality is what makes an answer worth anything"
+    },
+    {
+      "name": "R34_the_reader_does_not_ask_who_signed_the_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if answered_by != ev.actor:",
+      "replace": "    if False:",
+      "rationale": "every check after this one interrogates answered_by, so without it they all pass on a borrowed name and an agent signs a person's decision"
+    },
+    {
+      "name": "R35_the_reader_lets_a_non_human_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ident.get(\"kind\") != \"HUMAN\":",
+      "replace": "    if False:",
+      "rationale": "the strongest claim the directory makes -- no arrangement of roles substitutes for a person -- goes unchecked in the reader that exists to check it independently"
+    },
+    {
+      "name": "R36_the_reader_lets_the_asker_answer_their_own",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if answered_by == cur[\"raised_by\"]:",
+      "replace": "    if False:",
+      "rationale": "the party who could not decide decides, which is the whole of what an escalation is for"
+    },
+    {
+      "name": "R37_the_reader_accepts_an_answer_outside_the_options",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if p.get(\"answer\") not in cur[\"options\"]:",
+      "replace": "    if False:",
+      "rationale": "a free-text answer to a closed question cannot be checked against what was asked"
+    },
+    {
+      "name": "R38_the_reader_lets_anyone_withdraw",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if ev.actor != cur[\"raised_by\"]:",
+      "replace": "        if False:",
+      "rationale": "a third party retires a question somebody was waiting on, and a withdrawal claims no human decided anything so nothing else would notice"
+    },
+    {
+      "name": "R39_the_reader_lets_a_retired_human_answer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ident.get(\"retired_seq\") is not None:",
+      "replace": "    if False:",
+      "rationale": "a principal that has left the project is still the person a decision is attributed to"
+    },
+    {
+      "name": "R40_the_reader_accepts_a_state_that_is_neither",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if dst not in _ESC_TERMINAL:",
+      "replace": "    if False:",
+      "rationale": "an escalation is moved to a state that is neither answered nor withdrawn, and the terminality checks above then have nothing to bite on"
+    },
+    {
+      "name": "R41_a_terminal_authority_state_is_not_terminal",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_AUTH_TERMINAL = frozenset({\"REVOKED\", \"REJECTED\"})",
+      "replace": "_AUTH_TERMINAL = frozenset()",
+      "rationale": "a revoked or rejected record is walked back into review, so the second reader confirms a revival instead of contradicting it"
+    },
+    {
+      "name": "R42_the_terminal_guard_never_fires",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if src in _AUTH_TERMINAL:\n        return (f\"I2: {src} is terminal; {record_id} cannot leave it. Create \"",
+      "replace": "    if False:\n        return (f\"I2: {src} is terminal; {record_id} cannot leave it. Create \"",
+      "rationale": "the set is still right and the guard reading it is dead, which is the shape a table-only assertion misses"
+    },
+    {
+      "name": "R43_the_authority_edge_table_gains_a_shortcut_into_PROMOTED",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_AUTH_EDGES = {\n    (\"PROPOSED\", \"UNDER_REVIEW\"): _Rule(frozenset({\"VERIFIER\"})),",
+      "replace": "_AUTH_EDGES = {\n    (\"PROPOSED\", \"PROMOTED\"): _Rule(frozenset({\"PROMOTER\"})),\n    (\"PROPOSED\", \"UNDER_REVIEW\"): _Rule(frozenset({\"VERIFIER\"})),",
+      "rationale": "I1 dies by ADDITION rather than removal: an unverified record becomes canonical and the reader that exists to notice agrees with it"
+    },
+    {
+      "name": "R44_any_role_may_perform_any_authority_edge",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if role not in rule.roles:\n        return (f\"role {role} may not perform {src} -> {dst}; requires one \"\n                f\"of {sorted(rule.roles)}\")\n\n    if rule.distinct_actor:",
+      "replace": "    if False:\n        return (f\"role {role} may not perform {src} -> {dst}; requires one \"\n                f\"of {sorted(rule.roles)}\")\n\n    if rule.distinct_actor:",
+      "rationale": "the role a record names stops constraining anything, so a PROPOSER promotes its own claim"
+    },
+    {
+      "name": "R45_authority_separation_of_duties_is_optional",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if rule.distinct_actor:\n        if proposer is None:",
+      "replace": "    if False:\n        if proposer is None:",
+      "rationale": "I4 is not checked at all by the second reader, which is the exact defect P0-R12 was about: production could then be weakened and nothing would disagree"
+    },
+    {
+      "name": "R46_an_unknown_proposer_is_treated_as_separation",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if proposer is None:\n            return (f\"I4: {src} -> {dst} requires a distinct actor, but the \"",
+      "replace": "        if False:\n            return (f\"I4: {src} -> {dst} requires a distinct actor, but the \"",
+      "rationale": "a record with no proposer on file satisfies a rule about differing from the proposer, so omitting the field is the cheapest forgery"
+    },
+    {
+      "name": "R47_the_proposer_may_verify_its_own_claim",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if actor == proposer:\n            return (f\"I4: {actor!r} proposed {record_id} and may not also \"",
+      "replace": "        if False:\n            return (f\"I4: {actor!r} proposed {record_id} and may not also \"",
+      "rationale": "one actor proposes, verifies and promotes, and the differential check calls it canonical"
+    },
+    {
+      "name": "R48_required_evidence_is_never_missing",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    missing = sorted(rule.evidence - set(evidence))",
+      "replace": "    missing = []",
+      "rationale": "a verification with no verification report is accepted, so I6 stops existing in the reader"
+    },
+    {
+      "name": "R49_evidence_need_not_be_a_digest",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if not _is_digest(val):\n            return (f\"I6: evidence {key!r} must be a sha256 digest, got \"",
+      "replace": "        if False:\n            return (f\"I6: evidence {key!r} must be a sha256 digest, got \"",
+      "rationale": "free text is accepted as evidence, which is a citation that can be altered after being cited"
+    },
+    {
+      "name": "R50_a_verification_report_counts_as_an_identity",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_AUTH_IDENTITY_EVIDENCE = frozenset({\"policy_id\"})",
+      "replace": "_AUTH_IDENTITY_EVIDENCE = frozenset({\"policy_id\", \"verification_report\"})",
+      "rationale": "the digest requirement is bypassed by reclassifying the key rather than by deleting the check"
+    },
+    {
+      "name": "R51_promotion_needs_no_policy_in_force",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if dst == _AUTH_PROMOTED and policy_id is None:",
+      "replace": "    if False:",
+      "rationale": "I5 stops being checked, so a promotion under no policy at all reconstructs as canonical"
+    },
+    {
+      "name": "R52_a_digest_may_be_any_length",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    return (isinstance(value, str) and len(value) == 64\n            and all(c in _HEX for c in value))",
+      "replace": "    return (isinstance(value, str) and len(value) >= 8\n            and all(c in _HEX for c in value))",
+      "rationale": "a short hex string passes as a citation, and the reader and production disagree about what evidence even is"
+    },
+    {
+      "name": "R53_a_digest_may_be_uppercase",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            and all(c in _HEX for c in value))",
+      "replace": "            and all(c.lower() in _HEX for c in value))",
+      "rationale": "one logical digest gains two spellings, so a set of cited digests contains duplicates that compare unequal"
+    },
+    {
+      "name": "R54_an_unauthorized_authority_record_is_applied_anyway",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                if refusal is not None:\n                    out.unauthorized.append(",
+      "replace": "                if False:\n                    out.unauthorized.append(",
+      "rationale": "every rule above is still stated and none of them stop anything; presence in the log becomes authority"
+    },
+    {
+      "name": "R55_the_authority_replay_folds_in_a_state_nobody_defined",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if p.get(\"dst\") not in _AUTH_STATES:",
+      "replace": "            if False:",
+      "rationale": "with the gate off for diagnosis, a record moving to an invented state is projected as being in it"
+    },
+    {
+      "name": "R56_any_task_role_may_perform_any_task_edge",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if role not in rule.roles:\n        return (f\"role {role} may not perform {src} -> {dst}; requires one \"\n                f\"of {sorted(rule.roles)}\")\n\n    if rule.lease:",
+      "replace": "    if False:\n        return (f\"role {role} may not perform {src} -> {dst}; requires one \"\n                f\"of {sorted(rule.roles)}\")\n\n    if rule.lease:",
+      "rationale": "a SUBMITTER completes its own task, and the second reader agrees"
+    },
+    {
+      "name": "R57_task_possession_is_never_required",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if rule.lease:\n        if not lease:",
+      "replace": "    if False:\n        if not lease:",
+      "rationale": "work is reported on by anyone, including a worker that never held the lease"
+    },
+    {
+      "name": "R58_a_worker_may_cite_somebody_elses_lease",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if lease_id != lease.get(\"lease_id\"):",
+      "replace": "        if False:",
+      "rationale": "a report names a lease the task does not hold, so it reports on work someone else may already have redone"
+    },
+    {
+      "name": "R59_a_lease_may_be_used_by_someone_who_does_not_hold_it",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if lease.get(\"holder\") != actor:",
+      "replace": "        if False:",
+      "rationale": "possession stops naming a holder, which makes the lease a bearer token"
+    },
+    {
+      "name": "R60_a_lapsed_lease_still_reports_success",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if at_seq > end:",
+      "replace": "        if False:",
+      "rationale": "a worker back from the dead reports on a task the queue has already handed to somebody else"
+    },
+    {
+      "name": "R61_an_unreadable_expiry_is_treated_as_live",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if not isinstance(end, int):",
+      "replace": "        if False:",
+      "rationale": "an expiry nothing can order against a sequence number is silently treated as live rather than reported"
+    },
+    {
+      "name": "R62_task_separation_of_duties_is_optional",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if rule.distinct_actor:\n        if executed_by is None:",
+      "replace": "    if False:\n        if executed_by is None:",
+      "rationale": "an agent verifies its own execution, which is the package's central claim reading the other way"
+    },
+    {
+      "name": "R63_an_unknown_executor_counts_as_independence",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if executed_by is None:\n            return (f\"{src} -> {dst} requires an actor distinct from the \"",
+      "replace": "        if False:\n            return (f\"{src} -> {dst} requires an actor distinct from the \"",
+      "rationale": "omitting the execution record is the cheapest forgery: the claim is then unopposed"
+    },
+    {
+      "name": "R64_the_executor_may_verify_its_own_work",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if actor == executed_by:\n            return (f\"{actor!r} executed {task_id} and may not also perform \"",
+      "replace": "        if False:\n            return (f\"{actor!r} executed {task_id} and may not also perform \"",
+      "rationale": "one actor executes and verifies, and the independent reader confirms it"
+    },
+    {
+      "name": "R65_a_completion_need_not_point_at_a_result",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if dst == _TASK_COMPLETED and not _is_digest(result_digest or \"\"):",
+      "replace": "    if False:",
+      "rationale": "COMPLETED becomes an assertion with nothing behind it"
+    },
+    {
+      "name": "R66_a_verified_task_is_not_terminal",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_TASK_TERMINAL = frozenset({\"VERIFIED\", \"REJECTED\", \"CANCELLED\",\n                            \"INVALIDATED\"})",
+      "replace": "_TASK_TERMINAL = frozenset({\"REJECTED\", \"CANCELLED\", \"INVALIDATED\"})",
+      "rationale": "verified work is requeued and re-run, replacing an outcome that was already independently checked"
+    },
+    {
+      "name": "R67_an_unauthorized_task_record_is_applied_anyway",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if refusal is not None:\n                out.unauthorized.append(",
+      "replace": "            if False:\n                out.unauthorized.append(",
+      "rationale": "the whole task gate in this reader becomes advisory"
+    },
+    {
+      "name": "R68_the_task_replay_folds_in_a_state_nobody_defined",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if dst not in _TASK_STATES:",
+      "replace": "        if False:",
+      "rationale": "with the gate off for diagnosis, a task is projected into a state no module defines"
+    },
+    {
+      "name": "R69_a_lease_record_of_any_shape_is_accepted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    keys = set(raw)\n    if not _LEASE_REQUIRED <= keys:\n        return None",
+      "replace": "    keys = set(raw)\n    if False:\n        return None",
+      "rationale": "a lease missing the fields possession is judged by is treated as a lease, and the anomaly that named it disappears"
+    },
+    {
+      "name": "R70_the_required_lease_fields_lose_the_expiry",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_LEASE_REQUIRED = frozenset({\"lease_id\", \"holder\", \"granted_seq\",\n                             \"expires_after_seq\"})",
+      "replace": "_LEASE_REQUIRED = frozenset({\"lease_id\", \"holder\", \"granted_seq\"})",
+      "rationale": "the reader's idea of a lease drifts from the record production writes, and nothing says so"
+    },
+    {
+      "name": "R71_the_task_edge_table_gains_a_shortcut_into_VERIFIED",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_TASK_EDGES = {\n    (\"CREATED\", \"VALIDATED\"): _TaskRule(",
+      "replace": "_TASK_EDGES = {\n    (\"CREATED\", \"VERIFIED\"): _TaskRule(frozenset({\"VERIFIER\"})),\n    (\"CREATED\", \"VALIDATED\"): _TaskRule(",
+      "rationale": "a task that never ran is verified, and the only edge into VERIFIED stops being the only one"
+    },
+    {
+      "name": "R72_the_second_reader_imports_the_authority_gate_again",
+      "path": "qta_agent/reconstruct.py",
+      "find": "from . import actions\nfrom .events import EventLog",
+      "replace": "from . import actions\nfrom .authority import check  # noqa: F401\nfrom .events import EventLog",
+      "rationale": "the re-coupling this finding is about, reintroduced at module scope: the AST import guard is what has to notice"
+    },
+    {
+      "name": "R73_the_second_reader_imports_the_task_gate_inside_a_function",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            held = _lease_of(cur) or lease",
+      "replace": "            from .tasks import check as _task_check  # noqa: F401\n            held = _lease_of(cur) or lease",
+      "rationale": "the same re-coupling hidden in a function body, where a guard that read only the top of the file would miss it"
+    },
+    {
+      "name": "R74_the_second_reader_calls_the_authority_gate",
+      "path": "qta_agent/reconstruct.py",
+      "find": "def _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,",
+      "replace": "def _delegate(req):\n    return check(req)\n\n\ndef _auth_refusal(*, record_id, src, dst, actor, role, evidence, proposer,",
+      "rationale": "a call back into the gate, with no import to give it away: the call-graph guard is what has to notice"
+    },
+    {
+      "name": "R75_a_claim_may_be_attributed_to_anyone",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    by = p.get(\"by_instance\")\n    if by != ev.actor:",
+      "replace": "    by = p.get(\"by_instance\")\n    if False:",
+      "rationale": "a claim is attributed to whoever it names, so one instance manufactures the disagreement two 'independent' parties are said to have"
+    },
+    {
+      "name": "R76_a_claim_may_name_a_role_nobody_defined",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    role = p.get(\"role\")\n    if role not in _AGENT_ROLES:",
+      "replace": "    role = p.get(\"role\")\n    if False:",
+      "rationale": "the role PREFER_ROLE selects on stops being one of a known set, so a claim can be filed under a role no identity could ever hold"
+    },
+    {
+      "name": "R77_the_role_vocabulary_gains_one_nobody_granted",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_AGENT_ROLES = {\"PROPOSER\", \"EXECUTOR\", \"VERIFIER\", \"AUDITOR\", \"REVIEWER\",\n                \"SCHEDULER\"}",
+      "replace": "_AGENT_ROLES = {\"PROPOSER\", \"EXECUTOR\", \"VERIFIER\", \"AUDITOR\", \"REVIEWER\",\n                \"SCHEDULER\", \"ORACLE\"}",
+      "rationale": "this reader's roles drift from the directory's, and the divergence that was supposed to be the finding becomes the agreement"
+    },
+    {
+      "name": "R78_an_unregistered_claimant_holds_whatever_it_claims",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    ident = out.agents.get(ev.actor)\n    if ident is None:",
+      "replace": "    ident = out.agents.get(\n        ev.actor, {\"roles\": (role,), \"retired_seq\": None})\n    if ident is None:",
+      "rationale": "a principal the log never admitted is treated as holding the role it named, which is a quorum vote from nobody"
+    },
+    {
+      "name": "R79_a_retired_instance_may_still_claim",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if retired is not None and ev.seq >= retired:",
+      "replace": "    if False:",
+      "rationale": "a party that has left gets one more opinion, at the moment it matters"
+    },
+    {
+      "name": "R80_a_claim_may_be_made_in_a_role_the_instance_lacks",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if role not in (ident.get(\"roles\") or ()):",
+      "replace": "    if False:",
+      "rationale": "an instance claims as VERIFIER without holding it, and conflict resolution weighs the role it invented"
+    },
+    {
+      "name": "R81_a_claim_need_not_name_its_value_by_digest",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not _is_digest(p.get(\"value_digest\")):",
+      "replace": "    if False:",
+      "rationale": "a claim carrying prose can never be compared with another, so it is counted by quorum and contradicted by nothing"
+    },
+    {
+      "name": "R82_a_claim_id_may_be_reused",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cid in out.claims:\n        _note(out, ev, f\"claim {cid!r} recorded twice; the second would \"",
+      "replace": "    if False:\n        _note(out, ev, f\"claim {cid!r} recorded twice; the second would \"",
+      "rationale": "a later record replaces an assertion somebody may already have counted, which rewrites a vote after the count"
+    },
+    {
+      "name": "R83_the_second_reader_stops_covering_claims",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"agent.claim\":",
+      "replace": "        elif False:",
+      "rationale": "the reader agrees about claims by covering none of them, which is the quieter of the two ways coverage fails"
+    },
+    {
+      "name": "R84_a_compensation_need_not_name_what_authorized_it",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not eid:\n        _note(out, ev, f\"compensation of {tid!r} names no escalation; an \"",
+      "replace": "    if False:\n        _note(out, ev, f\"compensation of {tid!r} names no escalation; an \"",
+      "rationale": "an undo nobody authorized passes as an undo that authorized itself"
+    },
+    {
+      "name": "R85_a_cited_escalation_that_does_not_exist_agrees_with_the_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    esc = out.escalations.get(eid)\n    if esc is None:",
+      "replace": "    esc = out.escalations.get(\n        eid, {\"state\": \"ANSWERED\", \"answered_by\": named})\n    if esc is None:",
+      "rationale": "a compensation authorized by a question nobody asked confirms itself, which is the case the primary already misses"
+    },
+    {
+      "name": "R86_an_unanswered_question_may_authorize_an_undo",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if esc.get(\"state\") != \"ANSWERED\":",
+      "replace": "    if False:",
+      "rationale": "an OPEN or WITHDRAWN escalation authorizes destroying something, so raising the question is enough"
+    },
+    {
+      "name": "R87_a_compensation_may_name_a_different_person",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if named != esc.get(\"answered_by\"):",
+      "replace": "    if False:",
+      "rationale": "the field naming who authorized an undo stops being compared to the escalation, so a forged record picks the person it blames"
+    },
+    {
+      "name": "R88_compensations_are_not_recorded_at_all",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    out.compensations.setdefault(tid, []).append(record)",
+      "replace": "    out.compensations.setdefault(tid, [])",
+      "rationale": "the record of an undo disappears from the second reader, so the evidence that it happened is gone even when the checks below still run"
+    },
+    {
+      "name": "R89_the_second_reader_stops_covering_compensations",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"task.compensation\":",
+      "replace": "        elif False:",
+      "rationale": "the reader covers no compensation, and the name on an undo goes back to being checked by the primary alone"
+    },
+    {
+      "name": "R90_a_checkpoint_claim_may_cover_its_own_position",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if through >= ev.seq:",
+      "replace": "    if False:",
+      "rationale": "a claim covering the record that announces it is accepted, so a snapshot can describe a projection that did not exist when it was written"
+    },
+    {
+      "name": "R91_a_checkpoint_claim_need_not_cite_a_digest",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    dg = p.get(\"state_digest\")\n    if not _is_digest(dg):",
+      "replace": "    dg = p.get(\"state_digest\")\n    if False:",
+      "rationale": "the snapshot stops being cited by content, so the record vouches for nothing in particular"
+    },
+    {
+      "name": "R92_a_checkpoint_claim_need_not_name_a_head_hash",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    hh = p.get(\"head_hash\")\n    if not _is_digest(hh):",
+      "replace": "    hh = p.get(\"head_hash\")\n    if False:",
+      "rationale": "the position the claim is about stops being bound to a history"
+    },
+    {
+      "name": "R93_the_claimed_head_hash_is_not_checked_against_the_record_there",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if prev[1] != hh:",
+      "replace": "        if False:",
+      "rationale": "the one hash check this reader CAN make is removed, and a claim about a history this log does not have reads as confirmed"
+    },
+    {
+      "name": "R94_a_claim_about_an_older_position_is_recorded_as_checked",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    checked = False\n    if prev[0] == through:",
+      "replace": "    checked = True\n    if prev[0] == through:",
+      "rationale": "the reader reports that it verified a head hash it never looked at, which is the overclaim this whole tranche keeps finding"
+    },
+    {
+      "name": "R95_one_position_may_be_given_two_different_states",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    seen = out.checkpoints.get(through)\n    if seen is not None and seen[\"state_digest\"] != dg:",
+      "replace": "    seen = out.checkpoints.get(through)\n    if False:",
+      "rationale": "two contradictory claims about one position both stand, so a reader handed both cannot say which a checkpoint file means"
+    },
+    {
+      "name": "R96_a_checkpoint_claim_needs_no_readable_position",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(through, int) or isinstance(through, bool):",
+      "replace": "    if False:",
+      "rationale": "a record naming no position this reader can read is folded anyway"
+    },
+    {
+      "name": "R97_the_second_reader_stops_covering_checkpoint_anchors",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"checkpoint.state\":",
+      "replace": "        elif False:",
+      "rationale": "the record that authorizes restoring a projection from a snapshot has no second reader at all, which is the state D-2026-29's rule exists to refuse"
+    },
+    {
+      "name": "R98_the_replay_ignores_the_foundations_of_a_canonical_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            ok = all(sound(dep, seen | {rid})\n                     for dep in rec.get(\"depends_on\") or ())",
+      "replace": "            ok = True",
+      "rationale": "the second reader calls a record canonical while the record it rests on is revoked, so the two readers agree about a verdict one of them should have refused"
+    },
+    {
+      "name": "R99_the_replay_checks_only_the_immediate_foundations",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            ok = all(sound(dep, seen | {rid})\n                     for dep in rec.get(\"depends_on\") or ())",
+      "replace": "            ok = all(self.records[dep][\"state\"] == _AUTH_PROMOTED\n                     for dep in rec.get(\"depends_on\") or ())",
+      "rationale": "the grandchild is canonical in the replay and not in the projection, or the reverse; either way the differential comparison is what has to notice"
+    },
+    {
+      "name": "R100_a_cycle_reads_as_sound_in_the_replay",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        def sound(rid, seen) -> bool:\n            if rid in verdict:\n                return verdict[rid]\n            if rid in seen:\n                return False",
+      "replace": "        def sound(rid, seen) -> bool:\n            if rid in verdict:\n                return verdict[rid]\n            if rid in seen:\n                return True",
+      "rationale": "the fail-closed answer to an unanswerable graph becomes yes in the reader whose job is to disagree"
+    },
+    {
+      "name": "D101_the_job_initial_state_widens_to_READY",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_JOB_INITIAL = {\"WAITING\"}",
+      "replace": "_JOB_INITIAL = {\"WAITING\", \"READY\"}",
+      "rationale": "D-2026-38: a job born READY has skipped the check that its dependencies hold, and production admits WAITING alone"
+    },
+    {
+      "name": "D102_the_sealed_states_are_hand_listed_again",
+      "path": "qta_agent/reconstruct.py",
+      "find": "_JOB_SEALED = ({d for _, d in _JOB_EDGES} - {s for s, _ in _JOB_EDGES})",
+      "replace": "_JOB_SEALED = {\"SUCCEEDED\", \"FAILED\", \"CANCELLED\"}",
+      "rationale": "D-2026-38: the summary drifts from the table it summarises -- BLOCKED becomes revivable and SUCCEEDED becomes a state nothing leaves"
+    },
+    {
+      "name": "D103_the_job_edge_table_gains_a_move_production_lacks",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    (\"SUCCEEDED\", \"INVALIDATED\"),\n",
+      "replace": "    (\"SUCCEEDED\", \"INVALIDATED\"),\n    (\"WAITING\", \"SUCCEEDED\"),\n",
+      "rationale": "D-2026-38: the reader admits a move the scheduler does not have, which is the drift a parity test exists to name"
+    }
+  ]
+}

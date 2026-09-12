@@ -88,18 +88,42 @@ class Thermal3DResult:
         g = self.grid
         Tpk = self.T.max(axis=1)                       # (n_cells,) peak over time
         kpk = self.T.argmax(axis=1)
-        order = np.argsort(Tpk)[::-1][:top_n]
+        # THE RANK AMONG SYMMETRY-EQUIVALENT CELLS WAS ROUNDING NOISE.
+        #
+        # A symmetric beam heats four cells to the same peak by construction,
+        # and the model does not compute them equal: measured, they differ in
+        # the last places of the mantissa (~1e-14 relative) because each
+        # accumulates its reduction in a different order. Ranking on the raw
+        # value therefore ranked them BY THEIR ROUNDING ERROR, and a host
+        # whose BLAS kernel accumulates differently produced a different
+        # order with identical reported temperatures. That is how D-2026-48
+        # found this: the coordinates permuted while T_peak_K did not move.
+        #
+        # There is nothing to stabilise. `np.argsort` is deterministic and no
+        # two peaks are exactly equal, so neither a stable sort nor a
+        # tie-break on the index would change anything -- the KEY has to stop
+        # carrying digits the model does not determine. Cells whose peak is
+        # identical as REPORTED now rank by cell index, which is a fact about
+        # the grid rather than about one accumulation order.
+        rank_key = np.array([float(f"{v:{PEAK_FMT}}") for v in Tpk])
+        order = np.lexsort((np.arange(Tpk.size), -rank_key))[:top_n]
         rows = []
         for rank, flat in enumerate(order, start=1):
             ix, iy, iz = np.unravel_index(flat, self._shape)
             rows.append({"rank": rank,
                          "x_m": f"{g.xc[ix]:.6e}", "y_m": f"{g.yc[iy]:.6e}",
                          "z_m": f"{g.zc[iz]:.6e}",
-                         "T_peak_K": f"{Tpk[flat]:.9e}",
+                         "T_peak_K": f"{Tpk[flat]:{PEAK_FMT}}",
                          "t_at_peak_s": f"{self.t[kpk[flat]]:.9e}",
                          "T_final_K": f"{self.T[flat, -1]:.9e}",
                          "label": LABEL})
         return rows
+
+
+#: How ``T_peak_K`` is reported, and therefore the resolution the hotspot
+#: ranking is allowed to see. One constant for both so the rank can never be
+#: decided by a digit the file does not print.
+PEAK_FMT = ".9e"
 
 
 def jacobian_sparsity_7pt(nx: int, ny: int, nz: int) -> sp.csr_matrix:
@@ -230,13 +254,60 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
                         dense_output=True)
     T = sol_obj.y
     assert_finite(T, "thermal_3d.T")
+    # THE ACCOUNTING BELOW MUST NOT RUN ON A TRAJECTORY THAT STOPPED EARLY.
+    #
+    # It quadratures the solver's continuous interpolant over the whole
+    # window, sol_obj.sol(tq) with tq spanning [0, t_end]. An OdeSolution
+    # evaluated past the interval it actually integrated extrapolates the
+    # last polynomial rather than refusing, so a failed solve produced a
+    # perfectly ordinary-looking rel_residual -- computed over time the
+    # integrator never reached -- and handed it back beside
+    # solver_status="failed" for a reader to notice or not.
+    #
+    # assert_finite above does not catch this: a failed integration returns
+    # a SHORTER trajectory, not a wrong-looking one, and every value in it
+    # is finite.
+    converged = bool(sol_obj.success)
+
+    tt = sol_obj.t
+
+    if not converged:
+        # BRANCH BEFORE THE INTERPOLATION, NOT AFTER THE ARITHMETIC.
+        #
+        # The accounting below quadratures the solver's continuous
+        # interpolant across [0, t_end]. An OdeSolution asked for a time past
+        # the interval it actually covered extrapolates its final polynomial
+        # rather than refusing, so on a failed solve every quantity here was
+        # computed partly over time the integrator never reached.
+        #
+        # NaN-ing the residual afterwards stopped that arithmetic being
+        # BELIEVED, which was the authority defect and is fixed. It did not
+        # stop it being PERFORMED: the fake future was still constructed,
+        # integrated, and then thrown away. A quantity that must not be
+        # trusted should not be computed, both because computing it invites
+        # some later reader to use it and because the act itself asserts
+        # that the missing interval exists.
+        #
+        # What survives is what was really integrated: the trajectory, its
+        # times, the solver's own message, and an accounting dict that says
+        # plainly that there is nothing to report.
+        energy = {
+            "converged": False,
+            "accounting": "UNAVAILABLE_INTEGRATION_INCOMPLETE",
+            "integrated_to_s": float(tt[-1]) if tt.size else 0.0,
+            "requested_t_end_s": float(t_end),
+            "residual_J": float("nan"),
+            "rel_residual": float("nan"),
+            "label": LABEL,
+        }
+        return Thermal3DResult(grid, tt, T, cfg, source_mode, transverse,
+                               "failed", sol_obj.message, T0, energy, laser)
 
     # ---- energy accounting (DERIVED numerical check, MODEL-ONLY) [J] ----
     # Quadrature on a dense internal grid from the solver's continuous
     # interpolant. A composite geometric+linear grid resolves the fast early
     # transient (microsecond-scale in both the heating and the recovery/decay
     # phases) so closure is independent of the sparse n_eval sampling.
-    tt = sol_obj.t
     _tg = np.geomspace(max(t_end * 1e-7, 1e-12), t_end, 161)
     tq = np.unique(np.concatenate(([0.0], _tg, np.linspace(0.0, t_end, 81))))
     Tq = sol_obj.sol(tq)
@@ -255,11 +326,16 @@ def solve_thermal_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None,
     residual = E_src_total - E_sink - dU
     denom = max(abs(E_src_total), abs(dU), abs(E_sink), 1e-30)
     energy = {
+        "converged": converged,
         "integrated_source_energy_J": E_src_total,
         "laser_and_volumetric_channels_J": E_src,
         "front_flux_channel_J": E_front,
         "boundary_sink_energy_J": E_sink,
         "internal_energy_change_J": dU,
+        # Reached only on a converged solve -- the failed case returned
+        # above, before anything was interpolated. Both readers still fail
+        # closed on the NaN the failed branch reports: closure_ok() is
+        # `abs(rel) < tol`, which is False for NaN.
         "residual_J": residual,
         "rel_residual": residual / denom,
         "label": LABEL,

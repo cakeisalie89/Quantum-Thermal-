@@ -50,6 +50,22 @@ TEST_WS = "verification/stage10/pytest"
 TINY_MESH = Grid3DConfig(nx=5, ny=5, nz=6)
 
 
+def _declare_corpus(root):
+    """Write the allowlist for a temporary corpus, as a commit would.
+
+    Retrieval refuses a corpus nobody declared, so every test corpus has to
+    declare itself. That is the mechanism working, not scaffolding around it:
+    a test that could build an index over an undeclared tree would be testing
+    a build the production path cannot do.
+    """
+    import json as _json
+    doc = RAG.allowlist_document(root)
+    out = root / RAG.CORPUS_ALLOWLIST
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return doc
+
+
 @pytest.fixture(scope="module")
 def tiny_result():
     """One small 3D solve shared by the visualization tests (~0.6 s)."""
@@ -396,6 +412,39 @@ def test_corpus_excludes_non_governed_trees():
                        for part in pathlib.Path(rel).parts)
 
 
+def test_a_virtualenv_is_excluded_whatever_it_is_called(tmp_path):
+    """THE DEFECT, and why a name was the wrong thing to exclude on.
+
+    EXCLUDED_DIRS named ``.venv`` exactly. A hosted job that builds a second
+    environment as ``.venv-alt`` to run the suite on another interpreter put
+    64 site-packages ``.txt`` files into the corpus scan, and the membership
+    check refused them as undeclared governed text. It was right; the scan
+    was looking in a place no reviewer would ever put a document.
+
+    ``pyvenv.cfg`` is what the interpreter writes when it creates a virtual
+    environment, so this is the definition rather than a guess -- and the
+    name in the test is deliberately one nobody has used.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "real.md").write_text("a governed document\n")
+    for name in (".venv-alt", "env-for-py315", "whatever"):
+        site = tmp_path / name / "lib" / "python9.9" / "site-packages" / "pkg"
+        site.mkdir(parents=True)
+        (tmp_path / name / "pyvenv.cfg").write_text("home = /usr\n")
+        (site / "entry_points.txt").write_text("not a document\n")
+        (site / "LICENSE.txt").write_text("neither is this\n")
+
+    found = RAG.corpus_files(tmp_path)
+    assert found == ["docs/real.md"], found
+
+    # ANTI-VACUITY: a directory WITHOUT pyvenv.cfg is not silently pruned,
+    # or this would pass by excluding everything.
+    plain = tmp_path / "notes"
+    plain.mkdir()
+    (plain / "kept.md").write_text("still a document\n")
+    assert RAG.corpus_files(tmp_path) == ["docs/real.md", "notes/kept.md"]
+
+
 def test_index_is_deterministic_and_hits_carry_provenance():
     a = RAG.build_index()
     b = RAG.build_index()
@@ -438,6 +487,7 @@ def test_stale_index_is_detected(tmp_path):
     root = tmp_path / "corpus"
     root.mkdir()
     (root / "doc.md").write_text("# Heading\nalpha beta gamma\n")
+    _declare_corpus(root)
     index = RAG.build_index(root=root)
     assert index.stale_files() == []
     (root / "doc.md").write_text("# Heading\ndelta epsilon\n")
@@ -730,12 +780,16 @@ def test_rust_is_not_presented_as_an_active_scientific_backend():
 
 def test_no_scientific_module_imports_the_rust_kernels():
     """The claim above must stay true, not just be written down."""
-    import subprocess
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-lE", r"^\s*import\s+qta_kernels",
-         "--", "*.py"],
-        capture_output=True, text=True)
-    importers = [f for f in r.stdout.split() if f]
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import files_matching
+
+    # Over tracked AND untracked-unignored files: a new module importing the
+    # Rust kernels would otherwise be invisible to this guard until it was
+    # committed, which is the blind spot that has cost this repository three
+    # red pushes in other guards.
+    importers = list(files_matching(r"^\s*import\s+qta_kernels"))
     assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
         f"unexpected qta_kernels importers: {importers}"
 
@@ -804,7 +858,11 @@ def _governed_text_files():
     tracked = [f for f in out.split() if f.endswith((".md", ".txt"))]
     return {f for f in tracked
             if not any(part in RAG.EXCLUDED_DIRS
-                       for part in pathlib.Path(f).parts)}
+                       for part in pathlib.Path(f).parts)
+            # Excluded BY NAME as well as by directory. A derived digest and
+            # a git bundle both match *.txt and are neither governed nor
+            # documents; see rag_index.EXCLUDED_FILES for why each is there.
+            and f not in RAG.EXCLUDED_FILES}
 
 
 def test_rag_indexes_every_governed_document():
@@ -825,3 +883,47 @@ def test_rag_indexes_nothing_beyond_governed_documents():
 
 def test_rag_corpus_completeness_is_exact_in_both_directions():
     assert set(RAG.corpus_files()) == _governed_text_files()
+
+
+def test_a_dot_directory_under_the_root_is_never_governed_text(tmp_path):
+    """Tooling state that lives in the repo is not a document.
+
+    OBSERVED, NOT IMAGINED. The mutation harness quarantines a tracked file
+    it finds changed under a running matrix, into `.mutation-quarantine/`.
+    Those are COPIES of governed documents. The corpus scan walked them, and
+    the allowlist regeneration tool ADMITTED one -- a copy of
+    AGENT_SUBSTRATE.md was written into docs/corpus_allowlist.json as a
+    governed document in its own right.
+
+    That is exactly what the allowlist exists to stop: a file becoming
+    governed by being created rather than by being reviewed. It was caught
+    only by the both-directions completeness check afterwards, and only
+    because the directory still existed to compare against.
+
+    The named exclusion list has to be remembered. This rule does not.
+    """
+    for rel in (".mutation-quarantine/20260101T000000/AGENT_SUBSTRATE.md",
+                ".git/hooks/README.md",
+                ".scratch/notes.txt",
+                ".some-future-tool/copy-of-a-real-document.md"):
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("# not governed text\n", encoding="utf-8")
+    (tmp_path / "REAL.md").write_text("# governed\n", encoding="utf-8")
+
+    found = RAG.corpus_files(tmp_path)
+    assert found == ["REAL.md"], (
+        f"the scan offered tooling state as governed text: "
+        f"{[f for f in found if f != 'REAL.md']}")
+
+
+def test_the_dot_rule_does_not_exclude_dotfiles_that_are_documents(tmp_path):
+    """Anti-vacuity: the rule is about DIRECTORIES, not about leading dots.
+
+    Excluding every path with a dot in it would pass the test above and quietly
+    drop real documents whose own name begins with one.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / ".hidden-but-a-document.md").write_text(
+        "# governed\n", encoding="utf-8")
+    assert RAG.corpus_files(tmp_path) == ["docs/.hidden-but-a-document.md"]

@@ -1,0 +1,94 @@
+{
+  "title": "A production caller that enqueues a graph, and a comparison that must actually compare",
+  "note": "Two rows, one shape: a mechanism that existed and whose real question nothing asked. The scheduler could always express dependencies and the production path enqueued one job, so 'dependency graphs are exercised only in tests'. And the cross-environment comparison could always report IDENTICAL without comparing anything, because the verdict read one field instead of closing the arithmetic.",
+  "suites": [
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_container_diagnostic_fidelity.py"
+  ],
+  "mutations": [
+    {
+      "name": "G1_dependencies_never_reach_the_scheduler",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                               depends_on=tuple(depends_on),",
+      "replace": "                               depends_on=(),",
+      "rationale": "the ordering becomes the caller's loop again and the queue never sees a graph, which is the original defect"
+    },
+    {
+      "name": "G2_a_dependent_step_requires_no_evidence",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                               requires_evidence=tuple(requires_evidence),",
+      "replace": "                               requires_evidence=(),",
+      "rationale": "readiness becomes 'the parent job says SUCCEEDED' rather than 'the bytes it should have left behind resolve'"
+    },
+    {
+      "name": "G3_a_step_runs_though_its_dependency_failed",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            runnable = [sid for sid, (_t, _i, deps) in remaining.items()\n                        if all(d in done for d in deps)]",
+      "replace": "            runnable = list(remaining)",
+      "rationale": "work executes against a parent that produced nothing, and its BLOCKED outcome is reported as a run"
+    },
+    {
+      "name": "G4_an_empty_graph_reports_success",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if not steps:\n            raise ValueError(",
+      "replace": "        if False:\n            raise ValueError(",
+      "rationale": "a graph that ran nothing returns an empty result set, which every caller reads as 'no failures'"
+    },
+    {
+      "name": "G5_a_dependency_on_a_missing_step_is_accepted",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            unknown = [d for d in deps if d not in ids]\n            if unknown:",
+      "replace": "            unknown = [d for d in deps if d not in ids]\n            if False:",
+      "rationale": "a step that can never become ready is enqueued and silently dropped from the results"
+    },
+    {
+      "name": "G6_duplicate_step_ids_are_accepted",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if len(set(ids)) != len(ids):",
+      "replace": "        if False:",
+      "rationale": "two steps share a name and only one appears in the results, so a caller sees fewer runs than it asked for"
+    },
+    {
+      "name": "G7_the_verdict_reads_one_field_again",
+      "path": "analysis/collect_container_3d.py",
+      "find": "    if missing:\n        return (f\"INCOMPARABLE: {missing} of {regenerated} regenerated \"",
+      "replace": "    if False:\n        return (f\"INCOMPARABLE: {missing} of {regenerated} regenerated \"",
+      "rationale": "the exact defect that shipped: 63 regenerated, 63 uncompared, 0 differing, printed as IDENTICAL"
+    },
+    {
+      "name": "G8_a_comparison_of_nothing_is_not_called_vacuous",
+      "path": "analysis/collect_container_3d.py",
+      "find": "    if regenerated <= 0:",
+      "replace": "    if False:",
+      "rationale": "a run that regenerated nothing reports a clean verdict having compared nothing"
+    },
+    {
+      "name": "G9_numbers_that_do_not_add_up_are_accepted",
+      "path": "analysis/collect_container_3d.py",
+      "find": "    if identical + differing != regenerated:",
+      "replace": "    if False:",
+      "rationale": "the comparison loses track of files and still reports a verdict on all of them"
+    },
+    {
+      "name": "G10_under_coverage_is_not_reported",
+      "path": "analysis/collect_container_3d.py",
+      "find": "    if regenerated < EXPECTED_CANONICAL:",
+      "replace": "    if False:",
+      "rationale": "a comparison of three files reports on the whole cross-environment question"
+    },
+    {
+      "name": "G11_uncompared_files_are_not_named",
+      "path": "analysis/collect_container_3d.py",
+      "find": "    for name in comparison[\"not_committed_files\"]:\n        print(f\"::QTA-3D-NOT-COMMITTED:: {name}\")",
+      "replace": "    pass",
+      "rationale": "an operator cannot see WHICH files were skipped without downloading an artifact, which is the route that was denied"
+    },
+    {
+      "name": "G12_the_comparison_looks_in_the_wrong_place",
+      "path": "analysis/collect_container_3d.py",
+      "find": "        committed = REPO_ROOT / name",
+      "replace": "        committed = REPO_ROOT / \"outputs\" / name",
+      "rationale": "the exact wrong path that shipped, restored: outputs/ is gitignored, so on a fresh checkout every file lands in not_committed and nothing is compared -- and on a machine where it exists it is a regeneration, so the comparison agrees with itself. This mutation was previously anchored ON the wrong path and killed by a test that read from the same directory"
+    }
+  ]
+}

@@ -206,6 +206,229 @@ def test_prop_serialization_key_order(payload):
         json.dumps(dict(reversed(list(payload.items()))), sort_keys=True)
 
 
+# ---------------------------------------------------------------------------
+# D-2026-39: a verifier that compared nothing and called it EQUIVALENT.
+#
+# Every check in validate_hdf5_equivalence.py appends to `problems`, so the
+# verdict was "EQUIVALENT" exactly when nothing went wrong -- including when
+# nothing happened. Handed a mapping with no outputs and an HDF5 file
+# carrying a well-formed /provenance group, it compared 0 sources and 0
+# datasets, printed RESULT: EQUIVALENT, exited 0, and wrote
+# "result": "EQUIVALENT" into a report the RO-Crate publishes as an entity.
+#
+# The repository already names this class -- tools/performance_baseline.py
+# calls it "the vacuous ... defect" and a test in test_agent_performance.py
+# says "this repository already carries that defect once, in a verifier that
+# compared zero files and printed IDENTICAL". The class was identified, one
+# sibling was fixed, and this instance was never swept.
+# ---------------------------------------------------------------------------
+
+def _shell_h5(path):
+    """An HDF5 file with nothing in it but a well-formed /provenance group.
+
+    Well-formed on purpose: the provenance attribute checks are what masked
+    this for as long as they did, and a test that leans on them would be
+    asserting the wrong refusal.
+    """
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(path, "w") as h:
+        g = h.create_group("provenance")
+        for a in ("mapping_sha256", "schema_sha256", "uv_lock_sha256",
+                  "manifest_sha256_at_build", "scientific_gate_PASS_count",
+                  "can_PASS_now", "measured_in_this_system"):
+            g.attrs[a] = "0"
+
+
+def _run_validator(tmp_path, monkeypatch, mapping):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "hdf5_output_mapping.json").write_text(json.dumps(mapping))
+    _shell_h5(tmp_path / "shell.h5")
+    sys.path.insert(0, str(ROOT))
+    import validate_hdf5_equivalence as V
+    rc = V.main(str(tmp_path / "shell.h5"), str(tmp_path / "report.json"))
+    return rc, json.loads((tmp_path / "report.json").read_text())
+
+
+def test_an_equivalence_over_nothing_is_refused(tmp_path, monkeypatch):
+    rc, report = _run_validator(
+        tmp_path, monkeypatch,
+        {"schema_version": "1.0.0", "n_governed": 0, "outputs": []})
+
+    assert rc != 0, "a comparison of nothing exited zero"
+    assert report["result"] != "EQUIVALENT", report["result"]
+    assert report["sources_checked"] == 0
+    assert any("no stated scope" in m for m in report["mismatches"]), \
+        report["mismatches"]
+
+
+def test_an_equivalence_over_PART_of_the_set_is_refused(
+        tmp_path, monkeypatch):
+    """The stronger half, and the reason the guard is not `== 0`.
+
+    "Did you check anything" is the weak form of the question. A mapping
+    truncated to a handful of outputs would satisfy it and still report a
+    verdict over a set nobody agreed to.
+    """
+    rc, report = _run_validator(
+        tmp_path, monkeypatch,
+        {"schema_version": "1.0.0", "n_governed": 5, "outputs": []})
+
+    assert rc != 0
+    assert report["result"] != "EQUIVALENT", report["result"]
+    assert any("against a declared 5" in m for m in report["mismatches"]), \
+        report["mismatches"]
+
+
+def test_the_committed_equivalence_report_covered_the_whole_declared_set():
+    """ANTI-VACUITY, against the real artefact rather than a fixture.
+
+    The two tests above would both pass against a validator that refused
+    every input. This one holds the committed report to the same rule the
+    guard applies, and it is the rule rather than a remembered number: the
+    mapping says how many governed outputs there are, and the report has to
+    have compared that many.
+    """
+    mapping = json.loads((ROOT / "hdf5_output_mapping.json").read_text())
+    report = json.loads(
+        (ROOT / "stage8_reports" / "hdf5_equivalence_report.json").read_text())
+
+    assert report["result"] == "EQUIVALENT", report["result"]
+    assert mapping["n_governed"] == len(mapping["outputs"])
+    assert report["sources_checked"] == mapping["n_governed"], (
+        f"the committed report compared {report['sources_checked']} of a "
+        f"declared {mapping['n_governed']}")
+    assert report["datasets_checked"] > 0, (
+        "a report with no datasets compared is an equivalence about nothing, "
+        "whatever its source count says")
+
+
+def _minimal_crate(hasPart, extra=()):
+    """A crate that clears every structural check the validator makes.
+
+    Deliberately well-formed: the root description phrases and the
+    CreateAction are what a lazier fixture would trip over, and a test that
+    leaned on those would be asserting the wrong refusal.
+    """
+    root_desc = ("PASS count is zero. PROPOSED_NOT_PERFORMED. "
+                 "measured_in_this_system=false. not new evidence.")
+    return {"@context": "https://w3id.org/ro/crate/1.1/context",
+            "@graph": [
+                {"@id": "ro-crate-metadata.json", "@type": "CreativeWork"},
+                {"@id": "./", "@type": ["Dataset"], "description": root_desc,
+                 "hasPart": [{"@id": i} for i in hasPart]},
+                {"@id": "#simulation-action", "@type": "CreateAction"},
+                *extra,
+            ]}
+
+
+def test_a_crate_validation_over_nothing_is_refused(tmp_path):
+    """Every checksum this validator verifies is verified inside a loop over
+    hasPart. With hasPart empty the loop ran zero times and it printed
+    RESULT: VALID -- into a report the manifest hashes."""
+    sys.path.insert(0, str(ROOT))
+    import ro_crate_tools as R
+
+    p = tmp_path / "crate.json"
+    p.write_text(json.dumps(_minimal_crate([])))
+    assert R.validate(p, tmp_path / "report.json") != 0, (
+        "a validation of nothing exited zero")
+
+
+def test_a_checksum_outside_hasPart_is_reported_as_unverified(tmp_path):
+    """Scope COMPLETENESS, not merely non-emptiness.
+
+    An entity carrying a checksum that sits outside hasPart is one the loop
+    never reaches, so its hash is decoration. Contextual `#`-prefixed
+    entities are excluded on purpose -- the real crate has one, and a rule
+    that flagged it would be a rule about the wrong thing.
+    """
+    sys.path.insert(0, str(ROOT))
+    import ro_crate_tools as R
+
+    real = ROOT / "README.md"
+    crate = _minimal_crate(
+        [real.name],
+        extra=[{"@id": real.name, "@type": "File",
+                "sha256": hashlib.sha256(real.read_bytes()).hexdigest()},
+               {"@id": "unreferenced.txt", "@type": "File",
+                "sha256": "a" * 64}])
+    p = tmp_path / "crate.json"
+    p.write_text(json.dumps(crate))
+
+    import os
+    cwd = os.getcwd()
+    os.chdir(ROOT)
+    try:
+        assert R.validate(p, tmp_path / "report.json") != 0
+    finally:
+        os.chdir(cwd)
+
+
+def test_a_crate_missing_its_root_fails_rather_than_crashing(tmp_path):
+    """A crash is not a refusal.
+
+    The checks below the root test index `by["./"]` directly, so a crate
+    without one died with a KeyError traceback instead of returning a
+    verdict -- in a repository that keeps a whole suite named for not doing
+    that.
+    """
+    sys.path.insert(0, str(ROOT))
+    import ro_crate_tools as R
+
+    p = tmp_path / "crate.json"
+    p.write_text(json.dumps({"@graph": [
+        {"@id": "ro-crate-metadata.json", "@type": "CreativeWork"}]}))
+    assert R.validate(p, tmp_path / "report.json") != 0
+
+
+def test_the_committed_crate_references_every_file_it_checksums():
+    """ANTI-VACUITY against the real artefact, and the rule rather than a
+    remembered count."""
+    doc = json.loads((ROOT / "ro-crate" / "ro-crate-metadata.json").read_text())
+    g = doc["@graph"]
+    by = {e["@id"]: e for e in g}
+    parts = {p["@id"] for p in by["./"]["hasPart"]}
+
+    assert parts, "the committed crate references no files"
+    unchecked = sorted(e["@id"] for e in g
+                       if "sha256" in e and not e["@id"].startswith("#")
+                       and e["@id"] not in parts)
+    assert unchecked == [], unchecked
+
+
+def test_the_crate_validator_writes_only_where_it_is_told(tmp_path):
+    """D-2026-40, and the reason `validate` takes a report path at all.
+
+    It writes a TRACKED artefact by default. The tests above call it against
+    throwaway crates, and before this parameter existed each of those calls
+    overwrote `stage8_reports/ro_crate_validation_report.json` with a verdict
+    about the throwaway -- `"entities": 5, "referenced_files": 1,
+    "result": "FAIL"` -- which then got committed, because the full suite
+    stayed green: `test_manifest_completeness.py` runs alphabetically BEFORE
+    `test_stage8_data_provenance.py`, so the manifest was checked and then
+    the damage was done.
+
+    This test is order-independent on purpose. It does not ask whether the
+    tree is clean at some moment; it asks whether the function can be made to
+    write the default path when it was handed another one.
+    """
+    sys.path.insert(0, str(ROOT))
+    import ro_crate_tools as R
+
+    tracked = ROOT / R.DEFAULT_VALIDATION_REPORT
+    before = hashlib.sha256(tracked.read_bytes()).hexdigest()
+
+    p = tmp_path / "crate.json"
+    p.write_text(json.dumps(_minimal_crate([])))
+    out = tmp_path / "elsewhere.json"
+    R.validate(p, out)
+
+    assert out.exists(), "it did not write where it was told"
+    assert hashlib.sha256(tracked.read_bytes()).hexdigest() == before, (
+        "validate() wrote the tracked report while being handed another "
+        "path; a test that calls it is then a test that edits the repository")
+
+
 TESTS = [v for k, v in sorted(globals().items())
          if k.startswith("test_") and callable(v)]
 

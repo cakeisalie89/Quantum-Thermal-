@@ -1,0 +1,84 @@
+{
+  "title": "Lease renewal: extending possession without re-acquiring it",
+  "note": "Renewal lets a lease be sized for the common case instead of the worst one, and it is also the single change most able to make a lease stop meaning anything. Every mutation here is one of the ways that happens: renewing what has lapsed, renewing what you do not hold, renewing without limit, or letting the record decide how long a renewal lasts.",
+  "suites": ["tests/test_agent_scheduler.py", "tests/test_agent_second_reader.py"],
+  "mutations": [
+    {
+      "name": "L1_a_lapsed_lease_can_be_renewed",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if not cur.lease_is_live(ev.seq):\n            raise JobTransitionError(\n                f\"seq {ev.seq}: lease {cur.lease_id!r} lapsed after seq \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"seq {ev.seq}: lease {cur.lease_id!r} lapsed after seq \"",
+      "rationale": "renewal becomes re-acquisition: reconcile may already have given the work to somebody else, and the old holder takes it back without the job record showing anything unusual"
+    },
+    {
+      "name": "L2_anyone_may_renew_someone_elses_lease",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if cur.lease_holder != ev.actor:\n            raise JobTransitionError(\n                f\"seq {ev.seq}: {ev.actor!r} renewed a lease held by \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"seq {ev.seq}: {ev.actor!r} renewed a lease held by \"",
+      "rationale": "ownership becomes something the record asserts about itself, which is the write-path-only defect the replay checks exist to close"
+    },
+    {
+      "name": "L3_a_stale_lease_id_is_accepted",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if p.get(\"lease_id\") != cur.lease_id:",
+      "replace": "        if False:",
+      "rationale": "a worker back from the dead has the same NAME as the live holder; the lease id is the only thing that tells them apart"
+    },
+    {
+      "name": "L4_renewal_is_unbounded",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if cur.lease_renewals >= MAX_LEASE_RENEWALS:",
+      "replace": "        if False:",
+      "rationale": "a worker holds the job forever by asking often enough, which is the same as having no lease at all"
+    },
+    {
+      "name": "L5_the_record_names_its_own_expiry",
+      "path": "qta_agent/scheduler.py",
+      "find": "        new_end = ev.seq + seqs\n        if new_end <= cur.lease_expires_after_seq:",
+      "replace": "        new_end = p.get(\"lease_expires_after_seq\", ev.seq + seqs)\n        if False:",
+      "rationale": "a forged renewal names any expiry it likes, the same shape as a capability naming its own issued_seq"
+    },
+    {
+      "name": "L6_a_renewal_applies_to_a_job_that_is_not_dispatched",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if cur.state is not JobState.DISPATCHED:\n            raise JobTransitionError(\n                f\"seq {ev.seq}: {cur.job_id!r} is {cur.state.value}; only a \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"seq {ev.seq}: {cur.job_id!r} is {cur.state.value}; only a \"",
+      "rationale": "a queued or finished job acquires a lease deadline, so lease_is_live starts answering about work nobody is doing"
+    },
+    {
+      "name": "L7_a_requeued_job_keeps_its_renewal_count",
+      "path": "qta_agent/scheduler.py",
+      "find": "        updates.setdefault(\"lease_renewals\", 0)",
+      "replace": "        pass",
+      "rationale": "one worker's extensions limit the next worker's, for reasons belonging to a lease that no longer exists -- and dispatch's own reset does not cover it, because _apply_edge silently drops fields it does not name"
+    },
+    {
+      "name": "L8_the_second_reader_accepts_a_lapsed_renewal",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(end, int) or ev.seq > end:",
+      "replace": "    if not isinstance(end, int):",
+      "rationale": "the independent reader agrees with a renewal the scheduler refuses, so a divergence report says the projections match"
+    },
+    {
+      "name": "L9_the_second_reader_lets_anyone_renew",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur.get(\"lease_holder\") != ev.actor:\n        _note(out, ev, f\"{ev.actor!r} renews a lease held by \"",
+      "replace": "    if False:\n        _note(out, ev, f\"{ev.actor!r} renews a lease held by \"",
+      "rationale": "same defect, reached through the reader that exists to notice it"
+    },
+    {
+      "name": "L10_the_second_reader_reads_the_expiry_off_the_record",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    new_end = ev.seq + seqs\n    if new_end <= end:",
+      "replace": "    new_end = p.get(\"lease_expires_after_seq\", ev.seq + seqs)\n    if False:",
+      "rationale": "two readers that both trust the payload agree with each other and with the forgery"
+    },
+    {
+      "name": "L11_the_second_reader_keeps_the_lease_after_a_requeue",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        cur[\"lease_renewals\"] = 0",
+      "replace": "        pass",
+      "rationale": "the two readers disagree after any requeue, which is a divergence rather than a defence"
+    }
+  ]
+}
