@@ -2,7 +2,8 @@
   "title": "The cross-environment measurement, and the instruments that make it readable",
   "note": "R59 spent weeks on a number that was a slice width, resting on a comparison that could not have disagreed with itself, with a fingerprint naming the build kernel rather than the running one. E1-E2 attack the fingerprint field the whole attribution turns on. E3-E7 attack the sensitivity sweep, including the two ways it can vary nothing and still report a result, and the numpy row without which the attribution stops at 'the counts are close'. E8-E11 attack the container script's step record and its ordering -- the record exists because 'steps 1-3 passed' was an inference from set -e ordering, and the ordering matters because set -e once skipped the diagnostic in exactly the case it was written for.",
   "suites": [
-    "tests/test_container_diagnostic_fidelity.py"
+    "tests/test_container_diagnostic_fidelity.py",
+    "tests/test_cross_env_semantics.py"
   ],
   "mutations": [
     {
@@ -81,6 +82,34 @@
       "find": "step \"cross-environment-3d\"\npython analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary\ndone_ \"cross-environment-3d\"\n\nstep \"package_consistency\"\npython package_consistency_check.py\ndone_ \"package_consistency\"\n\nstep \"manuscript_consistency\"\npython manuscript_consistency_check.py\ndone_ \"manuscript_consistency\"\n",
       "replace": "step \"package_consistency\"\npython package_consistency_check.py\ndone_ \"package_consistency\"\n\nstep \"manuscript_consistency\"\npython manuscript_consistency_check.py\ndone_ \"manuscript_consistency\"\n\nstep \"cross-environment-3d\"\npython analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary\ndone_ \"cross-environment-3d\"\n",
       "rationale": "a pure REORDER, not a deletion: every step is still there and still announces itself, so only a test that checks the ORDER can see it. set -e then ends the run at the byte divergence and the diagnostic that exists to EXPLAIN a byte divergence never executes -- the one case the measurement matters most is the one it is skipped in"
+    },
+    {
+      "name": "E12_a_changed_word_is_classified_as_a_number",
+      "path": "tools/cross_env_semantics.py",
+      "find": "    if NUMBER.sub(\"#\", b) != NUMBER.sub(\"#\", a) or len(b_nums) != len(a_nums):",
+      "replace": "    if False:",
+      "rationale": "the residue check is the whole instrument: without it a status flipping CONDITIONAL -> PASS is never a DECISION and the gate reports 'no decision changed'"
+    },
+    {
+      "name": "E13_a_published_exact_zero_is_demoted_to_a_precision_event",
+      "path": "tools/cross_env_semantics.py",
+      "find": "        elif fb == 0.0 or fa == 0.0:",
+      "replace": "        elif False:",
+      "rationale": "0 -> nonzero would be folded into PRECISION with a relative difference of 1.0, so a claim of exactness the other environment contradicts reads as a rounding artifact"
+    },
+    {
+      "name": "E14_a_verdict_drawn_from_an_empty_comparison_is_accepted",
+      "path": "tools/cross_env_semantics.py",
+      "find": "    if report[\"files_compared\"] == 0:",
+      "replace": "    if False:",
+      "rationale": "'no decision-bearing token differs' would be reported for a comparison that lined up no files at all -- the vacuous pass a renamed output directory produces"
+    },
+    {
+      "name": "E15_the_exemption_swallows_every_file",
+      "path": "tools/cross_env_semantics.py",
+      "find": "        if gen.name in exempt:",
+      "replace": "        if True:",
+      "rationale": "an exemption that grows to cover the whole tree leaves the gate passing because it looked at nothing; the scope check is what must catch this"
     }
   ]
 }

@@ -5047,6 +5047,23 @@ mirrors the byte gate's set and
 literal out of `package_consistency_check.py` by AST and requires the two to
 be equal, so neither can drift alone.
 
+**MUTATION COVERAGE.** A new gate with no mutation spec is a gate nothing
+has tried to defeat, so `cross_environment.json` — R59's instrument spec —
+gained four, and its suites gained this tool's tests.
+`E12_a_changed_word_is_classified_as_a_number` removes the residue check,
+which is the whole instrument: without it a status flipping to PASS is never
+a DECISION and the gate reports that nothing changed.
+`E13_a_published_exact_zero_is_demoted_to_a_precision_event` folds a zero
+crossing back into PRECISION at a relative difference of 1.0.
+`E14_a_verdict_drawn_from_an_empty_comparison_is_accepted` and
+`E15_the_exemption_swallows_every_file` both attack the scope check from
+opposite ends — nothing lined up, and everything exempted. All four are
+killed, 15/15 for the spec. E15 is killed by
+`test_the_scope_check_accepts_a_comparison_that_did_look_at_something`,
+which is the CONTROL for the refusal test next to it: the pairing that
+exists to stop a rule being vacuous is also what catches an exemption
+growing to cover the tree.
+
 ## D-2026-49 — a rank decided by the digits the file does not print
 
 **CLASS** — `WRONG_SPECIFICATION`: an ordering derived from a quantity the
