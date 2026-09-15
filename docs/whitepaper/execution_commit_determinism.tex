@@ -1,0 +1,25 @@
+\section{Commit-scoped truth, defects, and determinism}
+
+The repository distinguishes requirement closure, currently known defects, and scientific validation.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}p{0.29\linewidth}X@{}}
+\toprule
+State & Meaning \\
+\midrule
+\code{GATE\_SATISFIED\_AT\_COMMIT} & The named engineering conditions were satisfied at a particular commit on the evidence available then. Historical.\\
+\code{CURRENTLY\_OPEN\_FINDING} & A defect of that class is known now; work is reopened prospectively.\\
+\code{CURRENTLY\_CLOSED} & No open finding remains and the finding's required evidence has been re-run for the current state.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A completion matrix and a defect ledger answer different questions. The ledger intentionally retains repaired and unflattering findings because recurring failures often reappear in another representation. A green CI run is evidence about the commit and environment that produced it; it is not inherited by later commits.
+
+\subsection{Byte identity versus numerical equivalence}
+Within a pinned, compatible environment, byte-identical regeneration is a strong integrity check. Across heterogeneous hardware, different BLAS or CPU dispatch paths can produce floating-point differences without changing the scientific interpretation. The harness therefore treats the verification contract as a declared workload property, not as a universal equation between byte identity and correctness.
+
+Execution provenance matters because without it, a hardware-dependent arithmetic path can be mistaken for scientific drift.
+
