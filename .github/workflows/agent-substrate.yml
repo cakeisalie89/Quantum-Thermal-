@@ -577,6 +577,52 @@ jobs:
         if: always()
         run: uv run python tools/clip_provenance.py
 
+  dispatch-sensitivity:
+    # THE SWEEP THAT SHOULD HAVE RUN BEFORE 0358af0.
+    #
+    # The full suite again, on a NumPy with AVX-512 turned off. Two defects
+    # in one day came out of this configuration and neither was visible to
+    # any job above:
+    #
+    #   D-2026-53a -- a test defending the finding that the sign of the
+    #     Mode-C methane noise is host-dependent had PINNED that sign. Here
+    #     18 of 120 cells go positive and the clip leaves them in the file.
+    #   D-2026-58 -- conductivity_power_law is REJECTED at 2 ulp against a
+    #     NumPy with AVX-512 and BIT-IDENTICAL, hence adopted, without it.
+    #     Which backend dispatch() selects was a property of the host, and
+    #     STACK.md, stack.json and a test all recorded one host's answer.
+    #
+    # GitHub's runners have AVX-512, so full-suite exercises one side of
+    # this and only one. Disabling the feature is the cheapest way to have
+    # the other side measured on every commit instead of remembered.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: sync environment
+        run: uv sync --frozen --group stack
+      - name: the dispatch this job is here to exercise
+        # Reports, gates nothing -- but a job whose whole purpose is a
+        # different dispatch must show that it got one, or a silently
+        # ignored environment variable turns it into a duplicate of
+        # full-suite that nobody would notice.
+        run: |
+          uv run python - <<'PY'
+          import numpy
+          simd = numpy.show_config(mode="dicts")["SIMD Extensions"]
+          print("baseline:", simd.get("baseline"))
+          print("found:   ", simd.get("found"))
+          assert "X86_V4" not in (simd.get("found") or []),               "X86_V4 is still in force; this job is not testing anything new"
+          PY
+        env:
+          OPENBLAS_CORETYPE: Haswell
+          NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
+      - name: the FULL suite, on the other side of the dispatch
+        run: uv run python -m pytest tests/ -q
+        env:
+          OPENBLAS_CORETYPE: Haswell
+          NPY_DISABLE_CPU_FEATURES: X86_V4 AVX512_ICL AVX512_SPR
+
   second-interpreter:
     # The guarantees under test are pure-Python and stdlib-only. Running them
     # on another interpreter answers a question the pinned job cannot: whether

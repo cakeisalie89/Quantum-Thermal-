@@ -1,6 +1,6 @@
 {
  "title": "An output states the resolution of the method that produced it",
- "note": "D-2026-53 through D-2026-56. Each mutation restores a defect that was real: a marking decided by magnitude instead of by why the number is zero, a floor that says nothing, a threshold compared against a value nothing can resolve, a status allowlist wide enough to admit the claim it forbids, and a claims table that names a rule without matching it. A surviving mutation here means the corresponding test is asserting the shape of the mechanism rather than what it decides.",
+ "note": "D-2026-53 through D-2026-56. Each mutation restores a defect that was real: a marking decided by magnitude instead of by why the number is zero, a floor that says nothing, a threshold compared against a value nothing can resolve, a status allowlist wide enough to admit the claim it forbids, and a claims table that names a rule without matching it. A surviving mutation here means the corresponding test is asserting the shape of the mechanism rather than what it decides. OR17 was added after a GitHub runner failed a test in this spec's own suite: the sign of the Mode-C methane noise is host-dependent, and the test defending that finding had pinned it. The class must not follow the sign.",
  "suites": [
   "tests/test_output_resolution.py",
   "tests/test_bom_status_claim.py",
@@ -118,6 +118,13 @@
    "find": "        if reaches and not d.get(\"resolution_declared\"):",
    "replace": "        if reaches and not d.get(\"resolution_declared\") and False:",
    "rationale": "\"it is only noise\" is exactly the claim that needs the floor written down, because noise and a small measurement are the same digits"
+  },
+  {
+   "name": "OR17_the_class_follows_the_sign_of_the_noise",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    v = float(raw)\n    if not np.isfinite(v):",
+   "replace": "    v = float(raw)\n    if v > 0.0:\n        return RESOLVED\n    if not np.isfinite(v):",
+   "rationale": "D-2026-53a. A classifier that answers differently for +1.48e-03 and -3.86e-01 makes the same cell RESOLVED on one runner and BELOW_RESOLUTION on another -- which is the divergence the class exists to be stable across, and the error the first version of test_the_written_methane_zero_is_the_clip_not_the_model made in its own assertions"
   }
  ]
 }

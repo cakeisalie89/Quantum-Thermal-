@@ -1,5 +1,5 @@
 {
- "note": "Measured by tools/clip_provenance.py during a full canonical run. 'moves', the counts and the displacements are measured; 'what', 'reaches_output', 'resolution_declared' and 'test' are reviewed judgements. A clip that moves a value produced a number the method could not produce inside the physical range.",
+ "note": "Measured by tools/clip_provenance.py during a full canonical run. 'moves', the counts and the displacements are measured; 'what', 'reaches_output', 'resolution_declared' and 'test' are reviewed judgements. A clip that moves a value produced a number the method could not produce inside the physical range. THE COUNTS ARE HOST-DEPENDENT AND THE JUDGEMENT IS NOT. On a GitHub runner the same canonical run moves 210412 and 4344 elements where this machine moves 981668 and 6352, with a max displacement of 1.062372e+02 against 1.888148e+01 -- R59's dispatch difference, in the numbers this file records. The reconciliation compares 'moves', a boolean, for exactly that reason; the counts and displacements are here as evidence of what was measured, not as values anything is held to.",
  "sites": {
   "qta_multiphysics/campaign_uncertainty_3d.py:draw_members": {
    "elements": 120,

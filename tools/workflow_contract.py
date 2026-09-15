@@ -38,6 +38,13 @@ REQUIRED_JOBS = {
     "full-suite": "the FULL pytest suite and package_consistency_check.py, "
                   "which R58 used to record as release-only",
     "second-interpreter": "the substrate on a Python other than the pin",
+    "dispatch-sensitivity": "the FULL suite on a NumPy without AVX-512. "
+                            "GitHub's runners have it, so every other job "
+                            "here measures one side of the dispatch and only "
+                            "one; D-2026-53a and D-2026-58 both live on the "
+                            "other side. Required, so that deleting the job "
+                            "is a contract failure rather than a quiet loss "
+                            "of the only thing that looks there",
     "cross-environment-3d": "R59: regenerate the 3D outputs on a hosted "
                             "runner and compare them against the committed "
                             "copies, emitting the result to the JOB LOG "
@@ -155,7 +162,11 @@ def main() -> int:
     found = problems()
     if not found:
         specs = len(list(MUTATIONS.glob("*.json")))
-        print(f"workflow contract holds: {len(REQUIRED_JOBS)} jobs, "
+        # "{n} jobs" used to read as a census of the workflow and is a
+        # count of the REQUIRED set -- the workflow may hold more. Saying
+        # which is the same repair as D-2026-54's.
+        print(f"workflow contract holds: {len(REQUIRED_JOBS)} required jobs "
+              f"all present, "
               f"{len(REQUIRED_COMMANDS)} commands, {specs} mutation specs "
               "all wired in, every action pinned")
         return 0

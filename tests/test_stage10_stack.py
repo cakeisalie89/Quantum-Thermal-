@@ -745,15 +745,44 @@ def test_registry_verification_targets_exist_in_the_workflow():
 
 
 def test_rust_open_item_matches_the_measured_verdict():
-    """The documented rejection must track reality, not a stale note."""
+    """The documented note must track reality, not a stale note.
+
+    It used to assert ``documented_rejection == (verdict is False)``, which
+    pinned ONE HOST'S ANSWER. Measured: ``conductivity_power_law`` differs
+    from NumPy by 2 ulp where AVX-512 is available and is bit-identical --
+    adopted -- where it is not, because the reference side of a bit-parity
+    comparison is NumPy and NumPy's ``**`` loop moves with the CPU. Run under
+    ``NPY_DISABLE_CPU_FEATURES=X86_V4`` the old assertion fails, on code
+    nobody has touched. D-2026-58.
+
+    So the note is required to acknowledge the dependence, and the verdict is
+    checked against the dispatch it was measured under rather than against a
+    remembered value.
+    """
     items = REGISTRY.by_id("rust-selective").open_items
-    documented_rejection = any("conductivity_power_law" in t for t in items)
+    note = next((t for t in items if "conductivity_power_law" in t), None)
+    assert note, "the rust element no longer carries a conductivity note"
+    assert "host" in note.lower() or "dispatch" in note.lower(), (
+        "the note states a verdict that depends on the host's SIMD dispatch "
+        "without saying so: " + note)
     if not RUST.rust_available():
         return          # nothing measured here; the note stands as recorded
-    verdicts = {k["kernel"]: k.get("adopted")
-                for k in RUST.status_report()["kernels"]}
-    assert documented_rejection == (verdicts["conductivity_power_law"]
-                                    is False)
+
+    report = RUST.status_report()
+    kernels = {k["kernel"]: k for k in report["kernels"]}
+    entry = kernels["conductivity_power_law"]
+    dispatch = report["numpy_dispatch"]
+    assert entry["numpy_dispatch"] == dispatch, \
+        "a verdict measured under a dispatch other than the one reported"
+    assert entry.get("verdict_is_dispatch_conditional") is True
+    # The relationship, not the value: AVX-512 is the configuration the
+    # committed note describes, and only there is REJECTED the expected
+    # answer. Anywhere else the kernel may legitimately be bit-identical.
+    if "X86_V4" in dispatch:
+        assert entry["adopted"] is False, (
+            "the note records a rejection under AVX-512 and this host, which "
+            f"has {dispatch}, adopted it")
+    assert isinstance(entry["adopted"], bool)
 
 
 # ------------------- §27: adoption truthfulness + RAG completeness ----------

@@ -6109,3 +6109,156 @@ each of the six legitimate dimensions, in the file that owns the validator.
 their sources; the result is `EQUIVALENT` as before. What changed is that the
 numbers now arrive with the dimension they were always supposed to carry, and
 three of them are no longer labelled with the wrong one.
+
+---
+
+## D-2026-53a — the test written to defend the finding committed the finding
+
+**CLASS** — `WRONG_SPECIFICATION` in a test: a host-dependent quantity
+asserted as a property, in the test defending the discovery that it is
+host-dependent.
+
+**DISCOVERED BY.** The hosted `full-suite` at `0358af0`, step 5. Not by me.
+
+**DEFECT.**
+
+```python
+assert np.all(raw < 0.0), "expected the Mode-C methane solve to be noise"
+...
+assert np.all(written == 0.0), "expected the clip to write exact zeros"
+```
+
+On a GitHub runner the same solve returns a **mixed-sign** profile — 18 of
+120 cells positive — so the clip leaves `+1.48e-03` and `+2.39e-04` in the
+file where this machine writes zeros, and both assertions fail.
+
+Which is D-2026-53, verbatim. The **sign of that noise is the
+host-dependent quantity**: it is the entire mechanism by which one machine's
+artefact says `0.0` and another's says `1.6e-02`. Two commits after writing
+that down, I pinned it in the test written to defend it.
+
+The finding survived. Everything that states the *property* passed on the
+runner untouched — `test_methane_in_mode_C_is_marked_below_what_the_solve_
+can_see` is not in the failure list, because the classification is
+`BELOW_RESOLUTION` in all 120 cells on both machines. Only the assertions
+that reached past the property to the digits broke, and they broke on the
+first machine that disagreed.
+
+**THE METHOD DEFECT UNDERNEATH.** This repository has a documented one-line
+way to reproduce a GitHub runner's arithmetic —
+
+```
+OPENBLAS_CORETYPE=Haswell NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+```
+
+— written down during R59 for exactly this purpose. I did not run the new
+tests under it before pushing, having just written a defect report about
+host-dependent numerics. Run now, it reproduces the runner exactly: raw min
+`-1.062372e+02`, max `+9.899635e-01`, 18 positive cells, and
+`max displacement 1.062372e+02` — the same figure the runner's own
+clip-provenance step printed.
+
+**REPAIR.** The test asserts what holds on both machines, which is also what
+the finding actually claims:
+
+* the integrator's answer lies entirely inside its own absolute tolerance;
+* it is not zero, so the published zero is the clip's and not the model's;
+* every written value is non-negative and below the floor;
+* every cell classifies `BELOW_RESOLUTION` whatever the signs were.
+
+`test_the_class_is_stable_where_the_digits_are_not` is new and states the
+guarantee directly, checked against **both** hosts' extremes — this machine's
+min and max, and the runner's `-3.86e-01`, `+1.48e-03`, `+9.97e-09` — so it
+cannot quietly become a statement about one host's arithmetic. The committed-
+artefact test no longer pins `"0.000000000e+00"` either: a regeneration on a
+different runner writes `+1.48e-03` in some of those cells and is equally
+correct, and what must hold of the committed file wherever it was produced is
+that every value is inside the floor that same file declares.
+
+Verified under the runner dispatch, not assumed.
+
+**WHAT THE SAME RUN ALSO CONFIRMED.** With step 5 red, `set -e` skipped the
+byte gate, so `outputs/` was never regenerated — and step 8 printed
+
+```
+SCOPE REFUSED: compared 0 files: no output in the other tree has a committed
+counterpart by name. 'no decision changed' would be a statement about an
+empty set.
+```
+
+The anti-vacuity guard in `cross_env_semantics.py` firing on real hardware,
+in the one situation it was written for, rather than reporting "0 decisions
+changed" over nothing. It was never a consequence anybody had observed
+before.
+
+And step 9, `tools/clip_provenance.py`, passed on that runner on its first
+outing: 11 clip sites observed, the same 2 moving, `inventory agrees with the
+measurement` — with element counts of 210412 and 4344 against this machine's
+981668 and 6352. The inventory compares `moves`, a boolean, and not the
+counts, which is why a host-dependent measurement reconciles against a
+host-independent judgement.
+
+---
+
+## D-2026-58 — which code runs was decided by the host's SIMD dispatch
+
+**CLASS** — `WRONG_SPECIFICATION`: a governed record stating a
+host-conditional measurement as a property of the thing measured, and a test
+pinning one host's answer.
+
+**DISCOVERED BY.** Running the full suite under the runner-emulating dispatch
+after D-2026-53a — the sweep that the earlier failure said should have
+happened before pushing. One failure in it was not mine and not the manifest:
+
+```
+tests/test_stage10_stack.py::test_rust_open_item_matches_the_measured_verdict
+E  assert True == (True is False)
+```
+
+**THE MEASUREMENT.** `rust_kernel.kernel_parity()` adopts a Rust kernel only
+if it is **bit-for-bit identical** to the NumPy reference — a strict rule, and
+the right one. But the reference side of that comparison is NumPy, and
+NumPy's `**` loop moves with the CPU:
+
+| NumPy SIMD in force | `conductivity_power_law` | max ulp | `backend_in_force` |
+|---|---|---|---|
+| `X86_V3+X86_V4` (AVX-512) | REJECTED | 2 | numpy |
+| `X86_V3` only | **ADOPTED** | **0** | **rust** |
+
+Same kernel, same seed, same 4096 test values, same code on both sides.
+`face_conductance` — pure division and addition — is bit-identical either
+way; `powf` is not.
+
+So the adoption verdict is a fact about **(kernel, host)** and was recorded as
+a fact about the kernel. `STACK.md` printed `| 2 | REJECTED | numpy |`,
+`stack.json` listed the rejection as an open item, and the test asserted it.
+On a host without AVX-512 all three are wrong, and `dispatch()` would hand a
+solver the Rust kernel instead of NumPy.
+
+This is R59 one level up. R59 is about a printed digit differing between
+hosts; this is about **which implementation runs** differing between hosts,
+decided by the same underlying fact.
+
+**SEVERITY, STATED HONESTLY.** Nothing turns on it today. `rust_kernel.py`'s
+own record says "no solver imports these kernels yet", and a sweep confirms
+it: outside the module and its tests, nothing references `dispatch()`,
+`parity_ok()` or the kernels. The live consequence was a test that fails on
+hardware this repository has not happened to run on — a latent CI failure
+driven by runner silicon, on code nobody had touched.
+
+**REPAIR.** The verdict carries the conditions of its own measurement, which
+is D-2026-53's rule applied to a decision instead of a number.
+`numpy_dispatch()` reports the SIMD extensions in force, and every parity
+record — including the unavailable and shape-mismatch branches — now carries
+`numpy_dispatch` and `verdict_is_dispatch_conditional`. `status_report()`
+states the conditionality in prose beside the verdicts.
+
+`STACK.md` and `stack.json` state both measurements rather than one. The test
+asks for the relationship: the note must acknowledge the dependence, the
+verdict must have been measured under the dispatch the report names, and
+`REJECTED` is required only where AVX-512 is actually in force. It passes
+under both dispatches now, checked under both rather than reasoned about.
+
+**WHAT IS NOT CHANGED.** The parity rule. "Bit-identical or not adopted" is
+the standard, and 2 ulp is still a rejection. The defect was never the rule;
+it was a record that read as though the rule had reached a permanent verdict.

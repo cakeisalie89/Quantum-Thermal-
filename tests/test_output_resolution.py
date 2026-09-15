@@ -140,14 +140,56 @@ def test_the_gas_solve_declares_its_own_floor(gas):
 
 
 def test_the_written_methane_zero_is_the_clip_not_the_model(gas):
-    # The measurement the defect rests on: what the integrator returned, and
-    # what reached the file.
+    """The measurement the defect rests on -- stated so that it survives it.
+
+    The first version of this test asserted ``np.all(raw < 0.0)`` and
+    ``np.all(written == 0.0)``, and a GitHub runner failed it: there the same
+    solve returns a MIXED-SIGN profile, and the clip leaves +1.48e-03 and
+    +2.39e-04 in the file where this machine writes zeros.
+
+    Which is D-2026-53, exactly. The sign of that noise is the host-dependent
+    quantity -- it IS the mechanism by which one machine's file says 0.0 and
+    another's says 1.6e-02 -- and pinning it asserted as a property the very
+    thing the finding says is not one. The same error the finding is about,
+    committed in the test written to defend it.
+
+    What is a property, and holds on both machines: the integrator's answer
+    lies entirely inside its own absolute tolerance, and it is not zero. That
+    is what makes the published zero the clip's and not the model's.
+    """
     _, gC = gas
     raw = gC.raw_profile_final("CH4")
     written = gC.profile_final("CH4")
-    assert np.all(raw < 0.0), "expected the Mode-C methane solve to be noise"
-    assert np.all(np.abs(raw) < FLOOR), "expected that noise to be sub-tolerance"
-    assert np.all(written == 0.0), "expected the clip to write exact zeros"
+    assert np.all(np.abs(raw) < FLOOR), \
+        "expected the Mode-C methane solve to be inside its own tolerance"
+    assert np.any(raw != 0.0), \
+        "expected a solve that produced SOMETHING, not an exact zero"
+    assert np.all(written >= 0.0) and np.all(written < FLOOR), \
+        "expected every written value to be non-negative and unresolved"
+    # And the part that does not depend on the host: whatever the signs were,
+    # every cell says the same thing about what the solve could see.
+    assert set(gC.resolution_profile("CH4")) == {BELOW_RESOLUTION}
+
+
+def test_the_class_is_stable_where_the_digits_are_not(gas):
+    """The property the whole mechanism exists to provide.
+
+    Two runners disagree about these numbers -- this one writes 0.000000000e+00
+    in all 120 Mode-C methane cells, a GitHub runner writes +1.48e-03 in some
+    of them. They must not disagree about the statement. Checked here against
+    BOTH the extremes this solve actually produced and the extremes the other
+    machine did, so the assertion does not quietly become a statement about
+    one host's arithmetic.
+    """
+    _, gC = gas
+    raw = gC.raw_profile_final("CH4")
+    observed = [float(raw.min()), float(raw.max())]
+    # Measured on a GitHub runner at 0358af0, where the first version of the
+    # test above failed. Different digits, different signs, same class.
+    elsewhere = [-3.86026463e-01, 1.48330210e-03, -3.76666109e-03,
+                 9.96682407e-09, 0.016]
+    for v in observed + elsewhere:
+        assert resolution_class(v, FLOOR) == BELOW_RESOLUTION, v
 
 
 def test_methane_in_mode_C_is_marked_below_what_the_solve_can_see(gas):
@@ -257,7 +299,12 @@ def test_the_committed_methane_column_is_stated_as_unresolved():
     # rather than drift.
     rows = _rows("gas_transport_profile.csv")
     assert {r["resolution_CH4_modeC"] for r in rows} == {BELOW_RESOLUTION}
-    assert {r["n_CH4_modeC_1m3"] for r in rows} == {"0.000000000e+00"}
+    # NOT pinned to "0.000000000e+00". The committed bytes are this host's;
+    # a regeneration on a runner whose dispatch differs writes +1.48e-03 in
+    # some of these cells and is equally correct. What must hold of the
+    # committed file, wherever it was produced, is that every value is inside
+    # the floor the same file declares.
+    assert all(abs(float(r["n_CH4_modeC_1m3"])) < FLOOR for r in rows)
     metrics = {r["species"]: r for r in _rows("gas_transport_metrics.csv")}
     assert metrics["CH4"]["residual_mode_D_resolution"] == BELOW_RESOLUTION
     assert metrics["CH4"]["cells_below_resolution_modeC"] == "120"

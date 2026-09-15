@@ -227,7 +227,7 @@
       "boundary": "the bit-parity ADMISSION RULE is adopted, exercised and verified; the Rust BACKEND is not in force anywhere. No solver, gate or canonical output imports qta_kernels: default_backend is numpy, the extension is off unless QTA_RUST_KERNELS=1, and the crate is neither built into the container nor present in uv.lock. There is no active Rust scientific backend in this repository.",
       "verification": "snakemake --cores 1 verification/stage10/rust/rust_kernel_status.json",
       "open_items": [
-        "conductivity_power_law is REJECTED: Rust powf and NumPy ** differ by up to 2 ulp, so the NumPy path stays in force",
+        "conductivity_power_law is REJECTED against a NumPy built with AVX-512 (2 ulp) and BIT-IDENTICAL, hence adopted, against one without it: the verdict and the backend dispatch() would select are conditional on the host's SIMD dispatch, which rust_kernel_status.json now records beside every verdict. NumPy stays in force here. D-2026-58",
         "no scientific path consumes the Rust kernels; adoption refers to the admission mechanism, not to an accelerated backend in use"
       ]
     },
