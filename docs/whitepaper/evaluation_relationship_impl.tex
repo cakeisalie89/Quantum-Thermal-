@@ -1,0 +1,43 @@
+\section{Relationship to deterministic simulation systems}
+
+Deterministic simulation, systematic schedule exploration, and reproducible fuzzing address an adjacent layer. They ask whether an execution can be reproduced, whether timing or scheduling choices can be explored, and whether rare failures can be made replayable.
+
+The Scientific AI Harness additionally asks what was canonical across many executions, what the agent merely saw or remembered, who had authority to change state, what evidence supported a claim, what became stale after upstream changes, and whether a genuinely separate reader can reconstruct the authoritative history after the original agent process is gone.
+
+The approaches are complementary. Deterministic execution can strengthen the worker layer; event-sourced authority and evidence governance address the history spanning many worker executions.
+
+\section{Implementation map and current boundaries}
+
+\begin{longtable}{@{}p{0.31\linewidth}p{0.63\linewidth}@{}}
+\toprule
+Concern & Reference implementation \\
+\midrule
+\endfirsthead
+\toprule
+Concern & Reference implementation \\
+\midrule
+\endhead
+Canonical bytes & \code{qta\_agent/canonical.py}\\
+Confined I/O & \code{safeio.py}, \code{readpath.py}\\
+Durable history & \code{events.py}\\
+Authority transitions & \code{authority.py}\\
+Evidence & \code{evidence.py}\\
+Capabilities & \code{capability.py}\\
+Execution / tools & \code{execution.py}, \code{tools.py}\\
+Policy & \code{policy.py}\\
+Network / secrets & \code{netauth.py}, \code{secrets.py}\\
+Projection / invalidation & \code{store.py}, \code{invalidation.py}\\
+Independent reconstruction & \code{reconstruct.py}, \code{separate\_verify.py}\\
+Durable work & \code{tasks.py}, \code{scheduler.py}, \code{hostid.py}, \code{idempotency.py}\\
+Memory / context & \code{memory.py}, \code{context.py}\\
+Multi-agent roles & \code{agents.py}\\
+Audit & \code{audit.py}, \code{tools/audit\_log.py}\\
+Governed production integration & \code{governed\_stage10.py}\\
+Requirement accounting & \code{docs/completion\_matrix.json}\\
+Defect accounting & \code{docs/DEFECT\_LEDGER.md}\\
+Verifier self-testing & \code{tools/mutation\_matrix.py}, \code{tools/mutations/}, hostile/fuzz/long-horizon test suites\\
+\bottomrule
+\end{longtable}
+
+The implementation map is not a claim that every trust problem is solved. Current structural boundaries include external identity independence, OS-level containment equivalence, heterogeneous numerical equivalence contracts, event-schema evolution, and the possibility of shared misunderstandings across nominally independent readers.
+
