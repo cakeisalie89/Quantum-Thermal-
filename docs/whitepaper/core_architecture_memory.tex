@@ -1,0 +1,86 @@
+\section{Architecture}
+
+The architecture separates cognition from governed authority and from scientific execution. The scientific workload can change without redefining what authority means.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw=line, fill=panel, rounded corners, align=center, text width=3.05cm, minimum width=3.35cm, minimum height=0.95cm},
+  strong/.style={draw=accent!70, fill=accent!5, rounded corners, align=center, minimum height=0.95cm},
+  flow/.style={-{Latex[length=2.2mm]}, thick, draw=muted},
+  data/.style={-{Latex[length=2mm]}, dashed, thick, draw=accent!70}
+]
+\node[box, text width=5.0cm, minimum width=5.2cm] (agent) {AI agent / human operator\\\small proposal, planning, interpretation};
+\node[strong, below=0.7cm of agent, minimum width=13.6cm, minimum height=4.55cm] (harness) {};
+\node[anchor=north west, font=\bfseries\color{ink}] at ($(harness.north west)+(0.25,-0.18)$) {Governed harness};
+
+\node[box, minimum width=3.3cm] (ctx) at ($(harness.center)+(-4.4,1.0)$) {Context view\\Memory lifecycle};
+\node[box, minimum width=3.3cm] (pol) at ($(harness.center)+(0,1.0)$) {Policy + capabilities\\Scheduler + leases};
+\node[box, minimum width=3.3cm] (ev) at ($(harness.center)+(4.4,1.0)$) {Append-only event log\\Live projection};
+\node[box, minimum width=3.3cm] (evi) at ($(harness.center)+(-4.4,-1.05)$) {Content-addressed\\evidence};
+\node[box, minimum width=3.3cm] (auth) at ($(harness.center)+(0,-1.05)$) {Authority state machine\\Dependency invalidation};
+\node[box, minimum width=3.3cm] (recon) at ($(harness.center)+(4.4,-1.05)$) {Independent reconstruction\\Audit / provenance};
+
+\node[box, text width=7.9cm, minimum width=8.2cm, below=0.72cm of harness] (science) {Scientific tools and workflows\\\small solvers, data products, optimization, sensitivity, visualization};
+
+\draw[flow] (agent) -- node[right, font=\scriptsize\color{muted}] {request} (harness.north);
+\draw[flow] (harness.south) -- node[right, font=\scriptsize\color{muted}] {bounded execution} (science);
+\draw[data] (science.west) to[bend right=28] node[left, font=\scriptsize\color{accent}] {artifacts + records} (evi.south);
+\draw[data] (ev.south) -- (recon.north);
+\draw[data] (evi.east) -- (auth.west);
+\draw[data] (auth.east) -- (recon.west);
+\draw[data] (pol.east) -- (ev.west);
+\draw[data] (ctx.east) -- (pol.west);
+\end{tikzpicture}
+\caption{Three-layer architecture. The model is a participant in the process, not the system of record.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Durable history and canonical representation}
+\code{qta\_agent/events.py} implements append-only, hash-chained history; \code{canonical.py} defines a canonical byte representation for records. The design intent is simple: a lost in-memory projection costs time, not authority. State can be rebuilt from durable history.
+
+\subsection{Live projection and authority transitions}
+\code{store.py} maintains the current projection. \code{authority.py} defines explicit transition rules instead of allowing arbitrary state mutation. Core invariants include:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{0.30\linewidth}X@{}}
+\toprule
+Invariant & Meaning \\
+\midrule
+Promotion requires verification & A proposed record cannot become canonical merely because it exists.\\
+Revoked/rejected is terminal & Withdrawn authority is not silently resurrected; recovery creates a new record.\\
+Stale cannot jump to promoted & Changed dependencies require renewed verification.\\
+Proposer and verifier differ & Self-verification is refused at the authority layer.\\
+Policy cannot retroactively bless & Later policy does not rewrite the legitimacy of an earlier decision.\\
+Evidence must resolve & A syntactically valid digest is insufficient if matching bytes do not exist.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Evidence and invalidation}
+\code{evidence.py} stores evidence by content digest and re-hashes reads rather than trusting path layout. \code{invalidation.py} propagates the consequences of changed dependencies so stale authority is represented explicitly.
+
+\section{Memory, context, evidence, and authority}
+
+Agent systems often collapse several concepts into a single ``memory'' store. This harness keeps them structurally separate because their trust semantics differ.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}p{0.16\linewidth}p{0.27\linewidth}X@{}}
+\toprule
+Object & What it represents & What it does \emph{not} imply \\
+\midrule
+Context & What an agent was shown for a decision & That the displayed material is true or canonical\\
+Memory & Durable remembered state reconstructed from lifecycle events & That a remembered statement is scientific evidence\\
+Evidence & Byte-addressed material that resolves to a digest & That the scientific interpretation is correct\\
+Authority & Whether a record is canonical under history, policy, and evidence & That the underlying scientific model has been experimentally validated\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\code{context.py} records what was presented to an agent. \code{memory.py} gives remembered objects durable identities and lifecycle transitions. Retraction is meaningful: replay must not let a later forged event resurrect a terminally retracted memory by trusting payload state. This makes context compaction survivable because the authoritative history and memory projection live outside the model context.
+
