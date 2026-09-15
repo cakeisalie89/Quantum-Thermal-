@@ -3081,8 +3081,8 @@
     },
     {
       "filename": "tests/test_agent_substrate_isolation.py",
-      "size_bytes": 33260,
-      "sha256": "65a7e6f95ce9756701b7d9daf452c20459f667f939a2f375db3f930735ad1d95",
+      "size_bytes": 35354,
+      "sha256": "e12afc0d7dc029882f82e23c90712ddf6a2ec89dd1af0bd92f8c10b16ed9e334",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "83c000f27388585181f1f8a01d3959e9ab4168932fd70c5055bfbd5d76c3ffd1",
+      "sha256": "1cf07f9f6f6c0a9516002eda58103ef76279098d143380c6bd205288a12432b8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 308751,
-      "sha256": "0273a485928ec91f92e4b8a2f8f737d0748980691646193101b26453f9f79861",
+      "size_bytes": 310109,
+      "sha256": "46795c245cc69e0fae6a0163e6f93a08675d4f224947e99e8b1adc75e4dae428",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

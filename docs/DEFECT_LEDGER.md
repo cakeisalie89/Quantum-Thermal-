@@ -5450,12 +5450,40 @@ dead — classified as such rather than counted as a second find. Only
 `_N_OMEGA` is unavailable above, so the local import now asks for that
 alone, and the sweep is clean.
 
+**AND THE FIRST REPAIR COMMITTED THE SAME DEFECT.** The test as first
+written shelled out to `ruff --select F811`. It went red on
+`second-interpreter (3.13)` within the hour:
+
+```
+FileNotFoundError: [Errno 2] No such file or directory: 'ruff'
+```
+
+That job builds a bare environment — numpy and scipy, nothing else — so the
+tool was absent and the rule simply stopped being enforced there. The
+obvious fix, skipping when `ruff` is missing, would have been this entry's
+own defect in different clothes: a check whose scope follows the environment
+instead of the property, silently covering less than it claims.
+
+So the sweep is stdlib-only, `ast` over the tree, and runs on every
+interpreter the suite runs on. Verified by running it with `ruff`
+unreachable on `PATH`, which is the failing condition reproduced rather than
+argued about. CI still runs `ruff check --select F811 .` as a separate step:
+two independent implementations, neither depending on the other, one of them
+broader and one of them always present.
+
 **ANTI-VACUITY.** A sweep that quietly stopped covering the tree it was
 added for would pass forever.
 `test_the_F811_sweep_is_actually_looking_at_the_scientific_tree` plants a
 shadowed definition inside `qta_multiphysics/` and requires the same
 invocation to report it, then removes it — the scope is demonstrated rather
 than trusted to a path list, which is the failure this entry is about.
+
+The other half is checked too:
+`test_the_sweep_ignores_the_trees_it_does_not_own` plants the same probe in
+`.venv/` and `attic/` and requires the sweep NOT to report it. A rule that
+policed code this repository did not write and cannot fix would be
+unkeepable, and would be turned off — which is how a rule stops protecting
+anything.
 
 ## HOSTED EVIDENCE — the first complete `agent-substrate` run
 

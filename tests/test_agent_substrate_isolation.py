@@ -634,54 +634,102 @@ def test_every_io_layer_entry_names_a_module_that_exists():
 
 # ---- D-2026-43: a definition that is never reached ------------------------
 
+#: Directories the tree-wide scan does not own: the virtualenv, the git
+#: store, the retired tree, generated outputs, and the quarantine a mutation
+#: run writes into.
+_NOT_OURS = {".venv", ".git", "attic", "outputs", "node_modules",
+             ".mutation-quarantine", "__pycache__"}
+
+
+def _shadowed_definitions(root):
+    """Every name defined twice in one scope, as (path, name, first, second).
+
+    Stdlib only, deliberately. The first version of this shelled out to
+    `ruff --select F811` and died on the Python 3.13 job, which builds a
+    bare environment with numpy and scipy and nothing else -- so the rule
+    stopped being enforced exactly where the environment happened not to
+    carry the tool. That is the defect D-2026-52 is about wearing different
+    clothes: a check whose scope follows the environment instead of the
+    property. CI still runs ruff's F811 over the tree as an independent
+    second opinion; this one runs everywhere.
+    """
+    out = []
+    for path in sorted(Path(root).rglob("*.py")):
+        if any(part in _NOT_OURS for part in path.parts):
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue          # a fixture that is meant to be unparseable
+        scopes = [tree] + [n for n in ast.walk(tree)
+                           if isinstance(n, ast.ClassDef)]
+        for scope in scopes:
+            seen = {}
+            for node in scope.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                     ast.ClassDef)):
+                    if node.name in seen:
+                        out.append((str(path.relative_to(root)), node.name,
+                                    seen[node.name], node.lineno))
+                    seen[node.name] = node.lineno
+    return out
+
+
 def test_no_definition_ANYWHERE_is_silently_shadowed():
-    """The same rule as the test below, over the whole repository, and by the
-    tool that already implements it.
+    """The rule of the test below, over the whole repository.
 
-    The scan below was written for `qta_agent/` after D-2026-43 and is a
-    narrower re-implementation of ruff's F811. While it guarded the
-    substrate, `qta_multiphysics/deep_expdesign/runner.py` carried two
-    definitions of `run_deep_expdesign_full` -- 176 lines and 213 lines,
-    DIVERGED, the first dead because Python keeps the last. Ruff had been
-    reporting it the whole time; CI lints a named list of paths and that
-    package is not on it, so nothing read the finding.
+    That scan was written for `qta_agent/` after D-2026-43 and pointed at
+    one package. While it guarded the substrate,
+    `qta_multiphysics/deep_expdesign/runner.py` carried two definitions of
+    `run_deep_expdesign_full` -- 176 lines and 213, DIVERGED, the first dead
+    because Python keeps the last. Ruff had been reporting it as F811 the
+    whole time; CI lints a named list of paths and that package is not on
+    it, so nothing read the finding.
 
-    Running one rule over everything is the closure. The rest of ruff cannot
-    be enabled here -- the legacy scientific tree carries some 1400 findings,
-    overwhelmingly E501 -- but F811 is precisely "a name defined twice, the
-    first is dead, and nothing says so".
+    A rule scoped to a list protects the list, not the property.
     """
-    import subprocess
     root = Path(__file__).resolve().parent.parent
-    proc = subprocess.run(
-        ["ruff", "check", "--select", "F811", "--output-format=concise", "."],
-        cwd=root, capture_output=True, text=True)
-    findings = [ln for ln in proc.stdout.splitlines() if ": F811 " in ln]
-    assert not findings, "shadowed definitions:\n" + "\n".join(findings)
+    found = _shadowed_definitions(root)
+    assert not found, "shadowed definitions:\n" + "\n".join(
+        f"  {p}: {n} at lines {a} and {b}" for p, n, a, b in found)
 
 
-def test_the_F811_sweep_is_actually_looking_at_the_scientific_tree(tmp_path):
-    """The control. A sweep that silently excluded the tree it was added for
-    would pass the test above forever.
+def test_the_sweep_is_actually_looking_at_the_scientific_tree(tmp_path):
+    """The control. A sweep that quietly stopped covering the tree it was
+    added for would pass the test above forever.
 
-    Rather than trust the path list, plant a shadowed definition in a real
-    package directory and require the same invocation to find it.
+    Rather than trust the directory walk, plant a shadowed definition inside
+    a real package and require the same function to report it.
     """
-    import subprocess
     root = Path(__file__).resolve().parent.parent
-    planted = root / "qta_multiphysics" / "_f811_sweep_probe.py"
+    planted = root / "qta_multiphysics" / "_shadow_sweep_probe.py"
     planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
                        encoding="utf-8")
     try:
-        proc = subprocess.run(
-            ["ruff", "check", "--select", "F811",
-             "--output-format=concise", "."],
-            cwd=root, capture_output=True, text=True)
-        assert "_f811_sweep_probe" in proc.stdout, (
+        found = _shadowed_definitions(root)
+        assert any("_shadow_sweep_probe" in p for p, *_ in found), (
             "the sweep did not see a shadowed definition planted inside "
-            f"qta_multiphysics/: {proc.stdout[:400]}")
+            f"qta_multiphysics/: {found}")
     finally:
         planted.unlink()
+
+
+def test_the_sweep_ignores_the_trees_it_does_not_own(tmp_path):
+    """And the other half: it must not police the virtualenv or the attic,
+    or it would fail on code this repository did not write and cannot fix."""
+    root = Path(__file__).resolve().parent.parent
+    for skipped in (".venv", "attic"):
+        probe = root / skipped / "_shadow_sweep_probe.py"
+        if not probe.parent.is_dir():
+            continue
+        probe.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
+                         encoding="utf-8")
+        try:
+            found = _shadowed_definitions(root)
+            assert not any("_shadow_sweep_probe" in p for p, *_ in found), (
+                f"the sweep reached into {skipped}/, which it does not own")
+        finally:
+            probe.unlink()
 
 
 def test_no_definition_in_the_substrate_is_silently_shadowed():
