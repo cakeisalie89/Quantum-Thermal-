@@ -1,0 +1,43 @@
+\begin{document}
+\hypersetup{pageanchor=false}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\vspace*{0.55in}
+{\Huge\bfseries\color{ink} Scientific AI Harness\par}
+\vspace{0.18in}
+{\LARGE\color{muted} A Governed, Replayable Execution and Evidence Substrate\\for Long-Horizon Scientific Agents\par}
+\vspace{0.45in}
+
+\statusbox{\textbf{Document type:} software architecture white paper. \textbf{Reference implementation:} \code{qta\_agent/}. \textbf{Scientific case study:} Quantum Thermal Architecture (QTA). \textbf{Scientific boundary:} MODEL\_ONLY / FORECAST\_ONLY / PRE\_EXPERIMENTAL; physical \code{PASS = 0}. Harness verification has \code{automatic\_gate\_effect = NONE}.}
+
+\vspace{0.28in}
+\thesisbox{A scientific agent may influence authoritative state; it should not become authoritative merely because it produced a plausible account of what happened.}
+
+\vfill
+\begin{tabular}{@{}ll@{}}
+\textbf{Repository} & \href{https://github.com/cakeisalie89/Quantum-Thermal-}{github.com/cakeisalie89/Quantum-Thermal-}\\
+\textbf{Reference branch} & \code{claude/scientific-python-stack-7rsq3m} / PR \#17 lineage\\
+\textbf{Publication branch} & \code{docs/scientific-ai-harness-whitepaper}\\
+\textbf{Author} & cakeisalie89\\
+\textbf{Date} & 15 September 2026\\
+\end{tabular}
+
+\vspace{0.25in}
+{\small\color{muted}This paper describes a software trust and execution architecture. It does not claim experimental validation of QTA, a digital twin, external-solver equivalence, autonomous scientific truth, AGI, or recursive self-improvement. Run-specific software evidence is commit-scoped and should be read from the repository's CI records and defect ledger.}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+\pagenumbering{roman}
+
+\begin{abstract}
+AI agents can now write scientific code, invoke solvers, retain memory, coordinate work, modify assumptions, and operate for long sequences of actions. Those capabilities do not make the resulting scientific process trustworthy. Model context is transient; agent-reported state is self-authored; evidence can become stale after upstream changes; execution can be environment-dependent; and a process that both produces and certifies a result collapses computation and verification into the same authority domain.
+
+This paper presents the \textbf{Scientific AI Harness}, an external execution, state, evidence, memory, policy, and verification substrate for long-horizon scientific agents. The central design decision is that the model is \textbf{not the system of record}. Durable history is append-only and hash-chained; current state is reconstructed from that history; evidence is content-addressed and re-hashed on read; memory, context, evidence, and authority are distinct objects; proposal, execution, verification, and promotion are separate operations; and side effects require explicit capabilities instead of ambient process privilege. A second implementation independently reconstructs governed state so the primary reader is not the only component capable of judging its own history.
+
+The verifier is treated as an attack surface. Mutation testing, property-based testing, hostile replay, fuzzing, crash recovery, long-horizon campaigns, differential reconstruction, and cross-environment CI are used to ask whether weakening an enforcement point would actually be detected. The architecture grew out of QTA, a difficult cryogenic multiphysics project whose strict claim boundaries exposed a more general problem: long-running scientific automation needs an authority layer outside itself. QTA remains forecast-only with zero physical PASS gates and is used here as a stress workload, not as evidence that the harness can establish scientific truth.
+\end{abstract}
+
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
