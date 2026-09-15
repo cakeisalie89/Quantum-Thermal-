@@ -84,6 +84,79 @@ def missing_jobs(text: str | None = None) -> tuple:
         if not re.search(rf"^  {re.escape(name)}:\s*$", body, re.MULTILINE)))
 
 
+def _run_commands(body: str) -> list:
+    """Every line a workflow will actually EXECUTE, and nothing else.
+
+    A first version of this scanned the whole file, and immediately reported
+    two groups that do not exist -- both of them quoted inside COMMENTS
+    explaining the defect it was written for. Matching the text of a file is
+    not the same as matching what the file runs, which is the proxy error
+    this repository keeps finding in its own instruments.
+
+    So: ``run: <cmd>`` on one line, and the indented block under ``run: |``,
+    with comment lines dropped. A ``#`` inside a quoted shell string would be
+    dropped too; no command here has one, and the alternative is a shell
+    parser.
+    """
+    out, block_indent = [], None
+    for line in body.splitlines():
+        stripped = line.strip()
+        if block_indent is not None:
+            indent = len(line) - len(line.lstrip())
+            if stripped and indent < block_indent:
+                block_indent = None
+            elif not stripped.startswith("#"):
+                out.append(stripped)
+                continue
+        m = re.match(r"^(\s*)-?\s*run:\s*(\|.*)?$", line)
+        if m and m.group(2):
+            block_indent = len(m.group(1)) + 1
+            continue
+        m = re.match(r"^\s*-?\s*run:\s+(\S.*)$", line)
+        if m:
+            block_indent = None
+            out.append(m.group(1).strip())
+    return out
+
+
+def undefined_dependency_groups() -> tuple:
+    """`--group NAME` in a command a workflow runs, where NAME is not a group.
+
+    THE TRAP THIS CLOSES. The dispatch-sensitivity job shipped with
+    ``uv sync --frozen --group stack``. There is no ``stack`` group -- the
+    project defines ``dev`` and ``workflow`` -- and uv refused in one second
+    with "Group `stack` is not defined in the project's `dependency-groups`
+    table", taking the whole job with it on its first run.
+
+    Nothing local could have caught it. A local run reuses an already-synced
+    ``.venv`` and never executes the sync line at all, so the command was
+    written, reviewed by eye, and first executed on a hosted runner. Reading
+    what the sibling jobs use would have found it; so does this, and this does
+    not depend on anyone remembering to look.
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:                     # pragma: no cover
+        return ()
+    with open(ROOT / "pyproject.toml", "rb") as fh:
+        groups = set(tomllib.load(fh).get("dependency-groups", {}))
+    if not groups:
+        return ("pyproject.toml defines no dependency-groups; a --group "
+                "check against an empty set would pass everything",)
+    bad, scanned = [], 0
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for cmd in _run_commands(wf.read_text(encoding="utf-8")):
+            scanned += 1
+            for name in re.findall(r"--group[= ]\s*([A-Za-z0-9_.-]+)", cmd):
+                if name not in groups:
+                    bad.append(f"{wf.name}: --group {name} in {cmd!r} "
+                               f"(defined: {sorted(groups)})")
+    if not scanned:
+        return ("no run: command was found in any workflow; a --group check "
+                "over nothing would pass everything",)
+    return tuple(sorted(set(bad)))
+
+
 def missing_commands(text: str | None = None) -> tuple:
     body = _text() if text is None else text
     flat = " ".join(body.split())
@@ -150,6 +223,8 @@ def problems() -> tuple:
     body = _text()
     out = []
     out += [f"missing job -- {x}" for x in missing_jobs(body)]
+    out += [f"undefined dependency group -- {x}"
+            for x in undefined_dependency_groups()]
     out += [f"missing command -- {x}" for x in missing_commands(body)]
     out += [f"mutation spec never runs in CI -- {x}"
             for x in unrun_mutation_specs(body)]
@@ -166,7 +241,7 @@ def main() -> int:
         # count of the REQUIRED set -- the workflow may hold more. Saying
         # which is the same repair as D-2026-54's.
         print(f"workflow contract holds: {len(REQUIRED_JOBS)} required jobs "
-              f"all present, "
+              f"all present, every --group defined, "
               f"{len(REQUIRED_COMMANDS)} commands, {specs} mutation specs "
               "all wired in, every action pinned")
         return 0

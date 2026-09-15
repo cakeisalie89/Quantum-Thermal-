@@ -600,7 +600,14 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
       - name: sync environment
-        run: uv sync --frozen --group stack
+        # --all-groups, as every sibling job uses. `--group stack` was
+        # invented rather than copied and is not a group at all: pyproject
+        # defines `dev` and `workflow`, and uv refused in one second with
+        # "Group `stack` is not defined". It never showed locally because a
+        # local run reuses an already-synced .venv and never executes this
+        # line. tools/workflow_contract.py now checks that every --group a
+        # workflow names actually exists.
+        run: uv sync --frozen --all-groups
       - name: the dispatch this job is here to exercise
         # Reports, gates nothing -- but a job whose whole purpose is a
         # different dispatch must show that it got one, or a silently

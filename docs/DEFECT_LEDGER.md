@@ -6262,3 +6262,77 @@ under both dispatches now, checked under both rather than reasoned about.
 **WHAT IS NOT CHANGED.** The parity rule. "Bit-identical or not adopted" is
 the standard, and 2 ulp is still a rejection. The defect was never the rule;
 it was a record that read as though the rule had reached a permanent verdict.
+
+---
+
+## D-2026-53a, caught a second time — and the harness refused rather than scored
+
+`agent-substrate` at `463b4e8` ran **50 steps green over 3h 46m** and failed
+at step 51, the new `output_resolution.json` matrix, after seven seconds:
+
+```
+16 mutations over 3 suite(s)
+
+BASELINE RED -- mutation results would be meaningless.
+Every mutation would 'fail the suite' for this pre-existing
+reason and the report would read as a perfect score:
+['test_the_written_methane_zero_is_the_clip_not_the_model']
+```
+
+The same defect as D-2026-53a — the test that pinned the sign of the Mode-C
+methane noise — found by a second, independent instrument on the same
+hardware, in a different job.
+
+Worth recording for what the harness did rather than for what broke. A
+mutation runner that did not check its baseline would have run all sixteen
+mutations against an already-red suite, observed every one of them "fail the
+suite", and printed **16/16 killed** — a perfect score meaning nothing. It
+refused instead, named the test, and said why the number would have been
+worthless. Already fixed at `c1bd8ea`; nothing to repair here.
+
+---
+
+## D-2026-59 — a sync command that names a group the project does not have
+
+**CLASS** — `TRUE_DEFECT` in CI configuration, invisible to every local run
+by construction.
+
+**DISCOVERED BY.** `dispatch-sensitivity` at `c1bd8ea`, on the job's first
+outing. It failed in **one second**, at step 4 of 6:
+
+```
+error: Group `stack` is not defined in the project's `dependency-groups` table
+```
+
+**DEFECT.** I wrote `uv sync --frozen --group stack`. There is no `stack`
+group: `pyproject.toml` defines `dev` and `workflow`, and every sibling job
+in the same file uses `--all-groups`. The command was invented rather than
+copied from the four jobs directly above it.
+
+**WHY NOTHING LOCAL COULD HAVE CAUGHT IT.** A local run reuses an
+already-synced `.venv` and never executes a sync line at all. The command was
+written, read back, committed, and **first executed on a hosted runner** —
+so no amount of local verification, including the two full-suite runs under
+two dispatches that preceded the push, could have touched it. That is the
+shape of the defect, not an excuse for it: reading the sibling jobs would
+have found it in seconds.
+
+The job's own dispatch guard never ran — `set -e` stopped at the sync — so
+the one step that asserts "this job really got a different dispatch" was
+skipped. Correct ordering; worth noting that a green guard is not what made
+this visible.
+
+**REPAIR.** `--all-groups`, matching every sibling. And
+`tools/workflow_contract.py` now refuses any `--group NAME` in a command a
+workflow runs where `NAME` is not in `dependency-groups`, with the empty-set
+and no-commands-found cases as refusals of their own.
+
+**AND THE FIRST VERSION OF THAT CHECK WAS THE PROXY ERROR AGAIN.** Scanning
+the whole file for `--group \w+`, it immediately reported two undefined
+groups — both of them quoted inside the **comments** explaining this very
+defect. Matching the text of a file is not matching what the file runs.
+`_run_commands()` now extracts `run:` values, one-line and block form, drops
+comment lines, and reports how many commands it scanned (323) so a parser
+that silently found nothing cannot pass everything. Verified by planting a
+bad group in a real `run:` line and requiring the refusal, with the clean
+tree as the control.
