@@ -13,7 +13,7 @@ import pytest
 
 from tools.cross_env_semantics import (
     DECISION, PRECISION, SIGN_FLIP, ZERO_CROSSING, ScopeError, check_scope,
-    classify, compare,
+    classify, compare, declares_resolution,
 )
 
 
@@ -211,3 +211,94 @@ def test_exempting_a_file_is_the_only_reason_it_is_skipped(tmp_path):
     report = compare(tmp_path / "other", tmp_path / "committed",
                      exempt=frozenset())
     assert report["counts"][DECISION] == 1
+
+
+# --- does the artefact already say the zero is unresolved? ----------------
+#
+# The ZERO_CROSSING message used to say, of every crossing, that a published
+# 0.000000000e+00 "states that the model determined the quantity to be
+# exactly nothing". Since D-2026-53 the transport outputs publish the zero
+# BESIDE a resolution class that says the opposite, and an instrument that
+# kept asserting the old sentence would be overstating what the artefact
+# claims -- the defect class it exists to find.
+
+import pathlib as _pathlib                                        # noqa: E402
+
+_ROOT = _pathlib.Path(__file__).resolve().parents[1]
+
+
+def test_a_wide_table_declares_by_column(tmp_path):
+    p = tmp_path / "wide.csv"
+    p.write_text("x_m,n_CH4_1m3,resolution_CH4\n0.1,0.0,BELOW_RESOLUTION\n")
+    assert declares_resolution(p) is True
+
+
+def test_a_long_table_declares_by_row(tmp_path):
+    """The case a header-only check got wrong.
+
+    coupled_mode_recovery_metrics.csv is a metric/value table -- the PER_ROW
+    shape D-2026-57 had to name -- and its declaration is a ROW:
+    ``Mode_D_residual_CH4_resolution, BELOW_RESOLUTION``. Reading only the
+    header called that file bare while it was declaring, which is the same
+    proxy error in a checker written to report on proxies.
+    """
+    p = tmp_path / "long.csv"
+    p.write_text("metric,value\n"
+                 "Mode_D_residual_CH4_density_m3,0.0\n"
+                 "Mode_D_residual_CH4_resolution,BELOW_RESOLUTION\n")
+    assert declares_resolution(p) is True
+
+
+def test_a_file_that_declares_nothing_is_bare(tmp_path):
+    p = tmp_path / "bare.csv"
+    p.write_text("metric,value\nresidual,0.0\n")
+    assert declares_resolution(p) is False
+    q = tmp_path / "bare.json"
+    q.write_text(json.dumps({"metrics": {"residual": 0.0}}))
+    assert declares_resolution(q) is False
+
+
+def test_json_declares_by_key(tmp_path):
+    p = tmp_path / "d.json"
+    p.write_text(json.dumps({"metrics": {"r": 0.0, "r_resolution": "X"}}))
+    assert declares_resolution(p) is True
+
+
+def test_an_empty_or_unreadable_file_is_not_a_declaration(tmp_path):
+    p = tmp_path / "empty.csv"
+    p.write_text("")
+    assert declares_resolution(p) is False
+    assert declares_resolution(tmp_path / "missing.csv") is False
+
+
+def test_the_committed_transport_outputs_declare():
+    """The real artefacts, not fixtures. Both shapes, both declaring."""
+    for name in ("gas_transport_profile.csv",          # wide: a column
+                 "gas_transport_metrics.csv",
+                 "surface_coverage_profile.csv",
+                 "coupled_mode_recovery_metrics.csv",  # long: a row
+                 "coupled_mode_state_summary.json"):
+        assert declares_resolution(_ROOT / name) is True, name
+    # ... and the control: a governed output that does not, so the split the
+    # report prints is a real division and not a label everything carries.
+    assert declares_resolution(_ROOT / "tau_c_sweep.csv") is False
+
+
+def test_every_finding_records_whether_its_file_declares(tmp_path):
+    _tree(tmp_path / "committed", "x.csv", "metric,value\nr,0.0\n")
+    _tree(tmp_path / "other", "x.csv", "metric,value\nr,1e-9\n")
+    report = compare(tmp_path / "other", tmp_path / "committed",
+                     exempt=frozenset())
+    assert report["counts"][ZERO_CROSSING] == 1
+    f = next(f for f in report["findings"] if f["class"] == ZERO_CROSSING)
+    assert f["file_declares_resolution"] is False
+
+    _tree(tmp_path / "c2", "x.csv",
+          "metric,value\nr,0.0\nr_resolution,BELOW_RESOLUTION\n")
+    _tree(tmp_path / "o2", "x.csv",
+          "metric,value\nr,1e-9\nr_resolution,BELOW_RESOLUTION\n")
+    report = compare(tmp_path / "o2", tmp_path / "c2", exempt=frozenset())
+    f = next(f for f in report["findings"] if f["class"] == ZERO_CROSSING)
+    assert f["file_declares_resolution"] is True
+    # The class agreeing is what keeps this out of DECISION.
+    assert report["counts"][DECISION] == 0

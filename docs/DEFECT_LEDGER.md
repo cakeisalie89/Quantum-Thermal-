@@ -6336,3 +6336,66 @@ comment lines, and reports how many commands it scanned (323) so a parser
 that silently found nothing cannot pass everything. Verified by planting a
 bad group in a real `run:` line and requiring the refusal, with the clean
 tree as the control.
+
+---
+
+## HOSTED EVIDENCE — the resolution class is stable where the digits are not
+
+`full-suite` at `c1bd8ea`, step 8, on a GitHub runner, with the byte gate
+having regenerated the canonical tree first so the comparison was real:
+
+```
+DECISION          0
+ZERO_CROSSING    28
+SIGN_FLIP         0
+PRECISION       179   largest relative difference 3.279e-01
+
+  gas_transport_profile.csv [r102c1]: 0.000000000e+00 -> 1.561645593e-02
+  gas_transport_profile.csv [r116c1]: 0.000000000e+00 -> 1.483302101e-03
+  gas_transport_metrics.csv [r1c3]:   0.0 -> 3.999936115734321e-09
+  coupled_mode_state_summary.json
+      [.metrics.Mode_D_residual_CH4_density_m3]: 0.0 -> 3.999936115734321e-09
+
+No decision-bearing token differs between the two environments.
+```
+
+That `1.561645593e-02` is D-2026-53's `1.6e-02`, reproduced on hosted
+hardware at the commit that closed it. `Mode_D_residual_CH4_density_m3` is
+the contamination claim itself: `0.0` on the committed side, `4.0e-09` on the
+runner's.
+
+**And the resolution columns do not appear in the list.** They are
+non-numeric tokens; had a single cell classified differently between the two
+machines it would have been a DECISION and the gate would have refused.
+Twenty-eight numbers moved, some by sixteen orders of magnitude, and every
+statement about what the solve could see stayed put. That is the guarantee
+D-2026-53 was built to provide, measured rather than argued.
+
+Step 5 — the full pytest suite — was **green** on that runner, which is
+D-2026-53a confirmed repaired on the hardware that found it. Step 9,
+`clip_provenance.py`, passed in 4m22s with the same two moving clip sites and
+host-dependent counts (210412 and 4344 against this machine's 981668 and
+6352). Step 7 is the standing R59 byte gate, red as always and already
+reported.
+
+**THE COMPARATOR WAS OVERSTATING, AND THEN MY FIX FOR IT WAS A PROXY.** Its
+ZERO_CROSSING message said, of every crossing, that a published
+`0.000000000e+00` "states that the model determined the quantity to be
+exactly nothing". True when written; false since D-2026-53 for exactly the
+files this repository just fixed, which publish the zero beside
+`BELOW_RESOLUTION` — the opposite claim. An instrument that keeps asserting
+it overstates what the artefact says, which is the class it exists to find.
+
+`declares_resolution()` now reads the artefact and splits the report into
+DECLARED and BARE. The first version read **only the CSV header**, and
+immediately called `coupled_mode_recovery_metrics.csv` BARE while that file
+declares `Mode_D_residual_CH4_resolution, BELOW_RESOLUTION` on a row of its
+own. It is a metric/value table — the PER_ROW shape D-2026-57 had to give a
+name to because its meaning lives in the row — and a header-only check is a
+proxy that fails on precisely the shape this repository had already
+identified and named. Header *and* first column now, both read from the file.
+
+Reproduced locally under the runner dispatch after the repair: **24 of 24
+zero-crossings declared, 0 DECISION.** Before it, 22 of 24, with the two
+long-format rows wrongly filed as bare. E16 and E17 mutate both halves back;
+17/17 killed.

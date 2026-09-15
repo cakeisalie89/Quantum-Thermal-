@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "0a9d96527ce3aefd8df055f57c37ba13fbd934d08d5cbb735ec171c2e231388d",
+      "sha256": "08dd467bfdb733bbfd7a5eb29c04db5b15488a183f2e38db6d276f4137200275",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 7736,
-      "sha256": "cb3118faed1e337885588973b7cac836737c93d63484ea4fea43ab5bbb54307d",
+      "sha256": "62acb2eb395a9664eddebe7e92880aae6ec04f07468ff7a9c130d1824563215c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3963,15 +3963,15 @@
     },
     {
       "filename": "tools/mutations/cross_environment.json",
-      "size_bytes": 8022,
-      "sha256": "527599435168027ae3c1a73c4f67c619a72ef7fe77b5a88a0a9bf6dff0a53616",
+      "size_bytes": 8843,
+      "sha256": "1f3d798d810e2f1c96f4dfa7a56b8a309a06967e860363b8dbb36c4890bd01a7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 346372,
-      "sha256": "17e14366fbcb1f69689997ed31ab5d24053fd0c0aff472032caa4dce1aebfe8b",
+      "size_bytes": 349508,
+      "sha256": "0ef058b2f012df618c3e41c4f307a9ed561f11a3712a26a7fd6401e3516645a9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4033,15 +4033,15 @@
     },
     {
       "filename": "tests/test_cross_env_semantics.py",
-      "size_bytes": 8856,
-      "sha256": "7204aed6e4047871d088f580e3a019a5eecf941a2cd957bbb9f16a789c7c2705",
+      "size_bytes": 12829,
+      "sha256": "75fd3e8cb4bdeb270398580273ddb1d0c27800b2dc30125aa478cb87a26f4b72",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
     {
       "filename": "tools/cross_env_semantics.py",
-      "size_bytes": 13670,
-      "sha256": "7075dbfe734bff25b43f3abe4191a64768d535acdf12e3d446c44ed69c2d70ee",
+      "size_bytes": 17030,
+      "sha256": "4bb906e6c68d7e76d30bdf98732520900cf3c0ace3214ed4107952f90d0c20bb",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

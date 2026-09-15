@@ -178,6 +178,49 @@ def classify(before: str, after: str) -> list:
     return found
 
 
+def declares_resolution(path: Path) -> bool:
+    """Does this artefact state, beside its values, what the solve resolved?
+
+    Read from the file's own header or keys -- never inferred from a name
+    this tool made up. A CSV that carries a ``resolution_*`` column, or a
+    JSON that carries a ``*_resolution`` key, has already said of its zeros
+    whether they are exact or below the method's floor (D-2026-53).
+
+    It matters here because the ZERO_CROSSING message below used to say, of
+    every crossing, that "a published 0.000000000e+00 states that the model
+    determined the quantity to be exactly nothing". For these files that is
+    now false in the useful direction: the zero is published beside
+    BELOW_RESOLUTION, which says the opposite. An instrument that keeps
+    saying it would be overstating what the artefact claims -- the same
+    defect class it exists to find.
+    """
+    def declares(name: str) -> bool:
+        return name.startswith("resolution_") or name.endswith("_resolution")
+
+    try:
+        if path.suffix == ".csv":
+            # HEADER AND FIRST COLUMN. A header-only check was the first
+            # version of this, and it called coupled_mode_recovery_metrics.csv
+            # BARE while that file declares
+            # `Mode_D_residual_CH4_resolution, BELOW_RESOLUTION` on a row of
+            # its own. It is a long-format metric/value table -- the shape
+            # D-2026-57 had to give a name of its own, PER_ROW, because its
+            # meaning lives in the row and not the column. Reading only the
+            # header is a proxy for "declares resolution" that fails on
+            # exactly the shape this repository already knows about.
+            with path.open(newline="", encoding="utf-8") as fh:
+                rows = list(csv.reader(fh))
+            if not rows:
+                return False
+            names = list(rows[0]) + [r[0] for r in rows[1:] if r]
+            return any(declares(n) for n in names)
+        if path.suffix == ".json":
+            return "_resolution" in path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return False
+
+
 def compare(other: Path, committed: Path,
             exempt: frozenset = REGEN_EXEMPT) -> dict:
     """Compare every output present in both trees. Returns the report."""
@@ -213,7 +256,9 @@ def compare(other: Path, committed: Path,
                 continue
             for kind, b, a, rel in classify(A[key], B[key]):
                 findings.append({"file": gen.name, "key": key, "class": kind,
-                                 "committed": b, "other": a, "rel": rel})
+                                 "committed": b, "other": a, "rel": rel,
+                                 "file_declares_resolution":
+                                     declares_resolution(com)})
 
     counts = {k: sum(1 for f in findings if f["class"] == k)
               for k in (DECISION, ZERO_CROSSING, SIGN_FLIP, PRECISION)}
@@ -281,16 +326,34 @@ def main(argv=None) -> int:
               f"only, e.g. {s['examples']}")
 
     if c[ZERO_CROSSING]:
-        print("\nZERO_CROSSING is not a precision event. A published "
-              "0.000000000e+00 states that the model determined the quantity "
-              "to be exactly nothing; the other environment's nonzero value "
-              "says the zero was one accumulation order's underflow. Both are "
-              "the same physics and only one of them is a claim of "
-              "exactness.")
-        for f in [f for f in report["findings"]
-                  if f["class"] == ZERO_CROSSING][:10]:
-            print(f"    {f['file']} [{f['key']}]: {f['committed']} -> "
-                  f"{f['other']}")
+        crossings = [f for f in report["findings"]
+                     if f["class"] == ZERO_CROSSING]
+        declared = [f for f in crossings if f["file_declares_resolution"]]
+        bare = [f for f in crossings if not f["file_declares_resolution"]]
+        print(f"\nZERO_CROSSING is not a precision event, and {len(declared)} "
+              f"of {len(crossings)} are already declared as such by the file "
+              "they are in.")
+        if declared:
+            print("  DECLARED -- the artefact publishes a resolution class "
+                  "beside the value, so the zero is marked BELOW_RESOLUTION "
+                  "or EXACT_ZERO and the crossing is expected. Compare the "
+                  "class, not the digits; the class is what must agree, and "
+                  "a class that differed would be a DECISION above.")
+            for f in declared[:6]:
+                print(f"    {f['file']} [{f['key']}]: {f['committed']} -> "
+                      f"{f['other']}")
+        if bare:
+            print("  BARE -- the file states the number and nothing about "
+                  "what its method could resolve. A published "
+                  "0.000000000e+00 there reads as the model determining the "
+                  "quantity to be exactly nothing, while the other "
+                  "environment's value says the zero was one accumulation "
+                  "order's underflow. Same physics; only one is a claim of "
+                  "exactness. These are where D-2026-53's mechanism has not "
+                  "reached yet.")
+            for f in bare[:6]:
+                print(f"    {f['file']} [{f['key']}]: {f['committed']} -> "
+                      f"{f['other']}")
 
     if args.json:
         args.json.write_text(json.dumps(report, indent=2, sort_keys=True))
