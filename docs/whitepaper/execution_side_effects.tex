@@ -1,0 +1,17 @@
+\section{Durable work and governed side effects}
+
+Long-horizon scientific automation needs durable work ownership, not a task list that exists only in conversation state.
+
+\subsection{Tasks, leases, recovery, and idempotency}
+\code{tasks.py} and \code{scheduler.py} implement durable task state, readiness, leases, retry, cancellation, and recovery. \code{hostid.py} strengthens ownership beyond a bare process identifier. \code{idempotency.py} scopes durable request identity so a reused or guessed string does not automatically reach unrelated work.
+
+A restarted supervisor reconstructs ownership from history. A dead process does not get to remain authoritative because the current agent remembers that it ``probably finished.''
+
+\subsection{Capabilities and confined I/O}
+\code{capability.py} represents authority as a bounded object, while \code{safeio.py} and \code{readpath.py} mediate filesystem access. Governed output paths are explicit; arbitrary write authority is not treated as an implementation detail.
+
+\subsection{Tool, network, and secret authority}
+\code{tools.py} provides registered contracts with default-deny semantics. \code{netauth.py} treats network egress as a bounded grant rather than ambient connectivity. \code{secrets.py} is designed so references travel more widely than raw values, with redaction and lifetime semantics at the interface.
+
+These controls are not claims of complete OS isolation. They define and test the authority boundary implemented by the harness.
+
