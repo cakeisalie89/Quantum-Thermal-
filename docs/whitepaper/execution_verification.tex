@@ -1,0 +1,22 @@
+\section{Independent reconstruction and verifier self-defense}
+
+A verifier that calls the same reducer, imports the same acceptance table, or invokes the same function it is meant to challenge is not meaningfully independent.
+
+\code{reconstruct.py} implements a second reading of governed history. \code{separate\_verify.py} executes that reading in a separate process and restricts imports for components whose behavior it is intended to challenge. The target is independence of \emph{accepted language and assumptions}, not merely different filenames.
+
+The distinction is deliberate:
+
+\begin{itemize}
+  \item \textbf{Primary enforcement} should refuse an invalid event before append.
+  \item \textbf{Independent reconstruction} should still detect malformed or forged history that bypassed the write path.
+\end{itemize}
+
+The second reader is a detector, not a substitute for the first reader being correct.
+
+\subsection{Testing the verification machinery}
+Traditional coverage can show that a line ran while proving nothing about whether the line matters. The harness therefore asks a stronger question: \emph{if a specific guard or admission rule were weakened or deleted, would anything notice?}
+
+The reference implementation uses mutation specifications, property-based tests, fuzzing, crash/fault injection, hostile replay, differential reconstruction, and long-horizon campaigns. The mutation harness itself includes anti-vacuity rules: it refuses an already-red baseline, refuses stale anchors that would silently skip a mutant, and verifies restoration after each mutation.
+
+The goal is not a large test count. The goal is evidence that specific enforcement points are load-bearing.
+
