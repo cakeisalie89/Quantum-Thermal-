@@ -1,0 +1,60 @@
+\section{Design principles and future work}
+
+The architecture can be summarized by ten principles:
+
+\begin{enumerate}
+  \item The model is not the system of record.
+  \item Durable history is authority; projections are rebuildable views.
+  \item An event does not choose the state or identity context in which it is judged.
+  \item Memory, context, evidence, and authority have separate trust semantics.
+  \item Proposal, execution, verification, and acceptance are distinct operations.
+  \item Side effects require explicit authority rather than ambient privilege.
+  \item Evidence is bound to bytes, not merely names or natural-language descriptions.
+  \item Changed dependencies have explicit consequences.
+  \item The verifier is an attack surface and must be challenged independently.
+  \item Claims about green runs are scoped to the commit and environment that produced them.
+\end{enumerate}
+
+Future work should strengthen boundaries rather than accumulate technologies: stronger external identity/attestation, more formal transition specifications and model checking, deterministic execution backends where appropriate, richer scientific verification contracts, cross-machine numerical-equivalence policies, provenance-aware context compaction, larger collusion campaigns, long-duration fault injection, performance envelopes for very large histories, schema migration rules, and additional independent readers.
+
+A subsystem should be added because a concrete failure mode requires a boundary, not because its name makes the stack look complete.
+
+\section{Conclusion}
+
+The core problem is not whether an AI agent can generate scientific code or maintain a long conversation. It is whether a long-running scientific process remains reconstructible when the agent forgets, restarts, changes assumptions, produces stale evidence, encounters a different machine, or reports a state that durable history does not support.
+
+The Scientific AI Harness makes authority external to the model. History is durable; state is replayed; memory is governed but non-authoritative; evidence resolves to bytes; dependency changes can invalidate conclusions; side effects require bounded authority; proposal and verification are separated; a second implementation can challenge the first; and the verifier itself is subjected to adversarial testing.
+
+The intended result is not an autonomous truth machine. It is a system in which scientific automation can become more capable without being allowed to silently define its own reality.
+
+QTA remains the originating stress case and remains forecast-only. The broader contribution is the harness around it: a governed execution and evidence substrate for long-horizon scientific agents that must act without becoming their own final authority.
+
+\appendix
+\section{Reviewer reading order}
+For implementation review, a useful order is:
+\begin{enumerate}
+  \item \code{AGENT\_SUBSTRATE.md} -- architecture and invariants.
+  \item \code{docs/DEFECT\_LEDGER.md} -- defects actually found and the claims they invalidated.
+  \item \code{qta\_agent/authority.py}, \code{events.py}, and \code{store.py} -- primary authority path.
+  \item \code{qta\_agent/reconstruct.py} and \code{separate\_verify.py} -- independent reading.
+  \item \code{qta\_agent/memory.py} and \code{context.py} -- remembered/viewed information versus evidence.
+  \item \code{qta\_agent/tasks.py}, \code{scheduler.py}, \code{netauth.py}, \code{secrets.py}, and \code{readpath.py} -- long-running work and side-effect authority.
+  \item \code{qta\_agent/governed\_stage10.py} -- production integration.
+  \item \code{tools/mutation\_matrix.py}, \code{tools/mutations/}, and hostile/long-horizon tests -- enforcement-point testing.
+  \item \code{docs/completion\_matrix.json} -- requirement accounting.
+  \item QTA scientific documentation -- case-study physics and its separate scientific claim boundary.
+\end{enumerate}
+
+\section{Snapshot discipline}
+This paper intentionally avoids timeless branch-level claims such as ``complete'' or ``green.'' Run-specific evidence should be read from commit-scoped CI and \code{docs/DEFECT\_LEDGER.md}; requirement closure from \code{docs/completion\_matrix.json}; scientific gate status from QTA's scientific source of truth.
+
+The categories remain separate:
+\begin{itemize}
+  \item software requirement closure is not absence of defects;
+  \item absence of currently known defects is not proof of correctness;
+  \item reproducible execution is not scientific validation;
+  \item scientific validation is not created by the harness automatically.
+\end{itemize}
+
+That separation is part of the architecture, not a documentation convention.
+
