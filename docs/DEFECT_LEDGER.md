@@ -5362,6 +5362,14 @@ failing log, and `C35_torn_tail_only_stops_checking_for_other_problems` drops
 the "nothing else objected" half. Both are killed, C35 by the narrowness
 test written for it.
 
+**HOSTED EVIDENCE.** `agent-substrate` at `d6ea525`, job 103514015384 in
+run 34679021715, **step 12 green, 07:12:01-07:13:55Z**. That is the same
+step, in the same job of the same workflow, that went RED at `2514a20` on
+this defect — so the repair is confirmed by the instrument that found it,
+on the hardware that found it, rather than by the sandbox where it was
+diagnosed. The paragraph above reports local verification; this is the
+other half of it.
+
 **THE METHOD NOTE FROM THE OPEN VERSION STANDS.** That entry could not be
 closed because the suite had been run as `pytest -q 2>&1 | tail -6` and the
 traceback scrolled past the six lines kept. What closed it was a hosted
@@ -5441,6 +5449,19 @@ single-snapshot diagnosis predicts and what a genuine logic error would
 not. At `bf2f902` step 9 is green — so the repair is confirmed on the
 hardware that found the defect, rather than assumed from a sandbox that
 passed eight times out of eight before the defect was known.
+
+**AND A SECOND COMPLETE RUN.** `agent-substrate` at `d6ea525`, job
+103514015384 in run 34679021715, 06:46:58Z -> 10:56:34Z: **all 57 steps
+green, 4h 09m**. No step regressed against the run above, where all 57 were
+also green.
+
+Two complete runs matter more than twice one. A single green run of a job
+that had never finished is compatible with having been lucky; two, at
+different commits, on different runners, with the second 56 minutes slower
+than the first, are not. Steps 43-57 are repeatable rather than observed
+once. The spread in duration — 3h13m against 4h09m for the same 57 steps —
+is also worth having on record, because every check-in scheduled against
+this job so far has mistimed it, twice badly enough to read nothing.
 
 **WHAT THIS DOES NOT SETTLE.** `full-suite` step 7 is still red at
 `bf2f902`, for the reason it has always been red: `package_consistency_
