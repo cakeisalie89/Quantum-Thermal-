@@ -4,6 +4,9 @@ outputs/
 deep_runtime_profile.json
 outputs/deep_expdesign/
 .venv/
+# the second-interpreter job's bare 3.13 environment; untracked AND
+# unignored would also trip generate_manifest.py --check
+.venv-alt/
 .snakemake/
 .pytest_cache/
 .mypy_cache/

@@ -634,28 +634,38 @@ def test_every_io_layer_entry_names_a_module_that_exists():
 
 # ---- D-2026-43: a definition that is never reached ------------------------
 
-#: Directories the tree-wide scan does not own: the virtualenv, the git
-#: store, the retired tree, generated outputs, and the quarantine a mutation
-#: run writes into.
-_NOT_OURS = {".venv", ".git", "attic", "outputs", "node_modules",
-             ".mutation-quarantine", "__pycache__"}
+def _owned_python_files(root):
+    """The .py files this repository OWNS, asked of git rather than guessed.
+
+    NOT a list of directory names to skip. That was tried twice and failed
+    twice: the first sweep excluded `.venv`, and the Python 3.13 job builds
+    its environment at `.venv-alt`, so the scan walked scipy's site-packages
+    and reported its property/setter pairs as defects. A skip-list is the
+    same proxy D-2026-52 is about -- it enumerates instead of deciding.
+
+    `git ls-files` IS the definition of what this repository ships, and it
+    answers correctly for every venv name, cache and quarantine directory
+    that will ever exist. Anything untracked becomes tracked the moment it
+    is committed, and the manifest gate already refuses untracked,
+    unignored files.
+    """
+    out = subprocess.run(["git", "ls-files", "-z", "*.py"], cwd=root,
+                         capture_output=True, text=True, check=True).stdout
+    return [root / f for f in out.split("\0") if f]
 
 
 def _shadowed_definitions(root):
     """Every name defined twice in one scope, as (path, name, first, second).
 
-    Stdlib only, deliberately. The first version of this shelled out to
-    `ruff --select F811` and died on the Python 3.13 job, which builds a
-    bare environment with numpy and scipy and nothing else -- so the rule
-    stopped being enforced exactly where the environment happened not to
-    carry the tool. That is the defect D-2026-52 is about wearing different
-    clothes: a check whose scope follows the environment instead of the
-    property. CI still runs ruff's F811 over the tree as an independent
-    second opinion; this one runs everywhere.
+    A DECORATED redefinition is not one of these. `@x.setter`, `@overload`
+    and `@singledispatch.register` all rebind a name deliberately and are
+    ordinary Python; ruff's F811 knows that and so must this. The tracked
+    tree currently contains none, which is why the distinction is made now
+    rather than after a property setter is written and the gate cries wolf.
     """
     out = []
-    for path in sorted(Path(root).rglob("*.py")):
-        if any(part in _NOT_OURS for part in path.parts):
+    for path in sorted(_owned_python_files(root)):
+        if not path.is_file():
             continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -668,7 +678,8 @@ def _shadowed_definitions(root):
             for node in scope.body:
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
                                      ast.ClassDef)):
-                    if node.name in seen:
+                    if node.name in seen and not getattr(
+                            node, "decorator_list", []):
                         out.append((str(path.relative_to(root)), node.name,
                                     seen[node.name], node.lineno))
                     seen[node.name] = node.lineno
@@ -676,7 +687,7 @@ def _shadowed_definitions(root):
 
 
 def test_no_definition_ANYWHERE_is_silently_shadowed():
-    """The rule of the test below, over the whole repository.
+    """The rule of the test below, over everything this repository ships.
 
     That scan was written for `qta_agent/` after D-2026-43 and pointed at
     one package. While it guarded the substrate,
@@ -694,42 +705,88 @@ def test_no_definition_ANYWHERE_is_silently_shadowed():
         f"  {p}: {n} at lines {a} and {b}" for p, n, a, b in found)
 
 
-def test_the_sweep_is_actually_looking_at_the_scientific_tree(tmp_path):
-    """The control. A sweep that quietly stopped covering the tree it was
-    added for would pass the test above forever.
+def test_the_sweep_is_not_reporting_on_an_empty_file_list():
+    """ANTI-VACUITY. "Nothing is shadowed" is trivially true of nothing, and
+    a `git ls-files` that returned empty -- no git, wrong directory, a
+    pathspec typo -- would say exactly that, forever."""
+    root = Path(__file__).resolve().parent.parent
+    owned = _owned_python_files(root)
+    assert len(owned) > 200, f"the sweep found only {len(owned)} owned files"
+    assert any("qta_multiphysics" in str(f) for f in owned)
+    assert any("qta_agent" in str(f) for f in owned)
 
-    Rather than trust the directory walk, plant a shadowed definition inside
-    a real package and require the same function to report it.
+
+def test_the_sweep_sees_a_shadowed_definition_in_a_file_the_repo_owns(tmp_path):
+    """The control, exercising the REAL scope resolution.
+
+    The probe is staged with `git add -N` so that `git ls-files` reports it,
+    because a file this repository does not track is a file it does not
+    ship. Planting an untracked file would prove nothing about the path the
+    sweep actually takes.
     """
     root = Path(__file__).resolve().parent.parent
     planted = root / "qta_multiphysics" / "_shadow_sweep_probe.py"
     planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
                        encoding="utf-8")
+    subprocess.run(["git", "add", "-N", str(planted)], cwd=root, check=True,
+                   capture_output=True)
     try:
         found = _shadowed_definitions(root)
         assert any("_shadow_sweep_probe" in p for p, *_ in found), (
-            "the sweep did not see a shadowed definition planted inside "
-            f"qta_multiphysics/: {found}")
+            f"the sweep did not see a shadowed definition it owns: {found}")
     finally:
+        subprocess.run(["git", "rm", "--cached", "--force", "--quiet",
+                        str(planted)], cwd=root, capture_output=True)
         planted.unlink()
 
 
-def test_the_sweep_ignores_the_trees_it_does_not_own(tmp_path):
-    """And the other half: it must not police the virtualenv or the attic,
-    or it would fail on code this repository did not write and cannot fix."""
+def test_the_sweep_does_not_police_an_installed_environment(tmp_path):
+    """The other half, and the exact failure that made this necessary.
+
+    A bare environment at `.venv-alt/` is not tracked, so it is not ours and
+    is not scanned -- without `.venv-alt` appearing in any list anywhere.
+    """
     root = Path(__file__).resolve().parent.parent
-    for skipped in (".venv", "attic"):
-        probe = root / skipped / "_shadow_sweep_probe.py"
-        if not probe.parent.is_dir():
-            continue
-        probe.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
-                         encoding="utf-8")
-        try:
-            found = _shadowed_definitions(root)
-            assert not any("_shadow_sweep_probe" in p for p, *_ in found), (
-                f"the sweep reached into {skipped}/, which it does not own")
-        finally:
-            probe.unlink()
+    planted = root / ".venv-alt" / "lib" / "site-packages" / "probe.py"
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
+                       encoding="utf-8")
+    try:
+        found = _shadowed_definitions(root)
+        assert not any("venv-alt" in p for p, *_ in found), (
+            "the sweep reached into an installed environment")
+    finally:
+        planted.unlink()
+        for d in (planted.parent, planted.parent.parent,
+                  planted.parent.parent.parent):
+            if d.is_dir() and not any(d.iterdir()):
+                d.rmdir()
+
+
+def test_a_decorated_redefinition_is_not_a_shadowed_definition(tmp_path):
+    """`@property` and its setter rebind a name on purpose. Flagging that
+    would make the gate cry wolf on ordinary Python, and a gate that cries
+    wolf is a gate that gets switched off."""
+    root = Path(__file__).resolve().parent.parent
+    planted = root / "qta_multiphysics" / "_decorated_probe.py"
+    planted.write_text(
+        "class C:\n"
+        "    @property\n"
+        "    def v(self):\n"
+        "        return 1\n\n"
+        "    @v.setter\n"
+        "    def v(self, x):\n"
+        "        pass\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-N", str(planted)], cwd=root, check=True,
+                   capture_output=True)
+    try:
+        found = _shadowed_definitions(root)
+        assert not any("_decorated_probe" in p for p, *_ in found), (
+            f"a property/setter pair was reported as a defect: {found}")
+    finally:
+        subprocess.run(["git", "rm", "--cached", "--force", "--quiet",
+                        str(planted)], cwd=root, capture_output=True)
+        planted.unlink()
 
 
 def test_no_definition_in_the_substrate_is_silently_shadowed():

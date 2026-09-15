@@ -89,7 +89,18 @@ jobs:
         # findings, mostly E501 -- but F811 is exactly the rule for "a name
         # defined twice, the first is dead, and nothing says so", and the
         # tree is clean of it.
-        run: uv run ruff check --select F811 .
+        run: |
+          # SCOPED BY WHAT GIT TRACKS, not by a directory name.
+          # `ruff check .` walks whatever is on disk. The Python 3.13 job
+          # builds its environment at .venv-alt/, which is not one of ruff's
+          # default excludes and is not in .gitignore, so a bare `.` would
+          # lint scipy's site-packages and report its property/setter pairs.
+          # The test alongside this resolves its scope the same way, so the
+          # two implementations agree about WHAT is checked and differ only
+          # in HOW.
+          files=$(git ls-files -z '*.py' | tr '\0' '\n' | wc -l)
+          test "$files" -gt 200 || { echo "git ls-files returned $files"; exit 1; }
+          git ls-files -z '*.py' | xargs -0 uv run ruff check --select F811
       - name: the workflow still runs what the matrix says it runs
         # A row claiming hosted coverage is claiming something about THIS
         # file, and nothing else here would notice this file changing.

@@ -5471,6 +5471,41 @@ argued about. CI still runs `ruff check --select F811 .` as a separate step:
 two independent implementations, neither depending on the other, one of them
 broader and one of them always present.
 
+**AND THE SECOND REPAIR SCOPED BY A NAME LIST, WHICH IS THE THIRD TIME.**
+The stdlib rewrite skipped directories by name — `.venv`, `.git`, `attic`,
+`outputs`. The Python 3.13 job builds its environment at **`.venv-alt`**,
+which is on no list and is not in `.gitignore` either, so the sweep walked
+scipy's `site-packages` and reported things like
+
+```
+scipy/stats/_multivariate.py: random_state at lines 267 and 281
+```
+
+Two defects at once, both mine. The scope was a name list — this entry's own
+subject, written a third time. And the rule was wrong: those are
+`@property`/`@setter` pairs, ordinary Python that rebinds a name on purpose,
+which ruff's F811 knows about and a naive AST walk does not. It passed here
+because this sandbox's environment happens to be called `.venv`.
+
+**SCOPE IS NOW ASKED OF GIT.** `git ls-files '*.py'` is not a better list;
+it is the definition of what this repository ships, and it answers correctly
+for every environment, cache and quarantine directory that will ever exist,
+whatever it is called. The CI step resolves its scope the same way, so the
+two implementations agree about WHAT is checked and differ only in HOW —
+`ruff check .` would have walked `.venv-alt` for exactly the same reason.
+The tracked tree is 273 files and clean.
+
+**AND THE RULE IS DECORATOR-AWARE**, before it needs to be. No tracked file
+currently redefines a name under a decorator, so this fixes nothing today;
+it is written now because the first `@property` setter someone adds would
+make the gate cry wolf, and a gate that cries wolf is a gate that gets
+switched off. `test_a_decorated_redefinition_is_not_a_shadowed_definition`
+plants a property/setter pair and requires silence.
+
+`.venv-alt/` is also added to `.gitignore`, independently of all this: an
+untracked and unignored directory would trip `generate_manifest.py --check`,
+which refuses exactly that.
+
 **ANTI-VACUITY.** A sweep that quietly stopped covering the tree it was
 added for would pass forever.
 `test_the_F811_sweep_is_actually_looking_at_the_scientific_tree` plants a
@@ -5478,9 +5513,17 @@ shadowed definition inside `qta_multiphysics/` and requires the same
 invocation to report it, then removes it — the scope is demonstrated rather
 than trusted to a path list, which is the failure this entry is about.
 
+The probe is staged with `git add -N` so that `git ls-files` reports it:
+planting an untracked file would prove nothing about the path the sweep
+actually takes.
+`test_the_sweep_is_not_reporting_on_an_empty_file_list` guards the other
+way, because a `git ls-files` returning nothing — no git, wrong directory, a
+pathspec typo — would report "nothing is shadowed" forever.
+
 The other half is checked too:
-`test_the_sweep_ignores_the_trees_it_does_not_own` plants the same probe in
-`.venv/` and `attic/` and requires the sweep NOT to report it. A rule that
+`test_the_sweep_does_not_police_an_installed_environment` plants the probe
+at `.venv-alt/lib/site-packages/`, the exact path that caused the failure,
+and requires silence — without `.venv-alt` appearing in any list anywhere. A rule that
 policed code this repository did not write and cannot fix would be
 unkeepable, and would be turned off — which is how a rule stops protecting
 anything.
