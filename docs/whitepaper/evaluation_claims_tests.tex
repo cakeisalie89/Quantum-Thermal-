@@ -1,0 +1,54 @@
+\section{What the harness can and cannot establish}
+
+Within its implemented boundary, the harness is intended to establish statements such as:
+
+\begin{itemize}
+  \item a declared tool was invoked under a recorded task and authority context;
+  \item an artifact hashes to the digest stored as evidence;
+  \item a verifier distinct from the proposer/executor performed the declared verification step;
+  \item a durable event history reconstructs to the governed state accepted by the readers;
+  \item dependency changes produce declared invalidation consequences;
+  \item memory lifecycle transitions survive replay;
+  \item attempted I/O or network actions were allowed or refused under recorded policy;
+  \item a specific commit had a specific verification result in a specific environment.
+\end{itemize}
+
+It does \textbf{not} establish by itself:
+
+\begin{itemize}
+  \item that a scientific model describes reality;
+  \item that an assumption is physically correct;
+  \item that reproducibility implies scientific correctness;
+  \item that byte-identical output is numerically superior to an equivalent non-identical result;
+  \item that nominally separate identities are controlled by independent principals;
+  \item that process-level mediation equals complete OS or network isolation;
+  \item that all future bugs are eliminated;
+  \item that passing tests constitute experimental validation;
+  \item AGI, recursive self-improvement, autonomous truth, or infallibility.
+\end{itemize}
+
+The design target is narrower: \textbf{make authority explicit, reconstructible, and difficult to fake silently.}
+
+\section{Evaluation strategy}
+
+A serious evaluation should attack invariants directly rather than count unit tests.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}p{0.22\linewidth}X@{}}
+\toprule
+Campaign & Representative attacks \\
+\midrule
+State forgery & Lie about prior state; resurrect terminal state; omit predecessors; reorder history; corrupt hashes; cite unresolved evidence.\\
+Identity / roles & Self-verify; report another worker's lease; name a ghost executor; forge verifier identity; test colluding identities.\\
+Recovery / liveness & Die after lease, during artifact write, or before completion; exhaust retries through crashes; compare full replay with checkpoint recovery.\\
+Side effects & Path traversal, symlinks, undeclared reads, writes outside roots, network re-resolution, IPv4/IPv6 disagreement, secret leakage.\\
+Anti-vacuity & Zero-artifact verification; mutation from a red baseline; silently skipped tests; workflow stages that never run; ``independent'' reader calling primary rules.\\
+Long horizon & Thousands of events, large dependency graphs, repeated invalidation, lease churn, context compaction, replay/scheduler/audit performance guards.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The defect ledger should grow when hostile evaluation finds real defects. A retained history of failures is preferable to a polished retrospective that erases how the architecture actually broke.
+
