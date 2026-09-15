@@ -95,7 +95,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -109,21 +109,21 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "p05",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "p50",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "p95",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "utf8_string",
@@ -305,7 +305,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -333,7 +333,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "sticking",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -347,14 +347,14 @@
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "N_per_m2",
-     "unit": "unresolved"
+     "unit": "1/m^2"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "monolayer_fraction",
-     "unit": "dimensionless"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -368,7 +368,7 @@
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "admitted_per_m2",
-     "unit": "unresolved"
+     "unit": "1/m^2"
     },
     {
      "dtype": "utf8_string",
@@ -607,28 +607,28 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_laser_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     },
     {
      "dtype": "float64",
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_mw_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     },
     {
      "dtype": "float64",
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "gradient_K_per_m",
-     "unit": "m"
+     "unit": "K/m"
     },
     {
      "dtype": "float64",
      "index": 10,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "heat_flux_W_m2",
-     "unit": "unresolved"
+     "unit": "W/m^2"
     }
    ],
    "format": "csv",
@@ -650,7 +650,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -692,7 +692,7 @@
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "phase_rel_residual",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -727,7 +727,7 @@
      "index": 11,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_rel_residual",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -841,49 +841,49 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eig_nats",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eig_se",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "prior_entropy_nats",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "expected_posterior_entropy_nats",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_outer",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_inner",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_batches",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -933,7 +933,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "falsification_value",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "utf8_string",
@@ -1025,35 +1025,35 @@
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cost",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "duration",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 10,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "risk",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 11,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "criticality",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 12,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "falsification_value",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "utf8_string",
@@ -1096,7 +1096,7 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Cc",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -1110,28 +1110,28 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "ea",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Ts_mK",
-     "unit": "unresolved"
+     "unit": "mK"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "SNR",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eps_pct",
-     "unit": "unresolved"
+     "unit": "percent"
     },
     {
      "dtype": "utf8_string",
@@ -1208,14 +1208,14 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "model_1d",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "model_2d",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "utf8_string",
@@ -1258,14 +1258,14 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "dose_flux_open_m2_s",
-     "unit": "s"
+     "unit": "1/(m^2 s)"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "dose_flux_closed_m2_s",
-     "unit": "s"
+     "unit": "1/(m^2 s)"
     }
    ],
    "format": "csv",
@@ -1294,21 +1294,21 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "max_density_m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "sample_region_density_modeB_m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "residual_mode_D_density_m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
@@ -1322,21 +1322,21 @@
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "resolution_floor_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cells_below_resolution_modeC",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cryobaffle_capture",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -1386,7 +1386,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_CH4_modeC_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
@@ -1400,7 +1400,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_H2_modeC_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
@@ -1414,7 +1414,7 @@
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_He3_modeC_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
@@ -1428,7 +1428,7 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_He4_modeC_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
@@ -1533,21 +1533,21 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "lumped_model",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "nonlumped_1d_model",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "nonlumped_2d_model",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "utf8_string",
@@ -1632,14 +1632,14 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "step",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     }
    ],
    "format": "csv",
@@ -1773,7 +1773,7 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "step",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -2082,7 +2082,7 @@
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "measured",
-     "unit": "unresolved"
+     "unit": "PER_ROW:units"
     },
     {
      "dtype": "utf8_string",
@@ -2215,7 +2215,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "value",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "utf8_string",
@@ -2301,7 +2301,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "value",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "utf8_string",
@@ -2529,7 +2529,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "value",
-     "unit": "unresolved"
+     "unit": "PER_ROW:check"
     },
     {
      "dtype": "utf8_string",
@@ -2586,14 +2586,14 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "coherence_mc",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "coherence_filter_fn",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     }
    ],
    "format": "csv",
@@ -2635,7 +2635,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "odmr_signal",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     }
    ],
    "format": "csv",
@@ -2678,7 +2678,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "tau_c_s_input",
-     "unit": "unresolved"
+     "unit": "s"
     },
     {
      "dtype": "utf8_string",
@@ -2881,7 +2881,7 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_laser_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     }
    ],
    "format": "csv",
@@ -2953,7 +2953,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_laser_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     }
    ],
    "format": "csv",
@@ -3123,7 +3123,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3208,7 +3208,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3434,14 +3434,14 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "normalized_sensitivity",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "abs_normalized_sensitivity",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3469,7 +3469,7 @@
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "rank",
-     "unit": "unresolved"
+     "unit": "COUNT"
     }
    ],
    "format": "csv",
@@ -3617,28 +3617,28 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_CH4",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_H2",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He3",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He4",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     }
    ],
    "format": "csv",
@@ -3688,14 +3688,14 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He3",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He4",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3759,14 +3759,14 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "max_theta_modeB",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "residual_theta_mode_D",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3780,7 +3780,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "resolution_floor_theta",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3830,7 +3830,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_CH4_modeC",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3844,7 +3844,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_H2_modeC",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3858,7 +3858,7 @@
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He3_modeC",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3872,7 +3872,7 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He4_modeC",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3908,7 +3908,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "DeltaGamma_rads",
-     "unit": "unresolved"
+     "unit": "rad/s"
     },
     {
      "dtype": "float64",
@@ -3922,14 +3922,14 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "deltaGamma_noise",
-     "unit": "unresolved"
+     "unit": "rad/s"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "SNR",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -4015,7 +4015,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "rank",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
@@ -4189,7 +4189,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "rank",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -4210,42 +4210,42 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "score",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eig_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "criticality_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "falsification_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "dependency_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cost_penalty",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "utf8_string",
@@ -4295,7 +4295,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -4416,7 +4416,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",

@@ -6007,3 +6007,105 @@ One bounded question: would this *exact sentence* be refused? A paraphrase is
 not caught. No string rule catches one, and a number that implied otherwise
 would be worth less than no number. What has changed is that the number is now
 measured, on every commit, and that the shielding claims are inside it.
+
+---
+
+## D-2026-57 — the unit was read off the spelling of the column name
+
+**CLASS** — `TRUE_DEFECT` in the archival artefact: a semantic dimension
+resolved by a proxy, losing the dimension on 91 of 162 columns and getting it
+**wrong** on three.
+
+**DISCOVERED BY.** The semantic-dimension audit. Identity, payload,
+destination, port, socket family/type/protocol and (as of D-2026-53)
+resolution each have a conservation rule and a test. Units did not, and
+`validate_hdf5_equivalence.py` had been printing the evidence in its own
+report the whole time:
+
+```json
+"unresolved_unit_columns": 91
+```
+
+— a number it counted and gated nothing with.
+
+**THE MEASUREMENT.** `build_hdf5_mapping.unit_of()` matched the **end of the
+column name** against a thirty-entry suffix table and returned `"unresolved"`
+otherwise. 162 numeric columns cross into the governed HDF5, where the unit
+becomes a dataset attribute a consumer reads as fact.
+
+*91 lost the dimension entirely* — including every column whose unit is
+written in its own name:
+
+```
+Q_laser_W_m3, Q_mw_W_m3      W/m^3   -> unresolved
+heat_flux_W_m2               W/m^2   -> unresolved
+n_CH4_modeC_1m3 (+3 species) 1/m^3   -> unresolved
+eig_nats, prior_entropy_nats nats    -> unresolved
+N_per_m2, admitted_per_m2    1/m^2   -> unresolved
+Ts_mK                        mK      -> unresolved
+eps_pct                      percent -> unresolved
+DeltaGamma_rads              rad/s   -> unresolved
+```
+
+*and three did not fall through — they came out wrong:*
+
+```
+gradient_K_per_m       ends "_m"  -> published as METRES   (it is K/m)
+dose_flux_open_m2_s    ends "_s"  -> published as SECONDS  (it is 1/(m^2 s))
+dose_flux_closed_m2_s  ends "_s"  -> published as SECONDS  (it is 1/(m^2 s))
+```
+
+A temperature gradient published as a length and a flux published as a time.
+That is worse than no unit, because a wrong one is credible: a consumer has no
+reason to doubt an explicit attribute.
+
+**AND A SECOND CONFLATION INSIDE THE WORD.** "unresolved" was doing two jobs.
+`cycle`, `step`, `rank` and `n_batches` are counts. `theta_CH4`,
+`attenuation_factor`, `SNR` and `Cc` are dimensionless ratios. `cost`,
+`duration` and `risk` are `{1,2,3}` difficulty scores — **not** currency and
+**not** time, which is exactly what a suffix rule would have been free to
+call `duration`. And `value` in a long-format metric/value table genuinely
+carries its unit in the row. Four different situations, one word, the same
+shape as D-2026-53's zero that was exact sitting beside a zero that was noise.
+
+**REPAIR.** `docs/unit_inventory.json` declares the dimension of all 162
+governed numeric columns, reviewed. There is no `unresolved` in the
+vocabulary: a column with no unit says **why** —
+
+| word | meaning |
+|---|---|
+| `DIMENSIONLESS` | a physical ratio: a fraction, a coverage, a contrast, an SNR |
+| `COUNT` | an integer count or index |
+| `ORDINAL` | a rank-scale score with no physical dimension |
+| `PER_ROW` | a long-format table; the entry names the column carrying the unit |
+
+`unit_of()` reads the declaration and **raises** on an undeclared column
+rather than defaulting. Any default there is a dimension nobody reviewed,
+written into an archive as fact.
+
+`tools/unit_inventory.py` reconciles both directions — every governed numeric
+column declared, no entry naming a column that no longer exists, no
+`unresolved`, and a `PER_ROW` entry must name a column that is **actually in
+that CSV's header**, so "the unit is in the row" is checked rather than
+asserted. One rule runs the other way: a column whose own name ends in an
+unambiguous unit token may not be declared dimensionless. That is the error
+direction that matters, and the suffix table survives only there — as a
+refusal, never as a resolver.
+
+`validate_hdf5_equivalence.py` turns the statistic into a gate and reports
+what is worth counting: **94 columns carry a physical unit, 68 declare why
+they carry none.**
+
+**THE MUTATION THAT SURVIVED, AND WHY IT MATTERED.** `UI8` disables the new
+refusal in the equivalence validator. It survived the first run: every other
+test of that report reads the **committed** report, which no source change can
+move, so the refusal had no test at all. The harness says a mis-scoped spec
+and a missing test look identical from there — this was the missing test. It
+is driven now against a constructed one-column fixture, with controls for
+each of the six legitimate dimensions, in the file that owns the validator.
+8/8.
+
+**WHAT DID NOT CHANGE.** No value. 483 datasets still compare exactly against
+their sources; the result is `EQUIVALENT` as before. What changed is that the
+numbers now arrive with the dimension they were always supposed to carry, and
+three of them are no longer labelled with the wrong one.

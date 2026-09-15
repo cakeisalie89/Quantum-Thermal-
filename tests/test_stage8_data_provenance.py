@@ -429,6 +429,89 @@ def test_the_crate_validator_writes_only_where_it_is_told(tmp_path):
         "path; a test that calls it is then a test that edits the repository")
 
 
+# ---------------------------------------------------------------------------
+# D-2026-57: a number published into the archive with no dimension.
+#
+# This file used to COUNT those columns -- "unresolved_unit_columns": 91 of
+# 162 -- and gate nothing with the number, so it sat in a published report
+# reading like a footnote. It is a refusal now, and the refusal needs a test
+# that drives it: the mutation matrix found the check unprotected, because
+# every other test here reads the COMMITTED report, which a source change
+# cannot move.
+# ---------------------------------------------------------------------------
+
+def _one_column_fixture(tmp_path, unit):
+    """A source CSV and an HDF5 that agree about everything except the unit."""
+    h5py = pytest.importorskip("h5py")
+    np = pytest.importorskip("numpy")
+    src = tmp_path / "tiny.csv"
+    src.write_text("x\n1.5\n2.5\n", encoding="utf-8")
+    sha = hashlib.sha256(src.read_bytes()).hexdigest()
+    h5 = tmp_path / "tiny.h5"
+    with h5py.File(h5, "w") as h:
+        g = h.create_group("provenance")
+        for a in ("mapping_sha256", "schema_sha256", "uv_lock_sha256",
+                  "manifest_sha256_at_build", "scientific_gate_PASS_count",
+                  "can_PASS_now", "measured_in_this_system"):
+            g.attrs[a] = "0"
+        t = h.create_group("tables/tiny")
+        t.attrs["source_sha256"] = sha
+        d = t.create_dataset("x", data=np.array([1.5, 2.5]))
+        d.attrs["column_index"] = 0
+        d.attrs["unit"] = unit
+    mapping = {"schema_version": "1.0.0", "n_governed": 1, "outputs": [
+        {"path": "tiny.csv", "format": "csv", "sha256": sha,
+         "hdf5_group": "/tables/tiny", "in_hdf5": True,
+         "columns": [{"name": "x", "index": 0, "dtype": "float64",
+                      "unit": unit}]}]}
+    return h5, mapping
+
+
+def _validate_fixture(tmp_path, monkeypatch, unit):
+    h5, mapping = _one_column_fixture(tmp_path, unit)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "hdf5_output_mapping.json").write_text(json.dumps(mapping))
+    sys.path.insert(0, str(ROOT))
+    import validate_hdf5_equivalence as V
+    rc = V.main(str(h5), str(tmp_path / "report.json"))
+    return rc, json.loads((tmp_path / "report.json").read_text())
+
+
+@pytest.mark.parametrize("unit", ["unresolved", ""])
+def test_a_column_published_without_a_dimension_is_refused(
+        tmp_path, monkeypatch, unit):
+    rc, report = _validate_fixture(tmp_path, monkeypatch, unit)
+    assert rc != 0, f"unit={unit!r} exited zero"
+    assert report["result"] != "EQUIVALENT", report["result"]
+    assert any("no dimension" in m for m in report["mismatches"]),         report["mismatches"]
+
+
+@pytest.mark.parametrize("unit,counted", [
+    ("K", "columns_with_a_physical_unit"),
+    ("1/m^3", "columns_with_a_physical_unit"),
+    ("DIMENSIONLESS", "columns_declared_without_a_unit"),
+    ("COUNT", "columns_declared_without_a_unit"),
+    ("ORDINAL", "columns_declared_without_a_unit"),
+    ("PER_ROW:metric", "columns_declared_without_a_unit"),
+])
+def test_a_declared_dimension_is_accepted_and_counted_as_what_it_is(
+        tmp_path, monkeypatch, unit, counted):
+    """The control, and the one that makes the refusal above mean something.
+
+    It also pins the split: a coverage fraction and a temperature are both
+    legitimate, and the report must not conflate "has no unit because it is a
+    ratio" with "has no unit because nobody said".
+    """
+    rc, report = _validate_fixture(tmp_path, monkeypatch, unit)
+    assert rc == 0, report["mismatches"]
+    assert report["result"] == "EQUIVALENT"
+    assert report[counted] == 1
+    other = ("columns_declared_without_a_unit"
+             if counted == "columns_with_a_physical_unit"
+             else "columns_with_a_physical_unit")
+    assert report[other] == 0
+
+
 TESTS = [v for k, v in sorted(globals().items())
          if k.startswith("test_") and callable(v)]
 

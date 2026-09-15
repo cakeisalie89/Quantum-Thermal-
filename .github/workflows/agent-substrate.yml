@@ -101,6 +101,20 @@ jobs:
           files=$(git ls-files -z '*.py' | tr '\0' '\n' | wc -l)
           test "$files" -gt 200 || { echo "git ls-files returned $files"; exit 1; }
           git ls-files -z '*.py' | xargs -0 uv run ruff check --select F811
+      - name: every published number carries a dimension somebody reviewed
+        # build_hdf5_mapping.py read a column's unit off the END OF ITS NAME.
+        # 91 of 162 numeric columns fell through the suffix table and were
+        # published into the archival HDF5 as "unresolved" -- every
+        # heat-source density, every gas density, every entropy in nats, all
+        # of which state their unit in their own name. Three did NOT fall
+        # through and came out wrong: gradient_K_per_m ends in "_m" and was
+        # published as metres; the two dose fluxes end in "_s" and were
+        # published as seconds. A wrong unit is worse than none.
+        #
+        # Reconciled in both directions against docs/unit_inventory.json, and
+        # a PER_ROW entry must name a column that is actually in that CSV's
+        # header, so "the unit is in the row" is checked rather than asserted.
+        run: uv run python tools/unit_inventory.py
       - name: the claims boundary is enforced, and by how much
         # CLAIMS_BOUNDARY.md calls itself the strongest statement of position
         # in the package. Measured, 19 of its 24 forbidden claims would have
@@ -375,6 +389,15 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/cross_environment.json
+      - name: mutation matrix -- the dimension of every published number
+        # D-2026-57. Each mutation restores the suffix rule's behaviour: an
+        # undeclared column published anyway, a quantity accepted as a pure
+        # number, a PER_ROW entry naming a column that does not exist, and
+        # the missing-dimension count back to being a statistic that gates
+        # nothing.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/unit_inventory.json
       - name: mutation matrix -- what a serialised number is allowed to mean
         # D-2026-53..56. Each mutation restores a defect that was real: a zero
         # decided by magnitude rather than by why it is zero, a floor that says

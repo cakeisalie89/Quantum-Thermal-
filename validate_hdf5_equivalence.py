@@ -35,7 +35,14 @@ def main(h5_path: str = "qta_scientific_results.h5",
              "exact_numeric_matches": 0,
              "exact_string_matches": 0,
              "byte_exact_natives": 0,
-             "unresolved_unit_columns": 0}
+             # Was unresolved_unit_columns, a number this file counted and
+             # gated nothing with. It read 91 of 162 for as long as the unit
+             # was guessed from the column name (D-2026-57). A dimension is
+             # now declared for every governed numeric column and a missing
+             # one is a problem, not a statistic, so what is worth counting
+             # here is how the 162 divide.
+             "columns_with_a_physical_unit": 0,
+             "columns_declared_without_a_unit": 0}
     with h5py.File(h5_path, "r") as h:
         groups = set()
         def _collect(name, obj):
@@ -88,8 +95,20 @@ def main(h5_path: str = "qta_scientific_results.h5",
                                             "value mismatch")
                         else:
                             stats["exact_numeric_matches"] += 1
-                        if c["unit"] == "unresolved":
-                            stats["unresolved_unit_columns"] += 1
+                        u = c.get("unit")
+                        if not u or u == "unresolved":
+                            # A number in an archival artefact with no
+                            # dimension is not equivalent to the number it
+                            # came from: the source column's name stated one
+                            # and the archive does not.
+                            problems.append(
+                                f"{src}:{c['name']}: published with no "
+                                f"dimension (unit={u!r})")
+                        elif u.split(":")[0] in ("DIMENSIONLESS", "COUNT",
+                                                 "ORDINAL", "PER_ROW"):
+                            stats["columns_declared_without_a_unit"] += 1
+                        else:
+                            stats["columns_with_a_physical_unit"] += 1
                     else:
                         got = [x.decode("utf-8") if isinstance(x, bytes)
                                else str(x) for x in d[...]]

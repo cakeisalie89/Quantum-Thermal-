@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "180022",
+   "contentSize": "180326",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -204,18 +204,18 @@
   {
    "@id": "hdf5_output_mapping.json",
    "@type": "File",
-   "contentSize": "142126",
+   "contentSize": "142062",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "dc682b2fce6c8edd59ffed576a77e401aeba1fc8069cb0cf914aea88d4bb8014"
+   "sha256": "6f88f98e9cb7c3d8b40d3bf0646131163b4197069b3152fb2c00499a83c3d081"
   },
   {
    "@id": "hdf5_schema.json",
    "@type": "File",
-   "contentSize": "153387",
+   "contentSize": "153616",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "71e7cb217524f756ecd4787ed4067bfb4b9a43b91fe574c4b01d78fab2e2c28b"
+   "sha256": "b4b970ee40366c07e74177e73f656aee7f20c40cfd7fa8212b5fd9ec38122965"
   },
   {
    "@id": "manifest_hash.txt",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "2050873",
+   "contentSize": "2050929",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "a47bc9ade0b6490f31935063da3004654905884854ee168a04823fee8e731ed7"
+   "sha256": "66462d280ef208815d86d3f686dc6fafaccb8e406cc035e047fda075e0471f09"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -318,10 +318,10 @@
   {
    "@id": "stage8_reports/hdf5_equivalence_report.json",
    "@type": "File",
-   "contentSize": "503",
+   "contentSize": "548",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "5cc12e6c2383d715cf41ea166f9d28632cb7ae1dabb75acbf2a9f517f16a38b8"
+   "sha256": "a502f2ab56875451b630096b821baa59a6c622a8348d99c0b0f70d8906c08f85"
   },
   {
    "@id": "uv.lock",
