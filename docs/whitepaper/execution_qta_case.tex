@@ -1,0 +1,28 @@
+\section{QTA as the originating stress case}
+
+The Quantum Thermal Architecture project is the scientific workload that exposed the need for this harness. QTA is a mode-separated cryogenic multiphysics forecast framework with explicit evidence states, numerical checks, provenance, and strict non-claims. It currently reports zero physical PASS gates and does not claim validated hardware.
+
+QTA is useful as a stress workload because it combines coupled assumptions, mutually exclusive operating modes, blocked measurements, domain-specific evidence classes, numerical results that can be internally consistent without being experimentally validated, and long-running analysis where provenance and invalidation matter.
+
+The harness was not created to prove QTA correct. QTA made a broader systems failure obvious: a long-running computational process needs an authority layer outside itself.
+
+\statusbox{\textbf{Case-study boundary.} QTA does not claim validated hardware, simultaneous LCVD and sensing, measured forecast outputs, a validated digital twin, or external-solver equivalence. Harness verification has \code{automatic\_gate\_effect = NONE}; software provenance and reproducibility do not advance physical validation gates automatically.}
+
+\subsection{Representative governed workflow}
+A typical governed path is:
+
+\begin{enumerate}
+  \item Create a task with durable identity.
+  \item Evaluate policy and capability admission.
+  \item Place ready work into the durable queue and issue a bounded lease.
+  \item Execute the declared tool under bounded process and I/O rules.
+  \item Store output bytes in content-addressed evidence.
+  \item Record completion in durable history.
+  \item Give a separately identified verifier its own bounded authority.
+  \item Re-run or otherwise check the artifact according to an explicit verification contract.
+  \item Independently reconstruct the resulting authority history.
+  \item Permit promotion only if the authority transition is legal.
+\end{enumerate}
+
+Different workloads may use different verification contracts. The invariant is that verification is explicit and is not inferred from the producing agent's narrative.
+
