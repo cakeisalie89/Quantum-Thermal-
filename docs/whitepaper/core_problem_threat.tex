@@ -1,0 +1,81 @@
+\section{Problem statement and thesis}
+
+The failure mode addressed here is not ``the model sometimes reasons incorrectly.'' A capable model can produce individually plausible outputs while the \emph{process} becomes untrustworthy.
+
+Consider a long-running scientific agent that proposes a parameter change, edits a model, executes it, stores a result, summarizes that result into memory, later changes an upstream assumption, works from a compacted context, tells another agent the old result is still valid, verifies its own output, and promotes that output into subsequent work. Even if each step sounds reasonable, the system still has to answer:
+
+\begin{itemize}
+  \item What is canonical now, and which durable event made it canonical?
+  \item Which bytes support the claim, and do those bytes still resolve to the cited digest?
+  \item Did a later change invalidate the conclusion?
+  \item Did the same identity both produce and certify the artifact?
+  \item Did a crashed process leave work half-promoted or a lease falsely alive?
+  \item Can a fresh process reconstruct the same state without trusting the original agent?
+  \item Can an independent reader disagree with the primary implementation?
+  \item Did a green test actually exercise a meaningful safety property, or did it pass vacuously?
+\end{itemize}
+
+These are questions about \textbf{authority, state, evidence, identity, execution, and reconstruction}. They cannot be solved by adding more instructions to the model context.
+
+\thesisbox{The model may propose, reason, remember, and execute. Authority must remain external, explicit, replayable, and independently challengeable.}
+
+Three distinctions follow immediately:
+
+\begin{enumerate}
+  \item \textbf{Context is not state.} Context is a temporary view shown to an agent; it may be compacted, summarized, reordered, or lost.
+  \item \textbf{Memory is not evidence.} A durable remembered statement may influence reasoning without becoming scientifically authoritative.
+  \item \textbf{Reproducibility is not correctness.} Re-running a tool successfully can establish an execution property, not that the equations describe reality.
+\end{enumerate}
+
+\section{Threat model}
+
+The harness assumes powerful but fallible automation. Failures may be accidental, emergent, environmental, or adversarial; the model need not be malicious. The relevant threats are structural.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  threat/.style={draw=danger!65, fill=danger!5, rounded corners, align=left, text width=3.2cm, minimum height=0.9cm},
+  guard/.style={draw=good!65, fill=good!5, rounded corners, align=left, text width=5.0cm, minimum height=0.9cm},
+  arr/.style={-{Latex[length=2mm]}, thick, draw=muted}
+]
+\node[threat] (t1) {Self-authored state\\payload chooses prior state or identity};
+\node[threat, below=0.28cm of t1] (t2) {Self-certification\\producer also verifies};
+\node[threat, below=0.28cm of t2] (t3) {Stale conclusions\\upstream change, downstream claim survives};
+\node[threat, below=0.28cm of t3] (t4) {Vacuous verification\\green check evaluates nothing};
+\node[threat, below=0.28cm of t4] (t5) {Ambient privilege\\arbitrary I/O, egress, secrets};
+\node[threat, below=0.28cm of t5] (t6) {Environment drift\\CPU, BLAS, network, filesystem};
+\node[threat, below=0.28cm of t6] (t7) {Identity collusion\\nominal separation without independent principals};
+
+\node[guard, right=1.3cm of t1] (g1) {Replay derives prior state from durable history; payload does not define the authority context.};
+\node[guard, below=0.28cm of g1] (g2) {Role and identity separation: proposal, execution, verification, and promotion are distinct operations.};
+\node[guard, below=0.28cm of g2] (g3) {Dependency invalidation marks downstream authority stale and requires renewed verification.};
+\node[guard, below=0.28cm of g3] (g4) {Anti-vacuity checks, mutation testing, independent reconstruction, and hostile campaigns target the verifier itself.};
+\node[guard, below=0.28cm of g4] (g5) {Capabilities, confined I/O, default-deny tool/network policy, and scoped secret references bound side effects.};
+\node[guard, below=0.28cm of g5] (g6) {Execution provenance and commit-scoped CI distinguish local determinism from portable numerical equivalence.};
+\node[guard, below=0.28cm of g6] (g7) {Boundary is explicit: software can compare identities but cannot prove independent human or organizational control.};
+
+\foreach \a/\b in {t1/g1,t2/g2,t3/g3,t4/g4,t5/g5,t6/g6,t7/g7}{\draw[arr] (\a.east) -- (\b.west);}
+\end{tikzpicture}
+\caption{Threat classes and the corresponding harness response. The final row is intentionally a boundary, not a solved problem.}
+\label{fig:threatmodel}
+\end{figure}
+
+\subsection{Self-authored state and replay forgery}
+An event may claim that it began from a particular state or that a named actor performed an action. If replay trusts those fields, the event chooses the authority context in which it is judged. The harness instead reconstructs the prior state and relevant identity facts from earlier history, then judges the new record against that reconstructed context.
+
+\subsection{Self-certification}
+If one identity can propose, execute, verify, and promote its own artifact, verification is only a more expensive assertion. Separation therefore lives in code and state transitions, not in prompt etiquette.
+
+\subsection{Stale conclusions}
+A result can be valid relative to an old input graph and invalid after a parameter, policy, artifact, or assumption changes. Invalidation must be represented explicitly rather than entrusted to model memory.
+
+\subsection{Vacuous verification}
+A test can be green while checking zero artifacts, a mutation campaign can start from an already-red baseline, or a workflow stage can silently never run. Anti-vacuity is therefore part of the verification contract.
+
+\subsection{Environment-dependent execution}
+Scientific numerics can vary at the byte level across CPU dispatch, BLAS kernels, thread counts, operating systems, and network stacks. The harness distinguishes determinism conditional on a recorded environment from portable numerical equivalence.
+
+\subsection{Identity boundary}
+The harness can compare identities and roles. It cannot prove that three service accounts are controlled by three independent principals. External identity and attestation remain a boundary of the repository-local design.
+
