@@ -5485,6 +5485,67 @@ policed code this repository did not write and cannot fix would be
 unkeepable, and would be turned off — which is how a rule stops protecting
 anything.
 
+## P2 DISPOSITION — the locked release signer is not mine to lock
+
+**NOT A DEFECT.** Recorded so the P2 list is accounted for rather than left
+looking open, and so the reason is on the record rather than in a summary.
+
+**WHAT WAS ASKED.** "Locked release signer" — the last open P2 item.
+
+**WHAT IS THERE.** `QTA_stage9_release_verification/release_trust_policy.json`
+is `bootstrap_state: UNINITIALIZED` with every trust-bearing leaf carrying
+`PENDING:` — `authorized_ref`, `oidc_issuer`, `signer_identity`,
+`pinned_revision`, `reviewed_payload_sha256`, and the one entry of
+`trusted_builders`. Six unresolved leaves, zero wildcards. The release
+workflow signs keylessly through Sigstore and then verifies against those
+pins, failing closed on a missing signature, on a pin still PENDING, and on
+a wildcard anywhere.
+
+**WHY IT STAYS UNLOCKED.** The policy says so itself:
+
+> Resolution is an act of authorization performed by a human in a reviewed
+> commit; no automated step may perform it.
+
+Writing an exact `signer_identity` is a statement about who may sign
+releases for this repository. Deriving it mechanically from the owner, repo
+and workflow path would produce a plausible string and would still be an
+authorization nobody granted — the same shape as the hardware roster's
+"this is a DECLARATION, NOT AN AUTHENTICATION", and outside what this work
+is permitted to do. It stays PENDING, and the release path stays
+fail-closed, until the owner resolves it in a reviewed commit.
+
+**WHAT WAS ACTUALLY CHECKED, because "it fails closed" is a claim.** The
+policy's note asserts the PENDING rule is "enforced structurally over every
+leaf". After D-2026-52 — a rule that protected a list of paths rather than a
+property — that claim was probed rather than read:
+
+| probe | caught |
+|---|---|
+| a NEW top-level field carrying PENDING | yes |
+| PENDING nested two levels inside a new object | yes |
+| PENDING appended as a second `trusted_builders` entry | yes |
+| a nested object *named* `note` | yes — the exemption is the exact path `$.note` |
+| a field merely containing the substring `note` (`footnote`) | yes |
+| `" pending "` lower-case and padded, and `"PeNdInG"` | yes |
+| a wildcard inside `note` | yes — wildcards have no exemption at all |
+| a `?` wildcard in a new field | yes |
+
+`_leaves()` walks the document recursively and the one exemption is a
+frozenset of exact JSON paths, not a weakened matcher. The asymmetry is
+deliberate and correct: `note` is exempt from the PENDING scan because it
+must discuss the rule to state it, and is NOT exempt from the wildcard scan.
+
+**NOTHING WAS ADDED.** `tests/test_release_trust_enforcement.py` already
+covers all of it — 68 tests, including `test_pending_anywhere_fails`,
+`test_pending_inside_trusted_builders_fails`, a parametrized
+`test_pending_case_and_whitespace_tricks_fail`,
+`test_note_field_may_discuss_pending_without_tripping_the_scan`,
+`test_rejects_wildcard_in_any_leaf`, and `test_unknown_field_rejected`,
+which refuses an unrecognised field outright and is stricter than the probe
+assumed. 129 tests across the three release files pass. Writing duplicates
+of tests that already exist would have made the suite longer and the
+guarantee no stronger.
+
 ## HOSTED EVIDENCE — the first complete `agent-substrate` run
 
 Not a defect. A record, because for weeks the honest answer to "does the
