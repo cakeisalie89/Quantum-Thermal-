@@ -1,0 +1,81 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=0.78in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,tabularx,array,longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{parskip}
+\usepackage{listings}
+\usepackage{ragged2e}
+
+\definecolor{ink}{HTML}{18212B}
+\definecolor{muted}{HTML}{596574}
+\definecolor{line}{HTML}{D8DEE6}
+\definecolor{panel}{HTML}{F5F7FA}
+\definecolor{accent}{HTML}{2556A8}
+\definecolor{warn}{HTML}{8A4B08}
+\definecolor{good}{HTML}{146C43}
+\definecolor{danger}{HTML}{8E2430}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  citecolor=accent,
+  pdftitle={Scientific AI Harness: A Governed, Replayable Execution and Evidence Substrate for Long-Horizon Scientific Agents},
+  pdfauthor={cakeisalie89}
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlist{nosep,leftmargin=1.5em}
+\setlist[itemize]{topsep=0.25em}
+\setlist[enumerate]{topsep=0.25em}
+\renewcommand{\arraystretch}{1.18}
+\emergencystretch=2em
+
+\titleformat{\section}{\Large\bfseries\color{ink}}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\large\bfseries\color{ink}}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{ink}}{\thesubsubsection}{0.45em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\color{muted} Scientific AI Harness}
+\rhead{\small\color{muted} Architecture white paper}
+\cfoot{\small\color{muted}\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\statusbox}[1]{%
+  \vspace{0.4em}\noindent
+  \fcolorbox{line}{panel}{\parbox{0.965\linewidth}{\small #1}}\vspace{0.4em}
+}
+\newcommand{\thesisbox}[1]{%
+  \vspace{0.45em}\noindent
+  \fcolorbox{accent}{panel}{\parbox{0.955\linewidth}{\centering\large\bfseries\color{ink} #1}}\vspace{0.45em}
+}
+\newcommand{\risk}[1]{\textbf{\color{danger}#1}}
+\newcommand{\defense}[1]{\textbf{\color{good}#1}}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{line},
+  backgroundcolor=\color{panel},
+  xleftmargin=0.25em,
+  xrightmargin=0.25em,
+  aboveskip=0.55em,
+  belowskip=0.55em,
+  showstringspaces=false
+}
