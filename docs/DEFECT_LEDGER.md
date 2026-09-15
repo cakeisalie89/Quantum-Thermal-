@@ -5377,6 +5377,86 @@ harness that kept its own evidence and said precisely what it did and did
 not know. A run cheap enough to repeat is not evidence cheap enough to throw
 away.
 
+## D-2026-52 — the linter had been reporting it the whole time
+
+**CLASS** — `TRUE_DEFECT` (176 lines of dead code) sitting behind a
+`WRONG_SPECIFICATION` in the checking apparatus: a rule enforced over a
+named list of paths rather than over the property it protects.
+
+**DISCOVERED BY.** The P2 item recorded as "duplicate residue", by running
+D-2026-43's shadowed-definition scan over the whole repository instead of
+over `qta_agent/`, which is all it was ever pointed at.
+
+**DEFECT.** `qta_multiphysics/deep_expdesign/runner.py` defined
+`run_deep_expdesign_full` **twice**, at lines 120 and 298. Python keeps the
+last, so the first was dead.
+
+Worse than the scheduler case that started this class. There the two copies
+were byte-identical; here they had **diverged** — 176 lines against 213,
+`Optional[DeepConfig]` against `DeepConfig | None`, and materially different
+bodies: the live one records readiness through `readiness_record` and
+`ReadinessState`, fits OOD against a validation context as well as the
+training set, and imports `transforms` and `eig_surrogate`. The dead one did
+none of that. Someone had maintained an earlier draft in place and it stayed
+there, 176 lines that read as the implementation and were not.
+
+`_trust_decision` existed only to serve the dead copy and died with it.
+`_dependency_ok` did NOT: it is also called from `run_deep_expdesign` at
+line 58, which a name-set comparison of the two `_full` bodies missed and a
+grep caught. Deleting it would have broken a live function to tidy up a dead
+one.
+
+**THE PART THAT MATTERS.** Ruff had been reporting this for as long as the
+second copy existed:
+
+```
+F811 Redefinition of unused `run_deep_expdesign_full` from line 120
+```
+
+The tool that finds this defect was installed, was correct, and was running.
+CI's lint step names its paths —
+
+```
+ruff check qta_agent qta_multiphysics/stack tests/test_agent_*.py ...
+```
+
+— and `qta_multiphysics/deep_expdesign/` is not among them, so nothing ever
+read the finding. The bespoke AST scan written after D-2026-43 is a narrower
+re-implementation of F811 pointed at one package; it guarded the substrate
+faithfully while the same defect sat in the scientific tree.
+
+That is the defect class, and it is not about duplicate functions: **a rule
+scoped to a list of paths protects those paths, not the property.** The list
+is a proxy for "the code that matters", and proxies drift.
+
+**REPAIR.** The dead definition and its orphaned helper are gone — 186
+lines. Proven a no-op rather than assumed: the live function's source
+sha256, its signature and the package's `__all__` are unchanged, and the
+only differences in the module surface are its first line number (298 ->
+112) and `_trust_decision` leaving the namespace.
+
+`ruff check --select F811 .` now runs over the WHOLE tree, in CI and as a
+test. One rule everywhere, because the rest of ruff cannot be turned on
+here: the legacy scientific tree carries some 1400 findings, overwhelmingly
+E501, and pretending otherwise would produce a gate nobody can keep green.
+F811 is exactly "a name defined twice, the first is dead, and nothing says
+so", and the tree is now clean of it.
+
+Two further F811s surfaced in `deep_expdesign/likelihood_model.py` and are
+NOT the same defect: a function-local `from .simulator_adapter import
+_temp_factor, _coverage_factor, _N_OMEGA` re-importing two names already
+bound at module level, shadowing them with the same objects. Redundant, not
+dead — classified as such rather than counted as a second find. Only
+`_N_OMEGA` is unavailable above, so the local import now asks for that
+alone, and the sweep is clean.
+
+**ANTI-VACUITY.** A sweep that quietly stopped covering the tree it was
+added for would pass forever.
+`test_the_F811_sweep_is_actually_looking_at_the_scientific_tree` plants a
+shadowed definition inside `qta_multiphysics/` and requires the same
+invocation to report it, then removes it — the scope is demonstrated rather
+than trusted to a path list, which is the failure this entry is about.
+
 ## HOSTED EVIDENCE — the first complete `agent-substrate` run
 
 Not a defect. A record, because for weeks the honest answer to "does the

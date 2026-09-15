@@ -74,6 +74,22 @@ jobs:
           uv run ruff check qta_agent qta_multiphysics/stack \
             tests/test_agent_*.py tests/test_mutation_harness.py \
             tools/mutation_matrix.py tools/completion_matrix.py
+      - name: no definition anywhere is silently shadowed
+        # F811 OVER THE WHOLE TREE, not over the linted subset.
+        #
+        # The step above lints a named list, and qta_multiphysics/
+        # deep_expdesign/ is not on it. Ruff had been reporting
+        # "F811 Redefinition of unused `run_deep_expdesign_full` from line
+        # 120" in that package for as long as the second copy existed, and
+        # nothing read it: 176 lines of a diverged earlier draft, dead
+        # because Python keeps the LAST definition of a name.
+        #
+        # One rule, everywhere, is the closure. The rest of ruff cannot be
+        # turned on here -- the legacy scientific tree carries some 1400
+        # findings, mostly E501 -- but F811 is exactly the rule for "a name
+        # defined twice, the first is dead, and nothing says so", and the
+        # tree is clean of it.
+        run: uv run ruff check --select F811 .
       - name: the workflow still runs what the matrix says it runs
         # A row claiming hosted coverage is claiming something about THIS
         # file, and nothing else here would notice this file changing.

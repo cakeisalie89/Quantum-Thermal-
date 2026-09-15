@@ -634,6 +634,56 @@ def test_every_io_layer_entry_names_a_module_that_exists():
 
 # ---- D-2026-43: a definition that is never reached ------------------------
 
+def test_no_definition_ANYWHERE_is_silently_shadowed():
+    """The same rule as the test below, over the whole repository, and by the
+    tool that already implements it.
+
+    The scan below was written for `qta_agent/` after D-2026-43 and is a
+    narrower re-implementation of ruff's F811. While it guarded the
+    substrate, `qta_multiphysics/deep_expdesign/runner.py` carried two
+    definitions of `run_deep_expdesign_full` -- 176 lines and 213 lines,
+    DIVERGED, the first dead because Python keeps the last. Ruff had been
+    reporting it the whole time; CI lints a named list of paths and that
+    package is not on it, so nothing read the finding.
+
+    Running one rule over everything is the closure. The rest of ruff cannot
+    be enabled here -- the legacy scientific tree carries some 1400 findings,
+    overwhelmingly E501 -- but F811 is precisely "a name defined twice, the
+    first is dead, and nothing says so".
+    """
+    import subprocess
+    root = Path(__file__).resolve().parent.parent
+    proc = subprocess.run(
+        ["ruff", "check", "--select", "F811", "--output-format=concise", "."],
+        cwd=root, capture_output=True, text=True)
+    findings = [ln for ln in proc.stdout.splitlines() if ": F811 " in ln]
+    assert not findings, "shadowed definitions:\n" + "\n".join(findings)
+
+
+def test_the_F811_sweep_is_actually_looking_at_the_scientific_tree(tmp_path):
+    """The control. A sweep that silently excluded the tree it was added for
+    would pass the test above forever.
+
+    Rather than trust the path list, plant a shadowed definition in a real
+    package directory and require the same invocation to find it.
+    """
+    import subprocess
+    root = Path(__file__).resolve().parent.parent
+    planted = root / "qta_multiphysics" / "_f811_sweep_probe.py"
+    planted.write_text("def f():\n    pass\n\n\ndef f():\n    pass\n",
+                       encoding="utf-8")
+    try:
+        proc = subprocess.run(
+            ["ruff", "check", "--select", "F811",
+             "--output-format=concise", "."],
+            cwd=root, capture_output=True, text=True)
+        assert "_f811_sweep_probe" in proc.stdout, (
+            "the sweep did not see a shadowed definition planted inside "
+            f"qta_multiphysics/: {proc.stdout[:400]}")
+    finally:
+        planted.unlink()
+
+
 def test_no_definition_in_the_substrate_is_silently_shadowed():
     """A name defined twice in one scope: the first is dead and nothing says so.
 
