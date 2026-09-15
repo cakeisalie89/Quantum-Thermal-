@@ -78,6 +78,119 @@ def assert_finite(arr, name="array"):
     return a
 
 
+#: How a serialised number relates to the resolution of the method that
+#: produced it. A file that states a value to ten significant figures makes a
+#: claim about resolution whether or not it means to, so the claim is written
+#: down next to the number rather than left to the reader to reconstruct from
+#: the solver's tolerances -- which are not in the file.
+EXACT_ZERO = "EXACT_ZERO"
+RESOLVED = "RESOLVED"
+BELOW_RESOLUTION = "BELOW_RESOLUTION"
+OUT_OF_RANGE = "OUT_OF_RANGE"
+
+RESOLUTION_CLASSES = frozenset(
+    {EXACT_ZERO, RESOLVED, BELOW_RESOLUTION, OUT_OF_RANGE})
+
+
+class UndeclaredResolution(ValueError):
+    """A value was classified against a floor that says nothing.
+
+    A floor of zero -- or of None, or a negative number -- would make every
+    value RESOLVED, including noise, which is the answer this whole mechanism
+    exists to stop the package from giving. Refusing is the point: a missing
+    declaration is not a passing one.
+    """
+
+
+def resolution_class(raw, floor, *, trivially_zero=False, low=None, high=None):
+    """Classify ONE raw solver value against the resolution of its method.
+
+    ``raw`` is the value the method actually produced, BEFORE any clip into
+    the physical range. That matters: a density of -18.9 clipped to 0.0 and a
+    density of +0.016 left alone are the same measurement -- both are inside
+    an integrator whose absolute tolerance is 1e3 -- and only the raw value
+    says so. Classifying the clipped number would call one of them an exact
+    zero and the other a small positive density, which is how the same code on
+    two runners comes to state two different things about the same physics.
+
+    ``trivially_zero`` is NOT "the value is small". It is the caller's
+    statement that the model gives zero exactly here -- no source term and no
+    initial content, so the solution is identically zero in floating point and
+    the tolerance never enters. Deciding this by magnitude instead would mark
+    a species that is genuinely absent as merely unresolved, which is the
+    proxy error this package keeps finding in its own instruments: the
+    property is WHY the number is zero, not how small it is.
+
+    ``low``/``high``, when given, are the physical range the caller clips to.
+    A value outside that range by more than the floor is not noise and must
+    not be filed as noise; the serialised number is then the range bound and
+    the solver's answer is somewhere else entirely.
+    """
+    f = float(floor) if floor is not None else 0.0
+    if not np.isfinite(f) or f <= 0.0:
+        raise UndeclaredResolution(
+            f"resolution floor is {floor!r}; with no positive floor every "
+            "value classifies as RESOLVED, noise included")
+    if trivially_zero:
+        return EXACT_ZERO
+    v = float(raw)
+    if not np.isfinite(v):
+        raise UndeclaredResolution(
+            f"cannot classify a non-finite value ({v!r}) against a floor")
+    if low is not None and v < float(low) - f:
+        return OUT_OF_RANGE
+    if high is not None and v > float(high) + f:
+        return OUT_OF_RANGE
+    if abs(v) >= f:
+        return RESOLVED
+    return BELOW_RESOLUTION
+
+
+class UndecidableComparison(RuntimeError):
+    """A threshold was compared against a value the method cannot resolve.
+
+    Raised rather than answered, because both answers would be inventions.
+    """
+
+
+def decide_below(value, threshold, floor, *, value_class=None, what=""):
+    """``value < threshold``, or a refusal when the solve cannot say.
+
+    A comparison against an unresolved value is still a real decision when the
+    threshold is outside the unresolved band: if all the method establishes is
+    ``|n| < 1e3`` and the threshold is ``1e12``, then ``n < 1e12`` holds
+    whatever the digits were. That is the case in this package today, and it
+    is the reason the Mode-D residual term is sound despite resting on a
+    methane density that is pure integrator noise.
+
+    It stops being sound the moment someone tightens the threshold, and
+    nothing in a bare ``D_res_CH4 < 1e12`` would notice. Hence the guard: the
+    band is a property of the solve, the threshold is a property of the
+    requirement, and the comparison is only a decision while they do not
+    overlap.
+    """
+    f = float(floor) if floor is not None else 0.0
+    if not np.isfinite(f) or f <= 0.0:
+        raise UndeclaredResolution(
+            f"{what}: no positive resolution floor, so nothing establishes "
+            "that this comparison is decidable")
+    t = float(threshold)
+    if value_class == BELOW_RESOLUTION and -f < t < f:
+        raise UndecidableComparison(
+            f"{what}: threshold {t!r} lies inside the unresolved band "
+            f"(+/-{f!r}) of a value this solve cannot resolve; the "
+            "comparison has no answer that the numerics supports")
+    return float(value) < t
+
+
+def resolution_classes(raws, floor, *, trivially_zero=False, low=None,
+                       high=None):
+    """:func:`resolution_class` over an array. Returns a list of labels."""
+    return [resolution_class(v, floor, trivially_zero=trivially_zero,
+                             low=low, high=high)
+            for v in np.asarray(raws, dtype=float).ravel()]
+
+
 def explicit_diffusion_cfl_dt(alpha_max, dx):
     """Max stable explicit time step for 1D diffusion: dt <= dx^2/(2 alpha)."""
     return dx * dx / (2.0 * max(alpha_max, 1e-300))

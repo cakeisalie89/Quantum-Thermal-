@@ -125,10 +125,24 @@ def run_all(outdir, mc_samples=60, verbose=True):
     gB = solve_gas_transport_1d(mode="B", t_end=2.0)
     n_init = {s.name: gB.profile_final(s.name) for s in species}
     gC = solve_gas_transport_1d(mode="C", t_end=2.0, n_init=n_init)
-    # profile CSV: final density of each species along x (Mode C)
-    cols = [list(gB.grid.centers)] + [list(gC.profile_final(s.name)) for s in species]
-    write_profile_csv(out("gas_transport_profile.csv"),
-                      ["x_m"] + [f"n_{s.name}_modeC_1m3" for s in species], cols)
+    # profile CSV: final density of each species along x (Mode C), each
+    # column followed by what the solve can actually resolve there.
+    #
+    # Without the second column this file states 0.000000000e+00 for methane
+    # in all 120 cells and a reader has no way to tell that from helium's
+    # zero, which is exact. They are not the same statement: helium is absent
+    # by design in Mode C, and methane is present at a density this solve
+    # cannot see. The distinction is the difference between "no residual
+    # contamination at Mode D entry" and "residual contamination below 1e3
+    # per cubic metre", and only the second is supported.
+    cols = [list(gB.grid.centers)]
+    hdr = ["x_m"]
+    for s in species:
+        cols.append(list(gC.profile_final(s.name)))
+        hdr.append(f"n_{s.name}_modeC_1m3")
+        cols.append(gC.resolution_profile(s.name))
+        hdr.append(f"resolution_{s.name}_modeC")
+    write_profile_csv(out("gas_transport_profile.csv"), hdr, cols)
     rmap, maps, gm2 = gas_exposure_map_2d()
     map_rows = []
     for i, rr in enumerate(rmap):
@@ -145,6 +159,12 @@ def run_all(outdir, mc_samples=60, verbose=True):
             "max_density_m3": gB.max_density(s.name),
             "sample_region_density_modeB_m3": gB.sample_region_density(s.name),
             "residual_mode_D_density_m3": gC.sample_region_density(s.name),
+            # The residual is the contamination claim in this file. Stated
+            # alone it reads as a measured quantity; stated with its floor it
+            # reads as what it is.
+            "residual_mode_D_resolution": gC.resolution_of_region_mean(s.name),
+            "resolution_floor_1m3": gC.resolution_floor_1m3,
+            "cells_below_resolution_modeC": gC.cells_below_resolution(s.name),
             "cryobaffle_capture": s.cryobaffle_capture,
             "gas_transport_stability_status": "STABLE_MODEL_ONLY",
             "evidence_class": EVID, "measured_in_this_system": "false"})
@@ -153,15 +173,27 @@ def run_all(outdir, mc_samples=60, verbose=True):
 
     # ---------- surface coverage (1D B/C + 2D radial map) ----------
     gasB_sample = {s.name: gB.sample_region_density(s.name) for s in species}
-    covB, _, cspecs = surface_coverage_1d(gasB_sample, T_surface_K=max(t1.nv_layer_temperature_K(), 1.0),
-                                          t_end=1.0, mode="B")
+    # The whole solve is kept, not just its numbers: the resolution floor and
+    # the reason a species is zero live on it, and a `covB, _, _ = ...` throws
+    # both away.
+    solveB = surface_coverage_1d(gasB_sample, T_surface_K=max(t1.nv_layer_temperature_K(), 1.0),
+                                 t_end=1.0, mode="B")
+    covB, _, cspecs = solveB
     thetaB = {k: float(v[-1]) for k, v in covB.items()}
-    covC, tcov, _ = surface_coverage_1d({}, T_surface_K=cfg.fridge.T_fridge_K,
-                                        t_end=2.0, mode="C", theta0=thetaB, purge_1_s=5.0)
-    # profile CSV: coverage vs time during Mode C decay
-    scov_cols = [list(tcov)] + [list(covC[s.name]) for s in cspecs]
-    write_profile_csv(out("surface_coverage_profile.csv"),
-                      ["t_s"] + [f"theta_{s.name}_modeC" for s in cspecs], scov_cols)
+    solveC = surface_coverage_1d({}, T_surface_K=cfg.fridge.T_fridge_K,
+                                 t_end=2.0, mode="C", theta0=thetaB, purge_1_s=5.0)
+    covC, tcov, _ = solveC
+    # profile CSV: coverage vs time during Mode C decay, each column followed
+    # by what the solve resolves there. Helium is absent by design in Mode C
+    # and reads 0.0; a coverage below 1e-12 would read 0.0 too.
+    scov_cols = [list(tcov)]
+    scov_hdr = ["t_s"]
+    for s in cspecs:
+        scov_cols.append(list(covC[s.name]))
+        scov_hdr.append(f"theta_{s.name}_modeC")
+        scov_cols.append(solveC.resolution_profile(s.name))
+        scov_hdr.append(f"resolution_{s.name}_modeC")
+    write_profile_csv(out("surface_coverage_profile.csv"), scov_hdr, scov_cols)
     # 2D radial coverage map using the 2D thermal surface temperature + radial gas flux
     from .surface_coverage import surface_coverage_2d
     T_surf_radial = t2.T_peak.values[:, 0]  # surface row over r (peak during B)
@@ -182,6 +214,8 @@ def run_all(outdir, mc_samples=60, verbose=True):
         surf_metrics.append({
             "species": s.name, "max_theta_modeB": thetaB.get(s.name, 0.0),
             "residual_theta_mode_D": float(covC[s.name][-1]),
+            "residual_theta_mode_D_resolution": solveC.resolution_final(s.name),
+            "resolution_floor_theta": solveC.resolution_floor,
             "contamination_risk_status": "FORECAST_ONLY",
             "evidence_class": EVID, "measured_in_this_system": "false"})
     write_rows_csv(out("surface_coverage_metrics.csv"), surf_metrics)

@@ -16,7 +16,8 @@ import numpy as np
 from dataclasses import dataclass
 from scipy.integrate import solve_ivp
 
-from .numerics import require_integrated
+from .numerics import (require_integrated, resolution_class,
+                       resolution_classes)
 from .units import K_B, AMU, require_positive, require_nonnegative, require_fraction
 
 
@@ -52,6 +53,43 @@ def default_coverage_specs():
     ]
 
 
+#: Absolute tolerance of the coverage integration, and therefore the smallest
+#: fractional coverage this model can distinguish from zero. Declared as a
+#: constant rather than written inline at the solve so that the number in the
+#: file and the number the callers classify against cannot drift apart.
+COVERAGE_ATOL = 1e-12
+
+
+class CoverageSolve(tuple):
+    """The coverage solve's numbers, and what it can resolve.
+
+    A tuple subclass so that every ``out, t = evolve_coverage(...)`` call site
+    keeps working unchanged, while the resolution rides along as attributes.
+    A solve that knows its own floor should not be able to hand over only the
+    digits: that is how a coverage of 0.0 meaning "absent by design" and one
+    meaning "below 1e-12" end up written identically into the same column.
+    """
+
+    def __new__(cls, *items, floor, raw, trivially_zero):
+        self = super().__new__(cls, items)
+        self.resolution_floor = floor
+        self.raw = raw                      # species -> unclipped theta(t)
+        self.trivially_zero = trivially_zero  # species -> bool
+        return self
+
+    def resolution_profile(self, name):
+        return resolution_classes(
+            self.raw[name], self.resolution_floor,
+            trivially_zero=bool(self.trivially_zero.get(name, False)),
+            low=0.0, high=1.0)
+
+    def resolution_final(self, name):
+        return resolution_class(
+            float(self.raw[name][-1]), self.resolution_floor,
+            trivially_zero=bool(self.trivially_zero.get(name, False)),
+            low=0.0, high=1.0)
+
+
 def kinetic_flux(n_density_m3, T_gas_K, mass_amu):
     vbar = math.sqrt(8.0 * K_B * T_gas_K / (math.pi * mass_amu * AMU))
     return 0.25 * n_density_m3 * vbar  # [1/m^2/s]
@@ -85,10 +123,21 @@ def evolve_coverage(specs, fluxes, T_surface_K, t_end, theta0=None, purge_1_s=0.
 
     t_eval = np.linspace(0.0, t_end, n_eval)
     so = solve_ivp(rhs, (0.0, t_end), theta0, method="BDF", t_eval=t_eval,
-                   rtol=1e-7, atol=1e-12, max_step=t_end / 20.0)
+                   rtol=1e-7, atol=COVERAGE_ATOL, max_step=t_end / 20.0)
     require_integrated(so, "surface coverage")
     out = {names[i]: np.clip(so.y[i], 0.0, 1.0) for i in range(len(names))}
-    return out, t_eval
+    raw = {names[i]: np.array(so.y[i], dtype=float, copy=True)
+           for i in range(len(names))}
+    # Zero by the model, not by the tolerance: nothing lands on this surface
+    # and nothing was on it to begin with, so the coverage is identically zero
+    # whatever atol says. He3 and He4 in Mode C are this case, and reading it
+    # off the magnitude instead would file a species that is absent by design
+    # as one the solve merely could not see.
+    trivially_zero = {
+        names[i]: bool(not fluxes.get(names[i], 0.0) and theta0[i] == 0.0)
+        for i in range(len(names))}
+    return CoverageSolve(out, t_eval, floor=COVERAGE_ATOL, raw=raw,
+                         trivially_zero=trivially_zero)
 
 
 def surface_coverage_1d(gas_sample_densities, T_surface_K, t_end, mode="B",
@@ -102,8 +151,11 @@ def surface_coverage_1d(gas_sample_densities, T_surface_K, t_end, mode="B",
     if mode == "C":
         # purge/recovery: zero incoming process flux; strong removal
         fluxes = {k: 0.0 for k in fluxes}
-    out, t = evolve_coverage(specs, fluxes, T_surface_K, t_end, theta0=theta0, purge_1_s=purge_1_s)
-    return out, t, specs
+    solve = evolve_coverage(specs, fluxes, T_surface_K, t_end, theta0=theta0,
+                            purge_1_s=purge_1_s)
+    out, t = solve
+    return CoverageSolve(out, t, specs, floor=solve.resolution_floor,
+                         raw=solve.raw, trivially_zero=solve.trivially_zero)
 
 
 def surface_coverage_2d(gas_radial_flux, T_surface_radial_K, t_end, specs=None,

@@ -1,14 +1,14 @@
 {
  "byte_exact_natives": 28,
- "datasets_checked": 470,
- "exact_numeric_matches": 159,
- "exact_string_matches": 283,
+ "datasets_checked": 483,
+ "exact_numeric_matches": 162,
+ "exact_string_matches": 293,
  "h5": "qta_scientific_results.h5",
- "h5_sha256": "e571754a18fa9c4bc92c2c2e4c0cc8facb5e705d225c32379c6320a20dc1832d",
+ "h5_sha256": "a47bc9ade0b6490f31935063da3004654905884854ee168a04823fee8e731ed7",
  "mismatches": [],
  "note": "exact parsed-value equality (no tolerance); natives byte-exact; software verification only -- scientific gate PASS remains zero",
  "result": "EQUIVALENT",
  "schema_version": "1.0.0",
  "sources_checked": 88,
- "unresolved_unit_columns": 88
+ "unresolved_unit_columns": 91
 }

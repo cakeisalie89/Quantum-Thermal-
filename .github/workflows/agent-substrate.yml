@@ -101,6 +101,23 @@ jobs:
           files=$(git ls-files -z '*.py' | tr '\0' '\n' | wc -l)
           test "$files" -gt 200 || { echo "git ls-files returned $files"; exit 1; }
           git ls-files -z '*.py' | xargs -0 uv run ruff check --select F811
+      - name: the claims boundary is enforced, and by how much
+        # CLAIMS_BOUNDARY.md calls itself the strongest statement of position
+        # in the package. Measured, 19 of its 24 forbidden claims would have
+        # passed package_consistency_check.py verbatim -- the whole shielding
+        # list, including "Mode B processing and Mode D sensing occur
+        # simultaneously", the sentence the mode-exclusive architecture exists
+        # to deny. The five that were caught were caught by patterns written
+        # for stale RTB/JT module counts.
+        #
+        # Reconciled in both directions and re-derived rather than named: a
+        # rule that names a claim must MATCH it. A new forbidden claim arrives
+        # uncovered and fails here until somebody writes the rule.
+        #
+        # It answers one bounded question -- would this EXACT sentence be
+        # refused -- and not whether a paraphrase would be. No string rule
+        # answers that one.
+        run: uv run python tools/claims_enforcement.py
       - name: the workflow still runs what the matrix says it runs
         # A row claiming hosted coverage is claiming something about THIS
         # file, and nothing else here would notice this file changing.
@@ -358,6 +375,15 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/cross_environment.json
+      - name: mutation matrix -- what a serialised number is allowed to mean
+        # D-2026-53..56. Each mutation restores a defect that was real: a zero
+        # decided by magnitude rather than by why it is zero, a floor that says
+        # nothing, a threshold compared against a value nothing resolves, a
+        # status allowlist wide enough to admit the claim it forbids, and a
+        # claims table that names a rule without matching it.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/output_resolution.json
       - name: mutation matrix -- corpus membership
         # Every guard on a corpus path protected its shape; none protected
         # the set, so writing a file into the tree made it governed text.
@@ -503,6 +529,30 @@ jobs:
         # upload it, and a report that cannot be retrieved is the shape of
         # the problem R59 spent months on. The log IS the evidence.
         run: uv run python tools/cross_env_semantics.py outputs/ .
+      - name: which numbers a clip decided, and what says so in the file
+        # The step above reports that a zero moved between two runners. This
+        # one answers the question that makes such a report actionable: was
+        # the number the model's, or the clip's?
+        #
+        # gas_transport_profile.csv stated 0.000000000e+00 for methane in all
+        # 120 Mode-C cells while the solve had produced noise between -1.9e+01
+        # and -1.8e-10, inside its own atol of 1e3. Helium's zero in the same
+        # file is exact. Both were written identically, so a reader could not
+        # tell "absent by design" from "below what this method can see" -- and
+        # residual_mode_D_density_m3 is a contamination claim.
+        #
+        # ALWAYS, for the reason the step above gives: this runs after a step
+        # that is expected to fail here, and a measurement that only runs when
+        # everything already passed measures nothing that matters.
+        #
+        # Every numpy.clip in the scientific tree is instrumented during a
+        # real canonical run -- the same three entry points qta_full_sim.py
+        # drives -- and reconciled against docs/clip_provenance.json. Reading
+        # the source would have found the two gas-transport sites; it would
+        # not have established that the others never fire. A run that observed
+        # no clip at all is a refusal, not a pass.
+        if: always()
+        run: uv run python tools/clip_provenance.py
 
   second-interpreter:
     # The guarantees under test are pure-Python and stdlib-only. Running them

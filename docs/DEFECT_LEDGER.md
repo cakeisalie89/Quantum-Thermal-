@@ -5682,3 +5682,328 @@ the committed outputs' (R59, D-2026-48). Step 8 alongside it reports 0
 decision changes over 24 differing files. Nothing here makes the package
 byte-reproducible across hosts and nothing here claims to. D-2026-51 also
 remains OPEN: no log in this run carries the traceback that would close it.
+
+---
+
+## D-2026-53 — the file states the number and not what the method could see
+
+**CLASS** — `TRUE_DEFECT` in the scientific outputs: a serialised value that
+claims more resolution than the method that produced it, in a column whose
+name makes it a contamination claim.
+
+**DISCOVERED BY.** The claim audit, following the exact-zero crossings that
+the D-2026-48 semantic comparator had reported and that were deliberately
+left open at the time as "a claims-audit decision".
+
+**THE MEASUREMENT.** `gas_transport_profile.csv` states
+
+```
+n_CH4_modeC_1m3 = 0.000000000e+00     x 120 cells
+```
+
+and `gas_transport_metrics.csv` states `residual_mode_D_density_m3 = 0.0`
+for CH4. That column is the residual methane density at Mode D entry — the
+number a reviewer would quote for "how much process gas is left when the
+10 mK sensing mode starts".
+
+The Mode-C solve did not produce zero. Instrumented, its final methane
+profile is **negative in all 120 cells**, between `-1.888e+01` and
+`-1.847e-10`. `solve_gas_transport_1d` runs with `atol=1e3` per cubic metre,
+so every one of those values is eight to eleven orders of magnitude inside
+the integrator's own absolute tolerance: noise. `np.clip(so.y, 0.0, None)`
+maps the lot to exactly `0.0`, and `write_profile_csv`'s `%.9e` states it to
+ten significant figures.
+
+On a runner whose BLAS dispatch differs the same noise lands positive, the
+clip leaves it alone, and the file states `1.6e-02` instead. Same model, same
+commit, two machines, two different claims about residual contamination —
+which is how this surfaced, as a ZERO_CROSSING in the cross-environment
+comparator.
+
+H2 is the same defect without the clip: 5 of its 120 cells sit below the same
+floor and are stated to ten figures.
+
+**THE DEFECT IS NOT THE ZERO.** He3 and He4 also read `0.000000000e+00` in
+that file, and their zero is exact: helium has no inlet source and no initial
+content in Mode C, so the solution is identically zero in floating point and
+the tolerance never enters. Three different statements — absent by design,
+present but unresolved, resolved and small — were written identically,
+because the file carried values and not the resolution of the method. The
+tolerance is not in the file, and no reader can reconstruct it.
+
+**WHY THE OBVIOUS REPAIRS ARE WRONG.**
+
+* *Round to the floor.* Maps `1.6e-02` to `0.0` and calls the divergence
+  resolved. It conceals the finding instead of reporting it, and the next
+  sub-tolerance value in the next output is equally unmarked.
+* *Tighten `atol`.* Moves the floor; does not declare it. The class survives
+  at the new floor, one order of magnitude down.
+* *Drop the clip.* Serialises negative densities. A worse claim.
+
+**REPAIR.** An output states the resolution of the method that produced it.
+
+`qta_multiphysics/numerics.py` gains `resolution_class` — in the numerics
+layer every solver already depends on, for the reason `require_converged`'s
+docstring gives about rules that live inside one of the things they govern.
+It classifies a **raw** value, before any clip, into one of four:
+
+| class | meaning |
+|---|---|
+| `EXACT_ZERO` | the model gives zero: no source, no initial content |
+| `RESOLVED` | `abs(raw) >= floor`, inside the physical range |
+| `BELOW_RESOLUTION` | `abs(raw) < floor`: not distinguishable from zero |
+| `OUT_OF_RANGE` | outside the range by more than the floor — a solver problem, not a precision footnote |
+
+`trivially_zero` is **not** "the value is small". It is the solver's record
+that no source and no initial content existed, computed where both halves of
+the reason are in hand. Deciding it by magnitude would file helium — absent
+by design — as merely unresolved, which is this project's recurring error
+written one more time: classifying by a proxy for the property instead of by
+the property.
+
+The gas and coverage solves now carry their raw solution, their floor and
+their trivially-zero set; `gas_transport_profile.csv`,
+`surface_coverage_profile.csv` and both metrics files state the class beside
+every value, with the floor and the below-resolution cell count.
+`package_consistency_check.py` **re-derives** the classification from the
+value and the declared floor rather than trusting the column, and refuses a
+run in which it compared nothing.
+
+**THE DECISION THAT RESTED ON IT.** `coupled_mode_solver.run_coupled`
+computed Mode-D readiness with
+
+```python
+"gas_residual_ok": (D_res_CH4 < 1e12 and D_res_H2 < 1e12),
+```
+
+on the clipped `0.0`. That comparison **is** sound — `1e12` is nine orders of
+magnitude above the floor, so whatever the digits were, the residual is below
+the threshold — but nothing established it, and a bare `<` would go on
+deciding a readiness term on noise if the threshold were ever tightened
+towards the floor. `decide_below` now makes the band explicit and raises
+`UndecidableComparison` when a threshold lies inside it. Readiness is
+unchanged: `FORECAST_NOT_READY`, as before.
+
+**THE BREADTH, MEASURED.** `tools/clip_provenance.py` instruments every
+`numpy.clip` in the scientific tree during a real canonical run — the same
+three entry points `qta_full_sim.py` drives — and reconciles the measurement
+against `docs/clip_provenance.json`. Reading the source would have found the
+two gas-transport sites; it would not have established that the others never
+fire, which is the half of "the defect is confined to gas transport" that
+makes it a measurement rather than an impression. A clip that starts moving
+values fails the check until somebody says what it does to the output.
+
+**WHAT THIS DOES NOT CLAIM.** Nothing here makes the methane residual known.
+It makes it *stated*: below `1e3` per cubic metre, which is what this solve
+establishes and all it establishes. `PASS = 0` is unchanged, no gate moved,
+and the forecast remains forecast.
+
+---
+
+## D-2026-54 — the checker printed a count it had never compared
+
+**CLASS** — `WRONG_SPECIFICATION` in the checking apparatus, twice in four
+lines: a message naming a quantity other than the one measured, and a guard
+that reports agreement about a field it never read.
+
+**DISCOVERED BY.** The claim audit, reconciling the package's countable
+claims against the data.
+
+**DEFECT.**
+
+```python
+if mc.get("total_gates") and int(mc["total_gates"]) != CANONICAL_EXPECTED["total_gates"]:
+    fail(...)
+else:
+    ok("MC summary total_gates matches canonical (63)")
+```
+
+`CANONICAL_EXPECTED["total_gates"]` is **83**, and 83 is what
+`monte_carlo_summary.csv` carries. Nothing in this package has ever had 63
+gates: 83 = 47 CONDITIONAL + 23 BLOCKED + 11 DERIVED_CHECK + 2 UNKNOWN + 0
+PASS. A reader reconciling the checker's own output against the artifact it
+checks would have found a contradiction that does not exist — the same shape
+as R59 spending days on a number that turned out to be a slice width.
+
+And `if mc.get(k) and ...` takes the **OK** branch when the field is missing
+or empty. An absent `total_gates` printed "matches canonical" beside the
+`fail` for the missing row — two messages about the same field, one of them
+false.
+
+**REPAIR.** The message interpolates the value it compared, so the two cannot
+drift again. A missing or empty field is `NOT CHECKED`, which is a failure:
+a field that is not there has not been checked, and silence there reads
+exactly like agreement. Same for `PASS_count`.
+
+---
+
+## D-2026-55 — the strongest hardware claim was enforced by nothing
+
+**CLASS** — `MISSING_ENFORCEMENT`: a claim in the package's canonical claims
+file with no rule behind it, and three proxies that looked like one.
+
+**DISCOVERED BY.** The claim audit, taking `CLAIMS_BOUNDARY.md` clause by
+clause and asking what refuses each one.
+
+**THE CLAIM.**
+
+> No validated hardware. Every hardware item in BOM.csv is either
+> DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or
+> MANUFACTURER_SPEC. **No item is in-system VERIFIED.**
+
+**DEFECT.** `package_consistency_check.py` audits BOM.csv in eight rules and
+none of them is that one. What is there:
+
+* Rules 4 and 5 forbid `MEASURED` and `INSTALLED` — **for `B081..B131` only**,
+  51 of 121 rows. The other seventy were unconstrained.
+* Rule 6 forbids `INSTALLED`/current for rows whose *name* contains
+  "dilution", "cryostat" or "refriger".
+* Rule 8 scans the whole row for `\b(validated|verified)\b`.
+
+Rule 8 is the one that looks like the enforcement, and it is not:
+
+```python
+>>> re.search(r"\b(validated|verified)\b", "INSTALLED_VERIFIED", re.I)
+None
+```
+
+An underscore is a word character, so there is no boundary before the `V`.
+`INSTALLED_VERIFIED` and `IN_SYSTEM_VERIFIED` pass; a bare `verified` in prose
+is caught. The rule catches the sentence and misses the status.
+
+Put together: a status of `INSTALLED_VERIFIED` on any row outside
+`B081..B131` whose name does not mention a cryostat passed every check in the
+file. Nothing in the package would have said the claims boundary had been
+broken.
+
+**AND THE VOCABULARY DID NOT MATCH.** The claim names four statuses. The data
+uses three: `DESIGN_SPECIFIED` (117), `NOT_INSTALLED` (3) and
+`MANUFACTURER_SPEC_TARGET` (1) — a fifth name, not on the list.
+`INSTALLED_UNVERIFIED` is on the list and used by nothing. So a reviewer
+checking the claim against the file would find a status the claim does not
+permit, and a permitted status that does not occur.
+
+**REPAIR.** An allowlist, which is the property rather than a proxy for it:
+
+```python
+ALLOWED_BOM_STATUS = {
+    "DESIGN_SPECIFIED", "NOT_INSTALLED", "INSTALLED_UNVERIFIED",
+    "MANUFACTURER_SPEC", "MANUFACTURER_SPEC_TARGET",
+}
+```
+
+Enumerating the permitted set also removes the thing that made this hard to
+write as a pattern: `INSTALLED_UNVERIFIED` contains `VERIFIED` as a
+substring, so no substring rule separates the negation from the assertion.
+Membership does. Widening the set is a change to the claims boundary and now
+reads like one.
+
+`CLAIMS_BOUNDARY.md` states the same five, with the current counts, and says
+the list is the complete permitted vocabulary. An empty BOM is a refusal
+rather than a clean audit of nothing.
+
+`tests/test_bom_status_claim.py` drives the rule over a **constructed** BOM
+carrying `INSTALLED_VERIFIED` on a row outside `B081..B131` and requires a
+refusal, with the unmodified table as the control — so the test establishes
+what the checker would reject, not merely that today's data is clean. It
+reads the allowlist out of the checker rather than restating it, because a
+copy of the rule inside the test would keep passing while the checker's copy
+rotted. The word-boundary behaviour is pinned in its own test, so that
+reintroducing a `\bverified\b` scan as the enforcement fails with the reason
+attached.
+
+**WHAT DID NOT CHANGE.** No BOM row. The committed table was already clean;
+what was missing was anything that would have noticed if it were not.
+
+---
+
+## D-2026-56 — the claims boundary was a fifth enforced, and nothing said which fifth
+
+**CLASS** — `MISSING_ENFORCEMENT` at scale, plus `UNMEASURED_COVERAGE`: the
+package's canonical claims file and the checker that is supposed to hold it up
+were never reconciled, in either direction.
+
+**DISCOVERED BY.** The claim audit. D-2026-55 found one unenforced clause by
+reading. The obvious next question was how many others there were, and that is
+a measurement, not a reading.
+
+**THE MEASUREMENT.** Take every **Forbidden:** bullet in
+`CLAIMS_BOUNDARY.md`, and ask of each: if this exact sentence appeared in a
+live document, would `package_consistency_check.py` refuse it?
+
+**19 of 24 would have passed.**
+
+Uncovered, every one of them:
+
+```
+QTA has validated radiation shielding.
+QTA shielding proves 10 mK Mode D operation.
+Cryo-baffles prove contamination is solved.
+Mode B processing and Mode D sensing occur simultaneously.
+Monte Carlo validates the shielding stack.
+RF/IR shielding is sufficient without measurement.
+The radiation shutter stack has been experimentally proven.
+The cryopanels solve Mode B -> Mode D contamination without measurement.
+The magnetic shield is compatible with NV sensing without bias-field validation.
+QTA has selected RTB/JT cooling.
+QTA has installed RTB/JT cooling.
+QTA RTB/JT cooling is validated.
+RTB/JT replaces the dilution refrigerator.
+RTB/JT unlocks any PASS gate.
+...
+```
+
+The **entire** shielding list — the nine sentences the file itself calls "the
+canonical statements that bound what the package claims about shielding" —
+had no enforcement at all. Among them, `Mode B processing and Mode D sensing
+occur simultaneously`, which is the sentence the whole mode-exclusive
+architecture exists to deny, named in the not-authorized list, and enforced by
+nothing.
+
+The five that were covered were covered **incidentally**: `25 RTB`, `25 JT`,
+`25 reverse-turbo-Brayton`, `JT provides 10 mK`, `JT validates` — patterns
+written to catch stale module counts, which happened to fall across five
+claim sentences.
+
+`RTB/JT unlocks any PASS gate` is the near miss that shows how thin the
+coverage was. The checker had `RTB[/ ]?JT\s+unlocks\s+PASS`. The bullet says
+"unlocks **any** PASS gate". One word apart, and the rule did not fire.
+
+**WHY IT WAS INVISIBLE.** Nobody had claimed the list was enforced. Nothing
+had measured that it was not. A claims file whose entries are enforced and one
+whose entries are not look identical from the outside, and the checker's
+output — 90-odd green `[PASS]` lines — reads as though the claims are among
+the things being held up.
+
+**REPAIR.** `FORBIDDEN_CLAIM_PATTERNS` in the checker: one entry per forbidden
+bullet, each carrying the bullet **verbatim** as the thing it enforces, scanned
+over the five live documents with the negation handling the README check has
+always had (a line that denies the claim is not the claim) and the existing
+`Forbidden:`/superseded exemption, so that the claims file may quote its own
+forbidden sentences.
+
+`tools/claims_enforcement.py` reconciles the two lists **in both directions,
+by matching rather than by naming**:
+
+* every bullet must be matched by some pattern, or it is reported uncovered —
+  so a new forbidden claim arrives unenforced and fails, instead of joining
+  the silent 19;
+* every pattern must name a bullet that still exists, so the table cannot
+  drift into describing a claims file that has moved on;
+* every pattern must **match** the bullet it names. Naming a claim is not
+  enforcing it, and a table of regexes that matched nothing would otherwise
+  report full coverage.
+
+Now 22 of 22. The count moved from 24 because two entries were removed from
+the list and restated as prose above it: "a value of 0.000000000e+00 does not
+mean the species is absent" and "do not quote a serialised value without its
+resolution class" are rules of reading, not sentences anyone would write.
+Nothing can enforce them automatically, and a list that must be enforced entry
+by entry cannot carry entries that nothing can enforce without misreporting
+its own coverage.
+
+**WHAT THIS DOES NOT ESTABLISH — AND THE TOOL SAYS SO IN ITS OWN OUTPUT.**
+One bounded question: would this *exact sentence* be refused? A paraphrase is
+not caught. No string rule catches one, and a number that implied otherwise
+would be worth less than no number. What has changed is that the number is now
+measured, on every commit, and that the shielding claims are inside it.

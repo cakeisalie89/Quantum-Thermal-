@@ -1172,9 +1172,9 @@ STALE_PATTERNS_8E = [
     (r"RTB\s+validates\b", "RTB validates"),
     (r"JT\s+validates\b", "JT validates"),
     (r"RTB[/ ]?JT\s+validates\b", "RTB/JT validates"),
-    (r"RTB\s+unlocks\s+PASS", "RTB unlocks PASS"),
-    (r"JT\s+unlocks\s+PASS", "JT unlocks PASS"),
-    (r"RTB[/ ]?JT\s+unlocks\s+PASS", "RTB/JT unlocks PASS"),
+    (r"RTB\s+unlocks\s+(?:any\s+)?PASS", "RTB unlocks PASS"),
+    (r"JT\s+unlocks\s+(?:any\s+)?PASS", "JT unlocks PASS"),
+    (r"RTB[/ ]?JT\s+unlocks\s+(?:any\s+)?PASS", "RTB/JT unlocks PASS"),
     # Stale legacy 62-gate-count strings guarded against (canonical gate count is 83)
     (r"\b62\s+explicit\s+decision\s+gates", "62 explicit decision gates"),
     (r"\b62\s+unique\s+gate_id\s+rows", "62 unique gate_id rows"),
@@ -1255,6 +1255,105 @@ if stale_violations_8e:
          f"{len(stale_violations_8e)} stale references; first: {detail}")
 else:
     ok(f"no stale canonical references in live docs (audited {len(LIVE_DOCS)} files for {len(STALE_PATTERNS_8E)} patterns)")
+
+# ===================== CLAIMS BOUNDARY: the forbidden claims ==================
+#
+# CLAIMS_BOUNDARY.md lists, under "**Forbidden:**", the sentences this package
+# is not permitted to say. Measured, 19 of its 24 entries would have passed
+# this file verbatim -- the whole shielding list among them, including "Mode B
+# processing and Mode D sensing occur simultaneously", which is the statement
+# the entire mode-exclusive architecture exists to deny. The five that were
+# caught were caught by patterns written for a different purpose: stale RTB/JT
+# module counts.
+#
+# So the claims file was the strongest statement of position in the package
+# and about a fifth of it was enforced, with nothing measuring which fifth.
+#
+# WHAT THIS DOES AND DOES NOT ESTABLISH. It answers one bounded question: if
+# this exact forbidden sentence appeared in a live document, would the package
+# refuse? It does not catch a paraphrase, and no string rule can. That limit
+# is the reason every entry here names the bullet it enforces and is required
+# to MATCH it: tools/claims_enforcement.py reconciles the two lists in both
+# directions and re-derives the match rather than trusting the name, so the
+# coverage number is measured and a new forbidden claim arrives uncovered
+# rather than silently unenforced.
+FORBIDDEN_CLAIM_PATTERNS = [
+    # (regex, the CLAIMS_BOUNDARY.md bullet it enforces, verbatim)
+    (r"(?:has|have)\s+validated\s+(?:the\s+)?radiation\s+shielding",
+     "QTA has validated radiation shielding."),
+    (r"shielding\s+proves\s+10\s*mK",
+     "QTA shielding proves 10 mK Mode D operation."),
+    (r"[Cc]ryo-?baffles?\s+prove\b",
+     "Cryo-baffles prove contamination is solved."),
+    (r"Mode\s*B[^.\n]{0,60}Mode\s*D[^.\n]{0,60}simultaneous",
+     "Mode B processing and Mode D sensing occur simultaneously."),
+    (r"Monte\s+Carlo\s+validates\b",
+     "Monte Carlo validates the shielding stack."),
+    (r"shielding\s+is\s+sufficient\s+without\s+measurement",
+     "RF/IR shielding is sufficient without measurement."),
+    (r"shutter\s+stack\s+has\s+been\s+experimentally\s+proven",
+     "The radiation shutter stack has been experimentally proven."),
+    (r"cryopanels\s+solve\b",
+     "The cryopanels solve Mode B \u2192 Mode D contamination without measurement."),
+    (r"magnetic\s+shield\s+is\s+compatible\s+with\s+NV\s+sensing",
+     "The magnetic shield is compatible with NV sensing without bias-field validation."),
+    (r"(?:has|have)\s+selected\s+(?:RTB[/ ]?JT|RTB|JT)\b",
+     "QTA has selected RTB/JT cooling."),
+    (r"(?:has|have)\s+installed\s+(?:RTB[/ ]?JT|RTB|JT)\b",
+     "QTA has installed RTB/JT cooling."),
+    (r"RTB[/ ]?JT\s+cooling\s+is\s+validated",
+     "QTA RTB/JT cooling is validated."),
+    (r"RTB[/ ]?JT\s+replaces\s+the\s+dilution",
+     "RTB/JT replaces the dilution refrigerator."),
+    (r"purge\s+removes\s+all\s+methane",
+     "The Mode-C purge removes all methane."),
+    (r"[Rr]esidual\s+methane[^.\n]{0,40}\bis\s+zero\b",
+     "Residual methane at Mode D entry is zero."),
+    (r"reduces\s+residual\s+species\s+to\s+zero",
+     "The cryobaffle stack reduces residual species to zero."),
+]
+
+#: A line that denies the claim is not the claim. Modelled on the README
+#: check, which has always had this and which is why the same list is not
+#: needed in 8E: 8E looks for stale VALUES, and a stale value is stale
+#: whatever the sentence around it says.
+CLAIM_NEGATIONS = (
+    "no ", "not ", "never", "forbidden", "does not", "cannot", "must not",
+    "without measurement", "unvalidated", "unverified", "would be",
+    "is not", "are not", "remains", "remain ", "explicit non-claim",
+)
+
+claim_violations = []
+for fn in ("README.md", "CLAIMS_BOUNDARY.md", "source_audit_status.txt",
+           "qta_full_sim.py", "qta_manuscript_v4.tex"):
+    fp = PKG / fn
+    if not fp.exists():
+        continue
+    content = fp.read_text(encoding="utf-8", errors="replace")
+    for rx, bullet in FORBIDDEN_CLAIM_PATTERNS:
+        for m_ in re.finditer(rx, content):
+            if _is_superseded_block(content, m_.start()):
+                continue
+            line_n = content[:m_.start()].count("\n") + 1
+            line = content.split("\n")[line_n - 1]
+            if any(neg in line.lower() for neg in CLAIM_NEGATIONS):
+                continue
+            claim_violations.append((fn, line_n, bullet, m_.group(0)[:60]))
+
+print()
+print("Step 8D2: CLAIMS_BOUNDARY forbidden claims (live docs)")
+print("-"*70)
+if claim_violations:
+    fail("live docs make no claim CLAIMS_BOUNDARY.md forbids",
+         f"{len(claim_violations)} hits; first: " + "; ".join(
+             f"{fn}:L{ln} '{b}' (match: {t!r})"
+             for fn, ln, b, t in claim_violations[:5]))
+else:
+    ok(f"live docs make no claim CLAIMS_BOUNDARY.md forbids "
+       f"({len(FORBIDDEN_CLAIM_PATTERNS)} patterns over 5 documents; "
+       "exact sentences only -- a paraphrase is not caught and no string "
+       "rule catches one)")
+
 
 
 # ===================== STEP 8F: canonical mode-map + tag-class + count audits ====
@@ -1513,7 +1612,49 @@ if bom_path.exists():
                              cell_blob, re.IGNORECASE):
                 bom_problems.append(f"{iid}/L{line_no}: row contains 'validated/verified' claim without negation/required_validation context")
 
-    # Rule 9: BOM row count freshness in README / final_manifest / output_sync_report
+    # Rule 9: the status vocabulary is the claim, so it is enumerated
+    #
+    # CLAIMS_BOUNDARY.md makes the package's strongest hardware statement --
+    # "Every hardware item in BOM.csv is either DESIGN_SPECIFIED,
+    # NOT_INSTALLED, INSTALLED_UNVERIFIED, or MANUFACTURER_SPEC. No item is
+    # in-system VERIFIED." -- and nothing here enforced it.
+    #
+    # What existed were proxies. Rules 4 and 5 forbid MEASURED and INSTALLED
+    # for B081..B131 only, so the other seventy rows were unconstrained. Rule
+    # 6 covers cryostat hardware by keyword. Rule 8 scans the row for the
+    # word "verified", and `\bverified\b` does not match INSTALLED_VERIFIED,
+    # because an underscore is a word character and there is no boundary
+    # before the V. A status of INSTALLED_VERIFIED, or IN_SYSTEM_VERIFIED, on
+    # any row outside that id range passed every rule in this file.
+    #
+    # An allowlist is the property itself: the set of things a status is
+    # permitted to say. It also removes the need to reason about substrings,
+    # which is what made INSTALLED_UNVERIFIED and INSTALLED_VERIFIED hard to
+    # separate by pattern. Widening it is a change to the claims boundary and
+    # should read like one.
+    ALLOWED_BOM_STATUS = {
+        "DESIGN_SPECIFIED",
+        "NOT_INSTALLED",
+        "INSTALLED_UNVERIFIED",
+        "MANUFACTURER_SPEC",
+        "MANUFACTURER_SPEC_TARGET",
+    }
+    for i, r in enumerate(bom_rows):
+        st = (r.get("status") or "").strip()
+        if st not in ALLOWED_BOM_STATUS:
+            bom_problems.append(
+                f"{(r.get('item_id') or '').strip()}/L{i + 2}: status "
+                f"{st!r} is not one of {sorted(ALLOWED_BOM_STATUS)}; "
+                "CLAIMS_BOUNDARY.md states that no item is in-system "
+                "VERIFIED")
+    if not bom_rows:
+        # A zero-row BOM would satisfy every rule above by having nothing to
+        # violate, and this file would print a clean audit of nothing.
+        bom_problems.append(
+            "BOM.csv has no rows; an empty table passes every rule here "
+            "without establishing anything")
+
+    # Rule 10: BOM row count freshness in README / final_manifest / output_sync_report
     actual_bom_rows = len(bom_rows)
     for doc_name in ("README.md",):
         dp = PKG / doc_name
@@ -1685,12 +1826,31 @@ if mc_path.exists():
              f"missing: {missing}")
     else:
         ok("monte_carlo_summary has all required canonical metric rows")
-    if mc.get("total_gates") and int(mc["total_gates"]) != CANONICAL_EXPECTED["total_gates"]:
+    # The number in the message is the number that was compared.
+    #
+    # This read `ok("... matches canonical (63)")` while comparing against
+    # CANONICAL_EXPECTED["total_gates"], which is 83. Nothing in this package
+    # has ever had 63 gates. A reader reconciling the checker's output against
+    # monte_carlo_summary.csv would have found a contradiction that does not
+    # exist -- the same failure as reporting a slice width as a total.
+    #
+    # And `if mc.get(k) and ...` took the OK branch whenever the field was
+    # missing or empty, so an absent total_gates reported as matching one it
+    # had never seen. A field that is not there has not been checked.
+    _expect_gates = CANONICAL_EXPECTED["total_gates"]
+    if not mc.get("total_gates"):
         fail("MC summary total_gates matches canonical",
-             f"got {mc['total_gates']}, expected {CANONICAL_EXPECTED['total_gates']}")
+             f"NOT CHECKED -- total_gates is {mc.get('total_gates')!r}; a "
+             f"missing field cannot match {_expect_gates}")
+    elif int(mc["total_gates"]) != _expect_gates:
+        fail("MC summary total_gates matches canonical",
+             f"got {mc['total_gates']}, expected {_expect_gates}")
     else:
-        ok("MC summary total_gates matches canonical (63)")
-    if mc.get("PASS_count") and int(mc["PASS_count"]) != 0:
+        ok(f"MC summary total_gates matches canonical ({_expect_gates})")
+    if not mc.get("PASS_count"):
+        fail("MC summary PASS_count=0",
+             f"NOT CHECKED -- PASS_count is {mc.get('PASS_count')!r}")
+    elif int(mc["PASS_count"]) != 0:
         fail("MC summary PASS_count=0", f"got {mc['PASS_count']}")
     else:
         ok("MC summary PASS_count=0")
@@ -2143,6 +2303,82 @@ try:
         ok("multiphysics: all 20 gates present; statuses in {CONDITIONAL,BLOCKED,UNKNOWN,DERIVED_CHECK}")
 except Exception as e:
     fail("multiphysics: gate-table check", str(e))
+
+# (e2) every serialised value states whether the solve could resolve it
+#
+# A file that prints 0.000000000e+00 makes a claim to ten significant figures
+# whether or not it means to. Three different statements used to arrive at
+# this column looking identical: a species that is absent by design, a species
+# whose density is below the integrator's own absolute tolerance, and a
+# resolved number that happens to be small. The first is exact, the second is
+# not a number at all, and only the file can tell a reader which it is holding
+# -- the tolerance is not in it.
+#
+# Checked by RE-DERIVING the classification from the value and the declared
+# floor, not by looking for the column and trusting what it says. A marking
+# nothing cross-checks is a label, and this package has spent a long time
+# finding labels that were read as measurements.
+RESOLUTION_MARKED = {
+    # file -> (value column, marking column, declared-floor source)
+    "gas_transport_profile.csv": ("n_{sp}_modeC_1m3", "resolution_{sp}_modeC",
+                                  ("gas_transport_metrics.csv",
+                                   "resolution_floor_1m3")),
+    "surface_coverage_profile.csv": ("theta_{sp}_modeC", "resolution_{sp}_modeC",
+                                     ("surface_coverage_metrics.csv",
+                                      "resolution_floor_theta")),
+}
+_res_problems, _res_pairs = [], 0
+for _fname, (_vfmt, _mfmt, (_mfile, _fcol)) in RESOLUTION_MARKED.items():
+    try:
+        _floors = {r["species"]: float(r[_fcol])
+                   for r in _read_csv_rows(_mfile)}
+        if not _floors:
+            _res_problems.append(f"{_mfile}: declares no resolution floor")
+            continue
+        _rows = _read_csv_rows(_fname)
+        _hdr = _read_csv_header(_fname)
+        for _sp, _floor in _floors.items():
+            _vc, _mc = _vfmt.format(sp=_sp), _mfmt.format(sp=_sp)
+            if _vc not in _hdr:
+                continue
+            if _mc not in _hdr:
+                _res_problems.append(f"{_fname}: {_vc} is stated with no {_mc}")
+                continue
+            if not (_floor > 0.0):
+                _res_problems.append(
+                    f"{_mfile}: {_sp} floor is {_floor!r}; with no positive "
+                    "floor every value would mark as resolved")
+                continue
+            for _i, _r in enumerate(_rows, 1):
+                _v, _m = float(_r[_vc]), _r[_mc]
+                _res_pairs += 1
+                if _m not in ("RESOLVED", "BELOW_RESOLUTION", "EXACT_ZERO",
+                              "OUT_OF_RANGE"):
+                    _res_problems.append(f"{_fname}:{_i} {_mc}={_m!r}")
+                elif _m == "RESOLVED" and abs(_v) < _floor:
+                    # The one that matters: a value inside the unresolved band
+                    # presented as a resolved number.
+                    _res_problems.append(
+                        f"{_fname}:{_i} {_vc}={_v:.6e} is below the declared "
+                        f"floor {_floor:.6e} but marked RESOLVED")
+                elif _m == "EXACT_ZERO" and _v != 0.0:
+                    _res_problems.append(
+                        f"{_fname}:{_i} {_vc}={_v:.6e} marked EXACT_ZERO")
+    except Exception as e:
+        _res_problems.append(f"{_fname}: {type(e).__name__}: {e}")
+if _res_problems:
+    fail("multiphysics: serialised values state what the solve resolves",
+         f"{len(_res_problems)} problems (first 5): {_res_problems[:5]}")
+elif _res_pairs == 0:
+    # Not a pass. Zero comparisons means the columns were not found, and
+    # silence there reads exactly like agreement.
+    fail("multiphysics: serialised values state what the solve resolves",
+         "NOT CHECKED -- no value/marking pair was compared; the check found "
+         "nothing to verify, which is not the same as finding nothing wrong")
+else:
+    ok(f"multiphysics: every serialised profile value states what the solve "
+       f"resolves ({_res_pairs} value/marking pairs re-derived against the "
+       f"declared floors)")
 
 # (f) no source_audit.csv reference inside multiphysics outputs
 sa_refs = []
