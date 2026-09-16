@@ -43,6 +43,15 @@ directory or a moved output set produces. The report carries the number of
 files and leaves actually compared and the gate refuses a scope of zero, so
 the headline can never be satisfied by having looked at nothing.
 
+AND THE HEADLINE NAMES ITS BASIS. There is a second empty comparison that is
+not an error and must not be refused: two byte-identical trees, which is what
+a runner whose dispatch matches the committed outputs produces. Zero leaves
+are compared there too, and "no decision-bearing token differs" is then a
+tautology rather than a measurement. The two are now different sentences --
+IDENTICAL_TREES and a leaf count -- because a reader cannot otherwise tell a
+reproduction from an invariance, and R59 is what happens when one number is
+read as another.
+
 WHAT IT DOES NOT ESTABLISH
 
 Not that the committed numbers are the correct ones. Every dispatch computes
@@ -95,6 +104,26 @@ REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
 #: Divergence classes, most serious first.
 DECISION = "DECISION"            # a non-numeric token changed: a changed claim
 ZERO_CROSSING = "ZERO_CROSSING"  # exactly 0 on one side, nonzero on the other
+
+#: WHAT THE HEADLINE IS DRAWN FROM.
+#:
+#: "No decision-bearing token differs between the two environments" is a
+#: measurement when leaves were put side by side and a tautology when the two
+#: trees are byte-identical -- and it was the same sentence either way. On a
+#: runner whose dispatch happens to match the committed tree the byte gate
+#: passes, every file is identical, zero leaves are compared, and this tool
+#: printed the sentence it prints after comparing 5404 of them.
+#:
+#: The scope guard did not catch it: it refuses zero FILES, and files were
+#: plentiful; the comparison that carries the claim is over LEAVES, and there
+#: were none. Counting the wrong unit is the finding this instrument was
+#: written for, in the instrument itself.
+#:
+#: Neither basis is an error. A byte-identical regeneration is the outcome
+#: this project wants. What is not allowed is publishing them in the same
+#: words, because only one of them measured anything.
+MEASURED = "MEASURED_ACROSS_DISPATCHES"
+IDENTICAL = "IDENTICAL_TREES"
 SIGN_FLIP = "SIGN_FLIP"          # both nonzero, opposite signs
 PRECISION = "PRECISION"          # both nonzero, same sign
 
@@ -271,6 +300,7 @@ def compare(other: Path, committed: Path,
         "counts": counts,
         "shape_changes": shape_changes,
         "max_precision_rel": max(precisions) if precisions else 0.0,
+        "basis": IDENTICAL if files_differing == 0 else MEASURED,
         "findings": findings,
     }
 
@@ -369,7 +399,21 @@ def main(argv=None) -> int:
                   f"{f['other']!r}", file=sys.stderr)
         return 1
 
-    print("\nNo decision-bearing token differs between the two environments.")
+    if report["basis"] == IDENTICAL:
+        # Say what happened, not what would have been established had
+        # anything been compared.
+        print(f"\nIDENTICAL_TREES: all {report['files_compared']} compared "
+              "file(s) are byte-identical, so 0 leaves were put side by side "
+              "and no token was classified. This run establishes that the "
+              "regeneration REPRODUCED the committed tree on this host. It "
+              "establishes nothing about invariance across dispatches -- "
+              "there was no difference to be invariant under, and the "
+              "PRECISION line above reads 0.000e+00 for the same reason.")
+        return 0
+
+    print(f"\nNo decision-bearing token differs between the two "
+          f"environments ({report['leaves_compared']} leaves compared, "
+          f"{report['files_differing']} file(s) differing).")
     return 0
 
 

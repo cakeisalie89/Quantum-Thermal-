@@ -407,6 +407,30 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/output_resolution.json
+      - name: mutation matrix -- the output set the release gate compared
+        # D-2026-61. The completeness rule was real and lived in the mode the
+        # checker's own banner calls NOT the release gate; the release gate
+        # itself regenerated and compared whatever appeared. Each mutation
+        # restores one half of that: the rule back in one mode, the set back
+        # to a count, each direction of the comparison dropped, the
+        # declaration that scopes it emptied or duplicated, the traceback an
+        # empty canonical CSV produced, and the scope number removed.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/canonical_output_set.json
+      - name: every test module can be collected on its own
+        # D-2026-63. Three of 106 modules imported tools.* at top level with
+        # no path insert of their own and passed every full run, because the
+        # alphabet put a module that does insert it first. A suite whose
+        # green depends on collection order is reporting the order.
+        run: uv run python tools/test_isolation.py
+      - name: mutation matrix -- collection order
+        # Each mutation restores one half: the conftest present and inert,
+        # the empty scope agreed with, the failure unreported, the scope
+        # number removed, and a substring standing in for the exit code.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/test_isolation.json
       - name: mutation matrix -- corpus membership
         # Every guard on a corpus path protected its shape; none protected
         # the set, so writing a file into the tree made it governed text.

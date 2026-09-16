@@ -159,7 +159,18 @@ def test_verify_existing_requires_sim_log():
     assert "NOT the release gate" in r.stdout
 
 
-def test_verify_existing_requires_exactly_89(tmp_path):
+def test_verify_existing_requires_the_whole_canonical_set(tmp_path):
+    """A partial output set is refused, and the refusal names what is absent.
+
+    This asserted ``"exactly 89 files"``, the wording of a rule that compared
+    a COUNT. Five files named ``f0.json`` satisfied the test's premise while
+    being none of the canonical outputs, so it would have passed equally
+    against a directory with the right number of entirely wrong files.
+
+    It also lived in a different suite from the one the rule's own mutation
+    spec names, which is how a spec list comes to look complete while a
+    sibling test pins the behaviour being replaced.
+    """
     scratch = tmp_path / "v"
     scratch.mkdir()
     for f in ("package_consistency_check.py", "qta_full_sim.py"):
@@ -175,7 +186,10 @@ def test_verify_existing_requires_exactly_89(tmp_path):
                        cwd=scratch, capture_output=True, text=True,
                        timeout=120)
     assert r.returncode == 1
-    assert "exactly 89 files" in r.stdout
+    assert "INCOMPLETE_EXISTING_OUTPUTS" in r.stdout
+    assert "FOREIGN_EXISTING_OUTPUTS" in r.stdout, \
+        "five files that are not canonical outputs are foreign, not merely few"
+    assert "f0.json" in r.stdout
 
 
 def test_default_regeneration_branch_preserved():

@@ -12,8 +12,8 @@ import json
 import pytest
 
 from tools.cross_env_semantics import (
-    DECISION, PRECISION, SIGN_FLIP, ZERO_CROSSING, ScopeError, check_scope,
-    classify, compare, declares_resolution,
+    DECISION, IDENTICAL, MEASURED, PRECISION, SIGN_FLIP, ZERO_CROSSING,
+    ScopeError, check_scope, classify, compare, declares_resolution, main,
 )
 
 
@@ -110,6 +110,91 @@ def test_the_scope_check_accepts_a_comparison_that_did_look_at_something(
     report = compare(tmp_path / "other", tmp_path / "committed")
     assert report["files_compared"] == 1
     check_scope(report)
+
+
+# --- what the headline is drawn from -------------------------------------
+#
+# D-2026-62. There are two ways to compare nothing. One is an error the scope
+# check already refuses. The other -- two byte-identical trees -- is the
+# outcome this project wants, and it produced the same closing sentence as a
+# 5404-leaf measurement.
+
+
+def test_two_identical_trees_are_not_reported_as_a_measurement(tmp_path):
+    """The defect. Zero leaves compared, and the old headline regardless."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,2\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_compared"] == 1
+    assert report["files_differing"] == 0
+    assert report["leaves_compared"] == 0
+    assert report["basis"] == IDENTICAL
+    check_scope(report)          # and it is NOT an error: it must not refuse
+
+
+def test_a_real_comparison_is_marked_as_measured(tmp_path):
+    """The control. A basis that is always IDENTICAL says nothing either."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,3\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_differing"] == 1
+    assert report["leaves_compared"] > 0
+    assert report["basis"] == MEASURED
+
+
+def test_the_two_bases_do_not_print_the_same_conclusion(tmp_path, capsys):
+    """The sentence is the artefact a reader takes away; it has to differ.
+
+    Both runs exit 0 and both are correct. Only one of them compared
+    anything, and a log that cannot be told apart is how a reproduction gets
+    quoted as an invariance.
+    """
+    _tree(tmp_path / "same_other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "same_committed", "shared.csv", "a,b\n1,2\n")
+    assert main([str(tmp_path / "same_other"),
+                 str(tmp_path / "same_committed")]) == 0
+    identical = capsys.readouterr().out
+
+    _tree(tmp_path / "diff_other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "diff_committed", "shared.csv", "a,b\n1,3\n")
+    assert main([str(tmp_path / "diff_other"),
+                 str(tmp_path / "diff_committed")]) == 0
+    measured = capsys.readouterr().out
+
+    assert "IDENTICAL_TREES" in identical
+    assert "IDENTICAL_TREES" not in measured
+    assert "leaves compared" in measured
+    assert "No decision-bearing token differs" not in identical, (
+        "the tautology must not borrow the measurement's sentence")
+    assert "No decision-bearing token differs" in measured
+
+
+def test_the_measured_conclusion_carries_its_own_leaf_count(tmp_path, capsys):
+    """The scope belongs in the sentence, not only in the header.
+
+    A reader quoting the closing line is quoting the claim. Without the count
+    in it, a comparison over five leaves and one over five thousand read the
+    same -- the unit substitution R59 is made of.
+    """
+    _tree(tmp_path / "other", "shared.csv", "a,b,c\n1,2,3\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b,c\n1,9,3\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    n = report["leaves_compared"]
+    assert n > 0
+    main([str(tmp_path / "other"), str(tmp_path / "committed")])
+    out = capsys.readouterr().out
+    assert f"{n} leaves compared" in out
+
+
+def test_the_identical_basis_says_what_it_does_establish(tmp_path, capsys):
+    """Not a refusal and not an apology: a byte-exact regeneration is a
+    result. It just is not the result the other sentence reports."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,2\n")
+    main([str(tmp_path / "other"), str(tmp_path / "committed")])
+    out = capsys.readouterr().out
+    assert "REPRODUCED" in out
+    assert "establishes nothing about invariance" in out
 
 
 def test_scope_is_refused_when_files_differ_but_share_no_shape(tmp_path):

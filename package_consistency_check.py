@@ -55,6 +55,117 @@ CANONICAL_EXPECTED = {
     ],
     "all_can_PASS_now": "NO",
     "all_measured_in_this_system": "false",
+    # THE CANONICAL OUTPUT SET, BY NAME.
+    #
+    # This was the integer 89, and it was consulted in --verify-existing
+    # only. Both halves of that were wrong.
+    #
+    # A count is not a set: 89 files with five of them renamed satisfies
+    # `_n == 89` exactly as well as the right 89 do. And the mode that
+    # never consulted it is the authoritative one -- the release path
+    # regenerates and then compares whatever appeared, while Step 2b
+    # iterates the PRODUCED files and skips any whose root copy is
+    # absent. An output the pipeline stops emitting therefore leaves the
+    # comparison silently, and the gate reports that the root copies
+    # match. Measured, not argued: a run that produced 84 of these
+    # printed RESULT: PASS, having never compared
+    # coupled_mode_state_summary.json -- the file carrying
+    # Mode_D_residual_CH4_density_m3, which is the contamination claim.
+    #
+    # The set is the default profile's: `python qta_full_sim.py` with no
+    # arguments, which is what this checker runs. 88 governed outputs
+    # plus the by-design-exempt deep_surrogate_readiness.json.
+    "canonical_outputs": [
+        "adaptive_experiment_policy.json",
+        "assumptions_3d.json",
+        "bayesian_design_summary.json",
+        "best_forecast_operating_point.json",
+        "campaign_state_3d.json",
+        "campaign_uncertainty_3d.json",
+        "campaign_uncertainty_quantiles.csv",
+        "convergence_report_3d.json",
+        "coupled_mode_recovery_metrics.csv",
+        "coupled_mode_state_summary.json",
+        "coupling_ledger_3d.json",
+        "cryo_stack_3d_budget.csv",
+        "cryopanel_loading_3d.csv",
+        "deep_surrogate_readiness.json",
+        "design_component_registry.json",
+        "design_decision_ledger.json",
+        "design_interface_graph.json",
+        "design_validation_report.csv",
+        "distributed_thermal_2d_slices.csv",
+        "distributed_thermal_metrics.csv",
+        "distributed_thermal_profile.csv",
+        "energy_ledger_cumulative_3d.csv",
+        "engineering_fixes.csv",
+        "expected_information_gain.csv",
+        "experiment_falsification_map.csv",
+        "experimental_design_candidates.csv",
+        "failed_gate_samples.csv",
+        "falsification_report_3d.json",
+        "fidelity_comparison.csv",
+        "gas_transport_2d_map.csv",
+        "gas_transport_metrics.csv",
+        "gas_transport_profile.csv",
+        "integrated_layers_summary.json",
+        "interlock_table.csv",
+        "laser_3d_deposition_summary.json",
+        "lumped_vs_nonlumped_comparison.csv",
+        "machine_fsm_campaign_trace.csv",
+        "machine_fsm_diagram.mmd",
+        "machine_fsm_interlocks.csv",
+        "machine_fsm_lifecycle_trace.csv",
+        "machine_fsm_states.csv",
+        "machine_fsm_summary.json",
+        "machine_fsm_transitions.csv",
+        "measurement_comparison_3d.json",
+        "measurement_comparison_rows.csv",
+        "mesh_3d_summary.json",
+        "mesh_convergence_summary.csv",
+        "microwave_heating_3d_budget.csv",
+        "microwave_heating_metrics.csv",
+        "microwave_heating_profile.csv",
+        "mode_recovery_3d_timeline.csv",
+        "monte_carlo_summary.csv",
+        "multiphysics_summary.json",
+        "multiphysics_verification_summary.csv",
+        "numerical_stability_summary.csv",
+        "nv_coherence_curves.csv",
+        "nv_eligibility_3d.json",
+        "nv_odmr_spectrum.csv",
+        "nv_sequence_contrast.csv",
+        "nv_spin_dynamics_summary.json",
+        "nv_spin_gate_records.csv",
+        "nv_spin_parameter_provenance.json",
+        "optical_absorption_2d_slices.csv",
+        "optical_absorption_metrics.csv",
+        "optical_absorption_profile.csv",
+        "parameter_registry.csv",
+        "provenance_3d.json",
+        "radiation_leakage_metrics.csv",
+        "radiation_leakage_paths.csv",
+        "radiation_paths_3d_budget.csv",
+        "results_gate_table.csv",
+        "sensitivity_ranking_3d.csv",
+        "species_accounting_3d.csv",
+        "species_transport_3d_summary.json",
+        "surface_coverage_2d_map.csv",
+        "surface_coverage_3d_summary.csv",
+        "surface_coverage_metrics.csv",
+        "surface_coverage_profile.csv",
+        "tau_c_sweep.csv",
+        "thermal_3d_energy_accounting.csv",
+        "thermal_3d_hotspots.csv",
+        "thermal_3d_probe_timeseries.csv",
+        "thermal_3d_readiness.json",
+        "thermal_3d_reduction_check.json",
+        "thermal_3d_verification_report.json",
+        "validation_experiment_ranking.csv",
+        "vibration_paths_3d_budget.csv",
+        "vibration_transfer_metrics.csv",
+        "vibration_transfer_profile.csv"
+    ],
 }
 
 # Stale strings — these are the EXACT phrases the independent auditor flagged.
@@ -165,25 +276,9 @@ if VERIFY_EXISTING:
         fail("existing outputs/ directory present",
              f"{_OUTPUTS_STATE}: {gen_outputs_dir} exists but is not a "
              "directory")
-    else:
-        _n = len([x for x in gen_outputs_dir.iterdir() if x.is_file()])
-        # the canonical complete-set size is exactly 89 files (88 governed
-        # + the by-design-exempt deep_surrogate_readiness.json); anything
-        # smaller is truncated, anything larger is foreign -- both refused
-        # (missing files would otherwise escape Step 2b, which iterates
-        # only files that exist).
-        if _n != 89:
-            _OUTPUTS_STATE = ("INCOMPLETE_EXISTING_OUTPUTS" if _n < 89
-                              else "FOREIGN_EXISTING_OUTPUTS")
-            _names = sorted(x.name for x in gen_outputs_dir.iterdir()
-                            if x.is_file())
-            fail("existing output set complete (exactly 89 files)",
-                 f"{_OUTPUTS_STATE}: {_n} files present; partial/truncated "
-                 "or foreign sets are never accepted. "
-                 f"first 5 present: {_names[:5]}")
-        else:
-            ok("existing output set complete (exactly 89 files; "
-               "byte-identity further enforced file-by-file in Steps 2+)")
+    # The completeness check used to live here, as `_n != 89`, and ran in
+    # this mode only. It is now canonical_set_problems() below, by name, for
+    # both modes.
     if _SIM_LOG and Path(_SIM_LOG).exists():
         sim_stdout = Path(_SIM_LOG).read_text(encoding="utf-8",
                                               errors="replace")
@@ -237,6 +332,97 @@ else:
             ok("qta_full_sim.py executes (exit 0)",
                f"{sim_elapsed:.1f} s of a {SIM_TIMEOUT_S} s budget "
                f"({SIM_TIMEOUT_S - sim_elapsed:.1f} s margin)")
+
+#: The one output whose ROOT copy is a different artifact from the
+#: regenerated one by design: the root copy is the deep layer's
+#: authoritative record, while the direct expdesign engine emits a
+#: NOT_IMPLEMENTED stub into its own run directory. Declared here rather
+#: than at Step 2b because the set reconciliation below reports how many
+#: of the declared outputs it leaves to the byte comparison.
+_REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
+
+# ---- The canonical output SET, by name, in BOTH modes ----------------------
+# Step 2b below compares, for every file in the generated directory, the root
+# copy of the same name -- and skips the ones whose root copy is absent. That
+# is the right rule for what it does, and it means the comparison's scope is
+# whatever the pipeline happened to produce. Nothing established that the
+# pipeline produced everything it is supposed to.
+#
+# So a regeneration that silently stops emitting an output is not a drift and
+# not an error: the file leaves the comparison, no step mentions it, and
+# "root canonical outputs byte-match the canonical regeneration" is reported
+# of a set that no longer contains it.
+#
+# This was known. `--verify-existing` refused any set that was not exactly 89
+# files, and the comment there said why in as many words: "missing files would
+# otherwise escape Step 2b, which iterates only files that exist". The rule was
+# written for the mode that is explicitly NOT the release gate, and the mode
+# that is -- full regeneration -- never consulted it.
+def canonical_set_problems(gen_dir, declared, root_dir):
+    """``(produced, missing, foreign, unrooted)`` for an output directory.
+
+    By NAME, never by count. `_n == 89` is satisfied by the right 89 files and
+    equally by 89 files with five of them renamed, which is the same defect
+    class as reading a unit off a column's spelling: the property is set
+    membership and the count is a proxy for it.
+
+    ``unrooted`` is the third case and it is not cosmetic. A declared output
+    with no committed root copy is one Step 2b will skip, so it would be
+    published from the tree without ever having been compared to anything.
+    """
+    produced = {x.name for x in gen_dir.iterdir() if x.is_file()}
+    return (produced,
+            sorted(declared - produced),
+            sorted(produced - declared),
+            sorted(n for n in sorted(declared & produced)
+                   if not (root_dir / n).exists()))
+
+
+_DECLARED_OUTPUTS = frozenset(CANONICAL_EXPECTED["canonical_outputs"])
+#: Which mode produced the set under test. The classification tokens carry it
+#: so an operator reading a log knows whether a regeneration came up short or
+#: a supplied tree did.
+_MODE_TAG = "EXISTING" if VERIFY_EXISTING else "REGENERATED"
+
+if not _DECLARED_OUTPUTS:
+    # The declaration is the scope of every comparison below it. An empty one
+    # would make all three reconciliations agree, which is the vacuous PASS
+    # this whole block exists to refuse -- so it is refused first, here.
+    fail("the canonical output set is declared",
+         "EMPTY_CANONICAL_DECLARATION: CANONICAL_EXPECTED['canonical_outputs']"
+         " is empty; a set comparison against nothing reports agreement")
+elif len(CANONICAL_EXPECTED["canonical_outputs"]) != len(_DECLARED_OUTPUTS):
+    _dupes = sorted({n for n in CANONICAL_EXPECTED["canonical_outputs"]
+                     if CANONICAL_EXPECTED["canonical_outputs"].count(n) > 1})
+    fail("the canonical output set is declared without duplicates",
+         f"DUPLICATE_CANONICAL_DECLARATION: {_dupes}; a duplicated name makes "
+         "the declared count larger than the declared set")
+elif _OUTPUTS_STATE != "USABLE" or not gen_outputs_dir.is_dir():
+    fail("the produced output set is exactly the canonical set",
+         f"NOT CHECKED - {_OUTPUTS_STATE}; there is no output set to "
+         "reconcile against the declaration")
+else:
+    _produced, _missing, _foreign, _unrooted = canonical_set_problems(
+        gen_outputs_dir, _DECLARED_OUTPUTS, PKG)
+    if _missing:
+        fail("the produced output set is exactly the canonical set",
+             f"INCOMPLETE_{_MODE_TAG}_OUTPUTS: {len(_missing)} declared "
+             f"canonical output(s) were not produced, so Step 2b never "
+             f"compared them: {_missing}")
+    if _foreign:
+        fail("the produced output set is exactly the canonical set",
+             f"FOREIGN_{_MODE_TAG}_OUTPUTS: {len(_foreign)} file(s) present "
+             f"that the declaration does not name: {_foreign}")
+    if _unrooted:
+        fail("every declared canonical output has a committed root copy",
+             f"UNROOTED_CANONICAL_OUTPUT: {len(_unrooted)} declared output(s) "
+             f"have no root copy, so Step 2b skips them: {_unrooted}")
+    if not (_missing or _foreign or _unrooted):
+        ok(f"the produced output set is exactly the "
+           f"{len(_DECLARED_OUTPUTS)} declared canonical outputs",
+           f"{len(_DECLARED_OUTPUTS - _REGEN_EXEMPT)} of them are "
+           f"compared byte-for-byte in Step 2b; "
+           f"{len(_REGEN_EXEMPT)} exempt by design")
 
 # ===================== STEP 2: gate table checks =============================
 print()
@@ -346,7 +532,6 @@ def regen_root_byte_drift(gen_dir, root_dir, exceptions=frozenset()):
             drift.append(p.name)
     return drift, unreadable
 
-_REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
 if _OUTPUTS_STATE != "USABLE":
     # No vacuous PASS: with no usable generated set there is nothing to
     # compare against, and silence here would read as agreement.
@@ -407,11 +592,28 @@ if not tcs_path.exists():
     fail("tau_c_sweep.csv present", "missing")
 else:
     tcs = list(csv.DictReader(open(tcs_path)))
-    if "tau_c_canonical_threshold_us" not in tcs[0]:
+    if not tcs:
+        # A present-but-empty canonical output is a state the gate has to
+        # classify, not one it may die on. `tcs[0]` raised IndexError here
+        # and the run ended with a traceback at Step 4, losing every later
+        # diagnostic -- the same shape as the missing-outputs defect this
+        # file's tests were written for, one step further in.
+        fail("tau_c_sweep.csv has rows",
+             "EMPTY_CANONICAL_OUTPUT: tau_c_sweep.csv parsed to zero rows; "
+             "a truncated or header-only canonical output is refused, never "
+             "read past")
+    elif "tau_c_canonical_threshold_us" not in tcs[0]:
         fail("tau_c_sweep has canonical_threshold_us column", "")
     else:
         ok("tau_c_sweep has tau_c_canonical_threshold_us column")
 
+    _need = {"tau_c_s", "Gate"}
+    if tcs and not _need <= set(tcs[0]):
+        fail("tau_c_sweep.csv carries the columns the 27.728us checks read",
+             f"MALFORMED_CANONICAL_OUTPUT: missing "
+             f"{sorted(_need - set(tcs[0]))}; the two gate checks below "
+             "would raise rather than refuse")
+        tcs = []
     pass_27 = [r for r in tcs if abs(float(r["tau_c_s"]) - 27.728e-6) < 1e-9
                and r["Gate"] == "PASS"]
     if pass_27:

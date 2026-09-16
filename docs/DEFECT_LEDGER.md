@@ -6474,3 +6474,320 @@ declared solver tolerance — its floor is a property of the summation, roughly
 rather than a rendering change. Left open deliberately. The instrument will
 keep printing it under BARE until somebody does it, which is the point of
 having the split.
+
+## D-2026-61 — the release gate compared the outputs that turned up
+
+**CLASS** — `TRUE_DEFECT` in `package_consistency_check.py`, the instrument
+every commit message in this branch quotes. The rule that would have caught it
+was already written, in the mode the file itself documents as *not* the
+release gate.
+
+**DISCOVERED BY.** A stray concurrent process, and then by looking at what it
+did. Two regenerations overlapped on `outputs/`; one was killed part-way. The
+surviving run completed and printed
+
+```
+RESULT: PASS (all consistency checks passed)
+```
+
+over a directory holding **84** files. A clean regeneration produces **89**.
+The five that were absent:
+
+```
+coupled_mode_recovery_metrics.csv
+coupled_mode_state_summary.json
+mesh_convergence_summary.csv
+multiphysics_verification_summary.csv
+numerical_stability_summary.csv
+```
+
+`coupled_mode_state_summary.json` carries `Mode_D_residual_CH4_density_m3`.
+That is the contamination claim — the quantity D-2026-53 and D-2026-60 were
+both about. Its committed root copy was compared against nothing, and the run
+reported that the root canonical outputs byte-match the canonical
+regeneration.
+
+**THE MECHANISM.** `regen_root_byte_drift()` iterates the **generated**
+directory and, for each file, compares the root copy of the same name:
+
+```python
+for p in sorted(gen_dir.iterdir()):
+    rootp = root_dir / p.name
+    if not rootp.exists():
+        continue
+```
+
+That is the right rule for what it does. It also means the comparison's scope
+is whatever the pipeline happened to produce, and nothing established that the
+pipeline produced everything it is supposed to. An output that stops being
+emitted does not drift and does not error: it leaves the comparison, no step
+mentions it, and the headline is reported of a set that no longer contains it.
+
+**THIS WAS KNOWN, IN THE OTHER MODE.** `--verify-existing` refused any set
+that was not exactly 89 files, and its comment said why in as many words:
+
+```
+# the canonical complete-set size is exactly 89 files ...
+# (missing files would otherwise escape Step 2b, which iterates
+#  only files that exist).
+```
+
+The escape was identified, written down, and closed for the mode whose own
+banner reads `NOT the release gate`. The authoritative mode — full
+regeneration, which is what CI runs — never consulted it. `_OUTPUTS_STATE` is
+assigned only inside `if VERIFY_EXISTING:`; in the release path it is
+unconditionally `"USABLE"`. Every test in
+`tests/test_checker_missing_outputs.py`, a file written specifically for this
+defect class and containing a test called
+`test_missing_outputs_yields_no_vacuous_byte_match_pass`, passes
+`--verify-existing`.
+
+Closing the example and not the class, in the file that measures whether the
+package is consistent.
+
+**AND THE RULE ITSELF WAS A COUNT.** `_n != 89` is satisfied by the right 89
+files and equally by 89 files with five of them renamed — the canonical output
+gone, its stale root copy never compared, the gate green. A count is a proxy
+for set membership in exactly the way a name suffix was a proxy for a unit
+(D-2026-57) and a file's whole text was a proxy for what it runs (D-2026-59).
+The fixtures had the same shape: the test for a truncated set supplied
+eighty-eight files called `f0.json`, none of them a canonical output, and
+asserted on the string `"88 files present"`.
+
+**REPAIR.** `CANONICAL_EXPECTED["canonical_outputs"]` names the 89, and
+`canonical_set_problems()` reconciles the produced directory against it — by
+name, in both directions, in **both modes**:
+
+- `INCOMPLETE_{EXISTING,REGENERATED}_OUTPUTS` — declared, not produced. Named,
+  not counted.
+- `FOREIGN_{EXISTING,REGENERATED}_OUTPUTS` — produced, not declared.
+- `UNROOTED_CANONICAL_OUTPUT` — declared and produced, with no root copy, so
+  Step 2b would skip it and the byte gate would report agreement over it.
+- `EMPTY_CANONICAL_DECLARATION` / `DUPLICATE_CANONICAL_DECLARATION` — the
+  anti-vacuity guard on the declaration itself. It is the scope of all three
+  reconciliations above; empty, they all agree.
+
+The PASS line now states its scope: *the produced output set is exactly the 89
+declared canonical outputs — 88 of them compared byte-for-byte in Step 2b, 1
+exempt by design.*
+
+**A SECOND DEFECT, FOUND BY THE NEW FIXTURE.** The old fixtures used names
+that are not canonical outputs, so the checker refused early and never read
+them. Supplying the **real** names — present, empty — takes the run to Step 4:
+
+```
+File "package_consistency_check.py", line 595, in <module>
+  if "tau_c_canonical_threshold_us" not in tcs[0]:
+IndexError: list index out of range
+```
+
+A present-but-empty canonical output — a truncated write, a disk-full, a
+generator emitting a header and no rows — crashed the release gate with a
+traceback at Step 4 and lost every later diagnostic. §47: an accidental
+runtime failure is not a governed refusal. Now `EMPTY_CANONICAL_OUTPUT` and
+`MALFORMED_CANONICAL_OUTPUT`, classified and read past.
+
+**WHAT THIS DOES NOT ESTABLISH.** That the 89 are the right 89. The
+declaration records what the default profile currently produces; it makes a
+change to that set visible and reviewable, which is all a declaration can do.
+Nor that no other verifier has the same shape — the sibling sweep below is
+what was actually checked, not an argument that nothing else could.
+
+**SIBLING SWEEP — can a verifier here report success having examined
+nothing?** Driven against each tool's real entry point, not grepped for:
+
+| verifier | on an empty scope |
+|---|---|
+| `tools/cross_env_semantics.py` | refuses; reports files and leaves compared |
+| `tools/unit_inventory.py` | `ScopeError` — "a reconciliation over an empty set would report full coverage" |
+| `tools/claims_enforcement.py` | `ScopeError`, exit 2, verified by driving it |
+| `tools/corpus_allowlist.py` | `build()` refuses to write an empty allowlist |
+| `tools/workflow_contract.py` | refuses when no `run:` command is found; reports 323 scanned |
+| `tools/identity_inventory.py` | reconciles both directions, so an extraction that matches nothing shows up as entries naming actions that do not exist |
+| `tools/mutation_matrix.py` | refuses on a red baseline rather than scoring against it |
+| `package_consistency_check.py` | **this defect** |
+
+The one that had the weakest guard is the one at the top of the tree.
+
+**MUTATION MATRIX.** `tools/mutations/canonical_output_set.json`, 8 operators:
+the rule back in one mode, the set back to a count, each direction of the
+comparison dropped on its own, the declaration emptied and duplicated, the
+Step-4 traceback restored, and the scope number removed from the headline.
+
+## D-2026-62 — the comparator's conclusion did not say what it was drawn from
+
+**CLASS** — `TRUE_DEFECT` in `tools/cross_env_semantics.py`: a tautology and a
+measurement printed in the same words. The instrument written to tell a
+changed verdict from a changed digit could not tell its own two cases apart.
+
+**DISCOVERED BY.** Reading the hosted evidence at `f118e6a`. `full-suite`
+finished **green end to end** — including step 7, the byte gate, which has
+been the standing R59 red. That runner's dispatch matched the committed tree,
+so every canonical output regenerated byte-identically. Which means step 8,
+the cross-environment comparison, ran over a tree with nothing in it to
+compare, and printed:
+
+```
+compared 87 file(s); 0 differ byte-for-byte; 0 leaves put side by side
+  DECISION          0
+  ZERO_CROSSING     0
+  SIGN_FLIP         0
+  PRECISION         0   same sign, largest relative difference 0.000e+00
+
+No decision-bearing token differs between the two environments.
+```
+
+Reproduced locally, verbatim, on the default dispatch. That closing sentence
+is the tool's headline. It is the same sentence it prints after putting 5404
+leaves side by side and finding every status, verdict, boolean and label
+identical. Here it was asserted having classified nothing.
+
+**WHY THE SCOPE GUARD DID NOT CATCH IT.** `check_scope()` refuses two things:
+zero FILES compared, and zero leaves *while files differ* (a shape mismatch).
+Neither fires. 87 files were compared — the scope looks healthy — and no file
+differed, so the second guard is out of scope by construction.
+
+The count that was healthy is files. The claim is carried by leaves. Counting
+one unit and making a claim in another is what R59 was: eight names from a
+`[:8]` slice read for months as an eight-file divergence. The same substitution,
+in the instrument built to stop it.
+
+**THIS IS NOT AN ERROR, AND MUST NOT BE REFUSED.** Two byte-identical trees
+are the outcome this project wants — it means the regeneration reproduced the
+committed bytes on that host. Refusing it would turn a good result into a red
+gate. What is not allowed is publishing a reproduction and an invariance in
+the same words, because only one of them measured anything.
+
+**REPAIR.** The report carries `basis`, `IDENTICAL_TREES` or
+`MEASURED_ACROSS_DISPATCHES`, and the two print different conclusions:
+
+```
+IDENTICAL_TREES: all 87 compared file(s) are byte-identical, so 0 leaves were
+put side by side and no token was classified. This run establishes that the
+regeneration REPRODUCED the committed tree on this host. It establishes
+nothing about invariance across dispatches -- there was no difference to be
+invariant under, and the PRECISION line above reads 0.000e+00 for the same
+reason.
+```
+
+and, where something was actually compared, the sentence now carries its
+scope: *(5404 leaves compared, 23 file(s) differing)*.
+
+**WHAT THIS DOES NOT CHANGE.** Both bases still exit 0. A `DECISION` still
+refuses. The measurement that matters — 27 zero crossings, 26 of them
+declared, 0 DECISION, reproduced under the runner dispatch at `f118e6a` — is
+unaffected; what changed is that a log can no longer be read as that
+measurement when it is not.
+
+## D-2026-63 — three test modules imported only because something else ran first
+
+**CLASS** — `TRUE_DEFECT` in test isolation. Found while adding the D-2026-62
+tests: `pytest tests/test_cross_env_semantics.py` alone died at collection
+with `ModuleNotFoundError: No module named 'tools'`, on the committed file,
+before any edit of mine.
+
+**THE MECHANISM.** `tests/` has no `__init__.py`, so pytest puts `tests/` on
+`sys.path` and not the repository root. There was no `conftest.py`. 103 of the
+106 test modules insert the root themselves, each with its own copy of
+
+```python
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+```
+
+and three did not:
+
+```
+tests/test_agent_authority_boundaries.py
+tests/test_cross_env_semantics.py
+tests/test_hotspot_ranking_determinism.py
+```
+
+They passed in every full run, because the alphabet put a module that inserts
+the path ahead of them. Measured, not supposed: `pytest <file> --collect-only`
+over all 106 modules, three collection errors.
+
+**WHY IT IS NOT COSMETIC.** The suite's green was partly a fact about
+collection order. A `-k` selection, a shard, a parallel worker or a
+reordering plugin can schedule one of the three first, and a suite that has
+been green for months fails to collect. It also means the cross-environment
+instrument's own tests could not be run by a developer on their own, which is
+how a test file stops being consulted.
+
+**REPAIR.** `conftest.py` at the repository root. pytest imports it before
+collecting anything, so the path is there whatever runs first — structural
+rather than a convention that a hundred files happen to follow. The
+per-module inserts stay; they are harmless and removing them is churn.
+
+`tools/test_isolation.py` keeps it closed by running a real
+`pytest --collect-only` per module and refusing on any that fails, with the
+count reported and an empty scope refused. It checks the property, not the
+file: a `conftest.py` that exists and does nothing would satisfy a grep and
+fail this.
+
+**WHAT IT DOES NOT ESTABLISH.** That the tests PASS in isolation. Only that
+they collect, which is the import-order failure this was written for. A test
+whose assertions depend on another module's side effects is a different
+defect, and this tool does not look for it.
+
+## Hosted evidence, `c1bd8ea` and `f118e6a`
+
+Recorded because both answer questions left open in earlier entries, and
+because a gate condition is satisfied for a commit when THAT commit's own
+hosted run is green — never inherited from a parent.
+
+**`agent-substrate` at `c1bd8ea` completed SUCCESS: 62 of 62 steps, 4h05m**
+(22:20:33 → 02:25:29). This is the first run to get past the refusal recorded
+in D-2026-59:
+
+```
+step 51  mutation matrix -- the cross-environment measurement   SUCCESS
+step 52  mutation matrix -- the dimension of every published number   SUCCESS
+step 53  mutation matrix -- what a serialised number is allowed to mean   SUCCESS
+```
+
+At `463b4e8` step 51 ran 50 steps green over 3h46m and then refused in seven
+seconds with `BASELINE RED`, naming
+`test_the_written_methane_zero_is_the_clip_not_the_model` — D-2026-53a, found
+a second time by a second instrument. It was repaired at `c1bd8ea`, and these
+are the first hosted scores of the two matrices added for D-2026-57 and
+D-2026-53..56. Steps 55–62 are green too: the corpus allowlist, the long
+horizon, the fuzz harness, the governed production path, the read-only
+auditor, Stage-10 write authority, sources unchanged after mutation testing,
+and the canonical tree untouched.
+
+Not inherited: `dispatch-sensitivity` FAILED at that commit, in one second, on
+the `--group stack` line — that is D-2026-59, fixed at `d0b85d2`. `full-suite`
+failed at step 7 only, the standing R59 byte gate.
+
+**`full-suite` at `f118e6a` completed SUCCESS, every step, step 7 included.**
+That runner's dispatch matched the committed tree, so every canonical output
+regenerated byte-identically and the byte gate passed for the first time on
+hosted hardware in this branch.
+
+It is one runner, not a closure of R59. GitHub's runners are not one machine,
+and the local reproduction under `OPENBLAS_CORETYPE=Haswell
+NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"` still produces 23
+differing files. What that green run did do is surface D-2026-62: with
+nothing differing, step 8 compared zero leaves and printed the sentence it
+prints after comparing five thousand.
+
+**The measurement that is not vacuous**, reproduced locally under the runner
+dispatch at `f118e6a`, and the sharp test of D-2026-60:
+
+```
+compared 87 file(s); 23 differ byte-for-byte; 5404 leaves put side by side
+  DECISION          0
+  ZERO_CROSSING    27
+  PRECISION       179   largest relative difference 3.279e-01
+
+ZERO_CROSSING is not a precision event, and 26 of 27 are already declared
+as such by the file they are in.
+  BARE -- ...
+    energy_ledger_cumulative_3d.csv [r2c9]: 1.615587134e-27 -> 0.000000000e+00
+```
+
+`results_gate_table.csv` is **gone from the crossing list entirely** — not
+moved to DECLARED, gone, because `CH4<1.00e+03` is the same text on every
+host. That was the test stated in advance for whether D-2026-60's repair
+took. 28 crossings became 27; the one BARE entry is the summation-cancellation
+floor left open and named there.
