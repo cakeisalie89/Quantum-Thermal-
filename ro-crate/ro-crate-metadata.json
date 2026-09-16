@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "181508",
+   "contentSize": "181509",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -207,7 +207,7 @@
    "contentSize": "142062",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "6f88f98e9cb7c3d8b40d3bf0646131163b4197069b3152fb2c00499a83c3d081"
+   "sha256": "0b652886de04db46899bffc594200517671a637c91e7a7710ac038b3a8ea0633"
   },
   {
    "@id": "hdf5_schema.json",
@@ -215,7 +215,7 @@
    "contentSize": "153616",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "b4b970ee40366c07e74177e73f656aee7f20c40cfd7fa8212b5fd9ec38122965"
+   "sha256": "79e7df20dbbc63ce1d3905e4f0415de94a17721d231505c92aacb28087f89cb7"
   },
   {
    "@id": "manifest_hash.txt",
@@ -271,7 +271,7 @@
    "contentSize": "2050929",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "66462d280ef208815d86d3f686dc6fafaccb8e406cc035e047fda075e0471f09"
+   "sha256": "b94b10cee5f384d5b2a25156f5c64fdb6170e3559cd5dfd35ac0314aee8e793b"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -287,7 +287,7 @@
    "contentSize": "46327",
    "description": "canonical gate table (83 gates; scientific PASS count = 0)",
    "name": "results_gate_table.csv",
-   "sha256": "ce30c830df141278eee7d7ee5e59db7df4c7f307229c1015ca1a0f631fe949a8"
+   "sha256": "d61067875068f399487d4f2eebdc597080e31e7a3be6d39dd7760ee1917fda2f"
   },
   {
    "@id": "ro-crate-metadata.json",
@@ -321,7 +321,7 @@
    "contentSize": "548",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "a502f2ab56875451b630096b821baa59a6c622a8348d99c0b0f70d8906c08f85"
+   "sha256": "cf307b36ac1a22d266d8a298beba33d5f0e3df9c9707c103a1a9c0a735370799"
   },
   {
    "@id": "uv.lock",

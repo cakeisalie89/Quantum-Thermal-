@@ -146,6 +146,34 @@ def resolution_class(raw, floor, *, trivially_zero=False, low=None, high=None):
     return BELOW_RESOLUTION
 
 
+def render_with_resolution(value, cls, floor, fmt=".2e"):
+    """Render a quantity as what the method establishes about it.
+
+    Returns the OPERATOR with the value, because the operator is part of the
+    statement: a value the solve cannot resolve is published as the BOUND,
+    ``CH4<1.00e+03``, and not as the digit, ``CH4=0.00e+00``. The digit was noise
+    and said nothing; the bound is the actual result and is the same on every
+    host, so a cell rendered this way stops diverging between environments
+    instead of merely being marked as allowed to.
+
+    This is not rounding. Rounding writes 0.0 and says nothing about why --
+    which D-2026-53 rejected as concealment. An explicit inequality naming
+    the floor states the finding.
+
+    Found by the DECLARED/BARE split in tools/cross_env_semantics.py, which
+    named results_gate_table.csv as a file publishing an unresolved zero with
+    nothing beside it. That is the GATE TABLE: the residual methane at Mode D
+    entry, in the column a reviewer reads as the gate's value.
+    """
+    if cls == BELOW_RESOLUTION:
+        return f"<{float(floor):{fmt}}"
+    if cls == OUT_OF_RANGE:
+        # Never rendered as an ordinary number: the serialised value is the
+        # range bound and the solver's answer was somewhere else.
+        return f"={float(value):{fmt}}[OUT_OF_RANGE]"
+    return f"={float(value):{fmt}}"
+
+
 class UndecidableComparison(RuntimeError):
     """A threshold was compared against a value the method cannot resolve.
 

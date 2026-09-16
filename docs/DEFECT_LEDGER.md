@@ -6399,3 +6399,78 @@ Reproduced locally under the runner dispatch after the repair: **24 of 24
 zero-crossings declared, 0 DECISION.** Before it, 22 of 24, with the two
 long-format rows wrongly filed as bare. E16 and E17 mutate both halves back;
 17/17 killed.
+
+---
+
+## D-2026-60 — the gate table published the unresolved residual as an exact zero
+
+**CLASS** — `TRUE_DEFECT` in the canonical gate table: D-2026-53's defect, one
+propagation step further than that repair traced.
+
+**DISCOVERED BY.** The DECLARED/BARE split, on its first hosted run —
+`full-suite` step 8 at `280cb3d`:
+
+```
+ZERO_CROSSING is not a precision event, and 26 of 28 are already declared
+as such by the file they are in.
+  ...
+  BARE -- the file states the number and nothing about what its method
+  could resolve.
+    energy_ledger_cumulative_3d.csv [r2c9]: 1.615587134e-27 -> 0.000000000e+00
+    results_gate_table.csv [r82c4]:         0.00e+00 -> 4.00e-09
+```
+
+The instrument was written one commit earlier to answer "is this crossing
+already declared?", and the first thing it did on real hardware was name a
+file I had not reached. `results_gate_table.csv` row 82 is
+
+```
+gate_id  RESIDUAL_SPECIES_MODE_D_CHECK
+name     Residual process species cleared for Mode D
+computed CH4=0.00e+00; H2=2.60e+11          unit 1/m^3
+status   BLOCKED     threshold REQUIRES_MEASUREMENT
+```
+
+— the **gate table**, publishing the residual methane at Mode D entry as an
+exact zero, in the column a reviewer reads as the gate's value. On a runner
+it reads `4.00e-09`.
+
+**WHAT DID NOT HAPPEN.** No gate moved. `status` stays `BLOCKED`, `threshold`
+stays `REQUIRES_MEASUREMENT`, `measured_in_this_system` stays `false`,
+`can_PASS_now` stays `NO`, and the comparator reports **0 DECISION** across
+both environments — those are non-numeric tokens and they are identical. The
+gate is blocked for an independent reason (Mode D sensing is itself not
+validated). What was wrong was the published value, not the verdict.
+
+**REPAIR.** `numerics.render_with_resolution()` publishes what the method
+establishes:
+
+```
+CH4<1.00e+03; H2=2.60e+11
+```
+
+An unresolved quantity becomes the **bound**, with the operator carried as
+part of the statement. The resolved one keeps its value. `OUT_OF_RANGE` is
+marked rather than rendered as an ordinary number.
+
+This is not the rounding D-2026-53 rejected. Rounding writes `0.0` and says
+nothing about why; an explicit inequality naming the floor states the
+finding. And it is strictly better than declaring the crossing, because the
+bound is the **same text on every host** — the cell stops diverging between
+environments instead of merely being marked as allowed to.
+
+`build_gate_specs` reads the resolution class and floor that the coupled
+metrics have carried since D-2026-53, so the fix is a change of rendering and
+not of physics. 483 datasets still compare exactly; the equivalence result is
+unchanged at `EQUIVALENT`, 94 columns with a physical unit and 68 declaring
+why they have none.
+
+**STILL OPEN, AND NAMED SO IT STAYS NAMED.**
+`energy_ledger_cumulative_3d.csv`'s `cumulative_dU_J` crosses
+`1.615587134e-27` -> `0.0` between hosts. It is the difference of two
+~`1.5e-09` J sums, so it is float cancellation, not a species density with a
+declared solver tolerance — its floor is a property of the summation, roughly
+`|source| * eps * n_terms`, and declaring it honestly is real numerical work
+rather than a rendering change. Left open deliberately. The instrument will
+keep printing it under BARE until somebody does it, which is the point of
+having the split.
