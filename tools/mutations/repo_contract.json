@@ -1,6 +1,6 @@
 {
  "title": "Repository scope and the workflow contract",
- "note": "Two guards that protect other guards. repo_scope answers 'what files are in this repository' -- a question three separate red pushes got wrong by asking git grep, which sees tracked files only, so a file one commit from existing was invisible. workflow_contract answers 'does CI still run what the matrix says it runs' -- a claim that lives in YAML, which no local test would otherwise notice changing. Both are the enforcement for rows whose property is otherwise structural: R57 is enforced by an ABSENCE, and R58 by a file nothing executes locally. K1-K3 attack the knob check (D-2026-67): the check itself, the difference between setting a variable and raising it, and the continuation-joining without which no check can see both halves of a command split over a backslash.",
+ "note": "Two guards that protect other guards. repo_scope answers 'what files are in this repository' -- a question three separate red pushes got wrong by asking git grep, which sees tracked files only, so a file one commit from existing was invisible. workflow_contract answers 'does CI still run what the matrix says it runs' -- a claim that lives in YAML, which no local test would otherwise notice changing. Both are the enforcement for rows whose property is otherwise structural: R57 is enforced by an ABSENCE, and R58 by a file nothing executes locally. K1-K3 attack the knob check (D-2026-67): the check itself, the difference between setting a variable and raising it, and the continuation-joining without which no check can see both halves of a command split over a backslash. V1-V3 attack the unwired-verifier check (D-2026-68): the wiring into problems(), the difference between running a tool and passing it to the harness, and the set it reasons over.",
  "suites": [
   "tests/test_repo_contract.py",
   "tests/test_agent_substrate_isolation.py",
@@ -111,6 +111,27 @@
    "find": "                if out and out[-1].endswith(\"\\\\\"):",
    "replace": "                if False:",
    "rationale": "a command split over a backslash returns as unrelated lines, so no check can see two halves of one command -- the same substitution that made this file scan comments instead of commands"
+  },
+  {
+   "name": "V1_the_unwired_verifier_check_is_never_consulted",
+   "path": "tools/workflow_contract.py",
+   "find": "    out += [f\"verifier is never run -- {x}\" for x in unwired_verifiers(body)]",
+   "replace": "    out += []",
+   "rationale": "K1's shape again: the check exists, its tests pass, and nothing calls it -- so a workflow step running a verifier can be deleted with everything green"
+  },
+  {
+   "name": "V2_a_mention_counts_as_a_run",
+   "path": "tools/workflow_contract.py",
+   "find": "        if path not in executed:",
+   "replace": "        if not any(path in c for c in cmds):",
+   "rationale": "a file that a lint command names is counted as a verifier that ran; the check would then be satisfied by a workflow that executes none of them"
+  },
+  {
+   "name": "V3_a_verifier_may_be_exempted_without_a_reason",
+   "path": "tools/workflow_contract.py",
+   "find": "    for path in sorted(runnable - set(VERIFIER_EXEMPT)):",
+   "replace": "    for path in sorted(runnable - set(VERIFIER_EXEMPT) - runnable):",
+   "rationale": "every verifier becomes exempt at once, so the check reports nothing over a set it has emptied itself -- the vacuity the null control refuses one level up"
   }
  ]
 }

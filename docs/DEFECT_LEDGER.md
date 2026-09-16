@@ -7205,3 +7205,68 @@ come back from the AGGREGATE, not from the function. 15/15.
 Worth recording plainly: nothing else in this repository would have caught it.
 The suite was green, the new tests all passed, and the coverage was real --
 of the wrong thing.
+
+## D-2026-68 — a verifier that exists, is tested, has a matrix, and that nothing requires the workflow to run
+
+**CLASS** — `GAP` in `tools/workflow_contract.py`. Found by the hostile fresh
+review, against the current head rather than from memory of it.
+
+**THE SHAPE.** K1 of the repo-contract specification made this concrete one
+level down: a check can be deleted from `problems()` while every test still
+passes, because the tests called the function and nothing tested its use. The
+same hole exists one level out, for the tools themselves.
+
+Delete the workflow step that runs `tools/test_isolation.py`, keep its
+mutation step, and every contract check is still satisfied — the tool exists,
+its tests pass, its specification is wired — while the 107 collections it
+performs never run again. **A mutation matrix scores a tool's TESTS. It never
+takes the tool's verdict on the actual repository.**
+
+**MEASURED.**
+
+```
+15 tools/*.py are mutated by some specification
+13 are runnable verifiers
+ 1 is named in REQUIRED_COMMANDS   (completion_matrix.py)
+```
+
+Eleven were being run and nothing said they had to be, among them
+`unit_inventory.py`, `claims_enforcement.py`, `identity_inventory.py`,
+`model_check.py` and `cross_env_semantics.py` — all of which predate this
+session — and the two added in it.
+
+**REPAIR.** `unwired_verifiers()` re-derives the candidate set from the
+specifications on disk rather than from a list, so a verifier added with a
+matrix is covered without anyone remembering. Two exemptions, each with its
+reason stated in the code: `mutation_matrix.py` IS the harness, and
+`independent_verify.py` is a subprocess spawned by `separate_verify.py` with a
+log path on argv rather than a standalone gate.
+
+**AND THE MATRIX CORRECTED THE REPAIR.** V2 SURVIVED, and it was right to.
+
+The first version asked whether the tool's path appeared in a command that was
+not a `mutation_matrix` invocation. But a specification is passed as
+`tools/mutations/x.json`, which does not contain `tools/x.py` — one ends
+`.json` and the other `.py`. Verified against the real workflow: no command
+invokes the harness while naming another tool's `.py` path. **The clause could
+never fire.** The test written for it could not discriminate either, which is
+why it passed against both the mutant and the original.
+
+An enforcement point that cannot be wrong is indistinguishable from one that
+is absent. That is the same sentence as everything else in this ledger, and it
+was in the repair rather than in the subject.
+
+The risk that DOES exist is the opposite one, and the guard did nothing about
+it: `ruff check tools/test_isolation.py` mentions the tool and runs nothing in
+it, and a substring test counts that as the verifier having reported on the
+tree. The check now matches the SHAPE OF EXECUTION — `python <path>` or `uv
+run python <path>` — which handles the harness case structurally, because a
+specification argument is never captured as an executed path.
+`V2_a_mention_counts_as_a_run` now has something real to detect, and
+`test_mentioning_a_verifier_is_not_running_it` kills it, with
+`test_a_verifier_that_is_executed_counts` as its control. 18/18.
+
+**AND THE LESSON APPLIED BEFORE IT HAD TO BE TAUGHT AGAIN.**
+`test_the_unwired_check_is_actually_consulted` drives `problems()` rather than
+the function, written when the check was written rather than after a survivor
+pointed at it. V1 mutates the wiring away and dies.

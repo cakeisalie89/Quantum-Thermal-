@@ -23,6 +23,7 @@ still SAY it does what the matrix says it does.
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -267,6 +268,94 @@ def unturned_knobs(text: str | None = None) -> tuple:
     return ()
 
 
+#: Verifiers that are NOT expected to appear as a standalone workflow command,
+#: each with the reason. Anything else carrying a mutation specification has to
+#: be run against the real tree somewhere.
+VERIFIER_EXEMPT = {
+    "tools/mutation_matrix.py":
+        "it IS the harness; its invocation is `mutation_matrix.py <spec>` and "
+        "unrun_mutation_specs() already requires every specification to be "
+        "passed to it",
+    "tools/independent_verify.py":
+        "a subprocess verifier spawned by qta_agent/separate_verify.py with a "
+        "log path on argv, exercised by the agent suites; it is not a "
+        "standalone gate and has no tree-wide verdict to report",
+}
+
+
+def unwired_verifiers(text: str | None = None) -> tuple:
+    """A verifier that exists, is tested, has a mutation matrix -- and that
+    nothing requires the workflow to actually RUN.
+
+    K1 of the repo-contract specification made this concrete one level down: a
+    check can be deleted from `problems()` while every test still passes,
+    because the tests called the function and nothing tested its use. The same
+    hole exists one level out, for the tools themselves. Delete the workflow
+    step that runs `tools/test_isolation.py` and keep its mutation step, and
+    everything here is still satisfied -- the tool exists, its tests pass, its
+    specification is wired -- while the 107 collections it performs never run
+    again. A mutation matrix scores a tool's TESTS, never its verdict on the
+    actual repository.
+
+    Measured when this was written: 13 runnable verifiers carried a mutation
+    specification and exactly one, completion_matrix.py, was named in
+    REQUIRED_COMMANDS. Eleven were being run and nothing said they had to be.
+
+    The candidate set is re-derived from the specifications on disk rather than
+    listed here, so a verifier added with a matrix is covered without anyone
+    remembering to add it.
+    """
+    candidates = set()
+    for spec in sorted(MUTATIONS.glob("*.json")):
+        for m in json.loads(spec.read_text(encoding="utf-8"))["mutations"]:
+            path = m["path"]
+            if (path.startswith("tools/") and path.endswith(".py")
+                    and "/mutations/" not in path):
+                candidates.add(path)
+    if not candidates:
+        return ("no mutation specification names a tools/*.py file; this "
+                "check would pass over an empty set",)
+
+    runnable = set()
+    for path in candidates:
+        src = (ROOT / path)
+        if not src.exists():
+            return (f"{path} is mutated by a specification and does not exist",)
+        body = src.read_text(encoding="utf-8")
+        if "def main" in body and '__main__' in body:
+            runnable.add(path)
+    if not runnable:
+        return ("no mutated tools/*.py is runnable; the set this check "
+                "reasons about is empty",)
+
+    # EXECUTED, not merely mentioned.
+    #
+    # The first version asked whether the path appeared in a command that was
+    # not a mutation_matrix invocation. The matrix reported that mutation as a
+    # SURVIVOR and it was right to: a specification is passed as
+    # `tools/mutations/x.json`, which does not contain `tools/x.py`, so the
+    # clause could never fire. An unfalsifiable guard, aimed at a risk that
+    # does not exist in this configuration.
+    #
+    # The risk that DOES exist is the opposite one: `ruff check
+    # tools/test_isolation.py` mentions the tool without running it, and a
+    # substring test counts that as the verifier having reported on the tree.
+    # So match the shape of execution.
+    executed = set()
+    cmds = _run_commands(text if text is not None else _text())
+    for cmd in cmds:
+        for m in re.finditer(r"(?:^|\s)(?:uv run )?python3?\s+(\S+)", cmd):
+            executed.add(m.group(1))
+    out = []
+    for path in sorted(runnable - set(VERIFIER_EXEMPT)):
+        if path not in executed:
+            out.append(
+                f"{path} carries a mutation specification and is never run "
+                "directly by the workflow; its tests would keep passing and "
+                "its verdict on the real tree would never be taken")
+    return tuple(out)
+
+
 def problems() -> tuple:
     body = _text()
     out = []
@@ -279,6 +368,7 @@ def problems() -> tuple:
     out += [f"action is not pinned to a commit -- {x}"
             for x in uses_unpinned_actions(body)]
     out += [f"knob is never turned -- {x}" for x in unturned_knobs(body)]
+    out += [f"verifier is never run -- {x}" for x in unwired_verifiers(body)]
     return tuple(out)
 
 
@@ -293,7 +383,8 @@ def main() -> int:
               f"all present, every --group defined, "
               f"{len(REQUIRED_COMMANDS)} commands, {specs} mutation specs "
               "all wired in, every action pinned, the long-horizon knob "
-              "turned above its default")
+              "turned above its default, every verifier with a matrix also "
+              "run against the real tree")
         return 0
     print(f"WORKFLOW CONTRACT BROKEN ({len(found)} problem(s)):")
     for f in found:

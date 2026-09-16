@@ -278,3 +278,95 @@ def test_a_continued_command_is_read_as_one_command():
     assert any("QTA_HORIZON_CYCLES=9000" in c
                and "test_agent_long_horizon.py" in c for c in cmds), cmds
     assert WC.unturned_knobs(body) == ()
+
+
+# ---- a verifier that exists, is tested, and is never run -----------------
+
+def test_every_verifier_with_a_matrix_is_run_against_the_real_tree():
+    """The positive control, against the committed workflow."""
+    assert WC.unwired_verifiers() == ()
+
+
+def test_a_workflow_that_never_runs_a_verifier_is_refused():
+    """The defect. Delete the step, keep the matrix, lose the verdict.
+
+    Measured when this was written: 13 runnable verifiers carried a mutation
+    specification and exactly one -- completion_matrix.py -- was named in
+    REQUIRED_COMMANDS. Eleven were being run and nothing said they had to be.
+    """
+    body = """jobs:
+  x:
+    steps:
+      - run: uv run python tools/completion_matrix.py
+"""
+    problems = WC.unwired_verifiers(body)
+    assert any("tools/test_isolation.py" in p for p in problems), problems
+    assert any("tools/resolution_inventory.py" in p for p in problems)
+
+
+def test_mentioning_a_verifier_is_not_running_it():
+    """THE DISTINCTION THIS CHECK EXISTS FOR, and the second version of it.
+
+    The first asserted that passing a tool to the mutation harness did not
+    count as running it -- and the matrix reported the corresponding operator
+    as a SURVIVOR, correctly: a specification is passed as
+    `tools/mutations/x.json`, which does not contain `tools/x.py`, so the
+    clause guarding against it could never fire. An unfalsifiable guard
+    against a risk that does not exist here.
+
+    The risk that does exist is this one. A lint command names the file and
+    runs nothing in it, and a substring test would count that as the verifier
+    having reported on the tree.
+    """
+    body = """jobs:
+  x:
+    steps:
+      - run: uv run ruff check tools/test_isolation.py tools/
+"""
+    problems = WC.unwired_verifiers(body)
+    assert any("tools/test_isolation.py" in p for p in problems), (
+        "a file that was linted was counted as a verifier that ran")
+
+
+def test_a_verifier_that_is_executed_counts():
+    """The control for the test above: matching execution, not any mention."""
+    body = """jobs:
+  x:
+    steps:
+      - run: uv run python tools/test_isolation.py
+"""
+    problems = WC.unwired_verifiers(body)
+    assert not any("tools/test_isolation.py" in p for p in problems), problems
+
+
+def test_the_harness_itself_is_exempt_and_says_why():
+    """The control for the exemption: it is stated, not silent."""
+    assert "tools/mutation_matrix.py" in WC.VERIFIER_EXEMPT
+    assert "tools/independent_verify.py" in WC.VERIFIER_EXEMPT
+    for path, why in WC.VERIFIER_EXEMPT.items():
+        assert why and len(why) > 30, f"{path} is exempt without a reason"
+
+
+def test_an_empty_candidate_set_is_refused(tmp_path, monkeypatch):
+    """"Every verifier is run" is trivially true of no verifiers."""
+    monkeypatch.setattr(WC, "MUTATIONS", tmp_path)
+    problems = WC.unwired_verifiers()
+    assert problems and "empty set" in problems[0]
+
+
+def test_the_unwired_check_is_actually_consulted(monkeypatch):
+    """K1's lesson, applied before the matrix has to teach it again.
+
+    Every test above calls unwired_verifiers() directly. That is exactly how
+    the knob check came to be deletable from problems() with a green suite.
+    This one drives the aggregate.
+    """
+    body = """jobs:
+  x:
+    steps:
+      - run: uv run python tools/completion_matrix.py
+"""
+    monkeypatch.setattr(WC, "_text", lambda: body)
+    found = WC.problems()
+    assert any("verifier is never run" in p for p in found), (
+        f"unwired_verifiers() is not reached from problems(): {found}")
