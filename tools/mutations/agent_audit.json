@@ -1,0 +1,243 @@
+{
+  "title": "Audit queries and provenance-gap detection",
+  "note": "The interesting mutations are A2, A3 and A7: they do not break a chain, they make an INCOMPLETE chain read as complete. A hole in provenance is indistinguishable from a fabrication nobody noticed, so an auditor that cannot see holes is worse than none -- it produces confident reassurance.  A13 and A20 are the pair that matters most: A13 hides canonical authority resting on a withdrawn input, and A20 is the real defect that made that state unfixable -- the cascade cited a digest it never stored, so it could not run at all in the only configuration where citations are checked.",
+  "suites": [
+    "tests/test_agent_audit.py",
+    "tests/test_agent_hostile_campaign.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_substrate_isolation.py"
+  ],
+  "mutations": [
+    {
+      "name": "A1_audit_accepts_a_tampered_log",
+      "path": "qta_agent/audit.py",
+      "find": "        log.verify().raise_if_bad()",
+      "replace": "        pass",
+      "rationale": "an audit produces a confident answer about a document that may have been rewritten -- worse than refusing"
+    },
+    {
+      "name": "A2_missing_records_not_reported",
+      "path": "qta_agent/audit.py",
+      "find": "            if required not in seen:",
+      "replace": "            if False:",
+      "rationale": "a VERIFIED task with no evidence record reads as fully supported"
+    },
+    {
+      "name": "A3_self_verification_not_flagged",
+      "path": "qta_agent/audit.py",
+      "find": "            if executed_by is not None and executed_by == verified_by:",
+      "replace": "            if False:",
+      "rationale": "a log written outside the gate showing an executor verifying itself passes the audit"
+    },
+    {
+      "name": "A4_redaction_removed",
+      "path": "qta_agent/audit.py",
+      "find": "            out[k] = REDACTED if _looks_secret(k) else redact(v)",
+      "replace": "            out[k] = redact(v)",
+      "rationale": "credential-shaped fields leave the module intact and land in reports"
+    },
+    {
+      "name": "A5_separators_not_flattened",
+      "path": "qta_agent/audit.py",
+      "find": "    flattened = re.sub(r\"[_\\-.:/]+\", \" \", str(key))",
+      "replace": "    flattened = str(key)",
+      "rationale": "bearer_token and api-key slip the net, because _ is a word character"
+    },
+    {
+      "name": "A6_artifact_traced_by_any_string",
+      "path": "qta_agent/audit.py",
+      "find": "        if not is_digest(digest):",
+      "replace": "        if False:",
+      "rationale": "artifacts are traced by name rather than by content"
+    },
+    {
+      "name": "A7_completeness_always_true",
+      "path": "qta_agent/audit.py",
+      "find": "        return not self.gaps",
+      "replace": "        return True",
+      "rationale": "every chain reports as complete, including the ones with holes"
+    },
+    {
+      "name": "A8_record_discontinuity_ignored",
+      "path": "qta_agent/audit.py",
+      "find": "            src, dst = s.detail.get(\"src\"), s.detail.get(\"dst\")\n            if expected is not None and src != expected:",
+      "replace": "            src, dst = s.detail.get(\"src\"), s.detail.get(\"dst\")\n            if False:",
+      "rationale": "a history written around AuthorityStore -- transitions that do not join up -- reads as a whole chain"
+    },
+    {
+      "name": "A9_impossible_edge_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "            if edge is None:",
+      "replace": "            if edge is not None and False:",
+      "rationale": "PROPOSED -> PROMOTED, an edge check() has never had, is reported as legitimate"
+    },
+    {
+      "name": "A10_self_promotion_in_a_log_not_flagged",
+      "path": "qta_agent/audit.py",
+      "find": "            if edge.requires_distinct_actor and proposer is not None \\\n                    and s.actor == proposer:",
+      "replace": "            if False:",
+      "rationale": "a forged log in which one actor proposed and promoted its own record audits clean"
+    },
+    {
+      "name": "A11_promotion_without_a_policy_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "            if dst == State.PROMOTED.value and not (",
+      "replace": "            if False and (",
+      "rationale": "a record becomes canonical with no policy naming the rules, and nothing reports it"
+    },
+    {
+      "name": "A12_missing_transition_evidence_ignored",
+      "path": "qta_agent/audit.py",
+      "find": "            missing = sorted(edge.requires_evidence\n                             - set(s.detail.get(\"evidence\") or {}))",
+      "replace": "            missing = []",
+      "rationale": "a VERIFIED transition citing no verification report reads as supported"
+    },
+    {
+      "name": "A13_withdrawn_dependency_not_reported",
+      "path": "qta_agent/audit.py",
+      "find": "                elif w[\"state\"] not in _CANONICAL_NAMES:",
+      "replace": "                elif False:",
+      "rationale": "THE cross-record hole: canonical authority resting on a REVOKED input audits clean, and no single transition is wrong"
+    },
+    {
+      "name": "A14_unrecorded_dependency_not_reported",
+      "path": "qta_agent/audit.py",
+      "find": "                if w is None:",
+      "replace": "                if w is None and False:",
+      "rationale": "a PROMOTED record depending on something the history never created reads as complete"
+    },
+    {
+      "name": "A15_creation_record_not_required",
+      "path": "qta_agent/audit.py",
+      "find": "        if not created:",
+      "replace": "        if False:",
+      "rationale": "transitions with no creation record -- no proposer, no initial evidence -- read as a whole chain"
+    },
+    {
+      "name": "A16_decision_subject_filter_is_a_prefix",
+      "path": "qta_agent/audit.py",
+      "find": "            if subject is not None and req.get(\"subject\") != subject:",
+      "replace": "            if subject is not None and not str(req.get(\"subject\", \"\")).startswith(subject):",
+      "rationale": "an auditor asking about 'alice' is answered about 'alicia'; a confident answer about the wrong principal"
+    },
+    {
+      "name": "A17_denials_can_be_asked_for_allows",
+      "path": "qta_agent/audit.py",
+      "find": "        filters.pop(\"allowed\", None)\n        return self.decisions(allowed=False, **filters)",
+      "replace": "        return self.decisions(**filters)",
+      "rationale": "denials() silently returns permissions when a caller passes allowed=True"
+    },
+    {
+      "name": "A18_unpublished_policy_digest_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "        elif not match:",
+      "replace": "        elif False:",
+      "rationale": "a decision citing a policy digest nobody published -- the tampering signature -- joins clean"
+    },
+    {
+      "name": "A19_decision_under_no_policy_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "        if not published:",
+      "replace": "        if False:",
+      "rationale": "a decision under a policy this log never published reports as fully explained"
+    },
+    {
+      "name": "A20_invalidation_cites_unstored_bytes",
+      "path": "qta_agent/invalidation.py",
+      "find": "    return evidence.put(canonical_bytes(body), media_type=\"application/json\")",
+      "replace": "    return digest(body)",
+      "rationale": "THE REGRESSION. The cascade cites a digest it never stores, so against an evidence-backed store -- the governed configuration -- invalidation cannot run at all and a record whose foundation was withdrawn can never be marked STALE"
+    },
+    {
+      "name": "A21_task_chain_discontinuity_ignored",
+      "path": "qta_agent/audit.py",
+      "find": "        for seq, src, dst in transitions:\n            if expected is not None and src != expected:",
+      "replace": "        for seq, src, dst in transitions:\n            if False:",
+      "rationale": "the audit reports the FORGED outcome with no complaint while the enforcement path refuses the same records -- an auditor telling a reader the attack worked"
+    },
+    {
+      "name": "A22_the_audit_prefers_the_completions_executor_claim",
+      "path": "qta_agent/audit.py",
+      "find": "                        if executed_by is None:\n                            executed_by = s.actor",
+      "replace": "                        executed_by = s.detail.get(\"executed_by\") or s.actor",
+      "rationale": "the self-verification check asks the forger's own field whether the forgery happened, and is told no"
+    },
+    {
+      "name": "A23_a_renamed_executor_is_not_reported",
+      "path": "qta_agent/audit.py",
+      "find": "                        if claimed and claimed != executed_by:",
+      "replace": "                        if False:",
+      "rationale": "a completion attributing the work to someone who did not do it passes without comment"
+    },
+    {
+      "name": "Q1_a_window_skips_verification",
+      "path": "qta_agent/audit.py",
+      "find": "        log.verify().raise_if_bad()\n        if since_seq is None and until_seq is None:",
+      "replace": "        if since_seq is None and until_seq is None:\n            log.verify().raise_if_bad()\n        if since_seq is None and until_seq is None:",
+      "rationale": "a window becomes a way to audit a rewritten history cheaply, which is the opposite of what narrowing the index is for"
+    },
+    {
+      "name": "Q2_a_windowed_index_does_not_say_it_is_one",
+      "path": "qta_agent/audit.py",
+      "find": "        idx.window = (lo, hi)",
+      "replace": "        pass",
+      "rationale": "an audit quietly answers about a slice and the reader cannot tell, which is worse than refusing"
+    },
+    {
+      "name": "Q3_an_empty_window_is_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "        if hi is not None and hi < lo:",
+      "replace": "        if False:",
+      "rationale": "a backwards window answers every question with 'nothing happened'"
+    },
+    {
+      "name": "Q4_a_position_range_is_off_by_one_at_the_end",
+      "path": "qta_agent/audit.py",
+      "find": "            for ev in self.events if lo <= ev.seq <= hi)",
+      "replace": "            for ev in self.events if lo <= ev.seq < hi)",
+      "rationale": "the last event of a range is silently outside it, so an incident's final action is the one the auditor never sees"
+    },
+    {
+      "name": "Q5_a_backwards_range_is_accepted",
+      "path": "qta_agent/audit.py",
+      "find": "        if hi < lo:\n            raise ValueError(f\"seq range [{lo}, {hi}] ends before it starts\")",
+      "replace": "        if False:\n            raise ValueError(f\"seq range [{lo}, {hi}] ends before it starts\")",
+      "rationale": "an empty answer that reads as 'nothing happened there'"
+    },
+    {
+      "name": "Q6_metrics_are_not_derived_from_the_events",
+      "path": "qta_agent/audit.py",
+      "find": "            by_action[ev.action] = by_action.get(ev.action, 0) + 1",
+      "replace": "            by_action[ev.action] = 1",
+      "rationale": "a metric and an explanation start telling different stories about the same bytes"
+    },
+    {
+      "name": "Q7_the_sink_does_not_redact",
+      "path": "qta_agent/audit.py",
+      "find": "                \"payload\": redact_fn(ev.payload),",
+      "replace": "                \"payload\": ev.payload,",
+      "rationale": "a credential reaches a collector, which is the cost of being wrong about 'a secret should not be there to redact'"
+    },
+    {
+      "name": "Q8_the_sink_accepts_something_that_cannot_be_written_to",
+      "path": "qta_agent/audit.py",
+      "find": "        if not callable(write):",
+      "replace": "        if False:",
+      "rationale": "emission fails as an AttributeError three frames from the caller"
+    },
+    {
+      "name": "Q9_the_sink_drops_events",
+      "path": "qta_agent/audit.py",
+      "find": "            count += 1\n        flush = getattr(sink, \"flush\", None)",
+      "replace": "            break\n        flush = getattr(sink, \"flush\", None)",
+      "rationale": "a partial copy in a collector is worse than none, because it looks complete"
+    },
+    {
+      "name": "Q10_cross_task_tool_queries_match_everything",
+      "path": "qta_agent/audit.py",
+      "find": "            if p.get(\"tool_id\") != tool_id:\n                continue",
+      "replace": "            if False:\n                continue",
+      "rationale": "'which tasks used this tool' answers with every task, which is a confident answer about the wrong thing"
+    }
+  ]
+}

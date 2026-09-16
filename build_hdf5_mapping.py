@@ -34,23 +34,47 @@ SV = "1.0.0"
 LBL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 EXEMPT = "deep_surrogate_readiness.json"
 
-UNIT_SUFFIX = {
-    "_K": "K", "_Pa": "Pa", "_s": "s", "_us": "us", "_ns": "ns",
-    "_W": "W", "_mW": "mW", "_uW": "uW", "_m": "m", "_mm": "mm",
-    "_um": "um", "_nm": "nm", "_Hz": "Hz", "_kHz": "kHz", "_MHz": "MHz",
-    "_GHz": "GHz", "_J": "J", "_T": "T", "_mT": "mT", "_A": "A",
-    "_V": "V", "_kg": "kg", "_g": "g", "_ML": "monolayer",
-    "_per_s": "1/s", "_frac": "dimensionless", "_ratio": "dimensionless",
-    "_fraction": "dimensionless", "_dB": "dB", "_deg": "deg",
-    "_percent": "percent", "_WK": "W/K", "_W_per_K": "W/K",
-}
+#: The reviewed dimension of every governed numeric column. D-2026-57.
+#:
+#: This used to be a suffix table -- thirty patterns matched against the END OF
+#: THE COLUMN NAME -- and the last few characters of a name are not a unit.
+#: 91 of 162 numeric columns fell through it and were published as
+#: "unresolved", among them every heat-source density (Q_laser_W_m3), every
+#: gas density (n_CH4_modeC_1m3), and every entropy in nats, all of which
+#: state their unit in their own name. Three did not fall through and came out
+#: WRONG: gradient_K_per_m ends in "_m" and was published as METRES;
+#: dose_flux_open_m2_s and dose_flux_closed_m2_s end in "_s" and were
+#: published as SECONDS. A consumer reading those attributes would have
+#: believed a temperature gradient was a length and a flux was a time.
+#:
+#: The declaration is reviewed and committed; tools/unit_inventory.py
+#: reconciles it against the columns that actually exist, in both directions.
+UNIT_INVENTORY = Path("docs/unit_inventory.json")
 
 
-def unit_of(col: str) -> str:
-    for suf, u in sorted(UNIT_SUFFIX.items(), key=lambda x: -len(x[0])):
-        if col.endswith(suf):
-            return u
-    return "unresolved"
+class UndeclaredUnit(KeyError):
+    """A governed numeric column with no reviewed dimension.
+
+    A refusal rather than a fallback. Any default here -- "unresolved",
+    "dimensionless", the empty string -- is a dimension nobody reviewed,
+    written into an archival artefact that a consumer will read as fact.
+    """
+
+
+def _inventory() -> dict:
+    return json.loads(UNIT_INVENTORY.read_text())["columns"]
+
+
+def unit_of(src: str, col: str, inv: dict) -> str:
+    entry = inv.get(f"{src}:{col}")
+    if entry is None:
+        raise UndeclaredUnit(
+            f"{src}:{col} has no entry in {UNIT_INVENTORY}; a new numeric "
+            "column carries no dimension until somebody says what it is")
+    u = entry["unit"]
+    if u == "PER_ROW":
+        return f"PER_ROW:{entry['unit_from']}"
+    return u
 
 
 def sha(p: Path) -> str:
@@ -58,6 +82,7 @@ def sha(p: Path) -> str:
 
 
 def classify() -> tuple:
+    inv = _inventory()
     root = Path(".")
     files = sorted(p for p in root.iterdir() if p.is_file()
                    and p.suffix in (".csv", ".json", ".mmd"))
@@ -84,7 +109,8 @@ def classify() -> tuple:
                 cols.append({
                     "name": c, "index": j,
                     "dtype": "float64" if numeric else "utf8_string",
-                    "unit": unit_of(c) if numeric else "n/a (string)",
+                    "unit": (unit_of(p.name, c, inv) if numeric
+                             else "n/a (string)"),
                     "missing_value_policy":
                         "no empty cells (uniform numeric)" if numeric
                         else "verbatim strings (empties preserved as "
@@ -173,8 +199,14 @@ def main() -> None:
         json.dumps(doc, indent=1, sort_keys=True) + "\n")
     sdoc = {"schema_version": SV, "label": LBL,
             "hdf5_file": "qta_scientific_results.h5",
-            "unit_system": "SI with canonical project suffix conventions; "
-                           "'unresolved' is preserved, never invented",
+            "unit_system": "SI, plus four words for a column that carries no "
+                           "unit: DIMENSIONLESS (a physical ratio), COUNT (a "
+                           "count or index), ORDINAL (a rank-scale score with "
+                           "no physical dimension) and PER_ROW:<column> (a "
+                           "long-format table whose unit belongs to the row). "
+                           "Every dimension is declared and reviewed in "
+                           "docs/unit_inventory.json; none is inferred from a "
+                           "column name, and there is no 'unresolved'",
             "root_groups": ["/tables", "/native_json", "/native_text",
                             "/provenance"],
             "determinism": ["track_times disabled on every object",

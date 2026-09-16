@@ -28,6 +28,12 @@ from qta_multiphysics.hardware_governance_3d import (        # noqa: E402
 # binding check is ever reached, which is correct fail-closed ordering but
 # would not exercise §18.
 from test_hardware_governance import FIX as _FIX                # noqa: E402
+from hw_reviewer_fixtures import (                            # noqa: E402
+    FIXTURE_REVIEWER, human as _human, roster as _roster)
+
+# The reviewer these fixtures are authored by, registered. See
+# hw_reviewer_fixtures for why a positive test must now name one.
+ROSTER = _roster(_human(FIXTURE_REVIEWER))
 
 RECORD = dict(copy.deepcopy(_FIX), data_class="HARDWARE_REVIEWED")
 REVIEW = {
@@ -92,7 +98,7 @@ def test_reordering_a_list_changes_the_digest():
 # ------------------------------------- the four adversarial cases from §18 --
 
 def test_review_A_with_record_A_is_allowed():
-    ok, why = validate_review_record(_bound(RECORD), record=RECORD)
+    ok, why = validate_review_record(_bound(RECORD), record=RECORD, roster=ROSTER)
     assert ok, why
 
 
@@ -100,7 +106,7 @@ def test_review_A_with_modified_record_B_same_id_is_rejected():
     """The attack: same measurement_id, different content."""
     review = _bound(RECORD)
     tampered = dict(RECORD, value=1.0e-6)          # id unchanged
-    ok, why = validate_review_record(review, record=tampered)
+    ok, why = validate_review_record(review, record=tampered, roster=ROSTER)
     assert not ok
     assert any("does not bind" in w for w in why), why
 
@@ -108,13 +114,13 @@ def test_review_A_with_modified_record_B_same_id_is_rejected():
 def test_malformed_hash_is_rejected():
     for bad in ("b" * 63, "z" * 64, "not-a-hash", "B" * 65):
         ok, why = validate_review_record(
-            dict(REVIEW, record_sha256=bad), record=RECORD)
+            dict(REVIEW, record_sha256=bad), record=RECORD, roster=ROSTER)
         assert not ok, bad
         assert any("malformed" in w or "does not bind" in w for w in why), (bad, why)
 
 
 def test_missing_hash_is_rejected():
-    ok, why = validate_review_record(dict(REVIEW), record=RECORD)
+    ok, why = validate_review_record(dict(REVIEW), record=RECORD, roster=ROSTER)
     assert not ok
     assert any("record_sha256" in w for w in why), why
 
@@ -123,7 +129,7 @@ def test_missing_hash_is_rejected():
 
 def _dossier(record, review, raw_dir=None):
     return build_evidence_dossier("B3", [record],
-                                  {record["measurement_id"]: review}, raw_dir)
+                                  {record["measurement_id"]: review}, raw_dir, roster=ROSTER)
 
 
 def _schema_clean(record, td):

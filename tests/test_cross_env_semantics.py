@@ -1,0 +1,389 @@
+"""The instrument that tells a changed verdict from a changed digit.
+
+Every refusal test here is paired with a positive control. A comparator that
+refused everything would pass all the refusal tests and be worthless, and a
+comparator that refused nothing would pass all the acceptance tests and be
+worse than worthless -- it would license the sentence "no decision changed".
+"""
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from tools.cross_env_semantics import (
+    DECISION, IDENTICAL, MEASURED, PRECISION, SIGN_FLIP, ZERO_CROSSING,
+    ScopeError, check_scope, classify, compare, declares_resolution, main,
+)
+
+
+def _tree(root, name, payload):
+    root.mkdir(parents=True, exist_ok=True)
+    p = root / name
+    p.write_text(payload if isinstance(payload, str)
+                 else json.dumps(payload, indent=2))
+    return p
+
+
+def _kinds(before, after):
+    return [k for k, _, _, _ in classify(before, after)]
+
+
+# --- what counts as a decision -------------------------------------------
+
+def test_a_changed_status_is_a_decision():
+    assert _kinds("CONDITIONAL", "PASS") == [DECISION]
+
+
+def test_a_changed_boolean_is_a_decision():
+    assert _kinds("{'ok': True}", "{'ok': False}") == [DECISION]
+
+
+def test_a_word_changing_is_a_decision_even_when_every_number_agrees():
+    """The residue is compared BEFORE the numbers, and this is why.
+
+    Both sides carry the identical quantity. Comparing them as whole strings
+    would find a difference and have to guess what kind; comparing what is
+    left after the numbers are removed knows immediately.
+    """
+    assert _kinds("status=OK; v=1.5", "status=BAD; v=1.5") == [DECISION]
+
+
+def test_a_number_that_became_nan_is_not_called_a_precision_event():
+    assert _kinds("1.5", "nan") == [DECISION]
+
+
+# --- what counts as precision, and the control that it is not everything ---
+
+def test_a_moved_last_digit_is_precision_and_is_not_refused():
+    (kind, _, _, rel), = classify("108740.08984348577", "108740.08984349713")
+    assert kind == PRECISION
+    assert rel < 1e-12
+
+
+def test_the_classifier_is_not_simply_calling_everything_a_decision():
+    """The control for every refusal test above."""
+    assert _kinds("1.0000001", "1.0000002") == [PRECISION]
+    assert _kinds("CONDITIONAL", "CONDITIONAL") == []
+
+
+# --- the class that is neither ------------------------------------------
+
+def test_exactly_zero_becoming_nonzero_is_not_a_precision_event():
+    """A published exact zero is a claim; a nonzero neighbour contradicts it.
+
+    Relative difference cannot express this: against zero it is 1.0 for any
+    nonzero value whatsoever, which would rank a 4e-09 underflow alongside a
+    catastrophe. It gets its own class because it is its own kind of event.
+    """
+    assert _kinds("0.000000000e+00", "1.561645593e-02") == [ZERO_CROSSING]
+    assert _kinds("1.615587134e-27", "0.000000000e+00") == [ZERO_CROSSING]
+
+
+def test_opposite_signs_are_a_sign_flip_not_a_precision_event():
+    assert _kinds("1.510451e-06", "-1.510451e-06") == [SIGN_FLIP]
+
+
+def test_a_zero_crossing_is_not_also_counted_as_a_sign_flip():
+    """Ordering inside the classifier: zero is tested before sign."""
+    kinds = _kinds("0.0", "-4.0e-09")
+    assert kinds == [ZERO_CROSSING]
+
+
+# --- the scope check: "nothing changed" must not be true of nothing -------
+
+def test_a_comparison_that_lines_up_no_files_at_all_is_refused(tmp_path):
+    _tree(tmp_path / "other", "renamed_output.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "original_output.csv", "a,b\n1,2\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_compared"] == 0
+    with pytest.raises(ScopeError, match="compared 0 files"):
+        check_scope(report)
+
+
+def test_the_scope_check_accepts_a_comparison_that_did_look_at_something(
+        tmp_path):
+    """The control. Otherwise the test above passes on a check wired to
+    refuse unconditionally."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,3\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_compared"] == 1
+    check_scope(report)
+
+
+# --- what the headline is drawn from -------------------------------------
+#
+# D-2026-62. There are two ways to compare nothing. One is an error the scope
+# check already refuses. The other -- two byte-identical trees -- is the
+# outcome this project wants, and it produced the same closing sentence as a
+# 5404-leaf measurement.
+
+
+def test_two_identical_trees_are_not_reported_as_a_measurement(tmp_path):
+    """The defect. Zero leaves compared, and the old headline regardless."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,2\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_compared"] == 1
+    assert report["files_differing"] == 0
+    assert report["leaves_compared"] == 0
+    assert report["basis"] == IDENTICAL
+    check_scope(report)          # and it is NOT an error: it must not refuse
+
+
+def test_a_real_comparison_is_marked_as_measured(tmp_path):
+    """The control. A basis that is always IDENTICAL says nothing either."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,3\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_differing"] == 1
+    assert report["leaves_compared"] > 0
+    assert report["basis"] == MEASURED
+
+
+def test_the_two_bases_do_not_print_the_same_conclusion(tmp_path, capsys):
+    """The sentence is the artefact a reader takes away; it has to differ.
+
+    Both runs exit 0 and both are correct. Only one of them compared
+    anything, and a log that cannot be told apart is how a reproduction gets
+    quoted as an invariance.
+    """
+    _tree(tmp_path / "same_other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "same_committed", "shared.csv", "a,b\n1,2\n")
+    assert main([str(tmp_path / "same_other"),
+                 str(tmp_path / "same_committed")]) == 0
+    identical = capsys.readouterr().out
+
+    _tree(tmp_path / "diff_other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "diff_committed", "shared.csv", "a,b\n1,3\n")
+    assert main([str(tmp_path / "diff_other"),
+                 str(tmp_path / "diff_committed")]) == 0
+    measured = capsys.readouterr().out
+
+    assert "IDENTICAL_TREES" in identical
+    assert "IDENTICAL_TREES" not in measured
+    assert "leaves compared" in measured
+    assert "No decision-bearing token differs" not in identical, (
+        "the tautology must not borrow the measurement's sentence")
+    assert "No decision-bearing token differs" in measured
+
+
+def test_the_measured_conclusion_carries_its_own_leaf_count(tmp_path, capsys):
+    """The scope belongs in the sentence, not only in the header.
+
+    A reader quoting the closing line is quoting the claim. Without the count
+    in it, a comparison over five leaves and one over five thousand read the
+    same -- the unit substitution R59 is made of.
+    """
+    _tree(tmp_path / "other", "shared.csv", "a,b,c\n1,2,3\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b,c\n1,9,3\n")
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    n = report["leaves_compared"]
+    assert n > 0
+    main([str(tmp_path / "other"), str(tmp_path / "committed")])
+    out = capsys.readouterr().out
+    assert f"{n} leaves compared" in out
+
+
+def test_the_identical_basis_says_what_it_does_establish(tmp_path, capsys):
+    """Not a refusal and not an apology: a byte-exact regeneration is a
+    result. It just is not the result the other sentence reports."""
+    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
+    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,2\n")
+    main([str(tmp_path / "other"), str(tmp_path / "committed")])
+    out = capsys.readouterr().out
+    assert "REPRODUCED" in out
+    assert "establishes nothing about invariance" in out
+
+
+def test_scope_is_refused_when_files_differ_but_share_no_shape(tmp_path):
+    _tree(tmp_path / "other", "s.json", {"only_here": 1})
+    _tree(tmp_path / "committed", "s.json", {"only_there": 1})
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["files_differing"] == 1
+    with pytest.raises(ScopeError, match="do not share a shape"):
+        check_scope(report)
+
+
+def test_scope_refusal_is_a_raise_and_not_an_assert():
+    """`python -O` deletes asserts. An enforcement point a flag removes is
+    not an enforcement point -- the lesson D-2026-45 recorded."""
+    src = (__import__("pathlib").Path(__file__).resolve().parent.parent
+           / "tools" / "cross_env_semantics.py").read_text()
+    body = src.split("def check_scope")[1].split("\ndef ")[0]
+    assert "assert " not in body
+    assert "raise ScopeError" in body
+
+
+# --- end to end -----------------------------------------------------------
+
+def test_a_flipped_readiness_status_is_refused_end_to_end(tmp_path):
+    """The exact claim this package exists to prevent, smuggled in as a
+    byte difference that `cmp` would report the same as a moved digit."""
+    _tree(tmp_path / "committed", "r.json",
+          {"status": "FORECAST_ONLY_IMPLEMENTED", "value": 1.25})
+    _tree(tmp_path / "other", "r.json",
+          {"status": "VALIDATED_ON_HARDWARE", "value": 1.25})
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["counts"][DECISION] == 1
+
+
+def test_the_same_file_differing_only_in_digits_is_not_refused(tmp_path):
+    """The control for the test above: same shape, same words, moved float."""
+    _tree(tmp_path / "committed", "r.json",
+          {"status": "FORECAST_ONLY_IMPLEMENTED", "value": 1.2500000000001})
+    _tree(tmp_path / "other", "r.json",
+          {"status": "FORECAST_ONLY_IMPLEMENTED", "value": 1.2500000000002})
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["counts"][DECISION] == 0
+    assert report["counts"][PRECISION] == 1
+
+
+def test_a_key_present_on_one_side_only_is_reported_not_ignored(tmp_path):
+    _tree(tmp_path / "committed", "s.json", {"a": 1, "b": 2})
+    _tree(tmp_path / "other", "s.json", {"a": 1, "c": 2})
+    report = compare(tmp_path / "other", tmp_path / "committed")
+    assert report["shape_changes"], "a changed shape must not pass silently"
+    assert report["shape_changes"][0]["file"] == "s.json"
+
+
+# --- the exemption must not drift away from the one it mirrors ------------
+
+def test_the_exemption_matches_the_one_the_byte_gate_already_uses():
+    """`REGEN_EXEMPT` is duplicated from `package_consistency_check.py`
+    because importing that module runs its entire check. A duplicated
+    constant with no owner is the defect D-2026-47 recorded, so this is the
+    owner: the two sets must be equal, and a name added to either one alone
+    fails here rather than quietly changing what one gate looks at.
+    """
+    import ast
+    import pathlib
+
+    from tools.cross_env_semantics import REGEN_EXEMPT
+
+    src = (pathlib.Path(__file__).resolve().parent.parent
+           / "package_consistency_check.py").read_text()
+    for node in ast.walk(ast.parse(src)):
+        if (isinstance(node, ast.Assign)
+                and any(getattr(t, "id", None) == "_REGEN_EXEMPT"
+                        for t in node.targets)):
+            theirs = frozenset(ast.literal_eval(node.value.args[0]))
+            break
+    else:                                       # pragma: no cover - defensive
+        raise AssertionError(
+            "package_consistency_check.py no longer defines _REGEN_EXEMPT; "
+            "the exemption this tool mirrors has moved or gone")
+    assert REGEN_EXEMPT == theirs, (
+        f"exemptions have drifted: this tool skips {sorted(REGEN_EXEMPT)}, "
+        f"the byte gate skips {sorted(theirs)}")
+
+
+def test_an_exempt_file_is_reported_rather_than_silently_dropped(tmp_path):
+    _tree(tmp_path / "committed", "x.json", {"status": "A"})
+    _tree(tmp_path / "other", "x.json", {"status": "B"})
+    report = compare(tmp_path / "other", tmp_path / "committed",
+                     exempt=frozenset({"x.json"}))
+    assert report["exempted"] == ["x.json"]
+    assert report["counts"][DECISION] == 0
+
+
+def test_exempting_a_file_is_the_only_reason_it_is_skipped(tmp_path):
+    """The control: without the exemption the same pair IS refused, so the
+    test above is measuring the exemption and not an empty comparison."""
+    _tree(tmp_path / "committed", "x.json", {"status": "A"})
+    _tree(tmp_path / "other", "x.json", {"status": "B"})
+    report = compare(tmp_path / "other", tmp_path / "committed",
+                     exempt=frozenset())
+    assert report["counts"][DECISION] == 1
+
+
+# --- does the artefact already say the zero is unresolved? ----------------
+#
+# The ZERO_CROSSING message used to say, of every crossing, that a published
+# 0.000000000e+00 "states that the model determined the quantity to be
+# exactly nothing". Since D-2026-53 the transport outputs publish the zero
+# BESIDE a resolution class that says the opposite, and an instrument that
+# kept asserting the old sentence would be overstating what the artefact
+# claims -- the defect class it exists to find.
+
+import pathlib as _pathlib                                        # noqa: E402
+
+_ROOT = _pathlib.Path(__file__).resolve().parents[1]
+
+
+def test_a_wide_table_declares_by_column(tmp_path):
+    p = tmp_path / "wide.csv"
+    p.write_text("x_m,n_CH4_1m3,resolution_CH4\n0.1,0.0,BELOW_RESOLUTION\n")
+    assert declares_resolution(p) is True
+
+
+def test_a_long_table_declares_by_row(tmp_path):
+    """The case a header-only check got wrong.
+
+    coupled_mode_recovery_metrics.csv is a metric/value table -- the PER_ROW
+    shape D-2026-57 had to name -- and its declaration is a ROW:
+    ``Mode_D_residual_CH4_resolution, BELOW_RESOLUTION``. Reading only the
+    header called that file bare while it was declaring, which is the same
+    proxy error in a checker written to report on proxies.
+    """
+    p = tmp_path / "long.csv"
+    p.write_text("metric,value\n"
+                 "Mode_D_residual_CH4_density_m3,0.0\n"
+                 "Mode_D_residual_CH4_resolution,BELOW_RESOLUTION\n")
+    assert declares_resolution(p) is True
+
+
+def test_a_file_that_declares_nothing_is_bare(tmp_path):
+    p = tmp_path / "bare.csv"
+    p.write_text("metric,value\nresidual,0.0\n")
+    assert declares_resolution(p) is False
+    q = tmp_path / "bare.json"
+    q.write_text(json.dumps({"metrics": {"residual": 0.0}}))
+    assert declares_resolution(q) is False
+
+
+def test_json_declares_by_key(tmp_path):
+    p = tmp_path / "d.json"
+    p.write_text(json.dumps({"metrics": {"r": 0.0, "r_resolution": "X"}}))
+    assert declares_resolution(p) is True
+
+
+def test_an_empty_or_unreadable_file_is_not_a_declaration(tmp_path):
+    p = tmp_path / "empty.csv"
+    p.write_text("")
+    assert declares_resolution(p) is False
+    assert declares_resolution(tmp_path / "missing.csv") is False
+
+
+def test_the_committed_transport_outputs_declare():
+    """The real artefacts, not fixtures. Both shapes, both declaring."""
+    for name in ("gas_transport_profile.csv",          # wide: a column
+                 "gas_transport_metrics.csv",
+                 "surface_coverage_profile.csv",
+                 "coupled_mode_recovery_metrics.csv",  # long: a row
+                 "coupled_mode_state_summary.json"):
+        assert declares_resolution(_ROOT / name) is True, name
+    # ... and the control: a governed output that does not, so the split the
+    # report prints is a real division and not a label everything carries.
+    assert declares_resolution(_ROOT / "tau_c_sweep.csv") is False
+
+
+def test_every_finding_records_whether_its_file_declares(tmp_path):
+    _tree(tmp_path / "committed", "x.csv", "metric,value\nr,0.0\n")
+    _tree(tmp_path / "other", "x.csv", "metric,value\nr,1e-9\n")
+    report = compare(tmp_path / "other", tmp_path / "committed",
+                     exempt=frozenset())
+    assert report["counts"][ZERO_CROSSING] == 1
+    f = next(f for f in report["findings"] if f["class"] == ZERO_CROSSING)
+    assert f["file_declares_resolution"] is False
+
+    _tree(tmp_path / "c2", "x.csv",
+          "metric,value\nr,0.0\nr_resolution,BELOW_RESOLUTION\n")
+    _tree(tmp_path / "o2", "x.csv",
+          "metric,value\nr,1e-9\nr_resolution,BELOW_RESOLUTION\n")
+    report = compare(tmp_path / "o2", tmp_path / "c2", exempt=frozenset())
+    f = next(f for f in report["findings"] if f["class"] == ZERO_CROSSING)
+    assert f["file_declares_resolution"] is True
+    # The class agreeing is what keeps this out of DECISION.
+    assert report["counts"][DECISION] == 0

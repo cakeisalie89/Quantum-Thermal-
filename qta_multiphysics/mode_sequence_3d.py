@@ -34,6 +34,7 @@ import numpy as np
 from .config import MultiphysicsConfig
 from .mesh_3d import Grid3DConfig
 from .thermal_3d_transient import solve_thermal_3d, Thermal3DResult
+from .numerics import require_converged
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
@@ -255,18 +256,42 @@ def run_mode_sequence_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None
     active.add("MODE_B")
     assert_no_overlap(active)
     validate_live_species("MODE_B", {"C13_CH4"})
-    tB = solve_thermal_3d(cfg, g3, source_mode="averaged",
-                          t_end=cfg.solver.pulse_window_s, n_eval=n_eval_b,
-                          extra_front_flux_W_m2=_front("MODE_B"))
+    # CONVERGENCE IS CHECKED HERE, WHERE THE 1D PATH HAS ALWAYS CHECKED IT.
+    #
+    # This module's own docstring says it runs the canonical mode order
+    # "exactly mirroring the 1D/2D coupled_mode_solver". It mirrored the mode
+    # order, the state hand-off and the species interlocks -- and not this.
+    # run_coupled wraps both of its solves in require_converged; for a long
+    # time those were the only two call sites in the repository, so every
+    # 3D result, the Mode-C readiness decision taken from it, the campaign
+    # state, the falsification report and the machine FSM were all built on
+    # a solve nobody had asked about.
+    #
+    # That is the exact defect require_converged was written for, one
+    # dimension over: "solver_status was reported alongside the metrics as a
+    # passive string while ready_terms was computed from the same result
+    # regardless".
+    tB = require_converged(
+        solve_thermal_3d(cfg, g3, source_mode="averaged",
+                         t_end=cfg.solver.pulse_window_s, n_eval=n_eval_b,
+                         extra_front_flux_W_m2=_front("MODE_B")),
+        "MODE_B 3D thermal solve")
     active.discard("MODE_B")           # growth inputs stopped before Mode C
 
     active.add("MODE_C")
     assert_no_overlap(active)
     validate_live_species("MODE_C", set())
-    tC = solve_thermal_3d(cfg, g3, source_mode="averaged", source_scale=0.0,
-                          T_init=tB.T[:, -1], t_end=cfg.solver.recovery_window_s,
-                          n_eval=n_eval_c,
-                          extra_front_flux_W_m2=_front("MODE_C"))
+    # Mode C decides readiness -- whether the NV probe recools below the
+    # threshold -- and Mode D is constructed only if it does. A non-converged
+    # recovery solve that still produced a recool time would be a readiness
+    # verdict taken from an integration that did not finish.
+    tC = require_converged(
+        solve_thermal_3d(cfg, g3, source_mode="averaged", source_scale=0.0,
+                         T_init=tB.T[:, -1],
+                         t_end=cfg.solver.recovery_window_s,
+                         n_eval=n_eval_c,
+                         extra_front_flux_W_m2=_front("MODE_C")),
+        "MODE_C 3D thermal recovery solve")
     active.discard("MODE_C")
 
     tsC = tC.probe_timeseries_K()
@@ -287,8 +312,13 @@ def run_mode_sequence_3d(cfg: MultiphysicsConfig, g3: Grid3DConfig | None = None
             fxD, mfr = radiative_front_flux_W_m2(grid, sD)
             metas.extend([mmw, mfr])
             res.channel_meta = tuple(metas)
-            res.tD_hold = solve_thermal_3d(
-                cfg, g3, source_mode="averaged", source_scale=0.0,
-                T_init=tC.T[:, -1], t_end=cfg.solver.pulse_window_s,
-                n_eval=9, extra_volumetric_W=Qmw, extra_front_flux_W_m2=fxD)
+            # Mode D carries the sensing-hold thermal state. Same rule: a
+            # hold nobody integrated to completion is not a hold.
+            res.tD_hold = require_converged(
+                solve_thermal_3d(
+                    cfg, g3, source_mode="averaged", source_scale=0.0,
+                    T_init=tC.T[:, -1], t_end=cfg.solver.pulse_window_s,
+                    n_eval=9, extra_volumetric_W=Qmw,
+                    extra_front_flux_W_m2=fxD),
+                "MODE_D 3D sensing-hold solve")
     return res

@@ -1,0 +1,148 @@
+{
+ "note": "Measured by tools/clip_provenance.py during a full canonical run. 'moves', the counts and the displacements are measured; 'what', 'reaches_output', 'resolution_declared' and 'test' are reviewed judgements. A clip that moves a value produced a number the method could not produce inside the physical range. THE COUNTS ARE HOST-DEPENDENT AND THE JUDGEMENT IS NOT. On a GitHub runner the same canonical run moves 210412 and 4344 elements where this machine moves 981668 and 6352, with a max displacement of 1.062372e+02 against 1.888148e+01 -- R59's dispatch difference, in the numbers this file records. The reconciliation compares 'moves', a boolean, for exactly that reason; the counts and displacements are here as evidence of what was measured, not as values anything is held to.",
+ "sites": {
+  "qta_multiphysics/campaign_uncertainty_3d.py:draw_members": {
+   "elements": 120,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Sampled sticking coefficient bounded into its physical range. An input bound, as above.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/gas_transport_1d.py:rhs": {
+   "elements": 2456160,
+   "elements_moved": 981668,
+   "max_displacement": 1533.1431680177784,
+   "moves": true,
+   "reaches_output": [
+    "gas_transport_profile.csv",
+    "gas_transport_metrics.csv",
+    "coupled_mode_recovery_metrics.csv"
+   ],
+   "resolution_declared": "indirectly, through the solve it sits in: GasTransport1DResult.resolution_floor_1m3, stated per species in gas_transport_metrics.csv and per cell in gas_transport_profile.csv",
+   "test": "tests/test_output_resolution.py::test_the_gas_solve_declares_its_own_floor",
+   "what": "Positivity of the integrator's TRIAL states, inside the ODE right-hand side. It changes the equation BDF is solving rather than the array that is written, so it shapes the reported profile without ever being a reported value. Its displacement reaches 1.53e+03, above this solve's own atol of 1e3, which says the trial iterates go meaningfully negative during the Mode-B transient and not merely at the noise floor -- worth knowing, and not by itself a defect in a stiff transport problem with strong local sinks.",
+   "worst_raw": -1533.1431680177784,
+   "worst_written": 0.0
+  },
+  "qta_multiphysics/gas_transport_1d.py:solve_gas_transport_1d": {
+   "elements": 115200,
+   "elements_moved": 6352,
+   "max_displacement": 18.881475808926943,
+   "moves": true,
+   "reaches_output": [
+    "gas_transport_profile.csv",
+    "gas_transport_metrics.csv",
+    "coupled_mode_recovery_metrics.csv"
+   ],
+   "resolution_declared": "resolution_{species}_modeC in gas_transport_profile.csv; residual_mode_D_resolution, resolution_floor_1m3 and cells_below_resolution_modeC in gas_transport_metrics.csv; Mode_D_residual_*_resolution and gas_resolution_floor_1m3 in the coupled metrics",
+   "test": "tests/test_output_resolution.py::test_the_written_methane_zero_is_the_clip_not_the_model",
+   "what": "The positivity clip on the integrator's RETURNED solution. This is the one that writes numbers. In Mode C it turns methane's noise -- negative in all 120 cells, -1.8e-10 to -1.9e+01, entirely inside this solve's atol of 1e3 -- into exact zeros, which %.9e then states to ten significant figures. D-2026-53.",
+   "worst_raw": -18.881475808926943,
+   "worst_written": 0.0
+  },
+  "qta_multiphysics/material_models.py:internal_energy_density": {
+   "elements": 88224,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Interpolation argument bounded to the tabulated range [0, Tmax]. A bound on a lookup, not on a solution.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/surface_coverage.py:evolve_coverage": {
+   "elements": 3232,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [
+    "surface_coverage_profile.csv",
+    "surface_coverage_metrics.csv"
+   ],
+   "resolution_declared": "COVERAGE_ATOL, stated as resolution_floor_theta in surface_coverage_metrics.csv and per cell as resolution_{species}_modeC in the profile",
+   "test": "tests/test_output_resolution.py::test_the_coverage_solve_declares_its_floor_and_its_absences",
+   "what": "Fractional coverage clipped into [0,1] on the returned solution. Observed to move nothing across a full canonical run; the smallest serialised coverage is 7.6e-11, some 76x the solve's atol.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/surface_coverage.py:rhs": {
+   "elements": 40912,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Trial coverages clipped into [0,1] inside the right-hand side.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/thermal_1d.py:rhs": {
+   "elements": 51771700,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Temperature floored at 1e-6 K inside the right-hand side, so the power-law conductivity is never evaluated at or below zero.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/thermal_2d_axisymmetric.py:rhs": {
+   "elements": 52461056,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Temperature floored at 1e-6 K inside the right-hand side.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/thermal_2d_axisymmetric.py:solve_thermal_2d": {
+   "elements": 3216,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Surface temperature floored at 1e-6 K before the conductivity evaluation that produces the reported k_out.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/thermal_3d_transient.py:rhs": {
+   "elements": 89913912,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Temperature floored at 1e-6 K inside the 3D right-hand side.",
+   "worst_raw": null,
+   "worst_written": null
+  },
+  "qta_multiphysics/uncertainty.py:run_monte_carlo": {
+   "elements": 180,
+   "elements_moved": 0,
+   "max_displacement": 0.0,
+   "moves": false,
+   "reaches_output": [],
+   "resolution_declared": null,
+   "test": null,
+   "what": "Sampled parameters bounded into their physical ranges (absorbed fraction, conductivity exponent, sticking). Bounds on INPUTS drawn from assumed distributions, not on any solve's output.",
+   "worst_raw": null,
+   "worst_written": null
+  }
+ }
+}

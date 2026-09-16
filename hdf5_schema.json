@@ -75,7 +75,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -89,21 +89,21 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "p05",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "p50",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "p95",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "utf8_string",
@@ -182,14 +182,14 @@
    "compression": "gzip level 4",
    "dataset_group": "/tables/coupled_mode_recovery_metrics",
    "kind": "table",
-   "n_rows": 15,
+   "n_rows": 19,
    "ordering_policy": "row order preserved exactly; column order preserved via 'index'",
    "schema_version": "1.0.0",
    "shape_per_column": [
-    15
+    19
    ],
    "source_output": "coupled_mode_recovery_metrics.csv",
-   "source_sha256": "88579de31df50b4aed70067ae4024e6abf5789e4e1d93c9381bb893ffb89b29f",
+   "source_sha256": "3ce2e78443eb2d2495e9c5f8f2a1cd62064fd4cacc3e86096ed3c0c3aa3920a0",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -202,7 +202,7 @@
    "ordering_policy": "byte-exact source bytes",
    "schema_version": "1.0.0",
    "source_output": "coupled_mode_state_summary.json",
-   "source_sha256": "045d22fb93bfb307ee24811335d0680f5ae4da2ac2b9bb65b45cfa68fdd69ce1",
+   "source_sha256": "4a87a4fd15eadb0656b03d36e6bf8ea724cd4343a9da66a510e0223a54ee88e2",
    "string_encoding": "UTF-8"
   },
   {
@@ -294,7 +294,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -322,7 +322,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "sticking",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -336,14 +336,14 @@
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "N_per_m2",
-     "unit": "unresolved"
+     "unit": "1/m^2"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "monolayer_fraction",
-     "unit": "dimensionless"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -357,7 +357,7 @@
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "admitted_per_m2",
-     "unit": "unresolved"
+     "unit": "1/m^2"
     },
     {
      "dtype": "utf8_string",
@@ -610,28 +610,28 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_laser_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     },
     {
      "dtype": "float64",
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_mw_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     },
     {
      "dtype": "float64",
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "gradient_K_per_m",
-     "unit": "m"
+     "unit": "K/m"
     },
     {
      "dtype": "float64",
      "index": 10,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "heat_flux_W_m2",
-     "unit": "unresolved"
+     "unit": "W/m^2"
     }
    ],
    "compression": "gzip level 4",
@@ -658,7 +658,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -700,7 +700,7 @@
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "phase_rel_residual",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -735,7 +735,7 @@
      "index": 11,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_rel_residual",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -859,49 +859,49 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eig_nats",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eig_se",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "prior_entropy_nats",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "expected_posterior_entropy_nats",
-     "unit": "unresolved"
+     "unit": "nats"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_outer",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_inner",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_batches",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -956,7 +956,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "falsification_value",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "utf8_string",
@@ -1053,35 +1053,35 @@
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cost",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "duration",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 10,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "risk",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 11,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "criticality",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 12,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "falsification_value",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "utf8_string",
@@ -1129,7 +1129,7 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Cc",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -1143,28 +1143,28 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "ea",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Ts_mK",
-     "unit": "unresolved"
+     "unit": "mK"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "SNR",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eps_pct",
-     "unit": "unresolved"
+     "unit": "percent"
     },
     {
      "dtype": "utf8_string",
@@ -1244,14 +1244,14 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "model_1d",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "model_2d",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "utf8_string",
@@ -1299,14 +1299,14 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "dose_flux_open_m2_s",
-     "unit": "s"
+     "unit": "1/(m^2 s)"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "dose_flux_closed_m2_s",
-     "unit": "s"
+     "unit": "1/(m^2 s)"
     }
    ],
    "compression": "gzip level 4",
@@ -1340,46 +1340,81 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "max_density_m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
-     "dtype": "float64",
+     "dtype": "utf8_string",
      "index": 2,
-     "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "sample_region_density_modeB_m3",
-     "unit": "unresolved"
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "max_density_resolution",
+     "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "residual_mode_D_density_m3",
-     "unit": "unresolved"
-    },
-    {
-     "dtype": "float64",
-     "index": 4,
-     "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "cryobaffle_capture",
-     "unit": "unresolved"
+     "name": "sample_region_density_modeB_m3",
+     "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "sample_region_density_modeB_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
      "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "residual_mode_D_density_m3",
+     "unit": "1/m^3"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "residual_mode_D_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "resolution_floor_1m3",
+     "unit": "1/m^3"
+    },
+    {
+     "dtype": "float64",
+     "index": 8,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cells_below_resolution_modeC",
+     "unit": "COUNT"
+    },
+    {
+     "dtype": "float64",
+     "index": 9,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cryobaffle_capture",
+     "unit": "DIMENSIONLESS"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "gas_transport_stability_status",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 6,
+     "index": 11,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "evidence_class",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 7,
+     "index": 12,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "measured_in_this_system",
      "unit": "n/a (string)"
@@ -1395,7 +1430,7 @@
     4
    ],
    "source_output": "gas_transport_metrics.csv",
-   "source_sha256": "63343753a7e0ebe8ee1a312c4e8424b959d581991dab0fc7b50972c453e2a7f1",
+   "source_sha256": "98b04f707aaf0c079aa8ed10872f0a52dc07d0275e645bb8c66707005e6b82ea",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -1416,28 +1451,56 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_CH4_modeC_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
     },
     {
-     "dtype": "float64",
+     "dtype": "utf8_string",
      "index": 2,
-     "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "n_H2_modeC_1m3",
-     "unit": "unresolved"
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_CH4_modeC",
+     "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "n_He3_modeC_1m3",
-     "unit": "unresolved"
+     "name": "n_H2_modeC_1m3",
+     "unit": "1/m^3"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_H2_modeC",
+     "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
-     "index": 4,
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "n_He3_modeC_1m3",
+     "unit": "1/m^3"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_He3_modeC",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "n_He4_modeC_1m3",
-     "unit": "unresolved"
+     "unit": "1/m^3"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_He4_modeC",
+     "unit": "n/a (string)"
     }
    ],
    "compression": "gzip level 4",
@@ -1450,7 +1513,7 @@
     120
    ],
    "source_output": "gas_transport_profile.csv",
-   "source_sha256": "b5af43ae8521141e4a76a1d88b79ddba7f8314788bfae79bb5776ab9062c4ada",
+   "source_sha256": "f71c52c05a0b88915f67ca08514ee219f381dcb5c681b62d25b5fe1f3b443811",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -1541,21 +1604,21 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "lumped_model",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "nonlumped_1d_model",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "nonlumped_2d_model",
-     "unit": "unresolved"
+     "unit": "PER_ROW:quantity"
     },
     {
      "dtype": "utf8_string",
@@ -1645,14 +1708,14 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "step",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cycle",
-     "unit": "unresolved"
+     "unit": "COUNT"
     }
    ],
    "compression": "gzip level 4",
@@ -1794,7 +1857,7 @@
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "step",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -2114,7 +2177,7 @@
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "measured",
-     "unit": "unresolved"
+     "unit": "PER_ROW:units"
     },
     {
      "dtype": "utf8_string",
@@ -2250,7 +2313,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "value",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "utf8_string",
@@ -2346,7 +2409,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "value",
-     "unit": "unresolved"
+     "unit": "PER_ROW:metric"
     },
     {
      "dtype": "utf8_string",
@@ -2523,7 +2586,7 @@
    "ordering_policy": "byte-exact source bytes",
    "schema_version": "1.0.0",
    "source_output": "multiphysics_summary.json",
-   "source_sha256": "4ca6e16268d0c5eeac17b08aae05c7a68f43960754cab546da11431f79c87d52",
+   "source_sha256": "35de07082d4e3d989d793b7881b398d8a7e95fa4f4cec5a4d8a9d1f8ad6bb1f0",
    "string_encoding": "UTF-8"
   },
   {
@@ -2597,7 +2660,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "value",
-     "unit": "unresolved"
+     "unit": "PER_ROW:check"
     },
     {
      "dtype": "utf8_string",
@@ -2659,14 +2722,14 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "coherence_mc",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "coherence_filter_fn",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     }
    ],
    "compression": "gzip level 4",
@@ -2711,7 +2774,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "odmr_signal",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     }
    ],
    "compression": "gzip level 4",
@@ -2759,7 +2822,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "tau_c_s_input",
-     "unit": "unresolved"
+     "unit": "s"
     },
     {
      "dtype": "utf8_string",
@@ -2968,7 +3031,7 @@
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_laser_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     }
    ],
    "compression": "gzip level 4",
@@ -3050,7 +3113,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "Q_laser_W_m3",
-     "unit": "unresolved"
+     "unit": "W/m^3"
     }
    ],
    "compression": "gzip level 4",
@@ -3233,7 +3296,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3323,7 +3386,7 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3517,7 +3580,7 @@
     83
    ],
    "source_output": "results_gate_table.csv",
-   "source_sha256": "ce30c830df141278eee7d7ee5e59db7df4c7f307229c1015ca1a0f631fe949a8",
+   "source_sha256": "d61067875068f399487d4f2eebdc597080e31e7a3be6d39dd7760ee1917fda2f",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -3559,14 +3622,14 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "normalized_sensitivity",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "abs_normalized_sensitivity",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3594,7 +3657,7 @@
      "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "rank",
-     "unit": "unresolved"
+     "unit": "COUNT"
     }
    ],
    "compression": "gzip level 4",
@@ -3750,28 +3813,28 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_CH4",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 2,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_H2",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He3",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He4",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     }
    ],
    "compression": "gzip level 4",
@@ -3826,14 +3889,14 @@
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He3",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He4",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -3902,32 +3965,53 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "max_theta_modeB",
-     "unit": "unresolved"
-    },
-    {
-     "dtype": "float64",
-     "index": 2,
-     "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "residual_theta_mode_D",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
+     "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "max_theta_modeB_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
      "index": 3,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "residual_theta_mode_D",
+     "unit": "DIMENSIONLESS"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "residual_theta_mode_D_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "resolution_floor_theta",
+     "unit": "DIMENSIONLESS"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "contamination_risk_status",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 4,
+     "index": 7,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "evidence_class",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 5,
+     "index": 8,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "measured_in_this_system",
      "unit": "n/a (string)"
@@ -3943,7 +4027,7 @@
     4
    ],
    "source_output": "surface_coverage_metrics.csv",
-   "source_sha256": "bbc276193298754925ea45710810383932ba63ae19a8de2428dd983d5cf09c9e",
+   "source_sha256": "a10fd9f3ed12389bec6dfd9a82a3ac7472af2180e266bf867f1953e35a51109b",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -3964,28 +4048,56 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_CH4_modeC",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
-     "dtype": "float64",
+     "dtype": "utf8_string",
      "index": 2,
-     "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "theta_H2_modeC",
-     "unit": "unresolved"
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_CH4_modeC",
+     "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "theta_He3_modeC",
-     "unit": "unresolved"
+     "name": "theta_H2_modeC",
+     "unit": "DIMENSIONLESS"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 4,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_H2_modeC",
+     "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
-     "index": 4,
+     "index": 5,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "theta_He3_modeC",
+     "unit": "DIMENSIONLESS"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_He3_modeC",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "theta_He4_modeC",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "resolution_He4_modeC",
+     "unit": "n/a (string)"
     }
    ],
    "compression": "gzip level 4",
@@ -3998,7 +4110,7 @@
     40
    ],
    "source_output": "surface_coverage_profile.csv",
-   "source_sha256": "0f3ec49aa388dd6303d0be995f6052d15ab28a6943f17e65964f26ac217c94a9",
+   "source_sha256": "f3dc3a72b8ca29c8a13715e03bd21f5de0208cd5bbea9370347510820dc26ac3",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -4019,7 +4131,7 @@
      "index": 1,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "DeltaGamma_rads",
-     "unit": "unresolved"
+     "unit": "rad/s"
     },
     {
      "dtype": "float64",
@@ -4033,14 +4145,14 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "deltaGamma_noise",
-     "unit": "unresolved"
+     "unit": "rad/s"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "SNR",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
@@ -4136,7 +4248,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "rank",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "float64",
@@ -4198,7 +4310,7 @@
     10
    ],
    "source_output": "thermal_3d_hotspots.csv",
-   "source_sha256": "0d6f0f20cc3866eb5d6b33e604fb4e9fbb3a9c959f56eac7fbf24032b4af9b6c",
+   "source_sha256": "cf0022bbc7a23d9fe5d64c89996bce89459ec0a72bbd524851c94fc24d30c74d",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -4280,7 +4392,7 @@
    "ordering_policy": "byte-exact source bytes",
    "schema_version": "1.0.0",
    "source_output": "thermal_3d_readiness.json",
-   "source_sha256": "42ccba47e70f561f7ef22b6ae23f4457d1f5d0650caad2738629c62a0e484a4e",
+   "source_sha256": "76db15a1c51be9bd2720b000b7ef43155a6665e86a76a41b5d3d216b79d4e5ed",
    "string_encoding": "UTF-8"
   },
   {
@@ -4302,7 +4414,7 @@
    "ordering_policy": "byte-exact source bytes",
    "schema_version": "1.0.0",
    "source_output": "thermal_3d_verification_report.json",
-   "source_sha256": "c482faf54329a660529dcf15e0ff55ad952f35c4314c56de26be8c31fd484fcb",
+   "source_sha256": "1d8f4461d7b88bb35228334d242d7b3d5a0999578fb04d358f9e08e630ba1121",
    "string_encoding": "UTF-8"
   },
   {
@@ -4314,7 +4426,7 @@
      "index": 0,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "rank",
-     "unit": "unresolved"
+     "unit": "COUNT"
     },
     {
      "dtype": "utf8_string",
@@ -4335,42 +4447,42 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "score",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 4,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "eig_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "criticality_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 6,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "falsification_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "dependency_component",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "float64",
      "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cost_penalty",
-     "unit": "unresolved"
+     "unit": "ORDINAL"
     },
     {
      "dtype": "utf8_string",
@@ -4425,7 +4537,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -4556,7 +4668,7 @@
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "attenuation_factor",
-     "unit": "unresolved"
+     "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "float64",
@@ -4620,5 +4732,5 @@
   "/provenance"
  ],
  "schema_version": "1.0.0",
- "unit_system": "SI with canonical project suffix conventions; 'unresolved' is preserved, never invented"
+ "unit_system": "SI, plus four words for a column that carries no unit: DIMENSIONLESS (a physical ratio), COUNT (a count or index), ORDINAL (a rank-scale score with no physical dimension) and PER_ROW:<column> (a long-format table whose unit belongs to the row). Every dimension is declared and reviewed in docs/unit_inventory.json; none is inferred from a column name, and there is no 'unresolved'"
 }

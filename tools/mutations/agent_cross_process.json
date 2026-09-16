@@ -1,0 +1,86 @@
+{
+  "title": "Read-decide-write across processes",
+  "note": "Every mutation here restores a defect that four to six real processes found and that no single-threaded test could see. The writer lock makes one APPEND atomic; it never made read-decide-write atomic, and every reducer in this package does exactly that. X1-X3 attack the decision happening under the lock and against a re-read projection -- remove any of them and two processes each move the same job out of the same state, leaving a perfect hash chain nobody can replay. X4 attacks the dry run, which is what stops a writer producing a record its own reducer will reject. X5 attacks the order in which verify() samples the witness against the log: sampled in the same order as the write, another process's ordinary append reads as TRUNCATED. X6 attacks the retry budget, which was consulted only where a worker REPORTED a failure -- so a worker that simply died requeued the job forever. X7 attacks reconcile's tolerance of a world that moved under its scan.",
+  "suites": [
+    "tests/test_agent_cross_process.py"
+  ],
+  "mutations": [
+    {
+      "name": "X1_the_decision_happens_outside_the_lock",
+      "path": "qta_agent/events.py",
+      "find": "        with self.exclusive():\n            report = self._checked_head()\n            kwargs = decide(report.head_seq)",
+      "replace": "        report = self._checked_head()\n        kwargs = decide(report.head_seq)\n        with self.exclusive():\n            report = self._checked_head()",
+      "rationale": "the decision is made before the lock is taken, so two processes decide against the same state and both write; the chain stays perfect and the log stops being replayable"
+    },
+    {
+      "name": "X2_the_projection_is_not_re_read_before_deciding",
+      "path": "qta_agent/scheduler.py",
+      "find": "        def under_lock(head_seq):\n            # The chain was verified by append_decided immediately above.\n            self._fold_new()\n            return decide()",
+      "replace": "        def under_lock(head_seq):\n            return decide()",
+      "rationale": "the lock is held and the decision is still made against a projection loaded before another process wrote -- exclusion without a re-read protects nothing"
+    },
+    {
+      "name": "X3_the_store_decides_from_a_stale_projection",
+      "path": "qta_agent/store.py",
+      "find": "        def under_lock(head_seq):\n            # The chain was verified by append_decided immediately above.\n            self._fold_new()\n            return build()",
+      "replace": "        def under_lock(head_seq):\n            return build()",
+      "rationale": "two verifiers each take the same record under review, and the second record moves it from a state the replay has already left"
+    },
+    {
+      "name": "X4_a_record_the_reducer_will_reject_is_written_anyway",
+      "path": "qta_agent/scheduler.py",
+      "find": "            self._dry_run(actor=actor, action=ACT_JOB_TRANSITION,\n                          target=job_id, payload=payload)",
+      "replace": "            pass",
+      "rationale": "check_edge asks whether the state machine permits the edge; the reducer asks more -- whether a requeue is reclaiming a lease that is still live -- and a record that satisfies the first and not the second is durable and unreplayable"
+    },
+    {
+      "name": "X5_the_witness_is_sampled_after_the_log",
+      "path": "qta_agent/events.py",
+      "find": "        if witness is None:\n            return\n        if witness.seq > head_seq:",
+      "replace": "        witness = self.head()\n        if witness is None:\n            return\n        if witness.seq > head_seq:",
+      "rationale": "the witness is sampled HERE, after the log has been read, which is the order the writer uses -- so another process's ordinary append lands between the two samples and reads as TRUNCATED, damage, for a log that was merely being written"
+    },
+    {
+      "name": "X6_a_lapsed_lease_does_not_spend_the_retry_budget",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if job.attempts >= job.max_attempts:\n                # THE RETRY BUDGET HAS TO COUNT LAPSES TOO.",
+      "replace": "            if False:\n                # THE RETRY BUDGET HAS TO COUNT LAPSES TOO.",
+      "rationale": "a worker that dies reports nothing, so the budget is never consulted and the job is handed to a new worker forever -- the budget bounded nothing in the failure mode it exists for"
+    },
+    {
+      "name": "X7_reconcile_cannot_survive_the_world_moving_under_it",
+      "path": "qta_agent/scheduler.py",
+      "find": "            try:\n                return self.transition(**kw)\n            except (JobTransitionError, SchedulerError):\n                return None",
+      "replace": "            return self.transition(**kw)",
+      "rationale": "reconcile scans and then writes; another process dispatching in between makes the whole convergence pass raise instead of skipping one job and continuing"
+    },
+    {
+      "name": "X8_two_processes_may_create_the_same_record_id",
+      "path": "qta_agent/store.py",
+      "find": "            if record_id in self._records:\n                raise StoreError(f\"record {record_id!r} already exists\")\n            for dep in depends_on:",
+      "replace": "            if False:\n                raise StoreError(f\"record {record_id!r} already exists\")\n            for dep in depends_on:",
+      "rationale": "a record id is a claim to a name; two creates make one of the two proposers the recorded author of a record they did not write, and the replay refuses the second"
+    },
+    {
+      "name": "X10_reconcile_writes_a_decision_it_made_against_older_facts",
+      "path": "qta_agent/scheduler.py",
+      "find": "            return move(expected_revision=job.revision, **kw)",
+      "replace": "            return move(**kw)",
+      "rationale": "restores the hosted failure exactly: the give-up vs requeue choice is made from the scan and written later, so a job dispatched in between is requeued with its budget already spent and the next hand-out exceeds it"
+    },
+    {
+      "name": "X11_dispatch_hands_out_an_attempt_the_budget_does_not_have",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if job.attempts >= job.max_attempts:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {job.attempts} attempt(s) \"",
+      "replace": "        if False:\n            raise JobTransitionError(\n                f\"refusing to dispatch {job_id!r}: {job.attempts} attempt(s) \"",
+      "rationale": "the budget at the edge that spends it. Without it the invariant is emergent from two return-edge checks, and anything that reaches READY with the count spent gets one more attempt"
+    },
+    {
+      "name": "X12_replay_accepts_a_history_that_outspends_its_budget",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if want > job.max_attempts:\n            raise JobTransitionError(",
+      "replace": "        if False:\n            raise JobTransitionError(",
+      "rationale": "the reducer bounded the count's arithmetic and not its size, so a forged hand-out record replayed clean. The write path only stops callers who were not attacking"
+    }
+  ]
+}

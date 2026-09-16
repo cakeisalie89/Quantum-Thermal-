@@ -35,7 +35,14 @@ def main(h5_path: str = "qta_scientific_results.h5",
              "exact_numeric_matches": 0,
              "exact_string_matches": 0,
              "byte_exact_natives": 0,
-             "unresolved_unit_columns": 0}
+             # Was unresolved_unit_columns, a number this file counted and
+             # gated nothing with. It read 91 of 162 for as long as the unit
+             # was guessed from the column name (D-2026-57). A dimension is
+             # now declared for every governed numeric column and a missing
+             # one is a problem, not a statistic, so what is worth counting
+             # here is how the 162 divide.
+             "columns_with_a_physical_unit": 0,
+             "columns_declared_without_a_unit": 0}
     with h5py.File(h5_path, "r") as h:
         groups = set()
         def _collect(name, obj):
@@ -88,8 +95,20 @@ def main(h5_path: str = "qta_scientific_results.h5",
                                             "value mismatch")
                         else:
                             stats["exact_numeric_matches"] += 1
-                        if c["unit"] == "unresolved":
-                            stats["unresolved_unit_columns"] += 1
+                        u = c.get("unit")
+                        if not u or u == "unresolved":
+                            # A number in an archival artefact with no
+                            # dimension is not equivalent to the number it
+                            # came from: the source column's name stated one
+                            # and the archive does not.
+                            problems.append(
+                                f"{src}:{c['name']}: published with no "
+                                f"dimension (unit={u!r})")
+                        elif u.split(":")[0] in ("DIMENSIONLESS", "COUNT",
+                                                 "ORDINAL", "PER_ROW"):
+                            stats["columns_declared_without_a_unit"] += 1
+                        else:
+                            stats["columns_with_a_physical_unit"] += 1
                     else:
                         got = [x.decode("utf-8") if isinstance(x, bytes)
                                else str(x) for x in d[...]]
@@ -113,6 +132,37 @@ def main(h5_path: str = "qta_scientific_results.h5",
                 problems.append(f"/provenance missing attr {a}")
         if int(p.attrs.get("scientific_gate_PASS_count", -1)) != 0:
             problems.append("provenance PASS-count not zero")
+    # A COMPARISON OF NOTHING IS NOT AN EQUIVALENCE (D-2026-39).
+    #
+    # Every check above appends to `problems`, so the verdict below was
+    # "EQUIVALENT" exactly when nothing went wrong -- including when nothing
+    # happened. Handed a mapping with no outputs and an HDF5 file carrying a
+    # well-formed `/provenance` group, this compared 0 sources and 0
+    # datasets, printed RESULT: EQUIVALENT, exited 0, and wrote
+    # `"result": "EQUIVALENT"` into a report the RO-Crate publishes as an
+    # entity. Reproduced before this guard existed.
+    #
+    # The counts were printed all along. That is not enough: the VERDICT is
+    # what travels, and a downstream reader of the crate sees the word and
+    # not the zero beside it. `build_hdf5.py` already refuses an incomplete
+    # output set; the validator that checks its work did not.
+    #
+    # Stated against the mapping's own declared total rather than against
+    # zero, so a mapping truncated to three outputs is refused too -- "did
+    # you check anything" is the weak form of the question, and "did you
+    # check what you said you would" is the one worth asking.
+    declared = mapping.get("n_governed")
+    if not isinstance(declared, int) or isinstance(declared, bool) \
+            or declared < 1:
+        problems.append(
+            f"the mapping declares n_governed={declared!r}; a comparison "
+            "with no stated scope cannot report equivalence")
+    elif stats["sources_checked"] != declared:
+        problems.append(
+            f"compared {stats['sources_checked']} source(s) against a "
+            f"declared {declared}; an equivalence over part of the set is "
+            "not the equivalence this report is read as claiming")
+
     rep.parent.mkdir(parents=True, exist_ok=True)
     rep.write_text(json.dumps(
         {"schema_version": "1.0.0", "h5": h5_path,

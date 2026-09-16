@@ -1,0 +1,66 @@
+{
+ "title": "The output set the release gate actually compared",
+ "note": "D-2026-61. The completeness rule existed, by count, in --verify-existing -- the mode the checker's own banner calls NOT the release gate. Full regeneration, which is the release gate, produced a set and handed Step 2b whatever was in it; Step 2b iterates the produced files and skips any whose root copy is absent, so an output the pipeline stops emitting leaves the comparison and the gate reports that the root copies match. Measured: a run producing 84 of 89 printed RESULT: PASS. S1 puts the rule back in one mode. S2 turns the set back into a count -- the form that accepts 89 files with five renamed. S3-S4 drop the two directions a one-sided comparison cannot see. S5-S6 attack the declaration the whole reconciliation is scoped by. S7 restores the traceback an empty canonical CSV produced at Step 4, which is a crash and not a refusal. S8 removes the number that makes a shrinking scope visible.",
+ "suites": [
+  "tests/test_checker_missing_outputs.py",
+  "tests/test_stage7_5_resilience.py"
+ ],
+ "mutations": [
+  {
+   "name": "S1_the_completeness_rule_goes_back_to_one_mode",
+   "path": "package_consistency_check.py",
+   "find": "elif _OUTPUTS_STATE != \"USABLE\" or not gen_outputs_dir.is_dir():",
+   "replace": "elif _OUTPUTS_STATE != \"USABLE\" or not VERIFY_EXISTING:",
+   "rationale": "the exact defect: the rule holds in the mode documented as NOT the release gate and is skipped in the mode that is, so a short regeneration reaches Step 2b unremarked"
+  },
+  {
+   "name": "S2_a_count_stands_in_for_the_set_again",
+   "path": "package_consistency_check.py",
+   "find": "            sorted(declared - produced),",
+   "replace": "            ([] if len(produced) == len(declared) else sorted(declared - produced)),",
+   "rationale": "89 files with five of them renamed satisfies the count and loses five canonical outputs; the count is a proxy for set membership in the same way a suffix was a proxy for a unit"
+  },
+  {
+   "name": "S3_files_the_declaration_does_not_name_are_tolerated",
+   "path": "package_consistency_check.py",
+   "find": "            sorted(produced - declared),",
+   "replace": "            [],",
+   "rationale": "a foreign artefact in the canonical directory is compared against a root copy of the same name if one exists, and published as an output nobody declared"
+  },
+  {
+   "name": "S4_a_declared_output_with_no_root_copy_is_tolerated",
+   "path": "package_consistency_check.py",
+   "find": "                   if not (root_dir / n).exists()))",
+   "replace": "                   if False))",
+   "rationale": "Step 2b skips a produced file whose root copy is absent, so an unrooted declared output is never compared to anything while the byte gate reports agreement"
+  },
+  {
+   "name": "S5_an_empty_declaration_is_agreed_with",
+   "path": "package_consistency_check.py",
+   "find": "if not _DECLARED_OUTPUTS:",
+   "replace": "if False:",
+   "rationale": "the declaration is the scope of all three reconciliations; empty, they all agree and the block prints a PASS meaning nothing -- the vacuity it exists to refuse"
+  },
+  {
+   "name": "S6_a_duplicated_name_inflates_the_declared_count",
+   "path": "package_consistency_check.py",
+   "find": "elif len(CANONICAL_EXPECTED[\"canonical_outputs\"]) != len(_DECLARED_OUTPUTS):",
+   "replace": "elif False:",
+   "rationale": "a duplicate makes the declared list longer than the declared set, so a headline count is larger than what was reconciled"
+  },
+  {
+   "name": "S7_an_empty_canonical_csv_is_read_past",
+   "path": "package_consistency_check.py",
+   "find": "    if not tcs:",
+   "replace": "    if False:",
+   "rationale": "restores IndexError at Step 4 on a present-but-empty tau_c_sweep.csv: a traceback rather than a governed refusal, and every later diagnostic lost with it"
+  },
+  {
+   "name": "S8_the_set_check_stops_saying_how_many",
+   "path": "package_consistency_check.py",
+   "find": "           f\"compared byte-for-byte in Step 2b; \"",
+   "replace": "           f\"\"",
+   "rationale": "a reconciliation that does not report its scope leaves a shrinking scope invisible, which is what let a comparison over 84 files read as a comparison over 89"
+  }
+ ]
+}

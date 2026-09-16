@@ -174,6 +174,24 @@ Pure division and addition reproduce exactly; `powf` against NumPy's `**`
 does not (max relative difference 3.8e-16 — numerically negligible, and still
 not adoption). "Close enough" is the standard this project cannot use.
 
+**Both verdicts are conditional on the host's SIMD dispatch, and the table
+above is this machine's.** The reference side of a bit-parity comparison is
+NumPy, and NumPy's `**` loop moves with the CPU. Measured:
+
+| NumPy SIMD in force | `conductivity_power_law` | max ulp | Backend `dispatch()` selects |
+|---|---|---|---|
+| `X86_V3+X86_V4` (AVX-512) | **REJECTED** | 2 | numpy |
+| `X86_V3` only | **ADOPTED** | 0 | rust |
+
+So which code computes thermal conductivity would be decided by the host,
+not by the kernel — R59's divergence one level up, in a choice of
+implementation rather than a printed digit. Nothing turns on it today
+(`rust_kernel.py`'s own record states, and a sweep confirms, that no solver
+imports these kernels), and the rule itself is unchanged and correct. What
+changed is that `rust_kernel_status.json` now carries the dispatch every
+verdict was measured under, so a report read on another machine is read as a
+second measurement rather than as a contradiction. D-2026-58.
+
 ### The registry itself — `stack/registry.py`
 `stack.json` is hand-editable and is read by the tests, which makes it a
 trusted boundary in the same sense `stage7_boundary_models.py` uses the term,
@@ -208,7 +226,7 @@ enforces). Neither is a packaging detail.
 | Container | base-image digest is **RESOLVED_AND_PINNED**; the open item is runtime, not the digest: `RUNTIME_BUILT=NO`, local build `ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS` (403 on CONNECT to `production.cloudfront.docker.com`; base image not substituted). `container-verify.yml` can close it on a hosted runner but is `workflow_dispatch`-only and needs to reach the default branch first (`container_verification.md`) |
 | SLSA / Sigstore | `stack-verify.yml` has run on a hosted runner (Actions run 32575190696, both legs green); `release.yml` has not, and no signed release exists; all actions are pinned by commit SHA per policy #3; **no SLSA level claimed** |
 | SALib | global vs. local ranking disagreement on the top parameter (§3) — open for human review |
-| Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference; NumPy stays in force |
+| Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference **on a host with AVX-512**; bit-identical and adopted without it, so the verdict — and the backend `dispatch()` would select — is host-conditional (D-2026-58). NumPy stays in force here, and no solver imports either kernel |
 | FEniCSx | dolfinx unavailable; acceptance criteria 2–4 cannot run until a build exists |
 | FMI | FMI-P1 state serialisation, FMI-P2 mode-boundary steps, FMI-P3 step-size independence, FMI-P4 claim-boundary survival, FMI-P5 unit round-trip |
 

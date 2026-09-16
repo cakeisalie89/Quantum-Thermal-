@@ -1,0 +1,72 @@
+{
+  "title": "Catching up in O(new) rather than O(history)",
+  "note": "The third quadratic path this repository has recorded, and the ways of putting it back. Every reducer re-reads the log before it decides -- that is what stops a decision being made against a stale projection -- and doing it with a full read made each governed operation cost the whole history. N1, N2 and N4 remove the anchored path or the bookkeeping that keeps it cheap; each is invisible to every correctness test and shows up only as a count of full reads that grows with the work done. N5-N7 attack the correctness the shortcut must not buy: a record folded twice, a tail trusted without verification, an anchor followed into bytes it no longer describes. N8 attacks the fast digest predicate, which is exactly where a subtle widening hides after a hot function is rewritten.",
+  "suites": [
+    "tests/test_agent_incremental.py"
+  ],
+  "mutations": [
+    {
+      "name": "N1_the_scheduler_reads_the_whole_history_every_time",
+      "path": "qta_agent/scheduler.py",
+      "find": "        if self._anchor is not None:\n            try:\n                events, moved = self.log.advance(self._anchor)",
+      "replace": "        if False:\n            try:\n                events, moved = self.log.advance(self._anchor)",
+      "rationale": "every governed operation costs the whole log again; nothing is wrong with any single operation, which is exactly why it survived undetected before"
+    },
+    {
+      "name": "N2_the_store_reads_the_whole_history_every_time",
+      "path": "qta_agent/store.py",
+      "find": "        if self._anchor is not None:\n            try:\n                events, moved = self.log.advance(self._anchor)",
+      "replace": "        if False:\n            try:\n                events, moved = self.log.advance(self._anchor)",
+      "rationale": "the same, on the authority projection"
+    },
+    {
+      "name": "N4_advance_never_moves_its_anchor_forward",
+      "path": "qta_agent/events.py",
+      "find": "        if not tail:\n            return [], anchor\n        last, record_offset, next_offset = tail[-1]",
+      "replace": "        if True:\n            return [ev for ev, _, _ in tail], anchor\n        last, record_offset, next_offset = tail[-1]",
+      "rationale": "the records come back and the position does not, so the next call re-reads the same tail and the one after that reads a longer one"
+    },
+    {
+      "name": "N5_a_record_is_folded_twice",
+      "path": "qta_agent/scheduler.py",
+      "find": "                for ev in events:\n                    # The anchor can legitimately lag this projection by the",
+      "replace": "                for ev in events:\n                    self.apply(ev)\n                if False:\n                    # The anchor can legitimately lag this projection by the",
+      "rationale": "the anchor legitimately lags a projection by its own appends, so the tail overlaps what is already folded; folding twice is not a slow path but a wrong one"
+    },
+    {
+      "name": "N6_the_tail_is_read_without_being_verified",
+      "path": "qta_agent/events.py",
+      "find": "        report = self.verify_from(anchor)\n        if not report.ok:\n            raise ChainBroken(\n                \"refusing to advance past a broken chain: \"",
+      "replace": "        report = self.verify_from(anchor)\n        if False:\n            raise ChainBroken(\n                \"refusing to advance past a broken chain: \"",
+      "rationale": "the incremental path becomes more trusting than the full one, so tampering after the anchor is folded straight into the live projection"
+    },
+    {
+      "name": "N7_a_stale_anchor_is_followed_instead_of_abandoned",
+      "path": "qta_agent/scheduler.py",
+      "find": "            except EventLogError:\n                # The log was rewritten, rotated or truncated under us. A",
+      "replace": "            except EventLogError:\n                raise\n                # The log was rewritten, rotated or truncated under us. A",
+      "rationale": "an anchor is a shortcut and never a trust input; when its bytes are no longer the ones it described the answer is the slow path, not a refusal that leaves the projection unusable"
+    },
+    {
+      "name": "N8_the_fast_digest_predicate_accepts_uppercase",
+      "path": "qta_agent/canonical.py",
+      "find": "_HEX64 = re.compile(r\"\\A[0-9a-f]{64}\\Z\")",
+      "replace": "_HEX64 = re.compile(r\"\\A[0-9a-fA-F]{64}\\Z\")",
+      "rationale": "one logical digest gains two spellings, so a set of digests contains duplicates that compare unequal -- the widening that hides when a hot predicate is rewritten for speed"
+    },
+    {
+      "name": "N9_the_fast_digest_predicate_allows_a_trailing_newline",
+      "path": "qta_agent/canonical.py",
+      "find": "_HEX64 = re.compile(r\"\\A[0-9a-f]{64}\\Z\")",
+      "replace": "_HEX64 = re.compile(r\"^[0-9a-f]{63}[0-9a-f\\n]$\")",
+      "rationale": "$ matches before a final newline in Python, which is the classic way a regex rewrite of a character check quietly changes what it accepts"
+    },
+    {
+      "name": "N10_a_fresh_load_stops_verifying_the_prefix",
+      "path": "qta_agent/scheduler.py",
+      "find": "        self.log.verify().raise_if_bad()\n        self._jobs = {}",
+      "replace": "        self._jobs = {}",
+      "rationale": "the anchored path trusts the prefix, and that is only acceptable because a process starting fresh checks the whole chain; without that nothing ever verifies the beginning"
+    }
+  ]
+}

@@ -27,30 +27,13 @@ from .radiation_paths import radiation_paths
 from .vibration_transfer import vibration_transfer
 
 
-#: A solve that did not converge carries no scientific authority. Any consumer
-#: below -- Mode-C readiness, Mode-D start, eligibility forecasts, derived
-#: metrics -- must deny authority rather than read the numbers anyway.
-SOLVER_OK = "ok"
-
-
-class SolverFailure(RuntimeError):
-    """A numerical solve did not converge; downstream authority is denied."""
-
-
-def require_converged(result, what: str):
-    """Fail closed on a non-converged solve.
-
-    solver_status used to be reported alongside the metrics as a passive
-    string while ready_terms was computed from the same result regardless, so
-    a failed BDF integration could still produce FORECAST_READY_IF_MEASURED.
-    Readiness is now unreachable without convergence.
-    """
-    status = getattr(result, "solver_status", None)
-    if status != SOLVER_OK:
-        raise SolverFailure(
-            f"{what}: solver_status={status!r} (expected {SOLVER_OK!r}); "
-            "readiness, eligibility and derived metrics are denied")
-    return result
+# The convergence contract now lives in the numerics layer, so that every
+# solver path inherits it rather than only the one it was written beside.
+# Re-exported here because this module is where callers and tests have always
+# imported it from, and moving a rule should not break the readers of it.
+from .numerics import (                                  # noqa: E402,F401
+    SOLVER_OK, SolverFailure, require_converged, decide_below,
+)
 
 
 def run_coupled(cfg: MultiphysicsConfig):
@@ -121,7 +104,20 @@ def run_coupled(cfg: MultiphysicsConfig):
     ready_terms = {
         "nv_temperature_ok": D_T_NV <= th,
         "drift_ok": C_drift <= 0.5 * th,
-        "gas_residual_ok": (D_res_CH4 < 1e12 and D_res_H2 < 1e12),
+        # Not a bare `<`. The methane residual here is 0.0 only because the
+        # Mode-C solve put it below its own absolute tolerance and the clip
+        # rounded the sign away; the threshold is nine orders of magnitude
+        # above that floor, so the comparison still holds whatever the digits
+        # were -- and decide_below is what establishes that rather than
+        # assuming it. Tighten 1e12 towards 1e3 and this raises instead of
+        # quietly deciding a readiness term on integrator noise.
+        "gas_residual_ok": (
+            decide_below(D_res_CH4, 1e12, gasC.resolution_floor_1m3,
+                         value_class=gasC.resolution_of_region_mean("CH4"),
+                         what="Mode-D residual CH4")
+            and decide_below(D_res_H2, 1e12, gasC.resolution_floor_1m3,
+                             value_class=gasC.resolution_of_region_mean("H2"),
+                             what="Mode-D residual H2")),
         "coverage_ok": D_res_theta < 1e-3,
         "vibration_ok": vib_m["Mode_D_vibration_ready_if_measured"],
     }
@@ -139,10 +135,21 @@ def run_coupled(cfg: MultiphysicsConfig):
         "Mode_B_peak_contamination_flux_proxy_m3": B_contam_flux,
         "Mode_C_recool_time_s": C_recool,
         "Mode_C_cleanup_residual_CH4_m3": gasC_sample.get("CH4", 0.0),
+        "Mode_C_cleanup_residual_CH4_resolution":
+            gasC.resolution_of_region_mean("CH4"),
         "Mode_C_surface_decay_time_s": C_surf_decay,
         "Mode_D_T_NV_layer_K": D_T_NV,
         "Mode_D_residual_CH4_density_m3": D_res_CH4,
+        # The residual densities above are the contamination numbers a
+        # reviewer would quote. They travel with what the solve resolves, so
+        # that a zero cannot be read as "no methane" when it means "less
+        # methane than this method can see".
+        "Mode_D_residual_CH4_resolution":
+            gasC.resolution_of_region_mean("CH4"),
         "Mode_D_residual_H2_density_m3": D_res_H2,
+        "Mode_D_residual_H2_resolution":
+            gasC.resolution_of_region_mean("H2"),
+        "gas_resolution_floor_1m3": gasC.resolution_floor_1m3,
         "Mode_D_residual_surface_theta": D_res_theta,
         "Mode_D_readiness_status": readiness,
         "limiting_recovery_process": limiting,

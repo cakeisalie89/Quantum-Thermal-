@@ -1,0 +1,44 @@
+{
+ "title": "Whether the suite's green is also a fact about collection order",
+ "note": "D-2026-63. tests/ has no __init__.py, so pytest puts tests/ on sys.path and not the repository root; 103 of 106 modules insert the root themselves and three did not. Those three passed every full run because the alphabet put a module that inserts it first, and failed on their own. I1 removes the structural guarantee the conftest provides and the three go back to depending on what ran before them. I2-I5 attack the tool that keeps it closed: the empty scope it must refuse, the failure it must report, the count that makes its scope visible, and the exit code it must read instead of the output text.",
+ "suites": [
+  "tests/test_test_isolation.py"
+ ],
+ "mutations": [
+  {
+   "name": "I1_the_conftest_stops_putting_the_root_on_the_path",
+   "path": "conftest.py",
+   "find": "    sys.path.insert(0, ROOT)",
+   "replace": "    pass",
+   "rationale": "the file still exists and still imports, so every check that reads it passes; the three modules that carry no insert of their own go back to importing only when something else has run first"
+  },
+  {
+   "name": "I2_an_empty_scope_is_agreed_with",
+   "path": "tools/test_isolation.py",
+   "find": "        if not found:",
+   "replace": "        if False:",
+   "rationale": "'every module collects alone' becomes a statement about no modules, which is what a moved directory or a changed glob produces"
+  },
+  {
+   "name": "I3_a_module_that_cannot_be_collected_is_not_reported",
+   "path": "tools/test_isolation.py",
+   "find": "        if not ok:",
+   "replace": "        if False:",
+   "rationale": "the tool runs every collection, watches them fail and reports that collection order is not load-bearing"
+  },
+  {
+   "name": "I4_the_tool_stops_saying_how_many_it_checked",
+   "path": "tools/test_isolation.py",
+   "find": "    print(f\"{len(found) - len(broken)} of {len(found)} test modules can be \"",
+   "replace": "    print(f\"test modules can be \"",
+   "rationale": "a verdict without its scope: a run that checked three modules and one that checked a hundred and six read identically"
+  },
+  {
+   "name": "I5_a_collection_failure_is_read_off_the_text_instead_of_the_exit_code",
+   "path": "tools/test_isolation.py",
+   "find": "    return r.returncode == 0, tail",
+   "replace": "    return \"ModuleNotFoundError\" not in (r.stdout + r.stderr), tail",
+   "rationale": "the proxy again -- a substring standing in for the property. Every collection failure that is not a missing module (a SyntaxError, a fixture error, a timeout) is then reported as a module that collects perfectly well"
+  }
+ ]
+}

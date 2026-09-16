@@ -145,8 +145,11 @@ def salib_problem(cfg: MultiphysicsConfig | None = None,
 
 def screening_response_K(cfg: MultiphysicsConfig) -> float:
     """Mode-B NV-probe temperature rise on the reduced screening mesh."""
+    from ..numerics import require_converged
     from ..thermal_3d_transient import solve_thermal_3d
-    r = solve_thermal_3d(cfg, SCREENING_MESH, n_eval=SCREENING_N_EVAL)
+    r = require_converged(
+        solve_thermal_3d(cfg, SCREENING_MESH, n_eval=SCREENING_N_EVAL),
+        "salib screening response")
     return float(r.probe_timeseries_K()[-1]) - float(cfg.fridge.T_fridge_K)
 
 

@@ -19,7 +19,16 @@ ALLOWED_STATUSES = ("IMPLEMENTED", "REDUCED_ORDER", "BOUNDED_FORECAST",
 
 def _c(source, target, quantity, units, direction, scheme, status, check,
        modes, note=""):
-    assert status in ALLOWED_STATUSES, status
+    # An `assert` here vanished under -O, and an arbitrary status string
+    # would then enter the coupling ledger -- the artifact whose whole job
+    # is to say, in a closed vocabulary, how far each coupling actually
+    # goes. The vocabulary is the point; a status outside it is a claim
+    # nobody defined (D-2026-45).
+    if status not in ALLOWED_STATUSES:
+        raise ValueError(
+            f"coupling {source}->{target} ({quantity}) declares status "
+            f"{status!r}, which is not one of {list(ALLOWED_STATUSES)}. The "
+            "ledger's honesty vocabulary is closed on purpose")
     return {"source_domain": source, "target_domain": target,
             "quantity": quantity, "units": units, "direction": direction,
             "scheme": scheme, "status": status,
