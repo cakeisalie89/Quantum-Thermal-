@@ -124,6 +124,18 @@ class GasTransport1DResult:
     def max_density(self, name):
         return float(np.max(self.sols[name]))
 
+    def resolution_of_max(self, name):
+        """Resolution class of the maximum reported by :meth:`max_density`.
+
+        Over the whole space-time array, as `max_density` is. Classified on
+        the RAW maximum: where every cell is negative noise the clip reports a
+        peak of exactly 0.0, and a peak the clip produced is not a resolved
+        peak. After the clip the two are the same number.
+        """
+        return resolution_class(
+            float(np.max(self.raw[name])), self.resolution_floor_1m3,
+            trivially_zero=self.trivially_zero(name), low=0.0)
+
 
 def solve_gas_transport_1d(specs=None, n=120, line_length_m=0.5, t_end=2.0,
                            mode="B", rtol=1e-6, atol=1e3, n_eval=60,

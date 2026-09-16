@@ -1343,64 +1343,78 @@
      "unit": "1/m^3"
     },
     {
-     "dtype": "float64",
+     "dtype": "utf8_string",
      "index": 2,
-     "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "sample_region_density_modeB_m3",
-     "unit": "1/m^3"
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "max_density_resolution",
+     "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
      "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
-     "name": "residual_mode_D_density_m3",
+     "name": "sample_region_density_modeB_m3",
      "unit": "1/m^3"
     },
     {
      "dtype": "utf8_string",
      "index": 4,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
-     "name": "residual_mode_D_resolution",
+     "name": "sample_region_density_modeB_resolution",
      "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
      "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "residual_mode_D_density_m3",
+     "unit": "1/m^3"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 6,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "residual_mode_D_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 7,
+     "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "resolution_floor_1m3",
      "unit": "1/m^3"
     },
     {
      "dtype": "float64",
-     "index": 6,
+     "index": 8,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cells_below_resolution_modeC",
      "unit": "COUNT"
     },
     {
      "dtype": "float64",
-     "index": 7,
+     "index": 9,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cryobaffle_capture",
      "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
-     "index": 8,
+     "index": 10,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "gas_transport_stability_status",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 9,
+     "index": 11,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "evidence_class",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 10,
+     "index": 12,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "measured_in_this_system",
      "unit": "n/a (string)"
@@ -1416,7 +1430,7 @@
     4
    ],
    "source_output": "gas_transport_metrics.csv",
-   "source_sha256": "84b05c742ea5a8a01deece7e1bfdb0f6d09c8885d71d48087406b19651291cfb",
+   "source_sha256": "98b04f707aaf0c079aa8ed10872f0a52dc07d0275e645bb8c66707005e6b82ea",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"
@@ -3954,43 +3968,50 @@
      "unit": "DIMENSIONLESS"
     },
     {
-     "dtype": "float64",
+     "dtype": "utf8_string",
      "index": 2,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "max_theta_modeB_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 3,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "residual_theta_mode_D",
      "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
-     "index": 3,
+     "index": 4,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "residual_theta_mode_D_resolution",
      "unit": "n/a (string)"
     },
     {
      "dtype": "float64",
-     "index": 4,
+     "index": 5,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "resolution_floor_theta",
      "unit": "DIMENSIONLESS"
     },
     {
      "dtype": "utf8_string",
-     "index": 5,
+     "index": 6,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "contamination_risk_status",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 6,
+     "index": 7,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "evidence_class",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 7,
+     "index": 8,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "measured_in_this_system",
      "unit": "n/a (string)"
@@ -4006,7 +4027,7 @@
     4
    ],
    "source_output": "surface_coverage_metrics.csv",
-   "source_sha256": "0eb4ecf5e3c0a04e013c548f428bc54feb8a98a8e6d648daf5dbb42e2b053474",
+   "source_sha256": "a10fd9f3ed12389bec6dfd9a82a3ac7472af2180e266bf867f1953e35a51109b",
    "string_encoding": "UTF-8",
    "uncertainty_representation": "columns named *_sigma/*_p05/*_p50/*_p95 where the source provides them; nothing added",
    "valid_range": "not asserted (no authoritative ranges in sources; unresolved)"

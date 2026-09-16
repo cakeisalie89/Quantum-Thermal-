@@ -431,6 +431,21 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/test_isolation.json
+      - name: what states the resolution of every published number
+        # D-2026-66. The cross-environment split reports on a column only
+        # when it crosses zero between two hosts, so its coverage was a fact
+        # about which machines had run. Measured over all 162 governed
+        # columns instead: 13 carry a class, 119 have no floor defined, and
+        # the ones with no floor are named rather than refused -- inventing a
+        # floor would be worse than admitting there is none.
+        run: uv run python tools/resolution_inventory.py
+      - name: mutation matrix -- the resolution of a published number
+        # N1 is the operator that matters: it removes the within-artefact
+        # rule and the residual goes back to carrying a class while the
+        # maximum beside it in the same row stays bare.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/resolution_inventory.json
       - name: mutation matrix -- corpus membership
         # Every guard on a corpus path protected its shape; none protected
         # the set, so writing a file into the tree made it governed text.

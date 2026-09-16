@@ -7049,3 +7049,91 @@ third in relative terms, while **zero** decision-bearing tokens differed.
 210412/1596240 and 4344/115200 elements moved, max displacement 1.533143e+03
 and 1.062372e+02. Host-dependent counts, reconciled as booleans, exactly as
 D-2026-53 requires.
+
+## D-2026-66 — the resolution discipline's coverage was an accident of which machines ran
+
+**CLASS** — `GAP`, closed where a floor exists and named where none does.
+
+**HOW IT LOOKED.** D-2026-53 requires a serialised number to carry the
+resolution of the method that produced it. The only instrument reporting on
+that requirement is the DECLARED/BARE split in
+`tools/cross_env_semantics.py`, and it examines a column **only when the
+column happens to cross zero between two environments**. A quantity that is
+tiny but nonzero on both machines is never looked at.
+
+So every "26 of 27 declared" in this ledger is a statement about the columns a
+dispatch difference exposed, not about the package. Measured instead over
+every governed numeric column in `docs/unit_inventory.json`:
+
+```
+41 governed source artefacts, 162 columns
+  declare a resolution class:  4 artefacts,  19 columns
+  declare none:               37 artefacts, 143 columns
+```
+
+**THE PART THAT WAS A DEFECT, NOT A GAP.** Of the four artefacts the
+mechanism had reached, it had reached them *partially*.
+`gas_transport_metrics.csv` publishes, in one row, out of one solve, against
+one floor:
+
+```
+max_density_m3                   2.82e+17     (bare)
+sample_region_density_modeB_m3   5.66e+16     (bare)
+residual_mode_D_density_m3       0.0          BELOW_RESOLUTION
+```
+
+The residual carried its class because D-2026-53 was about the residual. The
+maximum and the region mean beside it did not, and `max_theta_modeB` in
+`surface_coverage_metrics.csv` did not either — while
+`resolution_of_region_mean` already existed and `resolution_final` already
+existed. A quantity left bare beside one that is explicitly not claiming
+exactness reads as the exact quantity the other is declining to claim.
+
+Closing the example, in the file where the example was closed.
+
+**REPAIR.** `GasTransport1DResult.resolution_of_max()` (classified on the RAW
+maximum, because a peak the clip lifted out of negative noise is not a
+resolved peak and after the clip the two are the same number), and three new
+columns: `max_density_resolution`, `sample_region_density_modeB_resolution`,
+`max_theta_modeB_resolution`. 486 datasets now compare exactly, still
+`EQUIVALENT`, 94 columns with a physical unit and 68 declaring why they have
+none.
+
+**AND THE INSTRUMENT THAT STOPS IT RECURRING.**
+`docs/resolution_inventory.json` gives every governed numeric column a basis,
+and `tools/resolution_inventory.py` reconciles both directions and refuses on:
+
+- a governed column with no basis, or a basis for a column that no longer
+  exists;
+- a `CARRIER` naming a column absent from the artefact;
+- a `CARRIER` whose values are not all resolution classes — naming a column
+  is not carrying a class, the same anti-proxy rule `claims_enforcement.py`
+  applies to a pattern that names a claim without matching it;
+- an exemption that states no reason;
+- **within-artefact incompleteness**: where at least one column of an artefact
+  declares a carrier, no column of it may be `NO_FLOOR_DEFINED`. That is the
+  rule that makes closing-the-example impossible here. It is what refused the
+  three columns above, before they were written.
+
+Current state, reported rather than gated:
+
+```
+162 governed numeric columns in 41 artefacts: 13 carry a resolution class
+(4 artefacts), 25 are exact by construction, 2 are coordinates, 2 are floors,
+and 119 have no floor defined
+```
+
+**WHAT IT DELIBERATELY DOES NOT REFUSE.** The 119. Refusing them would force a
+floor to be invented for every solver in the package, and a fabricated floor
+is worse than an absent one: the artefact would then state a resolution
+nobody derived. They are counted, named under `--verbose`, and left open, in
+the same way `energy_ledger_cumulative_3d.csv`'s `cumulative_dU_J` is.
+
+**KNOWN LIMITATION, STATED RATHER THAN ROUNDED AWAY.** A metric/value table
+declares per ROW — the PER_ROW shape D-2026-57 had to name.
+`coupled_mode_recovery_metrics.csv` carries `Mode_D_residual_CH4_resolution`
+on a row of its own, and this inventory cannot say "some rows of this column
+carry a class". Those columns are counted as `NO_FLOOR_DEFINED`, which
+UNDERSTATES them. Counting them as declared without checking which rows would
+overstate, and of the two errors the understatement is the one that leaves the
+gap visible.

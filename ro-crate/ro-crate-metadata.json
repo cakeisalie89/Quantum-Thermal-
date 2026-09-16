@@ -204,18 +204,18 @@
   {
    "@id": "hdf5_output_mapping.json",
    "@type": "File",
-   "contentSize": "142062",
+   "contentSize": "142789",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "0b652886de04db46899bffc594200517671a637c91e7a7710ac038b3a8ea0633"
+   "sha256": "2bb4b3b40c63fdfbd227c033ef1ca17b443f8bf432b167ba09c2d7160a1b8625"
   },
   {
    "@id": "hdf5_schema.json",
    "@type": "File",
-   "contentSize": "153616",
+   "contentSize": "154343",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "79e7df20dbbc63ce1d3905e4f0415de94a17721d231505c92aacb28087f89cb7"
+   "sha256": "50640be42f4c31fae466e4538173b6c43d64a791e69d1133aff2fbfcbd49d9ce"
   },
   {
    "@id": "manifest_hash.txt",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "2050929",
+   "contentSize": "2059417",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "9da772f9ad9c5f1e210955e37a8bef01dd105aad1364f7f2c470892e467bca4b"
+   "sha256": "8e07ccdf44ae21a809c55979f9fc7cdad3fb039bb2e12690571ebe7e0bc87e72"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -321,7 +321,7 @@
    "contentSize": "548",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "ddccf521fe57b2dde6ab5685a9c08bfeb2751d19102a95fb01762a9dc63583c1"
+   "sha256": "d3fa12bd7bbb5dc5c0e945d16d3789378f76909b39bf8ad3730dfcc311774253"
   },
   {
    "@id": "uv.lock",

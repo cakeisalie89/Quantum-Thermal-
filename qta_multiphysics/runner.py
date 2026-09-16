@@ -157,7 +157,14 @@ def run_all(outdir, mc_samples=60, verbose=True):
         gas_metrics.append({
             "species": s.name,
             "max_density_m3": gB.max_density(s.name),
+            # D-2026-66. The residual below carried its resolution and these
+            # did not, in the same row, out of the same solve, against the
+            # same floor. A quantity left bare beside one that is not reads
+            # as the exact quantity the other is explicitly not claiming.
+            "max_density_resolution": gB.resolution_of_max(s.name),
             "sample_region_density_modeB_m3": gB.sample_region_density(s.name),
+            "sample_region_density_modeB_resolution":
+                gB.resolution_of_region_mean(s.name),
             "residual_mode_D_density_m3": gC.sample_region_density(s.name),
             # The residual is the contamination claim in this file. Stated
             # alone it reads as a measured quantity; stated with its floor it
@@ -213,6 +220,11 @@ def run_all(outdir, mc_samples=60, verbose=True):
     for s in cspecs:
         surf_metrics.append({
             "species": s.name, "max_theta_modeB": thetaB.get(s.name, 0.0),
+            # thetaB is the FINAL mode-B coverage, so its class is the
+            # solve's final class -- not a maximum over time, despite the
+            # column's name, which is why this is read off solveB rather
+            # than recomputed from the number.
+            "max_theta_modeB_resolution": solveB.resolution_final(s.name),
             "residual_theta_mode_D": float(covC[s.name][-1]),
             "residual_theta_mode_D_resolution": solveC.resolution_final(s.name),
             "resolution_floor_theta": solveC.resolution_floor,
