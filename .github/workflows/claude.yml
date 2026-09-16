@@ -46,11 +46,47 @@ concurrency:
   cancel-in-progress: false
 jobs:
   claude:
+    # WHO MAY INVOKE A CREDENTIALED AGENT, not merely who may say the word.
+    #
+    # This repository is PUBLIC. The condition below used to be the '@claude'
+    # mention alone, so any GitHub account -- with no association to this
+    # repository at all -- could start a job holding ANTHROPIC_API_KEY with
+    # contents: write, pull-requests: write and issues: write, simply by
+    # commenting on an issue.
+    #
+    # The checkout step already reasons carefully about the OTHER half of
+    # this: it refuses to check out a fork PR's head at the workspace root
+    # because that would run untrusted CODE beside the secret. Untrusted
+    # INSTRUCTIONS reaching a credentialed agent is the same exposure through
+    # the other door, and nothing here was closing it.
+    #
+    # author_association is computed by GitHub from the actor's relationship
+    # to this repository and is not settable by the commenter. OWNER, MEMBER
+    # and COLLABORATOR are the people who already have write access, so this
+    # grants the agent to exactly those who could make the same change by
+    # hand. Everyone else is ignored silently -- the job simply does not run.
+    #
+    # Fail-closed by construction: an association GitHub adds later, or one
+    # this list does not name (CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, NONE),
+    # does not match and the job does not start.
+    #
+    # The upstream action may well perform its own permission check. That is
+    # a property of a third-party SHA, read from its own repository, and the
+    # authorization of an agent that can push to this one should not rest on
+    # a default nobody here has read. This is the same rule the rest of the
+    # package applies to proxies.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      ) && (
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+                 github.event.comment.author_association ||
+                 github.event.review.author_association ||
+                 github.event.issue.author_association)
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30      # bound a runaway loop's Actions and API spend
     permissions:

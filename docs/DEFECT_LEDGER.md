@@ -6791,3 +6791,261 @@ moved to DECLARED, gone, because `CH4<1.00e+03` is the same text on every
 host. That was the test stated in advance for whether D-2026-60's repair
 took. 28 crossings became 27; the one BARE entry is the summation-cancellation
 floor left open and named there.
+
+## D-2026-64 — a green baseline does not make a kill mean anything
+
+**CLASS** — `GAP` in `tools/mutation_matrix.py`, the harness whose score every
+completion-matrix row and every commit message on this branch quotes.
+
+**THE QUESTION IT COULD NOT ANSWER.** The harness already refuses a RED
+baseline, with the reason written out: every mutation would "fail the suite"
+for a pre-existing reason and the report would read as a perfect score. It
+also refuses a baseline that flakes. Both are checks on the *unmutated* tree.
+
+Neither can see the case where the suites fail whenever the mutated FILE
+changes — because it is hashed, or compared against a manifest, a crate, an
+allowlist or a checked-in digest. There, every mutation is killed by the edit
+rather than by the behaviour removed, and the matrix reports 20/20 having
+measured nothing. A baseline check cannot detect it by construction: the
+baseline tree is unedited.
+
+**REPAIR — the null control.** Before mutating, each file in the
+specification is edited in a way that changes its bytes and nothing else: a
+trailing comment, which is behaviour-preserving by definition of the language.
+The suites must stay green. If they do not, the run refuses with
+`NULL_CONTROL_RED` and says which file and which test, because no kill in that
+specification would mean anything.
+
+It is the same refusal as the red baseline, one step along — there the suites
+fail for every mutation because they were already failing, here because they
+cannot tell a semantic change from a byte change.
+
+`--null-only` runs the baseline and the control and stops, so the question
+"would a kill here mean anything?" can be asked across every specification
+without paying for the mutations.
+
+**WHERE IT RUNS.** Everywhere, by construction: the control is part of every
+`mutation_matrix.py` invocation, before the first mutation. 43 specifications
+are invoked across the workflow, covering 114 (specification, file) pairs, so
+each CI mutation step now answers the question for its own specification
+rather than a separate sweep answering it for all of them once.
+
+Verified locally by running it. An earlier full sweep was interrupted before
+it finished, and its result was lost because the wrapper piped a two-hour run
+through `tail` -- nothing incremental survived the interruption. The
+instrument was fine; the way it was invoked threw the evidence away, which is
+worth writing down next to a defect about measurements that report the wrong
+thing. The per-specification runs below carry the evidence instead.
+
+**WHAT IT DOES NOT ESTABLISH.** That the operators are strong, that they cover
+the interesting paths, or that a kill was by a RELATED test. It establishes
+one thing: that a kill in this specification is not merely a fact about the
+file having been touched.
+
+**WHAT THE HARNESS'S OWN SUITE SAID ABOUT IT.** Adding a suite run per mutated
+file shifted every run-count-dependent behaviour by one, and
+`test_mutation_harness.py` caught it immediately:
+`test_fails_on_the_third_run_only` is a fixture that goes red on the THIRD
+suite invocation, chosen because that used to be the post-run baseline. With
+the null control it is the fourth. The fixture failed loudly rather than
+quietly targeting the wrong run, which is what you want from a test that
+encodes a sequence. It is now `test_fails_on_the_post_run_baseline_only`, with
+`POST_RUN_BASELINE_RUN` and the five-run order written out, so the next change
+to the number of invocations has to be re-derived rather than absorbed.
+
+**AND A NOTE ON RUNNING IT.** The first attempt to sweep all 43 specifications
+was orchestrated badly enough to be worth recording beside a defect about
+measurements. It was piped through `tail`, so when it was interrupted nothing
+incremental survived. Worse, stopping it did not stop it: killing the wrapper
+shell orphaned the script, which kept walking the specifications for another
+hour, concurrently with a verification run — producing test errors and a
+checker failure that were artifacts of two processes writing one tree, and
+leaving `qta_multiphysics/verification.py` carrying an injected null-control
+line that a manifest regeneration then hashed.
+
+Twice in that sequence a clean `git status` was read as evidence that the
+writer had stopped. A clean tree at one instant is not the absence of a
+writer; it is the gap between two writes. The harness has a collateral-damage
+detector for exactly this, and running two of them at once defeats it. Same
+substitution as everything else in this ledger: a proxy read for the
+property.
+
+## D-2026-65 — who may invoke a credentialed agent, on a public repository
+
+**CLASS** — `TRUE_DEFECT`, security, in `.github/workflows/claude.yml`.
+
+`cakeisalie89/Quantum-Thermal-` is **public**. The job condition was the
+mention alone:
+
+```yaml
+if: |
+  (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+  ...
+```
+
+and the job it guards holds
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+env: ANTHROPIC_API_KEY
+```
+
+So any GitHub account, with no association to this repository whatsoever,
+could start a credentialed agent with write access to it by leaving a comment.
+
+**THE HALF THAT WAS ALREADY CLOSED.** The checkout step reasons carefully
+about the other door, and says so:
+
+```
+# DO NOT add `ref:` here. This job can be triggered by a comment on a
+# pull request from a fork, and it holds secrets. Checking the PR head
+# out at the workspace root would run untrusted code with
+# ANTHROPIC_API_KEY in the environment
+```
+
+Untrusted CODE beside the secret was identified and refused. Untrusted
+INSTRUCTIONS reaching an agent that holds the secret is the same exposure
+through the other door, and nothing was closing it.
+
+**REPAIR.** The condition now also requires
+`author_association ∈ {OWNER, MEMBER, COLLABORATOR}`. That value is computed
+by GitHub from the actor's relationship to this repository and is not settable
+by the commenter. Those three are the people who already have write access, so
+the agent is reachable by exactly those who could make the same change by
+hand. Everyone else is ignored silently — the job does not start. Fail-closed
+by construction: an association this list does not name (CONTRIBUTOR,
+FIRST_TIME_CONTRIBUTOR, NONE) or one GitHub adds later does not match.
+
+**ON THE UPSTREAM ACTION.** `anthropics/claude-code-action` may well perform
+its own permission check. That is a property of a third-party SHA, read from
+its own repository, and the authorization of an agent that can push to this
+one should not rest on a default nobody here has read. This is the rule the
+rest of the package applies to proxies, applied to its own CI.
+
+**NOT CLAIMED.** That this is the only exposure in the workflow surface. What
+was checked, by reading rather than assuming: no `pull_request_target`
+anywhere; no `${{ github.event.* }}` interpolated into any `run:` block (the
+only expressions in shell are `matrix.*`, which come from the workflow file
+itself); `permissions: {}` default-deny at workflow level with per-job grants;
+`persist-credentials: false` on every checkout; every action pinned by SHA
+with its tag recorded, enforced by `tools/workflow_contract.py`.
+
+## Scientific sweep — where the resolution discipline has actually reached
+
+Not a defect. A measurement, recorded because the alternative is that the
+number stays unstated.
+
+D-2026-53 established that a serialised number must carry the resolution of
+the method that produced it. The instrument that reports on it is the
+DECLARED/BARE split in `tools/cross_env_semantics.py`, and it only ever
+examines a column that happens to CROSS ZERO between two hosts. A column that
+is tiny but nonzero on both machines is never looked at. The discipline's
+apparent coverage is therefore defined by an accident of which machines ran.
+
+Measured directly against `docs/unit_inventory.json`, over every governed
+numeric column rather than the ones a divergence exposed:
+
+```
+41 governed source artefacts, 162 columns
+  declare a resolution class:  4 artefacts,  19 columns
+  declare none:               37 artefacts, 143 columns
+```
+
+The four are `gas_transport_metrics.csv`, `gas_transport_profile.csv`,
+`surface_coverage_metrics.csv` and `surface_coverage_profile.csv` — the two
+solvers a floor was defined for. 143 governed columns publish a number with no
+statement of what their method could resolve.
+
+That is the honest scope, and it is not closed here. Closing it means a
+defensible floor per solver, which is numerical work and not a rendering
+change — the same reason `energy_ledger_cumulative_3d.csv`'s `cumulative_dU_J`
+is still open. What is recorded now is the ratio, so it is a tracked number
+rather than an impression.
+
+## Hosted evidence, `d0b85d2` and `f118e6a` (the sibling jobs)
+
+Same-commit, step by step, never by job conclusion.
+
+d0b85d2 (run 35032370201): dispatch-sensitivity ALL SIX STEPS GREEN on its
+first successful outing -- sync passed, the guard asserting X86_V4 absent
+passed, full suite on that dispatch green in 15m27s. second-interpreter
+(3.13) green, cross-environment-3d green. full-suite step 5 green, step 7 the
+standing byte gate, steps 8-9 green.
+
+f118e6a (run 35042991811): full-suite SUCCESS end to end (step 7 included);
+dispatch-sensitivity SUCCESS, all six steps, full suite on the AVX-512-
+disabled dispatch green in 10m06s; second-interpreter (3.13) SUCCESS, fifth
+consecutive.
+
+c1bd8ea (run 35030465947): agent-substrate SUCCESS, 62/62, 4h05m, steps 51,
+52 and 53 scored for the first time.
+
+## Hosted evidence, `9de2281` — the three repairs on a runner
+
+`full-suite` (run 35050738592), step by step. Runner dispatch, from step 6:
+
+```
+openblas runtime kernel: Haswell
+numpy SIMD found: ['X86_V3']
+```
+
+No AVX-512 — the side of the dispatch the committed outputs were NOT produced
+on, and the one `OPENBLAS_CORETYPE=Haswell NPY_DISABLE_CPU_FEATURES=...`
+reproduces locally. So this run is the informative case, not the identical-tree
+one that `f118e6a` happened to land on.
+
+**Step 5, the full pytest suite: SUCCESS**, 15m09s. `conftest.py` and every
+test added for D-2026-61..63 pass on a runner.
+
+**Step 7, package consistency: one failure, and it is R59.**
+
+```
+[PASS] the produced output set is exactly the 89 declared canonical outputs
+       88 of them are compared byte-for-byte in Step 2b; 1 exempt by design
+...
+RESULT: FAIL (1 checks failed)
+  [FAIL] root canonical outputs byte-match the canonical regeneration
+         23 stale root copies
+```
+
+D-2026-61's repair, first hosted run, on hardware whose regeneration differs
+byte-for-byte in 23 files: the SET is exactly right while the BYTES are not.
+That is the distinction the check was built to make, measured rather than
+argued. The byte gate's refusal is the standing R59 condition and is neither
+silenced nor exempted.
+
+**Step 8, the cross-environment comparison: the measured basis, with its
+scope in the sentence.**
+
+```
+compared 87 file(s); 23 differ byte-for-byte; 5404 leaves put side by side
+  DECISION          0
+  ZERO_CROSSING    27
+  SIGN_FLIP         0
+  PRECISION       179   largest relative difference 3.279e-01
+
+ZERO_CROSSING is not a precision event, and 26 of 27 are already declared
+as such by the file they are in.
+  BARE -- ...
+    energy_ledger_cumulative_3d.csv [r2c9]: 1.615587134e-27 -> 0.000000000e+00
+
+No decision-bearing token differs between the two environments
+(5404 leaves compared, 23 file(s) differing).
+```
+
+Three things at once. D-2026-62's repair: the closing sentence carries the
+leaf count and the differing-file count, so it can no longer be read as the
+identical-tree case. D-2026-60's sharp test, now on hosted hardware:
+`results_gate_table.csv` is **gone from the crossing list entirely** — 28
+became 27, 26 declared, and the single BARE entry is the summation-
+cancellation floor left open and named. And 179 numbers moved, by up to a
+third in relative terms, while **zero** decision-bearing tokens differed.
+
+**Step 9, clip provenance: green**, with this runner's own counts —
+210412/1596240 and 4344/115200 elements moved, max displacement 1.533143e+03
+and 1.062372e+02. Host-dependent counts, reconciled as booleans, exactly as
+D-2026-53 requires.

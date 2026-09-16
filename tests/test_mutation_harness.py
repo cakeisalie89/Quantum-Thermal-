@@ -416,11 +416,29 @@ import pytest
 from pkg import mod
 
 
-def test_fails_on_the_third_run_only():
+#: WHICH SUITE RUN THE HARNESS IS ON WHEN IT TAKES THE POST-RUN BASELINE.
+#:
+#: For a specification with one mutated file and one mutation, the harness
+#: invokes the suite in this order:
+#:
+#:   1  baseline            -- must be green before anything is touched
+#:   2  null control        -- the file edited inertly; must stay green
+#:   3  the mutation itself
+#:   4  post-run baseline   -- THIS ONE, which the fixture makes red
+#:   5  re-check of the failing tests alone, which passes
+#:
+#: It was 3 until the null control was added, and this test failed loudly
+#: rather than quietly targeting the wrong run -- which is the behaviour you
+#: want from a fixture that encodes a sequence. Anyone changing the number of
+#: suite invocations has to come here and re-derive it.
+POST_RUN_BASELINE_RUN = 4
+
+
+def test_fails_on_the_post_run_baseline_only():
     counter = Path(__file__).resolve().parent / ".runs"
     n = int(counter.read_text()) + 1 if counter.exists() else 1
     counter.write_text(str(n))
-    assert n != 3, f"run {n}"
+    assert n != POST_RUN_BASELINE_RUN, f"run {n}"
 
 
 def test_guard_a_rejects():

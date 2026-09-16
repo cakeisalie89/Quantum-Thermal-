@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import pathlib
 import os
 import shutil
 import signal
@@ -262,6 +263,11 @@ def main() -> int:
                     help="print the mutations and exit without running them")
     ap.add_argument("--recover", action="store_true",
                     help="restore sources from a previous run's recovery file")
+    ap.add_argument("--null-only", action="store_true",
+                    help="run the baseline and the null control and stop; "
+                         "a fast pre-flight over every specification, which "
+                         "answers 'would a kill here mean anything?' without "
+                         "paying for the mutations themselves")
     args = ap.parse_args()
 
     if args.recover:
@@ -330,11 +336,65 @@ def main() -> int:
         print("Every mutation would 'fail the suite' for this pre-existing")
         print(f"reason and the report would read as a perfect score: {failed}")
         return 2
-    print("baseline green; mutating\n")
+    print("baseline green")
 
     paths = sorted({m["path"] for m in mutations})
     original = {p: (ROOT / p).read_text(encoding="utf-8") for p in paths}
     before = {p: _sha(ROOT / p) for p in paths}
+
+    # --- 1b. THE NULL CONTROL ---------------------------------------------
+    #
+    # A green baseline says the suites pass on the unmutated tree. It does NOT
+    # say that a kill means anything. If any test in these suites fails
+    # whenever the mutated FILE changes -- because it hashes the source, or
+    # compares it against a manifest, a crate, an allowlist or a checked-in
+    # digest -- then every mutation in this specification is killed by the
+    # edit rather than by the behaviour removed, and the report reads as a
+    # perfect score for a matrix that measured nothing.
+    #
+    # That is the same defect this harness already refuses in its red-baseline
+    # branch, one step along: there the suite fails for ALL mutations because
+    # it was already failing; here it fails for all mutations because it
+    # cannot tell a semantic change from a byte change. A baseline check
+    # cannot see it, because the baseline tree is unedited by construction.
+    #
+    # So: edit each file in a way that changes its bytes and nothing else, and
+    # require the suites to stay green. A comment appended to a Python or
+    # shell source is behaviour-preserving by definition of the language; if
+    # the suites go red under it, they are measuring the bytes.
+    for rel in paths:
+        if pathlib.Path(rel).suffix not in (".py", ".sh"):
+            # Only claim it where a trailing comment is guaranteed inert.
+            print(f"null control SKIPPED for {rel}: no comment syntax this "
+                  "harness is willing to assume is behaviour-preserving")
+            continue
+        (ROOT / rel).write_text(
+            original[rel] + "\n# mutation-harness null control: this line "
+            "changes the bytes of this file and nothing it does\n",
+            encoding="utf-8")
+        try:
+            rc_null, failed_null = run_suite(suites, args.python)
+        except subprocess.TimeoutExpired:
+            rc_null, failed_null = 1, ["(timeout)"]
+        finally:
+            (ROOT / rel).write_text(original[rel], encoding="utf-8")
+        if rc_null != 0:
+            print("NULL CONTROL RED -- mutation results would be "
+                  "meaningless.")
+            print(f"Appending a comment to {rel} -- a change with no effect "
+                  "on what it does -- turned this specification's suites "
+                  f"red: {failed_null}")
+            print("Every mutation here would then be 'killed' by having "
+                  "edited the file, and the report would read as a perfect "
+                  "score. Take the byte-sensitive test out of the suite list "
+                  "or out of this specification.")
+            return 5
+    print(f"null control green on {len(paths)} file(s); a kill here is a "
+          "kill for the behaviour, not for the edit\n")
+
+    if args.null_only:
+        return 0
+    print("mutating\n")
 
     # A mutation that disables a safety guard lets the SUITE damage files the
     # harness never touched. Verifying only that the mutated sources were
