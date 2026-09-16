@@ -191,3 +191,90 @@ def test_the_workflows_own_comment_is_not_reported_as_an_action():
 def test_each_required_job_is_present_with_its_reason(job):
     assert job not in " ".join(WC.missing_jobs())
     assert WC.REQUIRED_JOBS[job]
+
+
+# ---- a knob nobody turns is a comment ------------------------------------
+
+def test_the_long_horizon_knob_is_turned_in_the_real_workflow():
+    """The positive control. A check that refused every workflow is useless."""
+    assert WC.unturned_knobs() == ()
+
+
+def test_a_workflow_that_never_raises_the_cycle_count_is_refused():
+    """The defect this closes.
+
+    Drop `QTA_HORIZON_CYCLES=1200` and the suite runs at its compiled-in
+    default, every assertion in it still passes, the step goes green, and the
+    step's name -- "long horizon at an elevated scale" -- is a claim the run
+    does not support.
+    """
+    body = """jobs:
+  x:
+    steps:
+      - name: long horizon at an elevated scale
+        run: |
+          uv run python -m pytest tests/test_agent_long_horizon.py -q
+"""
+    problems = WC.unturned_knobs(body)
+    assert problems, "a workflow that never sets the variable must be refused"
+    assert "above its default" in problems[0]
+
+
+def test_a_cycle_count_at_or_below_the_default_is_not_elevated():
+    """Setting the variable is not raising it."""
+    body = """jobs:
+  x:
+    steps:
+      - run: |
+          QTA_HORIZON_CYCLES=10 uv run python -m pytest \\
+            tests/test_agent_long_horizon.py -q
+"""
+    assert WC.unturned_knobs(body), "10 is below the default and not elevated"
+
+
+def test_the_knob_check_is_actually_consulted(monkeypatch):
+    """THE TEST THE MUTATION MATRIX ASKED FOR, and the reason it exists.
+
+    K1 deletes the one line that wires `unturned_knobs()` into `problems()`
+    and SURVIVED: every other test here calls the function directly, so the
+    function was covered and its *use* was not. A check that exists and is
+    never consulted is D-2026-56's shape -- rules present, 5 of 24 wired --
+    and it is the defect one level up from the one this check closes.
+
+    So this drives the aggregate. `problems()` reads the workflow through
+    `_text()`; give it a body that never raises the cycle count and require
+    the refusal to come back from `problems()`, not from the function.
+    """
+    body = """jobs:
+  x:
+    steps:
+      - name: long horizon at an elevated scale
+        run: |
+          uv run python -m pytest tests/test_agent_long_horizon.py -q
+"""
+    monkeypatch.setattr(WC, "_text", lambda: body)
+    found = WC.problems()
+    assert any("knob is never turned" in p for p in found), (
+        "unturned_knobs() is not reached from problems(); the check can be "
+        f"deleted from the aggregate with every test still passing: {found}")
+
+
+def test_a_continued_command_is_read_as_one_command():
+    """The sub-defect found on the way.
+
+    `_run_commands` returned one line per line, so a command split over a
+    backslash was two unrelated strings and no check could see both halves.
+    This is the shape that made the knob check fail against a workflow that
+    turns it.
+    """
+    body = """jobs:
+  x:
+    steps:
+      - run: |
+          QTA_HORIZON_CYCLES=9000 uv run python -m pytest \\
+            tests/test_agent_long_horizon.py -q -p no:randomly
+"""
+    cmds = WC._run_commands(body)
+    assert any("QTA_HORIZON_CYCLES=9000" in c
+               and "test_agent_long_horizon.py" in c for c in cmds), cmds
+    assert WC.unturned_knobs(body) == ()

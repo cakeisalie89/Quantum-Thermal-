@@ -97,6 +97,14 @@ def _run_commands(body: str) -> list:
     with comment lines dropped. A ``#`` inside a quoted shell string would be
     dropped too; no command here has one, and the alternative is a shell
     parser.
+
+    BACKSLASH CONTINUATIONS ARE JOINED. A command split over three lines is
+    one command, and returning it as three was the same substitution one level
+    down: it made the line ending in a continuation and the line carrying
+    ``tests/test_agent_long_horizon.py`` two unrelated strings, so a check
+    asking whether that suite runs with QTA_HORIZON_CYCLES set could never see
+    both. It would have done the same to a continued ``uv sync --frozen``
+    followed by its ``--group`` argument.
     """
     out, block_indent = [], None
     for line in body.splitlines():
@@ -106,7 +114,10 @@ def _run_commands(body: str) -> list:
             if stripped and indent < block_indent:
                 block_indent = None
             elif not stripped.startswith("#"):
-                out.append(stripped)
+                if out and out[-1].endswith("\\"):
+                    out[-1] = out[-1][:-1].rstrip() + " " + stripped
+                else:
+                    out.append(stripped)
                 continue
         m = re.match(r"^(\s*)-?\s*run:\s*(\|.*)?$", line)
         if m and m.group(2):
@@ -219,6 +230,43 @@ def uses_unpinned_actions(text: str | None = None) -> tuple:
     return tuple(sorted(set(bad)))
 
 
+def unturned_knobs(text: str | None = None) -> tuple:
+    """A knob nobody turns is a comment.
+
+    `tests/test_agent_long_horizon.py` compiles in a default cycle count and
+    reads `QTA_HORIZON_CYCLES` to raise it. The workflow has a step called
+    "long horizon at an elevated scale" that sets it, and nothing checked that
+    the step still does: drop the assignment and the suite runs at its default,
+    every assertion in it still passes, the step goes green, and its name is a
+    claim the run does not support.
+
+    The default is re-derived from the test's own source rather than repeated
+    here, so raising it there cannot silently satisfy this.
+    """
+    src = (ROOT / "tests" / "test_agent_long_horizon.py")
+    if not src.exists():
+        return (f"{src.name} is gone; the long-horizon claim has no subject",)
+    m = re.search(r'CYCLES\s*=\s*int\(os\.environ\.get\(\s*"QTA_HORIZON_CYCLES",\s*"(\d+)"\s*\)\)',
+                  src.read_text(encoding="utf-8"))
+    if not m:
+        return ("cannot find the QTA_HORIZON_CYCLES default in "
+                f"{src.name}; this check cannot say whether the knob is "
+                "turned above it",)
+    default = int(m.group(1))
+    elevated = []
+    for cmd in _run_commands(text if text is not None else _text()):
+        if "test_agent_long_horizon.py" not in cmd:
+            continue
+        for value in re.findall(r"QTA_HORIZON_CYCLES=(\d+)", cmd):
+            if int(value) > default:
+                elevated.append(int(value))
+    if not elevated:
+        return (f"no workflow command runs test_agent_long_horizon.py with "
+                f"QTA_HORIZON_CYCLES above its default of {default}; the "
+                "elevated-scale step would run the default scale and pass",)
+    return ()
+
+
 def problems() -> tuple:
     body = _text()
     out = []
@@ -230,6 +278,7 @@ def problems() -> tuple:
             for x in unrun_mutation_specs(body)]
     out += [f"action is not pinned to a commit -- {x}"
             for x in uses_unpinned_actions(body)]
+    out += [f"knob is never turned -- {x}" for x in unturned_knobs(body)]
     return tuple(out)
 
 
@@ -243,7 +292,8 @@ def main() -> int:
         print(f"workflow contract holds: {len(REQUIRED_JOBS)} required jobs "
               f"all present, every --group defined, "
               f"{len(REQUIRED_COMMANDS)} commands, {specs} mutation specs "
-              "all wired in, every action pinned")
+              "all wired in, every action pinned, the long-horizon knob "
+              "turned above its default")
         return 0
     print(f"WORKFLOW CONTRACT BROKEN ({len(found)} problem(s)):")
     for f in found:

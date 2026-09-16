@@ -7137,3 +7137,71 @@ carry a class". Those columns are counted as `NO_FLOOR_DEFINED`, which
 UNDERSTATES them. Counting them as declared without checking which rows would
 overstate, and of the two errors the understatement is the one that leaves the
 gap visible.
+
+## D-2026-67 — a knob nobody turns is a comment, and nothing checked that it was turned
+
+**CLASS** — `GAP` in `tools/workflow_contract.py`, plus a sub-defect in its own
+command extractor found on the way.
+
+**THE CLAIM AND ITS SUPPORT.** `tests/test_agent_long_horizon.py` compiles in
+
+```python
+CYCLES = int(os.environ.get("QTA_HORIZON_CYCLES", "260"))
+```
+
+and the workflow has a step called **"long horizon at an elevated scale"**
+whose comment says, in as many words, *"A knob nobody turns is a comment."*
+Nothing checked that the step still turns it. Delete the assignment and the
+suite runs at 260 cycles, every assertion in it still passes — they are
+absolute floors, `report.count > 2000` and `total >= 1000` governed
+operations, not functions of the variable — the step goes green, and its
+**name** becomes a claim the run does not support.
+
+That is the same shape as everything else in this ledger: the evidence for
+"elevated" was the step's title.
+
+**REPAIR.** `unturned_knobs()` requires at least one command the workflow
+actually runs to invoke that suite with `QTA_HORIZON_CYCLES` **above** the
+default, and re-derives the default from the test's own source rather than
+repeating it, so raising it there cannot silently satisfy this. Setting the
+variable is not raising it: `QTA_HORIZON_CYCLES=10` is refused.
+
+**THE SUB-DEFECT.** The check failed against a workflow that does turn the
+knob. `_run_commands()` returned one entry per LINE, so
+
+```yaml
+run: |
+  QTA_HORIZON_CYCLES=1200 uv run python -m pytest \
+    tests/test_agent_long_horizon.py -q -p no:randomly
+```
+
+arrived as two unrelated strings and no check could ever see both halves. A
+command split over a backslash is one command; returning it as two was the
+same substitution one level down from the defect that function was written
+for (D-2026-59, where it scanned comments instead of commands). It would have
+done the same to a continued `uv sync --frozen` followed by its `--group`
+argument — so the group check had the hole too, unexercised only because no
+command here is split that way.
+
+Continuations are joined now, and `test_a_continued_command_is_read_as_one_command`
+pins it.
+
+**MUTATIONS.** K1 removes the check. K2 makes setting the variable count as
+raising it. K3 splits continued commands again.
+
+**AND K1 SURVIVED THE FIRST RUN.** 14 of 15 killed, with K1 -- the operator
+that deletes the single line wiring `unturned_knobs()` into `problems()` --
+reported as SURVIVED. Every test written for the new check called
+`unturned_knobs()` **directly**. The function was covered; its USE was not.
+The wiring could be deleted with the whole suite green and a test file that
+looks like coverage.
+
+That is D-2026-56's shape -- rules present, 5 of 24 actually wired -- arriving
+one level up from the defect being closed: a check that nobody checks is
+called. `test_the_knob_check_is_actually_consulted` drives `problems()` with a
+workflow body that never raises the cycle count and requires the refusal to
+come back from the AGGREGATE, not from the function. 15/15.
+
+Worth recording plainly: nothing else in this repository would have caught it.
+The suite was green, the new tests all passed, and the coverage was real --
+of the wrong thing.
