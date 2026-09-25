@@ -508,13 +508,14 @@ class AgentDirectory:
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "AgentDirectory":
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._identities = {}
         self._messages = {}
         self._claims = {}
         self._escalations = {}
         self._at_seq = -1
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         return self
 

@@ -34,6 +34,7 @@ rather than a web:
 | Module | Answers |
 |---|---|
 | `canonical.py` | one byte representation, therefore one digest |
+| `projection.py` | which reducer produced a projection; a snapshot from other code is replayed, never restored |
 | `safeio.py` | confined reads: symlink-refusing, descriptor-relative, bound to an inode rather than a name |
 | `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
 | `actions.py` | every durable action name, and which reducer owns it |
@@ -669,6 +670,42 @@ The projection snapshot is stored as **evidence**: canonical bytes in the
 content-addressed store, pinned by digest from the checkpoint. The two cannot
 drift, because a snapshot whose bytes changed no longer resolves to the digest
 the checkpoint names.
+
+4. **A snapshot names the reducer that made it (D-2026-71).** Same event log
+   plus changed reducer semantics does not imply an old projection remains
+   valid. The snapshot carries `projection_kind`, `reducer_id`,
+   `reducer_version`, `reducer_digest` -- sha256 over the source closure of
+   every class in the projection's MRO and every in-package module those
+   import, lazily or not -- and `projection_schema_version`. It is inside the
+   pinned bytes, so the `checkpoint.state` record covers it. A load that
+   finds a different reducer, an older schema, or no digest on either side
+   replays from genesis (or refuses, under `require_checkpoint`) and says why
+   in `checkpoint_refusal`. The digest over-approximates -- a comment edit
+   invalidates -- which is the only direction a proxy for semantics may err
+   in. It cannot see a behaviour change arriving through a dependency outside
+   the package; `REDUCER_VERSION` is the declaration for that.
+
+### The records folded are the records verified (D-2026-70)
+
+`log.verify().raise_if_bad()` followed by `for ev in log.read()` verifies one
+read of a shared file and folds another; a record appended between the two is
+folded with its chain link unchecked. D-2026-41 closed it in
+`governed_stage10.projection` and nowhere else. It stood in fifteen more
+reducers, in `EventLog.advance` -- the O(new) path every live projection's
+catch-up takes -- and in `AuthorityStore.load_from`, whose comment said the
+tail it re-read was the tail "this load already reads and already verified".
+Three helpers in `governed_stage10` read the log with no verification at all,
+one of them choosing which tool spec checks a task.
+
+Every one now takes `(report, events)` from ONE pass: `read_verified()` for
+the whole chain, `read_verified_from(anchor)` for a tail, and
+`checkpoint.read_verified_with()` for a checkpointed load. The events are the
+verified PREFIX: a failed report no longer comes back holding the records it
+refused. `read_from`, an unverified tail parse meant to be "paired with"
+`verify_from`, is gone: a primitive whose correct use needs a second primitive
+and a promise is the window with an API. `tests/test_agent_snapshot_coherence.py`
+opens the window deliberately and compares every folded record, byte for
+byte, with the snapshot the verification read.
 
 ## 6b. Authority is an object, and execution is bounded by the kernel
 

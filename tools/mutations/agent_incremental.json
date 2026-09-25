@@ -36,8 +36,8 @@
     {
       "name": "N6_the_tail_is_read_without_being_verified",
       "path": "qta_agent/events.py",
-      "find": "        report = self.verify_from(anchor)\n        if not report.ok:\n            raise ChainBroken(\n                \"refusing to advance past a broken chain: \"",
-      "replace": "        report = self.verify_from(anchor)\n        if False:\n            raise ChainBroken(\n                \"refusing to advance past a broken chain: \"",
+      "find": "        report, tail = self._verified_tail(anchor)\n        if not report.ok:\n            raise ChainBroken(\n                \"refusing to advance past a broken chain: \"",
+      "replace": "        report, tail = self._verified_tail(anchor)\n        if False:\n            raise ChainBroken(\n                \"refusing to advance past a broken chain: \"",
       "rationale": "the incremental path becomes more trusting than the full one, so tampering after the anchor is folded straight into the live projection"
     },
     {
@@ -64,8 +64,8 @@
     {
       "name": "N10_a_fresh_load_stops_verifying_the_prefix",
       "path": "qta_agent/scheduler.py",
-      "find": "        self.log.verify().raise_if_bad()\n        self._jobs = {}",
-      "replace": "        self._jobs = {}",
+      "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._jobs = {}",
+      "replace": "        report, events = self.log.read_verified()\n        self._jobs = {}",
       "rationale": "the anchored path trusts the prefix, and that is only acceptable because a process starting fresh checks the whole chain; without that nothing ever verifies the beginning"
     }
   ]

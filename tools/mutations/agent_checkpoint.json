@@ -110,8 +110,8 @@
     {
       "name": "E27_incremental_claims_full_verification",
       "path": "qta_agent/events.py",
-      "find": "                            problems, notes, prefix_verified=False,\n                            unverified_through=anchor.seq)",
-      "replace": "                            problems, notes, prefix_verified=True,\n                            unverified_through=-1)",
+      "find": "                             problems, notes, prefix_verified=False,\n                             unverified_through=anchor.seq),",
+      "replace": "                             problems, notes, prefix_verified=True,\n                             unverified_through=-1),",
       "rationale": "an incremental report would claim a full verification it did not perform"
     },
     {
@@ -131,7 +131,7 @@
     {
       "name": "S22_restore_without_validating",
       "path": "qta_agent/store.py",
-      "find": "        if not isinstance(snap, dict) or snap.get(\"snapshot_version\") != 1:",
+      "find": "        if (not isinstance(snap, dict)\n                or snap.get(\"snapshot_version\") != SNAPSHOT_VERSION):",
       "replace": "        if False:",
       "rationale": "a snapshot of an unknown shape would be projected as if understood"
     },
@@ -260,6 +260,55 @@
       "find": "        return self.truncated_tail and len(self.problems) == 1",
       "replace": "        return self.truncated_tail",
       "rationale": "a torn tail ALONGSIDE a broken chain or a witness that outruns the log would report as torn-tail-only, so damage and truncation would become checkpointable"
+    },
+    {
+      "name": "RI1_load_from_ignores_the_reducer_identity",
+      "path": "qta_agent/store.py",
+      "find": "        refusal = cls._foreign_reducer(snap)",
+      "replace": "        refusal = None",
+      "rationale": "D-2026-71: a snapshot made by other code is restored and the tail folded by this code -- a state no version of the reducer computes from the log"
+    },
+    {
+      "name": "RI2_a_missing_digest_matches_anything",
+      "path": "qta_agent/projection.py",
+      "find": "        if self.reducer_digest is None or other.reducer_digest is None:",
+      "replace": "        if False:",
+      "rationale": "'cannot tell' becomes 'same' whenever a source is unreadable"
+    },
+    {
+      "name": "RI3_a_snapshot_claims_the_base_reducer",
+      "path": "qta_agent/store.py",
+      "find": "            \"projection\": type(self).reducer_identity().to_record(),",
+      "replace": "            \"projection\": AuthorityStore.reducer_identity().to_record(),",
+      "rationale": "a subclass's snapshot names the base reducer, so the base restores a projection it did not produce"
+    },
+    {
+      "name": "RI4_the_identity_covers_only_the_leaf_class",
+      "path": "qta_agent/projection.py",
+      "find": "    mods = mro_modules(cls)",
+      "replace": "    mods = (cls.__module__,)",
+      "rationale": "an inheriting subclass is identified by a file containing none of the code that folds its events"
+    },
+    {
+      "name": "RI5_the_closure_misses_lazy_imports",
+      "path": "qta_agent/projection.py",
+      "find": "    for node in ast.walk(tree):",
+      "replace": "    for node in tree.body:",
+      "rationale": "store.py imports checkpoint inside functions; a top-level-only walk leaves it out of the digest"
+    },
+    {
+      "name": "RI6_restore_accepts_a_snapshot_without_an_identity",
+      "path": "qta_agent/store.py",
+      "find": "        try:\n            ReducerIdentity.from_record(snap.get(\"projection\"))\n        except ProjectionIdentityError as exc:\n            raise StoreError(",
+      "replace": "        try:\n            pass\n        except ProjectionIdentityError as exc:\n            raise StoreError(",
+      "rationale": "a snapshot that cannot say who produced it is restored anyway"
+    },
+    {
+      "name": "RI7_a_declared_version_bump_is_invisible",
+      "path": "qta_agent/projection.py",
+      "find": "            if a != b and not (f.name == \"reducer_digest\"",
+      "replace": "            if a != b and f.name == \"reducer_digest\" and not (f.name == \"reducer_digest\"",
+      "rationale": "only the digest is compared, so REDUCER_VERSION -- the declaration for changes the digest cannot see -- does nothing"
     }
   ]
 }

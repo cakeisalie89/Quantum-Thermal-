@@ -43,6 +43,17 @@ from .authority import (
 )
 from .canonical import canonical_bytes, digest, is_digest
 from .events import ChainBroken, Event, EventLog, EventLogError
+from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
+
+#: What a snapshot of this store is, for :class:`ReducerIdentity`.
+PROJECTION_KIND = "authority_store"
+#: Serialized snapshot shape. 2 added the ``projection`` identity; a v1
+#: snapshot cannot say which reducer made it, so it is replayed, not trusted.
+SNAPSHOT_VERSION = 2
+#: Bump when ``_apply``'s semantics change ON PURPOSE. The source digest
+#: already changes with the code; this is the declaration for what it cannot
+#: see -- a behaviour change arriving through a dependency outside the package.
+REDUCER_VERSION = 1
 
 
 class StoreError(Exception):
@@ -134,6 +145,9 @@ class AuthorityStore:
         self._applied_keys: dict = {}
         self._loaded_through: int = -1
         self._loaded_prefix_verified: bool = True
+        #: Set by :meth:`load_from` when it refused a snapshot; see
+        #: :attr:`checkpoint_refusal`.
+        self._checkpoint_refusal: str | None = None
         #: An anchor at ``_loaded_through``, so catching up costs O(new)
         #: rather than O(history). See Scheduler for why that matters.
         self._anchor = None
@@ -149,14 +163,21 @@ class AuthorityStore:
 
     # ---- projection ---------------------------------------------------
     def load(self) -> "AuthorityStore":
-        """Rebuild the projection from the verified log. Fail closed."""
-        self.log.verify().raise_if_bad()
+        """Rebuild the projection from the verified log. Fail closed.
+
+        The records folded are the records verified: ONE read. Verifying the
+        log and then reading it again folds whatever another process appended
+        in between, unchecked -- the defect D-2026-41 closed in one reducer
+        and D-2026-70 in the other sixteen.
+        """
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._records = {}
         self._applied_keys = {}
         self._loaded_through = -1
         self._loaded_prefix_verified = True
         self._anchor = None
-        for ev in self.log.read():
+        for ev in events:
             self._apply(ev)
         self._reanchor()
         return self
@@ -208,8 +229,9 @@ class AuthorityStore:
                     if ev.seq > self._loaded_through:
                         self._apply(ev)
                 return
-        self.log.verify().raise_if_bad()
-        for ev in self.log.read():
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        for ev in events:
             if ev.seq > self._loaded_through:
                 self._apply(ev)
         self._reanchor()
@@ -424,9 +446,16 @@ class AuthorityStore:
         previously-used key apply a second time, which is precisely the thing
         idempotency keys exist to stop. Sorted, because a set has no order and
         a digest over an unordered thing is not a digest over anything.
+
+        ``projection`` names the reducer that produced it (see
+        :mod:`qta_agent.projection`). It is inside the snapshot, so the
+        state digest a checkpoint pins -- and the ``checkpoint.state`` record
+        that pins it in the log -- covers it: the identity cannot be swapped
+        without breaking the pin.
         """
         return {
-            "snapshot_version": 1,
+            "snapshot_version": SNAPSHOT_VERSION,
+            "projection": type(self).reducer_identity().to_record(),
             "loaded_through": self._loaded_through,
             "records": {rid: r.to_record()
                         for rid, r in sorted(self._records.items())},
@@ -457,11 +486,22 @@ class AuthorityStore:
                        "applied_keys": snap["applied_keys"]})
 
     def _restore(self, snap: dict) -> None:
-        """Rebuild the projection from a snapshot. Validates, never assumes."""
-        if not isinstance(snap, dict) or snap.get("snapshot_version") != 1:
+        """Rebuild the projection from a snapshot. Validates, never assumes.
+
+        Structure only. Whether the snapshot's reducer is THIS reducer is
+        decided in :meth:`load_from`, which can still choose to replay.
+        """
+        if (not isinstance(snap, dict)
+                or snap.get("snapshot_version") != SNAPSHOT_VERSION):
             raise StoreError(
-                "snapshot is not a version-1 projection snapshot; refusing "
-                "to guess at its shape")
+                f"snapshot is not a version-{SNAPSHOT_VERSION} projection "
+                "snapshot; refusing to guess at its shape")
+        try:
+            ReducerIdentity.from_record(snap.get("projection"))
+        except ProjectionIdentityError as exc:
+            raise StoreError(
+                f"snapshot does not say which reducer produced it: {exc}"
+            ) from exc
         records = snap.get("records")
         keys = snap.get("applied_keys")
         through = snap.get("loaded_through")
@@ -583,6 +623,11 @@ class AuthorityStore:
         unless ``require_checkpoint``, which turns a missing checkpoint into
         an error rather than a silent switch to the expensive path. Use it
         where a sudden O(n) load would be a problem worth hearing about.
+
+        A snapshot produced by a DIFFERENT REDUCER is not usable either, and
+        takes the same exit: replay from genesis, or refuse under
+        ``require_checkpoint``. :attr:`checkpoint_refusal` says why, so the
+        switch to the expensive path is never silent.
         """
         from . import checkpoint as cp_mod
 
@@ -605,6 +650,25 @@ class AuthorityStore:
             raise StoreError(
                 f"snapshot {cp.state_digest[:12]} is unparseable: "
                 f"{type(exc).__name__}") from exc
+
+        # SAME LOG, DIFFERENT REDUCER, DIFFERENT PROJECTION.
+        #
+        # The snapshot is what the reducer of its day made of 0..cp.seq.
+        # Restoring it and folding the tail with THIS reducer builds a state
+        # neither version of the code computes from the log. Checked before
+        # anything is restored, because the only correct response is to not
+        # use the snapshot at all.
+        refusal = cls._foreign_reducer(snap)
+        if refusal is not None:
+            if require_checkpoint:
+                raise StoreError(
+                    f"checkpoint at seq {cp.seq} holds a snapshot this "
+                    f"reducer did not produce ({refusal}), and a checkpoint "
+                    "was required. Replaying from genesis is the only "
+                    "correct load; refusing rather than doing it silently.")
+            store = store.load()
+            store._checkpoint_refusal = refusal
+            return store
         store._restore(snap)
 
         if store._loaded_through != cp.seq:
@@ -614,7 +678,13 @@ class AuthorityStore:
                 f"{cp.seq}; refusing to replay from a position the snapshot "
                 "does not describe")
 
-        report = cp_mod.verify_with(log, cp)
+        # ONE read of the tail: the records folded below are the records
+        # this report checked. Until D-2026-70 the tail was verified here and
+        # then read AGAIN for the fold, under a comment claiming it was "the
+        # tail this load already reads and already verified" -- it was the
+        # tail a second read returned, which is whatever had been appended by
+        # then, checked by nothing.
+        report, tail = cp_mod.read_verified_with(log, cp)
         report_ok = getattr(report, "ok", False)
         if not report_ok:
             raise ChainBroken("; ".join(report.problems) or "chain invalid")
@@ -627,10 +697,10 @@ class AuthorityStore:
         # produced a record the gate would have refused, and left the log
         # verifying perfectly -- because the forgery was never in the log.
         #
-        # The anchoring record is in the tail this load already reads and
-        # already verified, so the check costs nothing beyond the comparison.
+        # The anchoring record is in the verified tail, so the check costs
+        # nothing beyond the comparison.
         anchored = False
-        for ev in log.read_from(cp.anchor):
+        for ev in tail:
             if ev.action == ACT_CHECKPOINT_STATE:
                 p = ev.payload if isinstance(ev.payload, dict) else {}
                 if p.get("through_seq") == cp.seq:
@@ -677,6 +747,49 @@ class AuthorityStore:
         reconstruct from how the object was built.
         """
         return self._loaded_prefix_verified
+
+    @property
+    def checkpoint_refusal(self) -> str | None:
+        """Why :meth:`load_from` discarded a snapshot and replayed, if it did.
+
+        None when a checkpoint was used or none existed. A string when one
+        existed and was refused because a different reducer produced it --
+        the case where the expensive path was the correct one, and a caller
+        wondering why a checkpointed load took O(n) deserves the answer.
+        """
+        return self._checkpoint_refusal
+
+    # ---- reducer identity -----------------------------------------------
+    @classmethod
+    def reducer_identity(cls) -> ReducerIdentity:
+        """The identity of the reducer THIS class folds events with.
+
+        Computed from the class, so a subclass that overrides ``_apply`` --
+        or inherits it -- is identified by the code that actually runs.
+        """
+        return identity_of(cls, projection_kind=PROJECTION_KIND,
+                           reducer="_apply", reducer_version=REDUCER_VERSION,
+                           projection_schema_version=SNAPSHOT_VERSION)
+
+    @classmethod
+    def _foreign_reducer(cls, snap) -> str | None:
+        """Why ``snap`` was not produced by this reducer; None if it was.
+
+        A snapshot that cannot establish its producer -- an older schema, a
+        missing or malformed identity, an unreadable source digest on either
+        side -- is foreign. "Cannot tell" is never "same".
+        """
+        if not isinstance(snap, dict):
+            return None             # malformed, not foreign: _restore refuses
+        if snap.get("snapshot_version") != SNAPSHOT_VERSION:
+            return (f"snapshot schema v{snap.get('snapshot_version')!r}, this "
+                    f"code reads v{SNAPSHOT_VERSION}")
+        try:
+            theirs = ReducerIdentity.from_record(snap.get("projection"))
+        except ProjectionIdentityError as exc:
+            return f"no valid reducer identity ({exc})"
+        why = cls.reducer_identity().refusals(theirs)
+        return "; ".join(why) if why else None
 
     # ---- reads --------------------------------------------------------
     def get(self, record_id: str) -> Record:

@@ -266,6 +266,18 @@ def verify_with(log: EventLog, cp: Checkpoint) -> "object":
     return log.verify_from(cp.anchor)
 
 
+def read_verified_with(log: EventLog, cp: Checkpoint) -> tuple:
+    """``(report, tail)``: :func:`verify_with` and the records it checked.
+
+    For a caller that folds the tail. Calling :func:`verify_with` and then
+    reading the tail again is two reads of a shared file, and the second
+    returns records the first never checked -- see
+    :meth:`EventLog.read_verified_from`. Same pre-check, same weaker report.
+    """
+    check_against(log, cp)
+    return log.read_verified_from(cp.anchor)
+
+
 def check_against(log: EventLog, cp: Checkpoint) -> None:
     """Raise unless ``cp`` could describe ``log``. Cheap; reads no records.
 

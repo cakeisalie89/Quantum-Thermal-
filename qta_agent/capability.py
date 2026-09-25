@@ -571,14 +571,15 @@ class CapabilityLedger:
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "CapabilityLedger":
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._issued = {}
         self._issued_by = {}
         self._revoked = set()
         self._root = None
         self._root_seq = -1
         self._at_seq = -1
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         return self
 

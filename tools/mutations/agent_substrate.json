@@ -118,8 +118,8 @@
     {
       "name": "M16_load_without_verifying",
       "path": "qta_agent/store.py",
-      "find": "        self.log.verify().raise_if_bad()\n        self._records = {}",
-      "replace": "        pass\n        self._records = {}",
+      "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._records = {}",
+      "replace": "        report, events = self.log.read_verified()\n        self._records = {}",
       "rationale": "the live projection would be built from a log known to be broken"
     },
     {
@@ -146,8 +146,8 @@
     {
       "name": "M20_reconstruct_without_verifying",
       "path": "qta_agent/reconstruct.py",
-      "find": "    report = log.verify()\n    report.raise_if_bad()\n\n    out = Reconstruction(",
-      "replace": "    report = log.verify()\n\n    out = Reconstruction(",
+      "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n\n    out = Reconstruction(",
+      "replace": "    report, events = log.read_verified()\n\n    out = Reconstruction(",
       "rationale": "differential verification would run against a corrupt log and agree"
     },
     {
@@ -216,8 +216,8 @@
     {
       "name": "M30_task_replay_without_verifying",
       "path": "qta_agent/reconstruct.py",
-      "find": "    report = log.verify()\n    report.raise_if_bad()\n    out = TaskReconstruction(",
-      "replace": "    report = log.verify()\n    out = TaskReconstruction(",
+      "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n    out = TaskReconstruction(",
+      "replace": "    report, events = log.read_verified()\n    out = TaskReconstruction(",
       "rationale": "a second opinion about a document that may have been rewritten is not a second opinion; the differential would then compare two readings of tampered bytes"
     },
     {

@@ -726,6 +726,18 @@ def make_mode_D_state(chamber_cfg=None, tau_c_s=4e-3, tau_c_tag="UNKNOWN"):
     sv.solve()
     return sv
 
+class InterlockViolation(AssertionError):
+    """A state an interlock forbids.
+
+    Subclasses AssertionError ONLY so that callers written against the old
+    ``assert`` keep catching it; what matters is that it is raised
+    explicitly and so survives ``python -O``. The machine interlocks belong
+    to the physical-machine ontology scheduled for retirement
+    (FILE_DISPOSITION.csv, Phase 5) -- churning their callers before that
+    buys nothing, while an interlock that can be compiled away is wrong now.
+    """
+
+
 @dataclass
 class SystemState:
     """All Boolean mode flags. Exactly one mode active at a time."""
@@ -744,17 +756,43 @@ class SystemState:
     vib_settled:        bool = False
 
     def validate(self):
-        """Enforce hard physics constraints. Raises AssertionError on violation."""
-        assert not(self.LCVD_on and self.sensing_on),             "IL-01 LCVD+sensing: 250x thermal overload — categorically impossible"
-        assert not(self.precursor_on and self.He3_dosing_on),             "IL-02 precursor+He3 dosing: CH4 destroys He-3 film in 2.6s"
-        assert not(self.LCVD_on and self.heat_switch_closed),             "IL-03 LCVD+switch_closed: sample heats MC"
-        assert not(self.sensing_on and self.heat_switch_closed),             "IL-04 sensing+switch_closed: 4K stage leaks into the 10mK sensing path"
-        assert not(self.sensing_on and not self.RGA_pass_CH4),             "IL-05 sensing without RGA_CH4 pass — BLOCKS Mode D until Mode B validated"
-        assert not(self.sensing_on and not self.RGA_pass_H2),             "IL-06 sensing without RGA_H2 pass — BLOCKS Mode D until Mode B validated"
-        assert not(self.sensing_on and not self.T_sample_ok),             "IL-07 sensing with T_sample > T_max"
-        assert not(self.sensing_on and not self.vib_settled),             "IL-08 sensing before vibration has settled"
-        assert not(self.He3_present and self.LCVD_on),             "IL-09 He3 present + LCVD on: film destroyed"
-        assert not(self.He3_present and self.precursor_on),             "IL-10 He3 present + precursor on: irreversible poisoning"
+        """Enforce the interlocks. Raises :class:`InterlockViolation`.
+
+        Explicit ``raise``, not ``assert``: ``python -O`` deletes every
+        assert, and an interlock an interpreter flag can switch off is not
+        an interlock. Under -O these ten checks used to vanish and the
+        self-test below printed "correctly blocked: False".
+        """
+        if self.LCVD_on and self.sensing_on:
+            raise InterlockViolation(
+                "IL-01 LCVD+sensing: 250x thermal overload — categorically impossible")
+        if self.precursor_on and self.He3_dosing_on:
+            raise InterlockViolation(
+                "IL-02 precursor+He3 dosing: CH4 destroys He-3 film in 2.6s")
+        if self.LCVD_on and self.heat_switch_closed:
+            raise InterlockViolation(
+                "IL-03 LCVD+switch_closed: sample heats MC")
+        if self.sensing_on and self.heat_switch_closed:
+            raise InterlockViolation(
+                "IL-04 sensing+switch_closed: 4K stage leaks into the 10mK sensing path")
+        if self.sensing_on and not self.RGA_pass_CH4:
+            raise InterlockViolation(
+                "IL-05 sensing without RGA_CH4 pass — BLOCKS Mode D until Mode B validated")
+        if self.sensing_on and not self.RGA_pass_H2:
+            raise InterlockViolation(
+                "IL-06 sensing without RGA_H2 pass — BLOCKS Mode D until Mode B validated")
+        if self.sensing_on and not self.T_sample_ok:
+            raise InterlockViolation(
+                "IL-07 sensing with T_sample > T_max")
+        if self.sensing_on and not self.vib_settled:
+            raise InterlockViolation(
+                "IL-08 sensing before vibration has settled")
+        if self.He3_present and self.LCVD_on:
+            raise InterlockViolation(
+                "IL-09 He3 present + LCVD on: film destroyed")
+        if self.He3_present and self.precursor_on:
+            raise InterlockViolation(
+                "IL-10 He3 present + precursor on: irreversible poisoning")
 
 
 def make_A():
@@ -872,7 +910,8 @@ def mode_B_processing_gates(s):
     Current state: all hardware DESIGN_SPECIFIED only (not installed, not verified).
     A1/A5 PASS only when their hardware exists and is verified.
     """
-    assert s.mode == "MODE_B_PROCESS"
+    if s.mode != "MODE_B_PROCESS":
+        raise ValueError(f"gate builder needs a MODE_B_PROCESS state, got {s.mode!r}")
     gates = []
 
     # A1 (legacy ID): MC protected by SC switch during Mode B processing
@@ -1006,7 +1045,8 @@ def mode_B_processing_gates(s):
 
 
 def mode_B_gates(s):
-    assert s.mode=="MODE_C_PURGE"
+    if s.mode != "MODE_C_PURGE":
+        raise ValueError(f"gate builder needs a MODE_C_PURGE state, got {s.mode!r}")
     gates=[]; m_H2=2*m_p; s_H2=S_H2_STICKING
     T_room=T_WALL_IMPINGEMENT_K; n_mono=N_MONOLAYER_SITES_PER_M2
     gates.append(Gate("B1","CH4 Pumpout Sufficient","MODE_C_PURGE",
@@ -1059,7 +1099,8 @@ def mode_B_gates(s):
     return gates
 
 def mode_C_gates(s):
-    assert s.mode=="MODE_C_RECOOL"
+    if s.mode != "MODE_C_RECOOL":
+        raise ValueError(f"gate builder needs a MODE_C_RECOOL state, got {s.mode!r}")
     gates=[]; V_d=1e-6*0.5e-3; NC=V_d*3510/(12*m_p)
     A_deb=12*pi**4/5*NC*k_B/2200.**3; G=1e-5
     tau_r=(A_deb/4)*(4.**4-0.010**4)/G
@@ -1146,7 +1187,8 @@ def detection_D():
 
 def mode_D_gates(s, supp, th, dc, mode_D_blocked=False, sv=None):
     """All gates read from the same ModeStateVector sv — no gate computes its own T or P."""
-    assert s.mode in ("MODE_D_SENSE", "SENSE_HYPOTHETICAL")
+    if s.mode not in ("MODE_D_SENSE", "SENSE_HYPOTHETICAL"):
+        raise ValueError(f"gate builder needs a MODE_D_SENSE or SENSE_HYPOTHETICAL state, got {s.mode!r}")
     if sv is None:
         sv = make_mode_D_state(tau_c_s=4e-3, tau_c_tag="UNKNOWN")  # documented default: post_bakeout
     gates = []
@@ -1980,7 +2022,7 @@ def main():
                           RGA_pass_CH4=False, RGA_pass_H2=False,
                           T_sample_ok=False, vib_settled=False)
         bad.validate()
-    except AssertionError:
+    except InterlockViolation:
         caught += 1
     print(f"\n  Impossible state (LCVD+sensing) correctly blocked: {caught==1} ✓")
 
@@ -2059,8 +2101,9 @@ def main():
         _mp_summary, _mp_specs = qta_multiphysics.run_all(str(_mp_out), mc_samples=30,
                                                           verbose=False)
         for _s in _mp_specs:
-            assert _s["status"] in ("CONDITIONAL", "BLOCKED", "UNKNOWN", "DERIVED_CHECK"), \
-                f"multiphysics gate {_s['gid']} has forbidden status {_s['status']}"
+            if _s["status"] not in ("CONDITIONAL", "BLOCKED", "UNKNOWN", "DERIVED_CHECK"):
+                raise ValueError(
+                    f"multiphysics gate {_s['gid']} has forbidden status {_s['status']}")
             gMP.append(Gate(gid=_s["gid"], name=_s["name"], mode=_s["mode"], eq=_s["eq"],
                             computed=_s["computed"], thresh=_s["thresh"], status=_s["status"],
                             reason=_s["reason"], fix=_s["fix"], unit=_s.get("unit", "")))

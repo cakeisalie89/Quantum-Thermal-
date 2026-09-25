@@ -64,6 +64,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_readpath.py",
     "tests/test_agent_evidence.py",
     "tests/test_agent_checkpoint.py",
+    "tests/test_agent_snapshot_coherence.py",
     "tests/test_agent_execution.py",
     "tests/test_agent_governed_stage10.py",
     "tests/test_agent_governed_breadth.py",
@@ -129,7 +130,10 @@ ALLOWED_IMPORTERS = {
 # needs `capability`, so it sits after that. The split is the same one the
 # write side makes: the allowlist lives in the writer, the capability check
 # lives above it.
-LAYERS = ("canonical", "hostid", "safeio", "actions", "events",
+# `projection` sits directly after `canonical` and imports nothing internal:
+# it digests SOURCE, and a reducer-identity module that imported the reducers
+# it identifies would be a cycle waiting for its first caller.
+LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           "evidence", "capability", "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority", "policy", "secrets",
           "netauth", "store", "invalidation", "tasks", "reconstruct",
@@ -557,6 +561,10 @@ IO_LAYER = {
     # /proc, for process identity. Not a workspace path and not something a
     # capability could scope: it is the kernel answering about a pid.
     "hostid": "/proc, for process identity",
+    # The package's OWN source files, located from sys.modules and the
+    # package directory, never from a caller-supplied path: a reducer's
+    # identity is a digest of the code that folds events (D-2026-71).
+    "projection": "the package's own source, to digest reducer identity",
     # A TOOL, not a layer of the substrate. It runs in a bounded subprocess
     # with no log handle, no capability set and no network, and its reads are
     # confined by the Stage-10 workspace read guard. Handing it a

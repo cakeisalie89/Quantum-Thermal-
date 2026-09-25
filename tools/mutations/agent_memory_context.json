@@ -121,9 +121,9 @@
     {
       "name": "X5_a_replaced_source_leaves_no_trace",
       "path": "qta_agent/context.py",
-      "find": "        for replaced, by in sorted(summarized_by.items()):",
-      "replace": "        for replaced, by in []:",
-      "rationale": "a summary silently becomes the record of what it compressed"
+      "find": "                     summarized_by=summarized_by.get(p.item_id))",
+      "replace": "                     summarized_by=None)",
+      "rationale": "a summary silently becomes the record of what it compressed: the source's omission no longer points at what replaced it (re-anchored in D-2026-72 -- the loop it used to target only ever fired for a phantom source, and is gone)"
     },
     {
       "name": "X6_summary_need_not_name_a_source_digest",
@@ -285,6 +285,62 @@
       "find": "_AUTHORS_OWN: frozenset = frozenset({\n    MemoryStatus.RETRACTED, MemoryStatus.SUPERSEDED,\n})",
       "replace": "_AUTHORS_OWN: frozenset = frozenset({\n    MemoryStatus.RETRACTED, MemoryStatus.SUPERSEDED, MemoryStatus.STALE,\n})",
       "rationale": "the over-correction, in the fail-closed direction and still a defect: a source changing is a fact about the world cascaded over entries with many authors, and requiring authorship stops the cascade doing the only thing it exists for"
+    },
+    {
+      "name": "X14_a_phantom_source_is_accepted",
+      "path": "qta_agent/context.py",
+      "find": "            if src is None:\n                raise ContextError(",
+      "replace": "            if src is None:\n                continue\n                raise ContextError(",
+      "rationale": "D-2026-72: a summary of an item nobody added passes, and the manifest carries provenance for material that does not exist"
+    },
+    {
+      "name": "X15_the_summary_digest_is_not_compared",
+      "path": "qta_agent/context.py",
+      "find": "            if p.summary_of != actual:",
+      "replace": "            if False:",
+      "rationale": "the pointer names a real item and the digest names other bytes; both look like provenance"
+    },
+    {
+      "name": "X16_a_digest_without_a_source_item_is_accepted",
+      "path": "qta_agent/context.py",
+      "find": "        if summary_of is not None and summarizes_item is None:",
+      "replace": "        if False:",
+      "rationale": "a digest of bytes the builder never held stands in the manifest as provenance nobody checked"
+    },
+    {
+      "name": "X17_two_summaries_of_one_source_accepted",
+      "path": "qta_agent/context.py",
+      "find": "            if p.summarizes_item in summarized:",
+      "replace": "            if False:",
+      "rationale": "which summary replaced the source is decided by dict order"
+    },
+    {
+      "name": "X18_a_summary_may_be_its_own_source",
+      "path": "qta_agent/context.py",
+      "find": "                or summarizes_item == item_id):",
+      "replace": "                or False):",
+      "rationale": "an item vouches for itself with a digest of its own bytes"
+    },
+    {
+      "name": "X19_the_reader_accepts_an_invented_omission",
+      "path": "qta_agent/context.py",
+      "find": "        if not is_digest(o.content_digest):",
+      "replace": "        if False:",
+      "rationale": "a manifest written by the old builder -- an omission with digest '' -- is read back as provenance"
+    },
+    {
+      "name": "X20_the_reader_accepts_a_pointer_to_no_summary",
+      "path": "qta_agent/context.py",
+      "find": "        if by is None or by.summary_of != o.content_digest:",
+      "replace": "        if False:",
+      "rationale": "an omission claims a replacement no shown item performed"
+    },
+    {
+      "name": "X21_the_provenance_check_is_never_consulted",
+      "path": "qta_agent/context.py",
+      "find": "        self._check_summary_provenance()\n",
+      "replace": "        pass\n",
+      "rationale": "the check exists and is tested and build() no longer calls it -- the K1 shape; the suite must drive build(), not the function"
     }
   ]
 }

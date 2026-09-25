@@ -1,0 +1,31 @@
+{
+ "title": "Enforcement that python -O cannot delete",
+ "note": "D-2026-73. EA1 turns one machine interlock back into an assert: the -O probe must see it allowed, and the repository-wide guard must see the assert. EA2 returns the guard to a list of directories, the scope that missed qta_full_sim.py's ten interlocks. EA3 returns the pin to a set of files, which let a second assert join a classified file unseen -- the docstring said 'the count is pinned' throughout.",
+ "suites": [
+  "tests/test_optimized_mode_invariants.py",
+  "tests/test_authority_invariants.py"
+ ],
+ "mutations": [
+  {
+   "name": "EA1_an_interlock_is_an_assert_again",
+   "path": "qta_full_sim.py",
+   "find": "        if self.LCVD_on and self.sensing_on:\n            raise InterlockViolation(\n",
+   "replace": "        assert not (self.LCVD_on and self.sensing_on), (\n",
+   "rationale": "IL-01 -- LCVD and sensing together, a 250x thermal overload -- holds only while asserts are compiled in"
+  },
+  {
+   "name": "EA2_the_guard_scans_a_directory_list",
+   "path": "tests/test_optimized_mode_invariants.py",
+   "find": "    files = repository_files(\"*.py\", include_tests=False)\n",
+   "replace": "    files = [f for f in repository_files(\"*.py\", include_tests=False)\n             if f.startswith((\"qta_agent/\", \"tools/\", \"qta_multiphysics/\"))]\n",
+   "rationale": "the scope that missed qta_full_sim.py: an assert at the root is never scanned"
+  },
+  {
+   "name": "EA3_the_pin_is_a_set_of_files",
+   "path": "tests/test_optimized_mode_invariants.py",
+   "find": "        elif KNOWN_SELF_CHECKS.get(rel) != n:",
+   "replace": "        elif rel not in KNOWN_SELF_CHECKS:",
+   "rationale": "a second assert in a classified file joins the first unseen"
+  }
+ ]
+}

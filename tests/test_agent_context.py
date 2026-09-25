@@ -184,20 +184,145 @@ def test_replacing_an_item_with_a_summary_needs_the_source_digest():
               summarizes_item="long")
 
 
+LONG = "the full derivation, at length, " * 8
+SHORT = "in short: fine"
+
+
+def _summarized(b, *, source=True, summary_of=None, summary_first=False):
+    """Add a real source 'long' and a summary 's' of it, in either order."""
+    def add_source():
+        b.add(item_id="long", tier=Tier.RETRIEVED_EVIDENCE, text=LONG)
+
+    def add_summary():
+        b.add(item_id="s", tier=Tier.RETRIEVED_EVIDENCE, text=SHORT,
+              summary_of=(summary_of if summary_of is not None
+                          else digest_bytes(LONG.encode())),
+              summarizes_item="long")
+    if source and not summary_first:
+        add_source()
+    add_summary()
+    if source and summary_first:
+        add_source()
+    return b
+
+
+def _room_for_the_summary_only():
+    """A budget the mandatory material plus the summary fit in, not LONG."""
+    base = _full(_builder()).build(budget_bytes=100_000).manifest.used_bytes
+    return base + len(SHORT.encode()) + 1
+
+
 def test_a_replaced_source_is_recorded_as_an_omission_with_a_pointer():
-    """The quiet failure: a summary carried forward as the record."""
-    long_text = "the full derivation, at length"
-    b = _full(_builder())
-    b.add(item_id="s", tier=Tier.RETRIEVED_EVIDENCE, text="in short: fine",
-          summary_of=digest_bytes(long_text.encode()),
-          summarizes_item="long")
-    ctx = b.build(budget_bytes=100_000)
+    """The quiet failure: a summary carried forward as the record.
+
+    REWRITTEN (D-2026-72). The previous version added a summary of 'long'
+    and never added 'long'; the builder obliged by inventing an omission
+    for it -- tier guessed, digest "", length 0 -- and this test asserted
+    that invention. The source now exists, is left out for budget while its
+    summary is shown, and the omission describes THE SOURCE'S OWN BYTES.
+    """
+    ctx = _summarized(_full(_builder())).build(
+        budget_bytes=_room_for_the_summary_only())
     omitted = ctx.manifest.was_omitted("long")
     assert omitted is not None
     assert omitted.summarized_by == "s"
-    assert "replaced by a summary" in omitted.reason
+    assert omitted.content_digest == digest_bytes(LONG.encode())
+    assert omitted.byte_len == len(LONG.encode())
+    assert omitted.tier is Tier.RETRIEVED_EVIDENCE
     assert ctx.manifest.answers()["summaries"] == {
-        "s": digest_bytes(long_text.encode())}
+        "s": digest_bytes(LONG.encode())}
+
+
+def test_a_summary_of_an_item_that_was_never_added_is_refused():
+    """THE defect: provenance for material that does not exist."""
+    b = _summarized(_full(_builder()), source=False)
+    with pytest.raises(ContextError, match="not in this context"):
+        b.build(budget_bytes=100_000)
+
+
+def test_a_summary_whose_digest_is_not_its_source_is_refused():
+    """The pointer names the item; the digest must name its exact bytes."""
+    b = _summarized(_full(_builder()),
+                    summary_of=digest_bytes(b"some other document"))
+    with pytest.raises(ContextError, match="digest to"):
+        b.build(budget_bytes=100_000)
+
+
+def test_a_digest_with_no_source_item_is_refused():
+    """summary_of alone vouches for bytes the builder never held."""
+    b = _builder()
+    with pytest.raises(ContextError, match="names no source item"):
+        b.add(item_id="s", tier=Tier.RETRIEVED_EVIDENCE, text=SHORT,
+              summary_of=digest_bytes(LONG.encode()))
+
+
+def test_a_summary_cannot_be_its_own_source():
+    """Even with the digest right: a digest of itself proves nothing."""
+    b = _builder()
+    with pytest.raises(ContextError, match="another, named item"):
+        b.add(item_id="s", tier=Tier.RETRIEVED_EVIDENCE, text=SHORT,
+              summary_of=digest_bytes(SHORT.encode()), summarizes_item="s")
+
+
+def test_two_summaries_of_one_source_are_refused():
+    b = _summarized(_full(_builder()))
+    b.add(item_id="s2", tier=Tier.RETRIEVED_EVIDENCE, text="also short",
+          summary_of=digest_bytes(LONG.encode()), summarizes_item="long")
+    with pytest.raises(ContextError, match="summarized by both"):
+        b.build(budget_bytes=100_000)
+
+
+def test_a_summary_may_be_added_before_its_source():
+    """Control: the check is at build, so order of addition is free."""
+    ctx = _summarized(_full(_builder()), summary_first=True).build(
+        budget_bytes=_room_for_the_summary_only())
+    assert ctx.manifest.was_omitted("long").summarized_by == "s"
+
+
+def test_when_both_fit_nothing_is_omitted_or_invented():
+    """Control: a summary that did not need to replace anything."""
+    ctx = _summarized(_full(_builder())).build(budget_bytes=100_000)
+    assert ctx.manifest.omissions == ()
+    assert {i.item_id for i in ctx.manifest.items} >= {"long", "s"}
+
+
+def _good_record():
+    return _summarized(_full(_builder())).build(
+        budget_bytes=_room_for_the_summary_only()).manifest.to_record()
+
+
+def test_a_real_replacement_survives_a_round_trip():
+    """Control for the three refusals below."""
+    rec = _good_record()
+    assert manifest_from_record(rec).was_omitted("long").summarized_by == "s"
+
+
+def test_a_manifest_carrying_an_invented_omission_is_refused():
+    """What the old builder wrote into logs: digest "", length 0."""
+    rec = _good_record()
+    rec["omissions"].append({
+        "item_id": "phantom", "tier": Tier.RETRIEVED_EVIDENCE.value,
+        "content_digest": "", "byte_len": 0,
+        "reason": "replaced by a summary; the full text was not shown",
+        "summarized_by": "s"})
+    with pytest.raises(ContextError, match="existing material has a digest"):
+        manifest_from_record(rec)
+
+
+def test_a_manifest_pointing_at_no_shown_summary_is_refused():
+    rec = _good_record()
+    rec["omissions"][0]["summarized_by"] = "nobody"
+    with pytest.raises(ContextError, match="not a shown summary"):
+        manifest_from_record(rec)
+
+
+def test_a_manifest_whose_summary_names_other_bytes_is_refused():
+    rec = _good_record()
+    for item in rec["items"]:
+        if item["item_id"] == "s":
+            item["summary_of"] = digest_bytes(b"something else")
+    with pytest.raises(ContextError, match="not a shown summary"):
+        manifest_from_record(rec)
 
 
 # ---- secrets -------------------------------------------------------------

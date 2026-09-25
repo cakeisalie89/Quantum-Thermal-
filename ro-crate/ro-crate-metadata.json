@@ -252,10 +252,10 @@
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "173641",
+   "contentSize": "175182",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "a42d00bddff1a9b8b7533f876b29a632b69fe5631e9b9452215ad53f966b461f"
+   "sha256": "4aa53c8fe7557ab80264bc2b4ca63b771d962ed4df45b692ca80c3d075d7c30d"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",

@@ -574,10 +574,11 @@ class PolicyStore:
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "PolicyStore":
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._published = {}
         self._loaded_through = -1
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         return self
 

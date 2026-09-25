@@ -240,11 +240,12 @@ class MemoryStore:
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "MemoryStore":
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._entries = {}
         self._by_source = {}
         self._invalidated = set()
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         return self
 

@@ -288,6 +288,20 @@ class ContextBuilder:
             raise ContextError(
                 f"context item {item_id!r} replaces {summarizes_item!r} but "
                 "names no source digest")
+        if summary_of is not None and summarizes_item is None:
+            # A digest with no source item is a claim about bytes this
+            # builder was never given, so nothing here can check it. It
+            # would stand in the manifest as provenance all the same.
+            raise ContextError(
+                f"context item {item_id!r} claims to summarize "
+                f"{summary_of[:12]} but names no source item; the builder "
+                "can only vouch for a digest of bytes it holds")
+        if summarizes_item is not None and (
+                not isinstance(summarizes_item, str) or not summarizes_item
+                or summarizes_item == item_id):
+            raise ContextError(
+                f"context item {item_id!r} names {summarizes_item!r} as its "
+                "source; a summary's source must be another, named item")
         self._ids.add(item_id)
         self._pending.append(_Pending(item_id, tier, text, source,
                                       summary_of, summarizes_item))
@@ -307,6 +321,8 @@ class ContextBuilder:
                         "contains a registered secret value. A context "
                         "carrying a credential has copied it into whatever "
                         "the model provider retains.")
+
+        self._check_summary_provenance()
 
         sized = [(p, len(p.text.encode("utf-8"))) for p in self._pending]
         mandatory = [(p, n) for p, n in sized if p.tier in MANDATORY]
@@ -352,30 +368,23 @@ class ContextBuilder:
             for p, n in chosen)
         summarized_by = {p.summarizes_item: p.item_id
                          for p, _ in chosen if p.summarizes_item}
+        # A source that was left out while its summary was shown carries a
+        # pointer to that summary: the manifest must say the full text was
+        # available and not shown, or the summary silently becomes the
+        # record. Every source is a real item (checked above), so every
+        # source is either shown or in this list -- there is no third case,
+        # and in particular no omission to invent for a source nobody gave.
+        #
+        # There used to be one. A summary naming an item that was never
+        # added produced an Omission for it anyway: tier guessed as
+        # RETRIEVED_EVIDENCE, content digest "", length 0 -- a record,
+        # written into the durable manifest, of material that never existed.
         omissions = [
             Omission(item_id=p.item_id, tier=p.tier,
                      content_digest=digest_bytes(p.text.encode("utf-8")),
                      byte_len=n, reason=why,
                      summarized_by=summarized_by.get(p.item_id))
             for p, n, why in omitted]
-        # A source replaced by a summary is an omission even though it fitted:
-        # the manifest must say the full text was available and not shown, or
-        # the summary silently becomes the record.
-        shown_ids = {p.item_id for p, _ in chosen}
-        for replaced, by in sorted(summarized_by.items()):
-            if replaced in shown_ids or replaced is None:
-                continue
-            if any(o.item_id == replaced for o in omissions):
-                continue
-            src = next((p for p, _ in sized if p.item_id == replaced), None)
-            omissions.append(Omission(
-                item_id=replaced,
-                tier=src.tier if src else Tier.RETRIEVED_EVIDENCE,
-                content_digest=(digest_bytes(src.text.encode("utf-8"))
-                                if src else ""),
-                byte_len=len(src.text.encode("utf-8")) if src else 0,
-                reason="replaced by a summary; the full text was not shown",
-                summarized_by=by))
         omissions.sort(key=lambda o: o.item_id)
 
         manifest = ContextManifest(
@@ -385,6 +394,46 @@ class ContextBuilder:
             policy_digest=self.policy_digest, at_seq=self.at_seq)
         return Context(manifest=manifest,
                        parts=tuple(p.text for p, _ in chosen))
+
+    def _check_summary_provenance(self) -> None:
+        """Every summary names a real source and the digest of its bytes.
+
+        Checked at build rather than at add, because a summary may be added
+        before the item it compresses. Three things, each a way a summary
+        could fabricate provenance:
+
+        * the source exists -- no phantom item;
+        * ``summary_of`` is the digest of the source's EXACT bytes, not a
+          digest of something else that happens to be well-formed;
+        * one source, one summary -- two would leave "which one replaced
+          it" to dict order.
+        """
+        by_id = {p.item_id: p for p in self._pending}
+        summarized: dict = {}
+        for p in self._pending:
+            if p.summarizes_item is None:
+                continue
+            src = by_id.get(p.summarizes_item)
+            if src is None:
+                raise ContextError(
+                    f"context item {p.item_id!r} summarizes "
+                    f"{p.summarizes_item!r}, which is not in this context. "
+                    "A summary of something that was never provided is "
+                    "provenance for material that does not exist.")
+            actual = digest_bytes(src.text.encode("utf-8"))
+            if p.summary_of != actual:
+                raise ContextError(
+                    f"context item {p.item_id!r} claims to summarize "
+                    f"{p.summarizes_item!r} with digest "
+                    f"{p.summary_of[:12]}, but those bytes digest to "
+                    f"{actual[:12]}. The pointer names the item; the digest "
+                    "must name its exact content.")
+            if p.summarizes_item in summarized:
+                raise ContextError(
+                    f"{p.summarizes_item!r} is summarized by both "
+                    f"{summarized[p.summarizes_item]!r} and {p.item_id!r}; "
+                    "the manifest could not say which replaced it")
+            summarized[p.summarizes_item] = p.item_id
 
 
 def _tier_order(tier: Tier) -> int:
@@ -434,6 +483,7 @@ def manifest_from_record(rec: dict) -> ContextManifest:
                      byte_len=o["byte_len"], reason=o["reason"],
                      summarized_by=o.get("summarized_by"))
             for o in rec["omissions"])
+        _check_manifest_provenance(items, omissions)
         return ContextManifest(
             task_id=rec["task_id"], purpose=rec["purpose"], items=items,
             omissions=omissions, budget_bytes=rec["budget_bytes"],
@@ -443,3 +493,34 @@ def manifest_from_record(rec: dict) -> ContextManifest:
             at_seq=rec.get("at_seq", -1))
     except (KeyError, TypeError, ValueError) as exc:
         raise ContextError(f"context manifest is malformed: {exc}") from exc
+
+
+def _check_manifest_provenance(items: tuple, omissions: tuple) -> None:
+    """A manifest read back must not carry provenance nobody could have had.
+
+    The builder refuses a phantom source now, but manifests are durable and
+    are read back from logs this version did not write. So the reader states
+    the same rule independently: an omission is material that EXISTED, so it
+    has a real content digest; and an omission that says a summary replaced
+    it names a summary that was shown and that summarizes exactly its bytes.
+    """
+    shown = {i.item_id: i for i in items}
+    for i in items:
+        if i.summary_of is not None and not is_digest(i.summary_of):
+            raise ContextError(
+                f"manifest item {i.item_id!r} summarizes "
+                f"{i.summary_of!r}, which is not a digest")
+    for o in omissions:
+        if not is_digest(o.content_digest):
+            raise ContextError(
+                f"manifest omission {o.item_id!r} has content digest "
+                f"{o.content_digest!r}: an omission records material that "
+                "existed, and existing material has a digest")
+        if o.summarized_by is None:
+            continue
+        by = shown.get(o.summarized_by)
+        if by is None or by.summary_of != o.content_digest:
+            raise ContextError(
+                f"manifest omission {o.item_id!r} says it was replaced by "
+                f"{o.summarized_by!r}, which is not a shown summary of its "
+                "exact content")

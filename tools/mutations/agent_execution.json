@@ -283,8 +283,8 @@
     {
       "name": "L3_ledger_loads_an_unverified_log",
       "path": "qta_agent/capability.py",
-      "find": "        self.log.verify().raise_if_bad()\n        self._issued = {}",
-      "replace": "        self._issued = {}",
+      "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._issued = {}",
+      "replace": "        report, events = self.log.read_verified()\n        self._issued = {}",
       "rationale": "grants are projected from a history that may have been rewritten"
     },
     {

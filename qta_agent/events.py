@@ -563,6 +563,15 @@ class EventLog:
         address it; that is the threat model :meth:`verify` lives in
         generally, and the filesystem is trusted to the extent stated in
         :mod:`qta_agent.checkpoint`.
+
+        THE EVENTS ARE THE VERIFIED PREFIX, NOT THE WHOLE PARSE. Every record
+        returned passed its link check; the first record that did not, and
+        everything after it, is withheld. On a clean report that is every
+        record. On a failed one it used to be every record too, so a caller
+        that looked at the events before -- or instead of -- raising on the
+        report was handed exactly the records the report refused. The report
+        is unchanged: ``count`` and ``head_seq`` still describe the file as
+        parsed, because the witness comparison is about the file.
         """
         problems: list = []
         notes: list = []
@@ -607,21 +616,43 @@ class EventLog:
             return (VerifyReport(False, 0, -1, ZERO_DIGEST,
                                  problems + [str(exc)]), [])
 
-        prev_hash = ZERO_DIGEST
-        prev_wall = None
-        for i, ev in enumerate(events):
-            if not self._check_link(ev, i, prev_hash, prev_wall,
-                                    problems, notes):
-                break
-            prev_wall = ev.wall_time
-            prev_hash = ev.hash
+        verified = self._verified_prefix_length(
+            events, 0, ZERO_DIGEST, None, problems, notes)
 
         head_seq = events[-1].seq if events else -1
         head_hash = events[-1].hash if events else ZERO_DIGEST
         self._check_witness(head_seq, head_hash, witness, problems, notes)
         return (VerifyReport(not problems, len(events), head_seq, head_hash,
                              problems, notes,
-                             truncated_tail=truncated_tail), events)
+                             truncated_tail=truncated_tail),
+                events[:verified])
+
+    def _verified_prefix_length(self, events, first_seq: int,
+                                prev_hash: str, prev_wall, problems: list,
+                                notes: list) -> int:
+        """Check ``events`` as a chain; return how many lead with no problem.
+
+        Every record is still checked and every problem still reported --
+        the report's job is to say everything that is wrong. What this adds
+        is the position of the FIRST problem, because that is where trust
+        ends: a record after a broken link links to something unverified,
+        however well it hashes. Shared by the whole-chain and anchored paths
+        so there is one statement of where the verified prefix stops.
+        """
+        verified = len(events)
+        expected = first_seq
+        for i, ev in enumerate(events):
+            before = len(problems)
+            keep_going = self._check_link(ev, expected, prev_hash, prev_wall,
+                                          problems, notes)
+            if len(problems) > before:
+                verified = min(verified, i)
+            if not keep_going:
+                break
+            prev_wall = ev.wall_time
+            prev_hash = ev.hash
+            expected += 1
+        return verified
 
     # The two verification paths -- whole-chain and from-an-anchor -- share
     # these. Two copies of "what makes a record acceptable" would drift, and
@@ -817,6 +848,39 @@ class EventLog:
         and received the expensive one has been given a cost profile they did
         not choose -- and, worse, a caller who asked for the cheap check and
         received a *successful* one has no way to tell which they got.
+
+        Returns the report alone. A caller that also wants the records must
+        use :meth:`read_verified_from` -- the anchored twin of
+        :meth:`read_verified`, for the same reason.
+        """
+        return self._verified_tail(anchor, use_witness=use_witness)[0]
+
+    def read_verified_from(self, anchor: "Anchor", *,
+                           use_witness: bool = True) -> tuple:
+        """``(report, events)`` for the records after ``anchor``, ONE pass.
+
+        The anchored counterpart of :meth:`read_verified`, and it exists for
+        the reason that one does. :meth:`verify_from` followed by any second
+        read of the tail folds records the verification never saw: the file
+        is shared, and appends land between the two. ``AuthorityStore
+        .load_from`` did exactly that, under a comment saying the tail it
+        re-read was "the tail this load already reads and already verified".
+
+        ``events`` is the verified prefix of the tail, as in
+        :meth:`read_verified`; the prefix before the anchor is trusted, as in
+        :meth:`verify_from`, and the report says so.
+        """
+        report, tail = self._verified_tail(anchor, use_witness=use_witness)
+        return report, [ev for ev, _, _ in tail]
+
+    def _verified_tail(self, anchor: "Anchor", *,
+                       use_witness: bool = True) -> tuple:
+        """``(report, triples)``: the tail after ``anchor``, checked, once.
+
+        The single place the anchored paths read the tail. ``triples`` are
+        ``(event, record_offset, next_offset)`` for the verified prefix only,
+        so a caller building an anchor from the last one builds it at a
+        record that was checked -- never at one past a broken link.
         """
         problems: list = []
         notes: list = []
@@ -830,28 +894,20 @@ class EventLog:
 
         with self._open_for(anchor) as fh:
             anchored = self._read_anchored(fh, anchor)
+            tail = self._read_tail(fh, anchor.next_offset, problems)
 
-            tail = [ev for ev, _, _ in
-                    self._read_tail(fh, anchor.next_offset, problems)]
+        verified = self._verified_prefix_length(
+            [ev for ev, _, _ in tail], anchor.seq + 1, anchor.head_hash,
+            anchored.wall_time, problems, notes)
 
-        prev_hash = anchor.head_hash
-        prev_wall = anchored.wall_time
-        expected = anchor.seq + 1
-        for ev in tail:
-            if not self._check_link(ev, expected, prev_hash, prev_wall,
-                                    problems, notes):
-                break
-            prev_wall = ev.wall_time
-            prev_hash = ev.hash
-            expected += 1
-
-        head_seq = tail[-1].seq if tail else anchor.seq
-        head_hash = tail[-1].hash if tail else anchor.head_hash
+        head_seq = tail[-1][0].seq if tail else anchor.seq
+        head_hash = tail[-1][0].hash if tail else anchor.head_hash
         self._check_witness(head_seq, head_hash, witness, problems, notes)
 
-        return VerifyReport(not problems, len(tail), head_seq, head_hash,
-                            problems, notes, prefix_verified=False,
-                            unverified_through=anchor.seq)
+        return (VerifyReport(not problems, len(tail), head_seq, head_hash,
+                             problems, notes, prefix_verified=False,
+                             unverified_through=anchor.seq),
+                tail[:verified])
 
     def advance(self, anchor: "Anchor") -> tuple:
         """Verify and read what follows ``anchor``; return it and a new one.
@@ -877,31 +933,29 @@ class EventLog:
 
         Returns ``(events, anchor)``. When nothing has been appended the
         anchor comes back unchanged, so a caller can hold it indefinitely.
+
+        ONE READ. This used to verify the tail and then open the file again
+        to read it for the caller -- the verify-then-read window, in the one
+        method every live projection's catch-up goes through. A record
+        appended between the two reads came back to the caller unchecked,
+        and so did the anchor built from it, which every later call then
+        trusted as prefix. The records returned are the records checked.
         """
-        report = self.verify_from(anchor)
+        report, tail = self._verified_tail(anchor)
         if not report.ok:
             raise ChainBroken(
                 "refusing to advance past a broken chain: "
                 + "; ".join(report.problems))
-        with self.path.open("rb") as fh:
-            tail = self._read_tail(fh, anchor.next_offset, [])
         if not tail:
             return [], anchor
         last, record_offset, next_offset = tail[-1]
         return ([ev for ev, _, _ in tail],
                 Anchor(last.seq, last.hash, record_offset, next_offset))
 
-    def read_from(self, anchor: "Anchor") -> list:
-        """Parse the records after ``anchor`` without reading the prefix.
-
-        No verification: callers pair this with :meth:`verify_from`, which is
-        the thing that decides whether these records are acceptable. Kept
-        separate so a caller cannot get the parsing without having chosen a
-        verification, or vice versa, by accident.
-        """
-        with self.path.open("rb") as fh:
-            return [ev for ev, _, _ in
-                    self._read_tail(fh, anchor.next_offset, [])]
+    # ``read_from`` -- an unverified tail parse "paired with verify_from" --
+    # is gone. Its only caller paired them as two reads, which is the defect;
+    # a primitive whose correct use needs a second primitive and a promise is
+    # an invitation to the window. :meth:`read_verified_from` is the pairing.
 
     def _read_tail(self, fh, offset: int, problems: list) -> list:
         """Records after ``offset``, each with the byte range it occupies.

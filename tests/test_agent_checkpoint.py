@@ -19,7 +19,9 @@ if ROOT not in sys.path:
 
 from qta_agent import checkpoint as cp_mod  # noqa: E402
 from qta_agent.authority import Role, State  # noqa: E402
-from qta_agent.canonical import canonical_bytes, digest  # noqa: E402
+from qta_agent.canonical import (  # noqa: E402
+    canonical_bytes, digest, is_digest,
+)
 from dataclasses import replace  # noqa: E402
 from qta_agent.checkpoint import (  # noqa: E402
     Checkpoint, CheckpointAheadOfLog, CheckpointCorrupt, CheckpointError,
@@ -27,7 +29,9 @@ from qta_agent.checkpoint import (  # noqa: E402
 )
 from qta_agent.events import ChainBroken, EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
-from qta_agent.store import AuthorityStore, StoreError  # noqa: E402
+from qta_agent.store import (  # noqa: E402
+    SNAPSHOT_VERSION, AuthorityStore, StoreError,
+)
 
 
 def _log(tmp_path, n=5, name="ev.jsonl"):
@@ -542,30 +546,52 @@ def test_checkpointing_without_a_blob_store_is_refused(tmp_path):
         s.checkpoint(CheckpointStore(tmp_path / "cp"))
 
 
+def _snap(**over):
+    """A structurally VALID current snapshot, then ``over`` applied.
+
+    Each case below must fail for its own reason. Written against an older
+    schema version, every one of them was refused by the version check
+    before its malformation was ever looked at -- a table of eight tests
+    measuring one line (found when v2 added the reducer identity).
+    """
+    base = {"snapshot_version": SNAPSHOT_VERSION,
+            "projection": AuthorityStore.reducer_identity().to_record(),
+            "records": {}, "applied_keys": {}, "loaded_through": 0}
+    base.update(over)
+    return {k: v for k, v in base.items() if v is not _DROP}
+
+
+_DROP = object()
+
+
+def test_the_valid_base_snapshot_is_accepted(tmp_path):
+    """Control: without it, every refusal below could be the base's fault."""
+    AuthorityStore(EventLog(tmp_path / "l.jsonl"))._restore(_snap())
+
+
 @pytest.mark.parametrize("bad", [
     # wrong version -- refuse rather than guess at an unknown shape
-    {"snapshot_version": 2, "records": {}, "applied_keys": {},
-     "loaded_through": 0},
+    _snap(snapshot_version=SNAPSHOT_VERSION + 1),
+    # the pre-identity schema: it cannot say which reducer produced it
+    _snap(snapshot_version=1, projection=_DROP),
     # no version at all
-    {"records": {}, "applied_keys": {}, "loaded_through": 0},
+    _snap(snapshot_version=_DROP),
+    # no reducer identity at all
+    _snap(projection=_DROP),
+    # a reducer identity that is not one
+    _snap(projection={"projection_kind": "authority_store"}),
     # records must be a mapping
-    {"snapshot_version": 1, "records": [], "applied_keys": {},
-     "loaded_through": 0},
+    _snap(records=[]),
     # applied_keys is a mapping now that a key records its target
-    {"snapshot_version": 1, "records": {}, "applied_keys": [],
-     "loaded_through": 0},
+    _snap(applied_keys=[]),
     # ...whose values name a record
-    {"snapshot_version": 1, "records": {}, "applied_keys": {"k": 7},
-     "loaded_through": 0},
+    _snap(applied_keys={"k": 7}),
     # a bool is an int in Python and is not a seq
-    {"snapshot_version": 1, "records": {}, "applied_keys": {},
-     "loaded_through": True},
+    _snap(loaded_through=True),
     # a record whose body is not an object
-    {"snapshot_version": 1, "records": {"r1": "not an object"},
-     "applied_keys": {}, "loaded_through": 0},
+    _snap(records={"r1": "not an object"}),
     # a record missing a required field
-    {"snapshot_version": 1, "records": {"r1": {"record_id": "r1"}},
-     "applied_keys": {}, "loaded_through": 0},
+    _snap(records={"r1": {"record_id": "r1"}}),
 ])
 def test_a_malformed_snapshot_is_refused_rather_than_guessed_at(tmp_path, bad):
     s = AuthorityStore(EventLog(tmp_path / "l.jsonl"))
@@ -1449,3 +1475,191 @@ def test_a_checkpointed_load_falls_back_to_one_it_can_actually_use(tmp_path):
 
     restored = AuthorityStore.load_from(log, cps, blobs=blobs, evidence=blobs)
     assert restored.get("r1").state is State.PROMOTED
+
+
+# ---------------------------------------------------------------------------
+# D-2026-71: a checkpoint of one reducer restored into another.
+#
+# A snapshot is what the reducer of its day made of 0..K. Restoring it and
+# folding K+1..N with a DIFFERENT reducer builds a state neither version of
+# the code computes from the log. Same event log + changed reducer semantics
+# does NOT imply an old projection remains valid, so the snapshot names its
+# reducer and a load that finds a stranger replays from genesis.
+# ---------------------------------------------------------------------------
+
+class _DropsLegacy(AuthorityStore):
+    """A reducer whose semantics differ observably: it ignores 'legacy'.
+
+    Defined here, in a different module from the base, which is exactly how
+    a real reducer change arrives -- as different source.
+    """
+
+    def _apply(self, ev):
+        if (ev.action == "record.create"
+                and ev.payload.get("kind") == "legacy"):
+            self._loaded_through = ev.seq
+            return
+        super()._apply(ev)
+
+
+def _mixed_history(tmp_path):
+    """A log whose prefix a changed reducer reads differently from the old."""
+    log = EventLog(tmp_path / "ev.jsonl")
+    blobs = EvidenceStore(tmp_path / "blobs")
+    cps = CheckpointStore(tmp_path / "cp")
+    s = AuthorityStore(log, evidence=blobs).load()
+    s.create(record_id="old-legacy", kind="legacy", proposer="a")
+    s.create(record_id="old-plain", kind="k", proposer="a")
+    return log, blobs, cps, s
+
+
+def test_a_snapshot_names_the_reducer_that_produced_it(tmp_path):
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    ident = s.snapshot()["projection"]
+    assert ident == AuthorityStore.reducer_identity().to_record()
+    assert ident["reducer_id"].endswith("AuthorityStore._apply")
+    assert is_digest(ident["reducer_digest"]), (
+        "no source digest: every checkpoint would be refused, and the cheap "
+        "load would silently never happen")
+
+
+def test_a_changed_reducer_replays_instead_of_restoring(tmp_path):
+    """THE invariant, observed as state.
+
+    The base reducer's snapshot holds 'old-legacy'. The changed reducer
+    would never have produced it. Restoring the snapshot and folding the
+    tail would hand back a record no replay under the current code yields.
+    """
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    s.create(record_id="new-plain", kind="k", proposer="a")
+
+    loaded = _DropsLegacy.load_from(log, cps, blobs=blobs)
+    fresh = _DropsLegacy(log).load()
+
+    assert "old-legacy" not in loaded.all_records(), (
+        "a record only the OLD reducer produces was restored into the new "
+        "one's projection")
+    assert loaded.state_digest() == fresh.state_digest()
+    assert loaded.checkpoint_refusal is not None
+    assert "reducer" in loaded.checkpoint_refusal
+    assert loaded.loaded_prefix_verified is True, (
+        "the replay was a full verified load, and must say so")
+
+
+def test_the_same_reducer_still_uses_its_checkpoint(tmp_path):
+    """Control: the refusal must not fire on the reducer that wrote it."""
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    s.create(record_id="new-plain", kind="k", proposer="a")
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs,
+                                      require_checkpoint=True)
+    assert loaded.checkpoint_refusal is None
+    assert loaded.loaded_prefix_verified is False
+    assert loaded.state_digest() == AuthorityStore(log).load().state_digest()
+
+
+def test_a_snapshot_written_by_the_changed_reducer_is_foreign_to_the_old(
+        tmp_path):
+    """The reverse direction, which catches a snapshot claiming the base."""
+    log, blobs, cps, _ = _mixed_history(tmp_path)
+    changed = _DropsLegacy(log, evidence=blobs).load()
+    assert changed.snapshot()["projection"]["reducer_id"].endswith(
+        "_DropsLegacy._apply")
+    changed.checkpoint(cps)
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs)
+    assert "old-legacy" in loaded.all_records()
+    assert loaded.checkpoint_refusal is not None
+
+
+def test_a_required_checkpoint_from_another_reducer_is_refused(tmp_path):
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    with pytest.raises(StoreError, match="did not produce"):
+        _DropsLegacy.load_from(log, cps, blobs=blobs,
+                               require_checkpoint=True)
+
+
+def test_a_declared_version_bump_alone_invalidates(tmp_path, monkeypatch):
+    """The digest cannot see a behaviour change arriving from outside the
+    package; ``REDUCER_VERSION`` is how a person says so, and it must work
+    on its own."""
+    import qta_agent.store as store_mod
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    monkeypatch.setattr(store_mod, "REDUCER_VERSION",
+                        store_mod.REDUCER_VERSION + 1)
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs)
+    assert loaded.checkpoint_refusal is not None
+    assert "reducer_version" in loaded.checkpoint_refusal
+
+
+def test_an_unreadable_source_matches_nothing(tmp_path, monkeypatch):
+    """'Cannot tell' is not 'same': no digest on either side is a refusal."""
+    import qta_agent.projection as proj
+    log, blobs, cps, s = _mixed_history(tmp_path)
+    s.checkpoint(cps)
+    monkeypatch.setattr(proj, "_closure_digest_once", lambda mods: None)
+    loaded = AuthorityStore.load_from(log, cps, blobs=blobs)
+    assert loaded.checkpoint_refusal is not None
+    assert "could not be digested" in loaded.checkpoint_refusal
+
+
+def test_an_older_snapshot_schema_is_foreign():
+    assert AuthorityStore._foreign_reducer(
+        {"snapshot_version": 1, "records": {}, "applied_keys": {},
+         "loaded_through": 0}) is not None
+
+
+def test_the_digest_covers_what_the_reducer_imports_lazily():
+    """store.py imports checkpoint INSIDE functions. A closure built from
+    top-level imports only would miss it, and a change there would not
+    invalidate anything."""
+    from qta_agent.projection import mro_modules, source_closure
+    covered = source_closure(mro_modules(AuthorityStore))
+    assert covered is not None
+    for mod in ("qta_agent.store", "qta_agent.authority",
+                "qta_agent.events", "qta_agent.checkpoint",
+                "qta_agent.projection"):
+        assert mod in covered, f"{mod} is not covered by the reducer digest"
+
+
+def test_an_inheriting_subclass_is_identified_by_the_code_that_runs():
+    from qta_agent.projection import mro_modules
+    mods = mro_modules(_DropsLegacy)
+    assert "qta_agent.store" in mods, (
+        "the base reducer the subclass delegates to is not covered")
+    assert _DropsLegacy.__module__ in mods
+
+
+class _Inherits(AuthorityStore):
+    """Folds events with the base reducer, unchanged, from another module."""
+
+
+def test_editing_the_inherited_reducer_changes_the_subclass_identity(
+        tmp_path, monkeypatch):
+    """The USE of the MRO, not the function that lists it.
+
+    The test above asks mro_modules() and passed against a mutant in which
+    identity_of() stopped calling it (RI4): the helper was covered and its
+    use was not -- the K1 lesson, arriving in the repair. So this edits the
+    base reducer's source as the digest sees it and requires the identity
+    of a subclass that merely inherits it to change.
+    """
+    import qta_agent.projection as proj
+    before = _Inherits.reducer_identity().reducer_digest
+    real = proj._locate
+    edited = tmp_path / "store.py"
+    edited.write_bytes(real("qta_agent.store").read_bytes() + b"\n# edit\n")
+    monkeypatch.setattr(
+        proj, "_locate",
+        lambda name: edited if name == "qta_agent.store" else real(name))
+    proj._closure_digest_once.cache_clear()
+    try:
+        after = _Inherits.reducer_identity().reducer_digest
+    finally:
+        proj._closure_digest_once.cache_clear()
+    assert before is not None and after is not None
+    assert before != after, (
+        "the base reducer changed and a subclass that folds with it kept its "
+        "identity, so its old checkpoints would be restored into new code")

@@ -234,16 +234,17 @@ class AuditIndex:
         query that could mislead a reader into thinking they saw everything
         carries that with it -- see :meth:`window_note`.
         """
-        log.verify().raise_if_bad()
+        report, events = log.read_verified()
+        report.raise_if_bad()
         if since_seq is None and until_seq is None:
-            return cls(log.read())
+            return cls(events)
         lo = -1 if since_seq is None else int(since_seq)
         hi = None if until_seq is None else int(until_seq)
         if hi is not None and hi < lo:
             raise ValueError(
                 f"window [{lo}, {hi}] ends before it starts; an empty window "
                 "would answer every question with 'nothing happened'")
-        kept = [ev for ev in log.read()
+        kept = [ev for ev in events
                 if ev.seq >= lo and (hi is None or ev.seq <= hi)]
         idx = cls(kept)
         idx.window = (lo, hi)

@@ -453,13 +453,14 @@ class Scheduler:
     # ---- projection ----------------------------------------------------
     def load(self) -> "Scheduler":
         """Rebuild the queue from the verified log. Fail closed."""
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._jobs = {}
         self._keys = {}
         self._loaded_through = -1
         self._seen_through = -1
         self._anchor = None
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         self._reanchor()
         return self
@@ -531,8 +532,9 @@ class Scheduler:
                     if ev.seq > self._seen_through:
                         self.apply(ev)
                 return
-        self.log.verify().raise_if_bad()
-        for ev in self.log.read():
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        for ev in events:
             if ev.seq > self._seen_through:
                 self.apply(ev)
         self._reanchor()

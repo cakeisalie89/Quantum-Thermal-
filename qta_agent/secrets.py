@@ -710,11 +710,12 @@ class SecretStore:
         """
         if self.log is None:
             return self
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._grants = {}
         self._granted_by = {}
         self._revoked = set()
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         return self
 

@@ -879,13 +879,14 @@ class NetworkAuthority:
     def load(self) -> "NetworkAuthority":
         if self.log is None:
             return self
-        self.log.verify().raise_if_bad()
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
         self._grants = {}
         self._granted_by = {}
         self._revoked = set()
         self._services = {}
         self._service_calls = {}
-        for ev in self.log.read():
+        for ev in events:
             self.apply(ev)
         return self
 

@@ -473,14 +473,14 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
     Verification comes first and is fatal: reconstructing from a chain that
     does not verify would produce a confident answer from untrusted bytes.
     """
-    report = log.verify()
+    report, events = log.read_verified()
     report.raise_if_bad()
 
     out = Reconstruction(head_seq=report.head_seq, head_hash=report.head_hash)
     # Deliberately dict-of-dicts rather than the store's dataclasses.
     recs: dict = out.records
 
-    for ev in log.read():
+    for ev in events:
         out.events_replayed += 1
         p = ev.payload
         action = ev.action
@@ -636,7 +636,7 @@ def reconstruct_tasks(log: EventLog, *,
     ``governed_stage10.projection``. See the module docstring for why that
     duplication is the point rather than an oversight.
     """
-    report = log.verify()
+    report, events = log.read_verified()
     report.raise_if_bad()
     out = TaskReconstruction(head_seq=report.head_seq,
                              head_hash=report.head_hash)
@@ -645,7 +645,7 @@ def reconstruct_tasks(log: EventLog, *,
     owned = {"task.create", "task.transition", "task.execution",
              "task.evidence", "idempotency.bind"}
 
-    for ev in log.read():
+    for ev in events:
         out.events_replayed += 1
         action = ev.action
         if action not in owned:
@@ -945,7 +945,7 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
     Never raises on content: a hostile history produces findings, not an
     exception that hides the rest of the log.
     """
-    report = log.verify()
+    report, events = log.read_verified()
     report.raise_if_bad()
     out = SubsystemReconstruction(head_seq=report.head_seq)
     # The record immediately before the one being folded, as (seq, hash).
@@ -957,7 +957,7 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
     # treated as checked, which is the difference between a reader that
     # knows its limits and one that implies it verified more than it did.
     prev = (-1, "")
-    for ev in log.read():
+    for ev in events:
         out.events_replayed += 1
         p = ev.payload if isinstance(ev.payload, dict) else {}
         a = ev.action

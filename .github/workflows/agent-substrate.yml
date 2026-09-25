@@ -170,6 +170,22 @@ jobs:
         run: |
           uv run python tools/mutation_matrix.py \
             tools/mutations/agent_checkpoint.json
+      - name: mutation matrix -- the records folded are the records verified
+        # D-2026-70. Seventeen reducers verified one read of the log and
+        # folded another. Each mutation restores that second read at one
+        # site, or hands back records past a broken link; the suite appends
+        # a forged record between the first read and anything after it and
+        # compares every folded record with the verified bytes.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/agent_snapshot_coherence.json
+      - name: mutation matrix -- enforcement python -O cannot delete
+        # D-2026-73. Ten machine interlocks were asserts, and the guard
+        # meant to stop that scanned three directories and pinned a set of
+        # files where it said it pinned a count.
+        run: |
+          uv run python tools/mutation_matrix.py \
+            tools/mutations/enforcement_asserts.json
       - name: mutation matrix -- capabilities, tools and bounded execution
         run: |
           uv run python tools/mutation_matrix.py \

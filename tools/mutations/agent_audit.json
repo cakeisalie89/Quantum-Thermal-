@@ -11,8 +11,8 @@
     {
       "name": "A1_audit_accepts_a_tampered_log",
       "path": "qta_agent/audit.py",
-      "find": "        log.verify().raise_if_bad()",
-      "replace": "        pass",
+      "find": "        report, events = log.read_verified()\n        report.raise_if_bad()\n        if since_seq",
+      "replace": "        report, events = log.read_verified()\n        if since_seq",
       "rationale": "an audit produces a confident answer about a document that may have been rewritten -- worse than refusing"
     },
     {
@@ -172,8 +172,8 @@
     {
       "name": "Q1_a_window_skips_verification",
       "path": "qta_agent/audit.py",
-      "find": "        log.verify().raise_if_bad()\n        if since_seq is None and until_seq is None:",
-      "replace": "        if since_seq is None and until_seq is None:\n            log.verify().raise_if_bad()\n        if since_seq is None and until_seq is None:",
+      "find": "        report.raise_if_bad()\n        if since_seq is None and until_seq is None:\n            return cls(events)",
+      "replace": "        if since_seq is None and until_seq is None:\n            report.raise_if_bad()\n            return cls(events)",
       "rationale": "a window becomes a way to audit a rewritten history cheaply, which is the opposite of what narrowing the index is for"
     },
     {

@@ -544,6 +544,17 @@ class GovernedStage10:
         _, self._head_anchor = self.log.advance(self._head_anchor)
         return self._head_anchor.seq
 
+    def _verified_events(self) -> list:
+        """Every record of the log, in ONE verified pass. Fail closed.
+
+        The one way this runner reads history for a decision. A bare
+        ``log.read()`` is a parse, not a check -- three helpers here used one
+        and answered authority questions from records nothing had verified.
+        """
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        return events
+
     def projection(self) -> TaskProjection:
         """Rebuild task state from the verified log. Fail closed.
 
@@ -555,8 +566,7 @@ class GovernedStage10:
         # not: a record landing between the two calls is folded without its
         # chain link ever being checked by this call, and a forged one was
         # (D-2026-41). It is also half the file reads.
-        report, events = self.log.read_verified()
-        report.raise_if_bad()
+        events = self._verified_events()
         tasks: dict = {}
         seq = -1
         for ev in events:
@@ -1426,8 +1436,14 @@ class GovernedStage10:
         return tool_argv(tool_id, inputs, modules=self.tool_modules)
 
     def _tool_of(self, task_id: str) -> str:
-        """Which tool a task ran, from the log rather than from a caller."""
-        for ev in self.log.read():
+        """Which tool a task ran, from the VERIFIED log, not from a caller.
+
+        This picks the spec a task is verified against and the compensator
+        that undoes it, so it is an authority read. It read the log with no
+        verification at all until D-2026-70: a record appended with a broken
+        chain link could name the tool, and so choose its own checker.
+        """
+        for ev in self._verified_events():
             if ev.action == ACT_TASK_CREATE and \
                     ev.payload.get("task_id") == task_id:
                 return ev.payload.get("tool_id", "")
@@ -1605,9 +1621,12 @@ class GovernedStage10:
                      self.projection().in_state(TaskState.COMPLETED))
 
     def _execution_record(self, task_id: str):
-        """The last task.execution payload for a task, or None."""
+        """The last task.execution payload for a task, or None.
+
+        Verified for the reason :meth:`_tool_of` is: recovery decides from it.
+        """
         found = None
-        for ev in self.log.read():
+        for ev in self._verified_events():
             if ev.action == ACT_EXECUTION and \
                     ev.payload.get("task_id") == task_id:
                 found = ev.payload
@@ -1715,9 +1734,13 @@ class GovernedStage10:
             escalation_id=escalation_id)
 
     def _artifacts_of(self, task_id: str) -> dict:
-        """Artifacts recorded for a task, from the log rather than a cache."""
+        """Artifacts recorded for a task, from the verified log, not a cache.
+
+        A duplicate submission is ANSWERED from this, so an unverified
+        record here is an answer nobody's chain vouches for.
+        """
         found: dict = {}
-        for ev in self.log.read():
+        for ev in self._verified_events():
             if ev.action == ACT_EVIDENCE and ev.payload.get("task_id") == \
                     task_id:
                 found = dict(ev.payload.get("artifacts", {}))
