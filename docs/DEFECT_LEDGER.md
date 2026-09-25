@@ -7368,7 +7368,8 @@ the reducer receives is, byte for byte, a line of the snapshot the
 verification read -- the directive's "exact bytes reconstructed are the bytes
 verified", checked on bytes rather than counts. Every test also proves the
 window opened and that the forgery really breaks the chain. 25 tests; against
-the pre-repair code 23 fail (the other two need the new primitive to exist).
+the pre-repair code all 25 fail -- 23 on their assertions, 2 because the
+primitive they exercise does not exist there.
 
 **MUTATIONS.** `tools/mutations/agent_snapshot_coherence.json` restores the
 second read at each of the 17 sites plus the three prefix rules: **20/20

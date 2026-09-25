@@ -251,3 +251,151 @@ directive exists to close.
   checkpoint in three steps without a lock; an append in between yields a
   checkpoint `load_from` later refuses (fail-closed: a liveness cost, not a
   trust one).
+
+## 10. Tranche 1 checkpoint report
+
+Phase 0 and Phase 1, on top of `71b58cb`. **Not a migration-completion
+claim; not merged.** Hosted evidence for this commit is whatever its own CI
+run reports; nothing below borrows a verdict from `71b58cb`'s runs.
+
+### Files changed
+
+*Trust-boundary code (Phase 1):* `qta_agent/events.py` (single-pass verified
+tail, `read_verified_from`, verified-prefix rule, `read_from` removed),
+`checkpoint.py` (`read_verified_with`), `store.py` (one read at load /
+fallback / `load_from`; snapshot v2 with reducer identity; replay on a
+foreign reducer), `projection.py` (new: `ReducerIdentity`, source-closure
+digest), `context.py` (summary provenance at build and on read-back),
+`agents.py`, `audit.py`, `capability.py`, `idempotency.py`, `memory.py`,
+`netauth.py`, `policy.py`, `reconstruct.py`, `scheduler.py`, `secrets.py`,
+`governed_stage10.py` (one verified read each); `qta_full_sim.py` (explicit
+interlock / precondition / status exceptions; no assert left).
+
+*Tests:* `tests/test_agent_snapshot_coherence.py` (new, 25),
+`tests/test_file_disposition.py` (new, 12), `tests/test_agent_checkpoint.py`
+(+11 reducer-identity tests; the malformed-snapshot table rebuilt on a
+valid v2 base -- 11 cases, was 8 -- with a control), `tests/test_agent_context.py` (phantom-source test
+rewritten; +11), `tests/test_optimized_mode_invariants.py` (whole-tree scope,
+per-file count pin, `-O` interlock probe, rule anti-vacuity),
+`tests/test_agent_substrate_isolation.py` (layering / IO allowance for
+`projection.py`, new importer allowed).
+
+*Mutation specifications:* new `agent_snapshot_coherence.json` (20) and
+`enforcement_asserts.json` (3); `agent_checkpoint.json` +7 (RI1-RI7);
+`agent_memory_context.json` +8 (X14-X21), X5 re-anchored; ten mutations
+re-anchored with unchanged meaning across `agent_substrate`,
+`agent_incremental`, `agent_execution`, `agent_audit`, `agent_checkpoint`.
+
+*Phase 0 and records:* `ARCHITECTURE_CONVERGENCE_PLAN.md`,
+`DEPENDENCY_CUTOVER.md`, `FILE_DISPOSITION.csv`, `tools/file_disposition.py`
+(all new); `docs/DEFECT_LEDGER.md` (D-2026-69 .. D-2026-74),
+`AGENT_SUBSTRATE.md`, `docs/completion_matrix.json` (R51: 46 specs),
+`.github/workflows/agent-substrate.yml` (two new matrix steps).
+
+*Regenerated, by the documented chain:* `ro-crate/ro-crate-metadata.json`,
+`docs/corpus_allowlist.json`, `final_manifest.json`, `manifest_hash.txt`.
+No governed output changed; `package_consistency_check.py` regenerates all
+of them byte-identically (below).
+
+### Tests run (local, this tree)
+
+| run | result |
+|---|---|
+| full suite (`pytest tests/`) at `33abeea` | **3860 passed, 9 skipped, exit 0** (3869 collected; 3786 at the baseline) |
+| `package_consistency_check.py` | PASS -- every governed output regenerates byte-identically; the interlock change altered no output |
+| `tools/test_isolation.py` | 110 of 110 modules collect alone |
+| verifiers | workflow_contract (46 specs wired), completion_matrix, unit_inventory, claims_enforcement, resolution_inventory, identity_inventory, model_check, corpus_allowlist (54 documents), file_disposition (596 files): all hold |
+| `generate_manifest.py --check`, `ro_crate_tools.py validate` | in sync at 594 files; VALID |
+| ruff on CI's scope, F811 over the tree | clean |
+| anti-vacuity: new tests against the pre-repair code | snapshot coherence 25/25 fail (23 on assertion, 2 on the missing primitive); context refusals 8/8 fail; assert guard 3/3 fail against the assert-based `qta_full_sim.py` |
+| `python -O` probe, before and after | IL-01 NOT enforced before; refused after |
+
+### Mutation tests run (local, null control inside every run)
+
+Every specification whose targets or anchors this tranche changed, run in
+the committed tree at `33abeea`, serially, with the null control inside each
+run and every source restored byte-identical afterwards:
+
+| specification | killed |
+|---|---|
+| `agent_checkpoint.json` (RI1-RI7 new) | 43/43 |
+| `agent_snapshot_coherence.json` (new) | 20/20 |
+| `enforcement_asserts.json` (new) | 3/3 |
+| `agent_memory_context.json` (X14-X21 new, X5 re-anchored) | 48/48 |
+| `agent_incremental.json` (N6, N10 re-anchored) | 9/9 |
+| `agent_audit.json` (A1, Q1 re-anchored) | 33/33 |
+| `agent_substrate.json` (M16, M20, M30 re-anchored) | 52/52 |
+| `agent_execution.json` (L3 re-anchored) | 62/62 |
+| `stage10_authority.json` (G_R1, whose site moved into `_verified_events`) | 19/19 |
+| **total** | **289/289** |
+
+The other 37 specifications were not run locally in this tranche; CI runs
+all 46 on each commit.
+
+### Failures
+
+* **RI4 survived** the first `agent_checkpoint` run (42/43): the identity
+  covered only the leaf class and the test asked the helper, not its use.
+  Closed by a behavioural test; 43/43 since (D-2026-71).
+* **The first baseline attempt did not run**: collection failed on an
+  undeclared dependency (D-2026-74). The baseline above is the second
+  attempt, after syncing every dependency group as CI does.
+* Two structural guards refused intermediate states of this work, as they
+  should: the substrate-isolation test refused a new test file importing
+  `qta_agent` until it was allowed by name, and refused `projection.py`
+  until it had a declared layer, a stated reason to read files, and a line in
+  `AGENT_SUBSTRATE.md`.
+* The first dependency measurement was wrong twice and was corrected before
+  it was written down: lazy imports were counted as dependencies, and then
+  the implicit parent-package import was missed (`DEPENDENCY_CUTOVER.md`
+  section 1).
+* No test was deleted, skipped or loosened. One test that pinned the defect
+  (the phantom-source omission) was rewritten to assert the correct
+  behaviour; a table of eight malformed-snapshot cases that had become
+  vacuous under the new schema was rebuilt so each case fails for its own
+  reason.
+
+### Unresolved
+
+* D-2026-69 (energy-ledger resolution basis) and D-2026-74 (PyYAML
+  undeclared) -- open, recorded, deferred with reasons.
+* R59 -- the byte gate on a runner with different CPU dispatch; digits
+  only. Standing, explained on the PR.
+* Every `qta_multiphysics` module imports the gate-spec assembly through the
+  package `__init__` (C1). Measured, not cut: it is Phase 2's first change.
+* `qta_full_sim.py` still swallows a forbidden multiphysics status into a
+  warning (downstream gate count catches it); `AuthorityStore.checkpoint()`
+  can write a checkpoint `load_from` later refuses if an append lands inside
+  it. Both fail closed; both recorded in section 9.
+* Of the 46 mutation specifications, the nine above were run locally; the
+  other 37 run in CI.
+
+### The next tranche (Phase 2), exactly
+
+1. **C1**: make `qta_multiphysics/__init__.py`'s `run_all` a lazy entry
+   point, and add the fresh-interpreter test that importing a registered
+   model leaves no hardware-ontology module in `sys.modules`.
+2. Introduce the six interfaces of section 7 as typed code
+   (`ScientificModel` protocol, `ModelRegistry`, `ResultBundle`,
+   `VerificationResult`, `Observation` with its six kinds, run identity),
+   reusing `projection.source_closure_digest` for `implementation_digest`.
+3. Adapt `thermal_1d` as the proving case: its existing checks in
+   `verification.py` become the declared invariants; `reduction_2d_to_1d`
+   (a different discretization) is the independent check; one governed run
+   through `governed_stage10`'s path submits the `ResultBundle` as evidence.
+4. Mutations for the new boundary: an invariant result that is not computed,
+   an "independent" check that shares the producer's digest, a
+   `SIMULATION_RESULT` accepted as `RAW_OBSERVATION`, a run reused on a
+   parameter-digest mismatch.
+5. Declare PyYAML (D-2026-74) in its own reviewed change, before anything
+   touches Snakemake.
+
+### Is any retained scientific capability still blocked by the retired ontology?
+
+**Yes** -- see `DEPENDENCY_CUTOVER.md` section 5: every model at import (C1);
+Bayesian and deep experimental design through the apparatus registry and the
+QTA validation experiments (C2-C3); Monte Carlo reported as gate failure
+rates (C4); campaigns and the coupled multi-phase solve through the machine
+FSM and fixed modes (C5-C6); release and provenance through the QTA output
+corpus and CI's byte gate on it (C8-C9). No physics model, numerical module
+or stack adapter depends on the ontology beyond the package `__init__`.

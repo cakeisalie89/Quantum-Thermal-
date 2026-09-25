@@ -63,6 +63,12 @@ The hardware data set: `BOM.csv`, `rejected_baseline_BOM.csv`,
 `validation_experiment_ranking.csv`, `shielding_stack_register.csv`,
 `EXPERIMENT_PLAYBOOKS/`, the manuscript.
 
+This is a one-off measurement, taken for this document and not committed as
+a tool. Phase 2's first cut (C1) replaces it with a standing test that
+imports each registered model in a fresh interpreter and inspects
+`sys.modules` -- measuring the property directly instead of inferring it
+from a graph.
+
 **Limits, stated.** The import graph cannot see a dependency expressed
 through a subprocess (`qta_full_sim.py` is run, not imported, by
 `package_consistency_check.py` and `snakemake_sim_entry.py`) or through a

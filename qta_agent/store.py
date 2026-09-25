@@ -168,7 +168,7 @@ class AuthorityStore:
         The records folded are the records verified: ONE read. Verifying the
         log and then reading it again folds whatever another process appended
         in between, unchecked -- the defect D-2026-41 closed in one reducer
-        and D-2026-70 in the other sixteen.
+        and D-2026-70 here and at the sixteen other sites it stood.
         """
         report, events = self.log.read_verified()
         report.raise_if_bad()

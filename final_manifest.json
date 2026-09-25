@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "bf368bc7cc1846a9a1f6314cda0d204b40896d6089274ae824b4411a0c434956",
+      "sha256": "6d24ab86febed7ae425f91132920f5c923519f49829340511557f217cf59ef64",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3060,8 +3060,8 @@
     },
     {
       "filename": "qta_agent/store.py",
-      "size_bytes": 48247,
-      "sha256": "abb5a5354d3d5a7f137a57805a2cf7d4572ab9f5f8368cc79e576f15cd06fd3d",
+      "size_bytes": 48271,
+      "sha256": "d8340119de637bdd2461edc629608c2ff0ed6d4443436b93bf65bb0e9b7b2da5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 8017,
-      "sha256": "57885edfa7834459c0e8024f1d1953dccf90c0780ca39ade2315bfe4989c9ad9",
+      "sha256": "df2e700c27953afcda316dad0f8d4c0810f245b823ba2fb1083448de7d446ace",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3970,8 +3970,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 405535,
-      "sha256": "2bdea9652c06a11363bcfd2d4c39e2d393697f37570c97fb5736d7ba86f836cf",
+      "size_bytes": 405577,
+      "sha256": "799cbc0171410c628a561f2911a4125c4af85d829421bf78d3f72979166b5afe",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4194,15 +4194,15 @@
     },
     {
       "filename": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "size_bytes": 16735,
-      "sha256": "8c3c45129935c7c4426196f7852160a727a8e5ab40486b78ad1c07bfa78e6eb1",
+      "size_bytes": 25087,
+      "sha256": "8194a76c41256da8fbecd5717eab4e886884c20e72bb1eabbcf2d6c79ad33d0e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "DEPENDENCY_CUTOVER.md",
-      "size_bytes": 16971,
-      "sha256": "b1277241a6d4baccc58e19379276673e516458dbb96aba5e92650dbad8ce7c20",
+      "size_bytes": 17272,
+      "sha256": "87522aae384282c9f78e8105d3ba1a482edb3246ef11423b0ac1667f91183344",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
