@@ -482,25 +482,93 @@ def test_scheduler_readiness_is_not_quadratic_in_the_queue(tmp_path):
                           submitter="owner")
         return sched
 
-    small_sched = build(SMALL // 3)
-    large_sched = build(LARGE // 3)
-    small = _per_call(lambda: small_sched.ready_queue(at_seq=10_000))
-    large = _per_call(lambda: large_sched.ready_queue(at_seq=10_000))
-    # THE ONE GUARD IN THIS FILE STILL ON WALL TIME, AND WHY.
-    #
-    # D-2026-46 converted the other five to counting re-hashes. ready_queue
-    # hashes nothing -- it is a projection query over state already folded --
-    # so there is no work unit to count and no honest conversion. It keeps
-    # the timed form and the doubled ceiling, and it is named here as the
-    # residue rather than left to look like the others.
-    #
-    # Its exposure is the same one that failed the append guard at 37.1x
-    # against a 20.0 ceiling. It has not failed yet; that is an observation,
-    # not a guarantee, and if it does the answer is a countable unit rather
-    # than a wider bound.
-    assert large / small < LINEAR_CEILING * 2, (
-        "computing the ready queue got disproportionately slower as the "
-        "queue grew")
+    # COUNTED, NOT TIMED (R49). This was the one guard here left on wall
+    # time, on the stated ground that ready_queue "hashes nothing, so there
+    # is no work unit to count". It hashes nothing; it does have work units.
+    # Everything it does is per job -- one job record handed out of the job
+    # map, one policy evaluation -- and it reads no history. So linearity is
+    # an equality again, and a quadratic path (readiness that rescans the
+    # queue, or the history, for every job) misses it by orders of
+    # magnitude rather than by a factor a busy runner could supply.
+    small = _ready_queue_work(build(SMALL // 3))
+    large = _ready_queue_work(build(LARGE // 3))
+    n_small, n_large = SMALL // 3, LARGE // 3
+    assert small == {"jobs": n_small, "policy": n_small, "rehashes": 0,
+                     "ready": n_small}, small
+    assert large == {"jobs": n_large, "policy": n_large, "rehashes": 0,
+                     "ready": n_large}, large
+
+
+class _CountingJobs(dict):
+    """The scheduler's job map, counting every job record it hands out."""
+
+    def __init__(self, jobs):
+        super().__init__(jobs)
+        self.handed_out = 0
+
+    def values(self):
+        for job in super().values():
+            self.handed_out += 1
+            yield job
+
+    def items(self):
+        for kv in super().items():
+            self.handed_out += 1
+            yield kv
+
+    def get(self, key, default=None):
+        self.handed_out += 1
+        return super().get(key, default)
+
+    def __getitem__(self, key):
+        self.handed_out += 1
+        return super().__getitem__(key)
+
+
+def _ready_queue_work(sched) -> dict:
+    """The work one ready_queue call does, in units a busy runner cannot
+    move: job records examined, policy evaluations, log records re-hashed."""
+    jobs = _CountingJobs(sched._jobs)
+    sched._jobs = jobs
+    policy = {"n": 0}
+    real = sched.policy.evaluate
+
+    def counting(*a, **k):
+        policy["n"] += 1
+        return real(*a, **k)
+
+    sched.policy.evaluate = counting
+    out = {}
+    rehashes = _count_rehashes(
+        lambda: out.setdefault("q", sched.ready_queue(at_seq=10_000)))
+    return {"jobs": jobs.handed_out, "policy": policy["n"],
+            "rehashes": rehashes, "ready": len(out["q"])}
+
+
+def test_the_ready_queue_counter_can_see_a_quadratic(tmp_path, monkeypatch):
+    """ANTI-VACUITY. A counter that could not see the regression would
+    satisfy the equality above forever. Plant the obvious one -- readiness
+    totting up in-flight resources, a full scan of the queue, for every
+    job -- and the same probe must report n + n*n job records."""
+    from qta_agent.scheduler import Scheduler
+    real = Scheduler.readiness
+
+    def quadratic(self, job, **kw):
+        self.in_flight_resources()
+        return real(self, job, **kw)
+
+    monkeypatch.setattr(Scheduler, "readiness", quadratic)
+    log = EventLog(tmp_path / "q.jsonl")
+    pol = PolicyStore(log).load()
+    pol.publish(default_policy(), actor="owner")
+    sched = Scheduler(log, policy=pol, policy_id="scheduler.default",
+                      capacity={"slots": 10}).load()
+    n = SMALL // 3
+    for i in range(n):
+        sched.enqueue(job_id=f"j{i}", work_digest=digest({"i": i}),
+                      submitter="owner")
+    work = _ready_queue_work(sched)
+    assert work["jobs"] == n + n * n, work
 
 
 # ---- the evidence store --------------------------------------------------

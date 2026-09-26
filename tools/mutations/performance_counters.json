@@ -1,0 +1,30 @@
+{
+  "title": "Performance guards that count work instead of timing it",
+  "note": "R49: the scheduler-readiness guard counts job records examined, policy evaluations and history re-hashes per ready_queue call; each mutation plants a regression a wall-clock ratio could only have caught on a quiet machine.",
+  "suites": [
+    "tests/test_agent_performance.py"
+  ],
+  "mutations": [
+    {
+      "name": "PC1_readiness_rescans_the_queue_per_job",
+      "path": "qta_agent/scheduler.py",
+      "find": "            if not self.readiness(job, at_seq=seq, resolve=resolve,\n",
+      "replace": "            self.in_flight_resources()\n            if not self.readiness(job, at_seq=seq, resolve=resolve,\n",
+      "rationale": "R49: the ready queue becomes quadratic in the queue length, and only a clock would have seen it"
+    },
+    {
+      "name": "PC2_the_ready_queue_rereads_history",
+      "path": "qta_agent/scheduler.py",
+      "find": "        seq = self.at_seq() if at_seq is None else at_seq\n        out = []\n",
+      "replace": "        seq = self.at_seq() if at_seq is None else at_seq\n        self.log.verify()\n        out = []\n",
+      "rationale": "R49: every ready-queue query re-verifies the whole history"
+    },
+    {
+      "name": "PC3_a_hidden_scan_of_the_job_map_per_job",
+      "path": "qta_agent/scheduler.py",
+      "find": "                continue\n            out.append(job)\n        return tuple(sorted(\n",
+      "replace": "                continue\n            for _ in self._jobs.values():\n                pass\n            out.append(job)\n        return tuple(sorted(\n",
+      "rationale": "R49: a per-job scan of the job map hidden after the readiness check"
+    }
+  ]
+}

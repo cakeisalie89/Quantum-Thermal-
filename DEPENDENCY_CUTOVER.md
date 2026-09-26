@@ -3,8 +3,9 @@
 Phase 0 artefact of the architectural-convergence directive. It answers one
 question with evidence: **which QTA-hardware dependencies are reachable from
 the agent core, the scientific core and the release core, and in what order
-they are cut.** Nothing here has been cut yet; this tranche is Phase 0 and
-Phase 1 only.
+they are cut.** Written at Phase 0; C1 has since been cut (Phase 2), and C5
+in part (tranche 3: the cryopanel model's ontology import). Section 4 marks
+each.
 
 Companion documents: `ARCHITECTURE_CONVERGENCE_PLAN.md` (the target and the
 phase order) and `FILE_DISPOSITION.csv` (one disposition per tracked file).
@@ -141,7 +142,8 @@ ontology:
 | module | import-time | lazy (call path only) |
 |---|---|---|
 | `campaign_state_3d` | `machine_fsm`, `mode_sequence_3d` | `state_machine_3d` |
-| `campaign_uncertainty_3d`, `cryopanel_dynamics_3d`, `provenance_3d`, `species_accounting_3d` | `mode_sequence_3d` | `state_machine_3d` |
+| `campaign_uncertainty_3d`, `provenance_3d`, `species_accounting_3d` | `mode_sequence_3d` | `state_machine_3d` |
+| `cryopanel_dynamics_3d` -- **cut in tranche 3** (its operating point is a declared input) | -- | -- |
 | `falsification_3d`, `nv_eligibility_3d`, `sources_3d` | `mode_sequence_3d`, `state_machine_3d` | -- |
 | `runner_3d` | `mode_sequence_3d`, `state_machine_3d` | `machine_fsm` |
 | `deep_expdesign/*` (11 modules through the package) | -- | `design`, `design.registry`, `design.validation` |
@@ -219,7 +221,7 @@ operate over the QTA output set by data.
 ## 4. Cutover order
 
 Each step names what is cut, what replaces it, and the check that says it
-stayed cut. None of these has happened.
+stayed cut. C1 is cut; C5 is cut for one module's import only.
 
 | # | phase | cut | replaced by | stays cut because |
 |---|---|---|---|---|
@@ -227,7 +229,7 @@ stayed cut. None of these has happened.
 | C2 | 3 | `design_space.load_interlocks() -> qta_multiphysics.design` and `load_design_families() -> expdesign.model` on the deep runner's call path | design constraints declared by the model's applicability domain and a typed experiment declaration | the C1 test extended to the runner's call path; `tests/test_deep_*` exercised against a non-QTA toy model as well as the QTA reference |
 | C3 | 3 | `expdesign.model` parsing `FIRST_VALIDATION_EXPERIMENTS.md` / `kill_gate_ranking.csv` | candidate experiments as typed `Observation`-producing declarations | data-reference scan: `expdesign` names no hardware data file |
 | C4 | 3 | `uncertainty.py`'s gate-failure scoring | generic UQ engine over `ScientificModel` responses; parameter / numerical / model-form / observational / surrogate uncertainty kept separate | the MC determinism and failed-sample tests, rewritten generically, keep their seeds and byte determinism |
-| C5 | 4 | Mode-letter phase labels in plugins (`gas_transport_1d`, `species_transport_3d`, `material_models`, `surface_coverage_3d`, `cryopanel_dynamics_3d`) | a declared phase schedule passed as input | the plugin's own physics tests unchanged and green |
+| C5 (**part**, tranche 3) | 4 | Mode-letter phase labels in plugins (`gas_transport_1d`, `species_transport_3d`, `material_models`, `surface_coverage_3d`, `cryopanel_dynamics_3d`) | a declared phase schedule passed as input. **Done so far:** `cryopanel_dynamics_3d` no longer imports the ontology -- its three operating-point constants are a declared `OperatingPoint`; its phase labels remain | the plugin's own physics tests unchanged and green; the C1 test's residual pin is empty |
 | C6 | 4 | `coupled_mode_solver`'s hard-wired B->C->D; `nv_spin/runner`'s Mode C readiness gate | a phase schedule; readiness as a precondition the caller declares | reduction / conservation / convergence tests unchanged |
 | C7 | 5 | HW modules and hardware data retire to history; tests protecting only retired hardware invariants retire with a documented reason | -- | C1 test covers the whole tree except `attic/` |
 | C8 | 6 | `qta_full_sim.py` / `Snakefile` / `package_consistency_check.py`'s 83-gate and PASS=0 checks | validate -> run -> invariants -> independent verifier -> UQ -> serialize -> provenance -> evidence -> authority | the byte-regeneration verifier kept, over the new declared output set |

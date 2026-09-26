@@ -69,9 +69,16 @@ from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
                     ToolSpec)
 
 TOOL_RUN = "model.thermal.conduction_1d.run"
+TOOL_RUN_2D = "model.thermal.conduction_2d_axisymmetric.run"
 TOOL_CHECK = "model.independent_check"
 TOOL_IDENTITY = "model.run_identity"
+#: Which governed tool runs which model. One tool per model, so a policy
+#: decision and the task history name the model that ran; a model with no
+#: tool here is refused before anything is submitted.
+MODEL_TOOLS = {"thermal.conduction_1d": TOOL_RUN,
+               "thermal.conduction_2d_axisymmetric": TOOL_RUN_2D}
 _TOOL_MODULES = {TOOL_RUN: "scientific._governed_run",
+                 TOOL_RUN_2D: "scientific._governed_run",
                  TOOL_CHECK: "scientific._governed_check",
                  TOOL_IDENTITY: "scientific._governed_identity"}
 
@@ -88,12 +95,11 @@ class ModelRunRefused(ValueError):
     pass
 
 
-def model_registry() -> Registry:
-    return Registry([
-        ToolSpec(
-            tool_id=TOOL_RUN, version="1.0.0",
-            summary="run thermal.conduction_1d@1.0.0 and write its "
-                    "ResultBundle and temperature field",
+def _model_run_tool(tool_id: str, model_id: str) -> ToolSpec:
+    return ToolSpec(
+            tool_id=tool_id, version="1.0.0",
+            summary=f"run {model_id}@1.0.0 and write its ResultBundle and "
+                    "temperature field",
             inputs=(Field_("out_dir", "str"), Field_("model_id", "str"),
                     Field_("model_version", "str"),
                     Field_("parameters", "dict")),
@@ -109,7 +115,12 @@ def model_registry() -> Registry:
             # verifier re-runs it and compares bytes.
             determinism=Determinism.BYTE_IDENTICAL,
             side_effect=SideEffect.SCOPED_WRITES,
-            writable_scope=(WORKSPACE_PREFIX,), timeout_s=600.0),
+            writable_scope=(WORKSPACE_PREFIX,), timeout_s=600.0)
+
+
+def model_registry() -> Registry:
+    return Registry([
+        *(_model_run_tool(tool, model) for model, tool in MODEL_TOOLS.items()),
         ToolSpec(
             tool_id=TOOL_CHECK, version="1.0.0",
             summary="run an admitted independent check on a cited bundle "
@@ -255,6 +266,8 @@ class GovernedModelRuns:
                 worker: str = WORKER_ID, reuse: bool = True) -> ModelRun:
         """PROPOSE a model result: reuse a verified one with the same run
         identity and intact evidence, or run the model under governance."""
+        if model_id not in MODEL_TOOLS:
+            raise ModelRunRefused(f"no governed tool runs {model_id!r}")
         if reuse:
             ident = self.identity(model_id=model_id,
                                   model_version=model_version,
@@ -270,7 +283,7 @@ class GovernedModelRuns:
                                 reused_from=rec.record_id)
         inputs = {"out_dir": out_dir, "model_id": model_id,
                   "model_version": model_version, "parameters": parameters}
-        run = self.gov.run(tool_id=TOOL_RUN, inputs=inputs,
+        run = self.gov.run(tool_id=MODEL_TOOLS[model_id], inputs=inputs,
                            submitter=submitter, worker=worker,
                            verifier=VERIFIER_ID)
         if run.state is not TaskState.VERIFIED:

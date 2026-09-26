@@ -7761,3 +7761,92 @@ read back by digest from the evidence store, not from the workspace.
 **NOT DONE.** Nothing checks prose counts like these against the code. The
 spec count in R51 is checked against the workflow (D-2026-47); these two are
 not, and are recorded as fixed rather than as prevented.
+
+## D-2026-81 — R49 counted seven timed guards when two were left, and I copied the count
+
+**CLASS** — `WRONG_CLAIM`: R49's residual in `docs/completion_matrix.json`,
+stale since `f7cb50b` (D-2026-46); and mine, repeated into
+`ARCHITECTURE_CONVERGENCE_PLAN.md` section 9.3 in Phase 0 without opening the
+test file. Found while preparing the first R49 conversion this tranche.
+
+R49's residual said "seven guards still assert on a wall-clock ratio: the
+four LINEAR_CEILING comparisons, the scheduler-readiness one, and the two
+checkpoint/evidence comparisons". D-2026-46 had converted all but two of
+them to counting re-hashes -- append, `verify()`, `AuthorityStore.load()`,
+`reconstruct()`, `AuditIndex.from_log()`, incremental verification, the
+checkpoint-versus-replay comparison and the governed-operation guard -- and
+named the two it left timed in the test file itself: scheduler readiness
+and evidence lookup. The row was not updated with that entry; the count in
+it described the file before D-2026-46. My plan quoted the row.
+
+A stale count here has a direction: it overstates what is left to do, which
+reads as caution. It also made the next step look like a campaign of seven
+conversions when it was two, one of which the file declared impossible.
+
+**THE ONE DECLARED IMPOSSIBLE WAS NOT.** The scheduler guard was left timed
+because `ready_queue` "hashes nothing, so there is no work unit to count".
+It hashes nothing, and everything it does is per job: one job record out of
+the job map, one policy evaluation, and no history read. Counted, linearity
+is an exact equality again (33 jobs -> 33 records examined and 33 policy
+evaluations; 266 -> 266 and 266; zero re-hashes at both sizes), and a
+planted quadratic -- readiness totting up in-flight resources, a scan of
+the whole queue, per job -- reads n + n^2 on the same probe. What the
+counter does not see is pure computation that touches none of the three
+units; the equality says so rather than claiming to be stronger than the
+ratio in every respect.
+
+**REPAIR.** R49's residual and plan 9.3 now say one guard remains timed,
+evidence lookup, and why it has no unit in this code (its cost is a path
+lookup in a fan-out directory, a filesystem property). The row stays
+`DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`.
+
+**NOT DONE.** As with D-2026-80: nothing checks a prose count of guards
+against the test file. The R51 spec count is checked (D-2026-47); this kind
+is not, and this entry records a correction, not a prevention.
+
+## D-2026-82 — a mutation run stopped during its null control left the control in the source
+
+**CLASS** — `DEFECT`, `tools/mutation_matrix.py`. Found by this tranche's
+own local run: I stopped a matrix with SIGTERM, compared the working tree's
+diff digest with the one taken before the run, and it differed.
+
+`qta_agent/authority.py` -- a file nothing in this tranche edits -- ended in
+the null control's line ("# mutation-harness null control: this line
+changes the bytes of this file and nothing it does"). There was no
+`.mutation-recovery.json`, and `--recover` said "nothing to recover". R51
+says a recovery sidecar and SIGTERM/SIGINT handlers restore sources; they
+did, for mutations. The null control was added later and placed BEFORE the
+sidecar is written and before the handler is installed, so for the whole
+null-control phase a stop took the default SIGTERM action -- the process
+dies, no `finally` runs -- over a target that had just been edited. The
+harness's own comment above the handler says exactly that SIGTERM does not
+run `finally`; the null control was put where that comment did not reach.
+
+The line is inert by construction, which is why it is a comment. It is
+still an unrestored edit to a tracked source that nothing reports: a
+manifest regenerated over it, or a `git add -A`, commits it.
+
+The same stop killed the suite's pytest mid-test, and a probe file a test
+in `tests/test_agent_substrate_isolation.py` plants and intent-adds was left
+behind (`qta_multiphysics/_shadow_sweep_probe.py`); its cleanup is a
+`finally` in the test, which a killed process does not run either. That is
+a property of stopping any test run, not of the harness, and the digest
+comparison is what found both.
+
+**REPAIR.** The recovery check, the sidecar and the signal handlers now
+come before the null control, and the null control runs inside the one
+`try/finally` that restores every target and removes the sidecar -- every
+write to a target happens under it.
+
+**TEST.** `test_a_run_stopped_during_the_null_control_restores_the_source`:
+the synthetic suite SIGTERMs the harness when, and only when, it sees the
+null control's line. It fails on the previous harness (the line survives)
+and passes after; it also records whether the sidecar already existed at
+the moment of the stop, since a SIGKILL there would leave nothing else to
+recover from. **MUTATIONS.** `mutation_harness.json` gains
+`H_NC1_the_null_control_runs_without_a_sidecar` and
+`H_NC2_the_stop_handler_is_not_installed`.
+
+**RECOVERED HERE.** Both leftovers were undone by hand -- `git checkout
+HEAD -- qta_agent/authority.py`, and the probe removed from the index and the
+disk -- and the diff digest then matched the pre-run one again.

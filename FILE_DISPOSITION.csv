@@ -383,10 +383,12 @@ scientific/_governed_run.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface 
 scientific/catalog.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/checks/__init__.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
 scientific/checks/reduction_2d.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
+scientific/checks/reduction_3d.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
 scientific/identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/model.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/models/__init__.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
 scientific/models/thermal_1d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
+scientific/models/thermal_2d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
 scientific/observation.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/quantity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/registry.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
@@ -529,6 +531,7 @@ tests/test_scientific_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, 
 tests/test_scientific_import_isolation.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_interfaces.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_thermal_1d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_thermal_2d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_signing_finalizer.py,KEEP_AS_IS,-,Signing finalizer.,
 tests/test_single_source_of_truth.py,REWRITE_GENERIC,2-7 (see rationale),Single-definition rule is generic; subject list is QTA.,
 tests/test_solver_failclosed.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A failed solve grants nothing (directive s20 model).,
@@ -597,6 +600,7 @@ tools/mutations/canonical_output_set.json,REWRITE_GENERIC,2-7 (see rationale),Ta
 tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/corpus_allowlist.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/cross_environment.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/cryopanel_operating_point.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over the declaration rules and the inventory derivation.,
 tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
 tools/mutations/fuzz_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -608,10 +612,12 @@ tools/mutations/model_check.json,KEEP_AS_IS,-,"Mutation spec over a retained sub
 tools/mutations/mutation_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: operators over coverage, determinism, the aggregate's meaning and the shard runner.",
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
+tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_interfaces.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_thermal_1d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

@@ -31,7 +31,7 @@ from qta_agent.authority import Role, State, TransitionError  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.governed_model import (  # noqa: E402
-    CHECK_WORKER_ID, REVIEWER_ID, GovernedModelRuns,
+    CHECK_WORKER_ID, REVIEWER_ID, TOOL_RUN, TOOL_RUN_2D, GovernedModelRuns,
     ModelRunRefused,
 )
 from qta_agent.governed_stage10 import (  # noqa: E402
@@ -246,3 +246,65 @@ def test_the_record_cites_the_identity_its_bundle_carries(world):
     assert json.loads(g.evidence.get(rec.evidence["run_identity"])) == \
         identity
     assert identity["parameter_digest"] and identity["implementation_digest"]
+
+
+# ---- a second model through the same path (Phase 4) -------------------------
+
+T2D = {"model_id": "thermal.conduction_2d_axisymmetric",
+       "model_version": "1.0.0"}
+SMALL_2D = {"n_r": 16, "n_z": 24, "n_eval": 10}
+
+
+@pytest.fixture(scope="module")
+def world2d():
+    base = ROOT / WS / "twod"
+    if base.exists():
+        shutil.rmtree(base)
+    base.mkdir(parents=True)
+    log = EventLog(base / "log.jsonl")
+    g = GovernedModelRuns(root=ROOT, log=log,
+                          evidence=EvidenceStore(base / "evidence"))
+    yield g, log
+    if base.exists():
+        shutil.rmtree(base)
+
+
+def test_thermal_2d_through_the_governed_path_is_verified(world2d):
+    """The second model reaches VERIFIED by the same line, checked by the 3D
+    solver, and the history names the tool that ran IT."""
+    g, log = world2d
+    run = g.propose(**T2D, parameters={**SMALL_2D,
+                                       "lateral_boundary": "adiabatic"},
+                    out_dir=f"{WS}/twod/adiabatic")
+    chk = g.check(run, check_id="thermal_2d.reduction_3d_adiabatic_lateral",
+                  out_dir=f"{WS}/twod/check")
+    report = json.loads(g.evidence.get(chk.report_sha256))
+    assert report["status"] == "PASS", report
+    assert g.decide(run, chk).state is State.VERIFIED
+    _, events = log.read_verified()
+    tools = {e.payload["tool_id"] for e in events
+             if e.action == "task.create"}
+    assert TOOL_RUN_2D in tools and TOOL_RUN not in tools
+
+
+def test_a_cold_contact_2d_result_has_no_check_and_is_not_verified(world2d):
+    """The production lateral boundary has no independent check here. The
+    check says NOT_RUN, and NOT_RUN is not support."""
+    g, _ = world2d
+    run = g.propose(**T2D, parameters=SMALL_2D, out_dir=f"{WS}/twod/cold")
+    chk = g.check(run, check_id="thermal_2d.reduction_3d_adiabatic_lateral",
+                  out_dir=f"{WS}/twod/coldcheck")
+    rec = g.decide(run, chk)
+    assert rec.state is State.REJECTED
+    reason = json.loads(g.evidence.get(rec.evidence["rejection_reason"]))
+    assert any("reported NOT_RUN" in p for p in reason["problems"])
+
+
+def test_a_model_with_no_governed_tool_is_refused(world):
+    g, _, _, log, _ = world
+    head = log.verify().head_seq
+    with pytest.raises(ModelRunRefused, match="no governed tool"):
+        g.propose(model_id="no.such.model", model_version="1.0.0",
+                  parameters={}, out_dir=f"{WS}/shared/nosuch")
+    assert log.verify().head_seq == head, "a refused model left history"
+

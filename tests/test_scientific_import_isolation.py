@@ -47,14 +47,10 @@ EXTRA_FORBIDDEN = ("qta_multiphysics.metrics", "qta_multiphysics.runner")
 #: Clean-set modules that still reach the ontology by a path of their own,
 #: beyond the package ``__init__`` C1 cut. Pinned EXACTLY: a new offender
 #: fails, and so does fixing one of these without removing its entry.
-KNOWN_RESIDUAL = {
-    "qta_multiphysics.cryopanel_dynamics_3d": (
-        "imports three operating-point constants (P_HE_DOSE_PA, "
-        "P_C13_WORK_PA, DOSE_WINDOW_S) from species_accounting_3d "
-        "(REWRITE_GENERIC), which imports mode_sequence_3d; recorded in "
-        "DEPENDENCY_CUTOVER.md section 4 and cut with the cryopanel family "
-        "in Phase 4 (C5), where the constants become declared inputs"),
-}
+#: EMPTY since cut C5: ``cryopanel_dynamics_3d`` took three operating-point
+#: constants from ``species_accounting_3d`` (which imports the mode ontology)
+#: and now takes them as a declared ``OperatingPoint`` input instead.
+KNOWN_RESIDUAL: dict = {}
 
 
 def _module_name(path: str) -> str:

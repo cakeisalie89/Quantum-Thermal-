@@ -511,17 +511,79 @@ class CheckpointStore:
             removed.append(seq)
         return tuple(removed)
 
-    def audit(self) -> "CheckpointAudit":
-        """Parse every checkpoint, reporting each failure. Never stops."""
+    def audit(self, log: EventLog | None = None) -> "CheckpointAudit":
+        """Parse every checkpoint and, given ``log``, ask which describe it.
+
+        THREE ANSWERS THAT USED TO BE ONE
+
+        Without a log this answers what it always answered: does every
+        checkpoint PARSE? That is a property of the files, and a store full
+        of well-formed checkpoints of a log nobody has passes it -- which is
+        why it was a parse question named like a health question (R41).
+
+        Given ``log`` it also asks whether each parsed checkpoint DESCRIBES
+        this log -- :func:`describes`, the D-2026-34 predicate: the record at
+        its offset is the record it names, not merely a record-shaped
+        position inside a file of a similar size -- and whether ANY is usable
+        (parses and describes). The verdict is one of:
+
+        * ``USABLE`` -- at least one is usable and every one parses. A
+          checkpoint that parses and describes another log is listed in
+          ``not_describing`` and does not fail the audit by itself: the
+          newest one describing a log nobody has any more is the case this
+          store keeps older ones for (:meth:`latest_usable`).
+        * ``NONE_USABLE`` -- the store holds checkpoints and not one of them
+          is usable for this log. A distinct, non-ok verdict, never an empty
+          list that reads as health.
+        * ``UNPARSEABLE`` -- something is usable, and something else does not
+          parse; not ok, as without a log.
+        * ``EMPTY`` -- no checkpoints. Nothing is wrong and nothing helps;
+          ok, and said so rather than implied.
+
+        It agrees with :meth:`latest_usable` by construction and by test:
+        that returns None exactly when the verdict is EMPTY or NONE_USABLE.
+        """
         problems: list = []
+        not_describing: list = []
+        describing: list = []
         good = 0
         for seq in self.seqs():
             try:
-                self.read(seq)
-                good += 1
+                cp = self.read(seq)
             except CheckpointError as exc:
                 problems.append(f"seq {seq}: {exc}")
-        return CheckpointAudit(not problems, good, problems)
+                continue
+            good += 1
+            if log is None:
+                continue
+            try:
+                describes(log, cp)
+            except CheckpointError as exc:
+                not_describing.append(f"seq {seq}: {exc}")
+            else:
+                describing.append(seq)
+        if log is None:
+            return CheckpointAudit(not problems, good, problems)
+        if not self.seqs():
+            verdict = AUDIT_EMPTY
+        elif not describing:
+            verdict = AUDIT_NONE_USABLE
+        elif problems:
+            verdict = AUDIT_UNPARSEABLE
+        else:
+            verdict = AUDIT_USABLE
+        return CheckpointAudit(verdict in (AUDIT_USABLE, AUDIT_EMPTY), good,
+                               problems, verdict=verdict,
+                               describing=tuple(describing),
+                               not_describing=tuple(not_describing))
+
+
+#: :meth:`CheckpointStore.audit` verdicts against a log. Only USABLE and EMPTY
+#: are ok.
+AUDIT_USABLE = "USABLE"
+AUDIT_NONE_USABLE = "NONE_USABLE"
+AUDIT_UNPARSEABLE = "UNPARSEABLE"
+AUDIT_EMPTY = "EMPTY"
 
 
 @dataclass(frozen=True)
@@ -529,3 +591,8 @@ class CheckpointAudit:
     ok: bool
     count: int
     problems: list = field(default_factory=list)
+    #: Set only when a log was given: one of the AUDIT_* verdicts, the seqs
+    #: that describe that log, and why each other parsed one does not.
+    verdict: str = ""
+    describing: tuple = ()
+    not_describing: tuple = ()

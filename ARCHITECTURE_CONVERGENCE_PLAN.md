@@ -343,33 +343,39 @@ the evidence named in its "done when".
 
 ### 9.2 R41 -- checkpointing (`DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`)
 
-The classification stays where it is. `CheckpointStore.audit()` takes no
-log, so it answers "does each checkpoint parse?" while being named like
-"is this store healthy?". A store holding only checkpoints of a log nobody
-has audits ok. No production code gates on it -- engineering not done, not
-a live defect.
-
-*Planned:* `audit(log=...)`, reporting three things that are different and
-are today one: checkpoints that **parse**; checkpoints that **describe this
-log** (`checkpoint.describes()`, the D-2026-34 predicate -- the record at
-the offset is the record named); and the case where **none is usable** for
-this log, which must be a distinct, non-ok verdict rather than an empty
-list that reads as health. *Done when:* a store of foreign-log checkpoints
-audits not-ok against the real log, with a mutation that drops the
-`describes` call killed.
+~~`CheckpointStore.audit()` takes no log~~ *Closed in code in tranche 3.*
+`audit(log=...)` reports the three things separately: checkpoints that
+**parse**; which of them **describe this log** (`describes`, the D-2026-34
+predicate); and a verdict -- `USABLE`, `NONE_USABLE` (the store holds
+checkpoints and none is usable for this log: distinct and not ok),
+`UNPARSEABLE`, or `EMPTY` (ok, and said so). A store of foreign-log
+checkpoints audits not-ok against the real log; the verdict agrees with
+`latest_usable` on every layout tested; and the mutations that weaken
+`describes` to `check_against`, or drop it, are killed. Without a log the
+audit is the parse audit it always was. *The row stays where it is* until a
+hosted run on the commit that closed it is recorded (the same-commit rule);
+no production code gates on the audit yet.
 
 ### 9.3 R49 -- performance guards (`DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`)
 
-Seven guards still assert on a wall-clock ratio: the four `LINEAR_CEILING`
-comparisons, the scheduler-readiness one, and the two checkpoint/evidence
-comparisons. They compare two sizes with a wide spread, which is why none
-has failed falsely; that robustness is a judgement, not a measurement.
-*Planned:* convert a guard only to a work counter (records re-hashed,
-records parsed, bytes read) that is equal or stronger than the ratio it
-replaces, as D-2026-37 did -- never to a wider ceiling. *Done when:* each
-of the seven is either a counter with a planted-quadratic control or has a
-hosted-runner margin recorded in `docs/performance_baseline.json`. They stay
-visible here until then.
+**Corrected (D-2026-81).** This section and R49's residual said seven
+guards still assert on a wall-clock ratio. D-2026-46 (`f7cb50b`) had already
+converted all but two to counting re-hashes; the count was stale when I
+copied it here in Phase 0. The two were the scheduler-readiness guard and
+the evidence-lookup guard, each left timed on the stated ground that it
+"hashes nothing, so there is no work unit to count".
+
+*Tranche 3:* the scheduler-readiness guard is converted. It does have work
+units -- one job record out of the job map and one policy evaluation per
+candidate job, and no history read -- so linearity is an exact equality
+again (33 -> 33, 266 -> 266, zero re-hashes), and a planted quadratic
+(readiness rescanning the queue per job) reads n + n^2 on the same probe.
+*Remaining:* `test_evidence_lookup_does_not_degrade_as_the_store_fills`, still
+timed. Its cost is a path lookup in a fan-out directory, a property of the
+filesystem rather than of code this repository controls; a counter of files
+opened per `get` (always one) would be an equality that says nothing about
+directory size. *Done when:* it has a recorded hosted-runner margin in
+`docs/performance_baseline.json`, or a unit that sees directory growth.
 
 ### 9.4 Defect-ledger follow-ups (from "Open follow-up tracked from this ledger")
 
@@ -453,13 +459,15 @@ work and does not close the entry by being planned.
 
 ### 9.7 Phase-2 residuals
 
-* **One model plugin still reaches the ontology after C1.**
-  `cryopanel_dynamics_3d` imports three operating-point constants from
-  `species_accounting_3d` (REWRITE_GENERIC), which imports
-  `mode_sequence_3d`. Pinned by name in the C1 test, so a new offender fails
-  and so does fixing this one without removing the pin. *Done when:* the
-  constants are declared inputs of the cryopanel model (Phase 4, C5) and the
-  pin is empty.
+* ~~**One model plugin still reaches the ontology after C1.**~~ *Closed in
+  tranche 3.* `cryopanel_dynamics_3d` took three operating-point constants
+  from `species_accounting_3d`, which imports `mode_sequence_3d`. It now
+  takes an `OperatingPoint` as a declared input, with no default (a default
+  would be a second copy of the canonical values);
+  `species_accounting_3d.cryopanel_operating_point()` supplies the canonical
+  one to the two campaign callers. The C1 pin is empty and the test holds all
+  60 clean-set modules to no ontology import. Its Mode-letter phase labels
+  remain: that is the rest of C5.
 * ~~**The scientific-result content rule lives in `governed_model.decide`,
   not in the authority layer.**~~ *Closed in tranche 3.* The rule is
   `qta_agent/result_rules.py`, enforced by `AuthorityStore.transition` on the
@@ -504,9 +512,15 @@ work and does not close the entry by being planned.
 * **Stage-10 naming.** The governed model path writes under
   `verification/stage10` under policy `stage10.governed`; both are generic in
   behaviour and QTA-named. Renamed with the workflow in Phase 6.
-* **One model.** Thermal 1D is the only model behind `ScientificModel`; every
-  other retained model is reached only through the orchestrator. Phase 4,
-  one family at a time.
+* **Two models.** Thermal 1D and thermal 2D axisymmetric are behind
+  `ScientificModel`, each with an independent check (the 2D solver reduced;
+  the 3D Cartesian solver with adiabatic sides) and each reaching VERIFIED
+  through the governed path, which routes each model to its own tool. A 2D
+  run at the production (cold-contact) lateral boundary has NO independent
+  check in this repository: its check reports NOT_RUN and the result is
+  REJECTED, which is the honest state of that boundary. Every other retained
+  model is reached only through the orchestrator; Phase 4 continues one
+  family at a time.
 
 ## 10. Tranche 1 checkpoint report
 

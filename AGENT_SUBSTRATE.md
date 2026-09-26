@@ -39,7 +39,7 @@ rather than a web:
 | `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
 | `actions.py` | every durable action name, and which reducer owns it |
 | `result_rules.py` | what a `scientific_result` must show before its record is VERIFIED or PROMOTED: a PASS from independent code about that exact bundle, every invariant holding; read from the evidence by the store on the edge itself |
-| `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Its production caller is the Snakemake rule `s10_governed_model` |
+| `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Each model runs under its own governed tool (thermal 1D and 2D today). Its production caller is the Snakemake rule `s10_governed_model` |
 | `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `qta_agent` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |

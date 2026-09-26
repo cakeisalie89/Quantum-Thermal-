@@ -262,6 +262,41 @@ def test_an_interrupted_run_leaves_a_recovery_sidecar(tmp_path):
         "trustworthy")
 
 
+def test_a_run_stopped_during_the_null_control_restores_the_source(
+        tmp_path):
+    """D-2026-82. The null control edits every target before any mutation
+    runs, and it used to do so before the recovery sidecar existed and
+    before the SIGTERM handler was installed. A run stopped then left the
+    control's comment in the source, wrote no sidecar, and --recover said
+    "nothing to recover". The suite here stops the harness exactly there."""
+    suite = SUITE_SRC + '''
+
+def test_stop_the_harness_during_the_null_control():
+    import os, signal, time
+    src = (Path(__file__).resolve().parent.parent / "pkg" /
+           "mod.py").read_text(encoding="utf-8")
+    if "mutation-harness null control" in src:
+        root = Path(__file__).resolve().parent.parent
+        # What a SIGKILL here would leave to recover from, which no
+        # handler can help with: the sidecar must already exist.
+        (root / "sidecar_at_stop").write_text(
+            str((root / ".mutation-recovery.json").exists()))
+        os.kill(os.getppid(), signal.SIGTERM)
+        time.sleep(20)
+'''
+    spec = _project(tmp_path, suite_src=suite)
+    proc = _run(tmp_path, spec)
+    assert proc.returncode != 0
+    assert (tmp_path / "sidecar_at_stop").read_text() == "True", (
+        "the null control edited a target before the recovery sidecar "
+        "existed")
+    assert (tmp_path / "pkg" / "mod.py").read_text(encoding="utf-8") == \
+        MODULE_SRC, "the null control's edit survived the stop"
+    assert not (tmp_path / ".mutation-recovery.json").exists()
+    assert "sources restored" in proc.stdout, proc.stdout
+    assert "KILLED" not in proc.stdout and "SURVIVED" not in proc.stdout
+
+
 def test_recover_restores_and_clears_the_sidecar(tmp_path):
     _project(tmp_path)
     modpath = tmp_path / "pkg" / "mod.py"

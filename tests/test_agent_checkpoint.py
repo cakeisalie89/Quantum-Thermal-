@@ -1663,3 +1663,110 @@ def test_editing_the_inherited_reducer_changes_the_subclass_identity(
     assert before != after, (
         "the base reducer changed and a subclass that folds with it kept its "
         "identity, so its old checkpoints would be restored into new code")
+
+
+# --- audit(log=...): does anything here describe THIS log? (R41) ------------
+
+def _other_log(tmp_path, n=5, name="other.jsonl"):
+    """A log of the same shape as :func:`_log`, with different records. Made
+    SHORTER than the log it is compared against, its checkpoints fit inside
+    that log's file and name records that are not there -- the D-2026-34
+    shape. Shorter, not equal: ``wall_time`` is a float whose digit count
+    varies, so two logs of equal record count differ by a few bytes either
+    way, and an equal-length precondition held about five runs in six."""
+    log = EventLog(tmp_path / name)
+    for i in range(n):
+        log.append(actor="b", action="record.create", target=f"x{i}",
+                   payload={"record_id": f"x{i}", "kind": "k",
+                            "proposer": "b", "i": i + 5})
+    return log
+
+
+def test_a_store_of_foreign_checkpoints_audits_not_ok_against_the_log(
+        tmp_path):
+    """The R41 gap, closed: every checkpoint parses, so the parse audit is
+    ok, and not one describes the log the store is supposed to serve."""
+    log = _log(tmp_path, n=6)
+    other = _other_log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    store.write(cp_mod.create(other))
+    foreign = store.read(store.seqs()[0])
+    cp_mod.check_against(log, foreign)   # the weaker test is satisfied
+    assert store.audit().ok, "precondition: every checkpoint parses"
+    audit = store.audit(log=log)
+    assert not audit.ok
+    assert audit.verdict == cp_mod.AUDIT_NONE_USABLE
+    assert audit.describing == () and len(audit.not_describing) == 1
+    assert store.latest_usable(log) is None
+
+
+def test_a_foreign_checkpoint_beside_a_usable_one_is_reported_not_failed(
+        tmp_path):
+    """The newest describing a log nobody has is what older ones are kept
+    for; the audit lists it and stays ok while something is usable."""
+    log = _log(tmp_path, n=5)
+    other = _other_log(tmp_path, n=8)
+    store = CheckpointStore(tmp_path / "cp")
+    good = cp_mod.create(log)
+    store.write(good)
+    store.write(cp_mod.create(other))
+    audit = store.audit(log=log)
+    assert audit.ok and audit.verdict == cp_mod.AUDIT_USABLE
+    assert audit.describing == (good.seq,)
+    assert len(audit.not_describing) == 1
+    assert store.latest_usable(log) == good
+
+
+def test_an_empty_store_is_empty_not_healthy_by_omission(tmp_path):
+    audit = CheckpointStore(tmp_path / "cp").audit(log=_log(tmp_path))
+    assert audit.ok and audit.verdict == cp_mod.AUDIT_EMPTY
+    assert audit.count == 0 and audit.describing == ()
+
+
+def test_a_store_of_only_corrupt_checkpoints_has_nothing_usable(tmp_path):
+    store = CheckpointStore(tmp_path / "cp")
+    store.root.mkdir(parents=True)
+    store._path(3).write_text("{not json")
+    audit = store.audit(log=_log(tmp_path))
+    assert not audit.ok and audit.verdict == cp_mod.AUDIT_NONE_USABLE
+    assert len(audit.problems) == 1
+
+
+def test_a_corrupt_checkpoint_beside_a_usable_one_is_not_ok(tmp_path):
+    log = _log(tmp_path, n=3)
+    store = CheckpointStore(tmp_path / "cp")
+    good = cp_mod.create(log)
+    store.write(good)
+    store._path(99).write_text("{not json")
+    audit = store.audit(log=log)
+    assert not audit.ok and audit.verdict == cp_mod.AUDIT_UNPARSEABLE
+    assert audit.describing == (good.seq,)
+
+
+def test_without_a_log_the_audit_is_the_parse_audit_it_always_was(tmp_path):
+    log = _log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    store.write(cp_mod.create(_other_log(tmp_path)))
+    audit = store.audit()
+    assert audit.ok and audit.verdict == "" and audit.describing == ()
+    assert not store.audit(log=log).ok
+
+
+@pytest.mark.parametrize("layout", ["empty", "foreign", "mixed", "own",
+                                    "corrupt-only", "corrupt-and-own"])
+def test_the_audit_agrees_with_latest_usable(tmp_path, layout):
+    """Two readers of the same question: latest_usable returns None exactly
+    when the audit says there is nothing usable."""
+    log = _log(tmp_path, n=5)
+    store = CheckpointStore(tmp_path / "cp")
+    store.root.mkdir(parents=True)
+    if layout in ("foreign", "mixed"):
+        store.write(cp_mod.create(_other_log(tmp_path, n=9)))
+    if layout in ("mixed", "own", "corrupt-and-own"):
+        store.write(cp_mod.create(log))
+    if layout in ("corrupt-only", "corrupt-and-own"):
+        store._path(77).write_text("{not json")
+    audit = store.audit(log=log)
+    nothing = audit.verdict in (cp_mod.AUDIT_EMPTY, cp_mod.AUDIT_NONE_USABLE)
+    assert (store.latest_usable(log) is None) == nothing, audit
+

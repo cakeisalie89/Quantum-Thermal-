@@ -963,6 +963,23 @@ rule s10_governed_model:
             "a proposal with other parameters reused a result")
         assert model_runs() == runs + 1
 
+        # The SECOND model, by the same line: thermal 2D axisymmetric with
+        # adiabatic sides, checked by the 3D Cartesian solver. At the
+        # production (cold-contact) boundary there is no independent check,
+        # and the rule does not pretend otherwise by running it here.
+        model2 = {"model_id": "thermal.conduction_2d_axisymmetric",
+                  "model_version": "1.0.0"}
+        params2 = {"lateral_boundary": "adiabatic"}
+        second = g.propose(**model2, parameters=params2,
+                           out_dir=f"{W10}/governed_model/second")
+        check2 = g.check(second,
+                         check_id="thermal_2d.reduction_3d_adiabatic_lateral",
+                         out_dir=f"{W10}/governed_model/check2")
+        decided2 = g.decide(second, check2)
+        assert decided2.state is State.VERIFIED, (
+            f"the 2D result was {decided2.state.value}: "
+            f"{decided2.evidence.get('rejection_reason')}")
+
         assert log.verify().ok, "the model task log does not verify"
         from qta_agent.audit import AuditIndex
         from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
@@ -998,7 +1015,14 @@ rule s10_governed_model:
                 "report_sha256": check.report_sha256},
             "reuse": {"identical_proposal_reused": again.reused_from,
                       "other_parameters_recomputed": other.record_id,
-                      "model_runs": model_runs()},
+                      "thermal_1d_model_runs": model_runs()},
+            "second_model": {
+                "model": model2, "parameters": params2,
+                "record_id": second.record_id,
+                "record_state": decided2.state.value,
+                "bundle_digest": second.bundle_digest,
+                "independent_check": json.loads(
+                    g.evidence.get(check2.report_sha256))["check_id"]},
             "observation_kind": bundle["observation_kind"],
             "promoted": False,
             "automatic_gate_effect": "NONE",

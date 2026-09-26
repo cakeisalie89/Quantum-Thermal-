@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from .machine_fsm import MachineFSM, TransitionRefused, LABEL as FSM_LABEL
 from .cryopanel_dynamics_3d import (new_panel_set, advance_phase,
                                     phase_windows_s, N_ML_CAP)
+from .species_accounting_3d import cryopanel_operating_point
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
@@ -105,7 +106,8 @@ def build_campaign(cfg, seq, species_rows, vib_metrics,
     ctx0, Tbase, probeC, resC13 = _base_ctx(cfg, seq, species_rows,
                                             vib_metrics)
     st.approx_delta_K = abs(probeC - Tbase)
-    windows = phase_windows_s(cfg)
+    op = cryopanel_operating_point()
+    windows = phase_windows_s(cfg, op)
     fsm = MachineFSM("OFFLINE")
     step = 0
 
@@ -137,14 +139,14 @@ def build_campaign(cfg, seq, species_rows, vib_metrics,
         go("MODE_B_PROCESS.B_PRECONFIG", cyc, operational_mode=True)
         go("MODE_B_PROCESS.B_GROWTH_ACTIVE", cyc, operational_mode=True,
            growth_active=True)
-        advance_phase(st.panels, "MODE_B", windows["MODE_B"])
+        advance_phase(st.panels, "MODE_B", windows["MODE_B"], op)
         for p in st.panels:
             st.panel_rows.append(p.row(cyc, "MODE_B"))
         go("MODE_B_PROCESS.B_SOURCE_OFF", cyc, operational_mode=True)
         # ---- Mode C: purge + recovery ----
         go("MODE_C_RECOVERY", cyc, operational_mode=True)
         go("MODE_C_RECOVERY.C_PURGE", cyc, operational_mode=True)
-        advance_phase(st.panels, "MODE_C", windows["MODE_C"])
+        advance_phase(st.panels, "MODE_C", windows["MODE_C"], op)
         for p in st.panels:
             st.panel_rows.append(p.row(cyc, "MODE_C"))
         go("MODE_C_RECOVERY.C_THERMAL_RECOVERY", cyc, operational_mode=True,
@@ -157,7 +159,7 @@ def build_campaign(cfg, seq, species_rows, vib_metrics,
            T_probe_K=probeC)
         go("MODE_D_SENSE.D_HE_DOSE", cyc, operational_mode=True,
            T_probe_K=probeC)
-        advance_phase(st.panels, "MODE_D", windows["MODE_D"])
+        advance_phase(st.panels, "MODE_D", windows["MODE_D"], op)
         for p in st.panels:
             st.panel_rows.append(p.row(cyc, "MODE_D"))
         go("MODE_D_SENSE.D_SENSING_HOLD", cyc, operational_mode=True,

@@ -137,6 +137,20 @@
       "find": "        recheck_rc, _ = run_suite(suites, args.python, only=post_failed)\n        if recheck_rc == 0:",
       "replace": "        recheck_rc, _ = run_suite(suites, args.python, only=post_failed)\n        if False:",
       "rationale": "D-2026-34: a nondeterministic test produces the same signature as leftover state, and the harness names the one it cannot establish"
+    },
+    {
+      "name": "H_NC1_the_null_control_runs_without_a_sidecar",
+      "path": "tools/mutation_matrix.py",
+      "find": "    RECOVERY.write_text(json.dumps(original, indent=2), encoding=\"utf-8\")\n",
+      "replace": "    pass\n",
+      "rationale": "D-2026-82: a hard kill during the null control leaves an edited target and nothing for --recover to restore it from"
+    },
+    {
+      "name": "H_NC2_the_stop_handler_is_not_installed",
+      "path": "tools/mutation_matrix.py",
+      "find": "            previous[sig] = signal.signal(sig, _restore_and_die)\n",
+      "replace": "            previous[sig] = signal.getsignal(sig)\n",
+      "rationale": "D-2026-82: a SIGTERM during the null control or a mutation leaves the edited target in place"
     }
   ]
 }

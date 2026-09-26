@@ -309,6 +309,41 @@
       "find": "            if a != b and not (f.name == \"reducer_digest\"",
       "replace": "            if a != b and f.name == \"reducer_digest\" and not (f.name == \"reducer_digest\"",
       "rationale": "only the digest is compared, so REDUCER_VERSION -- the declaration for changes the digest cannot see -- does nothing"
+    },
+    {
+      "name": "CK_A1_the_audit_asks_only_whether_it_could_describe",
+      "path": "qta_agent/checkpoint.py",
+      "find": "                describes(log, cp)\n            except CheckpointError as exc:\n                not_describing.append",
+      "replace": "                check_against(log, cp)\n            except CheckpointError as exc:\n                not_describing.append",
+      "rationale": "R41: a checkpoint of another log of similar size is audited as describing this one (the D-2026-34 shape)"
+    },
+    {
+      "name": "CK_A2_the_audit_never_asks",
+      "path": "qta_agent/checkpoint.py",
+      "find": "                describes(log, cp)\n            except CheckpointError as exc:\n                not_describing.append",
+      "replace": "                pass\n            except CheckpointError as exc:\n                not_describing.append",
+      "rationale": "R41: every parsed checkpoint is audited as describing the log"
+    },
+    {
+      "name": "CK_A3_nothing_usable_is_ok",
+      "path": "qta_agent/checkpoint.py",
+      "find": "verdict in (AUDIT_USABLE, AUDIT_EMPTY)",
+      "replace": "verdict in (AUDIT_USABLE, AUDIT_EMPTY, AUDIT_NONE_USABLE)",
+      "rationale": "R41: a store with nothing usable for this log reads as healthy"
+    },
+    {
+      "name": "CK_A4_an_unparseable_checkpoint_is_forgiven",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        elif problems:\n            verdict = AUDIT_UNPARSEABLE\n",
+      "replace": "        elif False:\n            verdict = AUDIT_UNPARSEABLE\n",
+      "rationale": "a corrupt checkpoint beside a usable one audits ok"
+    },
+    {
+      "name": "CK_A5_an_empty_store_is_nothing_usable",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        if not self.seqs():\n            verdict = AUDIT_EMPTY\n",
+      "replace": "        if False:\n            verdict = AUDIT_EMPTY\n",
+      "rationale": "an empty store is reported as a store of foreign checkpoints"
     }
   ]
 }
