@@ -259,6 +259,20 @@ jobs:
           uv run python tools/audit_log.py "$LOG" gaps
           uv run python tools/audit_log.py "$LOG" replay
           uv run python tools/audit_log.py "$LOG" decisions --all
+      - name: the governed scientific-model path actually runs
+        # The production caller of qta_agent.governed_model: thermal 1D run
+        # and independently checked as two governed tasks, decided through
+        # the authority store's content rule, then proposed again and
+        # REUSED without a second model run -- and recomputed for other
+        # parameters. The rule fails the build on any of those, and the
+        # auditor then answers for the history it wrote.
+        run: |
+          uv run snakemake --cores 1 s10_governed_model
+          LOG=verification/stage10/governed_model/task_log.jsonl
+          uv run python tools/audit_log.py "$LOG" verify
+          uv run python tools/audit_log.py "$LOG" gaps
+          uv run python tools/audit_log.py "$LOG" replay
+          uv run python tools/audit_log.py "$LOG" decisions --all
       - name: sources are unchanged after this job's steps
         # The mutation matrices run in the mutation-shards job now, each
         # shard checking the tree with git itself. This still catches a
@@ -299,38 +313,39 @@ jobs:
               tools/mutations/agent_second_reader.json
           - shard: 2
             specs: >-
-              tools/mutations/agent_snapshot_coherence.json
+              tools/mutations/agent_secret_provider.json
+              tools/mutations/agent_separate_verify.json
               tools/mutations/agent_tasks.json
-              tools/mutations/corpus_allowlist.json
-              tools/mutations/identity_inventory.json
-              tools/mutations/scientific_thermal_1d.json
+              tools/mutations/governed_model_reuse.json
+              tools/mutations/output_resolution.json
           - shard: 3
             specs: >-
               tools/mutations/agent_compensation.json
               tools/mutations/agent_cross_process.json
-              tools/mutations/agent_separate_verify.json
-              tools/mutations/model_check.json
+              tools/mutations/agent_incremental.json
+              tools/mutations/agent_policy.json
+              tools/mutations/mutation_shards.json
               tools/mutations/solver_failclosed.json
-              tools/mutations/unit_inventory.json
-              tools/mutations/verified_read_guard.json
+              tools/mutations/test_isolation.json
           - shard: 4
             specs: >-
-              tools/mutations/agent_delegation.json
               tools/mutations/agent_netauth.json
               tools/mutations/agent_recovery.json
               tools/mutations/agent_service_authority.json
-              tools/mutations/completion_matrix.json
+              tools/mutations/agent_snapshot_coherence.json
+              tools/mutations/enforcement_asserts.json
               tools/mutations/mutation_harness.json
-              tools/mutations/output_resolution.json
+              tools/mutations/verified_read_guard.json
           - shard: 5
             specs: >-
               tools/mutations/agent_scheduler.json
-              tools/mutations/agent_secret_provider.json
+              tools/mutations/agent_secrets.json
               tools/mutations/agent_substrate.json
-              tools/mutations/canonical_output_set.json
+              tools/mutations/corpus_allowlist.json
               tools/mutations/fuzz_harness.json
-              tools/mutations/hardware_governance.json
+              tools/mutations/resolution_inventory.json
               tools/mutations/scientific_interfaces.json
+              tools/mutations/scientific_thermal_1d.json
           - shard: 6
             specs: >-
               tools/mutations/agent_actions.json
@@ -339,28 +354,29 @@ jobs:
               tools/mutations/agent_memory_context.json
               tools/mutations/dependency_declarations.json
               tools/mutations/governed_breadth.json
-              tools/mutations/repo_contract.json
+              tools/mutations/hardware_governance.json
               tools/mutations/stage10_authority.json
+              tools/mutations/unit_inventory.json
           - shard: 7
             specs: >-
+              tools/mutations/agent_delegation.json
               tools/mutations/agent_evidence.json
               tools/mutations/agent_execution.json
               tools/mutations/agent_idempotency.json
               tools/mutations/agent_readpath.json
-              tools/mutations/agent_secrets.json
+              tools/mutations/completion_matrix.json
               tools/mutations/cross_environment.json
-              tools/mutations/resolution_inventory.json
-              tools/mutations/test_isolation.json
+              tools/mutations/identity_inventory.json
           - shard: 8
             specs: >-
               tools/mutations/agent_agents.json
               tools/mutations/agent_audit.json
-              tools/mutations/agent_incremental.json
               tools/mutations/agent_job_graph.json
               tools/mutations/agent_lease_renewal.json
-              tools/mutations/agent_policy.json
-              tools/mutations/enforcement_asserts.json
-              tools/mutations/mutation_shards.json
+              tools/mutations/authority_result_rules.json
+              tools/mutations/canonical_output_set.json
+              tools/mutations/model_check.json
+              tools/mutations/repo_contract.json
           # END generated by tools/mutation_shards.py --emit
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4

@@ -22,17 +22,25 @@ the JSON records the tools wrote from the evidence store, and compares
 digests; it imports nothing from ``scientific`` or ``qta_multiphysics``. The
 model knows nothing of this module: its ``run`` has no handle on the log.
 
-WHERE THE CONTENT RULE LIVES, AND WHERE IT DOES NOT
+WHERE THE CONTENT RULE LIVES
 
-The authority store checks that cited evidence EXISTS, who may take which
-edge, and that the verifier is not the proposer. It does not read the
-report. So the rule "a scientific result is VERIFIED only on a PASS report
-about THIS bundle, from code other than the producer's, with every
-invariant of the bundle holding" is enforced by :meth:`decide`, the one path
-this repository provides for scientific results. A caller that writes a
-transition to the store directly is not stopped by it. That is recorded in
-the convergence plan as a residual (move the rule into an edge validator),
-not claimed closed here.
+"A scientific result is VERIFIED only on a PASS report about THIS bundle,
+from code other than the producer's, with every invariant of the bundle
+holding" is enforced by the authority store on the edge itself
+(:mod:`qta_agent.result_rules`), so a caller writing the transition directly
+is refused as :meth:`decide` would refuse it. :meth:`decide` applies the same
+function to choose between VERIFIED and REJECTED and to record the reasons.
+
+REUSE
+
+A proposal first asks a governed tool for the run identity it would have
+here (model, implementation digest, validated parameters, environment). A
+result with that identity is reused only if the authority layer VERIFIED or
+PROMOTED it and its evidence re-derives now: the bundle and every artefact
+it references still resolve (each read re-hashes), the bundle's OWN
+provenance carries the identity, and the cited report still supports the
+bundle under the content rule. Anything else is recomputed. A reused run is
+already decided; it is not checked or decided again.
 
 PROMOTION IS NOT HERE. VERIFIED is not canonical; PROMOTED is, and only a
 PROMOTER distinct from the verifier can take that edge. This path makes no
@@ -46,9 +54,11 @@ from pathlib import Path
 
 from .agents import AgentRole, PrincipalKind, identity
 from .authority import Role, State
-from .canonical import digest, is_digest
+from .canonical import canonical_bytes, digest
 from .events import EventLog
 from .evidence import EvidenceStore
+from .result_rules import KIND as RECORD_KIND
+from .result_rules import record_problems, verification_problems
 from .governed_stage10 import (
     POLICY_ID, SUBMITTER_ID, VERIFIER_ID, WORKER_ID, WORKSPACE_PREFIX,
     GovernedRun, GovernedStage10,
@@ -60,8 +70,10 @@ from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
 
 TOOL_RUN = "model.thermal.conduction_1d.run"
 TOOL_CHECK = "model.independent_check"
+TOOL_IDENTITY = "model.run_identity"
 _TOOL_MODULES = {TOOL_RUN: "scientific._governed_run",
-                 TOOL_CHECK: "scientific._governed_check"}
+                 TOOL_CHECK: "scientific._governed_check",
+                 TOOL_IDENTITY: "scientific._governed_identity"}
 
 #: The executor of the independent check. Registered here as an EXECUTOR
 #: distinct from the model run's worker.
@@ -70,7 +82,6 @@ CHECK_WORKER_ID = "model-check-worker"
 #: authority sense, distinct from the proposer and from both executors.
 REVIEWER_ID = "model-result-reviewer"
 
-RECORD_KIND = "scientific_result"
 
 
 class ModelRunRefused(ValueError):
@@ -113,12 +124,26 @@ def model_registry() -> Registry:
             determinism=Determinism.BYTE_IDENTICAL,
             side_effect=SideEffect.SCOPED_WRITES,
             writable_scope=(WORKSPACE_PREFIX,), timeout_s=900.0),
+        ToolSpec(
+            tool_id=TOOL_IDENTITY, version="1.0.0",
+            summary="write the run identity a proposed model run would have "
+                    "here; runs nothing",
+            inputs=(Field_("out_dir", "str"), Field_("model_id", "str"),
+                    Field_("model_version", "str"),
+                    Field_("parameters", "dict")),
+            outputs=(Field_("path", "str"), Field_("sha256", "str"),
+                     Field_("identity_digest", "str")),
+            output_files=(OutputFile("identity", "{out_dir}/identity.json"),),
+            determinism=Determinism.BYTE_IDENTICAL,
+            side_effect=SideEffect.SCOPED_WRITES,
+            writable_scope=(WORKSPACE_PREFIX,), timeout_s=120.0),
     ])
 
 
 @dataclass(frozen=True)
 class ModelRun:
-    governed: GovernedRun
+    #: the governed task that computed it; None when the result was reused.
+    governed: GovernedRun | None
     bundle_path: str
     bundle_sha256: str
     #: the canonical digest of the bundle record (ResultBundle.digest()).
@@ -126,6 +151,8 @@ class ModelRun:
     record_id: str
     submitter: str
     worker: str
+    #: the verified record this run was reused from, when it was.
+    reused_from: str = ""
 
 
 @dataclass(frozen=True)
@@ -165,11 +192,82 @@ class GovernedModelRuns:
 
     # -- the path ---------------------------------------------------------
 
+    def identity(self, *, model_id: str, model_version: str,
+                 parameters: dict, out_dir: str,
+                 submitter: str = SUBMITTER_ID,
+                 worker: str = WORKER_ID) -> str:
+        """The digest of the run identity this proposal would have here,
+        computed by a governed tool on the scientific side and captured as
+        evidence (canonical bytes, so the digest is the record's)."""
+        gr = self.gov.run(tool_id=TOOL_IDENTITY, inputs={
+            "out_dir": out_dir, "model_id": model_id,
+            "model_version": model_version, "parameters": parameters},
+            submitter=submitter, worker=worker, verifier=VERIFIER_ID)
+        if gr.state is not TaskState.VERIFIED:
+            raise ModelRunRefused(f"the identity task was {gr.state.value}: "
+                                  f"{gr.reason}")
+        sha = gr.artifacts.get(f"{out_dir}/identity.json")
+        if sha is None:
+            raise ModelRunRefused("no captured identity")
+        return self.evidence.put(canonical_bytes(self._record_of(sha)),
+                                 media_type="application/json")
+
+    def reusable(self, identity_digest: str) -> list:
+        """Records a proposal with this identity may reuse, in record-id
+        order; any one of them is a valid reuse.
+
+        Only a result the authority layer has VERIFIED or PROMOTED, and only
+        on evidence re-derived now. The record must cite this identity AND
+        the bundle must carry it in its OWN provenance -- a record whose
+        citation and bundle disagree is not believed either way. The bundle
+        must still be in the store (every read re-hashes it), and every
+        artefact it references must still resolve. A result is reused by its
+        evidence, never by its name.
+        """
+        out = []
+        for rid, rec in sorted(self.authority.all_records().items()):
+            if (rec.kind != RECORD_KIND
+                    or rec.state not in (State.VERIFIED, State.PROMOTED)
+                    or rec.evidence.get("run_identity") != identity_digest):
+                continue
+            try:
+                bundle = self._record_of(rec.evidence["result_bundle"])
+                recorded = bundle["provenance"]["run_identity"]
+                artifacts = [a["digest"] for a in bundle["artifacts"]]
+            except Exception:                        # noqa: BLE001
+                # Unreadable, or not a bundle: not reusable, and not a
+                # reason to stop looking at the others.
+                continue
+            if digest(recorded) != identity_digest:
+                continue
+            if not all(self.evidence.contains(a) for a in artifacts):
+                continue
+            # The decision is re-derived too: the report the record cites
+            # must still resolve and still support this bundle.
+            if record_problems(rec.evidence, self.evidence.get):
+                continue
+            out.append(rid)
+        return out
+
     def propose(self, *, model_id: str, model_version: str,
                 parameters: dict, out_dir: str,
                 submitter: str = SUBMITTER_ID,
-                worker: str = WORKER_ID) -> ModelRun:
-        """Run the model under governance and PROPOSE its result."""
+                worker: str = WORKER_ID, reuse: bool = True) -> ModelRun:
+        """PROPOSE a model result: reuse a verified one with the same run
+        identity and intact evidence, or run the model under governance."""
+        if reuse:
+            ident = self.identity(model_id=model_id,
+                                  model_version=model_version,
+                                  parameters=parameters,
+                                  out_dir=f"{out_dir}-identity",
+                                  submitter=submitter, worker=worker)
+            prior = self.reusable(ident)
+            if prior:
+                rec = self.authority.get(prior[0])
+                sha = rec.evidence["result_bundle"]
+                return ModelRun(None, "", sha, digest(self._record_of(sha)),
+                                rec.record_id, rec.proposer, "",
+                                reused_from=rec.record_id)
         inputs = {"out_dir": out_dir, "model_id": model_id,
                   "model_version": model_version, "parameters": parameters}
         run = self.gov.run(tool_id=TOOL_RUN, inputs=inputs,
@@ -182,17 +280,30 @@ class GovernedModelRuns:
         sha = run.artifacts.get(rel)
         if sha is None:
             raise ModelRunRefused(f"no captured bundle at {rel}")
-        bundle_digest = digest(self._record_of(sha))
-        record_id = f"result-{bundle_digest[:24]}"
+        bundle = self._record_of(sha)
+        bundle_digest = digest(bundle)
+        identity = (bundle.get("provenance") or {}).get("run_identity")
+        if not isinstance(identity, dict):
+            raise ModelRunRefused("the bundle records no run identity")
+        # One record per governed task: an identical rerun is a second
+        # claim, and must not collide with the first by content.
+        record_id = f"result-{run.task_id}"
         self.authority.create(
             record_id=record_id, kind=RECORD_KIND, proposer=submitter,
-            evidence={"result_bundle": sha}, policy_id=POLICY_ID)
+            evidence={"result_bundle": sha,
+                      "run_identity": self.evidence.put(
+                          canonical_bytes(identity),
+                          media_type="application/json")},
+            policy_id=POLICY_ID)
         return ModelRun(run, rel, sha, bundle_digest, record_id,
                         submitter, worker)
 
     def check(self, run: ModelRun, *, check_id: str, out_dir: str,
               worker: str = CHECK_WORKER_ID) -> CheckRun:
         """Run an independent check as its own governed task."""
+        if run.reused_from:
+            raise ModelRunRefused(f"{run.record_id} was reused, and is "
+                                  "already decided; there is nothing to check")
         if worker in (run.worker, run.submitter):
             raise ModelRunRefused("the independent check must not be "
                                   "executed by whoever proposed or ran the "
@@ -215,6 +326,9 @@ class GovernedModelRuns:
     def decide(self, run: ModelRun, check: CheckRun, *,
                reviewer: str = REVIEWER_ID):
         """The authority decision, by a reviewer, from the evidence."""
+        if run.reused_from:
+            raise ModelRunRefused(f"{run.record_id} was reused, and is "
+                                  "already decided")
         if reviewer in (run.worker, check.worker, run.submitter):
             raise ModelRunRefused(
                 f"{reviewer} proposed or executed this work; it cannot "
@@ -225,23 +339,11 @@ class GovernedModelRuns:
         problems = []
         if digest(bundle) != run.bundle_digest:
             problems.append("the bundle in evidence is not the one proposed")
-        if report.get("subject_digest") != run.bundle_digest:
-            problems.append("the report is about a different bundle")
-        if report.get("status") != "PASS":
-            problems.append(f"the check reported {report.get('status')}")
-        if report.get("producer_implementation_digest") != \
-                bundle.get("implementation_digest"):
-            problems.append("the report names another producer")
-        vdig = report.get("verifier_implementation_digest")
-        if not is_digest(vdig) or vdig == bundle.get(
-                "implementation_digest"):
-            problems.append("the check ran the producer's own code")
-        if report.get("check_type") != "INDEPENDENT_IMPLEMENTATION":
-            problems.append("the report is not an independent check")
-        bad = [i["invariant_id"] for i in bundle.get("invariants", ())
-               if i.get("holds") is not True]
-        if not bundle.get("invariants") or bad:
-            problems.append(f"invariants not holding: {bad or 'none run'}")
+        # The same rule the store enforces on the edge into VERIFIED
+        # (qta_agent.result_rules): here it chooses between VERIFIED and
+        # REJECTED and supplies the reasons; there it is what a caller
+        # writing the transition directly cannot get past.
+        problems += verification_problems(bundle, report)
 
         self.authority.transition(record_id=run.record_id,
                                   dst=State.UNDER_REVIEW, actor=reviewer,

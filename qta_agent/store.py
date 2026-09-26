@@ -32,7 +32,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field, replace
 
-from . import actions
+from . import actions, result_rules
 from .authority import (
     INITIAL,
     Role,
@@ -943,6 +943,9 @@ class AuthorityStore:
             # raises TransitionError if not permitted, including when a
             # cited digest does not resolve in the attached evidence store
             edge = check(req, resolve=self._resolver)
+            if cur.kind == result_rules.KIND and dst in (State.VERIFIED,
+                                                         State.PROMOTED):
+                self._require_supported_result(req.evidence)
             return dict(
                 actor=actor, action=ACT_TRANSITION, target=record_id,
                 payload={"record_id": record_id, "src": cur.state.value,
@@ -955,6 +958,24 @@ class AuthorityStore:
 
         self._append_decided(build)
         return self.get(record_id)
+
+    def _require_supported_result(self, evidence: dict) -> None:
+        """A scientific result is VERIFIED only on evidence that supports it.
+
+        The edge's own rule is that the cited report EXISTS; for this kind
+        that is not enough, so the content is read and held to
+        :mod:`qta_agent.result_rules`. Without an evidence store there is
+        nothing to read, and a claim that cannot be checked is refused.
+        """
+        if self.evidence is None:
+            raise TransitionError(
+                "a scientific_result cannot be verified by a store with no "
+                "evidence attached: its report cannot be read")
+        problems = result_rules.record_problems(evidence, self.evidence.get)
+        if problems:
+            raise TransitionError(
+                "the cited evidence does not support this scientific "
+                f"result: {'; '.join(problems)}")
 
     def _require_evidence_exists(self, evidence: dict) -> None:
         """Refuse a citation at creation time, not only at promotion time.

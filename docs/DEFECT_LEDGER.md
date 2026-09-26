@@ -7734,3 +7734,30 @@ are: assertions over the run's history in `s10_governed` and
 fails on the `f18b5f0` guard, passes after. `verified_read_guard.json` gains
 VG12. Validation from here on runs `snakemake --cores 1 s10_governed` and
 `s10_full` locally, as the two workflows do.
+
+## D-2026-80 — a matrix row said two entry points open the governed-writer scope; five do
+
+**CLASS** — `WRONG_CLAIM`, mine, introduced in `776fe97`; and `WRONG_CLAIM`,
+older, in `.github/workflows/stack-verify.yml`. Found while updating R55 for
+the third governed workflow, not by any check.
+
+R55's second boundary says `write_text_deterministic` refuses a writer in the
+governed-only subtrees that is not inside a `governed_writer` scope, "which
+only the two tool entry points open". Since `776fe97` the scientific-model
+tools `scientific/_governed_run.py` and `scientific/_governed_check.py` open
+it too, and this tranche adds `scientific/_governed_identity.py`: five, not
+two. The scope's own docstring ("opened by the governed tool entry points and
+by nothing else in the production tree") stayed true; the row's count did
+not, and I did not re-read the row when I added the first two. Separately,
+stack-verify's scope comment called `s10_full` an "11-step" DAG; it was 13
+jobs before this change and is 14 after it.
+
+**REPAIR.** The row names the governed tool entry points and says which
+they are; the comment gives the job count Snakemake reports for the DAG
+(14, three governed). Neither the guard nor its enforcement changed -- the
+model tools write only outside `GOVERNED_ONLY` today, and what they write is
+read back by digest from the evidence store, not from the workspace.
+
+**NOT DONE.** Nothing checks prose counts like these against the code. The
+spec count in R51 is checked against the workflow (D-2026-47); these two are
+not, and are recorded as fixed rather than as prevented.

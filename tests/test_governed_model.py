@@ -203,11 +203,46 @@ def test_a_bundle_whose_invariant_failed_is_rejected(world):
     assert any("invariants not holding" in p for p in reason["problems"])
 
 
+def test_a_direct_store_transition_cannot_bypass_the_content_rule(world):
+    """The residual the last tranche recorded: a reviewer writing VERIFIED
+    to the store directly, citing a report that exists and says FAIL. The
+    store now reads the report itself."""
+    g, run, _, _, _ = world
+    forked = _fork(world, "direct")
+    g.authority.transition(record_id=forked.record_id, dst=State.UNDER_REVIEW,
+                           actor=REVIEWER_ID, role=Role.VERIFIER)
+    fail = _tampered(world, status="FAIL")
+    with pytest.raises(TransitionError, match="does not support"):
+        g.authority.transition(record_id=forked.record_id,
+                               dst=State.VERIFIED, actor=REVIEWER_ID,
+                               role=Role.VERIFIER,
+                               evidence={"verification_report":
+                                         fail.report_sha256})
+
+
 def test_a_failed_run_is_never_proposed(world):
+    """With reuse on, invalid parameters stop at the identity task; with it
+    off, at the model run. Either way nothing is proposed."""
     g, _, _, _, _ = world
     before = set(g.authority.all_records())
-    with pytest.raises(ModelRunRefused, match="governed run was"):
+    with pytest.raises(ModelRunRefused, match="identity task was"):
         g.propose(model_id="thermal.conduction_1d", model_version="1.0.0",
                   parameters={"n_cells": 5},
-                  out_dir=f"{WS}/shared/badrun")
+                  out_dir=f"{WS}/shared/badrun-reuse")
+    with pytest.raises(ModelRunRefused, match="governed run was"):
+        g.propose(model_id="thermal.conduction_1d", model_version="1.0.0",
+                  parameters={"n_cells": 5}, reuse=False,
+                  out_dir=f"{WS}/shared/badrun-noreuse")
     assert set(g.authority.all_records()) == before
+
+
+def test_the_record_cites_the_identity_its_bundle_carries(world):
+    from qta_agent.canonical import digest
+    g, run, _, _, _ = world
+    rec = g.authority.get(run.record_id)
+    bundle = json.loads(g.evidence.get(run.bundle_sha256))
+    identity = bundle["provenance"]["run_identity"]
+    assert rec.evidence["run_identity"] == digest(identity)
+    assert json.loads(g.evidence.get(rec.evidence["run_identity"])) == \
+        identity
+    assert identity["parameter_digest"] and identity["implementation_digest"]

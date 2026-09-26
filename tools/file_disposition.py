@@ -710,6 +710,10 @@ RULES = [
      "NEW in Phase 2: a model result from proposal to authority, and every "
      "short-circuit of that line refused.",
      ""),
+    ("tests/test_governed_model_reuse.py", KAI,
+     "NEW in Phase 2: a verified model result reused only on evidence "
+     "re-derived intact; every exclusion against a genuine control.",
+     ""),
     ("tests/test_scientific_*.py", KAI,
      "NEW in Phase 2: the interfaces, the implementation identity (held to "
      "the substrate's own algorithms) and cut C1 in a fresh interpreter.",

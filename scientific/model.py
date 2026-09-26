@@ -33,6 +33,7 @@ from typing import Protocol, runtime_checkable
 
 from .identity import digest, digest_bytes, implementation_digest
 from .result import ResultBundle
+from .run_identity import RunIdentity, environment_digest
 
 
 class ModelError(ValueError):
@@ -172,6 +173,18 @@ class ModelBase:
 
     def run(self, inputs: dict) -> ResultBundle:
         raise NotImplementedError
+
+
+def run_identity_for(model: ScientificModel, params: dict,
+                     seeds: tuple = ()) -> RunIdentity:
+    """The identity of running ``model`` on already-validated ``params``
+    here: the one definition both a bundle's provenance and a reuse check
+    use, so the two cannot disagree about what "the same run" means."""
+    return RunIdentity(
+        model_id=model.model_id, model_version=model.model_version,
+        implementation_digest=model.implementation_digest(),
+        parameter_digest=digest(params),
+        environment_digest=environment_digest(), seeds=tuple(seeds))
 
 
 def run_model(model: ScientificModel, inputs: dict) -> ResultBundle:

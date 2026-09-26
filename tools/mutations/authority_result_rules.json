@@ -1,0 +1,101 @@
+{
+  "title": "A scientific result is verified only on evidence that supports it, at the store",
+  "note": "The content rule for kind scientific_result, in qta_agent/result_rules.py, enforced by AuthorityStore.transition on the edges into VERIFIED and PROMOTED. RR1, RR2, RR3, RR5 and RR6 are ST11, ST10, ST17, ST13 and ST14 of scientific_thermal_1d, moved here with the rule they test.",
+  "suites": [
+    "tests/test_agent_result_rules.py",
+    "tests/test_governed_model.py"
+  ],
+  "mutations": [
+    {
+      "name": "RR1_the_report_may_be_about_another_bundle",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"subject_digest\") != bundle_digest:\n",
+      "replace": "    if False:\n",
+      "rationale": "a report about a different bundle verifies this one (was ST11)"
+    },
+    {
+      "name": "RR2_the_verdict_is_not_read",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"status\") != \"PASS\":\n",
+      "replace": "    if False:\n",
+      "rationale": "a FAIL report verifies the result (was ST10)"
+    },
+    {
+      "name": "RR3_any_report_type_will_do",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"check_type\") != \"INDEPENDENT_IMPLEMENTATION\":\n",
+      "replace": "    if False:\n",
+      "rationale": "an invariant report stands in for an independent check (was ST17)"
+    },
+    {
+      "name": "RR4_the_producer_is_not_matched",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"producer_implementation_digest\") != producer:\n",
+      "replace": "    if False:\n",
+      "rationale": "a report naming another producer is accepted"
+    },
+    {
+      "name": "RR5_the_producers_code_may_check_itself",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if not is_digest(verifier) or verifier == producer:\n",
+      "replace": "    if not is_digest(verifier):\n",
+      "rationale": "self-verification accepted as independent (was ST13)"
+    },
+    {
+      "name": "RR6_the_invariants_are_not_read",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if not invariants or bad:\n",
+      "replace": "    if False:\n",
+      "rationale": "a bundle that failed its own invariants is verified (was ST14)"
+    },
+    {
+      "name": "RR7_no_invariants_counts_as_all_holding",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if not invariants or bad:\n",
+      "replace": "    if bad:\n",
+      "rationale": "an empty invariant list reads as every invariant holding"
+    },
+    {
+      "name": "RR8_unreadable_evidence_passes",
+      "path": "qta_agent/result_rules.py",
+      "find": "        except Exception as exc:                     # noqa: BLE001\n            return [f\"{key} {sha[:12]} cannot be read as JSON \"\n                    f\"({type(exc).__name__})\"]\n",
+      "replace": "        except Exception:                     # noqa: BLE001\n            return []\n",
+      "rationale": "evidence nobody could read is taken as support"
+    },
+    {
+      "name": "RR9_a_missing_citation_passes",
+      "path": "qta_agent/result_rules.py",
+      "find": "        if not is_digest(sha):\n            return [f\"the record cites no {key}\"]\n",
+      "replace": "        if not is_digest(sha):\n            return []\n",
+      "rationale": "a record citing no bundle is verified"
+    },
+    {
+      "name": "RR10_the_store_never_asks",
+      "path": "qta_agent/store.py",
+      "find": "                self._require_supported_result(req.evidence)\n",
+      "replace": "                pass\n",
+      "rationale": "THE bypass: the edge checks only that the report exists"
+    },
+    {
+      "name": "RR11_a_store_without_evidence_verifies",
+      "path": "qta_agent/store.py",
+      "find": "        if self.evidence is None:\n            raise TransitionError(\n                \"a scientific_result cannot be verified",
+      "replace": "        if False:\n            raise TransitionError(\n                \"a scientific_result cannot be verified",
+      "rationale": "an unreadable claim verified by a store that cannot read it"
+    },
+    {
+      "name": "RR12_promotion_is_not_held_to_the_rule",
+      "path": "qta_agent/store.py",
+      "find": "            if cur.kind == result_rules.KIND and dst in (State.VERIFIED,\n                                                         State.PROMOTED):\n",
+      "replace": "            if cur.kind == result_rules.KIND and dst in (State.VERIFIED,\n                                                         State.VERIFIED):\n",
+      "rationale": "a promotion citing a failing report goes through"
+    },
+    {
+      "name": "RR13_the_rule_applies_to_every_kind",
+      "path": "qta_agent/store.py",
+      "find": "            if cur.kind == result_rules.KIND and dst in",
+      "replace": "            if True and dst in",
+      "rationale": "a rule for scientific results imposed on every record"
+    }
+  ]
+}

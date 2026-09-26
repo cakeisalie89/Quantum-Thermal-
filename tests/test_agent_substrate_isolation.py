@@ -97,6 +97,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_verified_read_guard.py",
     "tests/test_scientific_identity.py",
     "tests/test_governed_model.py",
+    "tests/test_agent_result_rules.py",
+    "tests/test_governed_model_reuse.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
@@ -138,7 +140,10 @@ ALLOWED_IMPORTERS = {
 # it identifies would be a cycle waiting for its first caller.
 LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           "evidence", "capability", "idempotency", "readpath", "tools",
-          "execution", "checkpoint", "authority", "policy", "secrets",
+          "execution", "checkpoint", "authority",
+          # The content rule for scientific results: JSON over canonical
+          # digests, read by the store on the edge into VERIFIED.
+          "result_rules", "policy", "secrets",
           "netauth", "store", "invalidation", "tasks", "reconstruct",
           # Sits directly above reconstruct and below everything that
           # consumes a verdict: it spawns the independent verifier and
@@ -388,12 +393,12 @@ def test_no_gate_computing_module_references_the_substrate():
 
 
 #: The Snakemake rules permitted to reference qta_agent, and the complete
-#: set of them. Two, since the substrate gained a second tool: one workflow
-#: emitting a governed artifact, one indexing what the Stage-10 rules
-#: produced. Adding a third is a deliberate widening of where a scientific
-#: build can depend on the authority layer being importable, and should look
-#: like one.
-GOVERNED_RULES = {"s10_governed", "s10_governed_index"}
+#: set of them: one workflow emitting a governed artifact, one indexing what
+#: the Stage-10 rules produced, and -- the deliberate third widening -- the
+#: governed scientific-model path, whose whole point is that a model result
+#: reaches authority only through the substrate. None of the three is a gate
+#: rule, and a fourth should look as deliberate as this one.
+GOVERNED_RULES = {"s10_governed", "s10_governed_index", "s10_governed_model"}
 
 
 def test_the_workflow_touches_the_substrate_only_in_the_governed_rules():

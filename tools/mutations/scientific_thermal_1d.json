@@ -1,6 +1,6 @@
 {
   "title": "Thermal 1D through the governed path, with no self-certification",
-  "note": "The proving case: the adapter's invariants computed from the run's arrays, the independent check independent in the way it claims, and the governed path from proposal to authority refusing every short-circuit.",
+  "note": "The proving case: the adapter's invariants computed from the run's arrays, the independent check independent in the way it claims, and the governed path from proposal to authority refusing every short-circuit. ST10, ST11, ST13, ST14 and ST17 moved to authority_result_rules.json (RR2, RR1, RR5, RR6, RR3) when the rule moved into the store.",
   "suites": [
     "tests/test_scientific_thermal_1d.py",
     "tests/test_governed_model.py"
@@ -70,39 +70,11 @@
       "rationale": "a check about bytes nobody cited"
     },
     {
-      "name": "ST10_the_reviewer_ignores_the_verdict",
-      "path": "qta_agent/governed_model.py",
-      "find": "        if report.get(\"status\") != \"PASS\":\n",
-      "replace": "        if False:\n",
-      "rationale": "a FAIL report verifies the result"
-    },
-    {
-      "name": "ST11_the_reviewer_ignores_the_subject",
-      "path": "qta_agent/governed_model.py",
-      "find": "        if report.get(\"subject_digest\") != run.bundle_digest:\n",
-      "replace": "        if False:\n",
-      "rationale": "a report about another bundle verifies this one"
-    },
-    {
       "name": "ST12_an_executor_may_decide",
       "path": "qta_agent/governed_model.py",
       "find": "        if reviewer in (run.worker, check.worker, run.submitter):\n",
       "replace": "        if False:\n",
       "rationale": "the executor certifies its own work"
-    },
-    {
-      "name": "ST13_the_producers_code_may_check_itself",
-      "path": "qta_agent/governed_model.py",
-      "find": "        if not is_digest(vdig) or vdig == bundle.get(\n                \"implementation_digest\"):\n",
-      "replace": "        if not is_digest(vdig):\n",
-      "rationale": "self-verification accepted as independent"
-    },
-    {
-      "name": "ST14_the_reviewer_ignores_the_invariants",
-      "path": "qta_agent/governed_model.py",
-      "find": "        if not bundle.get(\"invariants\") or bad:\n",
-      "replace": "        if False:\n",
-      "rationale": "a bundle that failed its own invariants verified on a PASS report"
     },
     {
       "name": "ST15_the_producer_may_run_its_own_check",
@@ -117,13 +89,6 @@
       "find": "        if run.state is not TaskState.VERIFIED:\n            raise ModelRunRefused(f\"the governed run was",
       "replace": "        if False:\n            raise ModelRunRefused(f\"the governed run was",
       "rationale": "an unverified governed run becomes an authority record"
-    },
-    {
-      "name": "ST17_the_report_type_is_not_checked",
-      "path": "qta_agent/governed_model.py",
-      "find": "        if report.get(\"check_type\") != \"INDEPENDENT_IMPLEMENTATION\":\n",
-      "replace": "        if False:\n",
-      "rationale": "an invariant report stands in for an independent check"
     }
   ]
 }

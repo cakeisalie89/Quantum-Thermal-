@@ -460,20 +460,47 @@ work and does not close the entry by being planned.
   and so does fixing this one without removing the pin. *Done when:* the
   constants are declared inputs of the cryopanel model (Phase 4, C5) and the
   pin is empty.
-* **The scientific-result content rule lives in `governed_model.decide`,
-  not in the authority layer.** The store checks that cited evidence exists,
-  roles, and proposer/verifier separation; it does not read a report. A
-  caller writing a transition directly bypasses "VERIFIED needs a PASS from
-  independent code about this bundle, with every invariant holding". *Done
-  when:* the edge into VERIFIED for kind `scientific_result` validates the
-  report's content itself, with the same refusals tested at the store.
-* **No production caller yet.** The governed thermal path is exercised by
-  tests; no Snakefile rule or workflow step invokes it. *Done when:* a
-  governed rule runs it in CI, as `s10_governed` does for Stage 10.
-* **Run reuse is not wired into the governed path.** `may_reuse` exists and
-  is tested; every governed proposal recomputes. That is the safe direction;
-  *done when* a proposal with an identical run identity and intact evidence
-  returns the prior result instead.
+* ~~**The scientific-result content rule lives in `governed_model.decide`,
+  not in the authority layer.**~~ *Closed in tranche 3.* The rule is
+  `qta_agent/result_rules.py`, enforced by `AuthorityStore.transition` on the
+  edges into VERIFIED and PROMOTED for kind `scientific_result`: the store
+  reads the cited bundle and report from its evidence store and refuses the
+  edge, and a store with no evidence attached cannot verify a result at all.
+  `decide()` calls the same function to choose REJECTED and record why. Every
+  refusal is tested at the store (`tests/test_agent_result_rules.py`) and
+  through a direct transition on the governed path; 13 mutations
+  (`authority_result_rules.json`).
+* ~~**No production caller yet.**~~ *Closed in tranche 3.* The Snakemake
+  rule `s10_governed_model` runs thermal 1D at its declared configuration,
+  its independent check, and the authority decision, in `s10_full` and as
+  its own step of the agent-substrate workflow, with the auditor over the
+  log it wrote.
+* ~~**Run reuse is not wired into the governed path.**~~ *Closed in tranche
+  3.* A proposal first runs a governed identity task; a VERIFIED or PROMOTED
+  result with that identity is reused only when its record cites the
+  identity, its bundle's own provenance carries it, the bundle and every
+  artefact still resolve (each read re-hashes), and the cited report still
+  supports the bundle. The production rule shows both halves: the identical
+  proposal reuses with no second model run, other parameters recompute. 20
+  mutations (`governed_model_reuse.json`).
+* **The content rule reads a report's content, not its origin.** A VERIFIER
+  distinct from the proposer can cite any stored document whose fields say
+  PASS about this bundle from other code; the store does not require that
+  the report was captured from a governed check task. `decide()` only ever
+  cites a captured one. *Done when:* the edge into VERIFIED for a
+  `scientific_result` requires the report digest to be an artefact of a
+  VERIFIED governed task of an admitted check tool, in the same history.
+* **The run identity does not see CPU dispatch.** The environment digest is
+  Python, interpreter, machine and the numpy/scipy versions, read from
+  metadata; R59 shows the same versions on a different CPU dispatch change
+  digits. Reuse is within one history on one machine today, so this does not
+  bite yet. *Done when:* the environment record carries the numeric
+  libraries' dispatch (without the scientific core importing numpy to learn
+  it), or reuse is refused across machines outright.
+* **Reuse is per history.** `reusable` searches the records of the log it
+  is given; nothing shares verified results between histories, and
+  `s10_governed_model` starts a fresh one per invocation on purpose (so
+  it always shows both halves). A shared result store is later work.
 * **Stage-10 naming.** The governed model path writes under
   `verification/stage10` under policy `stage10.governed`; both are generic in
   behaviour and QTA-named. Renamed with the workflow in Phase 6.

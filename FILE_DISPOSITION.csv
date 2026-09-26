@@ -239,6 +239,7 @@ qta_agent/policy.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load()
 qta_agent/projection.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.4: reducer identity (projection_kind, reducer_id/version/digest, schema version).",directive s8 invariant
 qta_agent/readpath.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/reconstruct.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Independent second reader. Phase 1.1: replays the verified snapshot whose head it reports.,verify-then-read in 3 reconstructors
+qta_agent/result_rules.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/safeio.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/scheduler.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Job FSM. Phase 1.1: load/_fold_new on the verified snapshot.,verify-then-read at load + fallback fold
 qta_agent/secrets.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
@@ -377,6 +378,7 @@ rust/qta_kernels/pyproject.toml,EXTRACT_GENERIC,3,Selective Rust kernels (bit-pa
 rust/qta_kernels/src/lib.rs,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
 scientific/__init__.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/_governed_check.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/_governed_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/_governed_run.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/catalog.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/checks/__init__.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
@@ -451,6 +453,7 @@ tests/test_agent_performance.py,KEEP_AS_IS,-,Agent-substrate trust invariants (d
 tests/test_agent_policy.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_readpath.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_recovery.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_result_rules.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_scheduler.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_second_reader.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_secret_provider.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
@@ -490,6 +493,7 @@ tests/test_failed_gate_schema.py,REWRITE_GENERIC,2-7 (see rationale),Failed-samp
 tests/test_file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 0: every repository file has exactly one disposition, and the CSV is the generator's output.",
 tests/test_generated_mutations.py,KEEP_AS_IS,-,Generated operators.,
 tests/test_governed_model.py,KEEP_AS_IS,-,"NEW in Phase 2: a model result from proposal to authority, and every short-circuit of that line refused.",
+tests/test_governed_model_reuse.py,KEEP_AS_IS,-,NEW in Phase 2: a verified model result reused only on evidence re-derived intact; every exclusion against a genuine control.,
 tests/test_h2_pressure_authority.py,REWRITE_GENERIC,2-7 (see rationale),Distinct-quantity rule kept; gate B4 framing retires.,
 tests/test_hardware_governance.py,RETIRE_TO_HISTORY,5,Protects retired hardware-governance invariants; retire deliberately with the module (directive s26).,
 tests/test_hostile_input_no_traceback.py,KEEP_AS_IS,-,Classified refusals end to end.,
@@ -588,6 +592,7 @@ tools/mutations/agent_service_authority.json,KEEP_AS_IS,-,"Mutation spec over a 
 tools/mutations/agent_snapshot_coherence.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in Phase 1.1: verify-then-read regression operators.,
 tools/mutations/agent_substrate.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,M16/M20/M30 re-anchored to the single verified read (Phase 1.1).,
 tools/mutations/agent_tasks.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/authority_result_rules.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/canonical_output_set.json,REWRITE_GENERIC,2-7 (see rationale),Targets the QTA canonical-output set in package_consistency_check.py.,
 tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/corpus_allowlist.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -596,6 +601,7 @@ tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / 
 tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
 tools/mutations/fuzz_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/governed_breadth.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/governed_model_reuse.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/hardware_governance.json,RETIRE_TO_HISTORY,5,Hardware-governance mutations retire with their subject (directive s20).,targets hardware_governance_3d.py
 tools/mutations/identity_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/model_check.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

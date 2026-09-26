@@ -888,11 +888,136 @@ rule s10_governed_index:
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+
+# ---- the governed SCIENTIFIC-MODEL path ------------------------------------
+# The production caller of qta_agent.governed_model: thermal.conduction_1d at
+# its declared (forecast) configuration, run as a governed task, checked by
+# an independent implementation as a second governed task by a different
+# executor, and decided by a reviewer through the authority store -- which
+# enforces the content rule on the edge itself. Then the SAME proposal again:
+# it must reuse the verified result (no second model run), and a proposal
+# with other parameters must not.
+#
+# A VERIFIED scientific_result is a checked simulation result. It is not a
+# measurement, not experimental validation, not PROMOTED, and not a gate:
+# automatic_gate_effect = NONE and PASS stays 0.
+
+rule s10_governed_model:
+    output:
+        report=f"{W10}/governed_model/governed_model_run.json",
+    run:
+        import json
+        import shutil
+        from pathlib import Path
+
+        from qta_agent.authority import State
+        from qta_agent.events import EventLog
+        from qta_agent.evidence import EvidenceStore
+        from qta_agent.governed_model import TOOL_RUN, GovernedModelRuns
+        from qta_agent.tasks import TaskState
+
+        root = Path(".").resolve()
+        base = root / W10 / "governed_model"
+        # One history per invocation. A history left by an earlier
+        # invocation would let the first proposal reuse, and the rule would
+        # no longer show both halves.
+        if base.exists():
+            shutil.rmtree(base)
+        base.mkdir(parents=True)
+        log = EventLog(base / "task_log.jsonl")
+        g = GovernedModelRuns(root=root, log=log,
+                              evidence=EvidenceStore(base / "evidence"))
+        model = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
+        params = {}
+
+        def model_runs():
+            report, events = log.read_verified()
+            assert report.ok, "the model task log does not verify"
+            return sum(1 for e in events if e.action == "task.create"
+                       and e.payload.get("tool_id") == TOOL_RUN)
+
+        first = g.propose(**model, parameters=params,
+                          out_dir=f"{W10}/governed_model/first")
+        assert first.reused_from == "", (
+            "a fresh history had something to reuse")
+        assert first.governed.state is TaskState.VERIFIED
+        check = g.check(first, check_id="thermal_1d.reduction_2d_radial_disabled",
+                        out_dir=f"{W10}/governed_model/check")
+        decided = g.decide(first, check)
+        assert decided.state is State.VERIFIED, (
+            f"the result was {decided.state.value}: "
+            f"{decided.evidence.get('rejection_reason')}")
+        assert first.record_id not in g.authority.canonical(), (
+            "nothing on this path promotes; VERIFIED is not canonical")
+        runs = model_runs()
+
+        again = g.propose(**model, parameters=params,
+                          out_dir=f"{W10}/governed_model/again")
+        assert again.reused_from == first.record_id, (
+            "an identical proposal did not reuse the verified result")
+        assert model_runs() == runs, "reuse ran the model anyway"
+
+        other = g.propose(**model, parameters={"n_cells": 201},
+                          out_dir=f"{W10}/governed_model/other")
+        assert other.reused_from == "", (
+            "a proposal with other parameters reused a result")
+        assert model_runs() == runs + 1
+
+        assert log.verify().ok, "the model task log does not verify"
+        from qta_agent.audit import AuditIndex
+        from qta_agent.reconstruct import compare_tasks, reconstruct_tasks
+
+        index = AuditIndex.from_log(log)
+        record_gaps = [e for e in index.audit_records() if not e.complete]
+        assert not record_gaps, (
+            "authority records with provenance gaps:\n"
+            + "\n".join(f"  - {e.subject}: {gap}"
+                         for e in record_gaps for gap in e.gaps))
+        assert not index.denials(), [d.summary for d in index.denials()]
+        recon = reconstruct_tasks(log)
+        divergences = compare_tasks(g.gov.projection(), recon)
+        assert not divergences, divergences
+        assert not recon.unauthorized and not recon.anomalies
+
+        bundle = json.loads(g.evidence.get(first.bundle_sha256))
+        verification = json.loads(g.evidence.get(check.report_sha256))
+        Path(output.report).write_text(json.dumps({
+            "model": model,
+            "parameters": params,
+            "record_id": first.record_id,
+            "record_state": decided.state.value,
+            "bundle_sha256": first.bundle_sha256,
+            "bundle_digest": first.bundle_digest,
+            "run_identity": decided.evidence["run_identity"],
+            "invariants": {i["invariant_id"]: i["holds"]
+                           for i in bundle["invariants"]},
+            "independent_check": {
+                "check_id": verification["check_id"],
+                "status": verification["status"],
+                "independence": verification["independence"],
+                "report_sha256": check.report_sha256},
+            "reuse": {"identical_proposal_reused": again.reused_from,
+                      "other_parameters_recomputed": other.record_id,
+                      "model_runs": model_runs()},
+            "observation_kind": bundle["observation_kind"],
+            "promoted": False,
+            "automatic_gate_effect": "NONE",
+            "scientific_PASS_count": 0,
+            "does_not_mean": (
+                "a VERIFIED scientific_result is a simulation result whose "
+                "bundle holds its invariants and which an independent "
+                "implementation agreed with within a borrowed criterion. It "
+                "is a forecast at assumed inputs: not a measurement, not "
+                "experimental validation, not promoted, and not a gate"),
+        }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 rule s10_full:
     input:
         f"{W10}/stage10_stack_report.json",
         f"{W10}/governed/governed_run.json",
         f"{W10}/governed_index/index_run.json",
+        f"{W10}/governed_model/governed_model_run.json",
 
 
 # ---- opt-in Stage-10 rules (each evaluation is a full 3D solve) ------------

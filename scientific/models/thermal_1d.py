@@ -45,7 +45,7 @@ import math
 from ..identity import digest, digest_bytes
 from ..model import (
     Applicability, CheckSpec, InvariantSpec, ModelBase, Parameter,
-    ParameterSchema,
+    ParameterSchema, run_identity_for,
 )
 from ..quantity import Quantity, ResolutionClass as RC, UncertaintyClass as UC
 from ..result import (
@@ -244,6 +244,8 @@ class Thermal1DModel(ModelBase):
             provenance={"solver": "qta_multiphysics.thermal_1d."
                                   "solve_thermal_1d",
                         "environment": env,
+                        "run_identity":
+                            run_identity_for(self, inputs).to_record(),
                         "configuration_digest":
                             digest(dataclasses.asdict(cfg))})
         return bundle, {FIELD_ARTIFACT: field}

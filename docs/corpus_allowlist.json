@@ -2,15 +2,15 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "3217d6af35bd3aa059acd3f849d122b11fb04abd8fb1c193c06206a582d5b1ff",
+  "entries_digest": "839a448c774ce150c74f86f4b4536c221e728a3f4fd2b59a96f4a5650abcb32e",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "ae825cbca970e544a15ee9f14bbe0b8f8e4dcde727c537e6fc36b82be4be3ed2"
+      "sha256": "6f7933fefa1d70e0aa83602ed5beabfbbd2540001103093c0d4787e0eea07b21"
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "sha256": "c1208213c2b87a44111b5af555ef08d73144a928e4650fd15bc8d8a8a762a2ef"
+      "sha256": "4ab7ea4e3d36bd84ece4609ed8fee8277ba21f52b0920cd027f5f9084bc84197"
     },
     {
       "path": "AUTHORITIES.md",
@@ -186,7 +186,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "1999e75cfd7ae0846882c4be20956f3b1716bdef8cf711fc30e01a5f3d9e88c9"
+      "sha256": "fe77a67079daceb08576f1dce6b4aeefa24f293c49749fbb07afbc73be52a55f"
     },
     {
       "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",
