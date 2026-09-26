@@ -153,6 +153,14 @@ RULES = [
      "Second governed tool (digest index); generalize with "
      "governed_stage10 in Phase 2.",
      "docstring names results_gate_table.csv as a possible input"),
+    ("scientific/models/*.py", PLG,
+     "NEW in Phase 2: ScientificModel adapters over existing solvers, "
+     "unchanged -- thermal 1D is the proving case.",
+     "tests/test_scientific_thermal_1d.py"),
+    ("scientific/checks/*.py", PLG,
+     "NEW in Phase 2: independent checks with their own implementation "
+     "digest -- the 2D-to-1D reduction for thermal 1D.",
+     "tests/test_scientific_thermal_1d.py"),
     ("scientific/*.py", KAI,
      "NEW in Phase 2: the generic interface the convergence targets -- "
      "ScientificModel, ModelRegistry, ResultBundle, VerificationResult, "
@@ -697,6 +705,10 @@ RULES = [
     ("tests/test_agent_substrate_isolation.py", KAH,
      "Layering and IO_LAYER extended for qta_agent/projection.py; new test"
      " importer allowed (Phase 1).",
+     ""),
+    ("tests/test_governed_model.py", KAI,
+     "NEW in Phase 2: a model result from proposal to authority, and every "
+     "short-circuit of that line refused.",
      ""),
     ("tests/test_scientific_*.py", KAI,
      "NEW in Phase 2: the interfaces, the implementation identity (held to "

@@ -38,6 +38,7 @@ rather than a web:
 | `safeio.py` | confined reads: symlink-refusing, descriptor-relative, bound to an inode rather than a name |
 | `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
 | `actions.py` | every durable action name, and which reducer owns it |
+| `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2) |
 | `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `qta_agent` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |

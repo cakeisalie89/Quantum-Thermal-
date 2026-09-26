@@ -96,6 +96,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_substrate_isolation.py",
     "tests/test_verified_read_guard.py",
     "tests/test_scientific_identity.py",
+    "tests/test_governed_model.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
@@ -147,7 +148,11 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           # child's import guard refuses at runtime.
           "separate_verify",
           "scheduler", "memory", "context", "agents", "audit",
-          "_stage10_tool", "_stage10_index_tool", "governed_stage10")
+          "_stage10_tool", "_stage10_index_tool", "governed_stage10",
+          # Above governed_stage10, which it drives with its own tool
+          # registry; names the scientific tools by module string and
+          # imports nothing outside the package.
+          "governed_model")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.

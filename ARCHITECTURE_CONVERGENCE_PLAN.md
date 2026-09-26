@@ -256,7 +256,26 @@ solvers.
 | `Observation` | kind in {RAW_OBSERVATION, PROCESSED_OBSERVATION, SYNTHETIC_OBSERVATION, SIMULATION_RESULT, DERIVED_STATISTIC, CALIBRATED_PARAMETER}; source, transformation, calibration and uncertainty provenance | a simulation must never silently become a measurement; the kind is a type, not a label |
 | run identity | digest over model identity, implementation digest, parameter digest, environment digest, seeds, workflow revision, upstream evidence digests | integrates with `idempotency.py`; an identical verified run is reused by evidence, never recomputed blindly or trusted by name |
 
-**Proving case: thermal 1D.** `solve_thermal_1d(cfg, ...) -> Thermal1DResult`
+**Proving case: thermal 1D -- done, with the differences stated.**
+`scientific/models/thermal_1d.py` wraps `solve_thermal_1d` unchanged (the
+bundle's numbers equal a direct call's) with typed inputs and four
+invariants computed from each run's arrays: `solver_converged`,
+`finite_field`, `energy_balance` (|r| <= 0.05, a borrowed criterion; measured
+0.42% at the default mesh, 2.6% at 60 cells / 20 output times) and
+`minimum_principle` (no cell below the fridge temperature beyond 100 x atol).
+The Kapitza sign check was NOT adopted as a run invariant: configuration
+validation already refuses a non-positive coefficient, so on a run it could
+never fail. `scientific/checks/reduction_2d.py` is the independent check --
+the 2D axisymmetric solver with radial transport off, its own implementation
+digest, the shared components (k(T), Cp(T), the source term, the
+parameter-to-configuration mapping) stated as limitations, criterion
+unchanged from `reduction_2d_to_1d` (rel <= 0.15; measured 0.33%). FEniCSx
+stays STAGED as a third implementation. `qta_agent/governed_model.py` runs
+the model and the check as two governed Stage-10 tasks by different
+executors and lets a reviewer who did neither decide authority from the
+evidence. What the plan said before this was done:
+
+`solve_thermal_1d(cfg, ...) -> Thermal1DResult`
 is adapted, not rewritten. Its declared invariants already exist as code in
 `verification.py`: source energy integral, Kapitza sign, 1D mesh
 convergence, diffusion sanity. Its independent check exists too:
@@ -441,6 +460,26 @@ work and does not close the entry by being planned.
   and so does fixing this one without removing the pin. *Done when:* the
   constants are declared inputs of the cryopanel model (Phase 4, C5) and the
   pin is empty.
+* **The scientific-result content rule lives in `governed_model.decide`,
+  not in the authority layer.** The store checks that cited evidence exists,
+  roles, and proposer/verifier separation; it does not read a report. A
+  caller writing a transition directly bypasses "VERIFIED needs a PASS from
+  independent code about this bundle, with every invariant holding". *Done
+  when:* the edge into VERIFIED for kind `scientific_result` validates the
+  report's content itself, with the same refusals tested at the store.
+* **No production caller yet.** The governed thermal path is exercised by
+  tests; no Snakefile rule or workflow step invokes it. *Done when:* a
+  governed rule runs it in CI, as `s10_governed` does for Stage 10.
+* **Run reuse is not wired into the governed path.** `may_reuse` exists and
+  is tested; every governed proposal recomputes. That is the safe direction;
+  *done when* a proposal with an identical run identity and intact evidence
+  returns the prior result instead.
+* **Stage-10 naming.** The governed model path writes under
+  `verification/stage10` under policy `stage10.governed`; both are generic in
+  behaviour and QTA-named. Renamed with the workflow in Phase 6.
+* **One model.** Thermal 1D is the only model behind `ScientificModel`; every
+  other retained model is reached only through the orchestrator. Phase 4,
+  one family at a time.
 
 ## 10. Tranche 1 checkpoint report
 
@@ -595,3 +634,118 @@ or stack adapter depends on the ontology beyond the package `__init__`.
 imports from `species_accounting_3d` -- as DEPENDENCY_CUTOVER.md's own
 section-4 table records. The sentence above overstated it; the C1 test
 pins that one edge as a named residual (9.7).*
+
+## 11. Tranche 2 checkpoint report -- Phase-1 closure and the Phase-2 proving cut
+
+Started at `d633c77`. Three commits: **A** `f18b5f0` (Phase-1 closure), **B**
+`6963549` (cut C1, the interfaces, and two defects the work exposed), **C**
+(thermal 1D through the governed path; its SHA is reported with its own
+hosted evidence, not written here). **Not a migration-completion claim; not
+merged.** Each commit's evidence is its own; nothing below is borrowed across
+SHAs.
+
+### What each commit did
+
+* **A** -- durable context-summary provenance (D-2026-75); verify-then-read
+  prevented by a static AST guard and a runtime refusal (D-2026-76); PyYAML
+  declared and a standing declared-imports check (D-2026-74 closed); the
+  dependency inventory derived and the Stage-9 bundle labelled historical
+  (D-2026-77); mutation CI sharded (eight deterministic jobs, a generated and
+  checked matrix, an aggregate green only when every shard is); section 9
+  made the single forward backlog (R41, R49, ledger follow-ups A-D, D-2026-69
+  as a generic requirement); stale docstrings fixed; `qta_full_sim.py`
+  dispositioned "mine, then retire".
+* **B** -- C1 (the package `__init__` imports nothing); `scientific/`
+  (ScientificModel, ModelRegistry, ResultBundle, VerificationResult,
+  Observation kinds, Quantity, run and implementation identity), standard
+  library only; D-2026-78 (the executor's wall bound, exposed by C1) and
+  D-2026-79 (A's runtime guard crashed the governed Snakemake rule, found by
+  hosted CI) fixed.
+* **C** -- thermal 1D as a ScientificModel; the 2D-to-1D reduction as a
+  labelled independent check; `qta_agent/governed_model.py` from proposal to
+  authority.
+
+### Dispositions
+
+629 rows: KEEP_AS_IS 157, KEEP_AND_HARDEN 68, EXTRACT_GENERIC 35,
+KEEP_AS_MODEL_PLUGIN 47, REWRITE_GENERIC 90, REGENERATE 22, RETIRE_TO_HISTORY
+127, DELETE_GENERATED_AND_REBUILD 83. Every file matched by exactly one rule.
+
+### Mutation evidence (local, serial, null control green, restored byte-identical in each)
+
+| commit | specifications run | result |
+|---|---|---|
+| A | agent_snapshot_coherence, agent_incremental, agent_fault_injection, agent_cross_process, agent_recovery, agent_checkpoint, agent_memory_context, enforcement_asserts, repo_contract, completion_matrix, verified_read_guard, dependency_declarations, mutation_shards, agent_substrate | 289 / 289 |
+| B | scientific_interfaces, agent_execution, agent_compensation, verified_read_guard | 21 + 63 + 15 + 12 = 111 / 111 |
+| C | scientific_thermal_1d | 17 / 17 |
+
+Survivors on first run, each closed by the test written for it, none left
+unclassified: DD7 (a lazy import of a real undeclared package), MS10 (an
+empty shard when the plan holds one), SI20 (artefact bytes that disagree with
+their reference). 51 specifications are committed and every one runs in CI.
+
+### Hosted CI, by commit
+
+* `d633c77` (start): pull-request run green on all five jobs; push run red on
+  one step only -- full-suite step 7, the R59 byte gate.
+* `f18b5f0` (A), push run: 12 of 14 jobs green, among them all eight
+  mutation shards (36-39 min each, against 4h27m serial) and the
+  `mutation-matrices` aggregate on their first hosted run. Red:
+  agent-substrate at "the governed production path actually runs" and both
+  stack-verify jobs -- D-2026-79, fixed in B -- and full-suite at step 7
+  only, R59, with its pytest step and the decision check green.
+* `6963549` (B): stack-verify's pull-request run green (the D-2026-79 fix,
+  hosted). Pull-request full-suite: pytest step green; red at step 7 only,
+  on a Haswell / X86_V3 runner -- the same 23 root files differing in digits,
+  0 decision-bearing tokens of 5419 leaves, and the one BARE zero crossing is
+  D-2026-69's energy-ledger row; every other consistency check, the manifest
+  hashes included, PASS. The remaining agent-substrate jobs were running at
+  the time of writing.
+
+### R59, separately
+
+Unchanged and standing: the byte gate fails on runners whose CPU dispatch
+differs from the committed outputs'; digits only, never a decision (step 8
+green every time). No tolerance widened, no output rewritten, the gate not
+suppressed, and a red run on it is not described as success.
+
+### Status of the carried items
+
+R41 and R49 stay `DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`, planned in 9.2 and
+9.3. D-2026-69: the generic requirement is met (Quantity; the original
+crossing classifies BELOW_RESOLUTION on both sides) and the entry stays OPEN
+for the artefact. D-2026-74: closed. Ledger follow-ups A-D: carried
+unchanged in 9.4 -- none was worked in this tranche, and B in particular is
+assigned to no mutation.
+
+### The questions the directive asked
+
+* **Does importing a scientific module load the ontology?** 59 of 60
+  EXTRACT_GENERIC / KEEP_AS_MODEL_PLUGIN modules load none, in a fresh
+  interpreter each; the directive's named families have no exception;
+  `cryopanel_dynamics_3d` is the pinned residual (9.7).
+* **Does thermal 1D run through ScientificModel?** Yes, unchanged: the
+  bundle's numbers equal a direct call's.
+* **Is its ResultBundle verifiable?** Yes: canonical digest, strict
+  round-trip, artefacts by digest, invariants measured from the run; the
+  independent check cites it by digest from the evidence store.
+* **Can an executor certify itself?** Not on this path: no executor writes
+  an authority event (checked over the verified log), the model's worker
+  cannot run the check, the proposer cannot verify through the store, and the
+  reviewer refuses a report that does not support the result. Not
+  everywhere: the content rule lives in `decide()`, and a direct store
+  transition bypasses it (9.7).
+
+### The next cut, exactly
+
+1. Move the scientific-result content rule into the authority layer: the
+   edge into VERIFIED for kind `scientific_result` validates the report
+   itself, with `decide()`'s refusals tested at the store.
+2. Give the governed thermal path a production caller (a governed Snakemake
+   rule run in CI), and wire `may_reuse` into it.
+3. Phase 4, first family after thermal 1D: thermal 2D axisymmetric (it is
+   already the independent check), then the cryopanel family, whose
+   constants become declared inputs and empty the C1 residual pin.
+4. R41 `audit(log=...)` and the first R49 guard converted to a work counter.
+5. Ledger follow-up A: independent reconstruction for the nine durable
+   action classes, one at a time.
