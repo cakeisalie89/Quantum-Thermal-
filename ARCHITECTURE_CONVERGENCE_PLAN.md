@@ -70,18 +70,21 @@ definitions used in `FILE_DISPOSITION.csv`:
 | `RETIRE_TO_HISTORY` | QTA hardware ontology, its data, tests that protect only it, and material already historical | Phase 5 (history stays in git and `attic/`) |
 | `DELETE_GENERATED_AND_REBUILD` | a model output of the QTA pipeline under the old output contract, to be rebuilt by the generic workflow and not carried forward by hand | Phases 6-7 |
 
-Counts at this commit (596 rows: the 587 files tracked at the baseline plus
-the 9 this tranche adds):
+Counts at the Phase-1 closure (605 rows: the 587 files tracked at the
+baseline, the 9 tranche 1 added and the 9 the closure adds). Against tranche
+1: `qta_full_sim.py` moved from REWRITE_GENERIC to RETIRE_TO_HISTORY (mine it,
+then retire it -- section 8, phase 6), and the Stage-9 release bundle from
+REGENERATE to RETIRE_TO_HISTORY except its live trust policy (D-2026-77):
 
 | disposition | files |
 |---|---|
 | KEEP_AS_IS | 137 |
-| KEEP_AND_HARDEN | 58 |
+| KEEP_AND_HARDEN | 68 |
 | EXTRACT_GENERIC | 35 |
 | KEEP_AS_MODEL_PLUGIN | 43 |
-| REWRITE_GENERIC | 91 |
-| REGENERATE | 29 |
-| RETIRE_TO_HISTORY | 120 |
+| REWRITE_GENERIC | 90 |
+| REGENERATE | 22 |
+| RETIRE_TO_HISTORY | 127 |
 | DELETE_GENERATED_AND_REBUILD | 83 |
 
 **How rows were assigned.** By an explicit rule table (one glob per rule,
@@ -184,6 +187,23 @@ Recorded in `docs/DEFECT_LEDGER.md`; summarized in the tranche report.
   docstring said it pinned a count; it scans every production file and pins
   per-file counts now.
 
+**Phase-1 closure** (the second tranche's first commit):
+
+* **D-2026-75 -- durable summary provenance.** A shown summary's source item
+  is persisted (`ContextItem.summarizes_item`, manifest v2), and the reader
+  re-checks every claim on read-back; a v1 record may not claim a summary.
+* **D-2026-76 -- verify-then-read, prevented.** A static AST guard over every
+  production file and a runtime refusal of `EventLog.read()` to any other
+  `qta_agent` module. On the pre-D-2026-70 tree the static guard reports 20
+  sites.
+* **D-2026-74 -- closed.** PyYAML declared in `dev`; a standing check that
+  every direct import is declared in a group that ships it.
+* **D-2026-77 -- two derived records described an older lock.** The
+  dependency inventory is now derived and held to its sources; the Stage-9
+  bundle is labelled for what it is.
+* **Mutation CI sharded** into eight deterministic jobs under an aggregate
+  that is green only when every shard succeeded; no specification dropped.
+
 ## 7. Phase 2 -- the minimal generic interfaces
 
 What Phase 2 must introduce, and nothing more; typed, Pydantic where a
@@ -219,7 +239,7 @@ gate-spec assembly through the package `__init__`).
 | 3 | extract the generic core (s25) | every extracted module passes the fresh-interpreter no-HW import test and has dedicated tests; C2-C4 cut |
 | 4 | model families one at a time: thermal, transport, materials, radiation, optical, surface, vibration, spin | each family's physics tests unchanged and green; Mode-letter coupling gone (C5-C6) |
 | 5 | retire the hardware ontology | HW modules and data in history; tests protecting only them retired with written reasons; nothing in the core reaches them (C7) |
-| 6 | workflow: validate -> run -> invariants -> independent verifier -> UQ/SA -> serialize -> provenance -> evidence -> authority | `qta_full_sim.py` and the 83-gate / PASS=0 checks replaced (C8); the byte-regeneration verifier kept over the new declared outputs |
+| 6 | workflow: validate -> run -> invariants -> independent verifier -> UQ/SA -> serialize -> provenance -> evidence -> authority | every scientifically unique equation in `qta_full_sim.py` extracted into its generic or model module with a regression test pinning today's numbers; only then the orchestrator and the 83-gate / PASS=0 checks retired to history (C8); the byte-regeneration verifier kept over the new declared outputs |
 | 7 | release and provenance regenerated for the framework | manifest, RO-Crate, HDF5 mapping, SBOM, provenance derived from ResultBundles (C9); hostile/offline release verification unchanged |
 | 8 | hostile convergence audit | genesis vs checkpoint vs incremental reconstruction compared; long-horizon, crash, concurrency, multi-writer, mutation, fuzz, numerical-invariant, FEniCSx, cross-environment, release, provenance, invalidation and memory-poisoning suites all run on one commit's hosted evidence |
 
@@ -233,15 +253,28 @@ release model that needs them is replaced (Phases 6-7)** -- retiring a claims
 check before retiring the claims it guards would open exactly the window the
 directive exists to close.
 
-## 9. Open items carried forward
+## 9. Forward backlog -- carried, not closed
+
+This section is the single forward backlog. Nothing here is claimed done;
+the ledger (`docs/DEFECT_LEDGER.md`) keeps the history of how each item was
+found, and nothing is deleted from it. An item leaves this list only with
+the evidence named in its "done when".
+
+### 9.1 Standing items
 
 * **R59** -- the byte gate fails on a runner with different CPU dispatch;
   digits only, never a decision. Explained on the PR; the reproducibility vs
-  portability split (directive s19) is Phase 6-7's to settle.
-* **D-2026-69** -- the cumulative energy ledger's running sums are published
-  without a resolution basis; one crossing is BARE in the cross-environment
-  comparison. Deferred, recorded.
-* **D-2026-74** -- PyYAML undeclared (above).
+  portability split (directive s19) is Phase 6-7's to settle. Tolerances
+  are not widened, outputs are not rewritten, the gate is not suppressed,
+  and a red run on it is not described as success.
+* **D-2026-74** -- closed at the Phase-1 closure (section 6).
+* **pydantic's group.** Two production modules import it at module level
+  (`qta_multiphysics/stack/registry.py`, `stage7_boundary_models.py`) while
+  pyproject declares it in `dev`. Every environment this repository defines
+  installs `dev`, and the declaration check counts `dev` as minimal, so
+  nothing breaks today; whether it is a runtime dependency is decided when
+  the Phase-3 core fixes its runtime set. Not reclassified here, so that the
+  change is reviewed on its own rather than absorbed.
 * The package `__init__` makes every model import the gate machinery (C1).
 * `qta_full_sim.py` wraps the multiphysics layer in `except Exception` and
   prints a warning, so a forbidden gate status drops the whole layer rather
@@ -251,6 +284,116 @@ directive exists to close.
   checkpoint in three steps without a lock; an append in between yields a
   checkpoint `load_from` later refuses (fail-closed: a liveness cost, not a
   trust one).
+
+### 9.2 R41 -- checkpointing (`DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`)
+
+The classification stays where it is. `CheckpointStore.audit()` takes no
+log, so it answers "does each checkpoint parse?" while being named like
+"is this store healthy?". A store holding only checkpoints of a log nobody
+has audits ok. No production code gates on it -- engineering not done, not
+a live defect.
+
+*Planned:* `audit(log=...)`, reporting three things that are different and
+are today one: checkpoints that **parse**; checkpoints that **describe this
+log** (`checkpoint.describes()`, the D-2026-34 predicate -- the record at
+the offset is the record named); and the case where **none is usable** for
+this log, which must be a distinct, non-ok verdict rather than an empty
+list that reads as health. *Done when:* a store of foreign-log checkpoints
+audits not-ok against the real log, with a mutation that drops the
+`describes` call killed.
+
+### 9.3 R49 -- performance guards (`DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS`)
+
+Seven guards still assert on a wall-clock ratio: the four `LINEAR_CEILING`
+comparisons, the scheduler-readiness one, and the two checkpoint/evidence
+comparisons. They compare two sizes with a wide spread, which is why none
+has failed falsely; that robustness is a judgement, not a measurement.
+*Planned:* convert a guard only to a work counter (records re-hashed,
+records parsed, bytes read) that is equal or stronger than the ratio it
+replaces, as D-2026-37 did -- never to a wider ceiling. *Done when:* each
+of the seven is either a counter with a planted-quadratic control or has a
+hosted-runner margin recorded in `docs/performance_baseline.json`. They stay
+visible here until then.
+
+### 9.4 Defect-ledger follow-ups (from "Open follow-up tracked from this ledger")
+
+* **A. Nine durable action classes have no independent reconstruction:**
+  `agent.claim`, `agent.message`, `file.read`, `network.result`,
+  `secret.access`, `secret.provision`, `task.compensation`,
+  `task.reexecution`, `task.separate_verification`. Ordinary engineering,
+  not a boundary; the count is measured by `tools/identity_inventory.py` on
+  every CI run. *Done when:* `reconstruct_subsystems` replays each from an
+  implementation that does not import the reducer it checks, and the count
+  reads 0.
+* **B. A test damaged tracked files under mutation and the mutation was
+  never identified.** The harness restored the file and reported it during
+  an `agent_netauth` run; the mutation name was not captured. It is **not**
+  assigned to any mutation: the one suspect ever named (`D8`, D-2026-29) was
+  the author editing a file mid-run, and is recorded as a near miss. *Done
+  when:* a full campaign over every specification captures the mutation
+  name with the collateral report -- or runs every specification with
+  "restored byte-identical" and no collateral, which closes it as not
+  reproducible rather than as fixed.
+* **C. Admission-rule sibling sweep across the `_sub_*` reducers.**
+  `_sub_job_transition` and `_sub_lease_renew` restate admission; the
+  capability, agent, memory, network, secret and context reducers have not
+  been re-read against that standard (D-2026-02). *Done when:* each second
+  reader either restates the first reader's admission rules or has a test
+  proving the rule it omits cannot be reached.
+* **D. Stage-10 undeclared-write scope is the tool's, not the run's.**
+  `_undeclared_writes` inventories the whole `verification/stage10` prefix,
+  so another principal's write under that prefix during a run is attributed
+  to the run (fail-closed, but it answers "nothing changed in the shared
+  scope" instead of the claim). *Required:* determine what **this** run
+  wrote -- a per-run workspace or a write set attributed by the executor --
+  and compare that against the declaration. *Done when:* two concurrent
+  governed runs under one prefix each pass with only their own writes, and
+  an undeclared write by either one is still caught.
+
+### 9.5 D-2026-69 as a generic requirement
+
+The energy ledger's running sums are published without the resolution of
+the method that produced them; one crossing (`1.615587134e-27 J -> 0`) sits
+below the running sum's forward error bound (`8.1e-27 J`) and nothing says
+so. The file-specific repair is Phase 4-6 work on a byte-gated output. The
+class is not file-specific, so the requirement is generic: every published
+scientific quantity crossing into evidence (`ResultBundle` outputs and
+`VerificationResult` measurements) carries, as distinct fields,
+
+* the **value** and its **unit**;
+* the **numerical resolution / floor** of the method that produced it, and
+  where that number came from;
+* the **resolution class** (e.g. machine epsilon of a single evaluation, the
+  accumulated bound of a reduction, a solver tolerance, a mesh/convergence
+  estimate, not stated);
+* the **reporting precision** (significant digits written);
+* the **uncertainty class** (numerical, parametric, model-form, measurement,
+  not assessed) -- a class, never a single uncertainty float standing in
+  for all of them;
+* whether a zero is an **exact zero** or a value **below resolution** --
+  these are different results and must not print the same.
+
+D-2026-69 stays **OPEN** until the generic mechanism exists **and** the
+original quantity is representable in it with its below-resolution status
+stated. Moving the energy ledger itself onto the mechanism is later-phase
+work and does not close the entry by being planned.
+
+### 9.6 Scientific lifecycle still to add
+
+* **Hypothesis lifecycle** (section 5): PROPOSED ... RETRACTED, in which the
+  proposing agent cannot move its own hypothesis to SUPPORTED. Later phase;
+  kept here so it is not lost with the machine FSM's retirement.
+* The uncertainty representation the physics layer already carries is kept
+  as it is: distributions reported as `n`/mean/std/p05/p50/p95 rather than a
+  sigma (`uncertainty.py`, `campaign_uncertainty_3d.py`); each parameter's
+  status (MEASURED / ASSUMED / PLACEHOLDER / UNKNOWN) and the source of its
+  range; parameters excluded from variation with the reason; marginal
+  versus joint composition stated rather than implied; PDE-stability and
+  mesh-convergence failure counts reported beside the distribution. There
+  is no aleatoric / epistemic / model-form classification in the code
+  today -- the `uncertainty_class` field of 9.5 is new, and "not assessed"
+  is its honest default. No Phase-2 interface collapses any of this to one
+  number.
 
 ## 10. Tranche 1 checkpoint report
 

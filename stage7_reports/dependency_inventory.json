@@ -1,4 +1,9 @@
 {
+ "generated_by": "tools/dependency_declarations.py --write",
+ "sources": {
+  "pyproject.toml": "ec92ec02d63d56ec34f4c309a0c4c922633eb043625453bd63dc102fae02c5f3",
+  "uv.lock": "24809e90979a8b9ee10e9ddbb679a20a474ea2914a5174c24e20cdf14be8adc8"
+ },
  "direct_dependencies": [
   {
    "package": "numpy",
@@ -26,6 +31,15 @@
    "use": "qta_multiphysics/nv_spin",
    "behavior_sensitive": true,
    "version_authority": "requirements.txt (Stage-6)"
+  },
+  {
+   "package": "h5py",
+   "version": "3.16.0",
+   "dependency_class": "runtime",
+   "reason": "Stage-8 HDF5 data layer (representation only; no physics)",
+   "use": "build_hdf5.py, validate_hdf5_equivalence.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
   },
   {
    "package": "pytest",
@@ -73,6 +87,15 @@
    "version_authority": "uv.lock"
   },
   {
+   "package": "pyyaml",
+   "version": "6.0.3",
+   "dependency_class": "dev",
+   "reason": "imported directly by two workflow-contract trust tests (D-2026-74)",
+   "use": "tests/test_bootstrap_workflow_contract.py, tests/test_release_workflow_contract.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
    "package": "snakemake",
    "version": "9.23.1",
    "dependency_class": "workflow",
@@ -80,7 +103,34 @@
    "use": "Snakefile",
    "behavior_sensitive": false,
    "version_authority": "uv.lock"
+  },
+  {
+   "package": "usd-core",
+   "version": "26.8",
+   "dependency_class": "extra:viz",
+   "reason": "OpenUSD stage validation (.usda is written directly)",
+   "use": "qta_multiphysics/stack/usd_export.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "salib",
+   "version": "1.5.2",
+   "dependency_class": "extra:uq",
+   "reason": "global (Sobol/Morris) sensitivity cross-check",
+   "use": "qta_multiphysics/stack/sensitivity_salib.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "openmdao",
+   "version": "3.45.0",
+   "dependency_class": "extra:uq",
+   "reason": "design-space exploration over the thermal ROM",
+   "use": "qta_multiphysics/stack/mdao_openmdao.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
   }
  ],
- "transitive": "see uv.lock (71 packages; lockfile is the resolution authority)"
+ "transitive": "see uv.lock (89 packages; lockfile is the resolution authority)"
 }

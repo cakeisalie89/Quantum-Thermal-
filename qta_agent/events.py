@@ -98,6 +98,7 @@ import contextlib
 import errno
 import json
 import os
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -126,6 +127,37 @@ _HASHED_FIELDS = (
 #: A single line longer than this is refused rather than buffered. Prevents a
 #: malformed or hostile log from exhausting memory during verification.
 MAX_EVENT_BYTES = 4 * 1024 * 1024
+
+
+class UnverifiedReadRefused(RuntimeError):
+    """An authority-layer module asked the log for records nothing verified.
+
+    Deliberately NOT an :class:`EventLogError`. Several projections catch
+    ``EventLogError`` to fall back to a full verified read; a programming
+    error caught there would be converted into a quiet fallback, and this is
+    the one refusal that must never be quiet.
+    """
+
+
+def _refuse_unverified_caller(depth: int) -> None:
+    """Refuse the raw parse to any ``qta_agent`` module but this one.
+
+    D-2026-76. The static guard (``tools/verified_read_guard.py``) finds a
+    raw read by what the receiver is CALLED; an alias defeats it. This asks
+    the frame that actually made the call which module it is in, so inside
+    the authority layer the raw parse is reachable only through
+    :meth:`EventLog.read_verified` / :meth:`EventLog.read_verified_from`,
+    whatever the caller named the object. Tests, tools and diagnostics are
+    outside ``qta_agent`` and are unaffected: an unverified parse is a
+    legitimate thing to LOOK at, and never a legitimate thing to fold.
+    """
+    caller = sys._getframe(depth).f_globals.get("__name__", "")
+    if caller.startswith("qta_agent.") and caller != __name__:
+        raise UnverifiedReadRefused(
+            f"{caller} read the event log without verifying it. Fold from "
+            "log.read_verified() or log.read_verified_from(anchor): the "
+            "records a projection folds must be the records whose chain "
+            "was checked, from the same read")
 
 
 class EventLogError(Exception):
@@ -449,10 +481,19 @@ class EventLog:
 
     # ---- reading ------------------------------------------------------
     def __iter__(self) -> Iterator[Event]:
+        # Iteration is the raw parse under another name; the same refusal
+        # applies, decided by the frame that asked for the next record.
+        _refuse_unverified_caller(2)
         yield from self.read()
 
     def read(self, *, strict: bool = True) -> list:
-        """Parse every record. With ``strict`` a malformed tail raises."""
+        """Parse every record. With ``strict`` a malformed tail raises.
+
+        UNVERIFIED: this parses, it does not check the chain. Inside
+        ``qta_agent`` only this module may call it (D-2026-76); everything
+        that folds records uses :meth:`read_verified`.
+        """
+        _refuse_unverified_caller(2)
         import json
         events: list = []
         if not self.path.exists():

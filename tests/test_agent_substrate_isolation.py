@@ -94,6 +94,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_performance.py",
     "tests/test_agent_long_horizon.py",
     "tests/test_agent_substrate_isolation.py",
+    "tests/test_verified_read_guard.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".

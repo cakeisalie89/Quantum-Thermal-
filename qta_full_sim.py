@@ -28,7 +28,8 @@ canonical with the user-facing mode map):
   MODE_D_SENSE     -> Mode D (Sensing / Measurement)
 
 Mode B and Mode D are mutually exclusive. They do not occur simultaneously.
-Hard interlocks enforced by assert(). See validate() in SystemState.
+Hard interlocks raise InterlockViolation explicitly (they hold under
+python -O; D-2026-73). See validate() in SystemState.
 Run:  python qta_full_sim.py
 """
 import math, json, csv, sys, builtins

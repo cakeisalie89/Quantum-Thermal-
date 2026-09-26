@@ -1,0 +1,65 @@
+{
+  "title": "Every direct import is declared in a group that ships it",
+  "note": "D-2026-74. The check reads pyproject.toml rather than the environment, because CI installs every group and so cannot see a package that arrives only transitively. Each mutation weakens one rule, the scope, or the inventory derivation.",
+  "suites": [
+    "tests/test_dependency_declarations.py"
+  ],
+  "mutations": [
+    {
+      "name": "DD1_a_guarded_import_counts_as_eager_never",
+      "path": "tools/dependency_declarations.py",
+      "find": "            elif isinstance(node, ast.Try) and child in node.body \\\n                    and _guarded(node.handlers):\n                e = False\n",
+      "replace": "            elif isinstance(node, ast.Try) and child in node.body:\n                e = False\n",
+      "rationale": "any try guards an import, whatever it catches: a try/except KeyError would hide an eager import"
+    },
+    {
+      "name": "DD2_the_minimal_environment_is_everything",
+      "path": "tools/dependency_declarations.py",
+      "find": "    return set(d[\"runtime\"]).union(*(d.get(g, []) for g in groups))\n",
+      "replace": "    return set().union(*d.values())\n",
+      "rationale": "THE D-2026-74 shape: measuring against the environment CI installs instead of the minimum"
+    },
+    {
+      "name": "DD3_eager_imports_need_only_be_declared_somewhere",
+      "path": "tools/dependency_declarations.py",
+      "find": "            elif eager and dist not in mini:\n",
+      "replace": "            elif False:\n",
+      "rationale": "the rule that catches a direct import satisfied only transitively is dropped"
+    },
+    {
+      "name": "DD4_an_unknown_distribution_passes",
+      "path": "tools/dependency_declarations.py",
+      "find": "            if dist is None:\n                problems.append(f\"{where}: no known distribution provides it\")\n",
+      "replace": "            if dist is None:\n                continue\n",
+      "rationale": "an import nothing can resolve is waved through"
+    },
+    {
+      "name": "DD5_tests_are_not_scanned",
+      "path": "tools/dependency_declarations.py",
+      "find": "    return sorted(p for p in r.stdout.split(\"\\0\")\n                  if p and not p.startswith(\"attic/\"))\n",
+      "replace": "    return sorted(p for p in r.stdout.split(\"\\0\")\n                  if p and not p.startswith((\"attic/\", \"tests/\")))\n",
+      "rationale": "the scope shrinks to exclude the directory the defect was in"
+    },
+    {
+      "name": "DD6_the_inventory_keeps_a_stale_count",
+      "path": "tools/dependency_declarations.py",
+      "find": "        \"transitive\": f\"see uv.lock ({len(lock.get('package', []))} \"\n",
+      "replace": "        \"transitive\": f\"see uv.lock ({71} \"\n",
+      "rationale": "the inventory's package count is written, not derived -- the 71 it said before"
+    },
+    {
+      "name": "DD7_a_lazy_import_need_not_be_declared",
+      "path": "tools/dependency_declarations.py",
+      "find": "            elif dist not in anywhere:\n",
+      "replace": "            elif False:\n",
+      "rationale": "optional imports stop being checked against any declaration"
+    },
+    {
+      "name": "DD8_the_check_mode_never_refuses_a_stale_inventory",
+      "path": "tools/dependency_declarations.py",
+      "find": "    if not args.write and path.read_text() != fresh:\n",
+      "replace": "    if False:\n",
+      "rationale": "the verifier stops comparing the committed inventory to its sources"
+    }
+  ]
+}

@@ -64,6 +64,14 @@ ACT_CONTEXT_BUILD = "context.build"
 #: Refused above this. A context nobody can inspect is not auditable.
 MAX_ITEMS = 4096
 
+#: Durable manifest schema. 2 records, on every summary item, WHICH item it
+#: summarizes (D-2026-75). Version 1 recorded only the digest, so a manifest
+#: in which the source and its summary were both shown could not prove, once
+#: read back, that the digest was the source's: nothing named the source. A
+#: version-1 record is still readable -- but only if it claims no summary at
+#: all, because one that does cannot prove the claim.
+MANIFEST_VERSION = 2
+
 
 class ContextError(Exception):
     """Base class. Every failure here is fail-closed."""
@@ -126,12 +134,17 @@ class ContextItem:
     #: When this item summarizes something, the digest of what it compressed.
     #: A summary without one is refused: it is an assertion in a trusted slot.
     summary_of: str | None = None
+    #: WHICH item it compressed. Durable alongside the digest, so a reader
+    #: holding only the manifest can check that the digest is that item's --
+    #: the pair is the claim; either half alone is not.
+    summarizes_item: str | None = None
 
     def to_record(self) -> dict:
         return {"item_id": self.item_id, "tier": self.tier.value,
                 "content_digest": self.content_digest,
                 "byte_len": self.byte_len, "source": self.source,
-                "summary_of": self.summary_of}
+                "summary_of": self.summary_of,
+                "summarizes_item": self.summarizes_item}
 
 
 @dataclass(frozen=True)
@@ -167,9 +180,11 @@ class ContextManifest:
     policy_identity: str = ""
     policy_digest: str = ""
     at_seq: int = -1
+    manifest_version: int = MANIFEST_VERSION
 
     def to_record(self) -> dict:
-        return {"task_id": self.task_id, "purpose": self.purpose,
+        return {"manifest_version": self.manifest_version,
+                "task_id": self.task_id, "purpose": self.purpose,
                 "items": [i.to_record() for i in self.items],
                 "omissions": [o.to_record() for o in self.omissions],
                 "budget_bytes": self.budget_bytes,
@@ -364,7 +379,8 @@ class ContextBuilder:
         items = tuple(
             ContextItem(item_id=p.item_id, tier=p.tier,
                         content_digest=digest_bytes(p.text.encode("utf-8")),
-                        byte_len=n, source=p.source, summary_of=p.summary_of)
+                        byte_len=n, source=p.source, summary_of=p.summary_of,
+                        summarizes_item=p.summarizes_item)
             for p, n in chosen)
         summarized_by = {p.summarizes_item: p.item_id
                          for p, _ in chosen if p.summarizes_item}
@@ -458,12 +474,38 @@ def record_context(log, manifest: ContextManifest, *, actor: str):
                                "manifest_digest": manifest.digest()})
 
 
+#: The keys each durable record may carry, per manifest version. Anything
+#: else is refused rather than ignored: a field this reader does not know is
+#: a claim it cannot check.
+_ITEM_KEYS = {
+    1: {"item_id", "tier", "content_digest", "byte_len", "source",
+        "summary_of"},
+    2: {"item_id", "tier", "content_digest", "byte_len", "source",
+        "summary_of", "summarizes_item"},
+}
+_OMISSION_KEYS = {"item_id", "tier", "content_digest", "byte_len", "reason",
+                  "summarized_by"}
+_MANIFEST_KEYS = {"task_id", "purpose", "items", "omissions", "budget_bytes",
+                  "used_bytes", "policy_identity", "policy_digest", "at_seq"}
+
+
 def manifest_from_record(rec: dict) -> ContextManifest:
-    """Rebuild a manifest from a log payload, validating its shape."""
+    """Rebuild a manifest from a log payload, validating its shape.
+
+    VERSIONING, EXPLICITLY. A record with no ``manifest_version`` is version
+    1 and is read by version-1 rules. Anything newer than this reader is
+    refused. See :data:`MANIFEST_VERSION` for what version 1 cannot prove.
+    """
     if not isinstance(rec, dict):
         raise ContextError(f"context manifest is {type(rec).__name__}")
-    known = {"task_id", "purpose", "items", "omissions", "budget_bytes",
-             "used_bytes", "policy_identity", "policy_digest", "at_seq"}
+    version = rec.get("manifest_version", 1)
+    if (not isinstance(version, int) or isinstance(version, bool)
+            or version not in _ITEM_KEYS):
+        raise ContextError(
+            f"context manifest version {version!r} is not one this reader "
+            f"understands (1..{MANIFEST_VERSION})")
+    known = _MANIFEST_KEYS | ({"manifest_version"} if version >= 2
+                              else set())
     unknown = set(rec) - known
     if unknown:
         raise ContextError(
@@ -471,11 +513,21 @@ def manifest_from_record(rec: dict) -> ContextManifest:
             "refusing to read a manifest this version does not fully "
             "understand")
     try:
+        for kind, rows, allowed in (("item", rec["items"],
+                                     _ITEM_KEYS[version]),
+                                    ("omission", rec["omissions"],
+                                     _OMISSION_KEYS)):
+            for r in rows:
+                if not isinstance(r, dict) or set(r) - allowed:
+                    raise ContextError(
+                        f"manifest {kind} is not a version-{version} "
+                        f"{kind} record: {r!r:.120}")
         items = tuple(
             ContextItem(item_id=i["item_id"], tier=Tier(i["tier"]),
                         content_digest=i["content_digest"],
                         byte_len=i["byte_len"], source=i.get("source", ""),
-                        summary_of=i.get("summary_of"))
+                        summary_of=i.get("summary_of"),
+                        summarizes_item=i.get("summarizes_item"))
             for i in rec["items"])
         omissions = tuple(
             Omission(item_id=o["item_id"], tier=Tier(o["tier"]),
@@ -483,33 +535,94 @@ def manifest_from_record(rec: dict) -> ContextManifest:
                      byte_len=o["byte_len"], reason=o["reason"],
                      summarized_by=o.get("summarized_by"))
             for o in rec["omissions"])
-        _check_manifest_provenance(items, omissions)
+        _check_manifest_provenance(items, omissions, version=version)
         return ContextManifest(
             task_id=rec["task_id"], purpose=rec["purpose"], items=items,
             omissions=omissions, budget_bytes=rec["budget_bytes"],
             used_bytes=rec["used_bytes"],
             policy_identity=rec.get("policy_identity", ""),
             policy_digest=rec.get("policy_digest", ""),
-            at_seq=rec.get("at_seq", -1))
+            at_seq=rec.get("at_seq", -1), manifest_version=version)
     except (KeyError, TypeError, ValueError) as exc:
         raise ContextError(f"context manifest is malformed: {exc}") from exc
 
 
-def _check_manifest_provenance(items: tuple, omissions: tuple) -> None:
+def _check_manifest_provenance(items: tuple, omissions: tuple, *,
+                               version: int = MANIFEST_VERSION) -> None:
     """A manifest read back must not carry provenance nobody could have had.
 
-    The builder refuses a phantom source now, but manifests are durable and
-    are read back from logs this version did not write. So the reader states
-    the same rule independently: an omission is material that EXISTED, so it
-    has a real content digest; and an omission that says a summary replaced
-    it names a summary that was shown and that summarizes exactly its bytes.
+    Stated here independently of the builder, because manifests are durable
+    and are read back from logs this version did not write. Everything is
+    decided from the manifest alone:
+
+    * every item is identified once, across shown and omitted, and every
+      digest is a digest -- an omission is material that EXISTED;
+    * a summary names BOTH halves of its claim -- the source item and the
+      digest -- and the source exists in what was available (shown or
+      omitted) with exactly that content digest, is not the summary itself,
+      and is claimed by no other summary;
+    * an omission that says a summary replaced it names a shown summary of
+      exactly its bytes that names IT as the source; and an omitted source a
+      shown summary claims must say so.
+
+    Version 1 recorded the digest without the source, so it cannot prove any
+    summary claim: a version-1 manifest carrying one is refused.
     """
+    ids = [x.item_id for x in items] + [o.item_id for o in omissions]
+    for x in ids:
+        if not isinstance(x, str) or not x:
+            raise ContextError(f"manifest item id {x!r} is not a name")
+    if len(ids) != len(set(ids)):
+        raise ContextError(
+            "a manifest item id appears more than once across shown and "
+            "omitted material, so no claim about it has one referent")
+    for x in items:
+        if not is_digest(x.content_digest):
+            raise ContextError(
+                f"manifest item {x.item_id!r} has content digest "
+                f"{x.content_digest!r}, which is not a digest")
+    available = {x.item_id: x.content_digest for x in items}
+    available.update({o.item_id: o.content_digest for o in omissions})
     shown = {i.item_id: i for i in items}
+    if version < 2 and (any(i.summary_of is not None for i in items)
+                        or any(o.summarized_by is not None
+                               for o in omissions)):
+        raise ContextError(
+            "a version-1 manifest records a summary but not which item it "
+            "summarizes, so the claim cannot be checked; refusing it rather "
+            "than trusting it")
+    claimed: dict = {}
     for i in items:
-        if i.summary_of is not None and not is_digest(i.summary_of):
+        if i.summary_of is None and i.summarizes_item is None:
+            continue
+        if i.summary_of is None or i.summarizes_item is None:
+            raise ContextError(
+                f"manifest item {i.item_id!r} carries half a summary claim "
+                f"(source {i.summarizes_item!r}, digest {i.summary_of!r}); "
+                "the pair is the claim")
+        if not is_digest(i.summary_of):
             raise ContextError(
                 f"manifest item {i.item_id!r} summarizes "
                 f"{i.summary_of!r}, which is not a digest")
+        src = i.summarizes_item
+        if not isinstance(src, str) or not src or src == i.item_id:
+            raise ContextError(
+                f"manifest item {i.item_id!r} names {src!r} as its source; "
+                "a summary's source must be another, named item")
+        if src not in available:
+            raise ContextError(
+                f"manifest item {i.item_id!r} summarizes {src!r}, which the "
+                "manifest does not record as available material")
+        if available[src] != i.summary_of:
+            raise ContextError(
+                f"manifest item {i.item_id!r} claims to summarize {src!r} "
+                f"with digest {i.summary_of[:12]}, but {src!r} is recorded "
+                f"with digest {str(available[src])[:12]}")
+        if src in claimed:
+            raise ContextError(
+                f"{src!r} is summarized by both {claimed[src]!r} and "
+                f"{i.item_id!r}")
+        claimed[src] = i.item_id
     for o in omissions:
         if not is_digest(o.content_digest):
             raise ContextError(
@@ -517,6 +630,10 @@ def _check_manifest_provenance(items: tuple, omissions: tuple) -> None:
                 f"{o.content_digest!r}: an omission records material that "
                 "existed, and existing material has a digest")
         if o.summarized_by is None:
+            if o.item_id in claimed:
+                raise ContextError(
+                    f"manifest omission {o.item_id!r} is claimed by shown "
+                    f"summary {claimed[o.item_id]!r} and does not say so")
             continue
         by = shown.get(o.summarized_by)
         if by is None or by.summary_of != o.content_digest:
@@ -524,3 +641,8 @@ def _check_manifest_provenance(items: tuple, omissions: tuple) -> None:
                 f"manifest omission {o.item_id!r} says it was replaced by "
                 f"{o.summarized_by!r}, which is not a shown summary of its "
                 "exact content")
+        if by.summarizes_item != o.item_id:
+            raise ContextError(
+                f"manifest omission {o.item_id!r} says it was replaced by "
+                f"{o.summarized_by!r}, which names {by.summarizes_item!r} as "
+                "its source")

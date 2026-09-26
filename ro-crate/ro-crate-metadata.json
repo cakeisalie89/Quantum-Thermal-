@@ -244,18 +244,18 @@
   {
    "@id": "pyproject.toml",
    "@type": "File",
-   "contentSize": "4118",
+   "contentSize": "4209",
    "description": "project/tooling authority",
    "name": "pyproject.toml",
-   "sha256": "6f46361aa3bc6faedfd111bda69cd938bf5f044af5c89f1dc714e86d72032805"
+   "sha256": "ec92ec02d63d56ec34f4c309a0c4c922633eb043625453bd63dc102fae02c5f3"
   },
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "175182",
+   "contentSize": "175236",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "4aa53c8fe7557ab80264bc2b4ca63b771d962ed4df45b692ca80c3d075d7c30d"
+   "sha256": "5d6e75b9457fd4b0fee66d5616241d7558ebcd866de622913e5e6d37fe3285ce"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
@@ -326,10 +326,10 @@
   {
    "@id": "uv.lock",
    "@type": "File",
-   "contentSize": "153054",
+   "contentSize": "153125",
    "description": "locked dependency resolution (71+ pkgs)",
    "name": "uv.lock",
-   "sha256": "fc319fc32d27d82e1f0ee213288e9c6567da980881c93c27501b6a9ce9ef4dfc"
+   "sha256": "24809e90979a8b9ee10e9ddbb679a20a474ea2914a5174c24e20cdf14be8adc8"
   },
   {
    "@id": "validation_matrix.csv",

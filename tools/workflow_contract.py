@@ -25,7 +25,11 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_shards as MS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -46,6 +50,12 @@ REQUIRED_JOBS = {
                             "other side. Required, so that deleting the job "
                             "is a contract failure rather than a quiet loss "
                             "of the only thing that looks there",
+    "mutation-shards": "every mutation specification, in the deterministic "
+                       "shards tools/mutation_shards.py plans; each spec "
+                       "keeps its baseline, null control and restore check",
+    "mutation-matrices": "the aggregate: green only when every shard's "
+                         "result is success, so a lost or cancelled shard "
+                         "is red rather than absent",
     "cross-environment-3d": "R59: regenerate the 3D outputs on a hosted "
                             "runner and compare them against the committed "
                             "copies, emitting the result to the JOB LOG "
@@ -369,6 +379,7 @@ def problems() -> tuple:
             for x in uses_unpinned_actions(body)]
     out += [f"knob is never turned -- {x}" for x in unturned_knobs(body)]
     out += [f"verifier is never run -- {x}" for x in unwired_verifiers(body)]
+    out += [f"mutation shards -- {x}" for x in MS.check_workflow(body)]
     return tuple(out)
 
 

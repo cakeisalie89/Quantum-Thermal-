@@ -341,6 +341,90 @@
       "find": "        self._check_summary_provenance()\n",
       "replace": "        pass\n",
       "rationale": "the check exists and is tested and build() no longer calls it -- the K1 shape; the suite must drive build(), not the function"
+    },
+    {
+      "name": "X22_the_durable_item_drops_its_source",
+      "path": "qta_agent/context.py",
+      "find": "                \"summary_of\": self.summary_of,\n                \"summarizes_item\": self.summarizes_item}",
+      "replace": "                \"summary_of\": self.summary_of}",
+      "rationale": "D-2026-75: the digest survives serialization and the item it is of does not, so a reader holding both shown items cannot check the claim"
+    },
+    {
+      "name": "X23_the_builder_records_another_item_as_the_source",
+      "path": "qta_agent/context.py",
+      "find": "                        summarizes_item=p.summarizes_item)",
+      "replace": "                        summarizes_item=chosen[0][0].item_id)",
+      "rationale": "the durable record names a real, valid item -- the wrong one"
+    },
+    {
+      "name": "X24_the_builder_records_another_digest",
+      "path": "qta_agent/context.py",
+      "find": "                        byte_len=n, source=p.source, summary_of=p.summary_of,",
+      "replace": "                        byte_len=n, source=p.source, summary_of=digest_bytes(p.text.encode(\"utf-8\")),",
+      "rationale": "the durable digest is a valid digest of other bytes -- the summary's own"
+    },
+    {
+      "name": "X25_the_reader_skips_source_existence",
+      "path": "qta_agent/context.py",
+      "find": "        if src not in available:\n            raise ContextError(",
+      "replace": "        if False:\n            raise ContextError(",
+      "rationale": "a summary of material the manifest never recorded is read back as provenance"
+    },
+    {
+      "name": "X26_the_reader_skips_the_exact_digest_comparison",
+      "path": "qta_agent/context.py",
+      "find": "        if available[src] != i.summary_of:",
+      "replace": "        if False:",
+      "rationale": "the pointer and the digest are each checked and never against each other"
+    },
+    {
+      "name": "X27_the_reader_permits_a_self_summary",
+      "path": "qta_agent/context.py",
+      "find": "        if not isinstance(src, str) or not src or src == i.item_id:",
+      "replace": "        if not isinstance(src, str) or not src:",
+      "rationale": "an item vouches for itself"
+    },
+    {
+      "name": "X28_the_durable_read_back_is_not_validated",
+      "path": "qta_agent/context.py",
+      "find": "        _check_manifest_provenance(items, omissions, version=version)\n",
+      "replace": "        pass\n",
+      "rationale": "the reader parses the relationship and never checks it: the K1 shape, one layer out"
+    },
+    {
+      "name": "X29_half_a_claim_is_accepted",
+      "path": "qta_agent/context.py",
+      "find": "        if i.summary_of is None or i.summarizes_item is None:",
+      "replace": "        if False:",
+      "rationale": "a digest with its pointer removed -- or a pointer with its digest removed -- reads as a summary"
+    },
+    {
+      "name": "X30_two_summaries_may_claim_one_source",
+      "path": "qta_agent/context.py",
+      "find": "        if src in claimed:",
+      "replace": "        if False:",
+      "rationale": "which summary replaced a source is left to order"
+    },
+    {
+      "name": "X31_an_omission_may_borrow_another_items_summary",
+      "path": "qta_agent/context.py",
+      "find": "        if by.summarizes_item != o.item_id:",
+      "replace": "        if False:",
+      "rationale": "with two identical sources a digest cannot tell them apart; only the pointer can, and it is not consulted"
+    },
+    {
+      "name": "X32_an_omitted_source_may_hide_its_summary",
+      "path": "qta_agent/context.py",
+      "find": "            if o.item_id in claimed:",
+      "replace": "            if False:",
+      "rationale": "a shown summary claims an omitted source that does not say it was replaced"
+    },
+    {
+      "name": "X33_a_version_1_manifest_may_claim_a_summary",
+      "path": "qta_agent/context.py",
+      "find": "    if version < 2 and (any(i.summary_of is not None for i in items)",
+      "replace": "    if False and (any(i.summary_of is not None for i in items)",
+      "rationale": "the compatibility rule stops refusing what version 1 cannot prove"
     }
   ]
 }

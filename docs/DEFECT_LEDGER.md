@@ -7523,3 +7523,127 @@ rewrite would remove the only thing providing a dependency two trust tests
 need, and nothing would say why they broke. **Deferred**: declaring it in the
 `dev` group regenerates `uv.lock` and, through it, the SBOM; that belongs in a
 change reviewed on its own, before Phase 6.
+
+**STATUS UPDATE (Phase-1 closure)** — repaired. PyYAML is declared in the
+`dev` group (`pyyaml>=6.0`; the lock already resolved 6.0.3 through
+snakemake, so no version moved -- `uv.lock` gains two lines naming it in
+`dev`). Not promoted to runtime: two tests import it and nothing else does.
+Measured, not argued: an environment built by a bare `uv sync --frozen`
+(runtime + `dev`, no `workflow`) from the **old** lock fails both modules at
+collection with `No module named 'yaml'`; from the new lock, the same two
+modules pass 39 tests with `snakemake` absent. `tools/dependency_declarations.py`
+now checks the class rather than the instance: an import executed at import
+time must come from runtime + the default groups; any other import must be
+declared somewhere or be named as environment-supplied with a reason. Against
+the replaced `pyproject.toml` it reports exactly these two sites. See
+D-2026-77 for what regenerating the derived records found.
+
+## D-2026-75 — a shown summary's source was not written down, so the reader could not check it
+
+**CLASS** — `DEFECT`, trust boundary, `qta_agent/context.py`. The durable
+half of D-2026-72.
+
+D-2026-72 made the builder refuse a summary whose source was never provided
+and made the reader refuse an omission it could not account for. But
+`ContextItem` persisted `summary_of` (a digest) and **not which item** it
+summarized. When the source was shown too, the reader had a digest and
+nothing to compare it with: tamper `summary_of` on a manifest where both
+items are shown, and the read-back accepted it. The claim "this summary is
+of those bytes" survived the round trip as a string nobody checked.
+
+**REPAIR.** `ContextItem.summarizes_item` is persisted; the manifest carries
+`manifest_version = 2`. The reader refuses an unknown version, a version-1
+record that claims any summary relationship (v1 cannot prove one), and a
+version-2 key in a version-1 record. For every claim it checks: ids unique
+and non-empty across shown and omitted items; each digest a digest; the named
+source exists, is not the summary itself, and is recorded with exactly the
+digest claimed; no source claimed by two summaries; an omitted source's
+`summarized_by` points at the summary that names it, with that summary's
+digest -- not at another summary of identical bytes.
+
+**TESTS.** 23 new or rewritten in `tests/test_agent_context.py` (70 pass),
+including an 11-case table of forged relationships. Against the pre-repair
+code, 17 fail -- the both-shown tamper among them, with `DID NOT RAISE`.
+
+**MUTATIONS.** `agent_memory_context.json` X22-X33 (the durable item drops
+its source; the builder records another item or another digest; each reader
+check skipped in turn; v1 may claim): the spec runs **60/60 killed**, null
+control green.
+
+## D-2026-76 — verify-then-read was repaired at every site and prevented at none
+
+**CLASS** — `GAP`, `qta_agent/events.py` and the tree. The prevention half
+of D-2026-70.
+
+D-2026-70 repaired twenty sites and `test_agent_snapshot_coherence.py` proves
+them -- by name, from a table. A table says nothing about the twenty-first
+reducer. `EventLog.read()` stayed public, unverified, and one keystroke from
+`read_verified()`.
+
+**REPAIR.** Two guards, because each alone is a proxy.
+
+* **Static** -- `tools/verified_read_guard.py` walks the parse tree of every
+  tracked production file (not `tests/`, not `attic/`; `qta_agent/events.py`
+  is where the primitives live) and refuses `RAW_READ` (`<log>.read()`, or
+  iterating a log, or `list()`/`sorted()` of one), `TAIL_PARSE`
+  (`._read_tail`), `READ_FROM` (the removed primitive, called or defined)
+  and `FILE_READ` (`<log>.path` opened directly). "Log" is decided
+  syntactically and the rule says so; same-function aliases are followed.
+  One allowlisted site, pinned by count with its reason: the fuzz harness's
+  parser target, where the unverified parse is the thing under test.
+* **Runtime** -- `EventLog.read()` and `__iter__` refuse any caller whose
+  module is under `qta_agent.` other than `qta_agent.events`, decided by the
+  calling frame rather than by what the caller named the object, so an alias
+  the static rule cannot follow still stops. The refusal,
+  `UnverifiedReadRefused`, is deliberately **not** an `EventLogError`:
+  reducers catch that to fall back to a full read, and a refusal must not
+  become a quiet fallback. Tests, tools and diagnostics may still parse the
+  log -- they fold nothing into authority state -- so forensics is unchanged.
+
+**ANTI-VACUITY.** Run against `71b58cb` (before D-2026-70), the static
+guard reports **20 sites in 12 modules**: every reducer load and fallback,
+both audit indexes, the three reconstructors, the three unverified
+`governed_stage10` helpers and `load_from`'s `read_from`. It cannot see
+`EventLog.advance`, which is inside `events.py` and out of its scope by
+design; the snapshot-coherence tests hold that one. Every agent suite passes
+with the runtime guard in place (the full-suite run is in the plan's
+checkpoint report).
+
+**TESTS / MUTATIONS.** `tests/test_verified_read_guard.py`, 36 tests: 16
+dangerous shapes, 8 controls that must not be flagged, the real tree, the
+allowlist pin, a stale allowlist entry failing the verifier, and the runtime
+refusal from a synthetic `qta_agent.*` caller with its controls.
+`tools/mutations/verified_read_guard.json`: **11/11 killed**.
+
+**THE INVARIANT.** Every event folded into authority state belongs to the
+exact verified byte snapshot that established its integrity.
+
+## D-2026-77 — two derived records described an older lock, under a disposition that said "every change"
+
+**CLASS** — `WRONG_CLAIM`, my own, in `tools/file_disposition.py` (Phase 0);
+and `GAP`, `stage7_reports/dependency_inventory.json`.
+
+Regenerating the records downstream of `uv.lock` for D-2026-74 found that
+neither had been regenerated since before Stage 10. The Stage-9 SBOM names
+the lock of `f922022` (`3597…`); `365b5c8` changed the lock and left the
+bundle alone, so the SBOM lacks the three packages Stage 10 brought in
+(`contourpy`, `cycler`, `dill`). The dependency inventory said 71 locked
+packages (there are 89) and omitted `h5py`, a declared runtime dependency.
+The Phase-0 disposition called both `REGENERATE`, "every change". Nothing
+checked either, which is how both stayed wrong while the table said otherwise.
+
+**REPAIR.** The inventory is now derived: `tools/dependency_declarations.py
+--write` builds it from `pyproject.toml` + `uv.lock` (versions, classes,
+count and both source digests; hand-written reasons are carried forward, new
+entries take pyproject's own comment and the files that import them), and a
+test holds the committed file to that output. The Stage-9 bundle is **not**
+regenerated in place: its SHA256SUMS, index and provenance bind it to a
+release zip and a revision, and rebuilding it here would name ones that do
+not exist. Its disposition now says what it is -- a historical Stage-9
+record (`RETIRE_TO_HISTORY`), superseded by the bundle `release.yml` builds
+from `uv.lock` at release time and by the Phase-7 set -- except
+`release_trust_policy.json`, which `release.yml` reads live and is kept.
+
+**MUTATIONS.** `tools/mutations/dependency_declarations.json`: **8/8
+killed** (the one that first survived -- a lazy import of a real but
+undeclared package -- was killed by a test added for it).

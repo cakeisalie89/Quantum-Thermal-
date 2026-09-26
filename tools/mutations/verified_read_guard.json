@@ -1,0 +1,86 @@
+{
+ "title": "Verify-then-read cannot silently re-enter",
+ "note": "D-2026-76. The static guard walks every production file for a raw read, a tail parse, a resurrected read_from, or the file opened directly; the runtime guard refuses the raw parse to any qta_agent caller but the events module. Each mutation removes one rule, widens the scope or allowlist, or removes the runtime half.",
+ "suites": [
+  "tests/test_verified_read_guard.py"
+ ],
+ "mutations": [
+  {
+   "name": "VG1_a_raw_read_is_not_flagged",
+   "path": "tools/verified_read_guard.py",
+   "find": "            if f.attr == \"read\" and _is_logish(f.value, self.aliases):",
+   "replace": "            if False and _is_logish(f.value, self.aliases):",
+   "rationale": "THE rule: verify-then-read re-enters through the one method it goes through"
+  },
+  {
+   "name": "VG2_an_alias_escapes",
+   "path": "tools/verified_read_guard.py",
+   "find": "                    self.aliases.add(t.id)",
+   "replace": "                    pass",
+   "rationale": "x = self.log; x.read() -- the first thing a refactor produces"
+  },
+  {
+   "name": "VG3_iteration_is_not_a_read",
+   "path": "tools/verified_read_guard.py",
+   "find": "        if _is_logish(node.iter, self.aliases):\n            self._flag(node, \"RAW_READ\", \"for ... in \" + \".\".join(",
+   "replace": "        if False:\n            self._flag(node, \"RAW_READ\", \"for ... in \" + \".\".join(",
+   "rationale": "for ev in self.log is read() under another name"
+  },
+  {
+   "name": "VG4_the_tail_parser_is_not_flagged",
+   "path": "tools/verified_read_guard.py",
+   "find": "            elif f.attr == \"_read_tail\":",
+   "replace": "            elif False:",
+   "rationale": "verify_from followed by a second tail parse, the advance() defect"
+  },
+  {
+   "name": "VG5_read_from_may_come_back",
+   "path": "tools/verified_read_guard.py",
+   "find": "        if node.name == \"read_from\":",
+   "replace": "        if False:",
+   "rationale": "the removed unverified-tail primitive is redefined and nothing notices"
+  },
+  {
+   "name": "VG6_opening_the_file_is_not_a_read",
+   "path": "tools/verified_read_guard.py",
+   "find": "            elif (f.attr in (\"open\", \"read_bytes\", \"read_text\")",
+   "replace": "            elif False and (f.attr in (\"open\", \"read_bytes\", \"read_text\")",
+   "rationale": "stepping around the EventLog API entirely"
+  },
+  {
+   "name": "VG7_everything_is_allowlisted",
+   "path": "tools/verified_read_guard.py",
+   "find": "            key = (hit[0], hit[1], hit[2])",
+   "replace": "            key = next(iter(ALLOWED))",
+   "rationale": "the allowlist stops being per-site: any violation is absorbed by the one reason given for the fuzz target"
+  },
+  {
+   "name": "VG8_tools_are_not_scanned",
+   "path": "tools/verified_read_guard.py",
+   "find": "                  if p and not p.startswith((\"tests/\", \"attic/\")))",
+   "replace": "                  if p and not p.startswith((\"tests/\", \"attic/\", \"tools/\")))",
+   "rationale": "the scope narrows to where violations are not expected to be"
+  },
+  {
+   "name": "VG9_a_stale_allowlist_is_kept",
+   "path": "tools/verified_read_guard.py",
+   "find": "    if unused:\n        print(",
+   "replace": "    if False:\n        print(",
+   "rationale": "an allowlist entry for a site that no longer exists stays, ready to absorb the next one"
+  },
+  {
+   "name": "VG10_the_runtime_refusal_is_removed",
+   "path": "qta_agent/events.py",
+   "find": "    if caller.startswith(\"qta_agent.\") and caller != __name__:",
+   "replace": "    if False:",
+   "rationale": "D-2026-76: the refusal an alias cannot evade is gone, and only the name-based scan remains"
+  },
+  {
+   "name": "VG11_iteration_skips_the_runtime_refusal",
+   "path": "qta_agent/events.py",
+   "find": "        _refuse_unverified_caller(2)\n        yield from self.read()",
+   "replace": "        yield from self.read()",
+   "rationale": "the events module becomes the caller of read(), so iterating the log from a reducer is allowed"
+  }
+ ]
+}

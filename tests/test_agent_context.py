@@ -317,11 +317,188 @@ def test_a_manifest_pointing_at_no_shown_summary_is_refused():
 
 
 def test_a_manifest_whose_summary_names_other_bytes_is_refused():
+    """Refused at the SUMMARY now, before the omission is looked at: since
+    D-2026-75 the item names its source, so the mismatch is visible there."""
     rec = _good_record()
     for item in rec["items"]:
         if item["item_id"] == "s":
             item["summary_of"] = digest_bytes(b"something else")
-    with pytest.raises(ContextError, match="not a shown summary"):
+    with pytest.raises(ContextError, match="recorded with digest"):
+        manifest_from_record(rec)
+
+
+# ---- D-2026-75: the summary relationship is durable ----------------------
+#
+# The builder checks a summary against its source at construction time. The
+# durable item used to keep only the digest, so a manifest in which BOTH the
+# source and its summary were shown -- no omission to lean on -- could not
+# prove, once read back, that the digest was the source's. Every case below
+# is decided from the serialized record alone.
+
+def _both_shown_record():
+    ctx = _summarized(_full(_builder())).build(budget_bytes=100_000)
+    assert ctx.manifest.omissions == (), "both must be shown for this case"
+    return ctx.manifest.to_record()
+
+
+def _item(rec, item_id):
+    return next(i for i in rec["items"] if i["item_id"] == item_id)
+
+
+def test_a_both_shown_manifest_round_trips_with_its_source():
+    """Control for every refusal below."""
+    rec = _both_shown_record()
+    assert rec["manifest_version"] == 2
+    assert _item(rec, "s")["summarizes_item"] == "long"
+    m = manifest_from_record(rec)
+    assert m.digest() == manifest_from_record(rec).digest()
+
+
+def test_a_tampered_digest_on_a_shown_summary_is_refused():
+    """THE anti-vacuity case: nothing is omitted, and the reader must still
+    see that the digest is not the named source's. Fails against the
+    version-1 reader, which had nothing to compare it with."""
+    rec = _both_shown_record()
+    _item(rec, "s")["summary_of"] = digest_bytes(b"another document")
+    with pytest.raises(ContextError, match="recorded with digest"):
+        manifest_from_record(rec)
+
+
+def _two_sources_record():
+    """Two sources and two summaries, all shown: room to swap things."""
+    b = _full(_builder())
+    b.add(item_id="x1", tier=Tier.RETRIEVED_EVIDENCE, text="first source")
+    b.add(item_id="x2", tier=Tier.RETRIEVED_EVIDENCE, text="second source")
+    b.add(item_id="s1", tier=Tier.RETRIEVED_EVIDENCE, text="short 1",
+          summary_of=digest_bytes(b"first source"), summarizes_item="x1")
+    b.add(item_id="s2", tier=Tier.RETRIEVED_EVIDENCE, text="short 2",
+          summary_of=digest_bytes(b"second source"), summarizes_item="x2")
+    return b.build(budget_bytes=100_000).manifest.to_record()
+
+
+def _tamper(rec, fn):
+    fn(rec)
+    return rec
+
+
+@pytest.mark.parametrize("case,edit,needle", [
+    ("the source pointer points at nothing",
+     lambda r: _item(r, "s1").update(summarizes_item="ghost"),
+     "does not record as available"),
+    ("the source pointer is removed and the digest kept",
+     lambda r: _item(r, "s1").update(summarizes_item=None),
+     "half a summary claim"),
+    ("the digest is removed and the source pointer kept",
+     lambda r: _item(r, "s1").update(summary_of=None),
+     "half a summary claim"),
+    ("a summary names itself",
+     lambda r: _item(r, "s1").update(summarizes_item="s1"),
+     "another, named item"),
+    ("an empty source identifier",
+     lambda r: _item(r, "s1").update(summarizes_item=""),
+     "another, named item"),
+    ("a non-string source identifier",
+     lambda r: _item(r, "s1").update(summarizes_item=7),
+     "another, named item"),
+    ("a malformed digest",
+     lambda r: _item(r, "s1").update(summary_of="not-a-digest"),
+     "not a digest"),
+    ("the digests are swapped between the two summaries",
+     lambda r: (_item(r, "s1").update(summary_of=_item(r, "s2")["summary_of"]),
+                _item(r, "s2").update(summary_of=digest_bytes(b"first source"))),
+     "recorded with digest"),
+    ("the source pointer is swapped and the digest kept",
+     lambda r: _item(r, "s1").update(summarizes_item="x2"),
+     "recorded with digest"),
+    ("two summaries claim one source",
+     lambda r: _item(r, "s2").update(summarizes_item="x1",
+                                     summary_of=digest_bytes(b"first source")),
+     "summarized by both"),
+    ("a shown source's digest is forged to match a forged summary",
+     lambda r: (_item(r, "x1").update(content_digest=digest_bytes(b"forged")),
+                _item(r, "s2").update(summarizes_item="x1")),
+     "recorded with digest"),
+])
+def test_the_reader_refuses_a_forged_summary_relationship(case, edit, needle):
+    rec = _tamper(_two_sources_record(), edit)
+    with pytest.raises(ContextError, match=needle):
+        manifest_from_record(rec)
+
+
+def test_an_omitted_source_pointing_at_another_summary_is_refused():
+    """The omission names a real shown summary -- of something else."""
+    rec = _good_record()
+    rec["items"].append({"item_id": "other", "tier": "RETRIEVED_EVIDENCE",
+                         "content_digest": digest_bytes(b"o"), "byte_len": 1,
+                         "source": "", "summary_of": None,
+                         "summarizes_item": None})
+    rec["items"].append({"item_id": "s9", "tier": "RETRIEVED_EVIDENCE",
+                         "content_digest": digest_bytes(b"s9"), "byte_len": 2,
+                         "source": "", "summary_of": digest_bytes(b"o"),
+                         "summarizes_item": "other"})
+    rec["omissions"][0]["summarized_by"] = "s9"
+    with pytest.raises(ContextError):
+        manifest_from_record(rec)
+
+
+def test_an_omission_borrowing_a_summary_of_identical_bytes_is_refused():
+    """Two sources with the same bytes: a digest cannot tell them apart,
+    so only the durable POINTER says which one the summary is of. The
+    omitted copy claims a summary that names the shown copy."""
+    same = "identical text in two places"
+    b = _full(_builder())
+    b.add(item_id="kept", tier=Tier.RETRIEVED_EVIDENCE, text=same)
+    b.add(item_id="s", tier=Tier.RETRIEVED_EVIDENCE, text="short",
+          summary_of=digest_bytes(same.encode()), summarizes_item="kept")
+    rec = b.build(budget_bytes=100_000).manifest.to_record()
+    rec["omissions"].append({
+        "item_id": "dropped", "tier": "RETRIEVED_EVIDENCE",
+        "content_digest": digest_bytes(same.encode()),
+        "byte_len": len(same), "reason": "did not fit",
+        "summarized_by": "s"})
+    with pytest.raises(ContextError, match="names 'kept' as its source"):
+        manifest_from_record(rec)
+
+
+def test_an_omitted_source_that_hides_its_summary_is_refused():
+    rec = _good_record()
+    rec["omissions"][0]["summarized_by"] = None
+    with pytest.raises(ContextError, match="does not say so"):
+        manifest_from_record(rec)
+
+
+def test_a_version_1_manifest_claiming_a_summary_is_refused():
+    """The explicit compatibility rule: version 1 cannot prove a summary."""
+    rec = _both_shown_record()
+    del rec["manifest_version"]
+    for i in rec["items"]:
+        i.pop("summarizes_item")
+    with pytest.raises(ContextError, match="version-1 manifest"):
+        manifest_from_record(rec)
+
+
+def test_a_version_1_manifest_without_summaries_still_reads():
+    """Control: the compatibility rule refuses what it cannot prove, and
+    only that."""
+    rec = _full(_builder()).build(budget_bytes=4096).manifest.to_record()
+    del rec["manifest_version"]
+    for i in rec["items"]:
+        i.pop("summarizes_item")
+    assert manifest_from_record(rec).manifest_version == 1
+
+
+@pytest.mark.parametrize("version", [3, 0, "2", True, None])
+def test_an_unknown_manifest_version_is_refused(version):
+    rec = _both_shown_record()
+    rec["manifest_version"] = version
+    with pytest.raises(ContextError, match="version"):
+        manifest_from_record(rec)
+
+
+def test_a_version_2_field_in_a_version_1_record_is_refused():
+    rec = _both_shown_record()
+    del rec["manifest_version"]
+    with pytest.raises(ContextError, match="not a version-1 item"):
         manifest_from_record(rec)
 
 

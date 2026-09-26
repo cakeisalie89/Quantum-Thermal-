@@ -41,6 +41,7 @@ dev = [
   "ruff>=0.6",        # staged lint enforcement
   "mypy>=1.11",       # staged type enforcement
   "pydantic>=2.9",    # trusted-boundary validation models
+  "pyyaml>=6.0",      # imported directly by two workflow-contract trust tests (D-2026-74)
 ]
 workflow = [
   "snakemake>=8.20",  # dependency-aware wrapper over authoritative commands
