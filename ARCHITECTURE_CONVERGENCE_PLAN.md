@@ -790,3 +790,107 @@ assigned to no mutation.
 4. R41 `audit(log=...)` and the first R49 guard converted to a work counter.
 5. Ledger follow-up A: independent reconstruction for the nine durable
    action classes, one at a time.
+
+## 12. Tranche 3 checkpoint report -- Phase-2 closure and the first Phase-4 family
+
+Started at `776fe97`. Three commits: **D** `160e76c` (the content rule on
+the authority edge, a production caller, reuse by evidence), **E** `2449063`
+(thermal 2D, the C1 pin emptied, R41's audit and an R49 counter,
+D-2026-81..82), and this report (documentation only). **Not a
+migration-completion claim; not merged.** Each commit's evidence is its own;
+E's hosted results are reported with it, not written here.
+
+### What each commit did
+
+* **D** -- `qta_agent/result_rules.py`: what a `scientific_result` must show
+  before VERIFIED or PROMOTED, enforced by `AuthorityStore.transition` on
+  those edges by reading the cited bundle and report from evidence, so a
+  direct store transition is refused as `decide()` would refuse it (the 9.7
+  residual). `s10_governed_model`: the first production caller of the
+  governed model path, in `s10_full` and its own agent-substrate step, with
+  the auditor over its log. Reuse by evidence: a governed identity task, and a
+  VERIFIED or PROMOTED result reused only when its record and its bundle both
+  carry the identity, every artefact and the cited report still resolve, and
+  the report still supports the bundle. D-2026-80 (two stale prose counts).
+* **E** -- thermal 2D axisymmetric as a ScientificModel, checked by the 3D
+  Cartesian solver with adiabatic sides; each model routed to its own
+  governed tool, and `s10_governed_model` takes thermal 2D to VERIFIED too.
+  The cryopanel model's operating point is a declared input, and the C1
+  residual pin is empty. `CheckpointStore.audit(log=...)` (R41). The
+  scheduler-readiness guard counts instead of timing (R49); D-2026-81 (R49
+  said seven timed guards, there were two). D-2026-82 (the mutation harness's
+  null control ran unprotected).
+
+### Dispositions
+
+641 rows: KEEP_AS_IS 167, KEEP_AND_HARDEN 68, EXTRACT_GENERIC 35,
+KEEP_AS_MODEL_PLUGIN 49, REWRITE_GENERIC 90, REGENERATE 22, RETIRE_TO_HISTORY
+127, DELETE_GENERATED_AND_REBUILD 83. Every file matched by exactly one rule.
+
+### Mutation evidence (local, serial, baseline and null control green)
+
+| commit | specifications run | result |
+|---|---|---|
+| D | governed_model_reuse, authority_result_rules, scientific_thermal_1d, scientific_interfaces, verified_read_guard, agent_actions, agent_incremental, agent_cross_process, agent_snapshot_coherence | 124 / 124 |
+| E | performance_counters, agent_fault_injection, governed_model_reuse, scientific_thermal_1d, mutation_harness, agent_checkpoint; and scientific_thermal_2d, cryopanel_operating_point on byte-identical sources in a worktree | 138 / 138 |
+
+56 specifications are committed and every one runs in CI;
+`test_agent_performance.py` had been in no spec's suites, and
+`performance_counters.json` is the first to run it.
+
+### Failures along the way
+
+* **GR2 survived** the first reuse matrix (D): every excluded record in the
+  tests also lacked a supporting report, so the content re-check excluded it
+  and the state filter was never needed. A result verified and since
+  revoked, made stale or superseded keeps its supporting report; four such
+  paths are now tested, and GR2 is killed.
+* **D-2026-82**, found by stopping a local run: the null control ran before
+  the recovery sidecar and the signal handler existed. Repaired in E.
+* **A flaky test of mine, caught before E was committed**: the first
+  foreign-log audit test needed two logs of equal record count to be equal
+  in size, and `wall_time`'s digit count varies. It failed once in E's full
+  suite; the real log now has one more record, 40 of 40.
+* **Tooling, no repository effect**: this container's git 2.43
+  `apply --intent-to-add` replaced the whole index with the patch's paths.
+  The index was rebuilt from HEAD, the manifest regenerated from the
+  committed base (its entry order had followed the broken one), and the
+  tree's digest compared with the validated worktree's before committing.
+
+### Hosted CI, by commit
+
+* `160e76c` (D), push: stack-verify green (its `s10_full` now includes the
+  governed model rule). agent-substrate: the substrate job green including
+  "the governed scientific-model path actually runs" (18 s); all eight mutation shards and the `mutation-matrices` aggregate green -- among them agent_evidence, agent_checkpoint and agent_substrate, the three not run locally;
+  full-suite pytest step green, red at step 7 only -- R59 on a Haswell /
+  X86_V3 runner, 23 root files differing in digits, 0 decision-bearing tokens
+  of 5419 leaves, the one BARE zero crossing D-2026-69's energy-ledger row,
+  manifest hashes PASS. Pull request: the same shape, 13 of 14 jobs green, the one red full-suite at step 7 on the same 23 files with 0 decision tokens; stack-verify green.
+
+### R59, separately
+
+Unchanged and standing, as in section 11. No tolerance widened, no output
+rewritten, the gate not suppressed, a red run not described as success.
+
+### Status of the carried items
+
+R41 closed in code (9.2); the row moves only with hosted evidence of E. R49:
+one timed guard left (9.3). 9.7: the content-rule, production-caller, reuse
+and cryopanel residuals closed; new ones recorded (a report's origin is not
+checked; the run identity does not see CPU dispatch; reuse is per history).
+Ledger follow-ups A-D: carried unchanged in 9.4 -- A was item 5 of the cut
+this tranche was asked for, and was not reached.
+
+### The next cut, exactly
+
+1. Make the edge into VERIFIED for a `scientific_result` require the report
+   to be an artefact of a VERIFIED governed check task (9.7).
+2. Phase 4 continues: gas transport 1D/2D, then surface coverage, each with
+   an independent check that exists in this repository or a stated NOT_RUN;
+   C5's phase labels, one plugin at a time.
+3. R49's last timed guard, evidence lookup: a hosted-runner margin recorded,
+   or a unit that sees directory growth.
+4. Ledger follow-up A: independent reconstruction for the nine durable action
+   classes, one at a time.
+5. Hosted evidence for E recorded against R41 and R49, and each row moved or
+   not on it.
