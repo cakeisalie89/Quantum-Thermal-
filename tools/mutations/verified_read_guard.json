@@ -81,6 +81,13 @@
    "find": "        _refuse_unverified_caller(2)\n        yield from self.read()",
    "replace": "        yield from self.read()",
    "rationale": "the events module becomes the caller of read(), so iterating the log from a reducer is allowed"
+  },
+  {
+   "name": "VG12_a_nameless_caller_crashes_the_guard",
+   "path": "qta_agent/events.py",
+   "find": "    if not isinstance(caller, str):\n        caller = \"\"\n",
+   "replace": "    if False:\n        caller = \"\"\n",
+   "rationale": "D-2026-79: exec'd code with __name__ = None (a Snakemake rule body) crashes the guard instead of being let through"
   }
  ]
 }

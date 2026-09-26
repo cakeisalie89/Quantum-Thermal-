@@ -719,11 +719,28 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
                         "not a success either: nothing observed it finish.")
                     break
 
+        exited = time.time()
         rc = proc.returncode
         if rc is not None and rc < 0:
             signal_number = -rc
         else:
             exit_status = rc
+
+        # THE BOUND IS CHECKED AFTER EXIT TOO (D-2026-78). The loop above
+        # looks at the deadline only when a 50 ms wait times out, so a
+        # process that exited past its deadline but inside one poll interval
+        # came back COMPLETED: a run that outlived its declared bound,
+        # accepted. It stayed hidden while the tools run here were slow to
+        # start. Narrow on purpose -- only a run that would otherwise be
+        # COMPLETED is reclassified; a failure keeps its own reason.
+        if (outcome not in (Outcome.TIMED_OUT, Outcome.CANCELLED)
+                and signal_number is None and exit_status == 0
+                and exited - started > limits.wall_seconds):
+            outcome = Outcome.TIMED_OUT
+            reason = (f"exited after {exited - started:.3f}s, past its "
+                      f"{limits.wall_seconds:g}s wall-clock bound. The bound "
+                      "is the contract; a run that outlived it is not a "
+                      "completed run, and not a success either.")
 
         if outcome not in (Outcome.TIMED_OUT, Outcome.CANCELLED):
             if signal_number is not None:

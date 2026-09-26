@@ -151,7 +151,12 @@ def _refuse_unverified_caller(depth: int) -> None:
     outside ``qta_agent`` and are unaffected: an unverified parse is a
     legitimate thing to LOOK at, and never a legitimate thing to fold.
     """
-    caller = sys._getframe(depth).f_globals.get("__name__", "")
+    caller = sys._getframe(depth).f_globals.get("__name__")
+    # Code run by exec() may carry no module name at all -- Snakemake runs a
+    # rule body with __name__ = None (D-2026-79). That is not the authority
+    # layer, and a guard that crashes on it is not a guard.
+    if not isinstance(caller, str):
+        caller = ""
     if caller.startswith("qta_agent.") and caller != __name__:
         raise UnverifiedReadRefused(
             f"{caller} read the event log without verifying it. Fold from "

@@ -374,6 +374,15 @@ rust/qta_kernels/Cargo.lock,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity
 rust/qta_kernels/Cargo.toml,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
 rust/qta_kernels/pyproject.toml,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
 rust/qta_kernels/src/lib.rs,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
+scientific/__init__.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/model.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/observation.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/quantity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/registry.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/result.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/run_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/verification.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 sensitivity_ranking_3d.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 shielding_stack_register.csv,RETIRE_TO_HISTORY,5,Apparatus shielding stack.,
 snakemake_sim_entry.py,REWRITE_GENERIC,2-7 (see rationale),Snakemake wrapper around qta_full_sim (Phase 6).,docstring
@@ -503,6 +512,9 @@ tests/test_release_workflow_contract.py,KEEP_AS_IS,-,Release workflow executable
 tests/test_repo_contract.py,KEEP_AS_IS,-,Repository file-set contract.,
 tests/test_resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution inventory.,
 tests/test_review_binding.py,RETIRE_TO_HISTORY,5,Hardware review binding.,imports hardware_governance_3d
+tests/test_scientific_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_import_isolation.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_interfaces.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_signing_finalizer.py,KEEP_AS_IS,-,Signing finalizer.,
 tests/test_single_source_of_truth.py,REWRITE_GENERIC,2-7 (see rationale),Single-definition rule is generic; subject list is QTA.,
 tests/test_solver_failclosed.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A failed solve grants nothing (directive s20 model).,
@@ -582,6 +594,7 @@ tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/scientific_interfaces.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

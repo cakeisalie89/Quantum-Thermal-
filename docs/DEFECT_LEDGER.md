@@ -7302,6 +7302,18 @@ proxy for the method, which is why it did not ask. **Deferred**: the repair
 source) changes a byte-gated output, which is Phase 4-6 work on this file's
 disposition (`campaign_state_3d.py` is `REWRITE_GENERIC`).
 
+**STATUS UPDATE (Phase 2)** -- the generic requirement is MET; this entry
+stays **OPEN**. `scientific.quantity.Quantity` carries value, unit,
+resolution, resolution class and basis, reporting digits and uncertainty
+class, and tells an exact zero from a value below resolution. The original
+quantity is representable: `1.615587134e-27` J and `0.0` J, each with the
+running sum's 8.1e-27 J `ACCUMULATED_BOUND`, both classify
+`BELOW_RESOLUTION`, compare as indistinguishable, and neither prints as a
+result (`test_the_d_2026_69_crossing_is_one_result_not_two`). What is still
+wrong is the artefact: `energy_ledger_cumulative_3d.csv` publishes the digits
+without the basis, and moving it onto the mechanism is the Phase 4-6 work on
+`campaign_state_3d.py` this entry names.
+
 ## D-2026-70 — seventeen reducers verified one read of the log and folded another
 
 **CLASS** — `DEFECT`, trust boundary, `qta_agent/`. The directive named the
@@ -7647,3 +7659,78 @@ from `uv.lock` at release time and by the Phase-7 set -- except
 **MUTATIONS.** `tools/mutations/dependency_declarations.json`: **8/8
 killed** (the one that first survived -- a lazy import of a real but
 undeclared package -- was killed by a test added for it).
+
+## D-2026-78 — a wall-clock bound that a fast process could outlive and still complete
+
+**CLASS** — `DEFECT`, `qta_agent/execution.py`. Found by cut C1, not by
+looking for it.
+
+`run_bounded` waits for the child in 50 ms slices and looks at the deadline
+only when a slice times out. A process that exits PAST its deadline but
+inside one slice was classified by its exit status alone: exit 0, COMPLETED.
+A run that outlived its declared bound was accepted as a completed run.
+
+It stayed hidden because every governed tool started slowly.
+`test_a_timed_out_run_never_reaches_completed_or_verified` gives the Stage-10
+tool a 1 ms bound and says "no Python interpreter starts in a millisecond, on
+any runner", which is true -- but what made the run TIME OUT was not the
+interpreter: importing `qta_multiphysics` loaded the whole orchestrator, about
+a second of imports, so the tool was always still running at the first deadline
+check. C1 made the package import nothing; the tool now exits in tens of
+milliseconds, inside the first slice, and the execution came back
+COMPLETED (the task then ended FAILED at a later check, not TIMED_OUT). The
+Commit-B full suite failed on it,
+deterministically -- three reruns alone, 0.4 s each, all red. Not a flake, and
+not the test's fault: the test's premise was right, the executor's
+enforcement was not.
+
+**REPAIR.** The exit time is recorded, and a run that would otherwise be
+COMPLETED (exit 0, no signal) but exited after its wall bound is TIMED_OUT,
+with the elapsed time in the reason. Narrow: a failure or a signal keeps its
+own classification. The polling interval is unchanged -- the bound is now
+checked at exit, which is the check that was missing, rather than approximated
+more finely.
+
+**TESTS.** `test_a_run_that_exits_after_its_bound_is_not_completed`
+(`python -c pass` under 1 ms: fails on the pre-repair executor, passes after)
+and its control `test_a_run_inside_its_bound_still_completes`; the Stage-10
+timeout test is deterministic again.
+
+**MUTATIONS.** `agent_execution.json` gains
+`L_BOUND_a_late_exit_counts_as_completed`.
+
+**SIBLING SWEEP.** The other bounds this function enforces are kernel limits
+(CPU, address space, output size, process count), applied by `setrlimit` in
+the child and enforced by the kernel whatever the timing; the idle bound is
+checked in the same slice loop and is a liveness rule for a process still
+running, which is the case it is defined for. The wall bound was the only one
+whose check depended on observing the process alive.
+
+## D-2026-79 — the verify-then-read runtime guard crashed the governed production rule
+
+**CLASS** — `DEFECT`, mine, introduced by D-2026-76 in `f18b5f0`; found by
+hosted CI on that commit, not by any local run.
+
+`_refuse_unverified_caller` read the calling frame's `__name__` and called
+`.startswith` on it. Snakemake runs a rule body with `__name__` = None, and
+the `s10_governed` rule reads the log directly for its assertions, so the
+guard raised `AttributeError` inside the governed production rule. Hosted at
+`f18b5f0`: both stack-verify jobs red at "Stage-10 workflow", and the
+agent-substrate job red at "the governed production path actually runs". The
+local validation of that commit ran the full pytest suite, PCC, isolation,
+every verifier and 289 mutations -- and not `snakemake s10_governed`, which is
+the one command that executes rule code. That omission is the finding as much
+as the crash is.
+
+**REPAIR.** A caller whose module name is not a string is treated as what it
+is -- not the authority layer -- and may look. `tools/verified_read_guard.py`
+now says in its docstring that the Snakefile is outside its scan (Snakemake
+syntax is not Python `ast` parses), and what the Snakefile's four raw reads
+are: assertions over the run's history in `s10_governed` and
+`s10_governed_index`, folding nothing.
+
+**TESTS / MUTATIONS.**
+`test_a_caller_with_no_module_name_is_not_crashed` (`__name__` None and 42):
+fails on the `f18b5f0` guard, passes after. `verified_read_guard.json` gains
+VG12. Validation from here on runs `snakemake --cores 1 s10_governed` and
+`s10_full` locally, as the two workflows do.

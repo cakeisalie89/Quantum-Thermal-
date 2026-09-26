@@ -316,6 +316,23 @@ def test_a_timeout_is_not_a_success(env):
     assert "not a success" in r.reason
 
 
+def test_a_run_that_exits_after_its_bound_is_not_completed(env):
+    """D-2026-78. The deadline was checked only when a 50 ms wait timed
+    out, so a process that exited PAST its bound but inside one poll
+    interval came back COMPLETED. No interpreter starts in a millisecond, so
+    under a 1 ms bound this exits late every time, on every runner."""
+    r = _run(env, [PY, "-c", "pass"], limits=Limits(wall_seconds=0.001))
+    assert r.outcome is Outcome.TIMED_OUT, (r.outcome, r.duration_s)
+    assert not r.succeeded
+    assert "past its" in r.reason
+
+
+def test_a_run_inside_its_bound_still_completes(env):
+    """Control: the same process under a bound it meets."""
+    r = _run(env, [PY, "-c", "pass"], limits=Limits(wall_seconds=30.0))
+    assert r.outcome is Outcome.COMPLETED, r.reason
+
+
 def test_cancellation_before_start_means_the_process_never_starts(env, tmp_path):
     """A cancellation that cannot prevent the work is not a cancellation."""
     marker = tmp_path / "ran"

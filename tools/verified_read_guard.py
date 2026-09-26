@@ -34,6 +34,13 @@ authority layer. Neither alone is the claim.
 The allowlist is by (file, function, rule), each entry with its reason, and
 the count is pinned by the test, so widening it is a reviewed change rather
 than a quiet one.
+
+NOT SCANNED: the Snakefile. Snakemake's rule syntax is not Python the ``ast``
+module parses. Its four raw reads (in ``s10_governed`` and
+``s10_governed_index``) are assertions over the run's history -- which
+actions appear, that no egress grant exists, that a re-execution was
+recorded -- and fold nothing into state. The runtime guard does not cover
+them either: rule bodies are not ``qta_agent`` modules (D-2026-79).
 """
 from __future__ import annotations
 

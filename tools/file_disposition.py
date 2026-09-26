@@ -153,6 +153,12 @@ RULES = [
      "Second governed tool (digest index); generalize with "
      "governed_stage10 in Phase 2.",
      "docstring names results_gate_table.csv as a possible input"),
+    ("scientific/*.py", KAI,
+     "NEW in Phase 2: the generic interface the convergence targets -- "
+     "ScientificModel, ModelRegistry, ResultBundle, VerificationResult, "
+     "Observation kinds, Quantity, run and implementation identity. "
+     "Standard library only; knows neither the agent nor the apparatus.",
+     "tests/test_scientific_import_isolation.py"),
     ("qta_agent/*.py", KAI,
      "Generic governed-agent substrate (actions/authority/canonical/eviden"
      "ce/execution/hostid/invalidation/readpath/safeio/separate_verify/tas"
@@ -691,6 +697,10 @@ RULES = [
     ("tests/test_agent_substrate_isolation.py", KAH,
      "Layering and IO_LAYER extended for qta_agent/projection.py; new test"
      " importer allowed (Phase 1).",
+     ""),
+    ("tests/test_scientific_*.py", KAI,
+     "NEW in Phase 2: the interfaces, the implementation identity (held to "
+     "the substrate's own algorithms) and cut C1 in a fresh interpreter.",
      ""),
     ("tests/test_verified_read_guard.py", KAH,
      "NEW: every rule of the verify-then-read guard on a breaking source "

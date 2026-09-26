@@ -1,0 +1,158 @@
+{
+  "title": "The Phase-2 interfaces refuse what they exist to refuse",
+  "note": "ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity (the generic D-2026-69 mechanism), run identity, implementation identity, and cut C1. Each mutation removes one refusal.",
+  "suites": [
+    "tests/test_scientific_interfaces.py",
+    "tests/test_scientific_identity.py",
+    "tests/test_scientific_import_isolation.py"
+  ],
+  "mutations": [
+    {
+      "name": "SI1_a_declared_invariant_may_go_uncomputed",
+      "path": "scientific/model.py",
+      "find": "    if declared - computed:\n",
+      "replace": "    if False:\n",
+      "rationale": "an invariant result that is not computed reads as having held"
+    },
+    {
+      "name": "SI2_independence_may_share_the_producers_code",
+      "path": "scientific/verification.py",
+      "find": "            if self.verifier_implementation_digest == \\\n                    self.producer_implementation_digest:\n",
+      "replace": "            if False:\n",
+      "rationale": "an 'independent' check that is a second call into the producer"
+    },
+    {
+      "name": "SI3_a_simulation_may_become_a_measurement",
+      "path": "scientific/observation.py",
+      "find": "            if kind not in ALLOWED[ik]:\n",
+      "replace": "            if False:\n",
+      "rationale": "SIMULATION_RESULT accepted as the source of a PROCESSED or RAW observation"
+    },
+    {
+      "name": "SI4_a_raw_observation_may_be_derived",
+      "path": "scientific/observation.py",
+      "find": "        if kind is K.RAW_OBSERVATION:\n            if inputs or self.transformation:\n",
+      "replace": "        if kind is K.RAW_OBSERVATION:\n            if False:\n",
+      "rationale": "a derived value labelled RAW"
+    },
+    {
+      "name": "SI5_reuse_ignores_the_parameters",
+      "path": "scientific/run_identity.py",
+      "find": "    diff = prior.differences(current)\n",
+      "replace": "    diff = [f for f in prior.differences(current)\n            if f != \"parameter_digest\"]\n",
+      "rationale": "a run reused on a parameter-digest mismatch"
+    },
+    {
+      "name": "SI6_reuse_without_the_evidence",
+      "path": "scientific/run_identity.py",
+      "find": "    if prior_evidence_intact is not True:\n",
+      "replace": "    if False:\n",
+      "rationale": "a run reused by its name, not its evidence"
+    },
+    {
+      "name": "SI7_the_registry_accepts_other_code_under_one_name",
+      "path": "scientific/registry.py",
+      "find": "        if prior is not None and prior != d:\n",
+      "replace": "        if False:\n",
+      "rationale": "two implementations answering to one model id and version"
+    },
+    {
+      "name": "SI8_lookup_trusts_the_registration",
+      "path": "scientific/registry.py",
+      "find": "        if now != self._digests[key]:\n",
+      "replace": "        if False:\n",
+      "rationale": "a model whose code changed runs under its registered identity"
+    },
+    {
+      "name": "SI9_a_bundle_may_inline_an_array",
+      "path": "scientific/result.py",
+      "find": "        if nums > MAX_INLINE_NUMBERS:\n",
+      "replace": "        if False:\n",
+      "rationale": "a field written into the event log"
+    },
+    {
+      "name": "SI10_the_parameters_need_not_match_their_digest",
+      "path": "scientific/result.py",
+      "find": "        if digest(self.parameters) != self.parameter_digest:\n",
+      "replace": "        if False:\n",
+      "rationale": "a bundle citing one parameter set and carrying another"
+    },
+    {
+      "name": "SI11_a_bundle_may_claim_another_kind",
+      "path": "scientific/result.py",
+      "find": "        if ObservationKind(self.observation_kind) is not \\\n                ObservationKind.SIMULATION_RESULT:\n",
+      "replace": "        if False:\n",
+      "rationale": "a model result issued as a measurement"
+    },
+    {
+      "name": "SI12_below_resolution_reads_as_resolved",
+      "path": "scientific/quantity.py",
+      "find": "        if abs(self.value) <= self.resolution:\n",
+      "replace": "        if False:\n",
+      "rationale": "THE D-2026-69 shape: digits below the method's floor published as a result"
+    },
+    {
+      "name": "SI13_a_computed_zero_is_exact",
+      "path": "scientific/quantity.py",
+      "find": "        if self.exact:\n            return (ZeroState.EXACT_ZERO",
+      "replace": "        if self.exact or self.value == 0:\n            return (ZeroState.EXACT_ZERO",
+      "rationale": "a zero that is noise reported as a structural zero"
+    },
+    {
+      "name": "SI14_a_resolution_needs_no_basis",
+      "path": "scientific/quantity.py",
+      "find": "            if not self.resolution_basis.strip():\n",
+      "replace": "            if False:\n",
+      "rationale": "a floor nobody can trace"
+    },
+    {
+      "name": "SI15_validation_without_a_measurement",
+      "path": "scientific/verification.py",
+      "find": "            if not any(k in MEASURED for _, k in obs):\n",
+      "replace": "            if False:\n",
+      "rationale": "numerically converged read as experimentally validated"
+    },
+    {
+      "name": "SI16_a_verdict_without_a_measurement",
+      "path": "scientific/verification.py",
+      "find": "            if not isinstance(self.measured, Quantity):\n",
+      "replace": "            if False:\n",
+      "rationale": "PASS on a check that measured nothing"
+    },
+    {
+      "name": "SI17_no_source_still_an_identity",
+      "path": "scientific/identity.py",
+      "find": "    if d is None:\n        raise IdentityError(",
+      "replace": "    if False:\n        raise IdentityError(",
+      "rationale": "an implementation digest of None, which matches nothing and is recorded anyway"
+    },
+    {
+      "name": "SI18_the_canonical_form_admits_nan",
+      "path": "scientific/identity.py",
+      "find": "                          separators=(\",\", \":\"), allow_nan=False)\n",
+      "replace": "                          separators=(\",\", \":\"), allow_nan=True)\n",
+      "rationale": "a digest over bytes another reader cannot parse"
+    },
+    {
+      "name": "SI19_the_package_init_loads_the_orchestrator_again",
+      "path": "qta_multiphysics/__init__.py",
+      "find": "__all__ = [\"run_all\"]\n",
+      "replace": "__all__ = [\"run_all\"]\nfrom .runner import run_all as _eager  # noqa: E402,F401\n",
+      "rationale": "C1 undone: every scientific module loads the gate-spec assembly again"
+    },
+    {
+      "name": "SI20_artefact_bytes_need_not_match",
+      "path": "scientific/model.py",
+      "find": "        if digest_bytes(data) != ref.digest or len(data) != ref.size_bytes:\n",
+      "replace": "        if False:\n",
+      "rationale": "a bundle whose artefact reference names bytes that are not the ones handed over"
+    },
+    {
+      "name": "SI21_unknown_parameters_are_ignored",
+      "path": "scientific/model.py",
+      "find": "        if unknown:\n",
+      "replace": "        if False:\n",
+      "rationale": "a mistyped parameter silently runs the default"
+    }
+  ]
+}

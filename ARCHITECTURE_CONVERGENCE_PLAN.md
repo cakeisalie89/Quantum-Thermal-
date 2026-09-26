@@ -203,8 +203,45 @@ Recorded in `docs/DEFECT_LEDGER.md`; summarized in the tranche report.
   bundle is labelled for what it is.
 * **Mutation CI sharded** into eight deterministic jobs under an aggregate
   that is green only when every shard succeeded; no specification dropped.
+* **D-2026-79 -- found by hosted CI on the closure commit.** The runtime
+  guard crashed on a caller with no module name (a Snakemake rule body),
+  breaking the governed production rule; fixed in the next commit, and local
+  validation now runs the governed Snakemake rules as the workflows do.
 
 ## 7. Phase 2 -- the minimal generic interfaces
+
+**Status: introduced** as the `scientific/` package, standard library only
+(held by `tests/test_scientific_import_isolation.py`), and cut C1 made
+(`qta_multiphysics/__init__.py` imports nothing; `run_all` is a marked,
+transitional lazy entry). Where the code differs from the table below, and
+why:
+
+* **Frozen dataclasses, not Pydantic.** The interfaces must be importable by
+  anything, so they load nothing outside the standard library; validation is
+  in `__post_init__` and fails closed the same way.
+* **`implementation_digest` restates** `qta_agent.projection`'s source-closure
+  algorithm instead of importing it, because the scientific core may not
+  depend on the authority layer; `tests/test_scientific_identity.py` holds
+  the two to the same bytes. The named modules are imported; what they
+  import is read from source.
+* **`Quantity`** was added: every output, invariant measurement and check
+  measurement carries its unit, resolution, resolution class and basis,
+  reporting digits and uncertainty class, and an exact zero is distinct from
+  a value below resolution -- the generic form of D-2026-69 (9.5).
+* **`VerificationResult`** refuses "independent" with the producer's
+  implementation digest, independence with shared components but no stated
+  limitation, a verdict with nothing measured, and EXPERIMENTAL_VALIDATION
+  without a measured observation from a comparison with measurement.
+* **`run_model`** refuses a bundle that names another model, another
+  implementation digest or other parameters, that omits a declared
+  invariant or reports an undeclared one, or whose artefact bytes are not the
+  ones referenced.
+* **C1 exposed a trust defect elsewhere (D-2026-78).** With the package
+  importing nothing, the governed Stage-10 tool started in milliseconds, and
+  the executor -- which checked its wall bound only while the child was
+  still running -- reported a run that exited past a 1 ms bound as
+  COMPLETED. The bound is now checked at exit; the test that relied on a slow
+  import is deterministic again.
 
 What Phase 2 must introduce, and nothing more; typed, Pydantic where a
 boundary validates input, no inheritance hierarchy forced on existing
@@ -395,6 +432,16 @@ work and does not close the entry by being planned.
   is its honest default. No Phase-2 interface collapses any of this to one
   number.
 
+### 9.7 Phase-2 residuals
+
+* **One model plugin still reaches the ontology after C1.**
+  `cryopanel_dynamics_3d` imports three operating-point constants from
+  `species_accounting_3d` (REWRITE_GENERIC), which imports
+  `mode_sequence_3d`. Pinned by name in the C1 test, so a new offender fails
+  and so does fixing this one without removing the pin. *Done when:* the
+  constants are declared inputs of the cryopanel model (Phase 4, C5) and the
+  pin is empty.
+
 ## 10. Tranche 1 checkpoint report
 
 Phase 0 and Phase 1, on top of `71b58cb`. **Not a migration-completion
@@ -542,3 +589,9 @@ rates (C4); campaigns and the coupled multi-phase solve through the machine
 FSM and fixed modes (C5-C6); release and provenance through the QTA output
 corpus and CI's byte gate on it (C8-C9). No physics model, numerical module
 or stack adapter depends on the ontology beyond the package `__init__`.
+
+*Correction, measured at C1 (Phase 2): one does. `cryopanel_dynamics_3d`
+(a model plugin) reaches `mode_sequence_3d` through three constants it
+imports from `species_accounting_3d` -- as DEPENDENCY_CUTOVER.md's own
+section-4 table records. The sentence above overstated it; the C1 test
+pins that one edge as a named residual (9.7).*

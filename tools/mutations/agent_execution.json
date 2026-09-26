@@ -440,6 +440,13 @@
       "find": "        resource.setrlimit(resource.RLIMIT_AS,\n                           (limits.address_space_bytes,\n                            limits.address_space_bytes))",
       "replace": "        pass",
       "rationale": "the anti-vacuity half of the containment boundary: the claim is 'the kernel enforces THESE and not networking', so a build where the rlimits do not bite makes the boundary test vacuous rather than informative"
+    },
+    {
+      "name": "L_BOUND_a_late_exit_counts_as_completed",
+      "path": "qta_agent/execution.py",
+      "find": "                and exited - started > limits.wall_seconds):\n",
+      "replace": "                and False):\n",
+      "rationale": "D-2026-78: a process that exited past its wall bound, inside one poll interval, reported COMPLETED"
     }
   ]
 }

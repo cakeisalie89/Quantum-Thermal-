@@ -153,3 +153,14 @@ def test_the_refusal_is_not_an_event_log_error():
     refusal must not be caught there and turned into a quiet fallback."""
     from qta_agent.events import EventLogError, UnverifiedReadRefused
     assert not issubclass(UnverifiedReadRefused, EventLogError)
+
+
+@pytest.mark.parametrize("name", [None, 42])
+def test_a_caller_with_no_module_name_is_not_crashed(tmp_path, name):
+    """D-2026-79. Snakemake runs a rule body with ``__name__`` = None, and
+    the guard called ``None.startswith`` -- the governed production rule
+    crashed in hosted CI while every local suite passed. A caller with no
+    module name is not the authority layer; it may look."""
+    g = {"__name__": name, "log": _log(tmp_path)}
+    exec("n = len(log.read())", g)
+    assert g["n"] == 1
