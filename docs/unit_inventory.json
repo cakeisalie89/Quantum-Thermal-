@@ -1,0 +1,511 @@
+{
+ "columns": {
+  "campaign_uncertainty_quantiles.csv:cycle": {
+   "unit": "COUNT"
+  },
+  "campaign_uncertainty_quantiles.csv:p05": {
+   "unit": "PER_ROW",
+   "unit_from": "quantity"
+  },
+  "campaign_uncertainty_quantiles.csv:p50": {
+   "unit": "PER_ROW",
+   "unit_from": "quantity"
+  },
+  "campaign_uncertainty_quantiles.csv:p95": {
+   "unit": "PER_ROW",
+   "unit_from": "quantity"
+  },
+  "cryopanel_loading_3d.csv:N_per_m2": {
+   "unit": "1/m^2"
+  },
+  "cryopanel_loading_3d.csv:admitted_per_m2": {
+   "unit": "1/m^2"
+  },
+  "cryopanel_loading_3d.csv:cycle": {
+   "unit": "COUNT"
+  },
+  "cryopanel_loading_3d.csv:monolayer_fraction": {
+   "unit": "DIMENSIONLESS"
+  },
+  "cryopanel_loading_3d.csv:sticking": {
+   "unit": "DIMENSIONLESS"
+  },
+  "distributed_thermal_2d_slices.csv:Tpeak_K": {
+   "unit": "K"
+  },
+  "distributed_thermal_2d_slices.csv:coord_m": {
+   "unit": "m"
+  },
+  "distributed_thermal_profile.csv:Q_laser_W_m3": {
+   "unit": "W/m^3"
+  },
+  "distributed_thermal_profile.csv:Q_mw_W_m3": {
+   "unit": "W/m^3"
+  },
+  "distributed_thermal_profile.csv:T_final_K": {
+   "unit": "K"
+  },
+  "distributed_thermal_profile.csv:T_initial_K": {
+   "unit": "K"
+  },
+  "distributed_thermal_profile.csv:T_peak_K": {
+   "unit": "K"
+  },
+  "distributed_thermal_profile.csv:cell_width_m": {
+   "unit": "m"
+  },
+  "distributed_thermal_profile.csv:gradient_K_per_m": {
+   "unit": "K/m"
+  },
+  "distributed_thermal_profile.csv:heat_flux_W_m2": {
+   "unit": "W/m^2"
+  },
+  "distributed_thermal_profile.csv:z_left_face_m": {
+   "unit": "m"
+  },
+  "distributed_thermal_profile.csv:z_m": {
+   "unit": "m"
+  },
+  "distributed_thermal_profile.csv:z_right_face_m": {
+   "unit": "m"
+  },
+  "energy_ledger_cumulative_3d.csv:cumulative_dU_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:cumulative_rel_residual": {
+   "unit": "DIMENSIONLESS"
+  },
+  "energy_ledger_cumulative_3d.csv:cumulative_residual_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:cumulative_sink_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:cumulative_source_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:cycle": {
+   "unit": "COUNT"
+  },
+  "energy_ledger_cumulative_3d.csv:phase_dU_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:phase_rel_residual": {
+   "unit": "DIMENSIONLESS"
+  },
+  "energy_ledger_cumulative_3d.csv:phase_residual_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:phase_sink_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:phase_source_J": {
+   "unit": "J"
+  },
+  "expected_information_gain.csv:eig_nats": {
+   "unit": "nats"
+  },
+  "expected_information_gain.csv:eig_se": {
+   "unit": "nats"
+  },
+  "expected_information_gain.csv:expected_posterior_entropy_nats": {
+   "unit": "nats"
+  },
+  "expected_information_gain.csv:n_batches": {
+   "unit": "COUNT"
+  },
+  "expected_information_gain.csv:n_inner": {
+   "unit": "COUNT"
+  },
+  "expected_information_gain.csv:n_outer": {
+   "unit": "COUNT"
+  },
+  "expected_information_gain.csv:prior_entropy_nats": {
+   "unit": "nats"
+  },
+  "experiment_falsification_map.csv:falsification_value": {
+   "unit": "ORDINAL"
+  },
+  "experimental_design_candidates.csv:cost": {
+   "unit": "ORDINAL"
+  },
+  "experimental_design_candidates.csv:criticality": {
+   "unit": "ORDINAL"
+  },
+  "experimental_design_candidates.csv:duration": {
+   "unit": "ORDINAL"
+  },
+  "experimental_design_candidates.csv:falsification_value": {
+   "unit": "ORDINAL"
+  },
+  "experimental_design_candidates.csv:risk": {
+   "unit": "ORDINAL"
+  },
+  "failed_gate_samples.csv:Cc": {
+   "unit": "DIMENSIONLESS"
+  },
+  "failed_gate_samples.csv:Ge_WK": {
+   "unit": "W/K"
+  },
+  "failed_gate_samples.csv:SNR": {
+   "unit": "DIMENSIONLESS"
+  },
+  "failed_gate_samples.csv:T2s_us": {
+   "unit": "us"
+  },
+  "failed_gate_samples.csv:Ts_mK": {
+   "unit": "mK"
+  },
+  "failed_gate_samples.csv:ea": {
+   "unit": "DIMENSIONLESS"
+  },
+  "failed_gate_samples.csv:eps_pct": {
+   "unit": "percent"
+  },
+  "failed_gate_samples.csv:tc_us": {
+   "unit": "us"
+  },
+  "fidelity_comparison.csv:model_1d": {
+   "unit": "PER_ROW",
+   "unit_from": "metric"
+  },
+  "fidelity_comparison.csv:model_2d": {
+   "unit": "PER_ROW",
+   "unit_from": "metric"
+  },
+  "gas_transport_2d_map.csv:dose_flux_closed_m2_s": {
+   "unit": "1/(m^2 s)"
+  },
+  "gas_transport_2d_map.csv:dose_flux_open_m2_s": {
+   "unit": "1/(m^2 s)"
+  },
+  "gas_transport_2d_map.csv:r_m": {
+   "unit": "m"
+  },
+  "gas_transport_metrics.csv:cells_below_resolution_modeC": {
+   "unit": "COUNT"
+  },
+  "gas_transport_metrics.csv:cryobaffle_capture": {
+   "unit": "DIMENSIONLESS"
+  },
+  "gas_transport_metrics.csv:max_density_m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_metrics.csv:residual_mode_D_density_m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_metrics.csv:resolution_floor_1m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_metrics.csv:sample_region_density_modeB_m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_profile.csv:n_CH4_modeC_1m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_profile.csv:n_H2_modeC_1m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_profile.csv:n_He3_modeC_1m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_profile.csv:n_He4_modeC_1m3": {
+   "unit": "1/m^3"
+  },
+  "gas_transport_profile.csv:x_m": {
+   "unit": "m"
+  },
+  "lumped_vs_nonlumped_comparison.csv:lumped_model": {
+   "unit": "PER_ROW",
+   "unit_from": "quantity"
+  },
+  "lumped_vs_nonlumped_comparison.csv:nonlumped_1d_model": {
+   "unit": "PER_ROW",
+   "unit_from": "quantity"
+  },
+  "lumped_vs_nonlumped_comparison.csv:nonlumped_2d_model": {
+   "unit": "PER_ROW",
+   "unit_from": "quantity"
+  },
+  "machine_fsm_campaign_trace.csv:cycle": {
+   "unit": "COUNT"
+  },
+  "machine_fsm_campaign_trace.csv:step": {
+   "unit": "COUNT"
+  },
+  "machine_fsm_lifecycle_trace.csv:step": {
+   "unit": "COUNT"
+  },
+  "measurement_comparison_rows.csv:measured": {
+   "unit": "PER_ROW",
+   "unit_from": "units"
+  },
+  "mesh_convergence_summary.csv:value": {
+   "unit": "PER_ROW",
+   "unit_from": "metric"
+  },
+  "microwave_heating_3d_budget.csv:dissipated_W": {
+   "unit": "W"
+  },
+  "microwave_heating_metrics.csv:value": {
+   "unit": "PER_ROW",
+   "unit_from": "metric"
+  },
+  "microwave_heating_profile.csv:dissipated_power_W": {
+   "unit": "W"
+  },
+  "mode_recovery_3d_timeline.csv:T_nv_probe_K": {
+   "unit": "K"
+  },
+  "mode_recovery_3d_timeline.csv:t_s": {
+   "unit": "s"
+  },
+  "mode_recovery_3d_timeline.csv:threshold_K": {
+   "unit": "K"
+  },
+  "numerical_stability_summary.csv:value": {
+   "unit": "PER_ROW",
+   "unit_from": "check"
+  },
+  "nv_coherence_curves.csv:coherence_filter_fn": {
+   "unit": "DIMENSIONLESS"
+  },
+  "nv_coherence_curves.csv:coherence_mc": {
+   "unit": "DIMENSIONLESS"
+  },
+  "nv_coherence_curves.csv:total_time_s": {
+   "unit": "s"
+  },
+  "nv_odmr_spectrum.csv:frequency_Hz": {
+   "unit": "Hz"
+  },
+  "nv_odmr_spectrum.csv:odmr_signal": {
+   "unit": "DIMENSIONLESS"
+  },
+  "nv_sequence_contrast.csv:one_over_e_time_s": {
+   "unit": "s"
+  },
+  "nv_sequence_contrast.csv:tau_c_s_input": {
+   "unit": "s"
+  },
+  "optical_absorption_2d_slices.csv:Q_laser_W_m3": {
+   "unit": "W/m^3"
+  },
+  "optical_absorption_2d_slices.csv:coord_m": {
+   "unit": "m"
+  },
+  "optical_absorption_profile.csv:Q_laser_W_m3": {
+   "unit": "W/m^3"
+  },
+  "optical_absorption_profile.csv:z_m": {
+   "unit": "m"
+  },
+  "radiation_leakage_paths.csv:attenuation_factor": {
+   "unit": "DIMENSIONLESS"
+  },
+  "radiation_leakage_paths.csv:heat_load_W": {
+   "unit": "W"
+  },
+  "radiation_paths_3d_budget.csv:attenuation_factor": {
+   "unit": "DIMENSIONLESS"
+  },
+  "radiation_paths_3d_budget.csv:heat_load_W": {
+   "unit": "W"
+  },
+  "sensitivity_ranking_3d.csv:abs_normalized_sensitivity": {
+   "unit": "DIMENSIONLESS"
+  },
+  "sensitivity_ranking_3d.csv:base_probe_rise_K": {
+   "unit": "K"
+  },
+  "sensitivity_ranking_3d.csv:normalized_sensitivity": {
+   "unit": "DIMENSIONLESS"
+  },
+  "sensitivity_ranking_3d.csv:perturbed_probe_rise_K": {
+   "unit": "K"
+  },
+  "sensitivity_ranking_3d.csv:rank": {
+   "unit": "COUNT"
+  },
+  "surface_coverage_2d_map.csv:r_m": {
+   "unit": "m"
+  },
+  "surface_coverage_2d_map.csv:theta_CH4": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_2d_map.csv:theta_H2": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_2d_map.csv:theta_He3": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_2d_map.csv:theta_He4": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_3d_summary.csv:T_surface_K": {
+   "unit": "K"
+  },
+  "surface_coverage_3d_summary.csv:dose_pressure_Pa": {
+   "unit": "Pa"
+  },
+  "surface_coverage_3d_summary.csv:theta_He3": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_3d_summary.csv:theta_He4": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_3d_summary.csv:window_s": {
+   "unit": "s"
+  },
+  "surface_coverage_3d_summary.csv:x_m": {
+   "unit": "m"
+  },
+  "surface_coverage_3d_summary.csv:y_m": {
+   "unit": "m"
+  },
+  "surface_coverage_3d_summary.csv:z_m": {
+   "unit": "m"
+  },
+  "surface_coverage_metrics.csv:max_theta_modeB": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_metrics.csv:residual_theta_mode_D": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_metrics.csv:resolution_floor_theta": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_profile.csv:t_s": {
+   "unit": "s"
+  },
+  "surface_coverage_profile.csv:theta_CH4_modeC": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_profile.csv:theta_H2_modeC": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_profile.csv:theta_He3_modeC": {
+   "unit": "DIMENSIONLESS"
+  },
+  "surface_coverage_profile.csv:theta_He4_modeC": {
+   "unit": "DIMENSIONLESS"
+  },
+  "tau_c_sweep.csv:DeltaGamma_rads": {
+   "unit": "rad/s"
+  },
+  "tau_c_sweep.csv:SNR": {
+   "unit": "DIMENSIONLESS"
+  },
+  "tau_c_sweep.csv:T2s_eff_us": {
+   "unit": "us"
+  },
+  "tau_c_sweep.csv:deltaGamma_noise": {
+   "unit": "rad/s"
+  },
+  "tau_c_sweep.csv:tau_c_canonical_threshold_us": {
+   "unit": "us"
+  },
+  "tau_c_sweep.csv:tau_c_s": {
+   "unit": "s"
+  },
+  "thermal_3d_hotspots.csv:T_final_K": {
+   "unit": "K"
+  },
+  "thermal_3d_hotspots.csv:T_peak_K": {
+   "unit": "K"
+  },
+  "thermal_3d_hotspots.csv:rank": {
+   "unit": "COUNT"
+  },
+  "thermal_3d_hotspots.csv:t_at_peak_s": {
+   "unit": "s"
+  },
+  "thermal_3d_hotspots.csv:x_m": {
+   "unit": "m"
+  },
+  "thermal_3d_hotspots.csv:y_m": {
+   "unit": "m"
+  },
+  "thermal_3d_hotspots.csv:z_m": {
+   "unit": "m"
+  },
+  "thermal_3d_probe_timeseries.csv:T_front_surface_max_K": {
+   "unit": "K"
+  },
+  "thermal_3d_probe_timeseries.csv:T_nv_probe_K": {
+   "unit": "K"
+  },
+  "thermal_3d_probe_timeseries.csv:probe_x_m": {
+   "unit": "m"
+  },
+  "thermal_3d_probe_timeseries.csv:probe_y_m": {
+   "unit": "m"
+  },
+  "thermal_3d_probe_timeseries.csv:probe_z_m": {
+   "unit": "m"
+  },
+  "thermal_3d_probe_timeseries.csv:t_s": {
+   "unit": "s"
+  },
+  "validation_experiment_ranking.csv:cost_penalty": {
+   "unit": "ORDINAL"
+  },
+  "validation_experiment_ranking.csv:criticality_component": {
+   "unit": "ORDINAL"
+  },
+  "validation_experiment_ranking.csv:dependency_component": {
+   "unit": "ORDINAL"
+  },
+  "validation_experiment_ranking.csv:eig_component": {
+   "unit": "ORDINAL"
+  },
+  "validation_experiment_ranking.csv:falsification_component": {
+   "unit": "ORDINAL"
+  },
+  "validation_experiment_ranking.csv:rank": {
+   "unit": "COUNT"
+  },
+  "validation_experiment_ranking.csv:score": {
+   "unit": "ORDINAL"
+  },
+  "vibration_paths_3d_budget.csv:attenuation_factor": {
+   "unit": "DIMENSIONLESS"
+  },
+  "vibration_paths_3d_budget.csv:dissipated_power_W": {
+   "unit": "W"
+  },
+  "vibration_paths_3d_budget.csv:input_amplitude_m": {
+   "unit": "m"
+  },
+  "vibration_paths_3d_budget.csv:output_amplitude_m": {
+   "unit": "m"
+  },
+  "vibration_paths_3d_budget.csv:settling_time_s": {
+   "unit": "s"
+  },
+  "vibration_transfer_profile.csv:attenuation_factor": {
+   "unit": "DIMENSIONLESS"
+  },
+  "vibration_transfer_profile.csv:dissipated_power_W": {
+   "unit": "W"
+  },
+  "vibration_transfer_profile.csv:input_amplitude_m": {
+   "unit": "m"
+  },
+  "vibration_transfer_profile.csv:output_amplitude_m": {
+   "unit": "m"
+  },
+  "vibration_transfer_profile.csv:settling_time_s": {
+   "unit": "s"
+  }
+ },
+ "label": "the physical dimension of every governed numeric column",
+ "note": "Reviewed declarations. build_hdf5_mapping.py used to READ THE UNIT OFF THE SPELLING of the column name, matching a 30-entry suffix table: 91 of 162 numeric columns came out 'unresolved' -- including every heat-source density, every gas density and every entropy in nats, whose units are written in their own names -- and three came out WRONG, because a suffix match is not a unit. gradient_K_per_m ends in '_m' and was published as METRES; dose_flux_open_m2_s and dose_flux_closed_m2_s end in '_s' and were published as SECONDS. The count of unresolved columns was reported by validate_hdf5_equivalence.py and gated nothing. D-2026-57. There is no 'unresolved' in this vocabulary. A column that carries no unit says why: DIMENSIONLESS is a physical ratio, COUNT is a count or index, ORDINAL is a rank-scale score with no physical dimension, and PER_ROW is a long-format table where the unit belongs to the row -- and such an entry names the column that carries it, so 'the unit is in the row' is checked rather than asserted.",
+ "schema_version": 1,
+ "vocabulary": {
+  "COUNT": "an integer count or index; a cycle number, a step, a rank",
+  "DIMENSIONLESS": "a genuine physical ratio: a fraction, a coverage, a contrast, an SNR, an attenuation",
+  "ORDINAL": "a rank-scale score with no physical dimension. cost, duration and risk are {1,2,3} difficulty scores, NOT currency or time, which is exactly the misreading a suffix rule would invite",
+  "PER_ROW": "the unit belongs to the row, not the column; unit_from names the column that carries it"
+ }
+}

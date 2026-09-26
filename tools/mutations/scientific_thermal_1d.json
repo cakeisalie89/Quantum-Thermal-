@@ -1,0 +1,94 @@
+{
+  "title": "Thermal 1D through the governed path, with no self-certification",
+  "note": "The proving case: the adapter's invariants computed from the run's arrays, the independent check independent in the way it claims, and the governed path from proposal to authority refusing every short-circuit. ST10, ST11, ST13, ST14 and ST17 moved to authority_result_rules.json (RR2, RR1, RR5, RR6, RR3) when the rule moved into the store.",
+  "suites": [
+    "tests/test_scientific_thermal_1d.py",
+    "tests/test_governed_model.py"
+  ],
+  "mutations": [
+    {
+      "name": "ST1_energy_balance_always_holds",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "                math.isfinite(rel) and abs(rel) <= ENERGY_BALANCE_MAX,\n",
+      "replace": "                True,\n",
+      "rationale": "an energy imbalance reported as balanced"
+    },
+    {
+      "name": "ST2_undershoot_never_counts",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "                and undershoot <= UNDERSHOOT_ATOL_FACTOR * atol,\n",
+      "replace": "                or True,\n",
+      "rationale": "a cell below the fridge temperature passes"
+    },
+    {
+      "name": "ST3_non_finite_values_are_not_counted",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "        nonfinite = int(np.size(T) - np.count_nonzero(np.isfinite(T)))\n",
+      "replace": "        nonfinite = 0\n",
+      "rationale": "a NaN field reported finite"
+    },
+    {
+      "name": "ST4_a_failed_integration_counts_as_converged",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "        converged = r.solver_status == \"ok\"\n",
+      "replace": "        converged = True\n",
+      "rationale": "a truncated trajectory published as a result"
+    },
+    {
+      "name": "ST5_a_failed_run_still_publishes_values",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "        if converged and nonfinite == 0:\n",
+      "replace": "        if True:\n",
+      "rationale": "values from a failed run carried as OK outputs"
+    },
+    {
+      "name": "ST6_the_check_runs_the_producers_code",
+      "path": "scientific/checks/reduction_2d.py",
+      "find": "IMPLEMENTATION_MODULES = (\"scientific.checks.reduction_2d\",\n                          \"qta_multiphysics.thermal_2d_axisymmetric\")\n",
+      "replace": "IMPLEMENTATION_MODULES = (\"scientific.models.thermal_1d\",\n                          \"qta_multiphysics.thermal_1d\")\n",
+      "rationale": "the independent check identified as the producer's own code"
+    },
+    {
+      "name": "ST7_the_criterion_is_widened",
+      "path": "scientific/checks/reduction_2d.py",
+      "find": "REL_MAX = 0.15\n",
+      "replace": "REL_MAX = 1.0e9\n",
+      "rationale": "a tolerance widened until the disagreement passes"
+    },
+    {
+      "name": "ST8_a_pulse_run_is_compared_anyway",
+      "path": "scientific/checks/reduction_2d.py",
+      "find": "    if bundle.parameters.get(\"source_mode\") != \"averaged\" or \\\n            out.status is not OutputStatus.OK:\n",
+      "replace": "    if out.status is not OutputStatus.OK:\n",
+      "rationale": "unlike problems compared and reported as agreement"
+    },
+    {
+      "name": "ST9_the_check_verifies_whatever_is_on_disk",
+      "path": "scientific/_governed_check.py",
+      "find": "    if hashlib.sha256(raw).hexdigest() != inputs[\"bundle_sha256\"]:\n",
+      "replace": "    if False:\n",
+      "rationale": "a check about bytes nobody cited"
+    },
+    {
+      "name": "ST12_an_executor_may_decide",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if reviewer in (run.worker, check.worker, run.submitter):\n",
+      "replace": "        if False:\n",
+      "rationale": "the executor certifies its own work"
+    },
+    {
+      "name": "ST15_the_producer_may_run_its_own_check",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if worker in (run.worker, run.submitter):\n",
+      "replace": "        if False:\n",
+      "rationale": "the model's executor runs the check on its own output"
+    },
+    {
+      "name": "ST16_a_failed_run_is_proposed",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if run.state is not TaskState.VERIFIED:\n            raise ModelRunRefused(f\"the governed run was",
+      "replace": "        if False:\n            raise ModelRunRefused(f\"the governed run was",
+      "rationale": "an unverified governed run becomes an authority record"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import sys
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import pytest                                                    # noqa: E402
 from hypothesis import HealthCheck, given, settings, strategies as st  # noqa: E402
@@ -25,7 +26,13 @@ from qta_multiphysics.stage7_boundary_models import (            # noqa: E402
 DET = settings(max_examples=25, deadline=None, derandomize=True,
                suppress_health_check=[HealthCheck.too_slow])
 
+from hw_reviewer_fixtures import (                               # noqa: E402
+    human as _human, roster as _roster)
+
 REQ = json.load(open("matrix_update_examples/valid_example.json"))
+REQ_ROSTER = _roster(_human(REQ["requester"]),
+                     *[_human(r, registered_by=REQ["requester"])
+                       for r in REQ["review_ids"]])
 REG = json.load(open("experiment_registry.json"))
 GATE_ROWS = list(csv.DictReader(open("results_gate_table.csv")))
 
@@ -78,7 +85,7 @@ def test_scalar_models():
 
 def test_request_model_and_governance_agree():
     m = MatrixUpdateRequestModel(**REQ)
-    ok, why = m.validated_by_governance()
+    ok, why = m.validated_by_governance(roster=REQ_ROSTER)
     assert ok, why
     with pytest.raises(ValidationError):
         MatrixUpdateRequestModel(**{**REQ, "automatic_application": True})
@@ -88,6 +95,39 @@ def test_request_model_and_governance_agree():
     with pytest.raises(ValidationError):
         MatrixUpdateRequestModel(**{**REQ,
                                     "experiment_ids": ["EXP-NOPE"]})
+
+
+def test_constructing_the_model_is_not_the_authority():
+    """Two checks of one rule, and only one of them is the authority.
+
+    The model compares ``requester`` against ``review_ids`` as strings. It
+    has to be possible to state, as a test, that this is weaker than the
+    governance check and cannot be mistaken for it -- otherwise the two
+    copies drift and the weaker one is the one callers reach first.
+
+    Here is a document the MODEL admits and governance refuses: the
+    requester respelled. Pydantic sees two different strings; the roster
+    resolves them and finds one subject, or rather finds that the
+    respelling is nobody (D-2026-42).
+    """
+    rid = REQ["review_ids"][0]
+    assert rid.lower() != rid, "this fixture needs a case-bearing id"
+    doc = {**REQ, "requester": rid.lower(), "review_ids": [rid]}
+    MatrixUpdateRequestModel(**doc)                 # the model says yes
+    ok, why = MatrixUpdateRequestModel(**doc).validated_by_governance(
+        roster=REQ_ROSTER)
+    assert not ok, "the model was the last word on a rule it states weakly"
+    assert any("DIFFERENT identity" in w for w in why), why
+
+
+def test_the_default_roster_refuses_the_exemplar():
+    """No roster argument means the declared roster, which registers nobody.
+
+    Worth pinning: the positive tests in this file pass a fixture roster,
+    and a reader could take that to mean the exemplar is acceptable here.
+    """
+    ok, why = MatrixUpdateRequestModel(**REQ).validated_by_governance()
+    assert not ok and why
 
 
 def test_misc_boundary_models():

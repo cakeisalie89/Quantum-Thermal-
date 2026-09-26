@@ -1,0 +1,53 @@
+{
+  "title": "Shared-log action ownership: FOREIGN is skipped, UNKNOWN is refused",
+  "note": "The whole design rests on one hash-chained log that several reducers project. Two behaviours were in tension and both are right: an event a reducer does not understand must not be silently skipped, and an event belonging to another subsystem must not stop the log being shared. The registry tells those two cases apart. AC1 collapses the distinction toward silence, which is the dangerous direction: an authority-relevant event from a newer schema is dropped and the reconstructed state is confidently wrong. AC2 collapses it the other way, which is the failure that was actually observed -- the authority store refused a log containing 'policy.publish' and no two subsystems could coexist.",
+  "suites": [
+    "tests/test_agent_crash_recovery.py",
+    "tests/test_agent_substrate.py",
+    "tests/test_agent_governed_stage10.py"
+  ],
+  "mutations": [
+    {
+      "name": "AC1_unknown_actions_treated_as_foreign",
+      "path": "qta_agent/actions.py",
+      "find": "    if action in OWNERS:\n        return FOREIGN\n    return UNKNOWN",
+      "replace": "    return FOREIGN",
+      "rationale": "an event from a newer schema is skipped in silence, and the state older readers reconstruct is confidently wrong"
+    },
+    {
+      "name": "AC2_foreign_actions_treated_as_unknown",
+      "path": "qta_agent/actions.py",
+      "find": "    if action in OWNERS:\n        return FOREIGN\n    return UNKNOWN",
+      "replace": "    return UNKNOWN",
+      "rationale": "no two subsystems can share one log, which is the premise the whole package rests on"
+    },
+    {
+      "name": "AC3_require_known_never_raises",
+      "path": "qta_agent/actions.py",
+      "find": "    if kind is UNKNOWN or kind == UNKNOWN:",
+      "replace": "    if False:",
+      "rationale": "an unrecognised action reaches each reducer's own else-branch, where the message no longer says what went wrong"
+    },
+    {
+      "name": "AC4_store_skips_unknown_actions",
+      "path": "qta_agent/store.py",
+      "find": "        try:\n            kind = actions.require_known(ev.action, mine=OWNED,\n                                         where=f\"seq {ev.seq}\")",
+      "replace": "        try:\n            kind = actions.classify(ev.action, mine=OWNED)\n            kind = actions.FOREIGN if kind != actions.MINE else kind",
+      "rationale": "the authority store projects a log with a hole in it and reports success"
+    },
+    {
+      "name": "AC5_governed_projection_skips_unknown_actions",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                try:\n                    kind = actions.require_known(\n                        ev.action, mine=OWNED, where=f\"seq {ev.seq}\")",
+      "replace": "                try:\n                    kind = actions.classify(ev.action, mine=OWNED)\n                    kind = (actions.FOREIGN\n                            if kind != actions.MINE else kind)",
+      "rationale": "the task projection silently drops an event it does not understand, so a task's recovered state omits whatever it recorded"
+    },
+    {
+      "name": "AC6_reconstruction_treats_unknown_as_foreign",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif actions.classify(action, mine=_AUTHORITY_ACTIONS) \\\n                == actions.FOREIGN:",
+      "replace": "        elif True:",
+      "rationale": "the independent reconstruction stops reporting that it could not interpret part of the log"
+    }
+  ]
+}

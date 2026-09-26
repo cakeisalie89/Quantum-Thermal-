@@ -1,0 +1,115 @@
+{
+  "title": "Thermal 2D axisymmetric through the ScientificModel interface and the governed path",
+  "note": "Phase 4, first family: the adapter's invariants, the declared lateral boundary and window, the 3D independent check speaking only to the problem it solves, and the governed path routing each model to its own tool.",
+  "suites": [
+    "tests/test_scientific_thermal_2d.py",
+    "tests/test_governed_model.py"
+  ],
+  "mutations": [
+    {
+      "name": "T2_1_the_lateral_boundary_is_ignored",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "            lateral_adiabatic=inputs[\"lateral_boundary\"] == \"adiabatic\")",
+      "replace": "            lateral_adiabatic=False)",
+      "rationale": "an adiabatic run is solved with the cold contact -- and the 3D check still passes, since that mismatched comparison is small (the reduction module's own warning)"
+    },
+    {
+      "name": "T2_2_the_window_is_always_the_pulse_window",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "        t_end = window_s(cfg, inputs[\"source_mode\"])\n",
+      "replace": "        t_end = window_s(cfg, \"pulse\")\n",
+      "rationale": "an averaged run simulates the pulse window"
+    },
+    {
+      "name": "T2_3_only_the_final_field_is_counted",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "        both = np.concatenate([T_final.ravel(), T_peak.ravel()])\n",
+      "replace": "        both = T_final.ravel()\n",
+      "rationale": "a non-finite peak field is not counted"
+    },
+    {
+      "name": "T2_4_the_energy_bound_is_loosened",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "ENERGY_BALANCE_MAX = 0.10\n",
+      "replace": "ENERGY_BALANCE_MAX = 0.50\n",
+      "rationale": "a 20% energy imbalance holds"
+    },
+    {
+      "name": "T2_5_only_a_positive_imbalance_counts",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "                math.isfinite(rel) and abs(rel) <= ENERGY_BALANCE_MAX,",
+      "replace": "                math.isfinite(rel) and rel <= ENERGY_BALANCE_MAX,",
+      "rationale": "energy lost is not an imbalance"
+    },
+    {
+      "name": "T2_6_the_minimum_principle_always_holds",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "                and undershoot <= UNDERSHOOT_ATOL_FACTOR * atol,",
+      "replace": "                and True,",
+      "rationale": "a cell below the fridge temperature is accepted"
+    },
+    {
+      "name": "T2_7_a_failed_run_publishes_outputs",
+      "path": "scientific/models/thermal_2d.py",
+      "find": "        if converged and nonfinite == 0:\n",
+      "replace": "        if True:\n",
+      "rationale": "a non-converged integration publishes temperatures as OK"
+    },
+    {
+      "name": "T2_8_a_cold_contact_run_is_compared",
+      "path": "scientific/checks/reduction_3d.py",
+      "find": "    elif params.get(\"lateral_boundary\") != \"adiabatic\":\n",
+      "replace": "    elif False:\n",
+      "rationale": "the 3D adiabatic box is compared with a cold-contact disc: different problems, reported as agreement"
+    },
+    {
+      "name": "T2_9_a_pulse_run_is_compared",
+      "path": "scientific/checks/reduction_3d.py",
+      "find": "    elif params.get(\"source_mode\") != \"averaged\":\n",
+      "replace": "    elif False:\n",
+      "rationale": "a pulse run is compared with an averaged 3D solve"
+    },
+    {
+      "name": "T2_10_the_check_bound_is_loosened",
+      "path": "scientific/checks/reduction_3d.py",
+      "find": "        status=Status.PASS if rel < REL_MAX else Status.FAIL,",
+      "replace": "        status=Status.PASS if rel < 0.5 else Status.FAIL,",
+      "rationale": "an 11% disagreement passes"
+    },
+    {
+      "name": "T2_11_the_check_solves_another_window",
+      "path": "scientific/checks/reduction_3d.py",
+      "find": "                         t_end=window_s(cfg, \"averaged\"), n_eval=N_EVAL),",
+      "replace": "                         t_end=cfg.solver.pulse_window_s, n_eval=N_EVAL),",
+      "rationale": "the 3D solve is not asked for the producer's window"
+    },
+    {
+      "name": "T2_12_the_check_takes_any_model",
+      "path": "scientific/checks/reduction_3d.py",
+      "find": "    if (bundle.model_id, bundle.model_version) != (MODEL_ID, MODEL_VERSION):\n",
+      "replace": "    if False:\n",
+      "rationale": "the 3D check is applied to a bundle of another model"
+    },
+    {
+      "name": "T2_13_every_model_runs_under_the_1d_tool",
+      "path": "qta_agent/governed_model.py",
+      "find": "        run = self.gov.run(tool_id=MODEL_TOOLS[model_id], inputs=inputs,",
+      "replace": "        run = self.gov.run(tool_id=TOOL_RUN, inputs=inputs,",
+      "rationale": "the history says thermal 1D ran when thermal 2D did"
+    },
+    {
+      "name": "T2_14_an_unknown_model_is_submitted",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if model_id not in MODEL_TOOLS:\n",
+      "replace": "        if False:\n",
+      "rationale": "a model with no governed tool reaches the executor and leaves history"
+    },
+    {
+      "name": "T2_15_the_catalog_omits_the_2d_check",
+      "path": "scientific/catalog.py",
+      "find": "    if check_id == \"thermal_2d.reduction_3d_adiabatic_lateral\":\n",
+      "replace": "    if check_id == \"thermal_2d.reduction_3d_adiabatic_lateral.x\":\n",
+      "rationale": "the admitted check cannot be resolved, so no 2D result can be checked"
+    }
+  ]
+}

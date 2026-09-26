@@ -1,0 +1,74 @@
+{
+  "title": "The cryopanel model's operating point is a declared input, not an import",
+  "note": "Cut C5: the three constants cryopanel_dynamics_3d imported from species_accounting_3d (and with them the mode ontology) are an OperatingPoint the caller declares; the canonical one comes from species_accounting_3d. CP9 puts the import back and the C1 test must see it.",
+  "suites": [
+    "tests/test_campaign_3d.py",
+    "tests/test_campaign_uncertainty.py",
+    "tests/test_scientific_import_isolation.py"
+  ],
+  "mutations": [
+    {
+      "name": "CP1_the_methane_pressure_is_fixed",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "        f[\"C13_CH4\"] = kinetic_flux(op.p_c13_work_Pa / (K_B * T_GAS_K),",
+      "replace": "        f[\"C13_CH4\"] = kinetic_flux(1.0e-4 / (K_B * T_GAS_K),",
+      "rationale": "the declared Mode-B pressure is ignored for a hard-coded one"
+    },
+    {
+      "name": "CP2_the_helium_pressure_is_fixed",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "        f[\"He\"] = kinetic_flux(op.p_he_dose_Pa / (K_B * T_GAS_K), T_GAS_K,",
+      "replace": "        f[\"He\"] = kinetic_flux(1.0e-6 / (K_B * T_GAS_K), T_GAS_K,",
+      "rationale": "the declared He dose pressure is ignored"
+    },
+    {
+      "name": "CP3_the_dose_window_is_fixed",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "            \"MODE_D\": float(op.dose_window_s)}",
+      "replace": "            \"MODE_D\": 1.0}",
+      "rationale": "the declared dose window is ignored"
+    },
+    {
+      "name": "CP4_any_operating_point_is_accepted",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "                    or not math.isfinite(v) or v <= 0.0:\n",
+      "replace": "                    or False:\n",
+      "rationale": "a zero, negative or non-finite pressure or window is accepted"
+    },
+    {
+      "name": "CP5_zero_is_accepted",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "                    or not math.isfinite(v) or v <= 0.0:\n",
+      "replace": "                    or not math.isfinite(v) or v < 0.0:\n",
+      "rationale": "a zero pressure silently turns a capture phase into a no-op"
+    },
+    {
+      "name": "CP6_a_boolean_is_a_number",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "            if isinstance(v, bool) or not isinstance(v, (int, float)) \\\n",
+      "replace": "            if not isinstance(v, (int, float)) \\\n",
+      "rationale": "True is accepted as a pressure of 1 Pa"
+    },
+    {
+      "name": "CP7_non_finite_is_accepted",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "                    or not math.isfinite(v) or v <= 0.0:\n",
+      "replace": "                    or v <= 0.0:\n",
+      "rationale": "an infinite pressure is accepted"
+    },
+    {
+      "name": "CP8_the_canonical_point_swaps_two_pressures",
+      "path": "qta_multiphysics/species_accounting_3d.py",
+      "find": "    return OperatingPoint(p_c13_work_Pa=P_C13_WORK_PA,\n                          p_he_dose_Pa=P_HE_DOSE_PA,",
+      "replace": "    return OperatingPoint(p_c13_work_Pa=P_HE_DOSE_PA,\n                          p_he_dose_Pa=P_C13_WORK_PA,",
+      "rationale": "the campaign runs at an operating point that is not the canonical one"
+    },
+    {
+      "name": "CP9_the_ontology_import_returns",
+      "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+      "find": "from .surface_coverage import kinetic_flux\n",
+      "replace": "from .surface_coverage import kinetic_flux\nfrom . import species_accounting_3d  # noqa: F401\n",
+      "rationale": "importing the cryopanel model loads the mode ontology again (the C1 residual, back)"
+    }
+  ]
+}

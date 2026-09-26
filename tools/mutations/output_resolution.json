@@ -1,0 +1,130 @@
+{
+ "title": "An output states the resolution of the method that produced it",
+ "note": "D-2026-53 through D-2026-56. Each mutation restores a defect that was real: a marking decided by magnitude instead of by why the number is zero, a floor that says nothing, a threshold compared against a value nothing can resolve, a status allowlist wide enough to admit the claim it forbids, and a claims table that names a rule without matching it. A surviving mutation here means the corresponding test is asserting the shape of the mechanism rather than what it decides. OR17 was added after a GitHub runner failed a test in this spec's own suite: the sign of the Mode-C methane noise is host-dependent, and the test defending that finding had pinned it. The class must not follow the sign.",
+ "suites": [
+  "tests/test_output_resolution.py",
+  "tests/test_bom_status_claim.py",
+  "tests/test_claims_enforcement.py"
+ ],
+ "mutations": [
+  {
+   "name": "OR1_absence_by_design_is_decided_by_magnitude",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    if trivially_zero:\n        return EXACT_ZERO",
+   "replace": "    if trivially_zero and False:\n        return EXACT_ZERO",
+   "rationale": "the proxy error itself: helium, which is absent in Mode C because nothing puts it there, becomes indistinguishable from methane, which is present and unresolved. Both read 0.0 and the file would again say the same thing about two different situations"
+  },
+  {
+   "name": "OR2_a_floor_that_says_nothing_is_accepted",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    f = float(floor) if floor is not None else 0.0\n    if not np.isfinite(f) or f <= 0.0:\n        raise UndeclaredResolution(\n            f\"resolution floor is {floor!r}; with no positive floor every \"\n            \"value classifies as RESOLVED, noise included\")",
+   "replace": "    f = float(floor) if floor is not None else 0.0\n    if False:\n        raise UndeclaredResolution(\n            f\"resolution floor is {floor!r}; with no positive floor every \"\n            \"value classifies as RESOLVED, noise included\")",
+   "rationale": "with a floor of zero every value is RESOLVED, noise included, and the mechanism reports full confidence in numbers nothing established"
+  },
+  {
+   "name": "OR3_a_value_exactly_at_the_floor_is_called_noise",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    if abs(v) >= f:\n        return RESOLVED",
+   "replace": "    if abs(v) > f:\n        return RESOLVED",
+   "rationale": "an off-by-one at the boundary the whole classification turns on"
+  },
+  {
+   "name": "OR4_an_out_of_range_excursion_is_filed_as_noise",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    if low is not None and v < float(low) - f:\n        return OUT_OF_RANGE",
+   "replace": "    if low is not None and v < float(low) - f and False:\n        return OUT_OF_RANGE",
+   "rationale": "a density of -5e5 is not a small number the solver could not see; calling it BELOW_RESOLUTION files a solver problem as a precision footnote"
+  },
+  {
+   "name": "OR5_a_threshold_inside_the_unresolved_band_still_decides",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    if value_class == BELOW_RESOLUTION and -f < t < f:\n        raise UndecidableComparison(",
+   "replace": "    if value_class == BELOW_RESOLUTION and -f < t < f and False:\n        raise UndecidableComparison(",
+   "rationale": "restores the bare `<`: a Mode-D readiness term decided on integrator noise the moment somebody tightens the threshold towards the floor"
+  },
+  {
+   "name": "OR6_decide_below_accepts_an_undeclared_floor",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    f = float(floor) if floor is not None else 0.0\n    if not np.isfinite(f) or f <= 0.0:\n        raise UndeclaredResolution(\n            f\"{what}: no positive resolution floor, so nothing establishes \"\n            \"that this comparison is decidable\")",
+   "replace": "    f = float(floor) if floor is not None else 0.0\n    if False:\n        raise UndeclaredResolution(\n            f\"{what}: no positive resolution floor, so nothing establishes \"\n            \"that this comparison is decidable\")",
+   "rationale": "with no band, every comparison looks decidable and none of them was checked"
+  },
+  {
+   "name": "OR7_trivially_zero_needs_only_one_of_its_two_reasons",
+   "path": "qta_multiphysics/gas_transport_1d.py",
+   "find": "        trivially_zero[sp.name] = bool(\n            not np.any(n0) and not np.any(src))",
+   "replace": "        trivially_zero[sp.name] = bool(\n            not np.any(n0) or not np.any(src))",
+   "rationale": "methane in Mode C has a nonzero initial profile and no source, so `or` calls its unresolved zero exact -- the contamination claim D-2026-53 was written to stop"
+  },
+  {
+   "name": "OR8_the_gas_solve_declares_a_floor_it_did_not_use",
+   "path": "qta_multiphysics/gas_transport_1d.py",
+   "find": "    return GasTransport1DResult(grid, t_eval, sols, specs, regions,\n                                raw=raw, resolution_floor_1m3=atol,",
+   "replace": "    return GasTransport1DResult(grid, t_eval, sols, specs, regions,\n                                raw=raw, resolution_floor_1m3=1.0,",
+   "rationale": "the number in the file and the number the integrator used must be the same number, or the marking describes a solve nobody ran"
+  },
+  {
+   "name": "OR9_the_coverage_floor_drifts_from_the_solve",
+   "path": "qta_multiphysics/surface_coverage.py",
+   "find": "COVERAGE_ATOL = 1e-12",
+   "replace": "COVERAGE_ATOL = 1e-15",
+   "rationale": "same defect in the sibling solver; the constant exists so the two cannot drift, and this checks that something would notice if they did"
+  },
+  {
+   "name": "OR10_the_bom_allowlist_admits_a_verified_item",
+   "path": "package_consistency_check.py",
+   "find": "        \"MANUFACTURER_SPEC\",\n        \"MANUFACTURER_SPEC_TARGET\",\n    }",
+   "replace": "        \"MANUFACTURER_SPEC\",\n        \"MANUFACTURER_SPEC_TARGET\",\n        \"INSTALLED_VERIFIED\",\n    }",
+   "rationale": "D-2026-55: the claims boundary says no item is in-system VERIFIED, and an allowlist is only worth what its membership is"
+  },
+  {
+   "name": "OR11_the_mode_exclusivity_claim_loses_its_rule",
+   "path": "package_consistency_check.py",
+   "find": "    (r\"Mode\\s*B[^.\\n]{0,60}Mode\\s*D[^.\\n]{0,60}simultaneous\",",
+   "replace": "    (r\"Mode\\s*B[^.\\n]{0,60}Mode\\s*D[^.\\n]{0,60}simultaneousXX\",",
+   "rationale": "the sentence the whole mode-separated architecture exists to deny, with a rule that names it and no longer matches it -- which is exactly the state D-2026-56 found the claims boundary in, and the reason coverage is re-derived rather than read off the table"
+  },
+  {
+   "name": "OR12_naming_a_claim_counts_as_enforcing_it",
+   "path": "tools/claims_enforcement.py",
+   "find": "        if not re.search(rx, lab):\n            problems.append(",
+   "replace": "        if not re.search(rx, lab) and False:\n            problems.append(",
+   "rationale": "without the re-derivation a table of regexes matching nothing reports full coverage, which is the failure mode this whole tool exists to rule out"
+  },
+  {
+   "name": "OR13_a_reconciliation_over_nothing_reports_full_coverage",
+   "path": "tools/claims_enforcement.py",
+   "find": "    if not bullets:\n        raise ScopeError(",
+   "replace": "    if bullets is None:\n        raise ScopeError(",
+   "rationale": "zero bullets, zero uncovered, a clean verdict about nothing"
+  },
+  {
+   "name": "OR14_the_enforcement_table_may_describe_a_claims_file_that_moved",
+   "path": "tools/claims_enforcement.py",
+   "find": "    for lab in sorted(named - known):\n        problems.append(",
+   "replace": "    for lab in sorted(set() - known):\n        problems.append(",
+   "rationale": "a rule naming a claim nobody forbids any more is a rule nobody is maintaining"
+  },
+  {
+   "name": "OR15_an_unknown_clip_site_passes_unnoticed",
+   "path": "tools/clip_provenance.py",
+   "find": "    for site in sorted(set(measured) - set(declared)):",
+   "replace": "    for site in sorted(set() - set(declared)):",
+   "rationale": "a new clip starts deciding serialised numbers and nothing says what it does to them"
+  },
+  {
+   "name": "OR16_a_moving_clip_need_not_declare_its_resolution",
+   "path": "tools/clip_provenance.py",
+   "find": "        if reaches and not d.get(\"resolution_declared\"):",
+   "replace": "        if reaches and not d.get(\"resolution_declared\") and False:",
+   "rationale": "\"it is only noise\" is exactly the claim that needs the floor written down, because noise and a small measurement are the same digits"
+  },
+  {
+   "name": "OR17_the_class_follows_the_sign_of_the_noise",
+   "path": "qta_multiphysics/numerics.py",
+   "find": "    v = float(raw)\n    if not np.isfinite(v):",
+   "replace": "    v = float(raw)\n    if v > 0.0:\n        return RESOLVED\n    if not np.isfinite(v):",
+   "rationale": "D-2026-53a. A classifier that answers differently for +1.48e-03 and -3.86e-01 makes the same cell RESOLVED on one runner and BELOW_RESOLUTION on another -- which is the divergence the class exists to be stable across, and the error the first version of test_the_written_methane_zero_is_the_clip_not_the_model made in its own assertions"
+  }
+ ]
+}

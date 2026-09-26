@@ -1,0 +1,642 @@
+path,disposition,phase,rationale,evidence
+.dockerignore,KEEP_AS_IS,-,Container context.,
+.github/workflows/agent-substrate.yml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Substrate CI; new mutation spec wired in Phase 1.,
+.github/workflows/claude.yml,KEEP_AS_IS,-,Assistant workflow.,
+.github/workflows/container-verify.yml,KEEP_AS_IS,-,Container verification.,
+.github/workflows/identity-discovery.yml,KEEP_AS_IS,-,Identity discovery.,
+.github/workflows/release.yml,REWRITE_GENERIC,2-7 (see rationale),Release workflow; QTA payload expectations retire (Phase 7).,
+.github/workflows/stack-verify.yml,REWRITE_GENERIC,2-7 (see rationale),Runs qta_full_sim/PCC byte gate; rewritten with the workflow (Phase 6).,
+.gitignore,KEEP_AS_IS,-,Ignore rules.,
+AGENT_SUBSTRATE.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Substrate design record; updated with Phase 1 changes.,
+ARCHITECTURE_CONVERGENCE_PLAN.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact.,
+AUTHORITIES.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Enforcement-point registry (human half).,
+BOM.csv,RETIRE_TO_HISTORY,5,BOM completeness is not a software requirement (directive s4).,
+CLAIMS_BOUNDARY.md,REWRITE_GENERIC,2-7 (see rationale),Framework claims boundary: keep 'no experimental validation from simulation'; drop QTA machine claims.,
+DEPENDENCY_CUTOVER.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact.,
+Dockerfile,KEEP_AS_IS,-,Reproducible container.,
+EVIDENCE_CLOSURE.md,REWRITE_GENERIC,2-7 (see rationale),Evidence closure narrative.,
+EXPERIMENT_PLAYBOOKS/EXP-N0.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-N1.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-N2.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-N3.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-N4.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-P1.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-S1.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-T1.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-T2.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-V1.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+EXPERIMENT_PLAYBOOKS/EXP-V2.md,RETIRE_TO_HISTORY,5,Playbooks for the abandoned apparatus.,directive s4
+FILE_DISPOSITION.csv,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact (this file).,
+FIRST_VALIDATION_EXPERIMENTS.md,RETIRE_TO_HISTORY,5,Apparatus validation experiments.,directive s4
+GATE_TABLE_README.md,RETIRE_TO_HISTORY,5,83-gate table.,directive s4
+GLOSSARY.md,REWRITE_GENERIC,2-7 (see rationale),Framework vocabulary.,
+HARDWARE_GOVERNANCE.md,RETIRE_TO_HISTORY,5,Hardware governance.,directive s4
+HDF5_DATA_MODEL.md,REWRITE_GENERIC,2-7 (see rationale),HDF5 data model without the 88-output payload.,
+INSTALL.md,KEEP_AS_IS,-,Installation.,
+MACHINE_FSM.md,RETIRE_TO_HISTORY,5,Physical machine FSM.,directive s4
+MANIFEST_BOUNDARY.md,REWRITE_GENERIC,2-7 (see rationale),Manifest coverage boundary for the new release set.,
+MANUSCRIPT_CHANGELOG.md,RETIRE_TO_HISTORY,5,Manuscript history.,directive s4
+MANUSCRIPT_CONSISTENCY_REPORT.md,RETIRE_TO_HISTORY,5,Manuscript consistency.,directive s4
+NUMERICAL_METHODS.md,KEEP_AS_MODEL_PLUGIN,4,Numerical-methods record of the reference model plugins.,
+PHYSICS_INVENTORY.md,REWRITE_GENERIC,2-7 (see rationale),Becomes the model-registry narrative (directive s23).,
+QTA_full_history-6.bundle.txt,RETIRE_TO_HISTORY,5,A git bundle (binary) at the root; history belongs in attic/ (a copy already lives there).,'# v2 git bundle' header; rag_index names it
+QTA_stage9_release_verification/RELEASE_POLICY.md,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
+QTA_stage9_release_verification/SHA256SUMS,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
+QTA_stage9_release_verification/VERIFY_INSTRUCTIONS.md,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
+QTA_stage9_release_verification/provenance.intoto.json,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
+QTA_stage9_release_verification/release_index.json,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
+QTA_stage9_release_verification/release_trust_policy.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Live trust policy: release.yml passes it as --trusted-policy and release_trust.py reads it; its identity fields stay PENDING until a real hosted signing run exists. Replaced with the release model (Phase 7).,release.yml; test_repository_signing_status_remains_pending
+QTA_stage9_release_verification/sbom.cdx.json,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
+README.md,REWRITE_GENERIC,2-7 (see rationale),Framework README (Phase 7).,
+RELEASE_POLICY.md,REWRITE_GENERIC,2-7 (see rationale),Release policy without QTA payload.,
+RELEASE_TRUST_ENFORCEMENT.md,KEEP_AS_IS,-,Release trust table.,
+RO_CRATE_PROFILE.md,REWRITE_GENERIC,2-7 (see rationale),RO-Crate profile without QTA registries.,
+RUNTIME_RESILIENCE.md,REWRITE_GENERIC,2-7 (see rationale),Resilience narrative around qta_full_sim stages.,
+SIGNING_BOOTSTRAP.md,KEEP_AS_IS,-,Signing bootstrap.,
+SOURCE_AUDIT_STATUS.md,RETIRE_TO_HISTORY,5,Manuscript source audit.,
+STACK.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Declared scientific stack (directive s2).,
+SUPPLY_CHAIN_THREAT_MODEL.md,KEEP_AS_IS,-,Supply-chain threat model.,
+Snakefile,REWRITE_GENERIC,2-7 (see rationale),Workflow rewritten around validate -> run -> invariants -> independent verifier -> evidence (Phase 6).,directive s25 Phase 6
+TESTING.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Test discipline record.,
+THERMAL_3D_L3.md,KEEP_AS_MODEL_PLUGIN,4,Thermal-3D model documentation.,
+VALIDATION_PLAN.md,RETIRE_TO_HISTORY,5,Hardware validation roadmap.,directive s4
+adaptive_experiment_policy.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+analysis/collect_container_3d.py,REWRITE_GENERIC,2-7 (see rationale),Container regeneration diagnostic over the QTA 3D output set.,docstring
+assumed_parameters.json,KEEP_AS_MODEL_PLUGIN,4,Reference parameter set (16-field provenance schema) for the QTA reference model plugins.,manifest: 'manual'
+assumptions_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+attic/README.md,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_3d_layer.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_3d_layer_source.tar(1).gz,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_cleanup_remove_slop_log.patch,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_coupled_3d.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_coupled_3d_source.tar.gz,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_deep_complete.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_full_history-6.bundle.txt,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_full_history.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_github_sync.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_hardened.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_hardened_source.tar.gz,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_machine_fsm (1).bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_machine_fsm.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_machine_fsm_source.tar.gz,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_qta_multiphysics_repair.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_repair_plus_cleanup.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+attic/delivery_artifacts/QTA_repaired_complete_1D_2D_repo.zip,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
+authorities.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Enforcement-point registry (machine half).,
+bayesian_design_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+best_forecast_operating_point.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+bibliography_audit.csv,RETIRE_TO_HISTORY,5,Manuscript bibliography audit.,
+build_hdf5.py,REWRITE_GENERIC,2-7 (see rationale),Deterministic HDF5 builder kept; the 88-output payload and PASS-count attribute retire (directive s18/Phase 7).,names results_gate_table.csv; scientific_gate_PASS_count
+build_hdf5_mapping.py,REWRITE_GENERIC,2-7 (see rationale),Output classification + unit mapping kept; the '88 governed outputs' contract retires.,docstring
+build_release_artifacts.py,REWRITE_GENERIC,2-7 (see rationale),Release/SBOM/provenance generator kept; 'qta_claims' PASS-count block retires.,scientific_gate_PASS_count
+build_stage6_playbooks.py,RETIRE_TO_HISTORY,5,Renders apparatus experiment playbooks.,directive s4
+build_stage6_registries.py,RETIRE_TO_HISTORY,5,Builds QTA validation registries.,directive s4
+campaign_registry.json,RETIRE_TO_HISTORY,5,Apparatus campaign registry.,
+campaign_state_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+campaign_uncertainty_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+campaign_uncertainty_quantiles.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+conftest.py,KEEP_AS_IS,-,Puts repo root on sys.path for every test module.,D-2026-63
+container_verification.md,KEEP_AS_IS,-,Container verification record.,
+container_verify.sh,KEEP_AS_IS,-,Container verification script.,
+convergence_report_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+coupled_mode_recovery_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+coupled_mode_state_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+coupling_ledger_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+cryo_stack_3d_budget.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+cryopanel_loading_3d.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+cryopanel_memory_model.csv,RETIRE_TO_HISTORY,5,Apparatus cryopanel memory table.,
+deep_adaptive_policy.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_dataset_hash.txt,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_dataset_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_design_schema.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_eig_validation.csv,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_expdesign_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_model_manifest.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_ood_report.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_parameter_schema.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_posterior_calibration.csv,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_posterior_samples.csv,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_posterior_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_ranking_comparison.csv,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_surrogate_readiness.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+deep_training_config.json,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+deep_training_history.csv,DELETE_GENERATED_AND_REBUILD,6-7,Outputs of the deep experimental-design layer; rebuilt after its generalization (Phase 3).,written by deep_expdesign/io.py
+design_component_registry.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+design_decision_ledger.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+design_interface_graph.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+design_validation_report.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+distributed_thermal_2d_slices.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+distributed_thermal_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+distributed_thermal_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+docs/CORPUS_RECOVERY_TRIAGE.md,KEEP_AS_IS,-,Corpus recovery record.,
+docs/DEFECT_LEDGER.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Defect history preserved, not sanitized (directive s21).",
+docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md,KEEP_AS_IS,-,Cross-environment lessons (directive s19).,
+docs/SESSION_REPORT.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Session evidence record.,
+docs/blas_kernel_sensitivity.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/clip_provenance.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/completion_matrix.json,REWRITE_GENERIC,2-7 (see rationale),Completion model tied to QTA rows; retire the 83-gate completion model (directive s4).,
+docs/corpus_allowlist.json,REGENERATE,every change; new set in 7,Regenerated by tools/corpus_allowlist.py --write.,
+docs/identity_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/performance_baseline.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/resolution_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/unit_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+energy_ledger_cumulative_3d.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+engineering_fixes.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+expected_information_gain.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+experiment_falsification_map.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+experiment_gate_coverage.json,RETIRE_TO_HISTORY,5,Experiment-to-gate coverage.,
+experiment_matrix_coverage.json,RETIRE_TO_HISTORY,5,Experiment-to-matrix coverage.,
+experiment_registry.json,RETIRE_TO_HISTORY,5,Apparatus experiment registry.,
+experimental_design_candidates.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+failed_gate_samples.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+falsification_report_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+fidelity_comparison.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+final_manifest.json,REGENERATE,every change; new set in 7,Regenerated by generate_manifest.py (last in the chain).,
+finalize_release_signing.py,KEEP_AS_IS,-,Narrow post-sign finalizer.,no hardware marker
+gas_transport_2d_map.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+gas_transport_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+gas_transport_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+generate_manifest.py,REWRITE_GENERIC,2-7 (see rationale),"SHA-256 manifest kept; DERIVED_STATE_FIELDS (total_gates, PASS, ...) retire.",DERIVED_STATE_FIELDS
+hardware_registry.json,RETIRE_TO_HISTORY,5,Physical component authority.,
+hardware_reviewers.json,RETIRE_TO_HISTORY,5,Physical reviewer registry.,
+hdf5_output_mapping.json,REGENERATE,every change; new set in 7,Regenerated by build_hdf5_mapping.py.,
+hdf5_schema.json,REGENERATE,every change; new set in 7,Regenerated by build_hdf5_mapping.py.,
+integrated_layers_summary.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+interface_map.csv,RETIRE_TO_HISTORY,5,Physical interface map.,
+interlock_table.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+kill_gate_ranking.csv,RETIRE_TO_HISTORY,5,Gate kill ranking.,
+laser_3d_deposition_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+lumped_vs_nonlumped_comparison.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+machine_fsm_campaign_trace.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+machine_fsm_diagram.mmd,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+machine_fsm_interlocks.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+machine_fsm_lifecycle_trace.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+machine_fsm_states.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+machine_fsm_summary.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+machine_fsm_transitions.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+manifest_hash.txt,REGENERATE,every change; new set in 7,Regenerated by generate_manifest.py.,
+manuscript_consistency_check.py,RETIRE_TO_HISTORY,5,QTA manuscript consistency is not a release requirement (directive s4).,docstring
+matrix_update_examples/invalid_automatic_application.json,RETIRE_TO_HISTORY,5,Validation-matrix update examples.,
+matrix_update_examples/invalid_missing_evidence.json,RETIRE_TO_HISTORY,5,Validation-matrix update examples.,
+matrix_update_examples/invalid_missing_review.json,RETIRE_TO_HISTORY,5,Validation-matrix update examples.,
+matrix_update_examples/invalid_unknown_experiment.json,RETIRE_TO_HISTORY,5,Validation-matrix update examples.,
+matrix_update_examples/valid_example.json,RETIRE_TO_HISTORY,5,Validation-matrix update examples.,
+measured_parameters.json,KEEP_AS_MODEL_PLUGIN,4,Literature/manufacturer-spec constants for the reference plugins (none measured here).,_note field
+measurement_comparison_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+measurement_comparison_rows.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+mesh_3d_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+mesh_convergence_summary.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+microwave_heating_3d_budget.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+microwave_heating_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+microwave_heating_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+mode_recovery_3d_timeline.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+mode_transition_acceptance_tests.csv,RETIRE_TO_HISTORY,5,Mode-transition acceptance tests.,
+monte_carlo_gate_failure_rates.csv,RETIRE_TO_HISTORY,5,Gate failure rates: gate contract retires; failed-sample concept survives in the generic UQ engine.,directive s12
+monte_carlo_parameter_registry.csv,REWRITE_GENERIC,2-7 (see rationale),"Parameter distributions: concept kept, re-expressed as ScientificModel parameter schema (directive s12).",
+monte_carlo_sensitivity_rankings.csv,DELETE_GENERATED_AND_REBUILD,6-7,QTA-specific MC output contract (directive s12).,
+monte_carlo_summary.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+multiphysics_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+multiphysics_verification_summary.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+numerical_stability_summary.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+nv_coherence_curves.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+nv_eligibility_3d.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+nv_odmr_spectrum.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+nv_sequence_contrast.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+nv_spin_dynamics_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+nv_spin_gate_records.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+nv_spin_parameter_provenance.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+optical_absorption_2d_slices.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+optical_absorption_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+optical_absorption_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+optical_line_of_sight_audit.csv,RETIRE_TO_HISTORY,5,Apparatus line-of-sight audit.,
+package_consistency_check.py,REWRITE_GENERIC,2-7 (see rationale),Independent regeneration verifier. Byte-regeneration and fail-closed structure are kept; the 83-gate/PASS=0/BOM/manuscript checks retire (directive s4).,"106 Mode-letter, 69 gate, 38 BOM, 28 measured-flag hits"
+parameter_registry.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+provenance_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+pyproject.toml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Declare PyYAML (imported directly by two test modules, today only transitive via snakemake).",uv tree
+qta_agent/__init__.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/_stage10_index_tool.py,REWRITE_GENERIC,2-7 (see rationale),Second governed tool (digest index); generalize with governed_stage10 in Phase 2.,docstring names results_gate_table.csv as a possible input
+qta_agent/_stage10_tool.py,REWRITE_GENERIC,2-7 (see rationale),Subprocess entry for governed Stage-10 artefact emission; becomes the generic governed model-run tool in Phase 2.,paired with governed_stage10.py
+qta_agent/actions.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/agents.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/audit.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: from_log() indexes only the verified snapshot.,verify-then-read (two further reads)
+qta_agent/authority.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/canonical.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/capability.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/checkpoint.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Log-position checkpoint; verify_with now returns the verified tail it checked.,defect: load_from re-read the tail verify_with checked
+qta_agent/context.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.2: summary provenance bound to real source bytes.,defect: phantom summarizes_item + fabricated omission
+qta_agent/events.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Canonical event log. Phase 1.1: single-pass verified tail (advance, read_verified_from); read_verified returns only the verified prefix.",defect: advance() verified one read and returned a second
+qta_agent/evidence.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/execution.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/governed_model.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/governed_stage10.py,REWRITE_GENERIC,2-7 (see rationale),The only production consumer of the substrate; bound to the 'Stage-10' QTA stack artefacts. Phase 2 generalizes it into governed ScientificModel runs (typed request -> ResultBundle -> evidence). Hardened in Phase 1: three unverified log reads now go through one verified pass.,imports qta_multiphysics.stack.workspace; docstring: 'a real Stage-10 run'
+qta_agent/hostid.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/idempotency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/invalidation.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/memory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/netauth.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/policy.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/projection.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.4: reducer identity (projection_kind, reducer_id/version/digest, schema version).",directive s8 invariant
+qta_agent/readpath.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/reconstruct.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Independent second reader. Phase 1.1: replays the verified snapshot whose head it reports.,verify-then-read in 3 reconstructors
+qta_agent/result_rules.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/safeio.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/scheduler.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Job FSM. Phase 1.1: load/_fold_new on the verified snapshot.,verify-then-read at load + fallback fold
+qta_agent/secrets.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/separate_verify.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/store.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Authority projection. Phase 1.1 (load/_fold_new/load_from on one verified snapshot) + 1.4 (reducer identity bound into snapshots).,"defect: verify-then-read at load, _fold_new, load_from"
+qta_agent/tasks.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/tools.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_full_sim.py,RETIRE_TO_HISTORY,5,"Monolithic QTA orchestrator + gate table + machine interlocks (IL-01..IL-10). Not rewritten: first mine it -- extract any scientifically unique equation into the generic or model module it belongs to, each with a regression test pinning today's numbers -- and only then retire the orchestrator to history once the generic workflow (Phase 6) replaces it. Not deleted before that. Interlock asserts made explicit in Phase 1.3.","168 Mode-letter hits; 0 asserts (15 at the baseline, D-2026-73)"
+qta_manuscript_v4.pdf,RETIRE_TO_HISTORY,5,QTA manuscript.,
+qta_manuscript_v4.tex,RETIRE_TO_HISTORY,5,QTA manuscript.,
+qta_multiphysics/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Package entry exporting run_all (QTA orchestration). Becomes a plugin index.,exports runner.run_all
+qta_multiphysics/boundaries_3d.py,KEEP_AS_MODEL_PLUGIN,4,Boundary physics for the 3D thermal model.,model family: thermal
+qta_multiphysics/campaign_state_3d.py,REWRITE_GENERIC,2-7 (see rationale),Adaptive-campaign carried state; walks the machine FSM. Rewrite over the task/scheduler FSMs. Holds deferred D-2026-69 (energy-ledger summation floor).,imports machine_fsm path via runner_3d; 19 Mode-letter hits
+qta_multiphysics/campaign_uncertainty_3d.py,REWRITE_GENERIC,2-7 (see rationale),Campaign-level UQ; generic engine over ScientificModel (directive s12).,Mode-letter + measured flag
+qta_multiphysics/config.py,REWRITE_GENERIC,2-7 (see rationale),"Validate-on-construction SI config is generic; defaults are the QTA apparatus (10 mK fridge, fs laser, diamond NV). Split generic schema from the QTA reference parameter set.",docstring
+qta_multiphysics/convergence_3d.py,EXTRACT_GENERIC,3,Convergence analysis.,directive s3A
+qta_multiphysics/coupled_mode_solver.py,REWRITE_GENERIC,2-7 (see rationale),Sequenced multi-phase coupled solve with state hand-off (generic) hard-wired to Mode B->C->D. Rewrite as a declared phase schedule over plugins.,23 Mode-letter hits
+qta_multiphysics/coupling_ledger_3d.py,REWRITE_GENERIC,2-7 (see rationale),"Coupling-arrow ledger with honesty statuses: generic concept, QTA channel list.",20 Mode-letter hits
+qta_multiphysics/cryo_stack_3d.py,RETIRE_TO_HISTORY,5,"Registry of the QTA cryogenic architecture; its numeric loads are REUSED from radiation_paths (plugin), so no physics is lost. Verify no unique equation before retirement.",docstring: 'loads are REUSED from the existing canonical modules'
+qta_multiphysics/cryopanel_dynamics_3d.py,KEEP_AS_MODEL_PLUGIN,4,Cryopanel adsorption inventory: generic cryogenic physics; B->C->D phase windows to decouple in Phase 4.,8 Mode-letter hits
+qta_multiphysics/deep_expdesign/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Package docstring binds the layer to QTA.,docstring
+qta_multiphysics/deep_expdesign/calibration.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/config.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/dataset.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/design_space.py,REWRITE_GENERIC,2-7 (see rationale),Design space built from EXP-A..F + machine FSM constraints; imports qta_multiphysics.design (retired).,import path to design.registry (reach.json)
+qta_multiphysics/deep_expdesign/eig_surrogate.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/inference.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/io.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/likelihood_model.py,REWRITE_GENERIC,2-7 (see rationale),Mode-D sensing design distribution baked into the generative model.,3 Mode-letter hits
+qta_multiphysics/deep_expdesign/ood.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/parameter_space.py,REWRITE_GENERIC,2-7 (see rationale),Latent space assembled from QTA registries (directive s14).,docstring
+qta_multiphysics/deep_expdesign/policy.py,REWRITE_GENERIC,2-7 (see rationale),Adaptive policy combines EIG with QTA gate criticality.,docstring
+qta_multiphysics/deep_expdesign/posterior_model.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/readiness.py,REWRITE_GENERIC,2-7 (see rationale),Fail-closed readiness FSM is generic; stamps measured_in_this_system.,1 measured flag
+qta_multiphysics/deep_expdesign/runner.py,REWRITE_GENERIC,2-7 (see rationale),QTA deep-layer orchestrator.,machine FSM mentions
+qta_multiphysics/deep_expdesign/schemas.py,REWRITE_GENERIC,2-7 (see rationale),Typed schemas are generic; carry QTA claim-boundary fields.,4 measured flags
+qta_multiphysics/deep_expdesign/simulator_adapter.py,REWRITE_GENERIC,2-7 (see rationale),Adapter around QTA forward models -> generic ScientificModel adapter (directive s14).,docstring
+qta_multiphysics/deep_expdesign/trainer.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/transforms.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/deep_expdesign/validation.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
+qta_multiphysics/design/__init__.py,RETIRE_TO_HISTORY,5,Physical component design registry / interface graph / decision ledger; reads BOM.csv and interlock_table.csv.,directive s4; reached from deep_expdesign.design_space (see DEPENDENCY_CUTOVER.md)
+qta_multiphysics/design/registry.py,RETIRE_TO_HISTORY,5,Physical component design registry / interface graph / decision ledger; reads BOM.csv and interlock_table.csv.,directive s4; reached from deep_expdesign.design_space (see DEPENDENCY_CUTOVER.md)
+qta_multiphysics/design/validation.py,RETIRE_TO_HISTORY,5,Physical component design registry / interface graph / decision ledger; reads BOM.csv and interlock_table.csv.,directive s4; reached from deep_expdesign.design_space (see DEPENDENCY_CUTOVER.md)
+qta_multiphysics/energy_accounting_3d.py,EXTRACT_GENERIC,3,Energy-conservation accounting.,directive s3A
+qta_multiphysics/expdesign/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Package docstring binds the engine to QTA candidate experiments.,docstring
+qta_multiphysics/expdesign/engine.py,EXTRACT_GENERIC,3,Direct nested-MC EIG engine.,directive s14
+qta_multiphysics/expdesign/model.py,REWRITE_GENERIC,2-7 (see rationale),Parses FIRST_VALIDATION_EXPERIMENTS.md + kill_gate_ranking.csv; rewrite over Observation/ScientificModel.,names kill_gate_ranking.csv
+qta_multiphysics/expdesign/runner.py,REWRITE_GENERIC,2-7 (see rationale),Writes QTA validation-experiment rankings.,names validation_experiment_ranking.csv
+qta_multiphysics/exports.py,EXTRACT_GENERIC,3,Deterministic CSV/JSON export helpers.,directive s3A
+qta_multiphysics/falsification_3d.py,REWRITE_GENERIC,2-7 (see rationale),"Falsification conditions: generic concept, QTA canonical bounds.",11 Mode-letter hits
+qta_multiphysics/fields.py,EXTRACT_GENERIC,3,Generic field containers.,directive s3A
+qta_multiphysics/future_3d.py,RETIRE_TO_HISTORY,5,Status module for the QTA 3D layer.,docstring
+qta_multiphysics/gas_transport_1d.py,KEEP_AS_MODEL_PLUGIN,4,Gas transport 1D (Mode-letter phase labels to remove in Phase 4).,model family: gas transport; 5 Mode-letter hits
+qta_multiphysics/gas_transport_2d.py,KEEP_AS_MODEL_PLUGIN,4,Molecular-beam exposure map (reduced model).,model family: gas transport
+qta_multiphysics/grids.py,EXTRACT_GENERIC,3,Generic structured grids.,directive s3A
+qta_multiphysics/hardware_governance_3d.py,RETIRE_TO_HISTORY,5,Physical hardware governance / reviewer registry.,directive s4
+qta_multiphysics/heat_switch_3d.py,KEEP_AS_MODEL_PLUGIN,4,Superconducting heat-switch lumped conductance: generic cryogenic component physics.,directive s3B 'generic cryogenic component physics'
+qta_multiphysics/integrated_layers.py,RETIRE_TO_HISTORY,5,Feeds new forecast gate records into the QTA gate system.,docstring
+qta_multiphysics/laser_source.py,KEEP_AS_MODEL_PLUGIN,4,Optical energy-deposition source model.,model family: optical/source
+qta_multiphysics/laser_source_3d.py,KEEP_AS_MODEL_PLUGIN,4,3D optical deposition.,model family: optical/source
+qta_multiphysics/machine_fsm.py,RETIRE_TO_HISTORY,5,"Physical machine FSM (valves/shutter/switch, Mode A/B/C/D).",directive s4/s5: retire only the physical machine FSM
+qta_multiphysics/material_models.py,KEEP_AS_MODEL_PLUGIN,4,Temperature-dependent material constitutive models (Mode-labelled gas temperatures to decouple).,model family: materials; 12 Mode-letter hits
+qta_multiphysics/materials_3d.py,KEEP_AS_MODEL_PLUGIN,4,Material properties for the 3D layer.,model family: materials
+qta_multiphysics/measurement_ingest_3d.py,REWRITE_GENERIC,2-7 (see rationale),Replace with the generic Observation boundary (RAW/PROCESSED/SYNTHETIC/SIMULATION/DERIVED/CALIBRATED) -- directive s15.,data_class 'SYNTHETIC' only; 21 Mode-letter hits
+qta_multiphysics/mesh_3d.py,EXTRACT_GENERIC,3,3D structured mesh.,used by thermal_3d_transient and tests
+qta_multiphysics/metrics.py,REWRITE_GENERIC,2-7 (see rationale),Assembles QTA gate specs (retired); its DERIVED_CHECK numerical checks move to VerificationResult.,docstring: 'Assemble the multiphysics gate specifications'
+qta_multiphysics/microwave_heating_1d.py,KEEP_AS_MODEL_PLUGIN,4,Microwave dissipation model.,model family: source/heating
+qta_multiphysics/microwave_heating_3d.py,KEEP_AS_MODEL_PLUGIN,4,Microwave dissipation model.,model family: source/heating
+qta_multiphysics/mode_sequence_3d.py,RETIRE_TO_HISTORY,5,Fixed Mode A/B/C/D sequencing of the 3D thermal core. The thermal solve it drives stays in thermal_3d_transient (plugin); the phase-schedule concept is re-expressed by the rewritten coupled solver.,76 Mode-letter hits
+qta_multiphysics/numerics.py,EXTRACT_GENERIC,3,Finite-volume operators + finite/stability checks; generic numerics.,directive s3A; 4 Mode-letter mentions are comments
+qta_multiphysics/nv_eligibility_3d.py,RETIRE_TO_HISTORY,5,NV sensing eligibility from Mode-D machine thresholds.,docstring
+qta_multiphysics/nv_spin/__init__.py,KEEP_AS_MODEL_PLUGIN,4,"NV S=1 spin dynamics (Hamiltonian, sequences, OU noise, config).",model family: spin
+qta_multiphysics/nv_spin/model.py,KEEP_AS_MODEL_PLUGIN,4,"NV S=1 spin dynamics (Hamiltonian, sequences, OU noise, config).",model family: spin
+qta_multiphysics/nv_spin/noise.py,KEEP_AS_MODEL_PLUGIN,4,"NV S=1 spin dynamics (Hamiltonian, sequences, OU noise, config).",model family: spin
+qta_multiphysics/nv_spin/runner.py,REWRITE_GENERIC,2-7 (see rationale),Enforces Mode C readiness before Mode D (machine-mode semantics) and orchestrates outputs. Rewrite as a plugin runner.,11 measured_in_this_system + 11 Mode-letter hits
+qta_multiphysics/nv_spin/sequences.py,KEEP_AS_MODEL_PLUGIN,4,"NV S=1 spin dynamics (Hamiltonian, sequences, OU noise, config).",model family: spin
+qta_multiphysics/nv_spin/spin_config.py,KEEP_AS_MODEL_PLUGIN,4,"NV S=1 spin dynamics (Hamiltonian, sequences, OU noise, config).",model family: spin
+qta_multiphysics/optical_absorption.py,KEEP_AS_MODEL_PLUGIN,4,Optical absorption profiles.,model family: optical/source
+qta_multiphysics/optical_absorption_1d.py,KEEP_AS_MODEL_PLUGIN,4,Optical absorption profiles.,model family: optical/source
+qta_multiphysics/optical_absorption_2d.py,KEEP_AS_MODEL_PLUGIN,4,Optical absorption profiles.,model family: optical/source
+qta_multiphysics/provenance_3d.py,REWRITE_GENERIC,2-7 (see rationale),Model/parameter provenance ledgers -> model-registry provenance (directive s23).,docstring
+qta_multiphysics/radiation_paths.py,KEEP_AS_MODEL_PLUGIN,4,Radiative loads.,model family: radiation
+qta_multiphysics/radiation_paths_3d.py,KEEP_AS_MODEL_PLUGIN,4,Radiative path budget.,model family: radiation
+qta_multiphysics/reduction_checks_3d.py,EXTRACT_GENERIC,3,3D->2D/1D reduction checks (differential verification).,directive s3A/s16
+qta_multiphysics/runner.py,REWRITE_GENERIC,2-7 (see rationale),QTA orchestration (run_all) returning gate specs; replaced by generic workflow (Phase 6).,14 measured_in_this_system hits
+qta_multiphysics/runner_3d.py,REWRITE_GENERIC,2-7 (see rationale),QTA 3D output orchestrator; names machine_fsm_* outputs.,"imports machine_fsm, mode_sequence_3d, state_machine_3d"
+qta_multiphysics/sensitivity_3d.py,REWRITE_GENERIC,2-7 (see rationale),One-at-a-time sensitivity on a QTA response; method generic (directive s12/s13).,docstring
+qta_multiphysics/sources_3d.py,REWRITE_GENERIC,2-7 (see rationale),Auxiliary volumetric source channels keyed to Mode D.,docstring: 'Mode D only'
+qta_multiphysics/species_accounting_3d.py,REWRITE_GENERIC,2-7 (see rationale),Mass accounting is generic; the per-mode species policy is QTA ontology.,23 Mode-letter hits; 2 constant self-check asserts
+qta_multiphysics/species_transport_3d.py,KEEP_AS_MODEL_PLUGIN,4,Knudsen/molecular-flow regime model; per-mode species rows to decouple in Phase 4.,15 Mode-letter hits
+qta_multiphysics/stack/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Stage-10 package framing.,docstring
+qta_multiphysics/stack/fem_fenicsx.py,EXTRACT_GENERIC,3,FEniCSx as independent verifier with executable acceptance contract (directive s16).,docstring
+qta_multiphysics/stack/fmi_contract.py,REWRITE_GENERIC,2-7 (see rationale),Deferred FMI contract written against the machine FSM.,5 machine-FSM hits
+qta_multiphysics/stack/mdao_openmdao.py,REWRITE_GENERIC,2-7 (see rationale),OpenMDAO adapter over the QTA thermal ROM; refactor to consume ScientificModel (directive s13).,docstring
+qta_multiphysics/stack/rag_index.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Read-only RAG over governed documents; retained (directive s17).,digest-bound corpus allowlist
+qta_multiphysics/stack/registry.py,EXTRACT_GENERIC,3,Fail-closed Pydantic validation of stack.json.,directive s2
+qta_multiphysics/stack/rust_kernel.py,EXTRACT_GENERIC,3,Selective Rust with bit-parity admission.,directive s2
+qta_multiphysics/stack/sensitivity_salib.py,REWRITE_GENERIC,2-7 (see rationale),SALib adapter over the QTA thermal ROM; refactor to consume ScientificModel (directive s13).,3 Mode-letter hits
+qta_multiphysics/stack/usd_export.py,EXTRACT_GENERIC,3,Deterministic OpenUSD export.,directive s2
+qta_multiphysics/stack/vtk_export.py,EXTRACT_GENERIC,3,Deterministic VTK export (inspection surface).,directive s2
+qta_multiphysics/stack/workspace.py,EXTRACT_GENERIC,3,Output-location guard + deterministic writers; imported by the agent core.,reached from qta_agent.governed_stage10
+qta_multiphysics/stage7_boundary_models.py,RETIRE_TO_HISTORY,5,Pydantic validation of QTA identifiers/matrix-update requests. The Pydantic-at-boundary pattern is re-established by Phase 2 schemas.,validates validation_matrix update requests
+qta_multiphysics/state_machine_3d.py,RETIRE_TO_HISTORY,5,"Mode -> device-state map (shutter, baffle, laser, heat switch).",docstring: 'Mode-driven device state machine'
+qta_multiphysics/surface_coverage.py,KEEP_AS_MODEL_PLUGIN,4,Surface adsorption/desorption kinetics.,model family: surface processes; 3D variant carries Mode-phase windows to decouple in Phase 4
+qta_multiphysics/surface_coverage_1d.py,KEEP_AS_MODEL_PLUGIN,4,Surface adsorption/desorption kinetics.,model family: surface processes; 3D variant carries Mode-phase windows to decouple in Phase 4
+qta_multiphysics/surface_coverage_2d.py,KEEP_AS_MODEL_PLUGIN,4,Surface adsorption/desorption kinetics.,model family: surface processes; 3D variant carries Mode-phase windows to decouple in Phase 4
+qta_multiphysics/surface_coverage_3d.py,KEEP_AS_MODEL_PLUGIN,4,Surface adsorption/desorption kinetics.,model family: surface processes; 3D variant carries Mode-phase windows to decouple in Phase 4
+qta_multiphysics/thermal_1d.py,KEEP_AS_MODEL_PLUGIN,4,Thermal conduction 1D. Phase 2 proving case for ScientificModel.,imports only config/fields/grids/laser_source/material_models/numerics
+qta_multiphysics/thermal_2d_axisymmetric.py,KEEP_AS_MODEL_PLUGIN,4,Thermal conduction 2D axisymmetric.,model family: thermal
+qta_multiphysics/thermal_3d_transient.py,KEEP_AS_MODEL_PLUGIN,4,Thermal conduction 3D transient.,model family: thermal
+qta_multiphysics/uncertainty.py,REWRITE_GENERIC,2-7 (see rationale),Monte Carlo propagation; engine is generic but the sample set is the QTA parameter registry and gate responses. Rewrite over ScientificModel (directive s12).,8 Mode-letter hits; evaluates QTA gate responses
+qta_multiphysics/units.py,EXTRACT_GENERIC,3,Unit handling.,directive s3A
+qta_multiphysics/verification.py,EXTRACT_GENERIC,3,Numerical self-consistency checks -> VerificationResult producers (Phase 2/3).,"docstring: numerical, not physical validation"
+qta_multiphysics/verification_3d.py,EXTRACT_GENERIC,3,Numerical verification for the 3D layer.,directive s3A
+qta_multiphysics/vibration_paths_3d.py,KEEP_AS_MODEL_PLUGIN,4,Vibration path budget.,model family: vibration
+qta_multiphysics/vibration_transfer.py,KEEP_AS_MODEL_PLUGIN,4,Vibration transfer chain.,model family: vibration
+qta_scientific_results.h5,REGENERATE,every change; new set in 7,Regenerated by build_hdf5.py.,
+qta_sim_stages.py,REWRITE_GENERIC,2-7 (see rationale),Stage-level checkpoint/restart driver around qta_full_sim; resilience pattern kept.,docstring
+radiation_leakage_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+radiation_leakage_paths.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+radiation_paths_3d_budget.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+radiation_rf_leakage_budget.csv,RETIRE_TO_HISTORY,5,Apparatus RF leakage budget.,
+raw_data_standard.md,REWRITE_GENERIC,2-7 (see rationale),Becomes the Observation schema narrative (directive s15).,
+rejected_baseline_BOM.csv,RETIRE_TO_HISTORY,5,Rejected BOM.,
+release_revision_gate.py,KEEP_AS_IS,-,Revision-binding gate.,no hardware marker
+release_trust.py,KEEP_AS_IS,-,Release trust policy authority; no QTA payload knowledge.,no hardware marker; reach.json
+representative_source_audit.csv,RETIRE_TO_HISTORY,5,Manuscript source audit.,
+requirements.txt,REGENERATE,every change; new set in 7,Derived pin list.,
+results_gate_table.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+risk_register.csv,RETIRE_TO_HISTORY,5,"Apparatus risk register (gate_impact, can_PASS_now columns).",header
+ro-crate/ro-crate-metadata.json,REGENERATE,every change; new set in 7,Regenerated by ro_crate_tools.py.,
+ro_crate_tools.py,REWRITE_GENERIC,2-7 (see rationale),Deterministic RO-Crate builder kept; hard-coded QTA experiment registries retire.,"names experiment_*.json, validation_matrix.csv"
+rust/qta_kernels/Cargo.lock,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
+rust/qta_kernels/Cargo.toml,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
+rust/qta_kernels/pyproject.toml,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
+rust/qta_kernels/src/lib.rs,EXTRACT_GENERIC,3,Selective Rust kernels (bit-parity admission).,directive s2
+scientific/__init__.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/_governed_check.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/_governed_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/_governed_run.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/catalog.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/checks/__init__.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
+scientific/checks/reduction_2d.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
+scientific/checks/reduction_3d.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
+scientific/identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/model.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/models/__init__.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
+scientific/models/thermal_1d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
+scientific/models/thermal_2d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
+scientific/observation.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/quantity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/registry.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/result.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/run_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/verification.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+sensitivity_ranking_3d.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+shielding_stack_register.csv,RETIRE_TO_HISTORY,5,Apparatus shielding stack.,
+snakemake_sim_entry.py,REWRITE_GENERIC,2-7 (see rationale),Snakemake wrapper around qta_full_sim (Phase 6).,docstring
+source_audit_status.txt,RETIRE_TO_HISTORY,5,Manuscript source audit.,
+source_gap_register.csv,RETIRE_TO_HISTORY,5,Manuscript source gaps.,
+source_map.csv,RETIRE_TO_HISTORY,5,Manuscript claim-to-source map (measured_in_this_system column).,header
+species_accounting_3d.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+species_transport_3d_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+stack.json,KEEP_AS_IS,-,Stack adoption registry.,
+stage6_preservation_check.py,RETIRE_TO_HISTORY,5,Asserts PASS=0 across Stage-6 registries.,directive s4
+stage7_reports/dependency_inventory.json,REGENERATE,every change; new set in 7,Derived from pyproject.toml + uv.lock by tools/dependency_declarations.py --write; a test holds it to them (it said 71 packages and omitted h5py before it was derived).,tests/test_dependency_declarations.py
+stage7_reports/environment_provenance.json,REGENERATE,every change; new set in 7,Environment/dependency/lint reports regenerated per environment.,
+stage7_reports/mypy_report.md,REGENERATE,every change; new set in 7,Environment/dependency/lint reports regenerated per environment.,
+stage7_reports/reproducibility_comparison.json,REGENERATE,every change; new set in 7,Environment/dependency/lint reports regenerated per environment.,
+stage7_reports/ruff_report.md,REGENERATE,every change; new set in 7,Environment/dependency/lint reports regenerated per environment.,
+stage8_reports/hdf5_equivalence_report.json,REGENERATE,every change; new set in 7,HDF5/RO-Crate validation reports regenerated by the derived chain.,
+stage8_reports/ro_crate_validation_report.json,REGENERATE,every change; new set in 7,HDF5/RO-Crate validation reports regenerated by the derived chain.,
+superseded_best_operating_point_v3.json,RETIRE_TO_HISTORY,5,Superseded apparatus operating point.,
+surface_coverage_2d_map.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+surface_coverage_3d_summary.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+surface_coverage_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+surface_coverage_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+synthetic_measurements_example.json,REWRITE_GENERIC,2-7 (see rationale),Becomes a SYNTHETIC_OBSERVATION example.,
+tau_c_sweep.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+tests/fuzz_corpus/README.md,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/egress_grant-crashed-65392841.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/egress_grant-crashed-96370079.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/hangguard.py,KEEP_AS_IS,-,Shared wall-clock bound.,
+tests/hw_reviewer_fixtures.py,RETIRE_TO_HISTORY,5,Hardware reviewer rosters.,imports hardware_governance_3d
+tests/test_agent_agents.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_atomicity.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_audit.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_audit_cli.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_authority_boundaries.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_checkpoint.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reducer-identity tests added (Phase 1.4).,
+tests/test_agent_collusion.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_compensation.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_concurrency.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_context.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phantom-source test rewritten (it pinned the defect) + provenance tests (Phase 1.2).,
+tests/test_agent_crash_recovery.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_cross_process.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_delegation.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_differential.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_evidence.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_execution.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_fault_injection.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_fuzz.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_governed_breadth.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_governed_stage10.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_hostile_campaign.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_idempotency.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_incremental.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_long_horizon.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_machine_properties.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_memory.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_netauth.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_performance.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_policy.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_readpath.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_recovery.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_result_rules.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_scheduler.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_second_reader.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_secret_provider.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_secrets.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_separate_verify.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_snapshot_coherence.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW: adversarial verify-then-read tests over every projection (Phase 1.1).,
+tests/test_agent_substrate.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_agent_substrate_isolation.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Layering and IO_LAYER extended for qta_agent/projection.py; new test importer allowed (Phase 1).,
+tests/test_agent_substrate_properties.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_authority_consistency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,authorities.json agrees with reality (retained).,
+tests/test_authority_invariants.py,REWRITE_GENERIC,2-7 (see rationale),Authority invariants over machine FSM + qta_full_sim; keep the non-hardware ones.,
+tests/test_authority_promotion_barrier.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Nothing descriptive/statistical/learned becomes authority -- a retained trust invariant.,
+tests/test_bom_status_claim.py,RETIRE_TO_HISTORY,5,"BOM claims (BOM completeness retires, directive s4).",
+tests/test_bootstrap_workflow_contract.py,KEEP_AS_IS,-,Bootstrap workflows are not trust shortcuts.,imports yaml (undeclared)
+tests/test_campaign_3d.py,REWRITE_GENERIC,2-7 (see rationale),Campaign continuity tests follow the campaign rewrite.,
+tests/test_campaign_uncertainty.py,REWRITE_GENERIC,2-7 (see rationale),Campaign UQ determinism tests follow the UQ rewrite.,
+tests/test_candidate_structure.py,KEEP_AS_IS,-,Hostile bundle structure.,
+tests/test_checker_missing_outputs.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
+tests/test_checker_runtime_contract.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
+tests/test_claims_enforcement.py,REWRITE_GENERIC,2-7 (see rationale),Follows the claims-boundary rewrite.,
+tests/test_completion_matrix.py,REWRITE_GENERIC,2-7 (see rationale),Follows the completion-matrix rewrite.,
+tests/test_container_diagnostic_fidelity.py,REWRITE_GENERIC,2-7 (see rationale),Follows analysis/collect_container_3d rewrite.,
+tests/test_container_manifest_coverage.py,KEEP_AS_IS,-,Container carries every governed file.,
+tests/test_coupled_3d.py,REWRITE_GENERIC,2-7 (see rationale),Coupled-3D tests follow the coupled solver rewrite.,
+tests/test_cross_env_semantics.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reproducibility vs portability instrument.,
+tests/test_csv_schema_governance.py,EXTRACT_GENERIC,3,Stable declared headers.,
+tests/test_deep_authority.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Deep layer trust boundary (retained invariant).,
+tests/test_deep_expdesign.py,REWRITE_GENERIC,2-7 (see rationale),Deep layer foundation tests.,
+tests/test_deep_expdesign_stage2.py,REWRITE_GENERIC,2-7 (see rationale),Deep layer training/posterior tests.,
+tests/test_dependency_declarations.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW: declarations against imports, with the replaced pyproject as the anti-vacuity control (D-2026-74).",
+tests/test_design.py,RETIRE_TO_HISTORY,5,Apparatus design registry.,
+tests/test_digest_trust_root.py,KEEP_AS_IS,-,Digest trust root.,
+tests/test_expdesign.py,REWRITE_GENERIC,2-7 (see rationale),EIG tests; QTA candidate parsing retires.,
+tests/test_export_schema.py,EXTRACT_GENERIC,3,Export never drops governed fields.,
+tests/test_external_trust_root.py,KEEP_AS_IS,-,External trust root.,
+tests/test_failed_gate_schema.py,REWRITE_GENERIC,2-7 (see rationale),Failed-sample schema survives as generic failed-sample preservation (directive s12).,
+tests/test_file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 0: every repository file has exactly one disposition, and the CSV is the generator's output.",
+tests/test_generated_mutations.py,KEEP_AS_IS,-,Generated operators.,
+tests/test_governed_model.py,KEEP_AS_IS,-,"NEW in Phase 2: a model result from proposal to authority, and every short-circuit of that line refused.",
+tests/test_governed_model_reuse.py,KEEP_AS_IS,-,NEW in Phase 2: a verified model result reused only on evidence re-derived intact; every exclusion against a genuine control.,
+tests/test_h2_pressure_authority.py,REWRITE_GENERIC,2-7 (see rationale),Distinct-quantity rule kept; gate B4 framing retires.,
+tests/test_hardware_governance.py,RETIRE_TO_HISTORY,5,Protects retired hardware-governance invariants; retire deliberately with the module (directive s26).,
+tests/test_hostile_input_no_traceback.py,KEEP_AS_IS,-,Classified refusals end to end.,
+tests/test_hostile_trust_policy.py,KEEP_AS_IS,-,Bundled policy is attacker bytes.,
+tests/test_hotspot_ranking_determinism.py,KEEP_AS_MODEL_PLUGIN,4,Deterministic hotspot ranking.,
+tests/test_identity_inventory.py,KEEP_AS_IS,-,Identity inventory.,
+tests/test_independent_gate_recomputation.py,REWRITE_GENERIC,2-7 (see rationale),Independent recomputation pattern kept; QTA gates B4/D10b retire.,
+tests/test_integration.py,RETIRE_TO_HISTORY,5,integrated_layers gate feed.,
+tests/test_lateral_boundary.py,KEEP_AS_MODEL_PLUGIN,4,Boundary-value-problem identity across reductions.,
+tests/test_machine_fsm.py,RETIRE_TO_HISTORY,5,Physical machine FSM.,
+tests/test_manifest_completeness.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Manifest completeness with an independent check (retained).,
+tests/test_manifest_policy.py,REWRITE_GENERIC,2-7 (see rationale),Coverage boundary tied to the QTA output set.,
+tests/test_material_floors.py,KEEP_AS_MODEL_PLUGIN,4,Material floors.,
+tests/test_measurement_ingest.py,REWRITE_GENERIC,2-7 (see rationale),Rewritten for the generic Observation boundary.,
+tests/test_mode_species_3d.py,REWRITE_GENERIC,2-7 (see rationale),"Mode/species safety: machine policy retires, species-mass invariants move to the rewritten accounting.",
+tests/test_model_check.py,KEEP_AS_IS,-,Model checker.,
+tests/test_multiphysics_core.py,KEEP_AS_MODEL_PLUGIN,4,Thermal-1D numerical checks; Phase 2 proving-case tests.,
+tests/test_mutation_harness.py,KEEP_AS_IS,-,Harness tested as an instrument.,
+tests/test_mutation_shards.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW: sharding loses no spec; each workflow rule broken in turn.,
+tests/test_nv_spin.py,KEEP_AS_MODEL_PLUGIN,4,NV spin physics.,
+tests/test_online_success_path.py,KEEP_AS_IS,-,Online success path.,
+tests/test_optimized_mode_invariants.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Assert guard extended to release/root modules and pinned by count (Phase 1.3).,docstring claimed a count pin the code did not implement
+tests/test_output_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Outputs state their method resolution.,
+tests/test_parameter_semantics.py,KEEP_AS_MODEL_PLUGIN,4,Dimensional/sign semantics of parameters (mode letters to drop).,
+tests/test_radiation_contract.py,KEEP_AS_MODEL_PLUGIN,4,Radiation producer/consumer contract.,
+tests/test_record_parsers.py,RETIRE_TO_HISTORY,5,Gate-reference/mode parsers of the design registry.,
+tests/test_release_trust_enforcement.py,KEEP_AS_IS,-,Release trust boundary (directive s18).,
+tests/test_release_workflow_contract.py,KEEP_AS_IS,-,Release workflow executable.,"imports yaml (undeclared, see DEPENDENCY_CUTOVER.md)"
+tests/test_repo_contract.py,KEEP_AS_IS,-,Repository file-set contract.,
+tests/test_resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution inventory.,
+tests/test_review_binding.py,RETIRE_TO_HISTORY,5,Hardware review binding.,imports hardware_governance_3d
+tests/test_scientific_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_import_isolation.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_interfaces.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_thermal_1d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_thermal_2d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_signing_finalizer.py,KEEP_AS_IS,-,Signing finalizer.,
+tests/test_single_source_of_truth.py,REWRITE_GENERIC,2-7 (see rationale),Single-definition rule is generic; subject list is QTA.,
+tests/test_solver_failclosed.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A failed solve grants nothing (directive s20 model).,
+tests/test_stage10_stack.py,REWRITE_GENERIC,2-7 (see rationale),Stack adapter tests follow the adapter rewrite.,
+tests/test_stage6_roadmap.py,RETIRE_TO_HISTORY,5,Hardware validation roadmap.,
+tests/test_stage7_5_resilience.py,REWRITE_GENERIC,2-7 (see rationale),Checkpoint/restart driver around qta_full_sim.,
+tests/test_stage7_boundary.py,RETIRE_TO_HISTORY,5,Pydantic models over QTA vocabularies.,
+tests/test_stage8_data_provenance.py,REWRITE_GENERIC,2-7 (see rationale),HDF5/RO-Crate boundary over the QTA payload.,
+tests/test_stage9_release.py,KEEP_AS_IS,-,Consumer release verification on a fixture release.,
+tests/test_test_isolation.py,KEEP_AS_IS,-,Collection isolation.,
+tests/test_thermal_3d.py,KEEP_AS_MODEL_PLUGIN,4,3D thermal physics invariants.,
+tests/test_unit_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Unit inventory.,
+tests/test_verified_read_guard.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW: every rule of the verify-then-read guard on a breaking source and a control; the runtime refusal (D-2026-76).,
+thermal_3d_energy_accounting.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+thermal_3d_hotspots.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+thermal_3d_probe_timeseries.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+thermal_3d_readiness.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+thermal_3d_reduction_check.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+thermal_3d_verification_report.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+tools/audit_log.py,KEEP_AS_IS,-,Read-only audit CLI.,
+tools/blas_kernel_sensitivity.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,BLAS-kernel dependence diagnostic (directive s19).,R59
+tools/claims_enforcement.py,REWRITE_GENERIC,2-7 (see rationale),Claims-boundary enforcement coverage; the boundary text itself is rewritten generically.,reads CLAIMS_BOUNDARY.md
+tools/clip_provenance.py,REWRITE_GENERIC,2-7 (see rationale),Clip provenance over the QTA runners; imports integrated_layers/runner_3d.,reach.json tools closure
+tools/completion_matrix.py,REWRITE_GENERIC,2-7 (see rationale),Completion-matrix validator; rows tied to the 83-gate model retire (directive s4).,
+tools/corpus_allowlist.py,KEEP_AS_IS,-,RAG corpus allowlist generator/checker.,
+tools/cross_env_semantics.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reproducibility vs portability instrument (directive s19); column list is QTA outputs today.,D-2026-6x
+tools/dependency_declarations.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: every direct import declared in a group that ships it; derives the dependency inventory (D-2026-74/77).,reports the two D-2026-74 sites on the replaced pyproject
+tools/file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in Phase 0: generates and checks FILE_DISPOSITION.csv; fails on a file no rule names.,
+tools/fuzz_substrate.py,KEEP_AS_IS,-,Substrate fuzz harness (directive s20).,
+tools/generated_mutations.py,KEEP_AS_IS,-,Generated mutation operators (directive s20).,
+tools/identity_inventory.py,KEEP_AS_IS,-,Identity-bearing field inventory.,
+tools/independent_verify.py,KEEP_AS_IS,-,Subprocess second reader.,
+tools/model_check.py,KEEP_AS_IS,-,Bounded exhaustive FSM path checking.,
+tools/mutation_matrix.py,KEEP_AS_IS,-,Mutation harness (directive s20).,
+tools/mutation_shards.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: deterministic mutation shards, the generated workflow matrix and its check, the shard runner.",46 serial matrices took 4h27m in one job (run 36094744039)
+tools/mutations/agent_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_agents.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_audit.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A1/Q1 re-anchored to the single verified read (Phase 1.1).,
+tools/mutations/agent_checkpoint.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Extended in Phase 1 (tail coherence + reducer identity).,
+tools/mutations/agent_compensation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_cross_process.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_delegation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_evidence.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_execution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,L3 re-anchored to the single verified read (Phase 1.1).,
+tools/mutations/agent_fault_injection.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_idempotency.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_incremental.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Extended in Phase 1.1 (advance single pass).,
+tools/mutations/agent_job_graph.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_lease_renewal.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_memory_context.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Extended in Phase 1.2 (summary provenance).,
+tools/mutations/agent_netauth.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_policy.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_readpath.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_recovery.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_scheduler.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_second_reader.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_secret_provider.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_secrets.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_separate_verify.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_service_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/agent_snapshot_coherence.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in Phase 1.1: verify-then-read regression operators.,
+tools/mutations/agent_substrate.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,M16/M20/M30 re-anchored to the single verified read (Phase 1.1).,
+tools/mutations/agent_tasks.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/authority_result_rules.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/canonical_output_set.json,REWRITE_GENERIC,2-7 (see rationale),Targets the QTA canonical-output set in package_consistency_check.py.,
+tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/corpus_allowlist.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/cross_environment.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/cryopanel_operating_point.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over the declaration rules and the inventory derivation.,
+tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
+tools/mutations/fuzz_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/governed_breadth.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/governed_model_reuse.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/hardware_governance.json,RETIRE_TO_HISTORY,5,Hardware-governance mutations retire with their subject (directive s20).,targets hardware_governance_3d.py
+tools/mutations/identity_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/model_check.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/mutation_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: operators over coverage, determinism, the aggregate's meaning and the shard runner.",
+tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
+tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/scientific_interfaces.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/scientific_thermal_1d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
+tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/unit_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/verified_read_guard.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over both halves of the verify-then-read guard (D-2026-76).,
+tools/performance_baseline.py,KEEP_AS_IS,-,Scaling-guard drift record.,
+tools/repo_scope.py,KEEP_AS_IS,-,Single definition of 'a file in this repository'.,
+tools/resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Method-resolution inventory; holds deferred D-2026-69 (artefact-as-method proxy).,D-2026-66/69
+tools/test_isolation.py,KEEP_AS_IS,-,Per-module collection isolation.,
+tools/unit_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reviewed dimensions for every governed column.,
+tools/verified_read_guard.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: static half of the verify-then-read guard over every production file (D-2026-76).,20 sites reported on the pre-D-2026-70 tree
+tools/verify.sh,KEEP_AS_IS,-,Local verification entry script.,
+tools/workflow_contract.py,KEEP_AS_IS,-,Hosted-workflow contract checked locally.,
+uv.lock,REGENERATE,every change; new set in 7,Lockfile regenerated by uv.,
+validate_hdf5_equivalence.py,REWRITE_GENERIC,2-7 (see rationale),HDF5<->source exact-equivalence validator kept; payload list retires.,names results_gate_table.csv
+validation_experiment_ranking.csv,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
+validation_matrix.csv,RETIRE_TO_HISTORY,5,Hardware validation matrix.,
+validation_matrix_update_request.schema.json,RETIRE_TO_HISTORY,5,Validation-matrix update schema.,
+verify_release.py,REWRITE_GENERIC,2-7 (see rationale),Hostile/offline release verifier kept; QTA payload expectation retires.,names results_gate_table.csv
+vibration_paths_3d_budget.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+vibration_transfer_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+vibration_transfer_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set

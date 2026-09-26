@@ -1,0 +1,86 @@
+{
+  "title": "Verification in a process that cannot import what it checks",
+  "note": "reconstruct.py keeps its independence by discipline: it restates the authority rules rather than importing the reducers. Discipline decays silently, so the same reader also runs in a process where the shortcut is unavailable. Every mutation here removes one of the things that makes that separation real, or one of the refusals that stops a broken verifier reading as a pass.",
+  "suites": [
+    "tests/test_agent_separate_verify.py"
+  ],
+  "mutations": [
+    {
+      "name": "S1_the_import_guard_lets_the_primary_reducer_through",
+      "path": "tools/independent_verify.py",
+      "find": "        if fullname in FORBIDDEN:",
+      "replace": "        if False:",
+      "rationale": "the second reading becomes a second call to the first implementation, which agrees with itself for free"
+    },
+    {
+      "name": "S2_the_forbidden_set_is_empty",
+      "path": "tools/independent_verify.py",
+      "find": "        if fullname in FORBIDDEN:\n            raise ImportError(",
+      "replace": "        if fullname in frozenset():\n            raise ImportError(",
+      "rationale": "VACUOUS: the guard consults an empty set, so it passes by examining nothing"
+    },
+    {
+      "name": "S3_anomalies_do_not_change_the_exit_status",
+      "path": "tools/independent_verify.py",
+      "find": "    return 0 if not findings else 1",
+      "replace": "    return 0",
+      "rationale": "a log with forged transitions exits 0, so the caller reads a refusal as agreement"
+    },
+    {
+      "name": "S4_an_unreadable_log_exits_zero",
+      "path": "tools/independent_verify.py",
+      "find": "            \"reason\": f\"reconstruction raised: {type(exc).__name__}: {exc}\",\n        }))\n        return 2",
+      "replace": "            \"reason\": f\"reconstruction raised: {type(exc).__name__}: {exc}\",\n        }))\n        return 0",
+      "rationale": "a log the verifier could not replay at all reports success over nothing"
+    },
+    {
+      "name": "S5_a_crashed_verifier_is_a_pass",
+      "path": "qta_agent/separate_verify.py",
+      "find": "    if proc.returncode == EXIT_CLEAN and doc.get(\"ok\"):",
+      "replace": "    if True:",
+      "rationale": "every non-zero exit, timeout and unreadable answer becomes agreement"
+    },
+    {
+      "name": "S6_a_timeout_is_treated_as_success",
+      "path": "qta_agent/separate_verify.py",
+      "find": "    except subprocess.TimeoutExpired:\n        return SeparateVerification(\n            ok=False, exit_status=None,",
+      "replace": "    except subprocess.TimeoutExpired:\n        return SeparateVerification(\n            ok=True, exit_status=None,",
+      "rationale": "a verifier that hangs never says no, which is not the same as saying yes"
+    },
+    {
+      "name": "S7_an_unparseable_answer_is_a_verdict",
+      "path": "qta_agent/separate_verify.py",
+      "find": "    except ValueError:\n        return SeparateVerification(\n            ok=False, exit_status=proc.returncode,",
+      "replace": "    except ValueError:\n        return SeparateVerification(\n            ok=True, exit_status=proc.returncode,",
+      "rationale": "an unparseable verdict is not a verdict"
+    },
+    {
+      "name": "S8_a_missing_verifier_is_skipped_rather_than_refused",
+      "path": "qta_agent/separate_verify.py",
+      "find": "    if not script.is_file():\n        return SeparateVerification(\n            ok=False, exit_status=None,",
+      "replace": "    if not script.is_file():\n        return SeparateVerification(\n            ok=True, exit_status=None,",
+      "rationale": "deleting the verifier becomes the cheapest way to make every run agree with itself"
+    },
+    {
+      "name": "S9_the_production_path_does_not_consult_another_process",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if ok:\n            sep = verify_in_separate_process(self.log.path, root=self.root)",
+      "replace": "        if False:\n            sep = verify_in_separate_process(self.log.path, root=self.root)",
+      "rationale": "the mechanism exists and nothing calls it, which is the shape of a defence with no caller"
+    },
+    {
+      "name": "S10_the_independent_refusal_changes_nothing",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if not sep.ok:\n                ok = False",
+      "replace": "            if False:\n                ok = False",
+      "rationale": "a verifier whose answer changes nothing is a log line, and this project has a name for those"
+    },
+    {
+      "name": "S11_the_verdict_is_not_recorded",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            self.log.append(\n                actor=verifier, action=ACT_SEPARATE_VERIFY, target=task_id,\n                payload={\"task_id\": task_id, **sep.to_record()})",
+      "replace": "            pass",
+      "rationale": "'the independent verifier refused' is exactly the fact an auditor must be able to find"
+    }
+  ]
+}

@@ -11,8 +11,12 @@ modesty.
 - No PASS gates. The current canonical state is 0 PASS out of 83 gates (including the 20 non-lumped multiphysics gates).
 - No proof of feasibility.
 - No validated hardware. Every hardware item in BOM.csv is either
-  DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED, or
-  MANUFACTURER_SPEC. No item is in-system VERIFIED.
+  DESIGN_SPECIFIED, NOT_INSTALLED, INSTALLED_UNVERIFIED,
+  MANUFACTURER_SPEC, or MANUFACTURER_SPEC_TARGET. No item is in-system
+  VERIFIED. That list is the complete permitted vocabulary and is enforced
+  as an allowlist by `package_consistency_check.py`; the current 121 rows
+  are 117 DESIGN_SPECIFIED, 3 NOT_INSTALLED and 1
+  MANUFACTURER_SPEC_TARGET. Adding a status is a change to this boundary.
 - No breakthrough claim. The package documentation does not present any
   result as a breakthrough.
 - No DARPA-ready claim. The package is not presented as ready for any
@@ -143,6 +147,51 @@ remain BLOCKED until in-system measurements exist.
 
 The gate `RTB_JT_OPTIONAL_COOLING_PLANT` is BLOCKED. It cannot unlock any
 other gate. PASS count remains 0.
+
+## Numerical resolution: what a stated number is allowed to mean
+
+Every value in the canonical outputs is written at ten significant figures.
+That format makes a claim about resolution whether or not it means to, and
+the solvers' tolerances are not in the files, so a reader cannot reconstruct
+which digits are real.
+
+**Forbidden:**
+
+- "The Mode-C purge removes all methane."
+- "Residual methane at Mode D entry is zero."
+- "The cryobaffle stack reduces residual species to zero."
+
+Two further rules belong here and are rules of reading rather than sentences,
+so they are stated outside the list above — nothing in this package can refuse
+them automatically, and a forbidden-claims list whose entries cannot be
+checked would misreport its own coverage:
+
+- A value of `0.000000000e+00` in a transport output does not mean the species
+  is absent. It means one of two different things, and the resolution column
+  beside it says which.
+- No serialised value should be quoted as a quantity without the resolution
+  class stated beside it, from the same file.
+
+**Allowed:**
+
+- "Residual methane at Mode D entry is below 1e3 per cubic metre, which is
+  the absolute tolerance of the Mode-C transport solve and the smallest
+  density it can distinguish from zero."
+- "Helium is absent in Mode C by design — no inlet source and no initial
+  content — so its zero is exact and independent of any tolerance."
+- "Residual hydrogen at Mode D entry is 2.6e11 per cubic metre, resolved."
+
+The transport and coverage outputs state this directly. Each value column in
+`gas_transport_profile.csv` and `surface_coverage_profile.csv` is followed by
+a resolution column reading `EXACT_ZERO`, `RESOLVED`, `BELOW_RESOLUTION` or
+`OUT_OF_RANGE`, and the metrics files carry the floor itself and the count of
+cells beneath it. `BELOW_RESOLUTION` is not a small measurement: it is the
+statement that this method cannot tell the value from zero, and on a machine
+whose floating-point dispatch differs the same cell may carry a different
+number with the same class. Only the class is portable.
+
+None of this makes any residual known. It makes the bound explicit, and the
+bound is a forecast from a model, not a measurement of hardware.
 
 ## How to disagree with the claims boundary
 

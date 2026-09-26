@@ -1,0 +1,58 @@
+{
+ "title": "What states the resolution of each published number, and what admits that nothing does",
+ "note": "D-2026-66. The only instrument reporting on D-2026-53's discipline examined a column only when it happened to cross zero between two environments, so the coverage it implied was a fact about which machines had run. Measured over every governed column it was 19 of 162. N1 is the operator that matters: it removes the within-artefact rule, and the residual goes back to carrying a class while the maximum and the region mean beside it in the same row, out of the same solve, against the same floor, stay bare -- closing the example instead of the class. N2-N3 let a carrier be named without being checked. N4-N5 drop one direction of the reconciliation each. N6 accepts an empty scope. N7 lets a column be exempted without saying why.",
+ "suites": [
+  "tests/test_resolution_inventory.py"
+ ],
+ "mutations": [
+  {
+   "name": "N1_a_bare_column_beside_a_declared_one_is_tolerated",
+   "path": "tools/resolution_inventory.py",
+   "find": "        if not any(declared[k].get(\"basis\") == \"CARRIER\" for k in keys):",
+   "replace": "        if True:",
+   "rationale": "the within-artefact rule stops existing, so a quantity published bare beside one that declares its resolution -- same row, same solve, same floor -- is accepted; that is D-2026-53 closed on its example"
+  },
+  {
+   "name": "N2_a_carrier_is_taken_on_trust",
+   "path": "tools/resolution_inventory.py",
+   "find": "        bad = sorted({v for v in values if v not in CLASSES})",
+   "replace": "        bad = []",
+   "rationale": "any column may be nominated as a carrier regardless of what it holds; naming a column becomes carrying a class, which is the proxy this package keeps finding"
+  },
+  {
+   "name": "N3_a_carrier_that_does_not_exist_is_accepted",
+   "path": "tools/resolution_inventory.py",
+   "find": "        if values is None:",
+   "replace": "        if False:",
+   "rationale": "an inventory can name a resolution column that is not in the artefact at all and still reconcile"
+  },
+  {
+   "name": "N4_a_governed_column_nobody_classified_is_not_reported",
+   "path": "tools/resolution_inventory.py",
+   "find": "    for key in sorted(governed - set(declared)):",
+   "replace": "    for key in ():",
+   "rationale": "a new column enters the schema unclassified and the inventory keeps reporting full coverage of the columns it happens to know about"
+  },
+  {
+   "name": "N5_a_declaration_for_a_departed_column_is_not_reported",
+   "path": "tools/resolution_inventory.py",
+   "find": "    for key in sorted(set(declared) - governed):",
+   "replace": "    for key in ():",
+   "rationale": "the inventory drifts into describing a schema that has moved on, which is how a coverage number outlives its subject"
+  },
+  {
+   "name": "N6_an_empty_scope_reports_full_coverage",
+   "path": "tools/resolution_inventory.py",
+   "find": "    if not governed:",
+   "replace": "    if False:",
+   "rationale": "a moved unit inventory or a changed key format yields no columns, and every reconciliation below agrees over nothing"
+  },
+  {
+   "name": "N7_a_column_is_exempted_without_saying_why",
+   "path": "tools/resolution_inventory.py",
+   "find": "            if not e.get(\"why\"):",
+   "replace": "            if False:",
+   "rationale": "COORDINATE, FLOOR, INPUT_CONSTANT and NO_FLOOR_DEFINED become labels anyone can apply silently; the reason is what makes an exemption reviewable"
+  }
+ ]
+}

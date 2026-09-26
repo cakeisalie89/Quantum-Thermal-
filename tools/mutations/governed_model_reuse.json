@@ -1,0 +1,150 @@
+{
+  "title": "A verified scientific result is reused by its evidence, never by its name",
+  "note": "Run reuse on the governed model path: the identity task, GovernedModelRuns.reusable (every exclusion), propose's reuse branch, and the definition of the identity on the scientific side. Each exclusion's test uses a record that passes every other condition.",
+  "suites": [
+    "tests/test_governed_model_reuse.py",
+    "tests/test_governed_model.py"
+  ],
+  "mutations": [
+    {
+      "name": "GR1_any_kind_is_reusable",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if (rec.kind != RECORD_KIND\n",
+      "replace": "            if (False\n",
+      "rationale": "a record of another kind is reused as a scientific result"
+    },
+    {
+      "name": "GR2_any_state_is_reusable",
+      "path": "qta_agent/governed_model.py",
+      "find": "                    or rec.state not in (State.VERIFIED, State.PROMOTED)\n",
+      "replace": "                    or False\n",
+      "rationale": "a PROPOSED, UNDER_REVIEW or REJECTED result is reused"
+    },
+    {
+      "name": "GR3_promoted_is_not_reusable",
+      "path": "qta_agent/governed_model.py",
+      "find": "rec.state not in (State.VERIFIED, State.PROMOTED)",
+      "replace": "rec.state not in (State.VERIFIED,)",
+      "rationale": "a PROMOTED result -- the strongest state -- is recomputed"
+    },
+    {
+      "name": "GR4_the_record_citation_is_not_read",
+      "path": "qta_agent/governed_model.py",
+      "find": "                    or rec.evidence.get(\"run_identity\") != identity_digest):\n",
+      "replace": "                    or False):\n",
+      "rationale": "a record citing another identity is reused because its bundle matches"
+    },
+    {
+      "name": "GR5_an_unreadable_bundle_stops_the_search",
+      "path": "qta_agent/governed_model.py",
+      "find": "            except Exception:                        # noqa: BLE001\n                # Unreadable, or not a bundle",
+      "replace": "            except KeyError:                         # noqa: BLE001\n                # Unreadable, or not a bundle",
+      "rationale": "one missing or malformed bundle raises and stops every later proposal"
+    },
+    {
+      "name": "GR6_the_bundle_identity_is_not_read",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if digest(recorded) != identity_digest:\n",
+      "replace": "            if False:\n",
+      "rationale": "the record's citation is believed over the bundle's own provenance"
+    },
+    {
+      "name": "GR7_artefacts_are_not_resolved",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if not all(self.evidence.contains(a) for a in artifacts):\n",
+      "replace": "            if False:\n",
+      "rationale": "a result whose artefact is gone is reused"
+    },
+    {
+      "name": "GR8_artefacts_are_looked_up_not_rehashed",
+      "path": "qta_agent/governed_model.py",
+      "find": "self.evidence.contains(a) for a in artifacts",
+      "replace": "self.evidence.contains(a, verify=False) for a in artifacts",
+      "rationale": "an artefact file with other bytes in it counts as intact"
+    },
+    {
+      "name": "GR9_the_decision_is_not_rederived",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if record_problems(rec.evidence, self.evidence.get):\n",
+      "replace": "            if False:\n",
+      "rationale": "a result whose cited report no longer resolves is reused"
+    },
+    {
+      "name": "GR10_reuse_is_never_tried",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if reuse:\n",
+      "replace": "        if False:\n",
+      "rationale": "an identical proposal runs the model again"
+    },
+    {
+      "name": "GR11_a_reusable_result_is_ignored",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if prior:\n",
+      "replace": "            if False:\n",
+      "rationale": "the search runs and its answer is discarded"
+    },
+    {
+      "name": "GR12_a_reused_run_can_be_checked",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if run.reused_from:\n            raise ModelRunRefused(f\"{run.record_id} was reused, and is \"\n                                  \"already decided; there is nothing to check\")\n",
+      "replace": "        pass\n",
+      "rationale": "a reused result is checked again as if it were new"
+    },
+    {
+      "name": "GR13_a_reused_run_can_be_decided",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if run.reused_from:\n            raise ModelRunRefused(f\"{run.record_id} was reused, and is \"\n                                  \"already decided\")\n",
+      "replace": "        pass\n",
+      "rationale": "a reused, already-decided result is decided again"
+    },
+    {
+      "name": "GR14_the_record_cites_no_identity",
+      "path": "qta_agent/governed_model.py",
+      "find": "                      \"run_identity\": self.evidence.put(\n",
+      "replace": "                      \"run_identity_\": self.evidence.put(\n",
+      "rationale": "the record does not cite the identity its bundle carries, so nothing is ever reusable"
+    },
+    {
+      "name": "GR15_one_record_per_content",
+      "path": "qta_agent/governed_model.py",
+      "find": "        record_id = f\"result-{run.task_id}\"\n",
+      "replace": "        record_id = f\"result-{bundle_digest[:24]}\"\n",
+      "rationale": "an identical rerun collides with the first record by content"
+    },
+    {
+      "name": "GR16_a_failed_identity_task_is_not_noticed",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if gr.state is not TaskState.VERIFIED:\n            raise ModelRunRefused(f\"the identity task was",
+      "replace": "        if False:\n            raise ModelRunRefused(f\"the identity task was",
+      "rationale": "an identity task that failed is read as if it had succeeded"
+    },
+    {
+      "name": "GR17_identity_over_unvalidated_parameters",
+      "path": "scientific/_governed_identity.py",
+      "find": "run_identity_for(model, model.validate(inputs[\"parameters\"]))",
+      "replace": "run_identity_for(model, inputs[\"parameters\"])",
+      "rationale": "the proposal's identity is over the raw parameters and the bundle's over the validated ones: they never agree, and invalid parameters are not caught before the run"
+    },
+    {
+      "name": "GR18_the_bundle_records_no_identity",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "                        \"run_identity\":\n                            run_identity_for(self, inputs).to_record(),\n",
+      "replace": "                        # no run identity recorded\n",
+      "rationale": "a bundle with no identity in its provenance"
+    },
+    {
+      "name": "GR19_the_environment_leaves_the_identity",
+      "path": "scientific/model.py",
+      "find": "        environment_digest=environment_digest(), seeds=tuple(seeds))",
+      "replace": "        environment_digest=\"0\" * 64, seeds=tuple(seeds))",
+      "rationale": "a result computed under another interpreter or numeric library is reused"
+    },
+    {
+      "name": "GR20_the_implementation_leaves_the_identity",
+      "path": "scientific/model.py",
+      "find": "        implementation_digest=model.implementation_digest(),\n        parameter_digest=digest(params),",
+      "replace": "        implementation_digest=\"0\" * 64,\n        parameter_digest=digest(params),",
+      "rationale": "a result computed by other code is reused"
+    }
+  ]
+}

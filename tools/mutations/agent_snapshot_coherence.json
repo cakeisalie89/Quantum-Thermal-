@@ -1,0 +1,149 @@
+{
+ "title": "Every projection folds exactly the bytes whose integrity it established",
+ "note": "D-2026-70. Each mutation restores one second read -- the verify-then-read window -- at one of the sites it was closed at, or disables the rule that hands back only the verified prefix. The suite opens the window deliberately: after the FIRST read returns, a self-consistent record with a broken chain link is appended, and every record a reducer receives is compared, byte for byte, against the snapshot the verification pass read. governed_stage10's own site is covered by G_R1 in stage10_authority.json.",
+ "suites": [
+  "tests/test_agent_snapshot_coherence.py"
+ ],
+ "mutations": [
+  {
+   "name": "V_agents_load_reads_the_log_twice",
+   "path": "qta_agent/agents.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._identities = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._identities = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_capability_load_reads_the_log_twice",
+   "path": "qta_agent/capability.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._issued = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._issued = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_idempotency_load_reads_the_log_twice",
+   "path": "qta_agent/idempotency.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._bindings = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._bindings = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_memory_load_reads_the_log_twice",
+   "path": "qta_agent/memory.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._entries = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._entries = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_netauth_load_reads_the_log_twice",
+   "path": "qta_agent/netauth.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._grants = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._grants = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_policy_load_reads_the_log_twice",
+   "path": "qta_agent/policy.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._published = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._published = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_secrets_load_reads_the_log_twice",
+   "path": "qta_agent/secrets.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._grants = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._grants = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_scheduler_load_reads_the_log_twice",
+   "path": "qta_agent/scheduler.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._jobs = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._jobs = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_store_load_reads_the_log_twice",
+   "path": "qta_agent/store.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        self._records = {}",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        self._records = {}",
+   "rationale": "the projection verifies one read and folds another: a record appended between the two is folded with its chain link unchecked"
+  },
+  {
+   "name": "V_store_fallback_reads_the_log_twice",
+   "path": "qta_agent/store.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        for ev in events:\n            if ev.seq > self._loaded_through:",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        for ev in events:\n            if ev.seq > self._loaded_through:",
+   "rationale": "the catch-up taken after damage forced the anchor away folds a second, unverified read"
+  },
+  {
+   "name": "V_scheduler_fallback_reads_the_log_twice",
+   "path": "qta_agent/scheduler.py",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        for ev in events:\n            if ev.seq > self._seen_through:",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        for ev in events:\n            if ev.seq > self._seen_through:",
+   "rationale": "the same, on the job queue"
+  },
+  {
+   "name": "V_audit_index_reads_the_log_twice",
+   "path": "qta_agent/audit.py",
+   "find": "        report, events = log.read_verified()\n        report.raise_if_bad()\n        if since_seq",
+   "replace": "        report, events = log.read_verified()\n        report.raise_if_bad()\n        events = log.read()\n        if since_seq",
+   "rationale": "an audit answers from records nobody verified -- the auditor is the one reader that must not"
+  },
+  {
+   "name": "V_second_reader_reconstruct_reads_the_log_twice",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n\n    out = Reconstruction(",
+   "replace": "    report, events = log.read_verified()\n    report.raise_if_bad()\n    events = log.read()\n\n    out = Reconstruction(",
+   "rationale": "the independent reader reports one head and replays past it; the check disagrees with itself"
+  },
+  {
+   "name": "V_second_reader_tasks_reads_the_log_twice",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n    out = TaskReconstruction(",
+   "replace": "    report, events = log.read_verified()\n    report.raise_if_bad()\n    events = log.read()\n    out = TaskReconstruction(",
+   "rationale": "the independent reader reports one head and replays past it; the check disagrees with itself"
+  },
+  {
+   "name": "V_second_reader_subsystems_reads_the_log_twice",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n    out = SubsystemReconstruction(",
+   "replace": "    report, events = log.read_verified()\n    report.raise_if_bad()\n    events = log.read()\n    out = SubsystemReconstruction(",
+   "rationale": "the independent reader reports one head and replays past it; the check disagrees with itself"
+  },
+  {
+   "name": "V_advance_reads_the_tail_twice",
+   "path": "qta_agent/events.py",
+   "find": "                + \"; \".join(report.problems))\n        if not tail:\n            return [], anchor",
+   "replace": "                + \"; \".join(report.problems))\n        with self.path.open(\"rb\") as fh:\n            tail = self._read_tail(fh, anchor.next_offset, [])\n        if not tail:\n            return [], anchor",
+   "rationale": "THE original defect in the primitive every live projection's catch-up goes through; the anchor built from the second read is then trusted as prefix by every later call"
+  },
+  {
+   "name": "V_load_from_reads_the_tail_twice",
+   "path": "qta_agent/store.py",
+   "find": "        report, tail = cp_mod.read_verified_with(log, cp)\n",
+   "replace": "        report, tail = cp_mod.read_verified_with(log, cp)\n        tail = log.read()[cp.seq + 1:]\n",
+   "rationale": "the checkpointed load verifies the tail and folds a second read of it -- what the removed comment called 'the tail this load already reads and already verified'"
+  },
+  {
+   "name": "V_read_verified_returns_records_past_the_break",
+   "path": "qta_agent/events.py",
+   "find": "                events[:verified])",
+   "replace": "                events)",
+   "rationale": "a report that refuses the log comes back holding the records it refused"
+  },
+  {
+   "name": "V_the_anchored_tail_returns_records_past_the_break",
+   "path": "qta_agent/events.py",
+   "find": "                tail[:verified])",
+   "replace": "                tail)",
+   "rationale": "the same on the anchored path, where the last record also becomes the next anchor"
+  },
+  {
+   "name": "V_the_prefix_ignores_problems",
+   "path": "qta_agent/events.py",
+   "find": "            if len(problems) > before:\n                verified = min(verified, i)",
+   "replace": "            if False:\n                verified = min(verified, i)",
+   "rationale": "the verified prefix is everything parsed, so the prefix rule states nothing"
+  }
+ ]
+}

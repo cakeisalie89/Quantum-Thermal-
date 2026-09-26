@@ -1,0 +1,639 @@
+{
+  "schema_version": 1,
+  "label": "identity-bearing fields of every durable qta_agent action",
+  "note": "Reviewed classification; mechanical facts around it are checked by tools/identity_inventory.py, which fails when a new action is unclassified, when an entry names an action that no longer exists, when an entry records the wrong module, when a field uses a role the schema does not define, when an ACTOR field records no write path, no replay or no regression test, when it names a regression test that does not exist, or when the recorded independent-reader coverage disagrees with what reconstruct.py dispatches on. That last check is the one that turns 'the second reader covers every subsystem' from a claim into a measurement -- and 'dispatches on' is meant literally. It used to ask whether the action's name appeared anywhere in reconstruct.py's text, so a name in a docstring, in an anomaly message, or in a comment saying the action is deliberately not handled counted as coverage, while a handler written with single quotes counted as nothing. It is read from the parse tree now, and only from positions that decide which branch runs; an action whose name is present but branched on by nothing is reported as its own category rather than folded into either answer. D-2026-28.",
+  "roles": {
+    "ACTOR": "must derive from or equal ev.actor",
+    "SUBJECT": "who or what the action is about; may differ from the actor and must never be read as authority for who acted",
+    "RECIPIENT": "who the action is addressed to",
+    "DIAGNOSTIC_DUPLICATE": "a copy of a fact whose authority is elsewhere; must agree with its source and must not be read as authority",
+    "NONE": "carries no identity-bearing field"
+  },
+  "actions": [
+    {
+      "action": "agent.claim",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "by_instance",
+          "role": "ACTOR",
+          "write_path": "claim() binds actor=by_instance",
+          "replay": "ConflictError unless by_instance == ev.actor",
+          "regression_test": "test_replay_refuses_a_claim_attributed_to_someone_else",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        },
+        {
+          "name": "subject",
+          "role": "SUBJECT",
+          "note": "what the claim is ABOUT, not who made it"
+        }
+      ],
+      "note": "Claims are what conflict detection compares. Independently reconstructed as of D-2026-29.",
+      "authority_changing": true,
+      "authority_note": "Claims are the INPUT to conflict resolution: quorum counts them, PREFER_ROLE selects among them by role, and REQUIRE_HUMAN decides a disagreement is not an agent's to settle. A claim attributable to anyone, or made in a role its author does not hold, manufactures or suppresses the disagreement two 'independent' parties are said to have."
+    },
+    {
+      "action": "agent.escalation",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "escalation.raised_by",
+          "role": "ACTOR",
+          "write_path": "escalate() binds actor=raised_by",
+          "replay": "EscalationError unless raised_by == ev.actor",
+          "regression_test": "test_replay_refuses_an_escalation_raised_in_somebody_elses_name",
+          "note": "D-2026-11. The raiser may not answer, so a forged raiser also denies the named party the ability to answer"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Raising blocks work until a person acts, and the raiser may not answer their own question -- so naming somebody as the raiser is also a way to stop them answering it."
+    },
+    {
+      "action": "agent.escalation.answer",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "answered_by",
+          "role": "ACTOR",
+          "write_path": "answer() binds actor=answered_by",
+          "replay": "EscalationError unless answered_by == ev.actor, then HUMAN, active, and not the raiser",
+          "regression_test": "test_an_agent_cannot_sign_a_persons_answer",
+          "note": "D-2026-04. Every other check interrogates this field, so all of them passed on a borrowed name"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "A person's decision. The only thing in the system that no arrangement of roles may substitute for."
+    },
+    {
+      "action": "agent.message",
+      "module": "agents.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "message.sender_instance",
+          "role": "ACTOR",
+          "write_path": "send() binds actor=sender_instance",
+          "replay": "MessageError unless sender_instance == ev.actor",
+          "regression_test": "test_replay_refuses_a_message_sent_in_somebody_elses_name",
+          "note": "D-2026-12"
+        },
+        {
+          "name": "message.recipient_agent",
+          "role": "RECIPIENT",
+          "note": "who it is addressed to; legitimately not the actor, and part of what message_id names"
+        }
+      ],
+      "note": "No independent reader. Messages reconstruct who told whom what.",
+      "authority_changing": false,
+      "authority_note": "Nothing consults a message to permit anything. It is how a later reader reconstructs who told whom what, which makes its sender binding and its redelivery immutability matter for AUDIT rather than for authority. The reducer binds sender to actor and refuses a rewrite under a reused id."
+    },
+    {
+      "action": "agent.register",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "identity.registered_by",
+          "role": "ACTOR",
+          "write_path": "register() sets it from `by`",
+          "replay": "taken from ev.actor and refused if the record disagrees",
+          "regression_test": "test_a_registration_may_not_name_a_registrar_it_did_not_have",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        },
+        {
+          "name": "identity.instance_id",
+          "role": "SUBJECT",
+          "note": "the principal being admitted, never the registrar"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Admits a principal, including a HUMAN -- and an agent that can mint a HUMAN is one step from answering its own escalation."
+    },
+    {
+      "action": "agent.retire",
+      "module": "agents.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "instance_id",
+          "role": "SUBJECT",
+          "note": "the principal being removed. The RETIRER is ev.actor and _check_may_retire authorizes it (D-2026-05)"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Removes a principal. Admission and removal are the same authority reached from two directions."
+    },
+    {
+      "action": "capability.issue",
+      "module": "capability.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "subject",
+          "role": "SUBJECT",
+          "note": "the grantee. The MINTER is ev.actor, authorized by _authorize_mint against the root or the parent's subject"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Mints authority, with attenuation."
+    },
+    {
+      "action": "capability.revoke",
+      "module": "capability.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "capability_id",
+          "role": "SUBJECT",
+          "note": "the grant withdrawn. The REVOKER is ev.actor, authorized against the issuer or the root (D-2026-05)"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Destroys authority somebody is relying on."
+    },
+    {
+      "action": "capability.root",
+      "module": "capability.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "issuer",
+          "role": "ACTOR",
+          "write_path": "anoint() binds actor=issuer",
+          "replay": "NotTheIssuer unless issuer == ev.actor",
+          "regression_test": "test_anointing_a_third_party_is_refused",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Names the one actor a log permits to mint grants at all."
+    },
+    {
+      "action": "checkpoint.state",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "authority_changing": true,
+      "authority_note": "It is what authorizes restoring a projection from a snapshot instead of replaying the log. A checkpoint FILE is authenticated by nothing -- its self-hash is recomputable by whoever can write it -- so until this record existed a rewritten file naming a forged snapshot restored cleanly, produced a record the authority gate would have refused, and left the log verifying perfectly. D-2026-30.",
+      "note": "A fact about a POSITION, not a change to any record: the store folds it by moving its position and nothing else. Independently reconstructed by _sub_checkpoint, which checks the shape, the ordering, that one position is not given two different states, and -- when the claim names the position immediately before it, where an honest writer puts it -- the claimed head hash against the record actually there. A claim about an older position is recorded as NOT hash-checked rather than left to look checked.",
+      "fields": [
+        {
+          "name": "through_seq",
+          "role": "NONE"
+        },
+        {
+          "name": "state_digest",
+          "role": "NONE"
+        },
+        {
+          "name": "head_hash",
+          "role": "NONE"
+        }
+      ]
+    },
+    {
+      "action": "context.build",
+      "module": "context.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a manifest of what was available, by digest"
+        }
+      ],
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Records WHAT WAS AVAILABLE when an action was proposed. The module says in its own docstring that it decides nothing; authoritative replay is reconstruct.py, and that is a different question from this one."
+    },
+    {
+      "action": "file.read",
+      "module": "readpath.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the READER is ev.actor; the payload names paths and digests"
+        }
+      ],
+      "note": "Audit record for a governed read. No independent reader.",
+      "authority_changing": false,
+      "authority_note": "Written AFTER readpath's gate has already decided. The gate consults capabilities and the path, never a past file.read, so a forged one falsifies the audit trail and permits nothing."
+    },
+    {
+      "action": "idempotency.bind",
+      "module": "idempotency.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "owner",
+          "role": "ACTOR",
+          "write_path": "bind() appends as the owner",
+          "replay": "IdempotencyError unless owner == ev.actor",
+          "regression_test": "test_replay_takes_the_owner_from_the_event_not_the_payload",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Binds a key to a task inside an owner's namespace. A forged bind makes a later submission resolve to somebody else's work."
+    },
+    {
+      "action": "memory.status",
+      "module": "memory.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the actor is ev.actor; RETRACTED and SUPERSEDED require the entry's author (D-2026-05), STALE and INVALIDATED do not"
+        }
+      ],
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Memory is explicitly NOT authority: an entry never reaches the evidence store, nothing in the authority path imports the module, and the layering test enforces the direction. Status changes what a reader is handed, not what anything is permitted to do."
+    },
+    {
+      "action": "memory.write",
+      "module": "memory.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "entry.author",
+          "role": "ACTOR",
+          "write_path": "remember() appends as the author",
+          "replay": "MemoryError_ unless author == ev.actor",
+          "regression_test": "test_a_memory_entry_naming_an_author_it_is_not_is_refused",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Same as memory.status: remembered, not decided."
+    },
+    {
+      "action": "network.grant",
+      "module": "netauth.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "grant.subject",
+          "role": "SUBJECT",
+          "note": "the grantee. The GRANTER is ev.actor, recorded and required on revocation (D-2026-05)"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Permits egress, to named hosts and ports."
+    },
+    {
+      "action": "network.request",
+      "module": "netauth.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "request.actor",
+          "role": "SUBJECT",
+          "note": "the requester, checked against the grant's subject by _covers rather than trusted as the writer"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Spends a service's per-task call budget, which is what stops an authorized destination from becoming an unbounded one."
+    },
+    {
+      "action": "network.result",
+      "module": "netauth.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "outcome and response digest"
+        }
+      ],
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "The NetworkAuthority reducer folds grants and service calls; a result record only advances the reader's position in the log. It is the record of what came back, and it permits nothing."
+    },
+    {
+      "action": "network.service",
+      "module": "netauth.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a service contract, by digest"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Registers the contract and the budget a request is then measured against."
+    },
+    {
+      "action": "policy.decision",
+      "module": "policy.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "decision.subject",
+          "role": "SUBJECT",
+          "note": "who the decision was about; the DECIDER is the policy engine and the writer is ev.actor"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "One decision under one policy version, bound to the request it authorized."
+    },
+    {
+      "action": "policy.publish",
+      "module": "policy.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the document and its digest"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Changes the rules in force from this seq on."
+    },
+    {
+      "action": "record.create",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "proposer",
+          "role": "ACTOR",
+          "write_path": "propose() appends as the proposer",
+          "replay": "the store derives the proposer from ev.actor and refuses a record that names another",
+          "regression_test": "test_a_create_may_not_name_a_proposer_it_did_not_have",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Introduces an authority record."
+    },
+    {
+      "action": "record.depend",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "an edge between two record ids"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Dependencies are what invalidation follows; a forged edge decides what goes STALE and what does not."
+    },
+    {
+      "action": "record.transition",
+      "module": "store.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the ACTOR is ev.actor and the state machine authorizes it"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "The authority state machine itself, promotion included."
+    },
+    {
+      "action": "scheduler.enqueue",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "job.submitter",
+          "role": "ACTOR",
+          "write_path": "enqueue() appends as the submitter",
+          "replay": "refused unless job.submitter == ev.actor",
+          "regression_test": "test_a_job_naming_a_submitter_it_is_not_is_refused",
+          "note": "compared to ev.actor in the reducer; the write path binds them"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Introduces work with a retry budget, and a forged one can arrive already holding the ownership its outcome edges check."
+    },
+    {
+      "action": "scheduler.lease_renew",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the RENEWER is ev.actor and must be the lease holder"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Extends possession, which is the precondition every outcome edge measures."
+    },
+    {
+      "action": "scheduler.priority",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "priority and the role claimed for it"
+        }
+      ],
+      "note": "",
+      "authority_changing": false,
+      "authority_note": "Changes the ORDER work is handed out in. Nothing is permitted or refused by it; a job that jumps the queue still passes every gate the one behind it would have."
+    },
+    {
+      "action": "scheduler.transition",
+      "module": "scheduler.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "ownership is decided from ev.actor against the lease holder (D-2026-01); lease_holder in the payload may only be SET on the hand-out edge"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Ownership, attempt accounting and the outcome of an attempt."
+    },
+    {
+      "action": "secret.access",
+      "module": "secrets.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the RESOLVER is ev.actor; the payload names grant, secret, tool and purpose and no value"
+        }
+      ],
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "SecretStore.apply folds secret.grant and nothing else. An access record is the audit trail of a use the grant already permitted."
+    },
+    {
+      "action": "secret.grant",
+      "module": "secrets.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "grant.subject",
+          "role": "SUBJECT",
+          "note": "the grantee. The GRANTER is ev.actor, recorded and required on revocation, and re-authorized on replay (D-2026-18)"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Permits a secret to reach a named destination."
+    },
+    {
+      "action": "secret.provision",
+      "module": "secrets.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a provider load; byte COUNT only, never the value"
+        }
+      ],
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "Provisioning puts a VALUE in this process. The authority is the grant; this record carries the provider's description and a length, is folded by nothing, and permits nothing."
+    },
+    {
+      "action": "task.compensation",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "answered_by",
+          "role": "DIAGNOSTIC_DUPLICATE",
+          "note": "a copy of the escalation's answerer, carried so an auditor need not join two tables. The authority is the escalation. Compared to it on replay, because a convenience nothing checks is a field a forged record sets freely -- and it names a PERSON as having authorized destroying something"
+        }
+      ],
+      "note": "Independently reconstructed as of D-2026-29.",
+      "authority_changing": true,
+      "authority_note": "Does not move the task -- 'was compensated' and 'did not happen' must not become the same answer -- but it names the PERSON who authorized destroying something, copied from the escalation. A name nothing checks is a name a forged record chooses."
+    },
+    {
+      "action": "task.create",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "submitter",
+          "role": "ACTOR",
+          "write_path": "run() appends as the submitter",
+          "replay": "TaskTransitionError unless submitter == ev.actor",
+          "regression_test": "test_a_task_cannot_be_created_in_somebody_elses_name",
+          "note": "D-2026-04 sibling sweep"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Introduces governed work in somebody's name."
+    },
+    {
+      "action": "task.evidence",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "declared artifacts, by digest"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Attaches the artifacts a later evidence requirement is satisfied against."
+    },
+    {
+      "action": "task.execution",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the EXECUTOR is ev.actor; this record establishes it and task.transition may repeat but not change it"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "Establishes executed_by, which is the actor verification has to differ from. The cheapest forgery against separation of duties is to omit it."
+    },
+    {
+      "action": "task.reexecution",
+      "module": "governed_stage10.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "a re-run comparison"
+        }
+      ],
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "A fact about HOW a result was checked. It moves no task; the transition it justifies is recorded as a transition, and that IS reconstructed."
+    },
+    {
+      "action": "task.separate_verification",
+      "module": "governed_stage10.py",
+      "independent_reader": "NO",
+      "fields": [
+        {
+          "name": "-",
+          "role": "NONE",
+          "note": "the VERIFIER is ev.actor, separated from the executor"
+        }
+      ],
+      "note": "No independent reader.",
+      "authority_changing": false,
+      "authority_note": "Same shape: the separate verifier's verdict is recorded, and the transition it justifies is a transition."
+    },
+    {
+      "action": "task.transition",
+      "module": "governed_stage10.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "executed_by",
+          "role": "DIAGNOSTIC_DUPLICATE",
+          "note": "bound to REPLAYED STATE, not to the header: the executor comes from the execution record, and separation of duties is checked against it. bound to replayed state, which is stronger than the header"
+        }
+      ],
+      "note": "",
+      "authority_changing": true,
+      "authority_note": "The task state machine itself."
+    }
+  ]
+}

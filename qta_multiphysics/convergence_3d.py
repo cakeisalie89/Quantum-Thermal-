@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from .config import MultiphysicsConfig, default_config
 from .mesh_3d import Grid3DConfig
+from .numerics import require_converged
 from .thermal_3d_transient import solve_thermal_3d
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
@@ -52,11 +53,13 @@ def convergence_report(cfg: MultiphysicsConfig | None = None,
     cfg = cfg or default_config()
     ci = ci or CI
     refined = refined or REFINED
-    base = solve_thermal_3d(cfg, ci, n_eval=13)
+    base = require_converged(solve_thermal_3d(cfg, ci, n_eval=13),
+                             "convergence_report: CI-mesh solve")
     p0, hot0 = _probe(base), float(base.T_xyz(-1).max())
 
     # ---- mesh refinement ----
-    ref = solve_thermal_3d(cfg, refined, n_eval=13)
+    ref = require_converged(solve_thermal_3d(cfg, refined, n_eval=13),
+                            "convergence_report: refined-mesh solve")
     p1, hot1 = _probe(ref), float(ref.T_xyz(-1).max())
     mesh_rel = abs(p1 - p0) / max(abs(p1), 1e-30)
     hot_rel = abs(hot1 - hot0) / max(abs(hot1), 1e-30)
@@ -74,8 +77,10 @@ def convergence_report(cfg: MultiphysicsConfig | None = None,
                f"t_end/{MAX_STEP_DIVISOR_TIGHT:g} (halved)")
     try:
         sol.rtol = rtol0 * RTOL_TIGHTEN_FACTOR
-        tight = solve_thermal_3d(cfg, ci, n_eval=13,
-                                 max_step_divisor=MAX_STEP_DIVISOR_TIGHT)
+        tight = require_converged(
+            solve_thermal_3d(cfg, ci, n_eval=13,
+                             max_step_divisor=MAX_STEP_DIVISOR_TIGHT),
+            "convergence_report: tightened-integration solve")
     finally:
         sol.rtol = rtol0
     p2 = _probe(tight)

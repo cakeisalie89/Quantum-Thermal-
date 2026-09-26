@@ -24,9 +24,11 @@ from qta_multiphysics.campaign_uncertainty_3d import (            # noqa: E402
 from qta_multiphysics.cryopanel_dynamics_3d import (              # noqa: E402
     STICKING, N_ML_CAP, phase_fluxes_per_m2_s, phase_windows_s,
     SITES_PER_M2)
+from qta_multiphysics.species_accounting_3d import cryopanel_operating_point  # noqa: E402
 from qta_multiphysics.surface_coverage import default_coverage_specs  # noqa: E402
 
 CFG = default_config()
+OP = cryopanel_operating_point()
 REP = propagate(CFG)
 
 
@@ -40,8 +42,8 @@ def test_fixed_seed_two_run_byte_determinism():
 def test_parameter_persistence_no_percycle_resampling():
     # the witness ratio equals n_cycles up to the exact-solution curvature
     w = REP["persistence_witness"]["per_member_cycle3_over_cycle1_ML"]
-    F = phase_fluxes_per_m2_s("MODE_B")["C13_CH4"]
-    dt = phase_windows_s(CFG)["MODE_B"]
+    F = phase_fluxes_per_m2_s("MODE_B", OP)["C13_CH4"]
+    dt = phase_windows_s(CFG, OP)["MODE_B"]
     curv_bound = 3 * S_CH4_PANEL_HI * F * dt / (N_ML_CAP * SITES_PER_M2)
     for q in ("p05", "p50", "p95"):
         assert abs(float(w[q]) - 3.0) <= 3 * curv_bound, (q, w[q])
@@ -61,8 +63,8 @@ def test_quantile_ordering_and_bounds():
 
 def test_linear_regime_analytic_benchmark():
     # ensemble median ML at cycle 1 ~ median(s) * F * dt / Ncap
-    F = phase_fluxes_per_m2_s("MODE_B")["C13_CH4"]
-    dt = phase_windows_s(CFG)["MODE_B"]
+    F = phase_fluxes_per_m2_s("MODE_B", OP)["C13_CH4"]
+    dt = phase_windows_s(CFG, OP)["MODE_B"]
     med_s = float(np.median([m["s_CH4_panel"] for m in draw_members()]))
     analytic = med_s * F * dt / (N_ML_CAP * SITES_PER_M2)
     got = float(REP["cycles"][0]["panel_CH4_ML"]["p50"])

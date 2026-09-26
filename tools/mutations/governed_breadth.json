@@ -1,0 +1,129 @@
+{
+  "title": "A second governed workflow, its read guard, and the governed-only subtree",
+  "note": "R55 said three things in prose that nothing checked: that only ONE workflow of the safest available kind used the substrate, that the ungoverned adapters remained the equally-good route to any byte in the workspace, and that verification re-derived digests without ever re-running the tool. G1-G3 attack the second tool's launchability -- the subprocess module was a literal in three places, so a default entry point would run the artifact writer under a record naming a different tool. G4-G7 attack the READ guard, which is the guard a write allowlist cannot supply: a tool that hashes paths a caller names can be pointed at results_gate_table.csv, and a governed digest of a canonical output reads as the substrate having mediated it. G8-G11 attack the governed-only subtree, including the two ways a re-entrant scope goes wrong. G12-G17 attack re-execution: the scratch directory, the verifier minting its own grant instead of borrowing the worker's, and the comparison itself. G16 and G17 SURVIVED the first run of this matrix and were treated as findings: nothing made the re-run disagree, so only the passing branch was exercised, and nothing asked what the comparison did when it covered no artifacts at all -- it answered with the same sentence it uses for a real one, and the guard that refuses that did not exist until G17 said so. G13 is the one that was found in production rather than by review -- the scratch path came from an attribute only the test fixture set, so the check ran for tests and raised AttributeError for the Snakemake rule.",
+  "suites": [
+    "tests/test_agent_governed_breadth.py",
+    "tests/test_agent_governed_stage10.py"
+  ],
+  "mutations": [
+    {
+      "name": "G1_an_unmapped_tool_defaults_to_the_artifact_writer",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "    module = table.get(tool_id)\n    if module is None:\n        raise ToolNotRegistered(",
+      "replace": "    module = table.get(tool_id, \"qta_agent._stage10_tool\")\n    if module is None:\n        raise ToolNotRegistered(",
+      "rationale": "a tool nobody mapped launches the artifact writer, so a typo in a registry entry produces a governed, capability-checked, evidence-backed record of the wrong tool having run"
+    },
+    {
+      "name": "G2_every_tool_runs_the_same_entry_point",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "    \"stage10.digest_index\": \"qta_agent._stage10_index_tool\",",
+      "replace": "    \"stage10.digest_index\": \"qta_agent._stage10_tool\",",
+      "rationale": "two registry rows point at one module: the registry reports two tools and the system runs one, which is the state the row described as ONE workflow of the safest available kind"
+    },
+    {
+      "name": "G3_the_second_tool_is_not_registered_at_all",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            tool_id=\"stage10.digest_index\", version=\"1.0.0\",",
+      "replace": "            tool_id=\"stage10.emit_artifact_v2\", version=\"1.0.0\",",
+      "rationale": "the registry entry no longer names the tool the workflow asks for, so the second workflow cannot run and default-deny reports it as an unregistered tool"
+    },
+    {
+      "name": "G4_the_read_guard_is_removed",
+      "path": "qta_agent/_stage10_index_tool.py",
+      "find": "            target = WS.assert_in_workspace(rel, what=\"reads\")",
+      "replace": "            target = (WS.repo_root() / rel).resolve()",
+      "rationale": "a governed run hashes any path the caller names, so results_gate_table.csv and /etc/passwd both land in a provenance chain as things a governed run read"
+    },
+    {
+      "name": "G5_the_read_guard_reports_the_failure_as_success",
+      "path": "qta_agent/_stage10_index_tool.py",
+      "find": "            print(f\"refusing to index {rel}: {exc}\", file=sys.stderr)\n            return 3",
+      "replace": "            print(f\"refusing to index {rel}: {exc}\", file=sys.stderr)\n            continue",
+      "rationale": "a refused path is skipped instead of failing the run, so the index reports success over a subset nobody asked for -- the vacuous shape this repository has shipped once"
+    },
+    {
+      "name": "G6_a_missing_file_is_skipped_rather_than_failing_the_run",
+      "path": "qta_agent/_stage10_index_tool.py",
+      "find": "        if not target.is_file():\n            print(f\"no such file to index: {rel}\", file=sys.stderr)\n            return 4",
+      "replace": "        if not target.is_file():\n            print(f\"no such file to index: {rel}\", file=sys.stderr)\n            continue",
+      "rationale": "an index over files that are not there completes, and the count in the report is the count of what happened to exist"
+    },
+    {
+      "name": "G7_an_empty_file_list_produces_an_empty_index",
+      "path": "qta_agent/_stage10_index_tool.py",
+      "find": "    if not isinstance(files, list) or not files:",
+      "replace": "    if not isinstance(files, list):",
+      "rationale": "zero files hashed reports exactly like a complete index; a verifier that reports success over zero items is worse than no verifier"
+    },
+    {
+      "name": "G8_the_governed_only_subtree_is_not_enforced",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "    prefix = governed_only_prefix(target)\n    if prefix and not is_governed_writer():",
+      "replace": "    prefix = governed_only_prefix(target)\n    if prefix and False:",
+      "rationale": "any in-repo caller writes into the governed output directory, and the index, the evidence store and the re-execution comparison all treat what they find there as something a governed run produced"
+    },
+    {
+      "name": "G9_the_governed_prefix_set_is_empty",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "GOVERNED_ONLY = (\"governed/out\", \"governed_index/out\")",
+      "replace": "GOVERNED_ONLY = ()",
+      "rationale": "the guard is present, runs on every write and covers nothing -- a check that cannot fail, which is the defect the write allowlist replaced a denylist to remove"
+    },
+    {
+      "name": "G10_the_prefix_test_is_a_bare_string_prefix",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "        if rel == prefix or rel.startswith(prefix + \"/\"):",
+      "replace": "        if rel.startswith(prefix):",
+      "rationale": "a sibling directory whose name merely starts with a governed prefix is swallowed, so an ordinary Stage-10 rule writing next door is refused and the guard becomes a dependency of the ungoverned pipeline"
+    },
+    {
+      "name": "G11_the_governed_scope_is_a_boolean_rather_than_a_depth",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "    global _governed_depth\n    _governed_depth += 1\n    try:\n        yield\n    finally:\n        _governed_depth -= 1",
+      "replace": "    global _governed_depth\n    _governed_depth = 1\n    try:\n        yield\n    finally:\n        _governed_depth = 0",
+      "rationale": "an inner scope closing revokes the outer one, so a governed tool that calls a helper opening its own scope loses permission halfway through writing its own artifact"
+    },
+    {
+      "name": "G12_the_scope_is_not_restored_when_the_body_raises",
+      "path": "qta_multiphysics/stack/workspace.py",
+      "find": "    _governed_depth += 1\n    try:\n        yield\n    finally:\n        _governed_depth -= 1",
+      "replace": "    _governed_depth += 1\n    yield\n    _governed_depth -= 1",
+      "rationale": "a tool that fails partway leaves the process permanently able to write governed artifacts, so the next ungoverned writer in that process is indistinguishable from a governed one"
+    },
+    {
+      "name": "G13_the_scratch_directory_comes_from_an_attribute_again",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        out_dir = inputs.get(\"out_dir\")\n        if not isinstance(out_dir, str) or not out_dir:",
+      "replace": "        out_dir = getattr(self, \"out_rel\", None)\n        if not isinstance(out_dir, str) or not out_dir:",
+      "rationale": "restores the defect exactly as it was found: the re-execution check reads a path from an attribute only the test fixture sets, so it runs for tests and returns a refusal for every production caller"
+    },
+    {
+      "name": "G14_the_verifier_borrows_the_workers_capability",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            verify_cap = self._reverification_capability(\n                task_id, verifier, tool_id)",
+      "replace": "            verify_cap = capability_id",
+      "rationale": "may-do-the-work and may-check-the-work become one authority, so a component tricked into either holds both; the ledger refuses a grant used by anybody but its subject, which is how this was found the first time"
+    },
+    {
+      "name": "G15_the_re_verification_grant_never_expires",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                  issued_seq=head + 1, expires_after_seq=head + 4,\n                  issued_wall_time=time.time()),\n            actor=\"scheduler\")\n        return cap_id\n\n    def _argv",
+      "replace": "                  issued_seq=head + 1, expires_after_seq=head + 4000000,\n                  issued_wall_time=time.time()),\n            actor=\"scheduler\")\n        return cap_id\n\n    def _argv",
+      "rationale": "authority to re-run a tool in order to check it becomes standing authority to run it, for the rest of the log"
+    },
+    {
+      "name": "G16_a_re_execution_disagreement_is_reported_as_verified",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                if produced[name] != dg:\n                    return False, (",
+      "replace": "                if produced[name] != dg and False:\n                    return False, (",
+      "rationale": "the tool is re-run, the bytes differ, and verification passes anyway -- the comparison becomes a record that a comparison happened"
+    },
+    {
+      "name": "G17_an_empty_comparison_reports_agreement",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            if not cited:\n                return False, (",
+      "replace": "            if cited is None:\n                return False, (",
+      "rationale": "a run that declared no output files iterates over nothing and returns '0 artifact(s) reproduced byte-for-byte' -- the same sentence a real comparison produces, which is the vacuous-success shape this repository has shipped once"
+    }
+  ]
+}

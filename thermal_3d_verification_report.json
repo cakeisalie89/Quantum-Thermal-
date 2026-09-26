@@ -41,6 +41,7 @@
       "within_declared_tolerance": true,
       "rel_residual": 8.85774157945317e-06,
       "tolerance": 0.05,
+      "converged": true,
       "integrated_source_energy_J": 1.4999999999999996e-09,
       "laser_and_volumetric_channels_J": 1.4999999999999996e-09,
       "front_flux_channel_J": 0.0,
