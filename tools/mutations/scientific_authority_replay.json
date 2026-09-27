@@ -38,8 +38,8 @@
     {
       "name": "SA5_a_snapshot_is_inherited",
       "path": "qta_agent/store.py",
-      "find": "        for rid, rec in list(rebuilt.items()):\n            if rec.admission is None:\n",
-      "replace": "        for rid, rec in []:\n            if rec.admission is None:\n",
+      "find": "            for rid, rec in list(rebuilt.items()):\n                if rec.admission is None:\n",
+      "replace": "            for rid, rec in []:\n                if rec.admission is None:\n",
       "rationale": "a restored snapshot keeps the admission another store decided"
     },
     {

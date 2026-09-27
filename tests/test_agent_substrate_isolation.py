@@ -109,6 +109,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_second_reader_audit_actions.py",
     "tests/test_scientific_invalidation.py",
     "tests/test_task_execution_phase.py",
+    "tests/test_replay_origin_view.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".

@@ -800,6 +800,11 @@ RULES = [
      "NEW (D-2026-87): a result resting on an invalidated or withdrawn "
      "governed origin goes STALE, transitively, replayed by both readers.",
      ""),
+    ("tests/test_replay_origin_view.py", KAH,
+     "NEW (D-2026-88): one view of governed execution per replay, counted "
+     "against the questions asked, with the probe shown to see a view per "
+     "question.",
+     ""),
     ("tests/test_task_execution_phase.py", KAH,
      "NEW (D-2026-86): an execution record accepted only in EXECUTING from "
      "the lease holder, by the projection, the second reader and the "

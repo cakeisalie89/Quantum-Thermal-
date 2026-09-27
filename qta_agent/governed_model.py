@@ -49,6 +49,7 @@ promotion decision.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -217,6 +218,34 @@ class GovernedOrigins:
         self.gov = gov
         self.verifier_tools = frozenset(verifier_tools)
         self.model_tools = frozenset(model_tools)
+        #: Work counters, for the guards that count instead of timing:
+        #: origin questions answered, and views BUILT -- each one verified
+        #: read of the whole log and one task fold, the part that costs.
+        self.questions = 0
+        self.views_built = 0
+        self._shared = None
+
+    @contextmanager
+    def shared(self):
+        """Answer every origin question in the block from ONE view.
+
+        A load re-decides every scientific admission in the log, and each
+        question built its own view: a verified read of the whole log and a
+        task fold, twice per admission -- O(n*k) in admitted results. In the
+        block, the first question builds the view and the rest reuse it.
+        The view is of the whole history and every question is still asked
+        AS OF its own position, so sharing changes the cost and not the
+        answer -- provided nothing writes TASK history inside the block,
+        which no caller here does. Nested blocks share the outer view.
+        """
+        if self._shared is not None:
+            yield self
+            return
+        self._shared = []
+        try:
+            yield self
+        finally:
+            self._shared = None
 
     def _view(self):
         """``(projection, when, captured)`` from ONE verified read of the
@@ -230,6 +259,8 @@ class GovernedOrigins:
         are of transitions the task machine admits. ``captured[sha]`` lists
         ``(seq, task_id)`` for every ``task.evidence`` record naming ``sha``.
         """
+        if self._shared:
+            return self._shared[0]
         report, events = self.gov.log.read_verified()
         report.raise_if_bad()
         captured: dict = {}
@@ -252,7 +283,11 @@ class GovernedOrigins:
                 elif p.get("src") == TaskState.VERIFIED.value \
                         and tid in when:
                     when[tid] = (when[tid][0], ev.seq, when[tid][2])
-        return self.gov._project(events), when, captured
+        view = (self.gov._project(events), when, captured)
+        self.views_built += 1
+        if self._shared is not None:
+            self._shared.append(view)
+        return view
 
     def _producers(self, sha: str, tools: frozenset, before_seq) -> list:
         """Tasks of ``tools`` that produced ``sha`` and stood VERIFIED at
@@ -299,8 +334,11 @@ class GovernedOrigins:
 
     def problems(self, *, report_sha: str, bundle_sha: str, proposer: str,
                  actor: str, before_seq) -> list:
-        checks = self._producers(report_sha, self.verifier_tools, before_seq)
-        runs = self._producers(bundle_sha, self.model_tools, before_seq)
+        self.questions += 1
+        with self.shared():
+            checks = self._producers(report_sha, self.verifier_tools,
+                                     before_seq)
+            runs = self._producers(bundle_sha, self.model_tools, before_seq)
         problems = []
         if not checks:
             problems.append(
@@ -408,6 +446,10 @@ class GovernedModelRuns:
         standing VERIFIED now. A result is reused by its evidence, never by
         its name.
         """
+        with self.origins.shared():
+            return self._reusable(identity_digest)
+
+    def _reusable(self, identity_digest: str) -> list:
         out = []
         for rid, rec in sorted(self.authority.all_records().items()):
             if (rec.kind != RECORD_KIND
@@ -567,6 +609,12 @@ class GovernedModelRuns:
     def _follow(self, origin: str, task_ids: tuple, *, reason: str,
                 actor: str) -> Invalidation:
         """Make STALE what rested on ``task_ids``, now INVALIDATED."""
+        with self.origins.shared():
+            return self._follow_shared(origin, task_ids, reason=reason,
+                                       actor=actor)
+
+    def _follow_shared(self, origin: str, task_ids: tuple, *, reason: str,
+                       actor: str) -> Invalidation:
         withdrawn = self.origins.artefacts_of(task_ids)
         self.authority.catch_up()
         roots, kept = [], []

@@ -71,8 +71,8 @@
   {
    "name": "V_store_fallback_reads_the_log_twice",
    "path": "qta_agent/store.py",
-   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        for ev in events:\n            if ev.seq > self._loaded_through:",
-   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        for ev in events:\n            if ev.seq > self._loaded_through:",
+   "find": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
+   "replace": "        report, events = self.log.read_verified()\n        report.raise_if_bad()\n        events = self.log.read()\n        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
    "rationale": "the catch-up taken after damage forced the anchor away folds a second, unverified read"
   },
   {

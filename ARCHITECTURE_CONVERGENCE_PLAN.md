@@ -377,6 +377,17 @@ opened per `get` (always one) would be an equality that says nothing about
 directory size. *Done when:* it has a recorded hosted-runner margin in
 `docs/performance_baseline.json`, or a unit that sees directory growth.
 
+*Directive 5 (D-2026-88):* split in two. The code's half is counted with a
+unit that does see directory growth -- directory entries the lookup
+enumerates: zero at 100 blobs and at 800, while a planted lookup that lists
+its bucket reads 272 and then 778 -- and the same opens at both sizes. The
+filesystem's half stays timed, measured now as two stores holding the same
+probe blobs, alternated for five rounds with each keeping its best, instead
+of one store before and after filling. `performance_counters.json` 3 -> 5.
+*Still open:* the timed half's hosted margin; no CI job publishes
+performance numbers, and a local recording would name a commit it did not
+measure.
+
 ### 9.4 Defect-ledger follow-ups (from "Open follow-up tracked from this ledger")
 
 * ~~**A. Nine durable action classes have no independent
@@ -552,6 +563,12 @@ work and does not close the entry by being planned.
   O(n·k) in admitted results; at today's sizes it is invisible, and no
   counter holds it. *Done when:* one load shares one origin view, with a
   counter test in the R49 style.
+  *Closed (D-2026-88).* `GovernedOrigins.shared()`: a load, a catch-up
+  (anchored or full), a snapshot restore, a reuse search and an
+  invalidation cascade each build one view and ask every question of it;
+  the independent reader replays tasks once per reconstruction. Counted,
+  not timed: five admissions, one view (ten with sharing off). 11 mutations
+  (`replay_origin_view.json`).
 * **The run identity does not see CPU dispatch.** The environment digest is
   Python, interpreter, machine and the numpy/scipy versions, read from
   metadata; R59 shows the same versions on a different CPU dispatch change

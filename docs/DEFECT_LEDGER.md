@@ -8090,3 +8090,65 @@ history's prefix byte-identical; an interrupted invalidation settled, and
 settling again a no-op. Every case replays through the store, the
 independent reader, and both task readers, with no refusal and no
 divergence. **MUTATIONS.** `scientific_invalidation.json` (new, 14).
+
+## D-2026-88 — replay built one view of governed execution per admission, and the last timed guard compared one store with itself
+
+**CLASS** — `GAP`, `qta_agent/governed_model.py`, `qta_agent/store.py`,
+`qta_agent/reconstruct.py`; and `METHOD`, `tests/test_agent_performance.py`.
+Plan 9.7 "Replay cost" and plan 9.3 / R49's remaining timed guard.
+
+Every scientific admission is re-decided on replay (D-2026-83), and origin
+is part of it. Each origin question built its own view -- one verified read
+of the whole log and one task fold -- and asked twice per admission, once for
+the report's producers and once for the bundle's. A load was O(n*k) in
+admitted results, and nothing measured it. Counted on a history of five
+admissions with sharing switched off -- which leaves every question building
+its own view, as before this change -- one load builds ten. The independent
+reader already built its task replay once per reconstruction, but nothing
+counted it, so nothing would have noticed it stop.
+
+**REPAIR.** `GovernedOrigins.shared()`: in the block, the first question
+builds the view and the rest reuse it; nested blocks share the outer view.
+The view is of the whole history and every question is still asked AS OF
+its own position, so sharing changes the cost and not the answer -- the same
+history loads to identical records, admissions and bases with and without
+it (tested). The store asks for one view per load, per catch-up (anchored
+and full) and per snapshot restore, where its origin view offers one; a
+single question shares between its two lookups; reuse and the invalidation
+cascade ask every record of one view. Counters: `questions` and
+`views_built` on the origin view, `admissions_decided` and `task_replays`
+on the independent reader's reconstruction. Five admissions now cost one
+view; with sharing switched off the same probe reads ten.
+
+The evidence-lookup guard was the last one timed, and the plan's own reason
+held: its cost is one name lookup in a fan-out directory, the filesystem's
+work. So it is split in two. The part that belongs to this code is COUNTED:
+a lookup opens the same descriptors at 100 blobs and at 800 (300 for 100
+lookups, three each) and enumerates no directory entry; a planted lookup
+that confirms the blob by listing its bucket reads 272 entries at 100 blobs
+and 778 at 800 -- the unit that sees directory growth, which the plan asked
+for, reading zero. The filesystem's part stays timed, with the method
+changed: it compared the same blobs read before and after filling ONE
+store, the same-size-two-times shape that failed a hosted run elsewhere in
+the file. Now two stores hold the same probe blobs under the same names,
+one with 700 more; they are measured alternately, five rounds each, and each
+keeps its best. It is not recorded in `docs/performance_baseline.json`:
+a recording names the commit it measured, and this was measured on an
+uncommitted tree.
+
+**TEST.** `tests/test_replay_origin_view.py` (new), on a genuine history of
+three results and five admissions: a load, a snapshot restore, a full and an
+anchored catch-up, one question, a reuse search over two candidates and an
+invalidation cascade asking after two results each build one view; the
+probe reads one view per question with sharing off; the independent reader
+replays tasks once for five admissions; answers identical either way.
+`tests/test_agent_performance.py`: the lookup counter, its control, and the
+re-measured timed guard. **MUTATIONS.** `replay_origin_view.json` (new, 11);
+`performance_counters.json` (3 -> 5: a lookup that lists its bucket, one
+that searches the store). Two anchors moved with the code they mutate and
+were re-anchored unchanged in meaning: `agent_snapshot_coherence.json`
+`V_store_fallback_reads_the_log_twice` and `scientific_authority_replay.json`
+`SA5_a_snapshot_is_inherited`.
+
+**NOT DONE.** The timed guard's margin on a hosted runner is still not
+recorded; no CI job publishes performance numbers.

@@ -30,6 +30,7 @@ retried tool call cannot double-apply a transition.
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
 
 from . import actions, result_rules
@@ -230,10 +231,18 @@ class AuthorityStore:
         self._loaded_through = -1
         self._loaded_prefix_verified = True
         self._anchor = None
-        for ev in events:
-            self._apply(ev)
+        with self._one_origin_view():
+            for ev in events:
+                self._apply(ev)
         self._reanchor()
         return self
+
+    def _one_origin_view(self):
+        """Every admission re-decided in the block asks origin of one view
+        of governed execution, where the view offers that (``shared``); a
+        load that built one per admission was O(n*k)."""
+        shared = getattr(self.origins, "shared", None)
+        return shared() if shared is not None else nullcontext()
 
     def _reanchor(self) -> None:
         """Take an anchor at the position this projection has reached."""
@@ -278,15 +287,17 @@ class AuthorityStore:
                 self._anchor = None
             else:
                 self._anchor = moved
-                for ev in events:
-                    if ev.seq > self._loaded_through:
-                        self._apply(ev)
+                with self._one_origin_view():
+                    for ev in events:
+                        if ev.seq > self._loaded_through:
+                            self._apply(ev)
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
-        for ev in events:
-            if ev.seq > self._loaded_through:
-                self._apply(ev)
+        with self._one_origin_view():
+            for ev in events:
+                if ev.seq > self._loaded_through:
+                    self._apply(ev)
         self._reanchor()
 
     def _append_decided(self, build):
@@ -601,15 +612,16 @@ class AuthorityStore:
         # may have less (or more). Authority is what THIS reader can
         # establish now, so each admitted scientific result is decided again
         # on the basis it was recorded with.
-        for rid, rec in list(rebuilt.items()):
-            if rec.admission is None:
-                continue
-            b = rec.admission_basis or {}
-            admission, basis = self._admit(
-                rec, rec.state, rec.evidence, policy=b.get("policy"),
-                actor=b.get("actor", ""), seq=b.get("seq"))
-            rebuilt[rid] = replace(rec, admission=admission,
-                                   admission_basis=basis)
+        with self._one_origin_view():
+            for rid, rec in list(rebuilt.items()):
+                if rec.admission is None:
+                    continue
+                b = rec.admission_basis or {}
+                admission, basis = self._admit(
+                    rec, rec.state, rec.evidence, policy=b.get("policy"),
+                    actor=b.get("actor", ""), seq=b.get("seq"))
+                rebuilt[rid] = replace(rec, admission=admission,
+                                       admission_basis=basis)
         self._records = rebuilt
         if not all(isinstance(k, str) and isinstance(v, str)
                    for k, v in keys.items()):

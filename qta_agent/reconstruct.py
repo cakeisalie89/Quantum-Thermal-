@@ -640,6 +640,11 @@ class Reconstruction:
     #: admission this reader could not decide, and why. Applied -- the state
     #: is where the log put them -- and never canonical.
     unverifiable: list = field(default_factory=list)
+    #: Scientific admissions decided here, and the task replays built to
+    #: decide them -- one per reconstruction however many there are. A
+    #: counter, so the guard counts work instead of timing it.
+    admissions_decided: int = 0
+    task_replays: int = 0
     events_replayed: int = 0
     #: Events belonging to another subsystem on the same log. Counted so a
     #: reader can tell "this reconstruction saw a mixed log and ignored the
@@ -715,6 +720,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
     def task_view() -> dict:
         if not held:
             held.append(reconstruct_tasks(log).tasks)
+            out.task_replays += 1
         return held[0]
 
     for ev in events:
@@ -780,6 +786,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
             admission = None
             if (reauthorize and cur["kind"] == _SCI_KIND
                     and p.get("dst") in _SCI_ADMITTING):
+                out.admissions_decided += 1
                 admission, why = _sci_admission(
                     record_id=rid,
                     evidence={**cur["evidence"], **p.get("evidence", {})},

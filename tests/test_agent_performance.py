@@ -575,16 +575,147 @@ def test_the_ready_queue_counter_can_see_a_quadratic(tmp_path, monkeypatch):
 # THE SECOND AND LAST TIMED GUARD. EvidenceStore.get resolves a digest to
 # bytes; it verifies nothing and hashes nothing, so there is no work unit to
 # count and no honest conversion (D-2026-46). Timed, and named as residue.
-def test_evidence_lookup_does_not_degrade_as_the_store_fills(tmp_path):
-    """Directory fan-out, asserted rather than assumed."""
+class _Listing:
+    """``os.scandir``'s result, materialised so its entries can be counted
+    and still iterated, with or without ``with``."""
+
+    def __init__(self, entries):
+        self._entries = entries
+
+    def __iter__(self):
+        return iter(self._entries)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def close(self):
+        pass
+
+
+def _count_filesystem_work(monkeypatch) -> dict:
+    """Count what code in this process asks of the filesystem: descriptors
+    opened, and directory ENTRIES enumerated -- by ``os.listdir`` and by
+    ``os.scandir``, which between them are under ``Path.iterdir``,
+    ``glob`` and ``os.walk``."""
+    counts = {"opens": 0, "entries_listed": 0}
+    real_open, real_listdir, real_scandir = os.open, os.listdir, os.scandir
+
+    def counting_open(*a, **k):
+        counts["opens"] += 1
+        return real_open(*a, **k)
+
+    def counting_listdir(*a, **k):
+        names = real_listdir(*a, **k)
+        counts["entries_listed"] += len(names)
+        return names
+
+    def counting_scandir(*a, **k):
+        with real_scandir(*a, **k) as it:
+            entries = list(it)
+        counts["entries_listed"] += len(entries)
+        return _Listing(entries)
+
+    monkeypatch.setattr(os, "open", counting_open)
+    monkeypatch.setattr(os, "listdir", counting_listdir)
+    monkeypatch.setattr(os, "scandir", counting_scandir)
+    return counts
+
+
+def _lookup_work(store, digests, counts) -> dict:
+    for k in counts:
+        counts[k] = 0
+    for d in digests:
+        store.get(d)
+    return dict(counts)
+
+
+def test_an_evidence_lookup_examines_no_directory_entries(tmp_path,
+                                                          monkeypatch):
+    """The half of the fan-out property that belongs to this code, COUNTED.
+
+    A lookup derives its path from the digest and opens it descriptor-
+    relative: the same opens at 100 blobs and at 800, and no directory
+    listed. Directory growth is visible to a lookup only through what it
+    enumerates, and it enumerates nothing -- so the unit that sees growth
+    reads zero, and an implementation that went looking for the blob reads
+    more as the store fills (next test). The other half, the cost of one
+    name lookup inside a directory the filesystem holds, is not work this
+    code does; the timed guard below watches it."""
     store = EvidenceStore(tmp_path / "evidence")
     first = [store.put(f"blob {i}".encode()) for i in range(SMALL)]
-    early = _per_call(lambda: [store.get(d) for d in first])
+    counts = _count_filesystem_work(monkeypatch)
+    early = _lookup_work(store, first, counts)
     for i in range(SMALL, LARGE):
         store.put(f"blob {i}".encode())
-    late = _per_call(lambda: [store.get(d) for d in first])
-    assert late / early < 3.0, (
-        "reading the same blobs got slower once the store had more in it")
+    late = _lookup_work(store, first, counts)
+    assert early["entries_listed"] == 0 == late["entries_listed"], (
+        early, late)
+    assert early["opens"] == late["opens"] > 0, (early, late)
+
+
+def test_the_lookup_counter_can_see_an_enumerating_lookup(tmp_path,
+                                                          monkeypatch):
+    """The probe, pointed at the regression it exists for: a lookup that
+    confirms the blob by listing its fan-out directory. It reads more
+    entries the fuller the store -- the growth the timed guard could only
+    guess at from a clock."""
+    from qta_agent import evidence as ev_mod
+
+    real = EvidenceStore._read_verified
+
+    def enumerating(self, dg):
+        if dg[ev_mod._FANOUT:] not in os.listdir(
+                self.root / dg[:ev_mod._FANOUT]):
+            raise ev_mod.UnknownEvidence(dg)
+        return real(self, dg)
+
+    monkeypatch.setattr(EvidenceStore, "_read_verified", enumerating)
+    store = EvidenceStore(tmp_path / "evidence")
+    first = [store.put(f"blob {i}".encode()) for i in range(SMALL)]
+    counts = _count_filesystem_work(monkeypatch)
+    early = _lookup_work(store, first, counts)
+    for i in range(SMALL, LARGE):
+        store.put(f"blob {i}".encode())
+    late = _lookup_work(store, first, counts)
+    assert late["entries_listed"] > early["entries_listed"] > 0, (early,
+                                                                  late)
+
+
+#: Rounds for the timed lookup guard: each store is measured this many times,
+#: alternating, and its best is kept.
+LOOKUP_ROUNDS = 5
+
+
+def test_evidence_lookup_does_not_degrade_as_the_store_fills(tmp_path):
+    """The filesystem's half of the fan-out property, and still TIMED: one
+    name lookup in a fan-out directory is the filesystem's work, not this
+    code's, and nothing here can count it.
+
+    The method is what changed (D-2026-88). This compared the same blobs
+    read BEFORE and AFTER filling one store -- the same-size-two-times shape
+    that failed a hosted run elsewhere in this file while the property held.
+    Now two stores hold the same probe blobs under the same names, one with
+    700 more beside them; they are measured alternately, LOOKUP_ROUNDS times
+    each, and each keeps its best. A burst of CPU steal lands on both, and a
+    minimum is the measurement a burst cannot inflate."""
+    small = EvidenceStore(tmp_path / "small")
+    large = EvidenceStore(tmp_path / "large")
+    probe = [small.put(f"blob {i}".encode()) for i in range(SMALL)]
+    assert [large.put(f"blob {i}".encode()) for i in range(SMALL)] == probe
+    for i in range(SMALL, LARGE):
+        large.put(f"blob {i}".encode())
+    best_small = best_large = float("inf")
+    for _ in range(LOOKUP_ROUNDS):
+        best_small = min(best_small,
+                         _per_call(lambda: [small.get(d) for d in probe]))
+        best_large = min(best_large,
+                         _per_call(lambda: [large.get(d) for d in probe]))
+    assert best_large / best_small < 3.0, (
+        f"the same blobs read {best_large / best_small:.2f}x slower from a "
+        "store holding eight times as many")
 
 
 # ---- resource leaks ------------------------------------------------------

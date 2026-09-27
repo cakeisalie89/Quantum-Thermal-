@@ -537,6 +537,7 @@ tests/test_radiation_contract.py,KEEP_AS_MODEL_PLUGIN,4,Radiation producer/consu
 tests/test_record_parsers.py,RETIRE_TO_HISTORY,5,Gate-reference/mode parsers of the design registry.,
 tests/test_release_trust_enforcement.py,KEEP_AS_IS,-,Release trust boundary (directive s18).,
 tests/test_release_workflow_contract.py,KEEP_AS_IS,-,Release workflow executable.,"imports yaml (undeclared, see DEPENDENCY_CUTOVER.md)"
+tests/test_replay_origin_view.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-88): one view of governed execution per replay, counted against the questions asked, with the probe shown to see a view per question.",
 tests/test_repo_contract.py,KEEP_AS_IS,-,Repository file-set contract.,
 tests/test_resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution inventory.,
 tests/test_review_binding.py,RETIRE_TO_HISTORY,5,Hardware review binding.,imports hardware_governance_3d
@@ -638,6 +639,7 @@ tools/mutations/mutation_harness.json,KEEP_AS_IS,-,"Mutation spec over a retaine
 tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: operators over coverage, determinism, the aggregate's meaning and the shard runner.",
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
 tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/replay_origin_view.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_authority_replay.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
