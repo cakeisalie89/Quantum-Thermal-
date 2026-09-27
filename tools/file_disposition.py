@@ -800,6 +800,10 @@ RULES = [
      "NEW (D-2026-87): a result resting on an invalidated or withdrawn "
      "governed origin goes STALE, transitively, replayed by both readers.",
      ""),
+    ("tests/test_actor_authentication.py", KAH,
+     "NEW (D-2026-89): the actor-authentication seam; every attack shown "
+     "past the hash chain, refused by both readers.",
+     ""),
     ("tests/test_replay_origin_view.py", KAH,
      "NEW (D-2026-88): one view of governed execution per replay, counted "
      "against the questions asked, with the probe shown to see a view per "

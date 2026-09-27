@@ -44,6 +44,8 @@ rather than a web:
 | `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `qta_agent` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
 | `evidence.py` | content-addressed store: what a cited digest resolves to |
+| `ed25519.py` | Ed25519 signatures (RFC 8032), standard library only; for verifying, and for signing with test identities -- not constant time, so not a production signer |
+| `principals.py` | who wrote an event, when a key registry supplied from OUTSIDE the log is given: attestations beside the log bind each event hash to a registered key, and `authenticate` refuses a missing, unknown, mis-assigned or non-verifying one. The store and the independent reader refuse an unauthenticated history when handed an authenticator. Production keys are PENDING external provisioning: none exists here and `production_registry()` refuses rather than authenticating nothing |
 | `capability.py` | authority as a bounded object, not an ambient flag |
 | `idempotency.py` | durable request identity, scoped to (owner, tool, key) so a guessed string reaches nothing |
 | `readpath.py` | who may read what: default-deny, capability-checked, every attempt recorded |

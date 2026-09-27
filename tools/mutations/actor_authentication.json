@@ -1,0 +1,142 @@
+{
+  "title": "An actor is who a registered key says it is",
+  "note": "qta_agent.principals (attestations, the key registry, authenticate), its use by the authority store's load, catch-up and restore and by the independent reader, and the Ed25519 primitive's refusals. Every attack in the suite first passes the hash chain, so each kill is the signature's.",
+  "suites": [
+    "tests/test_actor_authentication.py"
+  ],
+  "mutations": [
+    {
+      "name": "AA1_a_missing_attestation_passes",
+      "path": "qta_agent/principals.py",
+      "find": "        if not atts:\n            out.findings.append((ev.seq, MISSING,",
+      "replace": "        if False:\n            out.findings.append((ev.seq, MISSING,",
+      "rationale": "an event nobody attested is accepted for a principal required to sign"
+    },
+    {
+      "name": "AA2_an_actor_with_no_key_passes",
+      "path": "qta_agent/principals.py",
+      "find": "        if ev.actor not in registry.principals:\n",
+      "replace": "        if False:\n",
+      "rationale": "an actor the registry does not know is taken at its name"
+    },
+    {
+      "name": "AA3_an_unregistered_key_is_believed",
+      "path": "qta_agent/principals.py",
+      "find": "            if key is None:\n                why.append((UNKNOWN_KEY,",
+      "replace": "            if False:\n                why.append((UNKNOWN_KEY,",
+      "rationale": "a key nobody registered is looked up as though it were"
+    },
+    {
+      "name": "AA4_any_registered_key_speaks_for_anyone",
+      "path": "qta_agent/principals.py",
+      "find": "            elif key.principal != ev.actor:\n",
+      "replace": "            elif False:\n",
+      "rationale": "actor substitution and a wrong key: bob's key vouches for alice's event"
+    },
+    {
+      "name": "AA5_the_signature_is_not_checked",
+      "path": "qta_agent/principals.py",
+      "find": "            elif att.get(\"seq\") != ev.seq or not _verifies(key, ev.hash,\n",
+      "replace": "            elif False and not _verifies(key, ev.hash,\n",
+      "rationale": "a tampered signature or payload passes on the key id alone"
+    },
+    {
+      "name": "AA6_no_domain_separation",
+      "path": "qta_agent/principals.py",
+      "find": "    return DOMAIN + event_hash.encode(\"ascii\")\n",
+      "replace": "    return event_hash.encode(\"ascii\")\n",
+      "rationale": "a signature made for another purpose over the same hash attests the event"
+    },
+    {
+      "name": "AA7_a_production_registry_takes_test_keys",
+      "path": "qta_agent/principals.py",
+      "find": "            if k.is_test and not allow_test_keys:\n",
+      "replace": "            if False:\n",
+      "rationale": "a key whose secret anyone can derive from a name is accepted in production"
+    },
+    {
+      "name": "AA8_key_ids_are_chosen",
+      "path": "qta_agent/principals.py",
+      "find": "            if k.key_id != key_id(k.public, test=k.is_test):\n",
+      "replace": "            if False:\n",
+      "rationale": "a registry may name one key with another's id"
+    },
+    {
+      "name": "AA9_unconfigured_production_authenticates_nothing",
+      "path": "qta_agent/principals.py",
+      "find": "    if PRODUCTION_KEYS is None:\n        raise NotConfigured(",
+      "replace": "    if PRODUCTION_KEYS is None:\n        return KeyRegistry([])\n        raise NotConfigured(",
+      "rationale": "no keys provisioned reads as a registry that checked"
+    },
+    {
+      "name": "AA10_the_signer_attests_anyone",
+      "path": "qta_agent/principals.py",
+      "find": "        if event.actor != self.principal:\n            raise AuthenticationError(",
+      "replace": "        if False:\n            raise AuthenticationError(",
+      "rationale": "a signer attests an event naming another principal"
+    },
+    {
+      "name": "AA11_a_signed_append_names_its_actor",
+      "path": "qta_agent/principals.py",
+      "find": "    if \"actor\" in fields:\n",
+      "replace": "    if False:\n",
+      "rationale": "the actor of a signed append is a parameter again"
+    },
+    {
+      "name": "AA12_dangling_attestations_are_silent",
+      "path": "qta_agent/principals.py",
+      "find": "    for h in sorted(set(by_hash) - seen) if complete else ():\n",
+      "replace": "    for h in ():\n",
+      "rationale": "an attestation of an event the history no longer contains says nothing"
+    },
+    {
+      "name": "AA13_malformed_lines_are_skipped",
+      "path": "qta_agent/principals.py",
+      "find": "    for n in malformed:\n        out.findings.append",
+      "replace": "    for n in ():\n        out.findings.append",
+      "rationale": "an unreadable attestation line is dropped silently"
+    },
+    {
+      "name": "AA14_the_store_load_does_not_authenticate",
+      "path": "qta_agent/store.py",
+      "find": "        self._anchor = None\n        self._authenticate(events)\n",
+      "replace": "        self._anchor = None\n",
+      "rationale": "a load reads an unattested history as it always did"
+    },
+    {
+      "name": "AA15_a_catch_up_does_not_authenticate",
+      "path": "qta_agent/store.py",
+      "find": "                self._authenticate([ev for ev in events\n",
+      "replace": "                (lambda *a, **k: None)([ev for ev in events\n",
+      "rationale": "the live path folds unattested events a loaded store never saw"
+    },
+    {
+      "name": "AA16_the_store_never_refuses",
+      "path": "qta_agent/store.py",
+      "find": "        if not report.ok:\n            lines = report.lines()\n",
+      "replace": "        if False:\n            lines = report.lines()\n",
+      "rationale": "the store computes the verdict and ignores it"
+    },
+    {
+      "name": "AA17_a_checkpoint_stands_in_for_authentication",
+      "path": "qta_agent/store.py",
+      "find": "        if authenticator is not None:\n            # A snapshot says",
+      "replace": "        if False:\n            # A snapshot says",
+      "rationale": "a restore trusts who wrote the records before the snapshot"
+    },
+    {
+      "name": "AA18_the_reader_folds_what_it_refused",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if ev.seq in unattested:\n            continue\n",
+      "replace": "        if False:\n            continue\n",
+      "rationale": "the second reader reports the refusal and folds the event anyway"
+    },
+    {
+      "name": "AA19_the_primitive_accepts_a_malleable_signature",
+      "path": "qta_agent/ed25519.py",
+      "find": "    if s >= Q:\n        return False\n",
+      "replace": "    if False:\n        return False\n",
+      "rationale": "s + Q verifies as s: the same signature in a second encoding"
+    }
+  ]
+}

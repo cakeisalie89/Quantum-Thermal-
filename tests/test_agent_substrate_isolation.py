@@ -110,6 +110,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_scientific_invalidation.py",
     "tests/test_task_execution_phase.py",
     "tests/test_replay_origin_view.py",
+    "tests/test_actor_authentication.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
@@ -150,7 +151,13 @@ ALLOWED_IMPORTERS = {
 # it digests SOURCE, and a reducer-identity module that imported the reducers
 # it identifies would be a cycle waiting for its first caller.
 LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
-          "evidence", "capability", "idempotency", "readpath", "tools",
+          "evidence",
+          # Actor authentication: the signature primitive, then the
+          # attestations and key registry built on it. Nothing below imports
+          # them; the store and the independent reader are HANDED an
+          # authenticator rather than importing one.
+          "ed25519", "principals",
+          "capability", "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority",
           # The content rule for scientific results: JSON over canonical
           # digests, read by the store on the edge into VERIFIED.
@@ -579,6 +586,10 @@ IO_LAYER = {
     # routing them through it would be circular.
     "events": "the append-only log's own file handling",
     "evidence": "the content-addressed store's own file handling",
+    # The attestation file is the log's companion, as the head witness is:
+    # appended beside it and read back whole. Its lines are checked by their
+    # signatures, not by who may read the file.
+    "principals": "the attestation file beside the log",
     "checkpoint": "checkpoint files, written atomically and read back",
     "safeio": "the confinement primitives GovernedReader itself calls",
     "readpath": "GovernedReader",

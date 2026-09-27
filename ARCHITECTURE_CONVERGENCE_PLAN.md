@@ -527,6 +527,16 @@ work and does not close the entry by being planned.
   refused by no replay here -- for scientific results or for any other
   record. *Done when:* appends are signed by the principal they name and
   replay verifies the signature against the identity registry.
+  *The seam exists (D-2026-89); the keys do not.* `qta_agent.principals`:
+  attestations beside the log bind each event hash to an Ed25519 key, a
+  registry supplied from outside the log says whose each key is, and the
+  store and the independent reader, handed an authenticator, refuse actor
+  substitution, a tampered signature or payload, a wrong or unknown key, an
+  actor with no key and a missing attestation -- each shown past the hash
+  chain. 19 mutations (`actor_authentication.json`). *Still open, and
+  external:* no production key is provisioned (`production_registry()`
+  refuses), nothing in the governed path signs, and the task projection
+  and scheduler do not authenticate.
 * **`task.execution` after a verdict is folded.** The task projection (and
   the second reader) set a task's executor from the latest execution record,
   including one appended after the task was VERIFIED. Admission measures the

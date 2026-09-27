@@ -143,8 +143,15 @@ OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND,
 class AuthorityStore:
     """Live projection with transactional mutation through the log."""
 
-    def __init__(self, log: EventLog, *, evidence=None, origins=None):
+    def __init__(self, log: EventLog, *, evidence=None, origins=None,
+                 authenticator=None):
         self.log = log
+        #: Optional :class:`~qta_agent.principals.Authenticator`. When
+        #: present, a history whose events are not attested by keys the
+        #: registry holds for their actors is refused on load and on every
+        #: catch-up. Absent -- as in production until keys are provisioned
+        #: -- actors are names, as they always were.
+        self.authenticator = authenticator
         #: Optional view of governed execution (see
         #: :func:`qta_agent.result_rules.admission_problems`): answers "did an
         #: authorized governed verification produce this report, about this
@@ -231,11 +238,24 @@ class AuthorityStore:
         self._loaded_through = -1
         self._loaded_prefix_verified = True
         self._anchor = None
+        self._authenticate(events)
         with self._one_origin_view():
             for ev in events:
                 self._apply(ev)
         self._reanchor()
         return self
+
+    def _authenticate(self, events, *, complete: bool = True) -> None:
+        """Refuse a history whose actors are not who it says they are."""
+        if self.authenticator is None:
+            return
+        report = self.authenticator(events, complete=complete)
+        if not report.ok:
+            lines = report.lines()
+            raise StoreError(
+                f"the history does not authenticate ({len(lines)} "
+                f"finding(s)): {'; '.join(lines[:3])}. An actor is a name "
+                "until a key the registry holds for it says otherwise.")
 
     def _one_origin_view(self):
         """Every admission re-decided in the block asks origin of one view
@@ -287,6 +307,9 @@ class AuthorityStore:
                 self._anchor = None
             else:
                 self._anchor = moved
+                self._authenticate([ev for ev in events
+                                    if ev.seq > self._loaded_through],
+                                   complete=False)
                 with self._one_origin_view():
                     for ev in events:
                         if ev.seq > self._loaded_through:
@@ -294,6 +317,7 @@ class AuthorityStore:
                 return
         report, events = self.log.read_verified()
         report.raise_if_bad()
+        self._authenticate(events)
         with self._one_origin_view():
             for ev in events:
                 if ev.seq > self._loaded_through:
@@ -704,7 +728,7 @@ class AuthorityStore:
 
     @classmethod
     def load_from(cls, log, checkpoints, *, blobs, evidence=None,
-                  origins=None,
+                  origins=None, authenticator=None,
                   require_checkpoint: bool = False) -> "AuthorityStore":
         """Load by restoring the newest usable snapshot and replaying the tail.
 
@@ -726,7 +750,12 @@ class AuthorityStore:
         """
         from . import checkpoint as cp_mod
 
-        store = cls(log, evidence=evidence, origins=origins)
+        store = cls(log, evidence=evidence, origins=origins,
+                    authenticator=authenticator)
+        if authenticator is not None:
+            # A snapshot says nothing about who wrote the records before
+            # it, so an authenticated load reads them all.
+            return store.load()
         cp = checkpoints.latest_usable(log)
         if cp is None:
             if require_checkpoint:

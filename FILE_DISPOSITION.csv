@@ -232,6 +232,7 @@ qta_agent/canonical.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/au
 qta_agent/capability.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
 qta_agent/checkpoint.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Log-position checkpoint; verify_with now returns the verified tail it checked.,defect: load_from re-read the tail verify_with checked
 qta_agent/context.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.2: summary provenance bound to real source bytes.,defect: phantom summarizes_item + fabricated omission
+qta_agent/ed25519.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/events.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Canonical event log. Phase 1.1: single-pass verified tail (advance, read_verified_from); read_verified returns only the verified prefix.",defect: advance() verified one read and returned a second
 qta_agent/evidence.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/execution.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
@@ -243,6 +244,7 @@ qta_agent/invalidation.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions
 qta_agent/memory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
 qta_agent/netauth.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
 qta_agent/policy.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
+qta_agent/principals.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/projection.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.4: reducer identity (projection_kind, reducer_id/version/digest, schema version).",directive s8 invariant
 qta_agent/readpath.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/reconstruct.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Independent second reader. Phase 1.1: replays the verified snapshot whose head it reports.,verify-then-read in 3 reconstructors
@@ -433,6 +435,7 @@ tests/fuzz_corpus/egress_grant-crashed-65392841.json,KEEP_AS_IS,-,Fuzz crash cor
 tests/fuzz_corpus/egress_grant-crashed-96370079.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/hangguard.py,KEEP_AS_IS,-,Shared wall-clock bound.,
 tests/hw_reviewer_fixtures.py,RETIRE_TO_HISTORY,5,Hardware reviewer rosters.,imports hardware_governance_3d
+tests/test_actor_authentication.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-89): the actor-authentication seam; every attack shown past the hash chain, refused by both readers.",
 tests/test_agent_agents.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_atomicity.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_audit.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
@@ -590,6 +593,7 @@ tools/legacy_qta_claims.py,RETIRE_TO_HISTORY,5,"The QTA claims reconciliation (g
 tools/model_check.py,KEEP_AS_IS,-,Bounded exhaustive FSM path checking.,
 tools/mutation_matrix.py,KEEP_AS_IS,-,Mutation harness (directive s20).,
 tools/mutation_shards.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: deterministic mutation shards, the generated workflow matrix and its check, the shard runner.",46 serial matrices took 4h27m in one job (run 36094744039)
+tools/mutations/actor_authentication.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/agent_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/agent_agents.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/agent_audit.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A1/Q1 re-anchored to the single verified read (Phase 1.1).,

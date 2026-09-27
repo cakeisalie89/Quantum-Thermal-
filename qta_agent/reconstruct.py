@@ -696,7 +696,7 @@ _AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
 
 
 def reconstruct(log: EventLog, *, reauthorize: bool = True,
-                evidence=None) -> Reconstruction:
+                evidence=None, authenticator=None) -> Reconstruction:
     """Rebuild authority state from a verified log.
 
     Verification comes first and is fatal: reconstructing from a chain that
@@ -717,6 +717,17 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
     # scientific admission is actually asked.
     held: list = []
 
+    # WHO WROTE EACH EVENT, when an authenticator is given: an event whose
+    # actor is not attested is refused and not folded, like a transition
+    # the machine refuses. The verdict is the authenticator's -- one
+    # signature check, not restated -- and the refusal is this reader's.
+    unattested: set = set()
+    if authenticator is not None:
+        auth = authenticator(events)
+        out.unauthorized.extend(f"unauthenticated: {line}"
+                                for line in auth.lines())
+        unattested = auth.refused
+
     def task_view() -> dict:
         if not held:
             held.append(reconstruct_tasks(log).tasks)
@@ -725,6 +736,8 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
 
     for ev in events:
         out.events_replayed += 1
+        if ev.seq in unattested:
+            continue
         p = ev.payload
         action = ev.action
         rid = p.get("record_id")

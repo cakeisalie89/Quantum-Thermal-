@@ -8152,3 +8152,57 @@ were re-anchored unchanged in meaning: `agent_snapshot_coherence.json`
 
 **NOT DONE.** The timed guard's margin on a hosted runner is still not
 recorded; no CI job publishes performance numbers.
+
+## D-2026-89 — actors were names: an authentication seam, with production keys left external
+
+**CLASS** — `GAP`, `qta_agent/principals.py` and `qta_agent/ed25519.py`
+(new), `qta_agent/store.py`, `qta_agent/reconstruct.py`. Plan 9.7 "Actors
+are names, not keys"; recorded in D-2026-83's NOT DONE.
+
+Every reader re-authorizes a history against the state machines, and the
+hash chain makes it tamper-evident. Neither makes it authentic. A writer
+holding the file can rewrite it end to end -- every record re-hashed, the
+head witness too -- and it verifies (`test_the_chain_alone_does_not_see_a_
+rewrite` shows exactly that); it can append a complete, rule-abiding
+lifecycle under any actor's name, and every reader agrees with it.
+
+**REPAIR, AS A SEAM.** An ATTESTATION binds one event's hash -- which
+covers its position, the previous hash, actor, action, target and payload --
+to an Ed25519 signature under a domain of its own. A KEY REGISTRY, supplied
+from outside the log (a key registered in the log it authenticates is chosen
+by whoever writes that log), says which principal each key speaks for; key
+ids are derived from the keys, never chosen. `principals.authenticate`
+refuses, for every event whose actor must authenticate: no attestation, an
+actor with no key, a key nobody registered, a key registered to another
+principal (actor substitution, a wrong key), a signature that does not
+verify (tampered signature or payload, a rewritten history, a signature
+made for another purpose), an unreadable attestation line, and an
+attestation of an event the history does not contain. Attestations live
+beside the log, not in it: the log refuses any field its hash does not
+cover, and adding the signature to the hashed body would change the
+canonical form every existing log was written in. The authority store,
+given an `Authenticator`, refuses an unauthenticated history on load and on
+every catch-up, and restores from a checkpoint by replaying in full (a
+snapshot says nothing about who wrote the records before it). The
+independent reader, given one, records each refusal and does not fold the
+event. Without one, both read names as they always have.
+
+The primitive is Ed25519 from RFC 8032, standard library only because the
+substrate imports nothing else, held to the RFC's vectors 1-3 and to the
+refusals a verifier owes (another message, a flipped bit, another key, a
+short input, the malleable s + Q). It is not constant time: fine for
+verifying public data and signing with test identities, not a signer for a
+production key.
+
+**PENDING, EXTERNAL.** No production key exists in this repository and none
+is invented: `principals.PRODUCTION_KEYS` is unset and
+`production_registry()` refuses (`NotConfigured`) instead of returning an
+empty registry that would authenticate nothing and look as though it had.
+The only keys are deterministic TEST identities, whose secrets anyone can
+derive from their names; their key ids are marked, and a registry not built
+for tests refuses them. Nothing in the governed path signs yet, and the task
+projection and scheduler do not authenticate; provisioning keys, a
+production signer and the writers that use it are deployment work.
+
+**TEST.** `tests/test_actor_authentication.py` (new, 23). **MUTATIONS.**
+`actor_authentication.json` (new, 19).
