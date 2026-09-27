@@ -633,7 +633,9 @@ print()
 print("Step 5: README.md — gate counts and canonical claims")
 print("-"*70)
 
-readme_path = PKG / "README.md"
+#: LEGACY_QTA_VERIFIER: the QTA README moved to docs/legacy/qta/ in tranche 4; the
+#: canonical counts it states are checked there, where they are still true.
+readme_path = PKG / "docs/legacy/qta/README.md"
 if not readme_path.exists():
     fail("README.md present", "missing")
 else:
@@ -1307,6 +1309,8 @@ print("-"*70)
 LIVE_DOCS = [
     "README.md",
     "CLAIMS_BOUNDARY.md",
+    "docs/legacy/qta/README.md",
+    "docs/legacy/qta/CLAIMS_BOUNDARY.md",
     "source_audit_status.txt",
     "final_manifest.json",
     "qta_full_sim.py",
@@ -1526,7 +1530,8 @@ CLAIM_NEGATIONS = (
 )
 
 claim_violations = []
-for fn in ("README.md", "CLAIMS_BOUNDARY.md", "source_audit_status.txt",
+for fn in ("README.md", "CLAIMS_BOUNDARY.md", "docs/legacy/qta/README.md",
+           "docs/legacy/qta/CLAIMS_BOUNDARY.md", "source_audit_status.txt",
            "qta_full_sim.py", "qta_manuscript_v4.tex"):
     fp = PKG / fn
     if not fp.exists():
@@ -1552,7 +1557,7 @@ if claim_violations:
              for fn, ln, b, t in claim_violations[:5]))
 else:
     ok(f"live docs make no claim CLAIMS_BOUNDARY.md forbids "
-       f"({len(FORBIDDEN_CLAIM_PATTERNS)} patterns over 5 documents; "
+       f"({len(FORBIDDEN_CLAIM_PATTERNS)} patterns over 7 documents; "
        "exact sentences only -- a paraphrase is not caught and no string "
        "rule catches one)")
 
@@ -1587,7 +1592,8 @@ OBSOLETE_MODE_MAP_PATTERNS = [
 # Files audited (live canonical docs)
 LIVE_DOCS_8F = [
     # User-facing canonical docs
-    "README.md", "CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
+    "README.md", "CLAIMS_BOUNDARY.md", "docs/legacy/qta/README.md",
+    "docs/legacy/qta/CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
     # Data files
     "source_audit_status.txt", "final_manifest.json",
     "BOM.csv", "interface_map.csv", "assumed_parameters.json", "risk_register.csv",
@@ -1858,7 +1864,7 @@ if bom_path.exists():
 
     # Rule 10: BOM row count freshness in README / final_manifest / output_sync_report
     actual_bom_rows = len(bom_rows)
-    for doc_name in ("README.md",):
+    for doc_name in ("docs/legacy/qta/README.md",):
         dp = PKG / doc_name
         if not dp.exists():
             continue
@@ -1914,7 +1920,8 @@ def _normalise_mode_spacing(text):
     return text
 
 SEMANTIC_LIVE_DOCS = [
-    "README.md", "CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
+    "README.md", "CLAIMS_BOUNDARY.md", "docs/legacy/qta/README.md",
+    "docs/legacy/qta/CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
     "qta_manuscript_v4.tex", "BOM.csv", "interface_map.csv", "risk_register.csv",
     "validation_matrix.csv", "results_gate_table.csv", "assumed_parameters.json",
     "measured_parameters.json", "source_gap_register.csv", "source_map.csv",
@@ -1970,7 +1977,7 @@ else:
 # CLAIMS_BOUNDARY.md must not conflate the citation-audit row count (65) with the
 # manuscript bibitem count (23). The manuscript \bibitem count is the ground truth.
 tex_path = PKG / "qta_manuscript_v4.tex"
-cb_path = PKG / "CLAIMS_BOUNDARY.md"
+cb_path = PKG / "docs/legacy/qta/CLAIMS_BOUNDARY.md"
 if tex_path.exists() and cb_path.exists():
     tex_txt = tex_path.read_text(encoding="utf-8", errors="replace")
     bibitem_count = len(re.findall(r"\\bibitem", tex_txt))

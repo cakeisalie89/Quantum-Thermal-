@@ -9,9 +9,9 @@ path,disposition,phase,rationale,evidence
 .gitignore,KEEP_AS_IS,-,Ignore rules.,
 AGENT_SUBSTRATE.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Substrate design record; updated with Phase 1 changes.,
 ARCHITECTURE_CONVERGENCE_PLAN.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact.,
-AUTHORITIES.md,REWRITE_GENERIC,2-7 (see rationale),"Enforcement-point registry (human half); its QTA framing -- gates, PASS=0, the machine -- is rewritten generically with the root identity documents (directive 13).",
+AUTHORITIES.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"REWRITTEN in tranche 4 (directive 13): the active enforcement points, generated from authorities.json's active section.",
 BOM.csv,RETIRE_TO_HISTORY,5,BOM completeness is not a software requirement (directive s4).,
-CLAIMS_BOUNDARY.md,REWRITE_GENERIC,2-7 (see rationale),Framework claims boundary: keep 'no experimental validation from simulation'; drop QTA machine claims.,
+CLAIMS_BOUNDARY.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,REWRITTEN in tranche 4 (directive 14): the framework claims boundary; the QTA text is in docs/legacy/qta/.,tools/claims_enforcement.py
 DEPENDENCY_CUTOVER.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact.,
 Dockerfile,KEEP_AS_IS,-,Reproducible container.,
 EVIDENCE_CLOSURE.md,REWRITE_GENERIC,2-7 (see rationale),Evidence closure narrative.,
@@ -31,7 +31,7 @@ FIRST_VALIDATION_EXPERIMENTS.md,RETIRE_TO_HISTORY,5,Apparatus validation experim
 GATE_TABLE_README.md,RETIRE_TO_HISTORY,5,83-gate table.,directive s4
 GLOSSARY.md,REWRITE_GENERIC,2-7 (see rationale),Framework vocabulary.,
 HARDWARE_GOVERNANCE.md,RETIRE_TO_HISTORY,5,Hardware governance.,directive s4
-HDF5_DATA_MODEL.md,REWRITE_GENERIC,2-7 (see rationale),HDF5 data model without the 88-output payload.,
+HDF5_DATA_MODEL.md,REWRITE_GENERIC,2-7 (see rationale),"REWRITTEN in tranche 4 (directive 13) as the generic container contract; build_hdf5.py still writes the QTA payload (Phase 7), described in docs/legacy/qta/.",
 INSTALL.md,REWRITE_GENERIC,2-7 (see rationale),Installation; rewritten with the root identity documents (directive 13).,
 MACHINE_FSM.md,RETIRE_TO_HISTORY,5,Physical machine FSM.,directive s4
 MANIFEST_BOUNDARY.md,REWRITE_GENERIC,2-7 (see rationale),Manifest coverage boundary for the new release set.,
@@ -47,8 +47,8 @@ QTA_stage9_release_verification/provenance.intoto.json,RETIRE_TO_HISTORY,5,"Stag
 QTA_stage9_release_verification/release_index.json,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
 QTA_stage9_release_verification/release_trust_policy.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Live trust policy: release.yml passes it as --trusted-policy and release_trust.py reads it; its identity fields stay PENDING until a real hosted signing run exists. Replaced with the release model (Phase 7).,release.yml; test_repository_signing_status_remains_pending
 QTA_stage9_release_verification/sbom.cdx.json,RETIRE_TO_HISTORY,5,"Stage-9 release verification record, historical: it is NOT regenerated per commit. Its SBOM names the Stage-9 uv.lock digest and lacks the three packages Stage 10 added (contourpy, cycler, dill); release.yml builds a fresh bundle from uv.lock at release time, and the Phase-7 set supersedes this one. Regenerating it in place would bind it to a release zip and revision that do not exist.",sbom qta:uv_lock_sha256 != sha256(uv.lock) since 365b5c8
-README.md,REWRITE_GENERIC,2-7 (see rationale),Framework README (Phase 7).,
-RELEASE_POLICY.md,REWRITE_GENERIC,2-7 (see rationale),Release policy without QTA payload.,
+README.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,REWRITTEN in tranche 4 (directive 13): the framework README; QTA's is in docs/legacy/qta/.,
+RELEASE_POLICY.md,REWRITE_GENERIC,2-7 (see rationale),"REWRITTEN in tranche 4 (directive 13) generically; the release split itself (directive F) is still open, and QTA's policy is in docs/legacy/qta/.",
 RELEASE_TRUST_ENFORCEMENT.md,KEEP_AS_IS,-,Release trust table.,
 RO_CRATE_PROFILE.md,REWRITE_GENERIC,2-7 (see rationale),RO-Crate profile without QTA registries.,
 RUNTIME_RESILIENCE.md,REWRITE_GENERIC,2-7 (see rationale),Resilience narrative around qta_full_sim stages.,
@@ -83,7 +83,7 @@ attic/delivery_artifacts/QTA_qta_multiphysics_repair.bundle,RETIRE_TO_HISTORY,5,
 attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
 attic/delivery_artifacts/QTA_repair_plus_cleanup.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
 attic/delivery_artifacts/QTA_repaired_complete_1D_2D_repo.zip,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
-authorities.json,REWRITE_GENERIC,2-7 (see rationale),Enforcement-point registry (machine half); rewritten into active and legacy sections (directive 18). The substrate entry's invariant is already generic (directive 12).,
+authorities.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"REWRITTEN in tranche 4 (directive 18): active authorities, each naming the tests that enforce it, and legacy authorities kept apart.",
 bayesian_design_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 best_forecast_operating_point.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
 bibliography_audit.csv,RETIRE_TO_HISTORY,5,Manuscript bibliography audit.,
@@ -134,11 +134,17 @@ docs/DEFECT_LEDGER.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Defect history
 docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md,KEEP_AS_IS,-,Cross-environment lessons (directive s19).,
 docs/SESSION_REPORT.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Session evidence record.,
 docs/blas_kernel_sensitivity.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/claims_boundary.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 14): the framework claims boundary, each entry naming the module and symbol that enforce it and the tests that hold it.",hand-written; checked by tools/claims_enforcement.py
 docs/clip_provenance.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/completion_matrix.json,REWRITE_GENERIC,2-7 (see rationale),Completion model tied to QTA rows; retire the 83-gate completion model (directive s4).,
 docs/corpus_allowlist.json,REGENERATE,every change; new set in 7,Regenerated by tools/corpus_allowlist.py --write.,
 docs/framework_boundary.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 10): which dispositions are ACTIVE, TRANSITIONAL and LEGACY; the legacy-ontology tokens; declared exceptions.",
 docs/identity_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/legacy/qta/AUTHORITIES.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
+docs/legacy/qta/CLAIMS_BOUNDARY.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
+docs/legacy/qta/HDF5_DATA_MODEL.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
+docs/legacy/qta/README.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
+docs/legacy/qta/RELEASE_POLICY.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
 docs/performance_baseline.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/resolution_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/unit_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
@@ -476,7 +482,7 @@ tests/test_campaign_uncertainty.py,REWRITE_GENERIC,2-7 (see rationale),Campaign 
 tests/test_candidate_structure.py,KEEP_AS_IS,-,Hostile bundle structure.,
 tests/test_checker_missing_outputs.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
 tests/test_checker_runtime_contract.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
-tests/test_claims_enforcement.py,REWRITE_GENERIC,2-7 (see rationale),Follows the claims-boundary rewrite.,
+tests/test_claims_boundary.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 14): the framework claims boundary holds, and a dropped boundary, a missing symbol or a missing test is caught.",
 tests/test_claude_workflow_prompt.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (directive 11): the Claude workflow's prompt states the framework's rules and none of QTA's retired invariants.,
 tests/test_completion_matrix.py,REWRITE_GENERIC,2-7 (see rationale),Follows the completion-matrix rewrite.,
 tests/test_container_diagnostic_fidelity.py,REWRITE_GENERIC,2-7 (see rationale),Follows analysis/collect_container_3d rewrite.,
@@ -508,6 +514,7 @@ tests/test_identity_inventory.py,KEEP_AS_IS,-,Identity inventory.,
 tests/test_independent_gate_recomputation.py,REWRITE_GENERIC,2-7 (see rationale),Independent recomputation pattern kept; QTA gates B4/D10b retire.,
 tests/test_integration.py,RETIRE_TO_HISTORY,5,integrated_layers gate feed.,
 tests/test_lateral_boundary.py,KEEP_AS_MODEL_PLUGIN,4,Boundary-value-problem identity across reductions.,
+tests/test_legacy_qta_claims.py,RETIRE_TO_HISTORY,5,"The QTA claims reconciliation's tests, moved with it in tranche 4.",directive 13/14
 tests/test_machine_fsm.py,RETIRE_TO_HISTORY,5,Physical machine FSM.,
 tests/test_manifest_completeness.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Manifest completeness with an independent check (retained).,
 tests/test_manifest_policy.py,REWRITE_GENERIC,2-7 (see rationale),Coverage boundary tied to the QTA output set.,
@@ -558,7 +565,7 @@ thermal_3d_reduction_check.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of
 thermal_3d_verification_report.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 tools/audit_log.py,KEEP_AS_IS,-,Read-only audit CLI.,
 tools/blas_kernel_sensitivity.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,BLAS-kernel dependence diagnostic (directive s19).,R59
-tools/claims_enforcement.py,REWRITE_GENERIC,2-7 (see rationale),Claims-boundary enforcement coverage; the boundary text itself is rewritten generically.,reads CLAIMS_BOUNDARY.md
+tools/claims_enforcement.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"REWRITTEN in tranche 4 (directive 14): the framework claims boundary, each boundary naming code that defines it and tests that exist.","reads docs/claims_boundary.json, CLAIMS_BOUNDARY.md"
 tools/clip_provenance.py,REWRITE_GENERIC,2-7 (see rationale),Clip provenance over the QTA runners; imports integrated_layers/runner_3d.,reach.json tools closure
 tools/completion_matrix.py,REWRITE_GENERIC,2-7 (see rationale),Completion-matrix validator; rows tied to the 83-gate model retire (directive s4).,
 tools/corpus_allowlist.py,KEEP_AS_IS,-,RAG corpus allowlist generator/checker.,
@@ -570,6 +577,7 @@ tools/fuzz_substrate.py,KEEP_AS_IS,-,Substrate fuzz harness (directive s20).,
 tools/generated_mutations.py,KEEP_AS_IS,-,Generated mutation operators (directive s20).,
 tools/identity_inventory.py,KEEP_AS_IS,-,Identity-bearing field inventory.,
 tools/independent_verify.py,KEEP_AS_IS,-,Subprocess second reader.,
+tools/legacy_qta_claims.py,RETIRE_TO_HISTORY,5,"The QTA claims reconciliation (gate counts, Mode B / Mode D, BOM vocabulary), moved from tools/claims_enforcement.py in tranche 4; run by the legacy-verifier CI step against docs/legacy/qta/.",directive 13/14
 tools/model_check.py,KEEP_AS_IS,-,Bounded exhaustive FSM path checking.,
 tools/mutation_matrix.py,KEEP_AS_IS,-,Mutation harness (directive s20).,
 tools/mutation_shards.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: deterministic mutation shards, the generated workflow matrix and its check, the shard runner.",46 serial matrices took 4h27m in one job (run 36094744039)
@@ -603,6 +611,7 @@ tools/mutations/agent_substrate.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,
 tools/mutations/agent_tasks.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/authority_result_rules.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/canonical_output_set.json,REWRITE_GENERIC,2-7 (see rationale),Targets the QTA canonical-output set in package_consistency_check.py.,
+tools/mutations/claims_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/corpus_allowlist.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/cross_environment.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

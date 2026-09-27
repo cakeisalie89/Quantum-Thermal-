@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/dependency_declarations.py --write",
  "sources": {
-  "pyproject.toml": "ec92ec02d63d56ec34f4c309a0c4c922633eb043625453bd63dc102fae02c5f3",
+  "pyproject.toml": "91be65fe12b834e870b0a594545d6807a905afb7646ce320ca6bae901387cf4c",
   "uv.lock": "24809e90979a8b9ee10e9ddbb679a20a474ea2914a5174c24e20cdf14be8adc8"
  },
  "direct_dependencies": [

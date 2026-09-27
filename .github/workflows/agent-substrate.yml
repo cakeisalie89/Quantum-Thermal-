@@ -126,23 +126,24 @@ jobs:
         # a PER_ROW entry must name a column that is actually in that CSV's
         # header, so "the unit is in the row" is checked rather than asserted.
         run: uv run python tools/unit_inventory.py
-      - name: the claims boundary is enforced, and by how much
-        # CLAIMS_BOUNDARY.md calls itself the strongest statement of position
-        # in the package. Measured, 19 of its 24 forbidden claims would have
-        # passed package_consistency_check.py verbatim -- the whole shielding
-        # list, including "Mode B processing and Mode D sensing occur
-        # simultaneously", the sentence the mode-exclusive architecture exists
-        # to deny. The five that were caught were caught by patterns written
-        # for stale RTB/JT module counts.
-        #
-        # Reconciled in both directions and re-derived rather than named: a
-        # rule that names a claim must MATCH it. A new forbidden claim arrives
-        # uncovered and fails here until somebody writes the rule.
-        #
-        # It answers one bounded question -- would this EXACT sentence be
-        # refused -- and not whether a paraphrase would be. No string rule
-        # answers that one.
+      - name: the claims boundary is held by code that exists
+        # Directive 14. CLAIMS_BOUNDARY.md states the framework's generic
+        # epistemic boundaries -- a simulation result is not a measurement,
+        # independent numerical agreement is not experimental validation, and
+        # nine more -- and docs/claims_boundary.json names, for each, the code
+        # that enforces it and the tests that hold it. This fails on a
+        # required boundary missing, a module that does not define the named
+        # symbol, a test that does not exist, or a boundary the page omits.
         run: uv run python tools/claims_enforcement.py
+      - name: LEGACY QTA -- the QTA claims boundary is enforced, and by how much
+        # The hardware-era package's own claims boundary, kept in
+        # docs/legacy/qta/ with the legacy verifier that checks it: measured,
+        # 19 of its 24 forbidden claims once passed package_consistency_check
+        # verbatim, including "Mode B processing and Mode D sensing occur
+        # simultaneously". Reconciled in both directions and re-derived rather
+        # than named. It answers one bounded question -- would this EXACT
+        # sentence be refused -- and not whether a paraphrase would be.
+        run: uv run python tools/legacy_qta_claims.py
       - name: the workflow still runs what the matrix says it runs
         # A row claiming hosted coverage is claiming something about THIS
         # file, and nothing else here would notice this file changing.
@@ -326,74 +327,75 @@ jobs:
           - shard: 2
             specs: >-
               tools/mutations/agent_compensation.json
-              tools/mutations/agent_separate_verify.json
+              tools/mutations/agent_fault_injection.json
+              tools/mutations/agent_snapshot_coherence.json
               tools/mutations/agent_tasks.json
-              tools/mutations/completion_matrix.json
-              tools/mutations/framework_boundary.json
-              tools/mutations/identity_inventory.json
-              tools/mutations/performance_counters.json
+              tools/mutations/cross_environment.json
+              tools/mutations/cryopanel_operating_point.json
           - shard: 3
             specs: >-
               tools/mutations/agent_cross_process.json
               tools/mutations/agent_delegation.json
               tools/mutations/agent_lease_renewal.json
-              tools/mutations/agent_memory_context.json
-              tools/mutations/agent_secret_provider.json
+              tools/mutations/corpus_allowlist.json
               tools/mutations/output_resolution.json
-              tools/mutations/resolution_inventory.json
+              tools/mutations/scientific_thermal_2d.json
               tools/mutations/solver_failclosed.json
           - shard: 4
             specs: >-
               tools/mutations/agent_evidence.json
+              tools/mutations/agent_incremental.json
+              tools/mutations/agent_memory_context.json
               tools/mutations/agent_recovery.json
+              tools/mutations/agent_secret_provider.json
               tools/mutations/agent_service_authority.json
-              tools/mutations/canonical_output_set.json
-              tools/mutations/corpus_allowlist.json
-              tools/mutations/cross_environment.json
+              tools/mutations/dependency_declarations.json
               tools/mutations/mutation_harness.json
-              tools/mutations/verified_read_guard.json
+              tools/mutations/scientific_thermal_1d.json
           - shard: 5
             specs: >-
               tools/mutations/agent_scheduler.json
+              tools/mutations/agent_secrets.json
               tools/mutations/agent_substrate.json
-              tools/mutations/cryopanel_operating_point.json
-              tools/mutations/dependency_declarations.json
+              tools/mutations/claims_boundary.json
               tools/mutations/fuzz_harness.json
+              tools/mutations/repo_contract.json
               tools/mutations/scientific_interfaces.json
-              tools/mutations/scientific_thermal_2d.json
               tools/mutations/test_isolation.json
           - shard: 6
             specs: >-
               tools/mutations/agent_actions.json
               tools/mutations/agent_netauth.json
-              tools/mutations/agent_policy.json
-              tools/mutations/enforcement_asserts.json
+              tools/mutations/canonical_output_set.json
+              tools/mutations/completion_matrix.json
+              tools/mutations/framework_boundary.json
               tools/mutations/governed_breadth.json
-              tools/mutations/mutation_shards.json
+              tools/mutations/identity_inventory.json
+              tools/mutations/performance_counters.json
               tools/mutations/second_reader_audit_actions.json
               tools/mutations/stage10_authority.json
-              tools/mutations/unit_inventory.json
           - shard: 7
             specs: >-
               tools/mutations/agent_execution.json
               tools/mutations/agent_idempotency.json
-              tools/mutations/agent_incremental.json
+              tools/mutations/agent_policy.json
               tools/mutations/agent_readpath.json
-              tools/mutations/agent_secrets.json
               tools/mutations/authority_result_rules.json
-              tools/mutations/model_check.json
+              tools/mutations/enforcement_asserts.json
+              tools/mutations/mutation_shards.json
+              tools/mutations/resolution_inventory.json
               tools/mutations/scientific_authority_replay.json
-              tools/mutations/scientific_thermal_1d.json
           - shard: 8
             specs: >-
               tools/mutations/agent_agents.json
               tools/mutations/agent_audit.json
               tools/mutations/agent_checkpoint.json
-              tools/mutations/agent_fault_injection.json
               tools/mutations/agent_job_graph.json
-              tools/mutations/agent_snapshot_coherence.json
+              tools/mutations/agent_separate_verify.json
               tools/mutations/governed_model_reuse.json
-              tools/mutations/repo_contract.json
+              tools/mutations/model_check.json
+              tools/mutations/unit_inventory.json
+              tools/mutations/verified_read_guard.json
           # END generated by tools/mutation_shards.py --emit
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4

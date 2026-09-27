@@ -4,7 +4,7 @@
  "suites": [
   "tests/test_output_resolution.py",
   "tests/test_bom_status_claim.py",
-  "tests/test_claims_enforcement.py"
+  "tests/test_legacy_qta_claims.py"
  ],
  "mutations": [
   {
@@ -86,21 +86,21 @@
   },
   {
    "name": "OR12_naming_a_claim_counts_as_enforcing_it",
-   "path": "tools/claims_enforcement.py",
+   "path": "tools/legacy_qta_claims.py",
    "find": "        if not re.search(rx, lab):\n            problems.append(",
    "replace": "        if not re.search(rx, lab) and False:\n            problems.append(",
    "rationale": "without the re-derivation a table of regexes matching nothing reports full coverage, which is the failure mode this whole tool exists to rule out"
   },
   {
    "name": "OR13_a_reconciliation_over_nothing_reports_full_coverage",
-   "path": "tools/claims_enforcement.py",
+   "path": "tools/legacy_qta_claims.py",
    "find": "    if not bullets:\n        raise ScopeError(",
    "replace": "    if bullets is None:\n        raise ScopeError(",
    "rationale": "zero bullets, zero uncovered, a clean verdict about nothing"
   },
   {
    "name": "OR14_the_enforcement_table_may_describe_a_claims_file_that_moved",
-   "path": "tools/claims_enforcement.py",
+   "path": "tools/legacy_qta_claims.py",
    "find": "    for lab in sorted(named - known):\n        problems.append(",
    "replace": "    for lab in sorted(set() - known):\n        problems.append(",
    "rationale": "a rule naming a claim nobody forbids any more is a rule nobody is maintaining"

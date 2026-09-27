@@ -607,6 +607,48 @@ extract-then-retire (directive 22); the root identity documents and
 `authorities.json`, marked KEEP while hardware-defined, are REWRITE_GENERIC
 (directive 29).
 
+### 9.9 Project identity, active authorities, the generic claims boundary (directive 13, 14, 18)
+
+*Tranche 4.* The root documents describe the framework. `README.md`,
+`CLAIMS_BOUNDARY.md`, `AUTHORITIES.md`, `RELEASE_POLICY.md` and
+`HDF5_DATA_MODEL.md` were QTA's; each moved UNCHANGED to `docs/legacy/qta/`
+(renamed, so its history follows it) and a generic document took its place.
+Nothing QTA stated is erased: the legacy verifier
+(`package_consistency_check.py`) and the QTA claims reconciliation
+(`tools/legacy_qta_claims.py`, which was `tools/claims_enforcement.py`) read
+the legacy copies, and a CI step still runs the latter. `STACK.md`,
+`MANIFEST_BOUNDARY.md`, `INSTALL.md` and `TESTING.md` are reframed around the
+framework; `pyproject.toml`'s description is the framework's. The project
+NAME is unchanged: renaming it changes the lock file and every installed
+path, for no semantic gain this tranche.
+
+`authorities.json` (schema 2.0) keeps the two apart: 18 ACTIVE authorities,
+each naming the tests that enforce it, and 17 LEGACY ones -- the mode and
+species ontology, the machine's transitions and interlocks, the gate table,
+the canonical output paths, the cryopanel, campaign and hardware-governance
+layers -- kept as history under `legacy_authorities`. `AUTHORITIES.md` is written from the active section.
+The consistency test now requires every active authority to name tests that
+exist and no active authority to be a legacy module.
+
+The claims boundary is the framework's, and each boundary is held by code
+that exists. `docs/claims_boundary.json` registers the eleven directive 14
+lists -- a simulation result is not a measurement; a synthetic observation is
+not a raw one; numerical convergence is not physical validation; independent
+numerical agreement is not experimental validation; a signed artifact is not
+a correct one; an AI proposal is not a verified result; tool completion is not
+an accepted result; retrieved RAG text is not evidence authority; a surrogate
+prediction is not ground truth; an optimization result is not a physical
+optimum; a calibration is not a validation -- each naming the module and
+symbol that enforce it and the tests that hold it. `tools/claims_enforcement.py`
+(CI) fails when a required boundary is missing or inverted (the required list
+is held in the checker, so the registry cannot pass by losing one), when a
+named module does not DEFINE the named symbol at module level, when a named
+test does not exist, or when `CLAIMS_BOUNDARY.md` does not state the boundary
+verbatim. What it cannot establish is that a named test tests its boundary;
+that is the named test's own business, and the checker's rules are held by
+16 mutations (`claims_boundary.json`). EB11 gained its test here
+(`test_a_calibration_is_not_a_validation`).
+
 ## 10. Tranche 1 checkpoint report
 
 Phase 0 and Phase 1, on top of `71b58cb`. **Not a migration-completion

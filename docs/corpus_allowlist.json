@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "127d5cb75792de63d0afabd57ce99570efbbd13deff082be48e4127566ceff5a",
+  "entries_digest": "80a1cc9cb971e493b06728e9d9a25c4b24fd4ac02062a7c19480bad071902a2c",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -10,15 +10,15 @@
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "sha256": "59ff04e22e1486ccb72855172fdaaf11f1b98d49b0aa3f741803f87bac51c366"
+      "sha256": "badc7aa3ea74090b803ea3422b75a3863735cdd8c76be7693055e908c29001bf"
     },
     {
       "path": "AUTHORITIES.md",
-      "sha256": "8e5b61f189c13456153cf1a169badd8c0bfbb954254b4474220dad2974779e4c"
+      "sha256": "671df573e434dd8047dac93572392f31b8de206f10b0794075f537b51f49e459"
     },
     {
       "path": "CLAIMS_BOUNDARY.md",
-      "sha256": "25d3a813f9056c28a63368039dd59a5d73b12552ed94003684b5d03e6e7eb4db"
+      "sha256": "ab6b9128c13b979b452e00dbed1ababfad547f841f5db2b20cd6ca2202308db8"
     },
     {
       "path": "DEPENDENCY_CUTOVER.md",
@@ -90,11 +90,11 @@
     },
     {
       "path": "HDF5_DATA_MODEL.md",
-      "sha256": "0e2cea27aa12acc53ebf3c7af915508af61d1ac9885c21cd514523a863c673ab"
+      "sha256": "3a93765a78811b040113b1e00e6704e8a5eb6d8fa0db1284aef67f8ff4ad8cc2"
     },
     {
       "path": "INSTALL.md",
-      "sha256": "3a0aa169ccc03644193c832fbe2654286a5483c93a1ff4204ff53e20d06af126"
+      "sha256": "423d54a7ca73e316e531b605af55f90144fc2135cc8f2ebd0cc80907cc3649ef"
     },
     {
       "path": "MACHINE_FSM.md",
@@ -102,7 +102,7 @@
     },
     {
       "path": "MANIFEST_BOUNDARY.md",
-      "sha256": "2b300a3e03b27c5cc7374bc0d8b72b4073013b274e679d50770c8ca30d7574af"
+      "sha256": "c9e042f7ab32b9c70b008a8402724529775b414e701069494bbcf0295496fd2f"
     },
     {
       "path": "MANUSCRIPT_CHANGELOG.md",
@@ -130,11 +130,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "bf36cd8986c58f8436f6b2ee02ad26d38fc31e299e75b4f490a2f198f3693d47"
+      "sha256": "3171aa0f6d7553f4e2cea7686889da6db642a979918f6a5882adbd0613da7222"
     },
     {
       "path": "RELEASE_POLICY.md",
-      "sha256": "ed109d5895b9e051381bd7b0fd028a9586b4e1652c0ebd9a3c30116cf815fbec"
+      "sha256": "a6f5f4b9cfe9eddfdffeedee52bdadd2909a3fd06a3c366a4c618d7bfdbff99c"
     },
     {
       "path": "RELEASE_TRUST_ENFORCEMENT.md",
@@ -158,7 +158,7 @@
     },
     {
       "path": "STACK.md",
-      "sha256": "aa65e765f0df1f2b3a08780685b040a37970ef28e3d8348f4274d7979ad10f47"
+      "sha256": "35d05f7ee6e797e3a61cae0ca81b52c6b00fd8ff5ca607dd19257cacea2f1fec"
     },
     {
       "path": "SUPPLY_CHAIN_THREAT_MODEL.md",
@@ -166,7 +166,7 @@
     },
     {
       "path": "TESTING.md",
-      "sha256": "378f521d8dc01d11dd4b696d7842a1943deb9f12e67d2c53f32650252f4be99e"
+      "sha256": "255b38adbc98c2def9acabacf535cf6703d09b9654eace9d4eabf3e27282fe62"
     },
     {
       "path": "THERMAL_3D_L3.md",
@@ -195,6 +195,26 @@
     {
       "path": "docs/SESSION_REPORT.md",
       "sha256": "1a67535a8164651bc4f229892daf1cd8e81a0fe993a7618e4de955c966699562"
+    },
+    {
+      "path": "docs/legacy/qta/AUTHORITIES.md",
+      "sha256": "8e5b61f189c13456153cf1a169badd8c0bfbb954254b4474220dad2974779e4c"
+    },
+    {
+      "path": "docs/legacy/qta/CLAIMS_BOUNDARY.md",
+      "sha256": "25d3a813f9056c28a63368039dd59a5d73b12552ed94003684b5d03e6e7eb4db"
+    },
+    {
+      "path": "docs/legacy/qta/HDF5_DATA_MODEL.md",
+      "sha256": "0e2cea27aa12acc53ebf3c7af915508af61d1ac9885c21cd514523a863c673ab"
+    },
+    {
+      "path": "docs/legacy/qta/README.md",
+      "sha256": "bf36cd8986c58f8436f6b2ee02ad26d38fc31e299e75b4f490a2f198f3693d47"
+    },
+    {
+      "path": "docs/legacy/qta/RELEASE_POLICY.md",
+      "sha256": "ed109d5895b9e051381bd7b0fd028a9586b4e1652c0ebd9a3c30116cf815fbec"
     },
     {
       "path": "raw_data_standard.md",

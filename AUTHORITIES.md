@@ -1,37 +1,36 @@
-# QTA Authorities — Single Sources of Truth
+# Authorities -- single sources of truth
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+`authorities.json` is the machine-readable registry: every governed concept of
+the framework, the one executable authority for it, what that authority means
+and does not mean, and the tests that hold it. Code is the authority;
+documentation mirrors it and never overrides it. A concept with two sources
+is a conflict to resolve, not a choice (`authorities.json ->
+competing_sources_record`).
 
-`authorities.json` (schema 1.0) is the machine-readable registry mapping every
-governed concept to its one executable authority, its owner, its schema
-version, and its consumers. Rule: code is the authority; documentation mirrors
-code and never overrides it; canonical outputs live at the repository root and
-are byte-gated against regeneration by the package consistency checker.
+| Concept | Authority | What it answers |
+|---|---|---|
+| event history | `qta_agent/events.py` | what happened, in order, tamper-evident: every other state below is a projection of it |
+| authority fsm | `qta_agent/authority.py` | which claims are PROPOSED, VERIFIED, PROMOTED or withdrawn, and who moved them |
+| scientific admission | `qta_agent/result_rules.py` | that a scientific_result's evidence -- a PASS from an independent implementation about this exact bundle, captured by governed tasks -- supports VERIFIED or PRO |
+| task fsm | `qta_agent/tasks.py` | whether a governed tool run was executed under lease and verified by an actor other than its executor |
+| scheduler fsm | `qta_agent/scheduler.py` | which work is ready, running, finished or failed, across process deaths |
+| memory fsm | `qta_agent/memory.py` | what an agent was told and still holds |
+| evidence store | `qta_agent/evidence.py` | the exact bytes a cited digest names (artifact integrity) |
+| model registry | `scientific/registry.py` | which models exist, at which version, with which declared inputs |
+| scientific result schema | `scientific/result.py` | what a model run produced, with its invariants, provenance and run identity |
+| verification schema | `scientific/verification.py` | what a bounded check established, and how independent it was |
+| observation schema | `scientific/observation.py` | what kind of thing a value is -- raw, processed, synthetic, simulated, derived, calibrated -- and what it may be derived from |
+| run identity | `scientific/run_identity.py` | what counts as 'the same run' for reuse |
+| framework boundary | `docs/framework_boundary.json + tools/framework_boundary.py` | that nothing active imports, opens or takes authority from legacy QTA |
+| claims boundary | `CLAIMS_BOUNDARY.md (prose) + docs/claims_boundary.json + tools/claims_enforcement.py` | which kinds of result may never be presented as which others |
+| release trust policy | `RELEASE_TRUST_ENFORCEMENT.md + verify_release.py` | who built which bytes, and that they are the bytes released |
+| provenance records | `final_manifest.json (every git-tracked file except the two detached ones, per-file SHA-256) + manifest_hash.txt (detached SHA-256 of the manifest); generator generate_manifest.py (reads the git index). The file count is not restated here: it is whatever the git index holds, and generate_manifest.py --check is the authority on membership.` | these bytes were present at this SHA-256 |
+| scientific stack adoption | `STACK.md (narrative) + stack.json (machine-readable, schema 1.0.0)` | additive and workspace-only: no stack module is imported by the solvers or qta_full_sim.py, every writer refuses the canonical tree, automatic_gate_effect=NONE, |
+| agent authority substrate | `qta_agent/authority.py` | Enforcement is verified by mutation testing rather than by coverage: each check is deleted in turn and the suite must fail. tools/mutation_matrix.py exits non-z |
 
-| Concept | Authority (owner) |
-|---|---|
-| Modes & species permissions | `qta_multiphysics/mode_sequence_3d.py` (CANONICAL_ACTIVE / RESIDUAL_ONLY / validators) |
-| States, transitions, interlocks, switches/valves/shutters | `qta_multiphysics/machine_fsm.py` (32 states, 38+8 transitions, 18 interlocks over 13 hardware axes) |
-| Per-mode device states | `qta_multiphysics/state_machine_3d.py` |
-| Units & physical parameters | `qta_multiphysics/config.py` (SI, validated) + provenance JSONs |
-| Solver profiles & tolerances | `SolverConfig` + `qta_full_sim.py` profiles (default / --ci / --deep / --heavy-3d) |
-| Meshes | `runner_3d.py` (CI 10×10×12; heavy 16×16×20) + `convergence_3d.py` (refined 14×14×18) |
-| Seeds & MC counts | `qta_full_sim.py` (42; N=10000/5000; mc_samples=30) + `uncertainty.py` (12345; n=120) |
-| Gates (83; PASS=0) | `metrics.py` + `qta_full_sim.py` → `results_gate_table.csv` |
-| Schemas | `deep_design_schema.json`, `deep_parameter_schema.json`, ledger vocabulary in `coupling_ledger_3d.py` |
-| Canonical output paths | repo root, enumerated by `final_manifest.json`, byte-gated by checker Step 2b |
-| Claim-boundary wording | `CLAIMS_BOUNDARY.md` + the MODEL_ONLY/FORECAST_ONLY label + per-record claim fields (checker-enforced) |
-| Provenance | `final_manifest.json` + `manifest_hash.txt` (generator `generate_manifest.py`; coverage = every git-tracked file minus the two detached, see `MANIFEST_BOUNDARY.md`. Hashing a file records its bytes, it does not make the file authoritative — this table does that) |
-| Cryopanel dynamics (Stage 2) | `qta_multiphysics/cryopanel_dynamics_3d.py` (ASSUMED sticking; PLACEHOLDER capacity) |
-| Campaign continuity (Stage 2) | `qta_multiphysics/campaign_state_3d.py` (schema 1.0; separate API) |
-| Campaign uncertainty (Stage 3) | `qta_multiphysics/campaign_uncertainty_3d.py` (seed 20260717; verified-source distributions; exclusions recorded) |
-| Measurement ingestion (Stage 4) | `qta_multiphysics/measurement_ingest_3d.py` (SYNTHETIC-only; read-only; fail-closed; never a gate input) |
-| Hardware governance (Stage 5) | `qta_multiphysics/hardware_governance_3d.py` (quarantine/dossier/audit-chain; automatic_gate_effect=NONE). Human-only review authoring is enforced, not asserted: a `reviewer_id` must resolve in `hardware_reviewers.json` to an entry of kind HUMAN whose registration chain reaches `OUT_OF_BAND_BOOTSTRAP`. The roster is a declaration, not authentication, and it registers nobody, so no review record is valid and no gate-evidence dossier can have entries |
-| Validation roadmap (Stage 6) | registries + playbooks + schemas (planning only; 25/25 gates; automatic_gate_effect=NONE) |
-| Scientific-stack adoption (Stage 10) | `STACK.md` + `stack.json` (schema 1.0.0) — ADOPTED / STAGED / DEFERRED per element; implemented in `qta_multiphysics/stack/` (additive, workspace-only, automatic_gate_effect=NONE) |
-| Agent authority substrate | `qta_agent/` — `authority.py` (transition table; invariants I1–I6), `events.py` (append-only hash-chained log + separately witnessed head), `evidence.py` (content-addressed store; a cited digest must resolve), `policy.py` (versioned rules; a decision names the document digest that decided), `scheduler.py` (the durable queue), `secrets.py` (references, not values), `netauth.py` (egress as a bounded grant), `memory.py` (remembered, never evidence), `context.py` (shown, never true), `checkpoint.py` (a cached verification result, never a second truth), `canonical.py` (the one byte representation). Governs how claims *about* the project become canonical, never what the physics says: no module here is imported by the solvers, `qta_full_sim.py`, or `metrics.py`; automatic_gate_effect=NONE; PASS=0 is unaffected |
+## Legacy
 
-Competing sources are never resolved silently: see
-`authorities.json → competing_sources_record` (two historical entries, both
-resolved with evidence and recorded numerical consequences; the unresolved
-list is empty).
+The QTA package's authorities -- modes and species, legal transitions states interlocks, device states per mode, units and physical parameters, solver profiles and tolerances, meshes, seeds, gates, schemas, canonical output paths, claim boundary wording, cryopanel dynamics, campaign continuity, campaign uncertainty, measurement ingestion, hardware governance, validation roadmap -- are in
+`authorities.json -> legacy_authorities`, unchanged, and are authority for
+nothing active (`docs/framework_boundary.json`). Their table as it was is
+`docs/legacy/qta/AUTHORITIES.md`.

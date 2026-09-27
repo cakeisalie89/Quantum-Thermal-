@@ -1,5 +1,13 @@
 # Test execution contract
 
+The framework's tests are `tests/`, run with `uv run python -m pytest
+tests/ -q`; the mutation specifications in `tools/mutations/` run in CI's
+sharded matrix, and `tools/framework_boundary.py`,
+`tools/claims_enforcement.py` and `tools/identity_inventory.py` are CI
+steps. `package_consistency_check.py` below is the LEGACY_QTA_VERIFIER: it
+re-runs the QTA pipeline and byte-compares its outputs, and it is serial with
+the suite for the reason given.
+
 ## The canonical checker and the test suite are serial operations
 
 `package_consistency_check.py`, in its default full-regeneration mode, does

@@ -64,7 +64,7 @@ def test_a_carrier_that_names_a_missing_column_is_refused():
 def test_a_carrier_holding_something_other_than_classes_is_refused():
     """Naming a column is not carrying a class.
 
-    The same anti-proxy rule claims_enforcement.py applies to a pattern that
+    The same anti-proxy rule legacy_qta_claims.py applies to a pattern that
     names a claim and does not match it.
     """
     d = dict(_declared())

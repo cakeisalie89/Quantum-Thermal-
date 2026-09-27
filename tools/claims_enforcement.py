@@ -1,196 +1,153 @@
 #!/usr/bin/env python3
-"""How much of the claims boundary is actually enforced.
+"""The framework's claims boundary: every boundary held by code that exists.
 
-WHY THIS EXISTS
+``CLAIMS_BOUNDARY.md`` states what results produced here may never be
+presented as -- a simulation result is not a measurement, independent
+numerical agreement is not experimental validation, and nine more (directive
+14). A boundary nobody enforces reads exactly like one somebody does, so each
+is registered in ``docs/claims_boundary.json`` with the code that enforces it
+(a module and a symbol defined in it) and the tests that hold it. This checks,
+from the source rather than from anyone's say-so:
 
-CLAIMS_BOUNDARY.md calls itself "the strongest statement of position in the
-entire package" and lists, under **Forbidden:**, the sentences the package may
-not say. Measured for the first time, **19 of its 24 entries would have passed
-package_consistency_check.py verbatim** -- pasted into README.md, nothing
-would have refused them. The whole shielding list was unenforced, including
+* every boundary the directive requires is registered, as a negation in the
+  right order -- dropping one is a finding, not a quiet shrink, and so is
+  inverting one ("a simulation result is a measurement" names both terms);
+* every named module exists and DEFINES the named symbol (a class, function
+  or assignment at module level, read from the parse tree);
+* every named test exists as a function in the named file;
+* ``CLAIMS_BOUNDARY.md`` states every registered boundary, verbatim.
 
-    "Mode B processing and Mode D sensing occur simultaneously."
+What it cannot establish: that the named test tests the boundary. That is
+what the mutation spec is for (``tools/mutations/claims_boundary.json``), and
+the claim here is exactly the one above.
 
-which is the statement the mode-exclusive architecture exists to deny. The
-five that were caught were caught incidentally, by patterns written to catch
-stale RTB/JT module counts.
-
-Nobody had claimed the list was enforced. Nothing had measured that it was
-not, and a claims file whose entries are not enforced reads exactly like one
-whose entries are.
-
-WHAT THIS ESTABLISHES, AND WHAT IT CANNOT
-
-One bounded question, per entry: **would this exact sentence be refused in a
-live document?** A paraphrase is not caught. No string rule catches one, and
-pretending otherwise would put a number on this page that means less than it
-appears to.
-
-So the coverage is re-derived rather than asserted. Naming a bullet in the
-checker is not coverage: the pattern must MATCH the bullet as written, here,
-now, and both directions are reconciled --
-
-  * every **Forbidden:** bullet must be matched by some pattern in the
-    checker, or it is reported uncovered;
-  * every pattern must name a bullet that still exists, so the enforcement
-    table cannot drift into describing a claims file that has moved on;
-  * every pattern must match the bullet it names, which is the check that
-    turns "this rule enforces that claim" from a label into a measurement.
-
-Two entries of the claims boundary are deliberately NOT in the Forbidden list
--- rules about how to read a number rather than sentences anyone would write.
-They sit in prose above it, because a list that must be enforced entry by
-entry cannot carry entries that nothing can enforce without misreporting its
-own coverage.
+The hardware-era QTA claims -- gate counts, Mode B / Mode D exclusivity, BOM
+vocabulary -- are the legacy verifier's, reconciled by
+``tools/legacy_qta_claims.py`` against ``docs/legacy/qta/CLAIMS_BOUNDARY.md``.
 """
 from __future__ import annotations
 
 import argparse
 import ast
-import pathlib
-import re
+import json
 import sys
+from pathlib import Path
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-CLAIMS = ROOT / "CLAIMS_BOUNDARY.md"
-CHECKER = ROOT / "package_consistency_check.py"
+ROOT = Path(__file__).resolve().parent.parent
+REGISTRY = ROOT / "docs" / "claims_boundary.json"
+DOCUMENT = ROOT / "CLAIMS_BOUNDARY.md"
 
-#: Every list in the checker that can refuse a sentence in a live document.
-#: The union is what "enforced" means here; a bullet caught by any of them is
-#: caught. Kept as a union rather than duplicating patterns into one list,
-#: because two copies of a rule drift and one of them keeps passing.
-PATTERN_LISTS = ("FORBIDDEN_CLAIM_PATTERNS", "STALE_PATTERNS_8E")
-SUBSTRING_LISTS = ("STALE_FORBIDDEN_IN_TEX_OR_PDF",
-                   "STALE_FORBIDDEN_IN_STDOUT")
-
-
-class ScopeError(RuntimeError):
-    """The reconciliation had nothing to reconcile."""
-
-
-def forbidden_bullets(text: str) -> list[str]:
-    """The **Forbidden:** bullets of CLAIMS_BOUNDARY.md, unwrapped."""
-    out: list[str] = []
-    for block in re.finditer(
-            r"\*\*Forbidden:\*\*\n(.*?)(?=\n\*\*Allowed:\*\*|\n\n[A-Z]|\n## )",
-            text, re.S):
-        cur = None
-        for line in block.group(1).split("\n"):
-            if line.strip().startswith("- "):
-                if cur:
-                    out.append(cur)
-                cur = line.strip()[2:].strip()
-            elif line.strip() and cur is not None:
-                cur += " " + line.strip()
-        if cur:
-            out.append(cur)
-    return [b.strip().strip('"').strip() for b in out]
+#: The boundaries directive 14 requires, as (what a result is, what it is
+#: not). Held here rather than in the registry, so the registry cannot
+#: satisfy the check by losing one.
+REQUIRED = (
+    ("simulation result", "measurement"),
+    ("synthetic observation", "raw observation"),
+    ("numerical convergence", "physical validation"),
+    ("independent numerical agreement", "experimental validation"),
+    ("signed", "scientifically correct"),
+    ("ai proposal", "verified result"),
+    ("tool completion", "accepted scientific result"),
+    ("retrieved rag text", "evidence authority"),
+    ("surrogate prediction", "ground truth"),
+    ("optimization result", "physical optimum"),
+    ("model calibration", "model validation"),
+)
 
 
-def _literal_pairs(node):
-    """(first, second) of every 2-tuple of string literals in a list node."""
-    for elt in getattr(node, "elts", []):
-        if not isinstance(elt, ast.Tuple) or len(elt.elts) != 2:
-            continue
-        a, b = elt.elts
-        if isinstance(a, ast.Constant) and isinstance(a.value, str) \
-                and isinstance(b, ast.Constant) and isinstance(b.value, str):
-            yield a.value, b.value
+def _states(statement: str, is_: str, is_not: str) -> bool:
+    """Whether ``statement`` says a ``is_`` is not a ``is_not``, in that
+    order. Naming both is not enough."""
+    head, sep, tail = " ".join(statement.lower().split()).partition(
+        " is not ")
+    return bool(sep) and is_ in head and is_not in tail
 
 
-def enforcement(src: str):
-    """Patterns and substrings the checker can refuse a sentence with.
-
-    Read from the parse tree, not by importing: package_consistency_check.py
-    runs its whole audit at import time.
-    """
-    tree = ast.parse(src)
-    pats: list[tuple[str, str, str]] = []   # (regex, label, list name)
-    subs: list[tuple[str, str]] = []        # (substring, list name)
+def _defined(module: Path, symbol: str) -> bool:
+    tree = ast.parse(module.read_text(encoding="utf-8"), filename=str(module))
     for node in tree.body:
-        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
-            continue
-        name = getattr(node.targets[0], "id", None)
-        if name in PATTERN_LISTS:
-            pats += [(rx, lab, name) for rx, lab in _literal_pairs(node.value)]
-        elif name in SUBSTRING_LISTS:
-            subs += [(e.value, name)
-                     for e in getattr(node.value, "elts", [])
-                     if isinstance(e, ast.Constant)
-                     and isinstance(e.value, str)]
-    return pats, subs
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                             ast.ClassDef)) and node.name == symbol:
+            return True
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == symbol
+                for t in node.targets):
+            return True
+        if isinstance(node, ast.AnnAssign) and isinstance(
+                node.target, ast.Name) and node.target.id == symbol:
+            return True
+    return False
 
 
-def reconcile(bullets, pats, subs):
-    """Coverage, measured by matching -- never by a name."""
-    if not bullets:
-        raise ScopeError(
-            "CLAIMS_BOUNDARY.md yielded no **Forbidden:** bullets; a "
-            "reconciliation over an empty list would report full coverage")
-    if not pats:
-        raise ScopeError(
-            "the checker yielded no enforcement patterns; nothing was "
-            "reconciled")
-
-    covered, uncovered, problems = {}, [], []
-    for b in bullets:
-        hits = [(lab, src) for rx, lab, src in pats if re.search(rx, b)]
-        hits += [(x, src) for x, src in subs if x.lower() in b.lower()]
-        if hits:
-            covered[b] = hits
-        else:
-            uncovered.append(b)
-
-    named = {lab for _, lab, src in pats if src == "FORBIDDEN_CLAIM_PATTERNS"}
-    known = set(bullets)
-    for lab in sorted(named - known):
-        problems.append(
-            f"FORBIDDEN_CLAIM_PATTERNS names {lab!r}, which is not a bullet "
-            "in CLAIMS_BOUNDARY.md; the enforcement table is describing a "
-            "claims file that has moved on")
-    # The anti-proxy check: a pattern that names a bullet must MATCH it.
-    for rx, lab, src in pats:
-        if src != "FORBIDDEN_CLAIM_PATTERNS" or lab not in known:
-            continue
-        if not re.search(rx, lab):
-            problems.append(
-                f"pattern {rx!r} claims to enforce {lab!r} and does not "
-                "match it; naming a claim is not enforcing it")
-    for b in uncovered:
-        problems.append(
-            f"no pattern in the checker would refuse {b!r} in a live document")
-    return covered, uncovered, problems
+def _test_exists(ref: str) -> bool:
+    path, _, name = ref.partition("::")
+    f = ROOT / path
+    if not name or not f.is_file():
+        return False
+    name = name.split("[", 1)[0]
+    tree = ast.parse(f.read_text(encoding="utf-8"), filename=str(f))
+    return any(isinstance(n, ast.FunctionDef) and n.name == name
+               for n in tree.body)
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--verbose", action="store_true",
-                    help="print what catches each claim")
-    args = ap.parse_args(argv)
+def problems(registry: dict | None = None,
+             document: str | None = None) -> list:
+    reg = registry if registry is not None else json.loads(
+        REGISTRY.read_text(encoding="utf-8"))
+    doc = document if document is not None else DOCUMENT.read_text(
+        encoding="utf-8")
+    flat_doc = " ".join(doc.split())
+    out = []
+    boundaries = reg.get("boundaries") or []
+    if not boundaries:
+        return ["the registry holds no boundaries; nothing is enforced"]
+    for is_, is_not in REQUIRED:
+        if not any(_states(e.get("statement", ""), is_, is_not)
+                   for e in boundaries):
+            out.append(f"REQUIRED: no boundary says a {is_} is not a "
+                       f"{is_not}")
+    seen = set()
+    for e in boundaries:
+        bid = e.get("id", "?")
+        if bid in seen:
+            out.append(f"{bid}: registered twice")
+        seen.add(bid)
+        statement = e.get("statement", "")
+        if not statement or " ".join(statement.split()) not in flat_doc:
+            out.append(f"{bid}: CLAIMS_BOUNDARY.md does not state "
+                       f"{statement!r}")
+        code = e.get("enforced_in") or []
+        if not code:
+            out.append(f"{bid}: names no code that enforces it")
+        for c in code:
+            mod = ROOT / c.get("module", "")
+            if not mod.is_file():
+                out.append(f"{bid}: {c.get('module')} does not exist")
+            elif not _defined(mod, c.get("symbol", "")):
+                out.append(f"{bid}: {c.get('module')} defines no "
+                           f"{c.get('symbol')!r}")
+        tests = e.get("tests") or []
+        if not tests:
+            out.append(f"{bid}: names no test that holds it")
+        for t in tests:
+            if not _test_exists(t):
+                out.append(f"{bid}: test {t} does not exist")
+    return out
 
-    bullets = forbidden_bullets(CLAIMS.read_text(encoding="utf-8"))
-    pats, subs = enforcement(CHECKER.read_text(encoding="utf-8"))
-    try:
-        covered, uncovered, problems = reconcile(bullets, pats, subs)
-    except ScopeError as exc:
-        print(f"REFUSED: {exc}", file=sys.stderr)
-        return 2
 
-    print(f"{len(covered)} of {len(bullets)} forbidden claims would be "
-          f"refused verbatim in a live document "
-          f"({len(pats)} patterns, {len(subs)} substrings)")
-    if args.verbose:
-        for b in bullets:
-            hits = covered.get(b)
-            mark = f"<- {hits[0][0]!r} ({hits[0][1]})" if hits else "UNCOVERED"
-            print(f"  {b}\n      {mark}")
-    if problems:
-        print(f"\nREFUSED: {len(problems)} problems", file=sys.stderr)
-        for p in problems:
-            print(f"  - {p}", file=sys.stderr)
+def main(argv=None) -> int:
+    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args(
+        argv)
+    found = problems()
+    for p in found:
+        print(p)
+    reg = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    n = len(reg.get("boundaries") or [])
+    if found:
+        print(f"claims boundary NOT held: {len(found)} problem(s)")
         return 1
-    print("every forbidden claim is matched by a rule that was re-derived, "
-          "not named; paraphrases are outside what this establishes")
+    print(f"claims boundary held: {n} boundaries, each stated, each naming "
+          "code that defines it and tests that exist")
     return 0
 
 

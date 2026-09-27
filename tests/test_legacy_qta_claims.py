@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
-import claims_enforcement as ce  # noqa: E402
+import legacy_qta_claims as ce  # noqa: E402
 
 CHECKER_SRC = open(os.path.join(ROOT, "package_consistency_check.py"),
                    encoding="utf-8").read()

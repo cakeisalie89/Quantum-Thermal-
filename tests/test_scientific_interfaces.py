@@ -310,6 +310,19 @@ def test_converged_is_not_experimentally_validated():
         observations=(("r", K.RAW_OBSERVATION),))                   # control
 
 
+def test_a_calibration_is_not_a_validation():
+    """EB11 (CLAIMS_BOUNDARY.md). A calibrated parameter cites measurements
+    and is not one: a comparison against it cannot establish experimental
+    validation, while the same comparison against a raw observation can."""
+    with pytest.raises(VerificationError, match="not experimentally"):
+        _vr(check_type=CheckType.COMPARISON_WITH_MEASUREMENT,
+            establishes=Establishes.EXPERIMENTAL_VALIDATION,
+            observations=(("c", K.CALIBRATED_PARAMETER),))
+    _vr(check_type=CheckType.COMPARISON_WITH_MEASUREMENT,
+        establishes=Establishes.EXPERIMENTAL_VALIDATION,
+        observations=(("r", K.RAW_OBSERVATION),))                   # control
+
+
 def test_a_verdict_needs_a_measurement():
     with pytest.raises(VerificationError, match="nothing measured"):
         _vr(measured=None)

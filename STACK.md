@@ -1,6 +1,7 @@
-# QTA Scientific Stack — Adoption Ladder (Stage 10)
+# Scientific stack — adoption ladder (Stage 10)
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+Part of the governed scientific-agent framework. An adopted tool is a
+checked claim; nothing on this ladder is a measurement or an authority.
 
 `stack.json` (schema 1.0.0) is the machine-readable form of this document and
 is checked against the code by `tests/test_stage10_stack.py`. Code is the
@@ -8,7 +9,7 @@ authority; both files mirror it and neither overrides it.
 
 ## 1. What "adoption" means here
 
-Adding a tool to a forecast-only project is a governance act, not a
+Adding a tool to a governed scientific framework is a governance act, not a
 convenience. Every element below is placed on one of three rungs, and the rung
 is a claim that can be checked:
 
@@ -216,8 +217,8 @@ from the interface content, so it changes when — and only when — the interfa
 changes. Five prerequisites are open (§4); the load-bearing two are state
 serialisation (FMI masters may roll a step back, and the integrator exposes no
 serialisable state) and mode-boundary semantics (a communication step
-straddling a Mode B/C/D transition would bypass an interlock the FSM
-enforces). Neither is a packaging detail.
+straddling a phase boundary of a composed model would bypass the constraint
+that boundary enforces). Neither is a packaging detail.
 
 ## 4. Open items
 
@@ -235,5 +236,6 @@ enforces). Neither is a packaging detail.
 A STAGED element becomes ADOPTED when its acceptance criteria pass in an
 environment the project can reproduce, and the run is recorded in the
 workflow. A DEFERRED element becomes STAGED when every prerequisite is CLOSED.
-Nothing on this ladder can change a gate: `automatic_gate_effect = NONE` for
-every element, at every level, and the scientific PASS count remains zero.
+Nothing on this ladder is authority: `automatic_gate_effect = NONE` for every
+element, at every level, and a result becomes authority only through the
+governed admission path (`AUTHORITIES.md`).

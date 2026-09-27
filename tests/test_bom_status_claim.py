@@ -67,7 +67,8 @@ def test_the_checkers_allowlist_is_the_claimed_vocabulary():
 
 
 def test_the_claims_boundary_states_the_same_vocabulary():
-    text = open(os.path.join(ROOT, "CLAIMS_BOUNDARY.md"), encoding="utf-8").read()
+    text = open(os.path.join(ROOT, "docs", "legacy", "qta", "CLAIMS_BOUNDARY.md"),
+                encoding="utf-8").read()
     i = text.index("No validated hardware")
     clause = text[i:i + 500]
     for status in ALLOWED:

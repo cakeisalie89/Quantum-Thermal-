@@ -28,7 +28,7 @@ WHAT IT REFUSES ON
    nobody classified.
 2. A CARRIER naming a column that is not in that artefact's header.
 3. A CARRIER whose values are not all resolution classes. Naming a column is
-   not carrying a class -- the same anti-proxy rule `claims_enforcement.py`
+   not carrying a class -- the same anti-proxy rule `legacy_qta_claims.py`
    applies to a pattern that names a claim without matching it.
 4. WITHIN-ARTEFACT INCOMPLETENESS. In an artefact where at least one column
    declares a CARRIER, no column may be NO_FLOOR_DEFINED. The mechanism has
