@@ -379,14 +379,19 @@ directory size. *Done when:* it has a recorded hosted-runner margin in
 
 ### 9.4 Defect-ledger follow-ups (from "Open follow-up tracked from this ledger")
 
-* **A. Nine durable action classes have no independent reconstruction:**
-  `agent.claim`, `agent.message`, `file.read`, `network.result`,
-  `secret.access`, `secret.provision`, `task.compensation`,
-  `task.reexecution`, `task.separate_verification`. Ordinary engineering,
-  not a boundary; the count is measured by `tools/identity_inventory.py` on
-  every CI run. *Done when:* `reconstruct_subsystems` replays each from an
-  implementation that does not import the reducer it checks, and the count
-  reads 0.
+* ~~**A. Nine durable action classes have no independent
+  reconstruction.**~~ *Closed in tranche 4.* It was seven: `agent.claim` and
+  `task.compensation` had readers since D-2026-29, and this item copied a
+  stale list (D-2026-84). The seven -- `agent.message`, `file.read`,
+  `network.result`, `secret.access`, `secret.provision`,
+  `task.reexecution`, `task.separate_verification` -- are replayed by
+  `reconstruct_subsystems` and `reconstruct_tasks` from code that imports
+  none of their reducers; the inventory reads 38 of 38. Each stays
+  classified NOT authority-changing, and a forged one of each kind is shown
+  to move no authority-bearing view. Found on the way: `secret.provision`
+  was missing from the action registry, so provisioning a secret made every
+  reducer refuse the log (D-2026-85). 27 mutations
+  (`second_reader_audit_actions.json`).
 * **B. A test damaged tracked files under mutation and the mutation was
   never identified.** The harness restored the file and reported it during
   an `agent_netauth` run; the mutation name was not captured. It is **not**
@@ -516,8 +521,9 @@ work and does not close the entry by being planned.
   including one appended after the task was VERIFIED. Admission measures the
   executor at the verdict, so this does not reach scientific authority; the
   task views still report the later name. *Done when:* an execution record
-  outside LEASED/EXECUTING is refused by both task readers -- with ledger
-  follow-up A's other action classes.
+  outside LEASED/EXECUTING is refused by both task readers. (Follow-up A
+  gave the audit actions second readers; `task.execution` is folded state,
+  and the rule belongs to its primary first.)
 * **Admission does not follow invalidation.** A check or model-run task
   invalidated after a result was admitted leaves the result VERIFIED and
   ADMITTED, which is right about the history; reuse refuses it (it asks

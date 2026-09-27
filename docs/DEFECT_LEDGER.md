@@ -4853,15 +4853,18 @@ not before.
 These are named here so they cannot be closed by silence. They are **not**
 claimed complete.
 
-0. **Nine durable actions have no independent reconstruction:**
-   `agent.claim`, `agent.message`, `file.read`, `network.result`,
-   `secret.access`, `secret.provision`, `task.compensation`,
-   `task.reexecution`, `task.separate_verification`. This is ordinary
-   repository engineering, **not a boundary** — the directive's test is
-   whether work here could implement it without unavailable external
-   evidence or privileges, and it could. The count is measured by
-   `tools/identity_inventory.py` and printed on every CI run, so it cannot
-   drift quietly in either direction.
+0. ~~**Nine durable actions have no independent reconstruction.**~~
+   **CLOSED by follow-up A (D-2026-84, D-2026-85).** The count was seven, not
+   nine, from the day after this was written: D-2026-29 gave `agent.claim`
+   and `task.compensation` readers and left the list alone (D-2026-84). The
+   other seven -- `agent.message`, `file.read`, `network.result`,
+   `secret.access`, `secret.provision`, `task.reexecution`,
+   `task.separate_verification` -- now have second readers in
+   `qta_agent/reconstruct.py`; `tools/identity_inventory.py` measures 38 of
+   38 from the parse tree, and the CI step title says so and is checked.
+   Each of the seven stays classified NOT authority-changing, and
+   `tests/test_second_reader_audit_actions.py` shows a forged one moving no
+   authority-bearing view while the second reader names it.
 0b. **A test damages tracked files under mutation.** The harness reported
    collateral during an `agent_netauth` run, restored it, and said the test
    is unsafe because it does not undo its own writes in a `finally`. The
@@ -7934,3 +7937,50 @@ replay here, for this record kind or any other. And the task projection
 still folds a `task.execution` record appended after a task's verdict --
 the executor it reports changes; admission measures the executor at the
 verdict instead. Both are in plan 9.7.
+
+## D-2026-84 — "nine actions have no second reader" was seven from the day after it was written
+
+**CLASS** — `WRONG_CLAIM`: ledger follow-up 0, written in `7dc9a1f`; and
+mine, copied into `ARCHITECTURE_CONVERGENCE_PLAN.md` section 9.4 in the
+Phase-1 closure (`f18b5f0`) without running the tool that measures it.
+Found when this tranche's follow-up A ran `tools/identity_inventory.py`
+before writing a line.
+
+The follow-up listed nine durable actions with no independent reader.
+D-2026-29 (`3d809f0`, the next day) gave two of them one -- `agent.claim`
+and `task.compensation` -- and updated the inventory, which has measured the
+number from the second reader's parse tree ever since: 31 of 38, seven
+missing. The follow-up and my plan kept saying nine. Like D-2026-81, the
+stale number points the safe way -- it overstates what is left -- and like
+it, it made the next piece of work look larger than it was.
+
+**REPAIR.** Follow-up A done: the seven have readers (D-2026-85 is what one
+of them found), follow-up 0 and plan 9.4 A are closed, and the inventory
+reads 38 of 38. **NOT DONE**: nothing checks a prose count of this kind
+against the tool that measures it; the step title is checked, the ledger's
+own text is not.
+
+## D-2026-85 — provisioning a secret made every reducer on the log refuse the whole history
+
+**CLASS** — `DEFECT`, `qta_agent/actions.py`. Found by follow-up A's first
+test: appending a genuine `secret.provision` record to a governed history
+made the task projection raise `UnknownAction` -- "no module in this package
+writes it".
+
+`SecretStore.provision` writes `secret.provision` (`ACT_SECRET_PROVISION`),
+and the action registry every reducer consults to tell another subsystem's
+event (FOREIGN: skip it) from one nothing writes (UNKNOWN: refuse the log)
+did not list it. It was the only `ACT_*` constant missing. So the moment a
+deployment provisioned a secret onto a shared log, the authority store, the
+task projection, the scheduler and every other reducer that meets it on the
+way past refused to load that log at all -- fail-closed, and total.
+
+Nothing noticed because no test put a provisioning record on a log that
+anything else then read. The identity inventory enumerates every `ACT_*`
+constant; nothing held the registry to the same list.
+
+**REPAIR.** Registered. **TEST.** `test_every_durable_action_is_registered`
+holds the registry to every `ACT_*` constant in `qta_agent/`, parsed from
+source; `test_a_provisioned_secret_does_not_stop_the_other_readers` is the
+consequence, end to end. **MUTATION.**
+`second_reader_audit_actions.json` `AR_REG_secret_provision_is_unregistered`.

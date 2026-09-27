@@ -82,6 +82,9 @@ OWNERS: dict = {
     # qta_agent.secrets
     "secret.grant": "secrets",
     "secret.access": "secrets",
+    # Missing until follow-up A: a provisioning record made every reducer
+    # on the log refuse the whole history as UNKNOWN (D-2026-85).
+    "secret.provision": "secrets",
     # qta_agent.context
     "context.build": "context",
     # qta_agent.readpath -- every governed read, permitted or refused

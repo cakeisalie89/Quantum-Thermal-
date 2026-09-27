@@ -714,6 +714,10 @@ RULES = [
      "NEW in Phase 2: a verified model result reused only on evidence "
      "re-derived intact; every exclusion against a genuine control.",
      ""),
+    ("tests/test_second_reader_audit_actions.py", KAH,
+     "NEW (follow-up A, D-2026-84/85): the seven audit actions read a "
+     "second time; a forged one moves no authority.",
+     ""),
     ("tests/test_scientific_authority_replay.py", KAH,
      "NEW (D-2026-83): replay, snapshot restore and the independent reader "
      "each re-decide a scientific result's admission; forged histories "

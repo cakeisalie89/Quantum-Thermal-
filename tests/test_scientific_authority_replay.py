@@ -114,11 +114,12 @@ def _append_transition(base: Path, rid: str, *, src: str, dst: str,
         payload=payload)
 
 
-def _under_review(base: Path, rid: str, bundle_sha: str) -> None:
+def _under_review(base: Path, rid: str, bundle_sha) -> None:
     g = _open(base)
     g.authority.create(record_id=rid, kind=result_rules.KIND,
                        proposer=SUBMITTER_ID,
-                       evidence={"result_bundle": bundle_sha})
+                       evidence=({"result_bundle": bundle_sha}
+                                 if bundle_sha else {}))
     g.authority.transition(record_id=rid, dst=State.UNDER_REVIEW,
                            actor=REVIEWER_ID, role=Role.VERIFIER)
 
@@ -211,6 +212,11 @@ def _forged(case: str, base: Path, run, chk) -> dict:
         policy = "scientific_result.admission/0"
     elif case == "no-policy":
         policy = None
+    elif case == "no-bundle":
+        # Missing evidence, as a missing CITATION: the record never named a
+        # bundle. (A cited digest that does not resolve is the other kind of
+        # missing, and is UNVERIFIABLE -- see the tests below.)
+        bundle_sha = None
     else:                                                # pragma: no cover
         raise AssertionError(case)
     return {"rid": rid, "bundle_sha": bundle_sha, "report_sha": report_sha,
@@ -220,7 +226,7 @@ def _forged(case: str, base: Path, run, chk) -> dict:
 FORGERIES = ["wrong-subject", "fail", "not-run", "same-producer",
              "experimental-validation", "failed-invariant", "forged-pass",
              "self-verified", "late-evidence", "invalidated-check",
-             "unknown-policy", "no-policy"]
+             "unknown-policy", "no-policy", "no-bundle"]
 
 
 @pytest.mark.parametrize("case", FORGERIES)

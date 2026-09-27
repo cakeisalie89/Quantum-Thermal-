@@ -898,7 +898,8 @@ def reconstruct_tasks(log: EventLog, *,
     tasks: dict = {}
     bindings: dict = {}
     owned = {"task.create", "task.transition", "task.execution",
-             "task.evidence", "idempotency.bind"}
+             "task.evidence", "idempotency.bind", "task.reexecution",
+             "task.separate_verification"}
 
     for ev in events:
         out.events_replayed += 1
@@ -951,6 +952,10 @@ def reconstruct_tasks(log: EventLog, *,
                 # admission, which asks what had been captured and who had
                 # run the task at the moment of its verdict.
                 "captured": [], "executions": [],
+                # (seq, action, actor) of every check record this reader
+                # accepted: a re-execution or a separate-process verification
+                # made while the task stood COMPLETED.
+                "checks": [],
             }
             continue
 
@@ -970,6 +975,13 @@ def reconstruct_tasks(log: EventLog, *,
             cur["executed_by"] = ev.actor
             cur["result_digest"] = p.get("result_digest")
             cur["executions"].append((ev.seq, ev.actor))
+            continue
+        if action in ("task.reexecution", "task.separate_verification"):
+            why = _task_check_record(action, ev, p, cur)
+            if why:
+                out.anomalies.append(f"seq {ev.seq}: {tid} {why}")
+            else:
+                cur["checks"].append((ev.seq, action, ev.actor))
             continue
 
         # task.transition
@@ -1117,6 +1129,17 @@ class SubsystemReconstruction:
     services: dict = field(default_factory=dict)
     #: "service_id/task_id" -> permitted calls counted from the log.
     service_calls: dict = field(default_factory=dict)
+    #: The audit trail, read a second time (ledger follow-up A): message id
+    #: -> the dimensions it names; governed reads and secret uses that a
+    #: live grant covered; egress results answering an allowed request of
+    #: their own; secrets provisioned, by id -> seq.
+    messages: dict = field(default_factory=dict)
+    reads: int = 0
+    secret_uses: int = 0
+    provisioned: dict = field(default_factory=dict)
+    net_results: int = 0
+    #: (actor, task, target) -> allowed requests not yet answered.
+    egress_open: dict = field(default_factory=dict)
     anomalies: list = field(default_factory=list)
     events_replayed: int = 0
     head_seq: int = -1
@@ -1263,6 +1286,17 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_service(ev, p, out)
         elif a == "network.request":
             _sub_service_call(ev, p, out)
+            _sub_net_request_seen(ev, p, out)
+        elif a == "network.result":
+            _sub_network_result(ev, p, out)
+        elif a == "agent.message":
+            _sub_message(ev, p, out)
+        elif a == "file.read":
+            _sub_file_read(ev, p, out)
+        elif a == "secret.access":
+            _sub_secret_access(ev, p, out)
+        elif a == "secret.provision":
+            _sub_secret_provision(ev, p, out)
         elif a == "network.grant":
             _sub_grant(ev, p, out, out.net_grants, "network")
         elif a == "secret.grant":
@@ -1275,6 +1309,232 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
 
 def _note(out, ev, text: str) -> None:
     out.anomalies.append(f"seq {ev.seq}: {text}")
+
+
+# ---------------------------------------------------------------------------
+# AUDIT RECORDS, READ A SECOND TIME (ledger follow-up A).
+#
+# Five durable actions here, and two task actions in reconstruct_tasks,
+# record what HAPPENED rather than change what is permitted: a message, a
+# governed read, an egress result, a secret's use, a secret's provisioning.
+# Each is classified NOT authority-changing in docs/identity_inventory.json,
+# with its reason, and tests/test_second_reader_audit_actions.py shows that a
+# forged one moves no primary projection. That is exactly why they need a
+# second reader: they are the trail an investigation reads, and nothing
+# consults them afterwards to notice they are false. A record the writer
+# could not have produced is a finding here.
+#
+# Stricter than the primaries in places, deliberately and said so beside
+# each rule: several of these have no reducer at all, and where one exists
+# it checks only what it needs in order to fold.
+# ---------------------------------------------------------------------------
+
+#: Every field a message record may carry, and the ones its id NAMES. A
+#: redelivery repeats all of the latter; a record that changes one is a
+#: rewrite wearing the same id.
+_MSG_FIELDS = frozenset({"message_id", "sender_instance", "recipient_agent",
+                         "task_id", "subject", "body_digest", "sent_seq",
+                         "in_reply_to", "delivered_to"})
+_MSG_NAMED = ("message_id", "sender_instance", "recipient_agent", "task_id",
+              "subject", "body_digest", "in_reply_to")
+_MSG_REQUIRED = frozenset(_MSG_NAMED) - {"in_reply_to"}
+_MSG_SUBJECT_MAX = 200
+
+
+def _sub_message(ev, p: dict, out) -> None:
+    rec = p.get("message")
+    if not isinstance(rec, dict):
+        _note(out, ev, "agent.message carries no message record")
+        return
+    unknown = sorted(set(rec) - _MSG_FIELDS)
+    missing = sorted(_MSG_REQUIRED - set(rec))
+    if unknown or missing:
+        _note(out, ev, f"message record is malformed (unknown {unknown}, "
+                       f"missing {missing})")
+        return
+    mid = rec["message_id"]
+    # Who sent it is who appended it -- the primary's own rule.
+    if rec["sender_instance"] != ev.actor:
+        _note(out, ev, f"message {mid!r} says it was sent by "
+                       f"{rec['sender_instance']!r} and was appended by "
+                       f"{ev.actor!r}")
+        return
+    prior = out.messages.get(mid)
+    if prior is not None:
+        changed = [k for k in _MSG_NAMED if prior.get(k) != rec.get(k)]
+        if changed:
+            _note(out, ev, f"message {mid!r} is re-sent with {changed} "
+                           "changed; a redelivery repeats a message and "
+                           "this one says something else")
+        return
+    # What send() refuses and the replay does not ask: the body is carried
+    # by digest, the subject is bounded, and a reply answers a message that
+    # was sent. Stricter than the primary's replay, which only folds.
+    if not _is_digest(rec["body_digest"]):
+        _note(out, ev, f"message {mid!r} carries its body as something "
+                       "other than a digest")
+        return
+    if not isinstance(rec["subject"], str) \
+            or len(rec["subject"]) > _MSG_SUBJECT_MAX:
+        _note(out, ev, f"message {mid!r} has a subject send() refuses")
+        return
+    reply = rec.get("in_reply_to")
+    if reply is not None and reply not in out.messages:
+        _note(out, ev, f"message {mid!r} replies to {reply!r}, which was "
+                       "never sent")
+        return
+    out.messages[mid] = {**{k: rec.get(k) for k in _MSG_NAMED},
+                         "sent_seq": ev.seq}
+
+
+def _sub_grant_live(entry: dict, at_seq: int) -> str:
+    """Why ``entry`` (a capability or grant this reader holds) authorizes
+    nothing at ``at_seq``; empty when it is in force there."""
+    issued = entry.get("issued_seq")
+    if not isinstance(issued, int) or at_seq < issued:
+        return f"was not yet issued at seq {at_seq}"
+    revoked = entry.get("revoked_seq")
+    if revoked is not None and revoked <= at_seq:
+        return f"was revoked at seq {revoked}"
+    end = entry.get("expires_after_seq")
+    if isinstance(end, int) and end != -1 and at_seq > end:
+        return f"expired after seq {end}"
+    return ""
+
+
+def _sub_file_read(ev, p: dict, out) -> None:
+    req = p.get("request")
+    if not isinstance(req, dict):
+        _note(out, ev, "file.read carries no request")
+        return
+    if req.get("actor") != ev.actor:
+        _note(out, ev, f"a read by {req.get('actor')!r} was appended by "
+                       f"{ev.actor!r}; the reader is who recorded it")
+        return
+    allowed = p.get("allowed")
+    if not isinstance(allowed, bool):
+        _note(out, ev, "file.read does not say whether it was allowed")
+        return
+    result = p.get("result")
+    if not allowed:
+        if result is not None:
+            _note(out, ev, "a refused read carries a result: bytes were read "
+                           "that nothing authorized")
+        return
+    if not isinstance(result, dict) or not _is_digest(result.get("digest")):
+        _note(out, ev, "an allowed read records no digest of what it read")
+        return
+    cid = p.get("capability_id")
+    cap = out.capabilities.get(cid)
+    if cap is None:
+        _note(out, ev, f"an allowed read cites capability {cid!r}, which "
+                       "this log never issued")
+        return
+    why = _sub_grant_live(cap, ev.seq)
+    if why:
+        _note(out, ev, f"an allowed read cites capability {cid!r}, which "
+                       f"{why}")
+        return
+    scoped = f"{req.get('root_id')}/{req.get('resource')}"
+    if (cap.get("subject") != ev.actor or cap.get("action") != "READ_PATHS"
+            or cap.get("task_id") != req.get("task_id")
+            or not _sub_covers(cap.get("scope"), scoped)):
+        _note(out, ev, f"capability {cid!r} does not permit {ev.actor!r} to "
+                       f"read {scoped!r} for task {req.get('task_id')!r}")
+        return
+    out.reads += 1
+
+
+def _sub_net_request_seen(ev, p: dict, out) -> None:
+    """Remember an ALLOWED egress, so its result has something to answer."""
+    req = p.get("request")
+    if not p.get("allowed") or not isinstance(req, dict):
+        return
+    key = (ev.actor, p.get("task_id"), _sub_target_key(req.get("target")))
+    out.egress_open[key] = out.egress_open.get(key, 0) + 1
+
+
+def _sub_target_key(target) -> str:
+    import json
+    try:
+        return json.dumps(target, sort_keys=True)
+    except (TypeError, ValueError):
+        return repr(target)
+
+
+def _sub_network_result(ev, p: dict, out) -> None:
+    rd = p.get("response_digest")
+    if rd is not None and not _is_digest(rd):
+        _note(out, ev, "network.result carries a response digest that is "
+                       "not a digest")
+        return
+    key = (ev.actor, ev.target, _sub_target_key(p.get("target")))
+    if out.egress_open.get(key, 0) < 1:
+        _note(out, ev, f"{ev.actor!r} records a network result for task "
+                       f"{ev.target!r} with no allowed request of its own "
+                       "to that target; a response to egress nobody "
+                       "authorized")
+        return
+    out.egress_open[key] -= 1
+    out.net_results += 1
+
+
+def _sub_secret_access(ev, p: dict, out) -> None:
+    gid = p.get("grant_id")
+    g = out.secret_grants.get(gid)
+    if g is None:
+        _note(out, ev, f"secret {p.get('secret_id')!r} was used under grant "
+                       f"{gid!r}, which this log never issued")
+        return
+    if p.get("grant_digest") != g.get("digest"):
+        _note(out, ev, f"a use of grant {gid!r} cites other terms than the "
+                       "grant this log holds")
+        return
+    why = _sub_grant_live({**g, "expires_after_seq":
+                           (g.get("body") or {}).get("expires_after_seq")},
+                          ev.seq)
+    if why:
+        _note(out, ev, f"secret grant {gid!r} {why}, and was used")
+        return
+    body = g.get("body") or {}
+    purposes = body.get("purposes") or ()
+    wrong = [name for name, ok in (
+        ("secret", body.get("secret_id") == p.get("secret_id")),
+        ("subject", body.get("subject") == ev.actor),
+        ("task", body.get("task_id") == ev.target),
+        ("tool", body.get("tool_id") == p.get("tool_id")),
+        ("purpose", "*" in purposes or p.get("purpose") in purposes),
+    ) if not ok]
+    if wrong:
+        _note(out, ev, f"secret grant {gid!r} does not cover this use "
+                       f"({', '.join(wrong)})")
+        return
+    out.secret_uses += 1
+
+
+#: The only fields a provisioning record carries: which secret, the
+#: provider's description, and a byte COUNT. Anything else is a place a
+#: value could have been written.
+_PROVISION_FIELDS = frozenset({"secret_id", "provider", "bytes"})
+
+
+def _sub_secret_provision(ev, p: dict, out) -> None:
+    extra = sorted(set(p) - _PROVISION_FIELDS)
+    if extra:
+        _note(out, ev, f"secret.provision carries {extra}; a provisioning "
+                       "record names a secret and a length, never content")
+        return
+    n = p.get("bytes")
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        _note(out, ev, f"secret {p.get('secret_id')!r} was provisioned with "
+                       f"{n!r} bytes; an empty secret is a refusal, not a "
+                       "value")
+        return
+    sid = p.get("secret_id")
+    if not isinstance(sid, str) or not sid:
+        _note(out, ev, "secret.provision names no secret")
+        return
+    out.provisioned[sid] = ev.seq
 
 
 def _sub_enqueue(ev, p: dict, out) -> None:
@@ -2426,6 +2686,53 @@ def compare_bindings(ledger, recon) -> tuple:
             if x != y:
                 out.append(Divergence(label, fld, x, y))
     return tuple(out)
+
+
+def _task_check_record(action: str, ev, p: dict, cur: dict) -> str:
+    """Why a ``task.reexecution`` or ``task.separate_verification`` record
+    is not one the governed runner could have written; empty when it is.
+
+    Both are facts about HOW a result was checked, made by the verifier
+    between the task's completion and its verdict. Neither moves the task --
+    the verdict is a transition, re-authorized above -- which is why the
+    identity inventory classifies them as not authority-changing. They are
+    what an auditor reads to learn how the verdict was reached, so a record
+    made by the executor itself, after the verdict, or saying a failed check
+    passed, is a finding.
+    """
+    if cur["state"] != _TASK_COMPLETED:
+        return (f"{action} recorded while the task is {cur['state']}; a "
+                "check is made between completion and the verdict")
+    if cur["executed_by"] is None or ev.actor == cur["executed_by"]:
+        return (f"{action} recorded by {ev.actor!r}, the task's executor "
+                f"({cur['executed_by']!r}); a check is not the checked "
+                "party's to record")
+    if action == "task.reexecution":
+        compared = p.get("compared")
+        if p.get("tool_id") != cur["tool_id"]:
+            return (f"re-executed {p.get('tool_id')!r}, and the task ran "
+                    f"{cur['tool_id']!r}")
+        if p.get("determinism") != "BYTE_IDENTICAL":
+            return ("claims a byte-for-byte re-execution of a tool not "
+                    "declared BYTE_IDENTICAL")
+        if not isinstance(compared, list) or not compared \
+                or not all(isinstance(c, str) and c for c in compared):
+            return "re-execution compared nothing"
+        return ""
+    ok, findings = p.get("ok"), p.get("findings")
+    if not isinstance(ok, bool) or not isinstance(findings, list):
+        return "separate verification records no verdict"
+    if ok == bool(findings):
+        return (f"separate verification says ok={ok} with "
+                f"{len(findings)} finding(s)")
+    head = p.get("head_seq")
+    completed = max((seq for seq, st in cur["history"]
+                     if st == _TASK_COMPLETED), default=None)
+    if not isinstance(head, int) or isinstance(head, bool) \
+            or completed is None or not completed <= head < ev.seq:
+        return (f"separate verification read the log through {head!r}; "
+                "it must cover the task's completion and precede itself")
+    return ""
 
 
 def _lease_of(cur: dict):

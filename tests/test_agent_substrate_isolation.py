@@ -100,6 +100,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_agent_result_rules.py",
     "tests/test_governed_model_reuse.py",
     "tests/test_scientific_authority_replay.py",
+    "tests/test_second_reader_audit_actions.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".

@@ -72,12 +72,11 @@ def test_every_ACTOR_field_names_a_test_that_exists():
 def test_independent_reader_coverage_is_MEASURED_not_claimed():
     """"The second reader covers every subsystem" was a claim. This measures.
 
-    It is not true, and the number is recorded rather than rounded up: the
-    reader reconstructs 31 of 38 durable actions. The seven that are not are
-    named in the inventory, each classified as not authority-changing with
-    its reason. Saying so is the alternative to a step title that overstates
-    it -- and the step title itself is checked below, so the label cannot
-    drift away from the measurement either.
+    For a long time it was not true, and the number was recorded rather than
+    rounded up: 31 of 38, the seven uncovered each classified as not
+    authority-changing with its reason. Ledger follow-up A gave those seven
+    readers, and the measurement now says 38 of 38 -- measured from the
+    parse tree, not asserted. The step title quoting it is checked below.
     """
     doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
     recorded = {e["action"] for e in doc["actions"]
@@ -85,9 +84,11 @@ def test_independent_reader_coverage_is_MEASURED_not_claimed():
     assert recorded == reconstructed_actions(), (
         "the recorded coverage disagrees with what reconstruct.py "
         "dispatches on")
-    assert recorded != set(durable_actions()), (
-        "coverage is now total -- update the inventory note and the CI step "
-        "title, which both say it is not")
+    assert recorded == set(durable_actions()), (
+        "coverage is no longer total: "
+        f"{sorted(set(durable_actions()) - recorded)} have no second "
+        "reader -- classify each and update the step title, which says "
+        "every action has one")
 
 
 def test_every_role_used_is_one_the_schema_defines():
@@ -147,12 +148,14 @@ from tools.identity_inventory import (  # noqa: E402
     reconstruction_coverage,
 )
 
-#: A real durable action the second reader does NOT dispatch on, so every
-#: planted case below starts from a known negative rather than from one that
-#: would have counted anyway. It was ``agent.claim`` until P0-R14 gave that
-#: one a reader, at which point every planted case quietly stopped proving
-#: anything -- and ``test_the_planted_action_is_uncovered_in_the_real_reader``
-#: is what said so.
+#: A real durable action, planted into synthetic readers below. It used to
+#: have to be one the REAL reader did not dispatch on -- ``agent.claim``
+#: until P0-R14 gave it a reader, then ``agent.message`` -- and since
+#: follow-up A there is none: the second reader covers every durable action.
+#: Every planted case measures only the text it is handed, so what it needs
+#: is a real action (the measurement enumerates real actions) and a known
+#: negative to start from, which the empty source supplies; see
+#: ``test_the_planted_action_is_real_and_the_real_reader_is_not_consulted``.
 UNCOVERED = "agent.message"
 
 #: What the measurement this replaced would have said, reproduced here so
@@ -161,13 +164,18 @@ def _old_measurement(source: str, action: str) -> bool:
     return f'"{action}"' in source
 
 
-def test_the_planted_action_is_uncovered_in_the_real_reader():
+def test_the_planted_action_is_real_and_the_real_reader_is_not_consulted():
     """Anti-vacuity for every planted case below.
 
-    If ``agent.claim`` were already dispatched on, planting it would prove
-    nothing: the measurement would answer DISPATCHED either way.
+    The planted cases would prove nothing if the measurement answered from
+    the real reader, which now dispatches on every action: each would read
+    DISPATCHED whatever was planted. So: the action is a real one, the real
+    reader does cover it, and a planted empty source still reads ABSENT --
+    the answer comes from the text handed in.
     """
-    assert reconstruction_coverage()[UNCOVERED] != DISPATCHED
+    assert UNCOVERED in durable_actions()
+    assert reconstruction_coverage()[UNCOVERED] == DISPATCHED
+    assert reconstruction_coverage("")[UNCOVERED] == ABSENT
 
 
 def test_an_action_named_only_in_a_comment_is_not_coverage():
@@ -334,17 +342,23 @@ def test_the_unmodified_inventory_produces_no_problems(tmp_path, monkeypatch):
     assert _with_inventory(tmp_path, monkeypatch, lambda doc: None) == []
 
 
+def _without_a_reader_for(monkeypatch, action):
+    """The measurement as it would be if the second reader lost ``action``:
+    every action is covered today, so the gap is planted."""
+    real = II.reconstructed_actions()
+    monkeypatch.setattr(II, "reconstructed_actions",
+                        lambda source=None: real - {action})
+
+
 def test_the_checker_refuses_overstated_reader_coverage(tmp_path, monkeypatch):
     """Recording an uncovered action as independently reconstructed.
 
     This is the claim P0-R13 was about, made directly rather than by a
-    measurement that could be fooled.
+    measurement that could be fooled. Every action has a reader now, so the
+    reader loses one here and the inventory keeps claiming it.
     """
-    def overstate(doc):
-        for e in doc["actions"]:
-            if e["action"] == UNCOVERED:
-                e["independent_reader"] = "YES"
-    found = _with_inventory(tmp_path, monkeypatch, overstate)
+    _without_a_reader_for(monkeypatch, UNCOVERED)
+    found = _with_inventory(tmp_path, monkeypatch, lambda doc: None)
     assert any("claimed as independently reconstructed" in p for p in found), \
         found
 
@@ -465,15 +479,14 @@ def test_every_authority_changing_action_has_a_second_reader():
         "reconstruct them or say why they do not change authority")
 
 
-def test_the_uncovered_actions_are_exactly_the_ones_judged_harmless():
-    """And the set is named, so shrinking coverage has to come past here."""
+def test_no_durable_action_is_left_without_a_second_reader():
+    """The set was named while it was not empty -- seven actions, each
+    judged harmless -- so that shrinking coverage had to come past here.
+    Follow-up A emptied it; growing it again has to come past here too."""
     doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
     uncovered = {e["action"] for e in doc["actions"]
                  if e["independent_reader"] != "YES"}
-    assert uncovered == {
-        "agent.message", "file.read", "network.result", "secret.access",
-        "secret.provision", "task.reexecution",
-        "task.separate_verification"}, sorted(uncovered)
+    assert uncovered == set(), sorted(uncovered)
     assert uncovered == set(durable_actions()) - reconstructed_actions()
 
 
@@ -489,15 +502,18 @@ def test_the_checker_refuses_an_uncovered_authority_changing_action(
         tmp_path, monkeypatch):
     """The whole point of the classification, exercised.
 
-    ``agent.message`` is uncovered and judged harmless. Reclassify it as
-    authority-changing without giving it a reader and the inventory has to
+    ``agent.message`` is judged harmless. Take its reader away, record that
+    honestly, and reclassify it as authority-changing: the inventory has to
     refuse -- which is what stops the classification from being a way to
     wave a gap through.
     """
+    _without_a_reader_for(monkeypatch, UNCOVERED)
+
     def reclassify(doc):
         for e in doc["actions"]:
-            if e["action"] == "agent.message":
+            if e["action"] == UNCOVERED:
                 e["authority_changing"] = True
+                e["independent_reader"] = "NO"
     found = _with_inventory(tmp_path, monkeypatch, reclassify)
     assert any("authority-changing and has no independent reader" in p
                for p in found), found

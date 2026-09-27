@@ -533,6 +533,7 @@ tests/test_scientific_import_isolation.py,KEEP_AS_IS,-,"NEW in Phase 2: the inte
 tests/test_scientific_interfaces.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_thermal_1d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_thermal_2d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_second_reader_audit_actions.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (follow-up A, D-2026-84/85): the seven audit actions read a second time; a forged one moves no authority.",
 tests/test_signing_finalizer.py,KEEP_AS_IS,-,Signing finalizer.,
 tests/test_single_source_of_truth.py,REWRITE_GENERIC,2-7 (see rationale),Single-definition rule is generic; subject list is QTA.,
 tests/test_solver_failclosed.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A failed solve grants nothing (directive s20 model).,
@@ -620,6 +621,7 @@ tools/mutations/scientific_authority_replay.json,KEEP_AS_IS,-,"Mutation spec ove
 tools/mutations/scientific_interfaces.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_thermal_1d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/second_reader_audit_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

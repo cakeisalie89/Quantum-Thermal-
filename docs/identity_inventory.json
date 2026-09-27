@@ -72,7 +72,7 @@
     {
       "action": "agent.message",
       "module": "agents.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "message.sender_instance",
@@ -88,7 +88,7 @@
           "note": "who it is addressed to; legitimately not the actor, and part of what message_id names"
         }
       ],
-      "note": "No independent reader. Messages reconstruct who told whom what.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): _sub_message restates the primary's sender binding and redelivery immutability, and adds what send() refuses and replay did not ask -- a body carried as a digest, a bounded subject, a reply to a message that was sent.",
       "authority_changing": false,
       "authority_note": "Nothing consults a message to permit anything. It is how a later reader reconstructs who told whom what, which makes its sender binding and its redelivery immutability matter for AUDIT rather than for authority. The reducer binds sender to actor and refuses a rewrite under a reused id."
     },
@@ -218,7 +218,7 @@
     {
       "action": "file.read",
       "module": "readpath.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "-",
@@ -226,7 +226,7 @@
           "note": "the READER is ev.actor; the payload names paths and digests"
         }
       ],
-      "note": "Audit record for a governed read. No independent reader.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): _sub_file_read requires an allowed read to cite a capability this log issued, live at that seq, held by the reader, for READ_PATHS, confined to the request's task and covering root/resource -- and a refused read to carry no result.",
       "authority_changing": false,
       "authority_note": "Written AFTER readpath's gate has already decided. The gate consults capabilities and the path, never a past file.read, so a forged one falsifies the audit trail and permits nothing."
     },
@@ -314,7 +314,7 @@
     {
       "action": "network.result",
       "module": "netauth.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "-",
@@ -322,7 +322,7 @@
           "note": "outcome and response digest"
         }
       ],
-      "note": "No independent reader.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): _sub_network_result requires each result to answer an allowed network.request of the same actor, task and target, one result per request. NetworkAuthority.record_result has no caller in this repository today; the rule is for the record when it gets one.",
       "authority_changing": false,
       "authority_note": "The NetworkAuthority reducer folds grants and service calls; a result record only advances the reader's position in the log. It is the record of what came back, and it permits nothing."
     },
@@ -485,7 +485,7 @@
     {
       "action": "secret.access",
       "module": "secrets.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "-",
@@ -493,7 +493,7 @@
           "note": "the RESOLVER is ev.actor; the payload names grant, secret, tool and purpose and no value"
         }
       ],
-      "note": "No independent reader.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): _sub_secret_access restates SecretStore._authorize against the grants this reader rebuilt -- issued, not revoked, not expired, this secret, this subject, this task, this tool, this purpose, and the grant digest the use cites.",
       "authority_changing": false,
       "authority_note": "SecretStore.apply folds secret.grant and nothing else. An access record is the audit trail of a use the grant already permitted."
     },
@@ -515,7 +515,7 @@
     {
       "action": "secret.provision",
       "module": "secrets.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "-",
@@ -523,7 +523,7 @@
           "note": "a provider load; byte COUNT only, never the value"
         }
       ],
-      "note": "No independent reader.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): _sub_secret_provision holds the record to exactly secret_id, provider and a positive byte count; any other field is a place a value could have been written.",
       "authority_changing": false,
       "authority_note": "Provisioning puts a VALUE in this process. The authority is the grant; this record carries the provider's description and a length, is folded by nothing, and permits nothing."
     },
@@ -593,7 +593,7 @@
     {
       "action": "task.reexecution",
       "module": "governed_stage10.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "-",
@@ -601,14 +601,14 @@
           "note": "a re-run comparison"
         }
       ],
-      "note": "No independent reader.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): reconstruct_tasks accepts it only while the task stands COMPLETED, from an actor other than its executor, for the tool the task ran, declared BYTE_IDENTICAL, comparing at least one output.",
       "authority_changing": false,
       "authority_note": "A fact about HOW a result was checked. It moves no task; the transition it justifies is recorded as a transition, and that IS reconstructed."
     },
     {
       "action": "task.separate_verification",
       "module": "governed_stage10.py",
-      "independent_reader": "NO",
+      "independent_reader": "YES",
       "fields": [
         {
           "name": "-",
@@ -616,7 +616,7 @@
           "note": "the VERIFIER is ev.actor, separated from the executor"
         }
       ],
-      "note": "No independent reader.",
+      "note": "Independently reconstructed as of follow-up A (tranche 4): reconstruct_tasks accepts it only while the task stands COMPLETED, from an actor other than its executor, with ok agreeing with its findings and a head that covers the completion and precedes the record.",
       "authority_changing": false,
       "authority_note": "Same shape: the separate verifier's verdict is recorded, and the transition it justifies is a transition."
     },
