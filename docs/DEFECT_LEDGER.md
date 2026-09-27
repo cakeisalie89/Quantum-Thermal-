@@ -8248,3 +8248,91 @@ neither numpy nor scipy imported. **MUTATIONS.** `run_identity_backend.json`
 is no equivalence policy saying when two backends agree well enough for a
 given model (directive 11). The identity says "different"; it cannot yet say
 "different and equivalent".
+
+## D-2026-91 — the long campaign's start line was a sleep, and its anti-vacuity check counted labels
+
+**CLASS** — `TEST_DEFECT` (instruments of a test), `tests/test_agent_cross_process.py`.
+Not R59: nothing numerical is involved, and no scheduler code changed.
+
+**DISCOVERED BY.** Hosted CI at `b683977`, PR run 36338018443, job
+`second-interpreter (3.13)` 108672503268:
+`test_a_long_mixed_campaign_never_leaves_an_unreplayable_log[250]` failed
+
+```
+the campaign only ever recorded ['DISPATCHED', 'READY', 'SUCCEEDED']
++  where 3 = len(Counter({'READY': 19, 'DISPATCHED': 19, 'SUCCEEDED': 12}))
+```
+
+The chain verified and the queue rebuilt -- both assertions come first and
+passed. The same code passed the same job on `ced0a42`, and the same test in
+two other jobs on `b683977` itself. Sixty-two local campaigns and a fully
+serial one never produced fewer than four destinations.
+
+**DEFECT.** Two, both in the campaign's own instruments, and an ordering.
+
+1. The anti-vacuity rule counted distinct DESTINATION labels and wanted four.
+   That run's 19 moves into READY were 12 promotions out of WAITING and 7
+   DISPATCHED -> READY requeues: a lease lapsing and the job being recovered,
+   seven times, invisible to a count of labels because READY had already been
+   reached on the ordinary path. The assertion's own message named a requeue
+   as enough; its measure could not see one. Whether a fourth label appeared
+   depended on a TRANSIENT report landing while its sender still held the
+   lease, or a budget running out, before all twelve jobs finished -- on the
+   schedule, not on the code.
+2. The campaign worker did not wait at the start line. And the start line was
+   not a rendezvous for any racer in the file: the parent slept 1.5 s and
+   released, so a worker still spawning or importing when the sleep ran out
+   was released on arrival, and how concurrent a "race" was depended on how
+   fast the runner started processes.
+3. The safety assertions -- a holder for every DISPATCHED job, no job past its
+   retry budget -- ran after the anti-vacuity one, so a run both thin and
+   unsafe would have been reported only as thin.
+
+**REPAIR.** The measurement and the start line; the scheduler is unchanged,
+because nothing in the evidence points at it.
+
+* The start line is a rendezvous. `_wait_for_start` ANNOUNCES (one marker per
+  arrival) and then waits; `_line_up` releases only once every worker has
+  announced. A line that never fills fails rather than starting whoever
+  turned up, and a worker that died before arriving is reported with its own
+  error. `_run` uses it for every racer, and so does the staged forgery test
+  that had its own sleep. `_stress_worker` waits at it after opening its
+  scheduler and before its first operation.
+* Safety first. The chain is verified and the queue rebuilt, then
+  `_judge_campaign` checks every job's safety, and only a safe campaign is
+  then judged for vacuity.
+* Coverage on EDGES: READY -> DISPATCHED and DISPATCHED -> SUCCEEDED, and at
+  least one way off the ordinary path OUT OF DISPATCHED -- a requeue
+  (-> READY), a retry (-> RETRY_WAIT) or a failure (-> FAILED). Only scheduler
+  transitions count, and repeating an edge adds nothing.
+
+**TEST.** Deterministic controls, on real single-process scheduler histories:
+the ordinary path alone is not coverage; the ordinary path plus a requeue,
+plus a retry, plus a failure each is, and each control is checked to contain
+exactly the one recovery edge it claims. On synthetic records: the ordinary
+path repeated a hundred times, task and authority records shaped like
+requeues, recovery-shaped edges that do not leave DISPATCHED, and each
+ordinary edge missing, are each not coverage. The order: a history both
+unsafe and thin is reported UNSAFE; safe and thin, VACUOUS. The start line: a
+worker arriving after 2 s -- later than the old sleep -- finds the race not
+yet started; the campaign worker writes nothing before it is released; a line
+that never fills fails without releasing; a worker that dies before the line
+is reported as itself. The module went from 25 tests in 17.5 s to 44 in about
+7 s: the sleeps were most of its time.
+
+**EVIDENCE.** 80 local campaigns with the rendezvous, 40 unconstrained and 40
+pinned to two CPUs: all pass. Every one recorded at least two requeues (at
+least six unconstrained). The old rule would also have passed all 80 -- none
+fell below four destinations -- and twelve sat exactly at its minimum, one
+label from the hosted failure: which is why it never reproduced here.
+
+**MUTATIONS.** `stress_campaign_coverage.json` (new): the start line on both
+sides, the coverage measure, and the safety judgement's order and content,
+15/15. `agent_cross_process.json` re-run against the new campaign, 11/11.
+
+**NOT DONE.** Coverage is still sampled, not arranged: a campaign is judged
+on what its interleaving happened to exercise, and a schedule with no
+requeue, retry or failure at all is possible in principle -- it would now be
+reported as VACUOUS by name, with its safety already checked. Generating
+cross-process schedules deterministically would need control of the kernel's
+scheduling -- R50 states that boundary.

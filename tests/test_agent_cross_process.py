@@ -38,9 +38,12 @@ from __future__ import annotations
 import multiprocessing as mp
 import random
 import sys
+import threading
 import time
+import uuid
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -59,8 +62,8 @@ from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
 from qta_agent.policy import PolicyStore  # noqa: E402
 from qta_agent.scheduler import (  # noqa: E402
-    ACT_JOB_TRANSITION, JobState, JobTransitionError, Scheduler,
-    default_policy,
+    ACT_JOB_TRANSITION, FailureClass, JobState, JobTransitionError,
+    Scheduler, default_policy,
 )
 from qta_agent.store import AuthorityStore  # noqa: E402
 
@@ -78,7 +81,21 @@ START_TIMEOUT_S = 30.0
 
 # ---- module-level workers: multiprocessing with "spawn" needs them here ---
 def _wait_for_start(go: str) -> None:
-    """Line every worker up so the race is real rather than sequential."""
+    """Line every worker up so the race is real rather than sequential.
+
+    Two halves, and the start line needs both. The worker ANNOUNCES that it
+    has arrived -- spawning, importing and opening the log are behind it --
+    and then waits; the parent (:func:`_line_up`) releases only once every
+    worker has announced. The line used to be the second half alone, with
+    the parent sleeping 1.5 s in place of the first: a worker still
+    importing when the sleep ran out was released on arrival, and how much
+    of any race was a race depended on how fast a runner spawned processes.
+    """
+    arrived = Path(f"{go}.ready")
+    arrived.mkdir(exist_ok=True)
+    # One marker per ARRIVAL, not per process: a pool process can run two
+    # tasks, and each is its own arrival.
+    (arrived / uuid.uuid4().hex).write_text("", encoding="utf-8")
     path = Path(go)
     deadline = time.monotonic() + START_TIMEOUT_S
     while not path.exists():
@@ -195,13 +212,19 @@ def _stress_worker(args):
     the same job. Refusals are expected and counted; what is NOT allowed is
     for the log to stop being replayable, which is checked by the parent
     once every worker has finished.
+
+    It waits at the same start line as every other racer here. It did not,
+    and the campaign's concurrency was whatever overlap spawn timing happened
+    to leave: the hosted Python 3.13 run at ``b683977`` recorded one ordinary
+    path, seven requeues and nothing else (D-2026-91).
     """
-    path, tag, rounds, seed = args
+    path, tag, rounds, seed, go = args
     sys.path.insert(0, str(ROOT))
     from qta_agent.canonical import digest as _digest
     from qta_agent.scheduler import FailureClass as _FC
     sched = _open_scheduler(path)
     rng = random.Random(seed)
+    _wait_for_start(go)
     done = refused = 0
     for i in range(rounds):
         op = rng.choice(OPS)
@@ -250,11 +273,37 @@ def _release(tmp_path):
     Path(_go(tmp_path)).write_text("1", encoding="utf-8")
 
 
+def _arrivals(tmp_path) -> int:
+    arrived = Path(f"{_go(tmp_path)}.ready")
+    return len(list(arrived.iterdir())) if arrived.is_dir() else 0
+
+
+def _line_up(tmp_path, expected: int, *pending) -> None:
+    """Release the workers once all ``expected`` of them are at the line.
+
+    A worker that failed before arriving surfaces here with its own error,
+    rather than as a start line that never filled. And a line that never
+    fills is a failure, not a reason to start anyway: releasing whoever
+    turned up would make the race sequential, the thing this exists to
+    prevent.
+    """
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while _arrivals(tmp_path) < expected:
+        for result in pending:
+            if result.ready():
+                result.get()
+        if time.monotonic() > deadline:
+            raise AssertionError(
+                f"{_arrivals(tmp_path)} of {expected} workers reached the "
+                f"start line within {START_TIMEOUT_S} s")
+        time.sleep(0.005)
+    _release(tmp_path)
+
+
 def _run(worker, args, tmp_path, procs=RACERS):
     with mp.get_context("spawn").Pool(procs) as pool:
         pending = pool.map_async(worker, args)
-        time.sleep(1.5)                 # let every worker reach the line
-        _release(tmp_path)
+        _line_up(tmp_path, min(len(args), procs), pending)
         return pending.get(timeout=PROCESS_DEADLINE_S)
 
 
@@ -638,6 +687,87 @@ def test_only_one_process_can_create_one_record_id(tmp_path):
 
 
 # ---- the long one --------------------------------------------------------
+#: The ways a job leaves DISPATCHED -- the state in which a worker holds it
+#: -- other than by success: a lease that lapsed and was requeued, an attempt
+#: that failed and will be retried, one that failed for good. A contended
+#: queue that never took any of them exercised nothing about contention.
+RECOVERY_EDGES = frozenset({
+    ("DISPATCHED", "READY"),
+    ("DISPATCHED", "RETRY_WAIT"),
+    ("DISPATCHED", "FAILED"),
+})
+#: The ordinary path. Necessary, and never enough on its own.
+ORDINARY_EDGES = (("READY", "DISPATCHED"), ("DISPATCHED", "SUCCEEDED"))
+
+
+def _transition_edges(events) -> Counter:
+    """(src, dst) of every scheduler transition, and of nothing else."""
+    return Counter((e.payload["src"], e.payload["dst"]) for e in events
+                   if e.action == ACT_JOB_TRANSITION)
+
+
+def _coverage_problems(edges) -> list:
+    """What a campaign failed to exercise, judged on EDGES, not labels.
+
+    The rule this replaces counted distinct DESTINATION states and wanted
+    four. The hosted Python 3.13 run at ``b683977`` recorded READY,
+    DISPATCHED and SUCCEEDED -- and seven DISPATCHED -> READY requeues, a
+    lapse and recovery seven times over, invisible to a count of labels
+    because READY had already been reached on the ordinary path. Judged on
+    edges, a requeue is what it is. Repeating an edge adds nothing; only a
+    scheduler transition counts at all.
+    """
+    seen = set(edges)
+    problems = [f"never recorded {src} -> {dst}"
+                for src, dst in ORDINARY_EDGES if (src, dst) not in seen]
+    if not seen & RECOVERY_EDGES:
+        problems.append(
+            "never left DISPATCHED except by success: no requeue, no retry, "
+            "no failure, so nothing about contention or recovery was "
+            "exercised")
+    return problems
+
+
+def _safety_problems(jobs) -> list:
+    """What must hold of ANY history the queue was rebuilt from."""
+    problems = []
+    for job in jobs:
+        if job.state is JobState.DISPATCHED and not job.lease_holder:
+            problems.append(f"{job.job_id} is DISPATCHED with no lease "
+                            "holder: a lease nobody owns")
+        if job.attempts > job.max_attempts:
+            problems.append(
+                f"{job.job_id} was attempted {job.attempts} times against a "
+                f"budget of {job.max_attempts}. Found this way: the retry "
+                "budget was consulted only where a worker REPORTED a "
+                "failure, so a lapsed lease requeued the job forever")
+    return problems
+
+
+def _judge_campaign(*, jobs, edges, per_worker, records, attempted) -> None:
+    """Safety first, and only a SAFE campaign is then judged for vacuity.
+
+    A thin campaign and an unsafe one are different findings, and the first
+    must never be the reason the second goes unreported. The order is the
+    point: the anti-vacuity assertion used to come first, so a run that was
+    both would have said only that it was thin.
+    """
+    unsafe = _safety_problems(jobs)
+    assert not unsafe, "UNSAFE: " + "; ".join(unsafe)
+    # ANTI-VACUITY. Most operations are legitimately refused -- a dispatch
+    # of a job somebody else is running, a renewal of a lease that lapsed --
+    # so a ratio would be an arbitrary line. What must be true is that the
+    # campaign happened: every worker got work in, the log grew, and the
+    # queue took the ordinary path AND a way off it.
+    assert all(d > 0 for d in per_worker.values()), (
+        f"VACUOUS: a worker recorded nothing at all: {per_worker}")
+    assert records > len(per_worker) * 10, (
+        f"VACUOUS: the log grew by only {records} records under "
+        f"{attempted} attempted operations")
+    thin = _coverage_problems(edges)
+    assert not thin, "VACUOUS: " + "; ".join(thin)
+
+
 @pytest.mark.parametrize("rounds", [250])
 def test_a_long_mixed_campaign_never_leaves_an_unreplayable_log(tmp_path,
                                                                 rounds):
@@ -657,7 +787,7 @@ def test_a_long_mixed_campaign_never_leaves_an_unreplayable_log(tmp_path,
     workers = 6
     results = _run(
         _stress_worker,
-        [(str(tmp_path / "log.jsonl"), t, rounds, 1000 + t)
+        [(str(tmp_path / "log.jsonl"), t, rounds, 1000 + t, _go(tmp_path))
          for t in range(workers)],
         tmp_path, procs=workers)
 
@@ -665,46 +795,198 @@ def test_a_long_mixed_campaign_never_leaves_an_unreplayable_log(tmp_path,
     refused = sum(r for _, _, r in results)
     assert done + refused == workers * rounds
 
+    # SAFETY, in the order a reader depends on it: the chain verifies, the
+    # queue rebuilds from the log alone, and what it rebuilds is sound.
     report = EventLog(tmp_path / "log.jsonl").verify()
     assert report.ok, report.problems[:5]
     rebuilt = _replayable(tmp_path)
+    _judge_campaign(
+        jobs=rebuilt.all_jobs().values(),
+        edges=_transition_edges(EventLog(tmp_path / "log.jsonl").read()),
+        per_worker={tag: d for tag, d, _ in results},
+        records=report.count, attempted=workers * rounds)
 
-    # ANTI-VACUITY. Most operations here are legitimately refused -- a
-    # dispatch of a job somebody else is already running, a renewal of a
-    # lease that lapsed -- and that is what a contended queue looks like, so
-    # a ratio would be an arbitrary line. What must be true is that the
-    # campaign actually happened: every worker got work in, the log grew,
-    # and the queue reached several different states rather than sitting in
-    # one. A stress test where nothing was accepted proves nothing about
-    # concurrency, and would pass every assertion below it.
-    per_worker = {tag: d for tag, d, _ in results}
-    assert all(d > 0 for d in per_worker.values()), (
-        f"a worker recorded nothing at all: {per_worker}")
-    assert report.count > workers * 10, (
-        f"the log grew by only {report.count} records under "
-        f"{workers * rounds} attempted operations")
-    # Judged on the TRANSITIONS the log records, not on where the jobs
-    # happened to stop. Most jobs end SUCCEEDED or in flight whatever route
-    # they took, so counting final states would pass a campaign that only
-    # ever enqueued and dispatched.
-    moved = Counter(e.payload["dst"] for e in EventLog(
-        tmp_path / "log.jsonl").read()
-        if e.action == ACT_JOB_TRANSITION)
-    assert len(moved) >= 4, (
-        f"the campaign only ever recorded {sorted(moved)}; a run that never "
-        "requeued, retried or failed anything is not exercising the "
-        "transitions this is about")
-    assert {"DISPATCHED", "SUCCEEDED"} <= set(moved), sorted(moved)
 
-    for job in rebuilt.all_jobs().values():
-        if job.state is JobState.DISPATCHED:
-            assert job.lease_holder, (
-                "a dispatched job with no holder is a lease nobody owns")
-        assert job.attempts <= job.max_attempts, (
-            f"{job.job_id} was attempted {job.attempts} times against a "
-            f"budget of {job.max_attempts}. Found this way: the retry "
-            "budget was consulted only where a worker REPORTED a failure, "
-            "so a lapsed lease requeued the job forever")
+# ---- the campaign's own instruments, held to deterministic controls ------
+def _scripted_history(tmp_path, recovery):
+    """A real single-process history: the ordinary path, then at most one
+    way off it. The controls below are judged on what a genuine scheduler
+    writes, so a change to its records reaches them."""
+    log, sched = _world(tmp_path)
+    for jid in ("ok", "other"):
+        sched.enqueue(job_id=jid, work_digest=digest({"j": jid}),
+                      submitter="sub")
+    sched.reconcile()
+    sched.dispatch(job_id="ok", worker="w0", lease_id="L-ok", lease_seqs=500)
+    sched.report(job_id="ok", worker="w0")
+    if recovery == "requeue":
+        sched.dispatch(job_id="other", worker="w1", lease_id="L-other",
+                       lease_seqs=1)
+        for i in range(3):              # the log moves on; the lease lapses
+            sched.enqueue(job_id=f"filler-{i}",
+                          work_digest=digest({"filler": i}), submitter="sub")
+        sched.reconcile()
+    elif recovery in ("retry", "fail"):
+        sched.dispatch(job_id="other", worker="w1", lease_id="L-other",
+                       lease_seqs=500)
+        sched.report(job_id="other", worker="w1",
+                     failure=FailureClass.TRANSIENT if recovery == "retry"
+                     else FailureClass.PERMANENT)
+    return _transition_edges(EventLog(tmp_path / "log.jsonl").read())
+
+
+def _edge_events(*edges, action=ACT_JOB_TRANSITION):
+    return [SimpleNamespace(action=action, payload={"src": s, "dst": d})
+            for s, d in edges]
+
+
+def test_the_ordinary_path_alone_is_not_coverage(tmp_path):
+    edges = _scripted_history(tmp_path, None)
+    assert set(ORDINARY_EDGES) <= set(edges), edges
+    assert not set(edges) & RECOVERY_EDGES, edges
+    problems = _coverage_problems(edges)
+    assert problems and "except by success" in problems[-1], problems
+
+
+@pytest.mark.parametrize("recovery, edge", [
+    ("requeue", ("DISPATCHED", "READY")),
+    ("retry", ("DISPATCHED", "RETRY_WAIT")),
+    ("fail", ("DISPATCHED", "FAILED")),
+])
+def test_one_way_off_the_ordinary_path_is_coverage(tmp_path, recovery, edge):
+    edges = _scripted_history(tmp_path, recovery)
+    # The control did what it says, and only that.
+    assert set(edges) & RECOVERY_EDGES == {edge}, edges
+    assert _coverage_problems(edges) == []
+
+
+def test_repeating_the_ordinary_path_is_not_diversity():
+    edges = _transition_edges(_edge_events(*ORDINARY_EDGES * 100))
+    assert _coverage_problems(edges)
+
+
+def test_other_event_types_are_not_scheduler_coverage():
+    """A task or authority record shaped like a requeue is not one."""
+    events = _edge_events(*ORDINARY_EDGES)
+    for action in ("task.transition", "record.transition"):
+        events += _edge_events(*sorted(RECOVERY_EDGES), action=action)
+    assert _coverage_problems(_transition_edges(events))
+
+
+@pytest.mark.parametrize("edge", [
+    ("WAITING", "READY"), ("RETRY_WAIT", "READY"), ("READY", "FAILED"),
+    ("WAITING", "FAILED"),
+])
+def test_a_way_off_the_path_has_to_leave_dispatched(edge):
+    """Promotion out of backoff, or blocking a job nobody held, is not a
+    held job being recovered."""
+    edges = _transition_edges(_edge_events(*ORDINARY_EDGES, edge))
+    assert _coverage_problems(edges)
+
+
+@pytest.mark.parametrize("missing", ORDINARY_EDGES)
+def test_each_ordinary_edge_is_required(missing):
+    present = [e for e in ORDINARY_EDGES if e != missing]
+    edges = _transition_edges(
+        _edge_events(*present, *sorted(RECOVERY_EDGES)))
+    assert _coverage_problems(edges) == [
+        f"never recorded {missing[0]} -> {missing[1]}"]
+
+
+def test_an_unsafe_campaign_is_reported_as_unsafe_even_when_thin():
+    """The ordering, held: a history that outspent its budget AND took only
+    the ordinary path is reported for the budget."""
+    jobs = [SimpleNamespace(job_id="j-0", state=JobState.READY,
+                            lease_holder="", attempts=4, max_attempts=3)]
+    with pytest.raises(AssertionError, match="^UNSAFE: j-0 was attempted 4"):
+        _judge_campaign(jobs=jobs,
+                        edges=_transition_edges(_edge_events(*ORDINARY_EDGES)),
+                        per_worker={0: 1}, records=0, attempted=1)
+
+
+def test_a_dispatched_job_nobody_holds_is_unsafe():
+    jobs = [SimpleNamespace(job_id="j-1", state=JobState.DISPATCHED,
+                            lease_holder="", attempts=1, max_attempts=3)]
+    assert _safety_problems(jobs) == [
+        "j-1 is DISPATCHED with no lease holder: a lease nobody owns"]
+
+
+def test_a_safe_but_thin_campaign_is_reported_as_vacuous():
+    jobs = [SimpleNamespace(job_id="j-0", state=JobState.SUCCEEDED,
+                            lease_holder="", attempts=1, max_attempts=3)]
+    with pytest.raises(AssertionError, match="^VACUOUS: never left"):
+        _judge_campaign(jobs=jobs,
+                        edges=_transition_edges(_edge_events(*ORDINARY_EDGES)),
+                        per_worker={0: 5}, records=100, attempted=10)
+
+
+# ---- the start line, held --------------------------------------------------
+def _late_arrival_worker(args):
+    """Arrives at the start line late on purpose, and reports whether the
+    parent had already released it."""
+    go, tag, delay = args
+    time.sleep(delay)
+    early = Path(go).exists()
+    _wait_for_start(go)
+    return tag, early
+
+
+def test_the_start_line_waits_for_the_last_worker(tmp_path):
+    """Released after the LAST arrival, however late it is. The line used
+    to be a 1.5 s sleep, and the last worker here arrives after 2 s."""
+    delays = (0.0, 0.2, 0.5, 2.0)
+    results = _run(_late_arrival_worker,
+                   [(_go(tmp_path), t, d) for t, d in enumerate(delays)],
+                   tmp_path, procs=len(delays))
+    assert sorted(results) == [(t, False) for t in range(len(delays))], (
+        "a worker found the race already started when it arrived")
+
+
+def test_a_start_line_that_never_fills_is_a_failure(tmp_path, monkeypatch):
+    """Nobody is released into a race that is not one."""
+    monkeypatch.setattr(sys.modules[__name__], "START_TIMEOUT_S", 0.2)
+    with pytest.raises(AssertionError, match="0 of 1 workers reached"):
+        _line_up(tmp_path, 1)
+    assert not Path(_go(tmp_path)).exists(), (
+        "the line gave up and released anyway")
+
+
+def _dies_before_the_line_worker(args):
+    raise RuntimeError(f"worker {args} died before it reached the line")
+
+
+def test_a_worker_that_dies_before_the_line_is_reported_as_itself(
+        tmp_path, monkeypatch):
+    """Its own error, not a start line that merely never filled."""
+    monkeypatch.setattr(sys.modules[__name__], "START_TIMEOUT_S", 10.0)
+    with pytest.raises(RuntimeError, match="died before it reached the line"):
+        _run(_dies_before_the_line_worker, [0], tmp_path, procs=1)
+
+
+def test_the_stress_worker_does_nothing_before_the_release(tmp_path):
+    """The campaign worker waits at the line, then acts -- in that order."""
+    log, sched = _world(tmp_path)
+    path = tmp_path / "log.jsonl"
+    before = EventLog(path).verify().count
+    out = {}
+    worker = threading.Thread(
+        target=lambda: out.update(result=_stress_worker(
+            (str(path), 0, 40, 1000, _go(tmp_path)))), daemon=True)
+    worker.start()
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while _arrivals(tmp_path) < 1:
+        assert EventLog(path).verify().count == before, (
+            "the worker wrote to the log before it reached the start line")
+        assert time.monotonic() < deadline, "the worker never arrived"
+        time.sleep(0.005)
+    time.sleep(0.3)
+    assert EventLog(path).verify().count == before, (
+        "the worker wrote to the log before it was released")
+    _release(tmp_path)
+    worker.join(PROCESS_DEADLINE_S)
+    assert not worker.is_alive()
+    assert out["result"][1] > 0
+    assert EventLog(path).verify().count > before
 
 
 def test_the_stress_campaign_is_reproducible(tmp_path):
@@ -978,8 +1260,7 @@ def test_a_forgery_denies_service_and_that_is_the_choice_that_was_made(
         hostile = pool.map_async(
             _hostile_worker_staged,
             [(path, t, _go(tmp_path), work) for t in range(2)])
-        time.sleep(1.5)
-        _release(tmp_path)
+        _line_up(tmp_path, HONEST_WORKERS + 2, honest, hostile)
         results = honest.get(timeout=PROCESS_DEADLINE_S)
         hostile.get(timeout=PROCESS_DEADLINE_S)
 

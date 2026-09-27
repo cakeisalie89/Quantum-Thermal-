@@ -656,6 +656,7 @@ tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a re
 tools/mutations/second_reader_audit_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/stress_campaign_coverage.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/surface_adsorption.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/task_execution_phase.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
