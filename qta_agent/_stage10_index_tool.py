@@ -1,6 +1,7 @@
 """The subprocess entry point for the governed Stage-10 digest index.
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+Provenance only: what it writes records what a governed run looked at. It
+is not a scientific result and not evidence for one.
 
 THE SECOND GOVERNED TOOL, AND WHY A SECOND ONE MATTERS
 
@@ -22,7 +23,8 @@ exercise:
     or outside the workspace fails the run, and a FAILED run never reaches
     verification.
   * it needs a READ guard, not only a write guard. A tool that hashes a path
-    the caller names can be pointed at ``results_gate_table.csv`` or at
+    the caller names can be pointed at a registry the substrate does not
+    mediate or at
     ``/etc/passwd``, and either would put a digest of a file the substrate
     must not mediate into a provenance chain. The write allowlist says
     nothing about that, because nothing is being written.

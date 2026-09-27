@@ -1,11 +1,11 @@
 """The substrate is infrastructure, not science -- asserted, not merely stated.
 
-`AUTHORITIES.md`, `authorities.json`, and `AGENT_SUBSTRATE.md` all claim
-`automatic_gate_effect = NONE`: that `qta_agent/` cannot read, write, or
-influence any of the 83 gates, and that PASS = 0 is unaffected by anything it
-does. Prose cannot enforce that. One `import` from a solver would make every
-one of those sentences false while every other test in the repository stayed
-green.
+`authorities.json` and `AGENT_SUBSTRATE.md` state the invariant: agent
+execution cannot directly mutate authoritative scientific state, evidence, or
+acceptance state except through the governed interfaces and event-derived
+authority machinery (`automatic_gate_effect = NONE`). Prose cannot enforce
+that. One `import` from a solver would make every one of those sentences
+false while every other test in the repository stayed green.
 
 These tests are the enforcement. They fail the moment the claim stops being
 true, which is the only form in which a claim of this kind is worth making.
@@ -515,9 +515,12 @@ def test_the_registry_declares_the_substrate_has_no_gate_effect():
     blob = " ".join(entry["does_not_mean"].split()).lower()
     # Matched on substance, not typography: a test that breaks when someone
     # rewraps a paragraph is a test that gets loosened rather than fixed.
-    assert re.search(r"pass\s*=\s*0", blob), (
-        "the disclaimer does not state that PASS=0 is unaffected")
-    assert "gate" in blob, "the disclaimer does not mention the gates"
+    # The invariant is the generic one (directive 12); "PASS=0 is
+    # unaffected" was its hardware-era example, and retired with the gates.
+    assert re.search(r"cannot directly mutate authoritative scientific\s+"
+                     r"state, evidence, or acceptance state", blob), (
+        "the disclaimer does not state the invariant")
+    assert "governed interfaces" in blob
 
 
 def test_every_registered_substrate_module_exists():
@@ -534,8 +537,10 @@ def test_the_narrative_document_mirrors_the_registry():
     doc = (ROOT / "AGENT_SUBSTRATE.md").read_text(encoding="utf-8")
     flat = " ".join(doc.replace("*", " ").split())
     assert "automatic_gate_effect" in doc and "NONE" in doc
-    assert re.search(r"PASS\s*=\s*0 is unaffected", flat), (
-        "AGENT_SUBSTRATE.md must state that PASS=0 is unaffected")
+    assert re.search(r"cannot directly mutate authoritative scientific "
+                     r"state, evidence, or acceptance state except through "
+                     r"the governed interfaces", flat), (
+        "AGENT_SUBSTRATE.md must state the invariant the registry states")
     for name in LAYERS:
         assert f"`{name}.py`" in doc, (
             f"{name}.py is governed but not described in AGENT_SUBSTRATE.md")

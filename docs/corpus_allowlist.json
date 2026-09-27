@@ -2,15 +2,15 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "92fcff191c1095a19ecbe7c060cc5464db4b459e7e08b4b6b6a240367f838888",
+  "entries_digest": "127d5cb75792de63d0afabd57ce99570efbbd13deff082be48e4127566ceff5a",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "51d648d71ed776a3a784d23a51085b3c2a381cb265641e53b568cf53ceb75430"
+      "sha256": "0c70b5d696004ca65501ce0039688fabbf72423cdebd10afdb6f6ead963ce7b8"
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "sha256": "510f59c4e84bb1ace369176fddc74ce84165b0c1fcc7f9962a9303e10009e640"
+      "sha256": "59ff04e22e1486ccb72855172fdaaf11f1b98d49b0aa3f741803f87bac51c366"
     },
     {
       "path": "AUTHORITIES.md",
@@ -22,7 +22,7 @@
     },
     {
       "path": "DEPENDENCY_CUTOVER.md",
-      "sha256": "280cddc9ad64ae1534c89c8f157fdc3a27d38365d1b7bc8d5abebc1106d8c598"
+      "sha256": "7b7897041678c4ab0168d1193ab5fff9a3ce2c314bb7925e6105467ce7a463c1"
     },
     {
       "path": "EVIDENCE_CLOSURE.md",

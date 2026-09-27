@@ -89,8 +89,9 @@ WHAT IT STILL DOES NOT DO
 It does not make anything scientifically true. A VERIFIED task means a declared
 tool ran under a bounded environment, produced the bytes it says it produced,
 and a second actor confirmed those bytes are still there. That is a statement
-about provenance and nothing else. PASS remains 0, and no gate can be reached
-from here.
+about provenance and nothing else. It moves no scientific result's
+authority: that takes the admission of ``qta_agent.result_rules``, decided by
+the authority store and re-decided on every replay.
 """
 from __future__ import annotations
 

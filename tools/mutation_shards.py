@@ -69,7 +69,7 @@ WEIGHTS = {
     "completion_matrix.json": 31, "corpus_allowlist.json": 41,
     "cross_environment.json": 83, "enforcement_asserts.json": 47,
     "fuzz_harness.json": 242, "governed_breadth.json": 458,
-    "hardware_governance.json": 75, "identity_inventory.json": 58,
+    "identity_inventory.json": 58,
     "model_check.json": 26, "mutation_harness.json": 1045,
     "output_resolution.json": 74, "repo_contract.json": 61,
     "resolution_inventory.json": 14, "solver_failclosed.json": 1417,
@@ -164,15 +164,25 @@ def check_workflow(text: str | None = None) -> list:
     return out
 
 
-def _tracked_state() -> str:
-    r = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain",
-                        "--untracked-files=no"], capture_output=True,
-                       text=True)
-    if r.returncode != 0:
-        raise SystemExit(f"git status failed: {r.stderr[:200]}")
-    diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--binary"],
-                          capture_output=True, text=True)
-    return r.stdout + diff.stdout
+def _tracked_state(root: Path = ROOT) -> str:
+    """Everything a shard could leave behind in the tree, as one string.
+
+    The working-tree diff, the STAGED diff and the untracked files that are
+    not ignored. The first alone missed the other two, and both have
+    happened: a test that intent-adds a probe file puts it in the index, and
+    a killed test leaves the probe on disk (D-2026-82).
+    """
+    def git(*args):
+        r = subprocess.run(["git", "-C", str(root), *args],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            raise SystemExit(f"git {args[0]} failed: {r.stderr[:200]}")
+        return r.stdout
+    return "\n".join((
+        git("status", "--porcelain", "--untracked-files=no"),
+        git("diff", "--binary"),
+        git("diff", "--cached", "--binary"),
+        git("ls-files", "--others", "--exclude-standard")))
 
 
 def run(paths: list, runner=None) -> int:

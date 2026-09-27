@@ -38,10 +38,15 @@ list, so the dependency graph is a line rather than a web:
 The log is the truth and everything else is derived from it. That inversion is
 the design: a lost projection costs time, never authority.
 
-This layer is infrastructure, not science. ``automatic_gate_effect = NONE``:
-nothing here is imported by the solvers, by ``qta_full_sim.py``, or by
-``metrics.py``, it cannot read or write any of the 83 gates, and PASS = 0 is
-unaffected by anything it does.
+THE INVARIANT. Agent execution cannot directly mutate authoritative
+scientific state, evidence, or acceptance state except through the governed
+interfaces and event-derived authority machinery. Concretely: no solver or
+scientific model imports this package (``tests/test_agent_substrate_
+isolation.py``); evidence is content-addressed and append-only
+(``evidence``); and a scientific result becomes authority only through an
+admission the store decides live and re-decides on every replay
+(``result_rules``). ``automatic_gate_effect = NONE``: nothing here moves an
+acceptance decision by itself.
 
 It DOES have a production caller: ``governed_stage10`` runs a real Stage-10
 workflow through the whole chain, and the Snakemake rule ``s10_governed``

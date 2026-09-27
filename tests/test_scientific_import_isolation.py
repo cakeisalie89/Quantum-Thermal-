@@ -151,18 +151,22 @@ def test_the_package_init_imports_nothing_at_import_time():
     assert not eager, [ast.dump(n) for n in eager]
 
 
-def test_the_transitional_run_all_still_reaches_the_orchestrator():
-    """``qta_full_sim.py`` calls ``qta_multiphysics.run_all``; the lazy
-    entry must still be that function, loaded on call."""
+def test_the_package_no_longer_offers_the_orchestrator():
+    """The transitional ``qta_multiphysics.run_all`` is gone: it was the one
+    edge through which every module of the package statically reached the
+    legacy orchestration. ``qta_full_sim.py``, its only caller, imports the
+    runner itself -- and still gets the same function."""
     code = ("import sys, qta_multiphysics as q; "
+            "assert not hasattr(q, 'run_all'); "
             "assert 'qta_multiphysics.runner' not in sys.modules; "
-            "from qta_multiphysics.runner import run_all; "
-            "import inspect; src = inspect.getsource(q.run_all); "
-            "assert 'from .runner import run_all' in src; print('ok')")
+            "from qta_multiphysics.runner import run_all; print('ok')")
     r = subprocess.run([sys.executable, "-c", code], cwd=ROOT,
                        capture_output=True, text=True,
                        env={**os.environ, "PYTHONPATH": str(ROOT)})
     assert r.stdout.strip() == "ok", r.stderr
+    src = (ROOT / "qta_full_sim.py").read_text(encoding="utf-8")
+    assert "from qta_multiphysics.runner import run_all" in src
+    assert "qta_multiphysics.run_all(" not in src
 
 
 STDLIB_ONLY = ("scientific", "scientific.identity", "scientific.quantity",

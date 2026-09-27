@@ -175,3 +175,70 @@ def test_an_empty_shard_fails_even_when_the_plan_has_one(monkeypatch):
     ran nothing has shown nothing."""
     monkeypatch.setattr(MS, "plan", lambda *a, **k: [[], ["x.json"]])
     assert MS.run([], runner=lambda p: 0) == 1
+
+
+def _repo(tmp_path):
+    import subprocess
+    def git(*a):
+        subprocess.run(["git", "-C", str(tmp_path), *a], check=True,
+                       capture_output=True)
+    git("init", "-q")
+    (tmp_path / "a.py").write_text("x = 1\n")
+    git("add", "a.py")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+        "-m", "base")
+    return git
+
+
+@pytest.mark.parametrize("leave", ["modified", "staged", "untracked"])
+def test_the_tree_state_sees_what_a_shard_can_leave_behind(tmp_path, leave):
+    """Directive 41: the working tree, the index and stray files. The state
+    only saw the first; a staged probe and an untracked one are both things
+    a stopped test run has left (D-2026-82)."""
+    git = _repo(tmp_path)
+    before = MS._tracked_state(tmp_path)
+    if leave == "modified":
+        (tmp_path / "a.py").write_text("x = 2\n")
+    elif leave == "staged":
+        (tmp_path / "probe.py").write_text("")
+        git("add", "-N", "probe.py")
+    else:
+        (tmp_path / "probe.py").write_text("")
+    assert MS._tracked_state(tmp_path) != before
+
+
+def test_the_tree_state_is_stable_on_a_clean_tree(tmp_path):
+    _repo(tmp_path)
+    assert MS._tracked_state(tmp_path) == MS._tracked_state(tmp_path)
+
+
+def test_the_shard_job_checks_the_tree_with_git_even_when_it_failed():
+    job = (ROOT / ".github" / "workflows" / "agent-substrate.yml").read_text(
+        encoding="utf-8").split("mutation-shards:", 1)[1].split(
+        "mutation-matrices:", 1)[0]
+    step = job.split("the shard left the tree exactly as it found it", 1)[1]
+    # Written without ${{ }} on purpose: the aggregate job's
+    # "if: ${{ always() }}" is a line the coverage checks find by text, and
+    # it must stay the only one.
+    assert "if: always()" in step.split("run:", 1)[0]
+    for check in ("git diff --exit-code", "git diff --cached --exit-code",
+                  "git ls-files --others --exclude-standard"):
+        assert check in step, check
+
+
+def test_legacy_specs_are_kept_and_scheduled_by_no_shard():
+    """Directive 21: the hardware-governance spec retired with its subject.
+    It is kept, as historical evidence, and no active shard runs it."""
+    import csv
+    legacy = sorted((ROOT / "tools" / "mutations" / "legacy").glob("*.json"))
+    assert [p.name for p in legacy] == ["hardware_governance.json"]
+    scheduled = {s for shard in MS.plan() for s in shard}
+    disp = {r["path"]: r["disposition"] for r in csv.DictReader(
+        (ROOT / "FILE_DISPOSITION.csv").open(encoding="utf-8"))}
+    for p in legacy:
+        rel = p.relative_to(ROOT).as_posix()
+        assert p.name not in scheduled
+        assert disp[rel] == "RETIRE_TO_HISTORY", rel
+        assert f"tools/mutations/legacy/{p.name}" not in (
+            ROOT / ".github" / "workflows" / "agent-substrate.yml"
+        ).read_text(encoding="utf-8")

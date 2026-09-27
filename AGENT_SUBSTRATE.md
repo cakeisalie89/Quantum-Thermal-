@@ -1,6 +1,7 @@
 # Agent Authority Substrate — how a claim becomes canonical
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+Infrastructure for governed scientific agents. Nothing in it is a
+measurement, and nothing in it is a scientific result.
 
 `qta_agent/` is the authority for how claims *about* this project become
 canonical. It is infrastructure, not science. Read §6 before reading anything
@@ -620,9 +621,15 @@ Hypothesis with the invariants asserted on every reachable state.
 
 `automatic_gate_effect = NONE`.
 
-No module in `qta_agent/` is imported by the solvers, by `qta_full_sim.py`, or
-by `metrics.py`. It cannot read or write any of the 83 gates. **PASS = 0 is
-unaffected by anything it does.**
+**Agent execution cannot directly mutate authoritative scientific state,
+evidence, or acceptance state except through the governed interfaces and
+event-derived authority machinery.** No solver or scientific model imports
+`qta_agent/`; evidence is content-addressed and append-only; a scientific
+result becomes authority only through an admission the store decides live
+and re-decides on replay. (The hardware-era form of this sentence -- "it
+cannot read or write any of the 83 gates, and PASS = 0 is unaffected" -- was
+true of the QTA package and is kept in its history; the gates were never the
+invariant, only its first example.)
 
 A record reaching `PROMOTED` here means a claim was proposed, independently
 verified, and promoted under a recorded policy. It does **not** mean:
@@ -891,8 +898,8 @@ two named modules reaching one named thing, enforced by
 `tests/test_agent_substrate_isolation.py`.
 
 The other direction stays absolutely forbidden. Nothing in the scientific tree
-imports `qta_agent`, and no module here may reach a solver, `metrics.py`,
-`qta_full_sim.py` or an FSM — because that is the direction in which an
+imports `qta_agent`, and no module here may reach a solver, a scientific
+model or legacy orchestration — because that is the direction in which an
 authority verdict could change a computed result.
 
 The bridge writes **through** the Stage-10 write guard rather than around it, so
@@ -905,7 +912,9 @@ It means a declared tool ran under a bounded environment, produced the bytes it
 says it produced, and a second actor confirmed those bytes are still there.
 That is a statement about **provenance and nothing else**. It is not a claim
 that the result is scientifically correct, that anything was measured, or that
-any gate moved. PASS remains 0, and no gate is reachable from here.
+any acceptance decision moved. A scientific result's authority is the
+admission in `result_rules.py`, and nothing on this path reaches it without
+one.
 
 ### Three meanings of "verified", and a scientific result's admission
 

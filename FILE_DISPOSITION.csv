@@ -1,7 +1,7 @@
 path,disposition,phase,rationale,evidence
 .dockerignore,KEEP_AS_IS,-,Container context.,
 .github/workflows/agent-substrate.yml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Substrate CI; new mutation spec wired in Phase 1.,
-.github/workflows/claude.yml,KEEP_AS_IS,-,Assistant workflow.,
+.github/workflows/claude.yml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Assistant workflow; its prompt now states the framework's rules and none of QTA's retired invariants, held by tests/test_claude_workflow_prompt.py (directive 11).",
 .github/workflows/container-verify.yml,KEEP_AS_IS,-,Container verification.,
 .github/workflows/identity-discovery.yml,KEEP_AS_IS,-,Identity discovery.,
 .github/workflows/release.yml,REWRITE_GENERIC,2-7 (see rationale),Release workflow; QTA payload expectations retire (Phase 7).,
@@ -9,7 +9,7 @@ path,disposition,phase,rationale,evidence
 .gitignore,KEEP_AS_IS,-,Ignore rules.,
 AGENT_SUBSTRATE.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Substrate design record; updated with Phase 1 changes.,
 ARCHITECTURE_CONVERGENCE_PLAN.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact.,
-AUTHORITIES.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Enforcement-point registry (human half).,
+AUTHORITIES.md,REWRITE_GENERIC,2-7 (see rationale),"Enforcement-point registry (human half); its QTA framing -- gates, PASS=0, the machine -- is rewritten generically with the root identity documents (directive 13).",
 BOM.csv,RETIRE_TO_HISTORY,5,BOM completeness is not a software requirement (directive s4).,
 CLAIMS_BOUNDARY.md,REWRITE_GENERIC,2-7 (see rationale),Framework claims boundary: keep 'no experimental validation from simulation'; drop QTA machine claims.,
 DEPENDENCY_CUTOVER.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW Phase 0 artefact.,
@@ -32,7 +32,7 @@ GATE_TABLE_README.md,RETIRE_TO_HISTORY,5,83-gate table.,directive s4
 GLOSSARY.md,REWRITE_GENERIC,2-7 (see rationale),Framework vocabulary.,
 HARDWARE_GOVERNANCE.md,RETIRE_TO_HISTORY,5,Hardware governance.,directive s4
 HDF5_DATA_MODEL.md,REWRITE_GENERIC,2-7 (see rationale),HDF5 data model without the 88-output payload.,
-INSTALL.md,KEEP_AS_IS,-,Installation.,
+INSTALL.md,REWRITE_GENERIC,2-7 (see rationale),Installation; rewritten with the root identity documents (directive 13).,
 MACHINE_FSM.md,RETIRE_TO_HISTORY,5,Physical machine FSM.,directive s4
 MANIFEST_BOUNDARY.md,REWRITE_GENERIC,2-7 (see rationale),Manifest coverage boundary for the new release set.,
 MANUSCRIPT_CHANGELOG.md,RETIRE_TO_HISTORY,5,Manuscript history.,directive s4
@@ -54,10 +54,10 @@ RO_CRATE_PROFILE.md,REWRITE_GENERIC,2-7 (see rationale),RO-Crate profile without
 RUNTIME_RESILIENCE.md,REWRITE_GENERIC,2-7 (see rationale),Resilience narrative around qta_full_sim stages.,
 SIGNING_BOOTSTRAP.md,KEEP_AS_IS,-,Signing bootstrap.,
 SOURCE_AUDIT_STATUS.md,RETIRE_TO_HISTORY,5,Manuscript source audit.,
-STACK.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Declared scientific stack (directive s2).,
+STACK.md,REWRITE_GENERIC,2-7 (see rationale),Declared scientific stack; rewritten around the framework rather than the QTA package (directive 13).,
 SUPPLY_CHAIN_THREAT_MODEL.md,KEEP_AS_IS,-,Supply-chain threat model.,
 Snakefile,REWRITE_GENERIC,2-7 (see rationale),Workflow rewritten around validate -> run -> invariants -> independent verifier -> evidence (Phase 6).,directive s25 Phase 6
-TESTING.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Test discipline record.,
+TESTING.md,REWRITE_GENERIC,2-7 (see rationale),Test discipline record; its QTA gate and byte-gate framing is rewritten with the root identity documents (directive 13).,
 THERMAL_3D_L3.md,KEEP_AS_MODEL_PLUGIN,4,Thermal-3D model documentation.,
 VALIDATION_PLAN.md,RETIRE_TO_HISTORY,5,Hardware validation roadmap.,directive s4
 adaptive_experiment_policy.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
@@ -83,7 +83,7 @@ attic/delivery_artifacts/QTA_qta_multiphysics_repair.bundle,RETIRE_TO_HISTORY,5,
 attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
 attic/delivery_artifacts/QTA_repair_plus_cleanup.bundle,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
 attic/delivery_artifacts/QTA_repaired_complete_1D_2D_repo.zip,RETIRE_TO_HISTORY,5,Already historical: delivery bundles and patches.,attic/README.md
-authorities.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Enforcement-point registry (machine half).,
+authorities.json,REWRITE_GENERIC,2-7 (see rationale),Enforcement-point registry (machine half); rewritten into active and legacy sections (directive 18). The substrate entry's invariant is already generic (directive 12).,
 bayesian_design_summary.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 best_forecast_operating_point.json,RETIRE_TO_HISTORY,5,"QTA hardware-ontology output (machine FSM / interlocks / gate table / apparatus design registry / validation-experiment ranking / mode-sequenced eligibility). Directive s4 retires these as framework authority; the file stays byte-gated until Phase 5 removes its producer, then moves to history.",in hdf5_output_mapping.json regeneration set
 bibliography_audit.csv,RETIRE_TO_HISTORY,5,Manuscript bibliography audit.,
@@ -137,6 +137,7 @@ docs/blas_kernel_sensitivity.json,REGENERATE,every change; new set in 7,Tool-gen
 docs/clip_provenance.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/completion_matrix.json,REWRITE_GENERIC,2-7 (see rationale),Completion model tied to QTA rows; retire the 83-gate completion model (directive s4).,
 docs/corpus_allowlist.json,REGENERATE,every change; new set in 7,Regenerated by tools/corpus_allowlist.py --write.,
+docs/framework_boundary.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 10): which dispositions are ACTIVE, TRANSITIONAL and LEGACY; the legacy-ontology tokens; declared exceptions.",
 docs/identity_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/performance_baseline.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/resolution_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
@@ -259,7 +260,7 @@ qta_multiphysics/convergence_3d.py,EXTRACT_GENERIC,3,Convergence analysis.,direc
 qta_multiphysics/coupled_mode_solver.py,REWRITE_GENERIC,2-7 (see rationale),Sequenced multi-phase coupled solve with state hand-off (generic) hard-wired to Mode B->C->D. Rewrite as a declared phase schedule over plugins.,23 Mode-letter hits
 qta_multiphysics/coupling_ledger_3d.py,REWRITE_GENERIC,2-7 (see rationale),"Coupling-arrow ledger with honesty statuses: generic concept, QTA channel list.",20 Mode-letter hits
 qta_multiphysics/cryo_stack_3d.py,RETIRE_TO_HISTORY,5,"Registry of the QTA cryogenic architecture; its numeric loads are REUSED from radiation_paths (plugin), so no physics is lost. Verify no unique equation before retirement.",docstring: 'loads are REUSED from the existing canonical modules'
-qta_multiphysics/cryopanel_dynamics_3d.py,KEEP_AS_MODEL_PLUGIN,4,Cryopanel adsorption inventory: generic cryogenic physics; B->C->D phase windows to decouple in Phase 4.,8 Mode-letter hits
+qta_multiphysics/cryopanel_dynamics_3d.py,EXTRACT_GENERIC,3,"Cryopanel adsorption inventory. Not a retained hardware model (directive 22): extract its generic physics -- adsorption isotherm, desorption kinetics, capacity and breakthrough -- into scientific models with invariants and an independent check, then retire the component model. The B->C->D phase windows retire with it.",8 Mode-letter hits
 qta_multiphysics/deep_expdesign/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Package docstring binds the layer to QTA.,docstring
 qta_multiphysics/deep_expdesign/calibration.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
 qta_multiphysics/deep_expdesign/config.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
@@ -476,6 +477,7 @@ tests/test_candidate_structure.py,KEEP_AS_IS,-,Hostile bundle structure.,
 tests/test_checker_missing_outputs.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
 tests/test_checker_runtime_contract.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
 tests/test_claims_enforcement.py,REWRITE_GENERIC,2-7 (see rationale),Follows the claims-boundary rewrite.,
+tests/test_claude_workflow_prompt.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (directive 11): the Claude workflow's prompt states the framework's rules and none of QTA's retired invariants.,
 tests/test_completion_matrix.py,REWRITE_GENERIC,2-7 (see rationale),Follows the completion-matrix rewrite.,
 tests/test_container_diagnostic_fidelity.py,REWRITE_GENERIC,2-7 (see rationale),Follows analysis/collect_container_3d rewrite.,
 tests/test_container_manifest_coverage.py,KEEP_AS_IS,-,Container carries every governed file.,
@@ -493,6 +495,7 @@ tests/test_export_schema.py,EXTRACT_GENERIC,3,Export never drops governed fields
 tests/test_external_trust_root.py,KEEP_AS_IS,-,External trust root.,
 tests/test_failed_gate_schema.py,REWRITE_GENERIC,2-7 (see rationale),Failed-sample schema survives as generic failed-sample preservation (directive s12).,
 tests/test_file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 0: every repository file has exactly one disposition, and the CSV is the generator's output.",
+tests/test_framework_boundary.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 28): the boundary holds, and a planted legacy import, file or ontology module is caught.",
 tests/test_generated_mutations.py,KEEP_AS_IS,-,Generated operators.,
 tests/test_governed_model.py,KEEP_AS_IS,-,"NEW in Phase 2: a model result from proposal to authority, and every short-circuit of that line refused.",
 tests/test_governed_model_reuse.py,KEEP_AS_IS,-,NEW in Phase 2: a verified model result reused only on evidence re-derived intact; every exclusion against a genuine control.,
@@ -562,6 +565,7 @@ tools/corpus_allowlist.py,KEEP_AS_IS,-,RAG corpus allowlist generator/checker.,
 tools/cross_env_semantics.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reproducibility vs portability instrument (directive s19); column list is QTA outputs today.,D-2026-6x
 tools/dependency_declarations.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: every direct import declared in a group that ships it; derives the dependency inventory (D-2026-74/77).,reports the two D-2026-74 sites on the replaced pyproject
 tools/file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in Phase 0: generates and checks FILE_DISPOSITION.csv; fails on a file no rule names.,
+tools/framework_boundary.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 10, 28): ACTIVE vs LEGACY, measured -- the import closure, legacy files named, legacy-ontology imports.",
 tools/fuzz_substrate.py,KEEP_AS_IS,-,Substrate fuzz harness (directive s20).,
 tools/generated_mutations.py,KEEP_AS_IS,-,Generated mutation operators (directive s20).,
 tools/identity_inventory.py,KEEP_AS_IS,-,Identity-bearing field inventory.,
@@ -605,11 +609,12 @@ tools/mutations/cross_environment.json,KEEP_AS_IS,-,"Mutation spec over a retain
 tools/mutations/cryopanel_operating_point.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over the declaration rules and the inventory derivation.,
 tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
+tools/mutations/framework_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/fuzz_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/governed_breadth.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/governed_model_reuse.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
-tools/mutations/hardware_governance.json,RETIRE_TO_HISTORY,5,Hardware-governance mutations retire with their subject (directive s20).,targets hardware_governance_3d.py
 tools/mutations/identity_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/legacy/hardware_governance.json,RETIRE_TO_HISTORY,5,"Legacy QTA mutation specs: kept as historical test evidence, run by no active shard (tools/mutation_shards.py schedules the top level only). hardware_governance.json moved here in tranche 4 (directive s21).",targets hardware_governance_3d.py
 tools/mutations/model_check.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/mutation_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: operators over coverage, determinism, the aggregate's meaning and the shard runner.",

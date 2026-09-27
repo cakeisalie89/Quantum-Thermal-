@@ -283,9 +283,12 @@ RULES = [
      "Superconducting heat-switch lumped conductance: generic cryogenic "
      "component physics.",
      "directive s3B 'generic cryogenic component physics'"),
-    ("qta_multiphysics/cryopanel_dynamics_3d.py", PLG,
-     "Cryopanel adsorption inventory: generic cryogenic physics; B->C->D "
-     "phase windows to decouple in Phase 4.",
+    ("qta_multiphysics/cryopanel_dynamics_3d.py", EXG,
+     "Cryopanel adsorption inventory. Not a retained hardware model "
+     "(directive 22): extract its generic physics -- adsorption isotherm, "
+     "desorption kinetics, capacity and breakthrough -- into scientific "
+     "models with invariants and an independent check, then retire the "
+     "component model. The B->C->D phase windows retire with it.",
      "8 Mode-letter hits"),
     ("qta_multiphysics/nv_spin/runner.py", RWG,
      "Enforces Mode C readiness before Mode D (machine-mode semantics) and"
@@ -631,9 +634,11 @@ RULES = [
     ("tools/verify.sh", KAI,
      "Local verification entry script.",
      ""),
-    ("tools/mutations/hardware_governance.json", RTH,
-     "Hardware-governance mutations retire with their subject (directive "
-     "s20).",
+    ("tools/mutations/legacy/*.json", RTH,
+     "Legacy QTA mutation specs: kept as historical test evidence, run by "
+     "no active shard (tools/mutation_shards.py schedules the top level "
+     "only). hardware_governance.json moved here in tranche 4 (directive "
+     "s21).",
      "targets hardware_governance_3d.py"),
     ("tools/mutations/canonical_output_set.json", RWG,
      "Targets the QTA canonical-output set in "
@@ -713,6 +718,22 @@ RULES = [
     ("tests/test_governed_model_reuse.py", KAI,
      "NEW in Phase 2: a verified model result reused only on evidence "
      "re-derived intact; every exclusion against a genuine control.",
+     ""),
+    ("tools/framework_boundary.py", KAH,
+     "NEW (directive 10, 28): ACTIVE vs LEGACY, measured -- the import "
+     "closure, legacy files named, legacy-ontology imports.",
+     ""),
+    ("docs/framework_boundary.json", KAH,
+     "NEW (directive 10): which dispositions are ACTIVE, TRANSITIONAL and "
+     "LEGACY; the legacy-ontology tokens; declared exceptions.",
+     ""),
+    ("tests/test_claude_workflow_prompt.py", KAH,
+     "NEW (directive 11): the Claude workflow's prompt states the "
+     "framework's rules and none of QTA's retired invariants.",
+     ""),
+    ("tests/test_framework_boundary.py", KAH,
+     "NEW (directive 28): the boundary holds, and a planted legacy import, "
+     "file or ontology module is caught.",
      ""),
     ("tests/test_second_reader_audit_actions.py", KAH,
      "NEW (follow-up A, D-2026-84/85): the seven audit actions read a "
@@ -975,11 +996,15 @@ RULES = [
     ("AGENT_SUBSTRATE.md", KAH,
      "Substrate design record; updated with Phase 1 changes.",
      ""),
-    ("AUTHORITIES.md", KAH,
-     "Enforcement-point registry (human half).",
+    ("AUTHORITIES.md", RWG,
+     "Enforcement-point registry (human half); its QTA framing -- gates, "
+     "PASS=0, the machine -- is rewritten generically with the root "
+     "identity documents (directive 13).",
      ""),
-    ("authorities.json", KAH,
-     "Enforcement-point registry (machine half).",
+    ("authorities.json", RWG,
+     "Enforcement-point registry (machine half); rewritten into active and "
+     "legacy sections (directive 18). The substrate entry's invariant is "
+     "already generic (directive 12).",
      ""),
     ("docs/DEFECT_LEDGER.md", KAH,
      "Defect history preserved, not sanitized (directive s21).",
@@ -1041,17 +1066,20 @@ RULES = [
     ("RUNTIME_RESILIENCE.md", RWG,
      "Resilience narrative around qta_full_sim stages.",
      ""),
-    ("TESTING.md", KAH,
-     "Test discipline record.",
+    ("TESTING.md", RWG,
+     "Test discipline record; its QTA gate and byte-gate framing is "
+     "rewritten with the root identity documents (directive 13).",
      ""),
-    ("STACK.md", KAH,
-     "Declared scientific stack (directive s2).",
+    ("STACK.md", RWG,
+     "Declared scientific stack; rewritten around the framework rather "
+     "than the QTA package (directive 13).",
      ""),
     ("stack.json", KAI,
      "Stack adoption registry.",
      ""),
-    ("INSTALL.md", KAI,
-     "Installation.",
+    ("INSTALL.md", RWG,
+     "Installation; rewritten with the root identity documents "
+     "(directive 13).",
      ""),
     ("RELEASE_TRUST_ENFORCEMENT.md", KAI,
      "Release trust table.",
@@ -1155,8 +1183,10 @@ RULES = [
     (".github/workflows/identity-discovery.yml", KAI,
      "Identity discovery.",
      ""),
-    (".github/workflows/claude.yml", KAI,
-     "Assistant workflow.",
+    (".github/workflows/claude.yml", KAH,
+     "Assistant workflow; its prompt now states the framework's rules and "
+     "none of QTA's retired invariants, held by "
+     "tests/test_claude_workflow_prompt.py (directive 11).",
      ""),
     ("rust/*", EXG,
      "Selective Rust kernels (bit-parity admission).",

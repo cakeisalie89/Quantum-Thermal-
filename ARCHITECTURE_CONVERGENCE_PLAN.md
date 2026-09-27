@@ -212,9 +212,9 @@ Recorded in `docs/DEFECT_LEDGER.md`; summarized in the tranche report.
 
 **Status: introduced** as the `scientific/` package, standard library only
 (held by `tests/test_scientific_import_isolation.py`), and cut C1 made
-(`qta_multiphysics/__init__.py` imports nothing; `run_all` is a marked,
-transitional lazy entry). Where the code differs from the table below, and
-why:
+(`qta_multiphysics/__init__.py` imports nothing; the transitional lazy
+`run_all` it kept was removed in tranche 4, see 9.8). Where the code differs
+from the table below, and why:
 
 * **Frozen dataclasses, not Pydantic.** The interfaces must be importable by
   anything, so they load nothing outside the standard library; validation is
@@ -558,6 +558,54 @@ work and does not close the entry by being planned.
   REJECTED, which is the honest state of that boundary. Every other retained
   model is reached only through the orchestrator; Phase 4 continues one
   family at a time.
+
+### 9.8 ACTIVE FRAMEWORK vs LEGACY QTA (directive 10, 28)
+
+*Enforced from tranche 4.* `docs/framework_boundary.json` names which
+dispositions are ACTIVE (`KEEP_AS_IS`, `KEEP_AND_HARDEN`,
+`KEEP_AS_MODEL_PLUGIN`), TRANSITIONAL (`EXTRACT_GENERIC`, `REWRITE_GENERIC`)
+and LEGACY (`RETIRE_TO_HISTORY`); `FILE_DISPOSITION.csv` says which file is
+which, and nothing restates it per file. `tools/framework_boundary.py
+--check`, a CI step, fails when an active production module
+
+* reaches a legacy module through its static import closure -- module-level
+  AND function-level imports, plus the package initialisers every import
+  runs;
+* names a legacy file in a string literal (a root-level legacy file by name
+  anywhere, a nested one only with its directory); or
+* imports a module whose path carries a legacy-ontology token
+  (`machine_fsm`, `hardware_governance`, `mode_sequence`, ...), so a legacy
+  module moved out of the disposition's sight is still recognised.
+
+Two declared exceptions, each with its reason and each checked for
+staleness: the disposition tool names every file to classify it, and the RAG
+index names the history bundle it excludes. Tests are out of scope: a test
+of legacy code imports it on purpose.
+
+The measurement at the start: every one of the 105 active modules reached the
+legacy orchestrator (`runner` -> `future_3d`) through ONE edge -- the lazy
+`run_all` in `qta_multiphysics/__init__.py`, which any submodule import
+initialises. Its only caller was `qta_full_sim.py`; it now imports the
+runner itself (legacy reaching legacy) and the package offers no
+orchestrator. After it: 0 of 105 active modules import legacy, 0 name a
+legacy file, 0 import legacy ontology. TRANSITIONAL is measured, not
+enforced: 32 of 80 still reach legacy -- the `deep_expdesign` family through
+`design_space` and the design registry, the campaign, falsification,
+provenance, sources and species-accounting modules through the mode sequence
+and the machine FSM, the 3D runner through `cryo_stack_3d` -- and each moves
+to ACTIVE when it stops. `tools/framework_boundary.py --report` gives the
+counts. 12 mutations (`framework_boundary.json`), each rule removed against
+a planted violation.
+
+Also in tranche 4: the hardware-governance mutation spec retired with its
+subject to `tools/mutations/legacy/` (no shard runs it; directive 21); the
+shard runner's before/after state now includes the staged diff and stray
+untracked files, and each shard job checks `git diff --exit-code`,
+`git diff --cached --exit-code` and `git ls-files --others` itself even when
+the run failed (directive 41); the cryopanel model is dispositioned
+extract-then-retire (directive 22); the root identity documents and
+`authorities.json`, marked KEEP while hardware-defined, are REWRITE_GENERIC
+(directive 29).
 
 ## 10. Tranche 1 checkpoint report
 

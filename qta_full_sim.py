@@ -2096,11 +2096,11 @@ def main():
     gMP = []
     try:
         from pathlib import Path as _P
-        import qta_multiphysics
+        from qta_multiphysics.runner import run_all
         _mp_out = _P(__file__).resolve().parent / "outputs"
         _mp_out.mkdir(parents=True, exist_ok=True)
-        _mp_summary, _mp_specs = qta_multiphysics.run_all(str(_mp_out), mc_samples=30,
-                                                          verbose=False)
+        _mp_summary, _mp_specs = run_all(str(_mp_out), mc_samples=30,
+                                         verbose=False)
         for _s in _mp_specs:
             if _s["status"] not in ("CONDITIONAL", "BLOCKED", "UNKNOWN", "DERIVED_CHECK"):
                 raise ValueError(

@@ -14,15 +14,13 @@ must be importable without the machine it was first written for;
 interpreter for every module dispositioned as generic infrastructure or as a
 model plugin.
 """
-__all__ = ["run_all"]
+__all__: list = []
 
-
-def run_all(*args, **kwargs):
-    """TRANSITIONAL lazy entry point to the QTA orchestrator (C1).
-
-    Kept so ``from qta_multiphysics import run_all`` still works while the
-    orchestrator exists; it loads ``runner`` -- and with it the gate-spec
-    assembly -- only when called. It retires with the orchestrator (C8).
-    """
-    from .runner import run_all as _run_all
-    return _run_all(*args, **kwargs)
+# ``run_all`` used to live here as a lazy convenience entry point to the
+# orchestrator. It was the one edge through which EVERY module of this
+# package -- a grid, a unit constant, thermal_1d -- statically reached the
+# legacy QTA orchestration (``runner`` -> ``future_3d``): an import of any
+# submodule initialises this package, and the framework boundary
+# (``tools/framework_boundary.py``) reads the package's lazy imports as its
+# dependencies. Its only caller, ``qta_full_sim.py``, now imports
+# ``qta_multiphysics.runner.run_all`` itself -- legacy reaching legacy.

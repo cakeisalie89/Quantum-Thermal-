@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "200944",
+   "contentSize": "203079",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -252,10 +252,10 @@
   {
    "@id": "qta_full_sim.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "175236",
+   "contentSize": "175222",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
-   "sha256": "5d6e75b9457fd4b0fee66d5616241d7558ebcd866de622913e5e6d37fe3285ce"
+   "sha256": "97421f76b9754987856a84ca3c529b7bc7ac57e098d70270bea97a0895a875d9"
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
