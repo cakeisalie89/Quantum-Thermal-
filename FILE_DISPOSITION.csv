@@ -56,7 +56,7 @@ SIGNING_BOOTSTRAP.md,KEEP_AS_IS,-,Signing bootstrap.,
 SOURCE_AUDIT_STATUS.md,RETIRE_TO_HISTORY,5,Manuscript source audit.,
 STACK.md,REWRITE_GENERIC,2-7 (see rationale),Declared scientific stack; rewritten around the framework rather than the QTA package (directive 13).,
 SUPPLY_CHAIN_THREAT_MODEL.md,KEEP_AS_IS,-,Supply-chain threat model.,
-Snakefile,REWRITE_GENERIC,2-7 (see rationale),Workflow rewritten around validate -> run -> invariants -> independent verifier -> evidence (Phase 6).,directive s25 Phase 6
+Snakefile,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"SPLIT in tranche 4 (directive 16): the generic workflow, whose default target scientific_generic reaches no legacy rule (tests/test_workflow_split.py); the legacy QTA rules are workflow/legacy_qta.smk, included and invoked explicitly.",directive 16
 TESTING.md,REWRITE_GENERIC,2-7 (see rationale),Test discipline record; its QTA gate and byte-gate framing is rewritten with the root identity documents (directive 13).,
 THERMAL_3D_L3.md,KEEP_AS_MODEL_PLUGIN,4,Thermal-3D model documentation.,
 VALIDATION_PLAN.md,RETIRE_TO_HISTORY,5,Hardware validation roadmap.,directive s4
@@ -217,7 +217,7 @@ optical_absorption_2d_slices.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output o
 optical_absorption_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 optical_absorption_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 optical_line_of_sight_audit.csv,RETIRE_TO_HISTORY,5,Apparatus line-of-sight audit.,
-package_consistency_check.py,REWRITE_GENERIC,2-7 (see rationale),Independent regeneration verifier. Byte-regeneration and fail-closed structure are kept; the 83-gate/PASS=0/BOM/manuscript checks retire (directive s4).,"106 Mode-letter, 69 gate, 38 BOM, 28 measured-flag hits"
+package_consistency_check.py,RETIRE_TO_HISTORY,5,"LEGACY_QTA_VERIFIER (tranche 4, directive 17): checks the QTA payload -- canonical outputs, 83 gates, BOM, modes -- for as long as it ships, and is not generalised line by line. Its successor for the framework is tools/generic_consistency.py.","106 Mode-letter, 69 gate, 38 BOM, 28 measured-flag hits"
 parameter_registry.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 provenance_3d.json,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 pyproject.toml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Declare PyYAML (imported directly by two test modules, today only transitive via snakemake).",uv tree
@@ -505,6 +505,7 @@ tests/test_failed_gate_schema.py,REWRITE_GENERIC,2-7 (see rationale),Failed-samp
 tests/test_file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 0: every repository file has exactly one disposition, and the CSV is the generator's output.",
 tests/test_framework_boundary.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 28): the boundary holds, and a planted legacy import, file or ontology module is caught.",
 tests/test_generated_mutations.py,KEEP_AS_IS,-,Generated operators.,
+tests/test_generic_consistency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 17): the generic verifier on a real governed history, each check shown finding what it exists for.",
 tests/test_governed_model.py,KEEP_AS_IS,-,"NEW in Phase 2: a model result from proposal to authority, and every short-circuit of that line refused.",
 tests/test_governed_model_reuse.py,KEEP_AS_IS,-,NEW in Phase 2: a verified model result reused only on evidence re-derived intact; every exclusion against a genuine control.,
 tests/test_h2_pressure_authority.py,REWRITE_GENERIC,2-7 (see rationale),Distinct-quantity rule kept; gate B4 framing retires.,
@@ -560,6 +561,7 @@ tests/test_test_isolation.py,KEEP_AS_IS,-,Collection isolation.,
 tests/test_thermal_3d.py,KEEP_AS_MODEL_PLUGIN,4,3D thermal physics invariants.,
 tests/test_unit_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Unit inventory.,
 tests/test_verified_read_guard.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW: every rule of the verify-then-read guard on a breaking source and a control; the runtime refusal (D-2026-76).,
+tests/test_workflow_split.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 16): the default workflow reaches no legacy rule, from Snakemake's own DAG.",
 thermal_3d_energy_accounting.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 thermal_3d_hotspots.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 thermal_3d_probe_timeseries.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
@@ -578,6 +580,7 @@ tools/file_disposition.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in Phas
 tools/framework_boundary.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 10, 28): ACTIVE vs LEGACY, measured -- the import closure, legacy files named, legacy-ontology imports.",
 tools/fuzz_substrate.py,KEEP_AS_IS,-,Substrate fuzz harness (directive s20).,
 tools/generated_mutations.py,KEEP_AS_IS,-,Generated mutation operators (directive s20).,
+tools/generic_consistency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 17): the generic consistency verifier -- event history, evidence, independent reconstruction, scientific artifacts, model identity -- the framework's successor to the legacy verifier.",
 tools/identity_inventory.py,KEEP_AS_IS,-,Identity-bearing field inventory.,
 tools/independent_verify.py,KEEP_AS_IS,-,Subprocess second reader.,
 tools/legacy_qta_claims.py,RETIRE_TO_HISTORY,5,"The QTA claims reconciliation (gate counts, Mode B / Mode D, BOM vocabulary), moved from tools/claims_enforcement.py in tranche 4; run by the legacy-verifier CI step against docs/legacy/qta/.",directive 13/14
@@ -622,6 +625,7 @@ tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / 
 tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
 tools/mutations/framework_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/fuzz_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/generic_consistency.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/governed_breadth.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/governed_model_reuse.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/identity_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -662,3 +666,4 @@ verify_release.py,REWRITE_GENERIC,2-7 (see rationale),Hostile/offline release ve
 vibration_paths_3d_budget.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 vibration_transfer_metrics.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 vibration_transfer_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
+workflow/legacy_qta.smk,RETIRE_TO_HISTORY,5,"The legacy QTA workflow, moved out of the Snakefile unchanged in tranche 4 (directive 16): the Stage-7 chain over qta_full_sim.py, the Stage-8 QTA payload, the gate-table report, s10_full. Invocable explicitly until it retires.",directive 16

@@ -85,11 +85,18 @@ path above.
 ```
 uv sync --frozen --all-groups
 uv run python -m pytest tests/ -q
+uv run snakemake --cores 1                        # the generic workflow (default target)
 uv run snakemake --cores 1 s10_governed_model     # a model run, checked and decided
 uv run python tools/audit_log.py verification/stage10/governed_model/task_log.jsonl replay \
     --evidence verification/stage10/governed_model/evidence
+uv run python tools/generic_consistency.py verification/stage10/governed_model/task_log.jsonl \
+    --evidence verification/stage10/governed_model/evidence
 uv run python tools/framework_boundary.py --check
 ```
+
+The legacy QTA pipeline stays invocable explicitly: `snakemake --cores 1
+legacy_qta` (`workflow/legacy_qta.smk`), checked by the legacy verifier
+`package_consistency_check.py`.
 
 `INSTALL.md` has the details, `TESTING.md` the test discipline,
 `AUTHORITIES.md` which module owns which concept, and

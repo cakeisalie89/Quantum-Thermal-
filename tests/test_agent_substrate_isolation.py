@@ -53,6 +53,12 @@ ALLOWED_IMPORTERS = {
     # is the whole point: a checker that read the tables from a copy would
     # be the drifting model this one exists to avoid.
     "tools/model_check.py",
+    # The generic consistency verifier. Like the auditor it imports the log,
+    # the evidence store, the two readers and the store's projection in
+    # order to ASK them whether a history is consistent; it writes nothing
+    # and computes no scientific result.
+    "tools/generic_consistency.py",
+    "tests/test_generic_consistency.py",
     "tests/test_agent_audit_cli.py",
     "tests/test_agent_substrate.py",
     "tests/test_agent_substrate_properties.py",

@@ -486,18 +486,29 @@ def test_the_governed_rule_is_part_of_the_ordinary_stage10_workflow():
 
     The directive's own bar: a test-only caller does not count, a demo script
     does not count, an unused CLI does not count. What makes this real is that
-    ``s10_full`` -- the aggregate rule the Stage-10 workflow and its CI job
-    actually invoke -- depends on the governed run's output. Removing that
-    dependency would turn the control plane back into a library, so it is
-    pinned here rather than left to a reviewer noticing.
+    the workflow's DEFAULT target, ``scientific_generic``, depends on the
+    governed runs' outputs -- and so does the legacy aggregate ``s10_full``
+    the Stage-10 CI job invokes. Removing that dependency would turn the
+    control plane back into a library, so it is pinned here rather than left
+    to a reviewer noticing.
     """
     snakefile = (ROOT / "Snakefile").read_text(encoding="utf-8")
+    legacy = (ROOT / "workflow" / "legacy_qta.smk").read_text(
+        encoding="utf-8")
     assert "rule s10_governed:" in snakefile
 
-    after = snakefile.split("rule s10_full:", 1)[1].split("\nrule ", 1)[0]
+    default = snakefile.split("\nrule ", 1)[1].split("\nrule ", 1)[0]
+    assert default.startswith("scientific_generic:"), default[:80]
+    for out in ("governed/governed_run.json",
+                "governed_model/governed_model_run.json",
+                "governed_index/index_run.json"):
+        assert out in default, (
+            f"the default workflow no longer depends on {out}; the production "
+            "path would stop being exercised by the ordinary workflow")
+
+    after = legacy.split("rule s10_full:", 1)[1].split("\nrule ", 1)[0]
     assert "governed/governed_run.json" in after, (
-        "s10_full no longer depends on the governed run; the production path "
-        "would stop being exercised by the ordinary workflow")
+        "s10_full no longer depends on the governed run")
 
 
 def test_the_governed_rule_fails_the_build_on_an_unverified_run():

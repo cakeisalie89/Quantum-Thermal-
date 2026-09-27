@@ -2,6 +2,15 @@
 """
 package_consistency_check.py — independent verifier for the QTA package.
 
+LEGACY_QTA_VERIFIER (directive 17). It checks the hardware-era QTA payload --
+qta_full_sim.py's canonical outputs, the 83-gate table, the BOM, the mode
+semantics, the QTA claims and release expectations -- and it stays, run by
+the legacy CI steps and the legacy workflow (workflow/legacy_qta.smk), for as
+long as that payload ships. It is not being generalised line by line: the
+framework's own consistency -- event history, evidence, independent
+reconstruction, scientific artifacts, model identity -- is
+tools/generic_consistency.py's, which asks none of this file's questions.
+
 Reruns qta_full_sim.py in a clean outputs directory, then compares every
 canonical artifact against a single CANONICAL_EXPECTED truth table.
 
@@ -27,6 +36,7 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
                          newline, closefd, opener)
 
 PKG = Path(__file__).resolve().parent
+VERIFIER_CLASS = "LEGACY_QTA_VERIFIER"
 
 # ===================== CANONICAL_EXPECTED ====================================
 CANONICAL_EXPECTED = {

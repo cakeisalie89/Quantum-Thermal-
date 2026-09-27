@@ -695,6 +695,51 @@ the exponent, sticking ignored, a negative window run, each invariant
 disabled, NaN accepted, the check self-certifying, a flux error on a
 saturated surface, the stated resolution ignored.
 
+### 9.11 The workflow and release split; the generic verifier (directive 15, 16, 17)
+
+*Tranche 4.* **Workflow.** The Snakefile is the generic workflow. Its default
+target, `scientific_generic`, is the governed model run, the governed
+Stage-10 runs and the scientific-stack adapters closed by the
+tree-untouched check -- 13 jobs. The hardware-era rules moved unchanged to
+`workflow/legacy_qta.smk`, included and invoked explicitly: the Stage-7
+chain over `qta_full_sim.py` (`full_verification`, 12 jobs), the Stage-8 QTA
+payload (`s8_full`, 10), the gate-table report and `s10_full` (14), and
+`legacy_qta` for all of them. Every legacy target schedules exactly the jobs
+it did before the move. `tests/test_workflow_split.py` proves the split
+from Snakemake's own DAG: the default target is `scientific_generic`, it
+schedules no rule of the legacy file, and none of the rules it schedules
+names a legacy file or a legacy-ontology module; the control is the legacy
+aggregate, full of both. The Stage-10 CI job runs the generic default target
+and then `s10_full` on top of it.
+
+**Release.** `release.yml`'s payload steps are marked LEGACY QTA and
+transitional in the workflow itself, with their commands unchanged (the
+release trust tests pin them). `RELEASE_POLICY.md` states the generic release
+contract -- what bytes, what code and environment, evidence that resolves, a
+history that verifies, a reconstruction that agrees, signatures and
+provenance -- and which tool answers each today. The declared generic
+artifact set is not yet what the release builds: OPEN.
+
+**Verifier.** `package_consistency_check.py` is the LEGACY_QTA_VERIFIER
+(`VERIFIER_CLASS`, its docstring, RETIRE_TO_HISTORY), run for as long as the
+QTA payload ships and not generalised line by line.
+`tools/generic_consistency.py` is its successor for the framework: for an
+event log and its evidence store it checks EVENT_HISTORY (the chain),
+EVIDENCE (the store re-hashed, every cited digest resolving),
+RECONSTRUCTION (the independent reader refuses nothing, finds nothing
+undecidable, and agrees with the live store, whose own refusal to load a
+history is a finding), SCIENTIFIC_ARTIFACTS (bundle and report parse under
+the scientific schemas, the report about the bundle) and IDENTITY (model and
+check admitted by the catalog; whether this tree's code produced the bundle
+is reported, not judged). It names no gate, PASS count, machine, BOM or
+mode. Run on the pre-tranche governed run left in a workspace, it reports
+exactly what replay does: a VERIFIED transition naming no admission policy,
+refused by both readers. `tests/test_generic_consistency.py` damages a real
+governed history one way at a time; 12 mutations
+(`generic_consistency.json`). Signatures, SBOM and release contents stay
+`verify_release.py`'s; HDF5 and RO-Crate still describe the QTA payload
+(directive 19, 20): OPEN.
+
 ## 10. Tranche 1 checkpoint report
 
 Phase 0 and Phase 1, on top of `71b58cb`. **Not a migration-completion

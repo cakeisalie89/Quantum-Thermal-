@@ -501,14 +501,23 @@ RULES = [
     ("snakemake_sim_entry.py", RWG,
      "Snakemake wrapper around qta_full_sim (Phase 6).",
      "docstring"),
-    ("Snakefile", RWG,
-     "Workflow rewritten around validate -> run -> invariants -> "
-     "independent verifier -> evidence (Phase 6).",
-     "directive s25 Phase 6"),
-    ("package_consistency_check.py", RWG,
-     "Independent regeneration verifier. Byte-regeneration and fail-closed"
-     " structure are kept; the 83-gate/PASS=0/BOM/manuscript checks retire"
-     " (directive s4).",
+    ("Snakefile", KAH,
+     "SPLIT in tranche 4 (directive 16): the generic workflow, whose "
+     "default target scientific_generic reaches no legacy rule "
+     "(tests/test_workflow_split.py); the legacy QTA rules are "
+     "workflow/legacy_qta.smk, included and invoked explicitly.",
+     "directive 16"),
+    ("workflow/legacy_qta.smk", RTH,
+     "The legacy QTA workflow, moved out of the Snakefile unchanged in "
+     "tranche 4 (directive 16): the Stage-7 chain over qta_full_sim.py, "
+     "the Stage-8 QTA payload, the gate-table report, s10_full. Invocable "
+     "explicitly until it retires.",
+     "directive 16"),
+    ("package_consistency_check.py", RTH,
+     "LEGACY_QTA_VERIFIER (tranche 4, directive 17): checks the QTA payload "
+     "-- canonical outputs, 83 gates, BOM, modes -- for as long as it ships, "
+     "and is not generalised line by line. Its successor for the "
+     "framework is tools/generic_consistency.py.",
      "106 Mode-letter, 69 gate, 38 BOM, 28 measured-flag hits"),
     ("manuscript_consistency_check.py", RTH,
      "QTA manuscript consistency is not a release requirement (directive "
@@ -748,6 +757,19 @@ RULES = [
     ("tests/test_claude_workflow_prompt.py", KAH,
      "NEW (directive 11): the Claude workflow's prompt states the "
      "framework's rules and none of QTA's retired invariants.",
+     ""),
+    ("tools/generic_consistency.py", KAH,
+     "NEW (directive 17): the generic consistency verifier -- event "
+     "history, evidence, independent reconstruction, scientific artifacts, "
+     "model identity -- the framework's successor to the legacy verifier.",
+     ""),
+    ("tests/test_generic_consistency.py", KAH,
+     "NEW (directive 17): the generic verifier on a real governed history, "
+     "each check shown finding what it exists for.",
+     ""),
+    ("tests/test_workflow_split.py", KAH,
+     "NEW (directive 16): the default workflow reaches no legacy rule, "
+     "from Snakemake's own DAG.",
      ""),
     ("tests/test_surface_adsorption.py", KAH,
      "NEW (directive 22): the extracted Langmuir capture -- regression "

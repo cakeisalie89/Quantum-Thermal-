@@ -156,10 +156,10 @@
   {
    "@id": "Snakefile",
    "@type": "SoftwareSourceCode",
-   "contentSize": "50636",
+   "contentSize": "40006",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "c05e334b96d25451c54391139bad6bd68367d6cea73fb43115ad0347f76404a8"
+   "sha256": "b4d64b61976529a99e7ac615dbcbd97b58503a7ee44a70b52611b7b01829d8ad"
   },
   {
    "@id": "campaign_registry.json",
@@ -236,10 +236,10 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "135721",
+   "contentSize": "136341",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "e9c59def7a9f204c147c55f3b5d30723ed9666aba3d8d30383cd16c137ff3ff0"
+   "sha256": "7e5c79515362ba9fe017d6760ef2c785b7c5035df218505e647b0333a2a99719"
   },
   {
    "@id": "pyproject.toml",

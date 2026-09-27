@@ -732,7 +732,10 @@ def test_stage10_owner_modules_are_importable():
 
 
 def test_registry_verification_targets_exist_in_the_workflow():
-    snakefile = (ROOT / "Snakefile").read_text()
+    # the Snakefile and what it includes (the legacy QTA rules)
+    snakefile = "\n".join(
+        p.read_text() for p in [ROOT / "Snakefile",
+                                *sorted((ROOT / "workflow").glob("*.smk"))])
     for element in REGISTRY.elements:
         command = element.verification.split("#")[0].strip()
         if not command.startswith("snakemake"):
