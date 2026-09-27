@@ -1155,3 +1155,194 @@ this tranche was asked for, and was not reached.
    classes, one at a time.
 5. Hosted evidence for E recorded against R41 and R49, and each row moved or
    not on it.
+
+## 13. Tranche 4 checkpoint report -- trust closure, the ACTIVE/LEGACY boundary, the first hardware extraction
+
+Started at `f003e38`. Seven commits: **A** `b066462` (replay re-admits
+scientific authority), **A2** `893f03a` (ledger follow-up A), **B** `81e5981`
+(the boundary enforced; the Claude workflow and the agent docs generic),
+**C** `d8e5e85` (the framework's identity, active authorities, the claims
+boundary held by code), **D** `7d50117` (the cryopanel's physics extracted,
+the component retired), **F** `13bd1be` (the workflow and release split; the
+legacy verifier named and its generic successor), **E** `e13911f` (the
+observation boundary's time, sequence and digest; campaign sequencing and
+QTA ingestion retired), and this report (documentation only). The last code
+commit is `e13911f`. **Not a migration-completion claim; not merged.** Each
+commit's evidence is its own, recorded in its message.
+
+### The two numbers the directive asks for
+
+* **ACTIVE FRAMEWORK files that import LEGACY QTA modules: 0** (of 109
+  active production modules; `tools/framework_boundary.py --check`, a CI
+  step, fails on one). 0 name a legacy file; 0 import a legacy-ontology
+  module. At the start of the tranche every one of the then 105 active
+  modules reached the legacy orchestrator through the lazy `run_all` in
+  `qta_multiphysics/__init__.py`.
+* **Active release/workflow rules requiring QTA hardware outputs.** The
+  default workflow target requires none (13 jobs, proven from the DAG). Still
+  requiring them, each marked legacy and invoked explicitly: the legacy
+  Snakemake targets (`full_verification`, `s8_full`, `s10_report` /
+  `s10_full`, `legacy_qta`); three `release.yml` payload steps
+  (`qta_full_sim.py`, `package_consistency_check.py`,
+  `stage6_preservation_check.py`); the Stage-10 CI job's `s10_full` step on
+  top of the generic target; the full-suite job's legacy verifier step
+  (R59's byte gate); and the agent-substrate job's LEGACY QTA claims step.
+  Before the tranche the default target itself was the QTA chain, and the
+  Stage-10 CI job ran only `s10_full`.
+
+### Stale-hardware inventory
+
+In active code, by `tools/framework_boundary.py --report` and a text count:
+28 Mode-letter labels remain in 7 active physics plugins
+(`species_transport_3d` 7, `vibration_transfer` 5, `surface_coverage_3d` 5,
+`gas_transport_1d` 5, `material_models` 3 -- `mode_d_temp_threshold_K`
+among them -- `nv_spin.spin_config` 2, `surface_coverage` 1): directive 27,
+not done this tranche. The remaining gate / BOM / hardware words in active
+modules are the tooling that must name legacy to classify it
+(`file_disposition`, `framework_boundary`, `claims_enforcement`,
+`cross_env_semantics`, `generic_consistency`'s statement of what it does not
+ask) and the substrate's own vocabulary ("gate" as in approval gate).
+Transitional modules still reaching legacy: 30 of 75, listed by `--report`
+-- all of `deep_expdesign` through `design_space`, the campaign, species,
+sources, provenance and falsification layers, the runners.
+
+### Files moved to legacy / history
+
+`docs/legacy/qta/` -- README, CLAIMS_BOUNDARY, AUTHORITIES, RELEASE_POLICY,
+HDF5_DATA_MODEL, unchanged; `tools/legacy_qta_claims.py` and its test (the
+QTA claims reconciliation); `workflow/legacy_qta.smk` (the QTA rules, moved
+out of the Snakefile unchanged); `tools/mutations/legacy/` --
+`hardware_governance.json`, `cryopanel_operating_point.json`. Retired in
+place: `package_consistency_check.py` (LEGACY_QTA_VERIFIER),
+`cryopanel_dynamics_3d.py`, `campaign_state_3d.py`,
+`measurement_ingest_3d.py`.
+
+### Files rewritten generically
+
+README, CLAIMS_BOUNDARY, AUTHORITIES, RELEASE_POLICY, HDF5_DATA_MODEL (root);
+STACK, MANIFEST_BOUNDARY, INSTALL, TESTING reframed; `authorities.json`
+(active and legacy sections); `tools/claims_enforcement.py`;
+`.github/workflows/claude.yml`; `qta_agent/__init__.py`,
+`_stage10_index_tool.py`, `governed_stage10.py` and AGENT_SUBSTRATE.md's
+isolation invariant; the Snakefile; `pyproject.toml`'s description.
+
+### Files source-mined
+
+`qta_multiphysics/cryopanel_dynamics_3d.py` -> `scientific/models/
+surface_adsorption.py` (density, impingement flux, exact Langmuir capture;
+regression-equivalent bit for bit) with `scientific/checks/langmuir_rk4.py`.
+It had no desorption, isotherm or breakthrough term. `qta_full_sim.py`: not
+mined this tranche (47).
+
+### Dispositions changed
+
+KEEP_AND_HARDEN: claude.yml, the Snakefile, README, CLAIMS_BOUNDARY,
+AUTHORITIES, authorities.json, the claims checker, docs/claims_boundary.json,
+and the new tests and tools. REWRITE_GENERIC: AUTHORITIES/STACK/TESTING/
+INSTALL/authorities.json while they were hardware-defined (B), then
+rewritten (C). RETIRE_TO_HISTORY: the files above. The cryopanel went
+KEEP_AS_MODEL_PLUGIN -> EXTRACT_GENERIC (B) -> RETIRE_TO_HISTORY (D).
+668 rows now (641 at the end of tranche 3): KEEP_AS_IS 170, KEEP_AND_HARDEN
+83, EXTRACT_GENERIC 35, KEEP_AS_MODEL_PLUGIN 50, REWRITE_GENERIC 85,
+REGENERATE 22, RETIRE_TO_HISTORY 140, DELETE_GENERATED_AND_REBUILD 83. Every
+file matched by exactly one rule. Also retired this tranche:
+`package_consistency_check.py` (F), `campaign_state_3d.py` and
+`measurement_ingest_3d.py` (E).
+
+### Authority, reconstruction, origin
+
+* **Replay:** a scientific_result's admission is re-decided on every replay
+  and on snapshot restore under the policy the transition names
+  (`scientific_result.admission/1`); an unknown or absent policy is refused;
+  evidence that does not resolve makes a result UNVERIFIABLE, never
+  VERIFIED, and not canonical (A, D-2026-83).
+* **Independent reconstruction:** `reconstruct.py` decides admission in its
+  own code and `compare()` includes it; 38 of 38 action classes have a
+  second reader (A2). The generic verifier runs both readers and compares
+  them (F).
+* **Report origin:** the report must be captured by a governed check task
+  before that task's own VERIFIED verdict, the task still VERIFIED at the
+  transition, the bundle likewise by a model run, and the check executed by
+  none of proposer, decider and model executor (A).
+* **CPU-dispatch identity:** unchanged -- the run identity does not see CPU
+  dispatch (9.7, directive 37). OPEN.
+
+### R41, R49, R59, D-2026-69, ledger follow-ups
+
+R41 and R49 unchanged this tranche (9.2, 9.3): R49's one timed guard
+remains. R59 unchanged and standing: the byte gate fails on runners with a
+different CPU dispatch; no tolerance widened, nothing rewritten, the gate
+not suppressed; hosted, it failed at the byte gate on `b066462`, `81e5981` and `d8e5e85` (23 root copies differing in digits, 0 decision-bearing tokens of 5419 leaves each time) and passed on `893f03a` and `7d50117`, whose runners' dispatch matched. D-2026-69: the generic mechanism is
+`scientific/quantity.py`, and the legacy energy-ledger row it was found on
+retired with the campaign. Ledger follow-up A closed (A2); B, C, D carried
+(9.4).
+
+### Tests and mutation results (local, serial, baseline and null control green, sources restored byte-identical)
+
+| commit | full suite (local, its own tree) | mutation matrices run locally |
+|---|---|---|
+| A `b066462` | 4328 passed, 9 skipped | authority_result_rules 17/17, scientific_authority_replay 25/25, governed_model_reuse 20/20 (18/20 first), scientific_thermal_1d 12/12, scientific_thermal_2d 15/15, agent_snapshot_coherence 20/20, agent_checkpoint 48/48, agent_tasks 32/32 |
+| A2 `893f03a` | 4393 passed, 9 skipped | second_reader_audit_actions 27/27 and seven more: 143/143 |
+| B `81e5981` | 4420 passed, 9 skipped | framework_boundary 12/12 (11/12 first), scientific_interfaces 22/22, mutation_shards 12/12, cryopanel_operating_point 9/9 |
+| C `d8e5e85` | 4461 passed, 9 skipped | claims_boundary 16/16, output_resolution 17/17 |
+| D `7d50117` | 4590 passed, 9 skipped | surface_adsorption 25/25 (24/25 first), legacy cryopanel_operating_point 8/9, CP9 the classified survivor |
+| F `13bd1be` | 4619 passed, 9 skipped | generic_consistency 12/12 (11/12 first) |
+| E `e13911f` | 4638 passed, 9 skipped | scientific_interfaces 27/27 |
+
+On every commit's own tree, besides the suite: `package_consistency_check`
+PASS; test isolation (123 -> 129 modules); `s10_governed` and
+`s10_governed_model` with the auditor's verify / gaps / replay / decisions
+exiting 0 (replay without evidence exiting 1, as it must); `s10_full` 14/14
+with 0 canonical mismatches; manifest and RO-Crate; from C on, the claims
+checkers, the stage-6 check, the dispositions, the completion matrix and the
+shard plan; from F on, the generic verifier on the fresh governed history,
+consistent on all five checks. Every survivor above was either killed by a
+test written for it or, for CP9, classified in its spec; none is
+unclassified. 60 specifications are committed and every one runs in CI.
+
+Failures along the way, each caught before its commit: C's first run failed
+two dependency-declaration tests (the inventory records `pyproject.toml`'s
+digest; the derived chain now regenerates it); D's first run failed the
+test that pinned the legacy spec directory to one file; a full-suite run of
+F and E together found three integration gaps in F (the verifier not run by
+the workflow, not on the substrate importer list, and the default rule's
+comment naming the legacy file) -- all fixed in F -- and one timing test
+that failed once under three concurrent workloads and passed alone and in
+F's own run. Tooling, no repository effect: a session break stranded CP9's
+mutation in B's tree (`--recover` restored it, digest checked, matrix rerun);
+a `pkill -f` pattern twice matched its own shell and killed a validation
+run, which was restarted from the start.
+
+### Hosted CI, by commit
+
+Push runs of `.github/workflows/agent-substrate.yml` (14 jobs) and
+`stack-verify.yml` (two legs):
+
+* `b066462` (A): full-suite red at step 7 only (R59); everything else green.
+* `893f03a` (A2): all 30 checks green, full-suite included.
+* `81e5981` (B): 13 of 14 green -- all eight shards, each with the new
+  tree-unchanged step, the aggregate, the substrate job with the framework
+  boundary step; full-suite red at step 7 only (R59); stack-verify green.
+* `d8e5e85` (C): stack-verify green; full-suite red at step 7 only (R59); the
+  substrate job, with the new claims and LEGACY QTA claims steps, green.
+* `7d50117` (D): the whole substrate run green, full-suite included;
+  stack-verify green.
+* `13bd1be` (F): stack-verify green, running the generic default target and
+  then `s10_full`; the substrate run had not finished when this was written.
+* `e13911f` (E): queued when this was written.
+
+This report's own commit is documentation and the manifest; its runs, and
+F's and E's, are for the next report to record.
+
+### What is still open, exactly
+
+1. Directive 24: a generic phase graph for the coupled-mode solver.
+2. Directive 25: `deep_expdesign` candidates from the ScientificModel and
+   observation schemas, and its package `__init__` made lazy, so the
+   Bayesian, EIG, surrogate and OOD modules stop reaching the design
+   registry.
+3. Directive 27: the 28 mode-letter labels in seven active plugins.
+4. Directive 19-20: HDF5, RO-Crate and the release artifact set still
+   describe the QTA payload.
+5. Directive 37: CPU dispatch in the run identity.
+6. `qta_full_sim.py` extract-then-retire (47).

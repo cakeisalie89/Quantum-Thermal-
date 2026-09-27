@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 8743,
-      "sha256": "0eeb949e543a98a676cf5e417c0761774cfd89494bd341e11263d9dbaa46e7d5",
+      "sha256": "b6034e20ff3dbae50fff3371861c4b4adf5b3c7bef3322e2cf9bb2b335e337a5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4180,8 +4180,8 @@
     },
     {
       "filename": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "size_bytes": 71654,
-      "sha256": "4e7a817ab9d4e006fc3db280aa81a043666a44e6845b6d1225ae6f4c488dac4c",
+      "size_bytes": 82937,
+      "sha256": "081cb3b2bd4483971a37fae08b725737ccf29b634542f764246b2094df933389",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
