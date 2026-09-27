@@ -8206,3 +8206,45 @@ production signer and the writers that use it are deployment work.
 
 **TEST.** `tests/test_actor_authentication.py` (new, 23). **MUTATIONS.**
 `actor_authentication.json` (new, 19).
+
+## D-2026-90 — the run identity could not see the numeric backend
+
+**CLASS** — `GAP`, `scientific/run_identity.py`. Plan 9.7 "The run identity
+does not see CPU dispatch"; R59.
+
+The environment in a RunIdentity was the interpreter and the numpy and
+scipy VERSIONS, read from metadata. R59 is the counterexample: the same
+versions on a runner whose CPU has a different SIMD set dispatch a
+different kernel and change digits. A different thread count (the order of
+a reduction), a dispatch or core-type override, and another native build of
+the same version do the same. Reuse was within one history on one machine,
+which kept it from biting; the identity still said two such runs were the
+same computation.
+
+**REPAIR.** The environment record now carries the backend, read without
+importing numpy: the CPU's SIMD features and core identity from
+`/proc/cpuinfo` (microcode, virtualisation and mitigation flags left out --
+they change no kernel, and would make every patched host a different
+machine; a CPU that cannot be read names its host, so the run is reused
+only there); the CPU count and every thread, dispatch and core-type variable
+a numeric library reads; and each distribution's native build -- every
+extension module and bundled library, numpy's OpenBLAS among them, by the
+digest its own wheel RECORD holds. `environment_record(environ=...)`
+describes the environment a governed tool actually ran in, which is pinned
+(`OMP_NUM_THREADS=1` and its siblings), and the governed reuse test now
+compares against that rather than the test process's own.
+
+**TEST.** `tests/test_run_identity_backend.py` (new, 15): each part of the
+backend changed -- a SIMD feature, the core, a thread count, a dispatch
+override, a core-type override, the native build, an unreadable CPU --
+changes the environment digest and the RunIdentity, and `may_reuse` refuses
+naming `environment_digest`; a mitigation flag and a variable no kernel
+reads change nothing; the native digest follows the wheel's recorded hashes
+of compiled files only; the record is read in a fresh interpreter with
+neither numpy nor scipy imported. **MUTATIONS.** `run_identity_backend.json`
+(new, 9).
+
+**NOT DONE.** Reuse is still refused, not reconciled, across backends: there
+is no equivalence policy saying when two backends agree well enough for a
+given model (directive 11). The identity says "different"; it cannot yet say
+"different and equivalent".

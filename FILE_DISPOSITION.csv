@@ -544,6 +544,7 @@ tests/test_replay_origin_view.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW
 tests/test_repo_contract.py,KEEP_AS_IS,-,Repository file-set contract.,
 tests/test_resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution inventory.,
 tests/test_review_binding.py,RETIRE_TO_HISTORY,5,Hardware review binding.,imports hardware_governance_3d
+tests/test_run_identity_backend.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-90): each part of the numeric backend changes the run identity; what changes no kernel does not.,
 tests/test_scientific_authority_replay.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-83): replay, snapshot restore and the independent reader each re-decide a scientific result's admission; forged histories refused by both readers.",
 tests/test_scientific_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_import_isolation.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
@@ -646,6 +647,7 @@ tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a ret
 tools/mutations/replay_origin_view.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/run_identity_backend.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_authority_replay.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_interfaces.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_invalidation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

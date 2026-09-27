@@ -125,10 +125,11 @@
    "owner": "scientific",
    "schema_version": "1",
    "means": "what counts as 'the same run' for reuse",
-   "does_not_mean": "cross-machine equivalence: the environment digest does not see numerical-library CPU dispatch (plan 9.7)",
+   "does_not_mean": "cross-machine equivalence: a run on another numeric backend -- SIMD set, core, thread or dispatch settings, native build -- is a different run (D-2026-90), and no policy yet says when two backends agree well enough for a given model",
    "enforced_by": [
     "tests/test_governed_model_reuse.py",
-    "tests/test_scientific_identity.py"
+    "tests/test_scientific_identity.py",
+    "tests/test_run_identity_backend.py"
    ]
   },
   "framework_boundary": {

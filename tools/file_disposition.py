@@ -800,6 +800,10 @@ RULES = [
      "NEW (D-2026-87): a result resting on an invalidated or withdrawn "
      "governed origin goes STALE, transitively, replayed by both readers.",
      ""),
+    ("tests/test_run_identity_backend.py", KAH,
+     "NEW (D-2026-90): each part of the numeric backend changes the run "
+     "identity; what changes no kernel does not.",
+     ""),
     ("tests/test_actor_authentication.py", KAH,
      "NEW (D-2026-89): the actor-authentication seam; every attack shown "
      "past the hash chain, refused by both readers.",

@@ -461,9 +461,11 @@ def test_a_run_reused_after_its_evidence_went_is_recomputed(world):
 def test_the_identity_is_this_model_these_parameters_this_environment(world):
     """What "the same run" means, pinned: the model and version, its
     implementation digest now, the VALIDATED parameters (defaults filled
-    in), and the interpreter and numeric libraries."""
+    in), and the interpreter, the numeric libraries and the numeric backend
+    -- of the environment the governed tool RAN in, whose thread counts are
+    pinned, not of this test process's."""
     from scientific.models.thermal_1d import Thermal1DModel
-    from scientific.run_identity import environment_digest
+    from scientific.run_identity import environment_digest, environment_record
     g, first, _, _, ev = world
     ident = _doc(ev, g.authority.get(first.record_id)
                  .evidence["run_identity"])
@@ -473,4 +475,5 @@ def test_the_identity_is_this_model_these_parameters_this_environment(world):
     assert ident["implementation_digest"] == model.implementation_digest()
     assert ident["parameter_digest"] == digest(model.validate(PARAMS))
     assert ident["parameter_digest"] != digest(PARAMS)
-    assert ident["environment_digest"] == environment_digest()
+    assert ident["environment_digest"] == environment_digest(
+        environment_record(environ=g.gov._tool_environment()))

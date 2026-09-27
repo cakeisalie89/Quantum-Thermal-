@@ -586,6 +586,16 @@ work and does not close the entry by being planned.
   bite yet. *Done when:* the environment record carries the numeric
   libraries' dispatch (without the scientific core importing numpy to learn
   it), or reuse is refused across machines outright.
+  *Closed (D-2026-90).* The environment record carries the backend, read
+  without importing numpy: the CPU's SIMD set and core from
+  `/proc/cpuinfo` (the host, where it cannot be read), the CPU count and
+  every thread, dispatch and core-type variable, and each distribution's
+  native build by its wheel's recorded digests. Each change is shown to
+  change the RunIdentity and make `may_reuse` refuse; a mitigation flag
+  and an unrelated variable change nothing. 9 mutations
+  (`run_identity_backend.json`). *Still open:* no equivalence policy says
+  when two backends agree for a given model (directive 11); different is
+  refused, never reconciled.
 * **Reuse is per history.** `reusable` searches the records of the log it
   is given; nothing shares verified results between histories, and
   `s10_governed_model` starts a fresh one per invocation on purpose (so
