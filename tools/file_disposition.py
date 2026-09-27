@@ -319,10 +319,14 @@ RULES = [
      "Coupling-arrow ledger with honesty statuses: generic concept, QTA "
      "channel list.",
      "20 Mode-letter hits"),
-    ("qta_multiphysics/campaign_state_3d.py", RWG,
-     "Adaptive-campaign carried state; walks the machine FSM. Rewrite over"
-     " the task/scheduler FSMs. Holds deferred D-2026-69 (energy-ledger "
-     "summation floor).",
+    ("qta_multiphysics/campaign_state_3d.py", RTH,
+     "RETIRED in tranche 4 (directive 23): the campaign walks the physical "
+     "machine FSM through Mode A/B/C/D, valve, helium and switch states and "
+     "the cryopanel component -- machine sequencing, not migrated. The "
+     "generic concept, long-running campaign state, is the substrate's: "
+     "event-sourced task and scheduler FSMs, the model registry, "
+     "observations, dependency invalidation. D-2026-69's lesson is held "
+     "independently by scientific/quantity.py.",
      "imports machine_fsm path via runner_3d; 19 Mode-letter hits"),
     ("qta_multiphysics/campaign_uncertainty_3d.py", RWG,
      "Campaign-level UQ; generic engine over ScientificModel (directive "
@@ -331,10 +335,13 @@ RULES = [
     ("qta_multiphysics/falsification_3d.py", RWG,
      "Falsification conditions: generic concept, QTA canonical bounds.",
      "11 Mode-letter hits"),
-    ("qta_multiphysics/measurement_ingest_3d.py", RWG,
-     "Replace with the generic Observation boundary "
-     "(RAW/PROCESSED/SYNTHETIC/SIMULATION/DERIVED/CALIBRATED) -- directive"
-     " s15.",
+    ("qta_multiphysics/measurement_ingest_3d.py", RTH,
+     "RETIRED in tranche 4 (directive 26): QTA quantity mapping, Mode "
+     "alignment, gate-effect vocabulary, hard-coded hardware refusal. "
+     "Replaced by the generic Observation boundary (scientific/"
+     "observation.py): the six kinds with lineage rules, unit and "
+     "resolution, source, transformation, uncertainty and calibration "
+     "provenance, time with its offset, sequence, content digest.",
      "data_class 'SYNTHETIC' only; 21 Mode-letter hits"),
     ("qta_multiphysics/species_accounting_3d.py", RWG,
      "Mass accounting is generic; the per-mode species policy is QTA "

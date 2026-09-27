@@ -160,6 +160,41 @@
       "find": "__all__: list = []\n",
       "replace": "__all__ = [\"run_all\"]\n\n\ndef run_all(*args, **kwargs):\n    from .runner import run_all as _run_all\n    return _run_all(*args, **kwargs)\n",
       "rationale": "the package offers the legacy orchestrator again, and every submodule statically reaches it (tranche 4)"
+    },
+    {
+      "name": "SI22_a_naive_time_is_accepted",
+      "path": "scientific/observation.py",
+      "find": "            if when.utcoffset() is None:\n",
+      "replace": "            if False:\n",
+      "rationale": "a time with no UTC offset is accepted, and two instruments' observations cannot be ordered"
+    },
+    {
+      "name": "SI23_any_sequence_is_accepted",
+      "path": "scientific/observation.py",
+      "find": "                or not isinstance(self.sequence, int) or self.sequence < 0):\n",
+      "replace": "                or not isinstance(self.sequence, int)):\n",
+      "rationale": "a negative position in a series is accepted"
+    },
+    {
+      "name": "SI24_the_time_is_not_in_the_record",
+      "path": "scientific/observation.py",
+      "find": "                \"time\": self.time, \"sequence\": self.sequence}\n",
+      "replace": "                \"sequence\": self.sequence}\n",
+      "rationale": "the digest and the record lose when the observation was made"
+    },
+    {
+      "name": "SI25_a_record_with_extra_keys_reads_back",
+      "path": "scientific/observation.py",
+      "find": "        if not isinstance(rec, dict) or set(rec) != _RECORD_KEYS:\n",
+      "replace": "        if not isinstance(rec, dict) or not _RECORD_KEYS <= set(rec):\n",
+      "rationale": "a record carrying keys the schema does not know is read as an observation"
+    },
+    {
+      "name": "SI26_the_digest_is_of_the_quantity_alone",
+      "path": "scientific/observation.py",
+      "find": "        return _digest(self.to_record())\n",
+      "replace": "        return _digest(self.quantity.to_record())\n",
+      "rationale": "trust wrong evidence: two observations with different lineage share a digest"
     }
   ]
 }

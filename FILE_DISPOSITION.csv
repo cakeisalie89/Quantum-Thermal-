@@ -259,7 +259,7 @@ qta_manuscript_v4.pdf,RETIRE_TO_HISTORY,5,QTA manuscript.,
 qta_manuscript_v4.tex,RETIRE_TO_HISTORY,5,QTA manuscript.,
 qta_multiphysics/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Package entry exporting run_all (QTA orchestration). Becomes a plugin index.,exports runner.run_all
 qta_multiphysics/boundaries_3d.py,KEEP_AS_MODEL_PLUGIN,4,Boundary physics for the 3D thermal model.,model family: thermal
-qta_multiphysics/campaign_state_3d.py,REWRITE_GENERIC,2-7 (see rationale),Adaptive-campaign carried state; walks the machine FSM. Rewrite over the task/scheduler FSMs. Holds deferred D-2026-69 (energy-ledger summation floor).,imports machine_fsm path via runner_3d; 19 Mode-letter hits
+qta_multiphysics/campaign_state_3d.py,RETIRE_TO_HISTORY,5,"RETIRED in tranche 4 (directive 23): the campaign walks the physical machine FSM through Mode A/B/C/D, valve, helium and switch states and the cryopanel component -- machine sequencing, not migrated. The generic concept, long-running campaign state, is the substrate's: event-sourced task and scheduler FSMs, the model registry, observations, dependency invalidation. D-2026-69's lesson is held independently by scientific/quantity.py.",imports machine_fsm path via runner_3d; 19 Mode-letter hits
 qta_multiphysics/campaign_uncertainty_3d.py,REWRITE_GENERIC,2-7 (see rationale),Campaign-level UQ; generic engine over ScientificModel (directive s12).,Mode-letter + measured flag
 qta_multiphysics/config.py,REWRITE_GENERIC,2-7 (see rationale),"Validate-on-construction SI config is generic; defaults are the QTA apparatus (10 mK fridge, fs laser, diamond NV). Split generic schema from the QTA reference parameter set.",docstring
 qta_multiphysics/convergence_3d.py,EXTRACT_GENERIC,3,Convergence analysis.,directive s3A
@@ -310,7 +310,7 @@ qta_multiphysics/laser_source_3d.py,KEEP_AS_MODEL_PLUGIN,4,3D optical deposition
 qta_multiphysics/machine_fsm.py,RETIRE_TO_HISTORY,5,"Physical machine FSM (valves/shutter/switch, Mode A/B/C/D).",directive s4/s5: retire only the physical machine FSM
 qta_multiphysics/material_models.py,KEEP_AS_MODEL_PLUGIN,4,Temperature-dependent material constitutive models (Mode-labelled gas temperatures to decouple).,model family: materials; 12 Mode-letter hits
 qta_multiphysics/materials_3d.py,KEEP_AS_MODEL_PLUGIN,4,Material properties for the 3D layer.,model family: materials
-qta_multiphysics/measurement_ingest_3d.py,REWRITE_GENERIC,2-7 (see rationale),Replace with the generic Observation boundary (RAW/PROCESSED/SYNTHETIC/SIMULATION/DERIVED/CALIBRATED) -- directive s15.,data_class 'SYNTHETIC' only; 21 Mode-letter hits
+qta_multiphysics/measurement_ingest_3d.py,RETIRE_TO_HISTORY,5,"RETIRED in tranche 4 (directive 26): QTA quantity mapping, Mode alignment, gate-effect vocabulary, hard-coded hardware refusal. Replaced by the generic Observation boundary (scientific/observation.py): the six kinds with lineage rules, unit and resolution, source, transformation, uncertainty and calibration provenance, time with its offset, sequence, content digest.",data_class 'SYNTHETIC' only; 21 Mode-letter hits
 qta_multiphysics/mesh_3d.py,EXTRACT_GENERIC,3,3D structured mesh.,used by thermal_3d_transient and tests
 qta_multiphysics/metrics.py,REWRITE_GENERIC,2-7 (see rationale),Assembles QTA gate specs (retired); its DERIVED_CHECK numerical checks move to VerificationResult.,docstring: 'Assemble the multiphysics gate specifications'
 qta_multiphysics/microwave_heating_1d.py,KEEP_AS_MODEL_PLUGIN,4,Microwave dissipation model.,model family: source/heating

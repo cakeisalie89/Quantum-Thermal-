@@ -740,6 +740,49 @@ governed history one way at a time; 12 mutations
 `verify_release.py`'s; HDF5 and RO-Crate still describe the QTA payload
 (directive 19, 20): OPEN.
 
+### 9.12 Campaign, measurement, coupled modes, design space (directive 23-26)
+
+*Tranche 4, in part.* **Measurement (26).** The generic measurement
+boundary is `scientific/observation.py`, and it now carries what directive
+26 lists: besides the six kinds and their lineage rules, unit and resolution,
+source, transformation, uncertainty and calibration provenance, an
+observation has a `time` -- ISO 8601 WITH its UTC offset; a naive time is
+refused, since two instruments' naive times cannot be ordered -- a
+`sequence` (a non-negative position in a series), a `digest()` over its
+whole record, and a `from_record` that refuses a key it does not know or
+one missing. `measurement_ingest_3d.py` -- QTA quantity mapping, mode
+alignment, gate-effect vocabulary, hard-coded hardware refusal -- is
+RETIRE_TO_HISTORY, not migrated. Five mutations joined
+`scientific_interfaces.json` (a naive time, a negative sequence, the time
+dropped from the record, a record with unknown keys, a digest of the
+quantity alone).
+
+**Campaign (23).** `campaign_state_3d.py` walks the physical machine FSM
+through the modes, valves, helium and switches, and runs the cryopanel
+component: machine sequencing, RETIRE_TO_HISTORY. The generic concept --
+long-running campaign state -- is already the substrate's: event-sourced
+task and scheduler FSMs, the model registry, observations, dependency
+invalidation. D-2026-69's lesson is held independently by
+`scientific/quantity.py`. The legacy campaign runs on, in the legacy
+pipeline, until it retires.
+
+**OPEN, with the evidence.** The coupled-mode solver (24) is still the fixed
+B -> C -> D schedule: a generic phase graph (PhaseSpec: model, sources,
+boundary conditions, initial and handoff mappings, verification
+requirements) is not written, and its handoff and conservation logic stays
+where it is, REWRITE_GENERIC. The deep experimental design (25) still
+derives candidates from the machine design space: `design_space` imports the
+apparatus design registry, and the package's eager `__init__` imports
+`design_space`, so every one of its 20 modules -- the Bayesian inference,
+EIG, surrogate, OOD and nested Monte Carlo included -- reaches legacy
+through that one module, the same kind of edge this tranche removed from
+`qta_multiphysics/__init__.py`. They are retained and REWRITE_GENERIC;
+nothing ACTIVE imports them. One consequence stated plainly: the claims
+boundary EB9 (a surrogate prediction is not ground truth) names
+`deep_expdesign/ood.py :: fit_ood` among its enforcing code, and that module
+is transitional. `tools/framework_boundary.py --report` lists every
+transitional module still reaching legacy -- 30 of 75 after this tranche.
+
 ## 10. Tranche 1 checkpoint report
 
 Phase 0 and Phase 1, on top of `71b58cb`. **Not a migration-completion

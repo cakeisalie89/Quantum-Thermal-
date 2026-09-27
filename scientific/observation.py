@@ -22,12 +22,34 @@ The inputs are named by (observation_id, kind), so the rule is checkable
 from the record alone. That the named inputs exist, and have the kinds the
 record says, is the evidence store's question; this answers whether the
 claimed lineage permits the claimed kind.
+
+WHEN, IN WHAT ORDER, AND WHICH BYTES
+
+This is the framework's generic measurement boundary: what the hardware-era
+ingestion layer (``qta_multiphysics/measurement_ingest_3d.py``, retired)
+did for one apparatus's quantities, without its mode alignment, gate
+vocabulary or hard-coded refusals. An observation carries its unit and
+resolution (the Quantity), its source, its transformation, its uncertainty
+and calibration provenance, and:
+
+* ``time`` -- when it was acquired or produced, an ISO 8601 instant WITH its
+  UTC offset. A naive time is refused: two instruments' naive times cannot
+  be put in one order;
+* ``sequence`` -- its position in an ordered series (a scan index, a shot
+  number) when order matters and no clock gives it;
+* ``digest()`` -- the content digest of its whole record, so a citation
+  names these values, this lineage and this time, and nothing else.
+
+``from_record`` reads a record back exactly: a key it does not know, or one
+missing, is refused rather than defaulted.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
+from .identity import digest as _digest
 from .quantity import Quantity
 
 
@@ -83,9 +105,28 @@ class Observation:
     derived_from: tuple = ()
     calibration: str = ""
     uncertainty_provenance: str = ""
+    #: ISO 8601 with a UTC offset; "" when not stated.
+    time: str = ""
+    #: position in an ordered series; None when not stated.
+    sequence: int | None = None
 
     def __post_init__(self):
         object.__setattr__(self, "kind", ObservationKind(self.kind))
+        if self.time:
+            try:
+                when = datetime.fromisoformat(self.time)
+            except (TypeError, ValueError) as exc:
+                raise ObservationError(
+                    f"time {self.time!r} is not an ISO 8601 instant") from exc
+            if when.utcoffset() is None:
+                raise ObservationError(
+                    f"time {self.time!r} has no UTC offset; a naive time "
+                    "cannot be ordered against another instrument's")
+        if self.sequence is not None and (
+                isinstance(self.sequence, bool)
+                or not isinstance(self.sequence, int) or self.sequence < 0):
+            raise ObservationError(f"sequence {self.sequence!r} is not a "
+                                   "non-negative integer")
         if not isinstance(self.observation_id, str) or \
                 not self.observation_id.strip():
             raise ObservationError("an observation needs an id")
@@ -138,4 +179,30 @@ class Observation:
                 "transformation": self.transformation,
                 "derived_from": [[i, k.value] for i, k in self.derived_from],
                 "calibration": self.calibration,
-                "uncertainty_provenance": self.uncertainty_provenance}
+                "uncertainty_provenance": self.uncertainty_provenance,
+                "time": self.time, "sequence": self.sequence}
+
+    def digest(self) -> str:
+        """The content digest of the whole record."""
+        return _digest(self.to_record())
+
+    @classmethod
+    def from_record(cls, rec: dict) -> "Observation":
+        if not isinstance(rec, dict) or set(rec) != _RECORD_KEYS:
+            got = set(rec) if isinstance(rec, dict) else rec
+            raise ObservationError(f"an observation record has exactly the "
+                                   f"keys {sorted(_RECORD_KEYS)}; got {got}")
+        return cls(observation_id=rec["observation_id"], kind=rec["kind"],
+                   quantity=Quantity.from_record(rec["quantity"]),
+                   source=rec["source"],
+                   transformation=rec["transformation"],
+                   derived_from=tuple((i, k) for i, k in rec["derived_from"]),
+                   calibration=rec["calibration"],
+                   uncertainty_provenance=rec["uncertainty_provenance"],
+                   time=rec["time"], sequence=rec["sequence"])
+
+
+_RECORD_KEYS = frozenset({
+    "observation_id", "kind", "quantity", "source", "transformation",
+    "derived_from", "calibration", "uncertainty_provenance", "time",
+    "sequence"})

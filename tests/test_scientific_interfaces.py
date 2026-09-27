@@ -7,6 +7,8 @@ isolation are tested in their own modules.
 """
 from __future__ import annotations
 
+import json
+
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -181,6 +183,71 @@ def test_derived_kinds_need_lineage_and_a_transformation():
     with pytest.raises(ObservationError, match="transformation"):
         Observation("d", K.DERIVED_STATISTIC, _q(), "mean",
                     derived_from=(("r", K.RAW_OBSERVATION),))
+
+
+@pytest.mark.parametrize("time", ["2026-09-27T08:00:00+00:00",
+                                  "2026-09-27T10:00:00.25+02:00", ""])
+def test_an_observation_may_say_when_with_its_offset(time):
+    o = Observation("t", K.RAW_OBSERVATION, _q(), "thermometer", time=time)
+    assert o.to_record()["time"] == time
+
+
+@pytest.mark.parametrize("time,why", [
+    ("2026-09-27T08:00:00", "no UTC offset"),
+    ("yesterday", "not an ISO 8601 instant"),
+    ("27/09/2026 08:00", "not an ISO 8601 instant"),
+])
+def test_a_time_that_cannot_be_ordered_is_refused(time, why):
+    with pytest.raises(ObservationError, match=why):
+        Observation("t", K.RAW_OBSERVATION, _q(), "thermometer", time=time)
+
+
+@pytest.mark.parametrize("seq", [-1, True, 2.0, "3"])
+def test_a_sequence_is_a_non_negative_integer(seq):
+    with pytest.raises(ObservationError, match="sequence"):
+        Observation("s", K.RAW_OBSERVATION, _q(), "scanner", sequence=seq)
+    assert Observation("s", K.RAW_OBSERVATION, _q(), "scanner",
+                       sequence=0).sequence == 0                 # control
+
+
+def _full_observation(**kw):
+    base = dict(observation_id="c", kind=K.CALIBRATED_PARAMETER,
+                quantity=Quantity(2.5, "W m^-2 K^-4", resolution=0.01,
+                                  resolution_class="SINGLE_EVALUATION",
+                                  resolution_basis="fit residual"),
+                source="least-squares fit", transformation="LM fit",
+                derived_from=(("r1", K.RAW_OBSERVATION),
+                              ("s1", K.SIMULATION_RESULT)),
+                calibration="LM, 40 points", uncertainty_provenance="bootstrap",
+                time="2026-09-27T08:00:00+00:00", sequence=7)
+    base.update(kw)
+    return Observation(**base)
+
+
+def test_an_observation_record_reads_back_exactly():
+    o = _full_observation()
+    assert Observation.from_record(o.to_record()) == o
+    assert Observation.from_record(
+        json.loads(json.dumps(o.to_record()))) == o
+    rec = o.to_record()
+    with pytest.raises(ObservationError, match="exactly the keys"):
+        Observation.from_record({**rec, "gate_effect": "NONE"})
+    rec.pop("sequence")
+    with pytest.raises(ObservationError, match="exactly the keys"):
+        Observation.from_record(rec)
+
+
+@pytest.mark.parametrize("change", [
+    {"time": "2026-09-27T08:00:01+00:00"}, {"sequence": 8},
+    {"source": "another fit"}, {"transformation": "Nelder-Mead"},
+    {"calibration": "LM, 41 points"}, {"uncertainty_provenance": "jackknife"},
+    {"quantity": Quantity(2.6, "W m^-2 K^-4")},
+    {"derived_from": (("r2", K.RAW_OBSERVATION),)},
+])
+def test_the_digest_names_every_value_the_observation_carries(change):
+    assert _full_observation(**change).digest() != \
+        _full_observation().digest()
+    assert _full_observation().digest() == _full_observation().digest()
 
 
 # --- ResultBundle -------------------------------------------------------------
