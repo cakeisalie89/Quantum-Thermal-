@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 10637,
-      "sha256": "c276ce7a2d88e18643e4a50950b88e7e1fbc38357629c4640adc7c9f9ac867f3",
+      "sha256": "93e741cfbb059622e4f7f5e7fc817efe6c59d212d9045a5cbe131aad7e03cc89",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 8743,
-      "sha256": "936562cdf94b066264c039beb2e2876f17ad09d57d299bea0a5f07d5baadb35c",
+      "sha256": "77ae646525470471d6ffcbfade33ff7749459705de83fa3fe827c4df20975870",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4180,8 +4180,8 @@
     },
     {
       "filename": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "size_bytes": 86506,
-      "sha256": "1b87fe5fca160c161ed9c449f76bf745c6cad013d6474c440a39b9ee22b8e3b3",
+      "size_bytes": 104281,
+      "sha256": "f741becbcb7b62d860d088dbf4ed7f6ee9cf02cf84354a6869a9b8cca5a98f16",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

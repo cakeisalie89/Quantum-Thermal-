@@ -1400,3 +1400,279 @@ F's and E's, are for the next report to record.
    describe the QTA payload.
 5. Directive 37: CPU dispatch in the run identity.
 6. `qta_full_sim.py` extract-then-retire (47).
+
+## 14. Convergence tranche 1 checkpoint report -- trust closure (directive 5, A-D)
+
+Directive 5, sections 52 A-D and 58, stopping at section 60's first
+boundary: trust, invalidation and authentication closure. Starting SHA
+`fafa7c4`; ending code SHA `ced0a42`; this report is the commit after it.
+Not merged; PR #17 open, no new PR. Hosted CI for each SHA is below, taken
+from the runs for that exact SHA and no other.
+
+### Commits
+
+| Commit | What |
+|---|---|
+| `fe7d2c8` | A. An execution record accepted only in EXECUTING from the lease holder, by the task projection, the independent reader and the auditor (D-2026-86); admission follows invalidation -- an invalidated or withdrawn governed origin makes its scientific results STALE, transitively, with a second origin keeping them and an interrupted cascade settled (D-2026-87) |
+| `089d30f` | B. One view of governed execution per replay, counted: five admissions, one view, ten with sharing off (D-2026-88); the evidence-lookup guard split into a counted half (entries enumerated: 0, a planted enumeration 272 -> 778) and the filesystem's timed half, re-measured |
+| `8edf787` | C. Actor authentication as a seam: attestations beside the log, an external key registry, Ed25519 from RFC 8032; the store and the independent reader refuse actor substitution, tampered signatures and payloads, wrong and unknown keys, keyless actors and missing attestations, each shown past the hash chain; production keys EXTERNALLY_BLOCKED (D-2026-89) |
+| `ced0a42` | D. The run identity sees the numeric backend: SIMD set and core, thread and dispatch variables, native build from each wheel's RECORD, read without importing numpy (D-2026-90) |
+| (next) | this report |
+
+### Counts at the ending SHA (baseline at `fafa7c4` in brackets)
+
+* Tracked files 680 [668]; 38 files changed (12 added, 26 modified).
+  Dispositions 680 rows [668]: +12, each one rule -- 5 test files
+  (KEEP_AND_HARDEN), 5 mutation specs and 2 substrate modules,
+  `qta_agent/ed25519.py` and `qta_agent/principals.py` (KEEP_AS_IS). No row
+  of an existing file changed.
+* ACTIVE 111 [109] / TRANSITIONAL 75 [75] / LEGACY 33 [33] modules; ACTIVE
+  importing legacy 0, opening a legacy file 0, importing legacy ontology 0;
+  TRANSITIONAL still reaching legacy 30 [30] -- all of deep_expdesign,
+  collect_container_3d, campaign_uncertainty_3d, falsification_3d,
+  provenance_3d, runner, runner_3d, sources_3d, species_accounting_3d,
+  qta_sim_stages, tools/clip_provenance.
+* Active Mode-letter labels 45 [45], 28 of them in seven physics plugins --
+  untouched this tranche (E is next).
+* Generic models registered 3 [3] (surface.langmuir_capture,
+  thermal.conduction_1d, thermal.conduction_2d_axisymmetric); governed 2
+  [2] (the thermal models).
+* Full suite 4741 passed, 9 skipped [4638, 9] at `ced0a42` (4674 at A,
+  4691 at B, 4721 at C).
+* Mutation specs 65 [60] (+2 legacy, run by no shard), 8 shards [8].
+
+### Mutation results (local, serial, baseline and null control green, sources restored byte-identical)
+
+New: task_execution_phase 10/10, scientific_invalidation 14/14,
+replay_origin_view 11/11, actor_authentication 19/19, run_identity_backend
+9/9; performance_counters 3 -> 5, 5/5 (the two lookup mutations killed by
+the counter, not by a clock). Existing specs re-run on the tree of the
+commit that touched their files: scientific_authority_replay 25/25 at A and
+25/25 at B (re-anchored there), agent_tasks 32/32, agent_audit 33/33 and
+agent_substrate 52/52 at A, agent_snapshot_coherence 20/20 at B
+(re-anchored there), governed_model_reuse 20/20 and scientific_interfaces
+27/27 at D. Survived 0, equivalent 0, classified survivors 0. Every kill
+is by a test written for the property it breaks; one is by an exception
+rather than an assertion (AA3: an unregistered key dereferenced -- checked,
+not assumed), which still turns the suite red.
+
+**Not counted: one matrix run I contaminated.** governed_model_reuse was
+running in the main tree against B when I committed C into that tree's
+index and HEAD. The harness compares the tracked tree with HEAD after every
+mutation, so from GR5 on it saw C's files as changed, restored them to the
+new HEAD, quarantined what it replaced (28 files, each byte-identical to
+commit B, since deleted) and failed the run, exit 1. Its "20/20" means
+nothing and is not reported as a result; the spec was re-run on D's tree,
+whose `governed_model.py` is B's, above. The lesson is the directive's own
+rule, sharper than I had held it: a commit is a tracked-file change for a
+matrix running in that tree, even when it only touches the index. Every
+commit after it was made from a tree no matrix was using.
+
+**Refusals caught before commit, each by a pinned test.** At A, three
+matrices refused to start: their baseline was red because the two new test
+files imported the substrate without being on its importer allowlist; the
+validation already under way was stopped, the files were listed, and the
+validation and the three matrices were rerun to completion. B moved two
+mutation anchors with the code they mutate (re-anchored, same meaning).
+C's first placement of the store's authentication call broke three more;
+it was moved in `load()` so two stayed untouched, and the fallback
+catch-up's was re-anchored. C's modules were unplaced in the substrate's
+declared layering, its IO allowlist and AGENT_SUBSTRATE.md; all three now
+say where they sit and why.
+
+### Hosted CI, by exact SHA
+
+At the time of writing; each run is for exactly the SHA named.
+
+* `fe7d2c8` (A). Push, qta-agent-substrate 36329724493: **success**, every
+  job -- agent-substrate, full-suite (pytest, the package-consistency byte
+  comparison, the decision check), dispatch-sensitivity, second interpreter
+  (3.13), cross-environment-3d, all eight mutation shards and the aggregate.
+  PR, qta-stack-verify 36329726585: success on both legs (core, full).
+* `089d30f` (B). Push, qta-agent-substrate 36331345091: 13 of 14 jobs green
+  -- every shard, full-suite with its byte comparison, and the rest -- and
+  the aggregate queued behind them. PR, qta-agent-substrate 36331348404:
+  full-suite red, classified R59 below.
+* `8edf787` (C). Push, qta-agent-substrate 36332560805: in progress. PR,
+  qta-stack-verify 36332563876: success.
+* `ced0a42` (D). Push, qta-agent-substrate 36334138372: full-suite red,
+  classified R59 below; the rest in progress at the time of writing. PR,
+  qta-stack-verify 36334141346: success.
+
+What is not yet known is not claimed; the report's own commit runs after
+this is written.
+
+### R59, separately
+
+Classified per run, only where all four conditions were shown for that
+exact job: the full pytest step passed; package consistency reached its
+byte comparison and failed there alone; the class that differed is the
+known one (23 root canonical copies); and the decision check found no
+decision-bearing token different.
+
+* `089d30f`, PR-event run 36331348404, full-suite job 108653766805:
+  **R59**. Step 5 (pytest) success; step 7 FAIL on "root canonical outputs
+  byte-match the canonical regeneration", 23 stale root copies, the only
+  failed check; step 8: 87 files compared, 23 differing, 5419 leaves side
+  by side, DECISION 0 (ZERO_CROSSING 27 -- 26 declared by their files --
+  PRECISION 179).
+* `ced0a42`, push run 36334138372, full-suite job 108661624461: **R59**, the
+  same four facts, the same counts.
+* `fe7d2c8` and `089d30f` push runs: not R59 -- nothing differed. At A the
+  cross-environment report reads IDENTICAL_TREES, 87 files, 0 differing,
+  which (as the tool says itself) establishes that that runner reproduced
+  the committed tree and nothing about invariance across dispatches.
+
+The same commit, B, reproduced the canonical bytes on one runner and not on
+another: R59 is the runner's dispatch, not the commit. It stays open (item
+30); no tolerance was widened and no canonical output rewritten. D-2026-90
+makes the run identity call such runs different computations; it does not
+make the canonical bytes portable. PR #17 already carries the R59
+explanation, so no second comment was posted.
+
+### R41, R49, D-2026-69
+
+* **R41** unchanged: `audit(log=...)` is closed in code; no hosted run of
+  that commit is recorded and no production code gates on the audit, so the
+  row is not promoted (directive 9: only on exact-commit hosted evidence).
+* **R49**: replay's origin view is counted (D-2026-88). One timed guard
+  remains, by design now: one name lookup inside a directory is the
+  filesystem's work and no unit in this code performs it; the code's half is
+  counted. No hosted margin is recorded -- no CI job publishes performance
+  numbers -- and the row has no hosted run.
+* **D-2026-69** open, unchanged: closes only when its legacy output producer
+  is replaced (qta_full_sim, N).
+
+### Status, field by field (directive 58)
+
+* Invalidation cascade: **implemented** (D-2026-87). No production caller
+  yet -- the API is the seam; `settle` is a recovery step nothing calls
+  automatically; withdrawing a model VERSION has no representation.
+* task.execution lifecycle: **closed** (D-2026-86) in all three readers.
+* Actor authentication: **seam implemented, production EXTERNALLY_BLOCKED**
+  (D-2026-89). Missing: a key authority and its keys, a production signer.
+  Implemented locally: attestation, registry, verification, refusal by the
+  store and the independent reader, deterministic test identities. Cannot be
+  proven without it: that any production history's actors are who they say.
+  Claims unavailable: authenticated attribution of any governed run.
+* Replay work count: **counted** -- one origin view per load, catch-up,
+  restore, reuse search and cascade; one task replay per independent
+  reconstruction.
+* CPU/backend identity: **in RunIdentity** (D-2026-90); cross-backend reuse
+  is refused, and no equivalence policy reconciles backends yet.
+* Hypothesis FSM, Monte Carlo/UQ, deep-expdesign, SALib, OpenMDAO,
+  Bayesian/calibration, surrogate/OOD, adaptive campaigns, HDF5, RO-Crate,
+  release migration, generic manifest, qta_full_sim mining, Stage-10 naming,
+  FEniCSx, VTK/ParaView, OpenUSD, RAG, Rust, FMI, cross-history reuse,
+  long-horizon, multi-host: **unchanged this tranche**; each is an open item
+  below and a row of the capability-retention matrix.
+* Observation boundary: unchanged (tranche 4: time, sequence, exact record,
+  digest; `scientific/observation.py`).
+* Fuzzing: unchanged, and now BEHIND -- the tranche added three parsers of
+  untrusted input (attestation lines, key-registry documents, `/proc/cpuinfo`
+  text) that `tools/fuzz_substrate.py` does not reach (open item 42).
+
+### Capability-retention matrix (directive 51)
+
+Status is what CODE on an exercised path does, not what files exist.
+ACTIVE: exercised by tests or CI on the generic path. TRANSITIONAL: works,
+still QTA-shaped or reaching legacy. STAGED: harness present, blocked on an
+external environment. DEFERRED: not built. LEGACY: retained as history.
+
+| Capability | Status | Where | Residual |
+|---|---|---|---|
+| event sourcing | ACTIVE | `qta_agent/events.py` | external head witness (39); multi-host (38) |
+| memory | ACTIVE | `qta_agent/memory.py` | hypothesis lifecycle not separate yet (15) |
+| authority | ACTIVE | `qta_agent/authority.py`, `store.py`, `result_rules.py`, `invalidation.py` | actors unauthenticated in production (3) |
+| scheduler | ACTIVE | `qta_agent/scheduler.py`, `tasks.py` | not authenticated (44) |
+| network authority | ACTIVE | `qta_agent/netauth.py` | binds the supervisor process, not the child |
+| secrets | ACTIVE | `qta_agent/secrets.py` | -- |
+| context | ACTIVE | `qta_agent/context.py` | -- |
+| evidence | ACTIVE | `qta_agent/evidence.py` | lookup's filesystem half timed (5) |
+| reconstruction | ACTIVE | `qta_agent/reconstruct.py`, `separate_verify.py` | shares the signature verdict with the primary (C) |
+| Monte Carlo | TRANSITIONAL | `qta_multiphysics/uncertainty.py`, `campaign_uncertainty_3d.py` (reaches legacy) | no generic MC over ScientificModel (13) |
+| UQ | TRANSITIONAL | same | typed uncertainty classes not operational (14) |
+| Bayesian inference | TRANSITIONAL | `qta_multiphysics/deep_expdesign/inference.py`, `posterior_model.py`, `calibration.py` | reaches the design registry through the package init (12, 18) |
+| EIG | TRANSITIONAL | `deep_expdesign/eig_surrogate.py`, `policy.py` | candidates from the machine design space (20) |
+| adaptive campaigns | LEGACY / DEFERRED | `qta_multiphysics/campaign_state_3d.py` (retired) | no event-sourced generic orchestration (21) |
+| surrogates | TRANSITIONAL | `deep_expdesign/eig_surrogate.py`, `likelihood_model.py` | QTA design-space assumptions (19) |
+| OOD | TRANSITIONAL | `deep_expdesign/ood.py` | same (19) |
+| FEniCSx | STAGED | `qta_multiphysics/stack/fem_fenicsx.py` | EXTERNALLY_BLOCKED environment (23) |
+| SALib | TRANSITIONAL | `qta_multiphysics/stack/sensitivity_salib.py`, `sensitivity_3d.py` | not on ScientificModel (16) |
+| OpenMDAO | TRANSITIONAL | `qta_multiphysics/stack/mdao_openmdao.py` | operating-point authority assumptions (17) |
+| HDF5 | TRANSITIONAL | `build_hdf5.py` | QTA payload (24) |
+| Snakemake | ACTIVE | `Snakefile` (generic default); `workflow/legacy_qta.smk` LEGACY | legacy targets explicit (31) |
+| VTK/ParaView | TRANSITIONAL | `qta_multiphysics/stack/vtk_export.py` | not ResultBundle-driven (33) |
+| OpenUSD | TRANSITIONAL | `qta_multiphysics/stack/usd_export.py` | machine representation (34) |
+| RAG | ACTIVE | `qta_multiphysics/stack/rag_index.py` (read-only) | legacy policy kept out of authority (32) |
+| Rust | TRANSITIONAL | `qta_multiphysics/stack/rust_kernel.py` | host-conditional (35) |
+| FMI | TRANSITIONAL | `qta_multiphysics/stack/fmi_contract.py` | contract only; mode-boundary semantics (36) |
+| RO-Crate | TRANSITIONAL | `ro_crate_tools.py` | QTA payload (25) |
+| SLSA | ACTIVE, limited | `build_release_artifacts.py` (provenance predicate) | no SLSA level claimed, by design |
+| in-toto | ACTIVE | `build_release_artifacts.py` (`provenance.intoto.json`) | release set QTA-shaped (26) |
+| Sigstore | STAGED | `.github/workflows/release.yml`, `finalize_release_signing.py` | EXTERNALLY_BLOCKED: signing PENDING (40) |
+| CycloneDX | ACTIVE | `build_release_artifacts.py` (`sbom.cdx.json`, checked against `uv.lock`) | release set QTA-shaped (26) |
+| mutation | ACTIVE | `tools/mutation_matrix.py`, 65 specs in 8 hosted shards | -- |
+| fuzzing | ACTIVE, behind | `tools/fuzz_substrate.py` | this tranche's parsers not fuzzed (42) |
+| long-horizon | ACTIVE | `tests/test_agent_long_horizon.py`, CI at elevated scale | not millions-scale evidence (37) |
+
+### Open items (directive 62), kept visible
+
+1. ~~Invalidation does not cascade.~~ Closed (D-2026-87); residual 43.
+2. ~~task.execution after a verdict.~~ Closed (D-2026-86).
+3. Actor identity unauthenticated in production. Seam exists (D-2026-89);
+   EXTERNALLY_BLOCKED on keys; residual 44.
+4. ~~Replay origin folds repeated.~~ Closed (D-2026-88).
+5. R49's timed evidence guard: split (D-2026-88); the filesystem half stays
+   timed, with no hosted margin.
+6. ~~RunIdentity blind to dispatch.~~ Closed (D-2026-90); residual 45.
+7. Cross-history reuse intentionally undeveloped.
+8. Stage-10 naming in generic paths and policies (O).
+9. Active/transitional numerical configuration carries Mode semantics (E).
+10. 45 active Mode-letter labels, 28 in seven physics plugins (E).
+11. coupled_mode_solver's fixed B -> C -> D schedule (F).
+12. deep_expdesign tied to the design registry through its package init (G).
+13. Generic Monte Carlo over ScientificModel (H).
+14. Typed multi-class uncertainty (H).
+15. Hypothesis lifecycle FSM (I).
+16. SALib on ScientificModel (K).
+17. OpenMDAO's operating-point authority assumptions (K).
+18. Bayesian inference / calibration on generic observations (K).
+19. Surrogate / OOD trust off QTA design-space assumptions (K).
+20. EIG candidate contracts (K).
+21. Adaptive campaigns as event-sourced generic orchestration.
+22. Most model families still transitional (J).
+23. FEniCSx staged, EXTERNALLY_BLOCKED environment.
+24. HDF5 payload QTA-shaped (L).
+25. RO-Crate payload QTA-shaped (L).
+26. Release artifact set partly QTA-shaped (M).
+27. Generic manifest / release scope incomplete (M).
+28. qta_full_sim.py unmined (N).
+29. D-2026-69 open until its producer is replaced.
+30. R59 unresolved as cross-environment byte reproducibility.
+31. Legacy QTA release/workflow targets exist, explicitly, not as default.
+32. RAG must keep legacy policy out of active authority.
+33. VTK/ParaView not ResultBundle-driven.
+34. OpenUSD machine-representation assumptions.
+35. Rust host-conditional.
+36. FMI deferred, old mode-boundary semantics.
+37. Long-horizon is not millions-scale or distributed evidence.
+38. Multi-host / network-filesystem semantics untested.
+39. External head-witness / storage trust for truncation and split-brain.
+40. Release signing / Sigstore production authority EXTERNALLY_BLOCKED.
+41. Capability retention explicit -- the matrix above.
+42. NEW. Fuzzing does not reach this tranche's parsers of untrusted input:
+    attestation lines, key-registry documents, `/proc/cpuinfo` text.
+43. NEW. Invalidation has no production caller; `settle` is manual; a model
+    VERSION cannot be withdrawn.
+44. NEW. Nothing in the governed path signs; the task projection and the
+    scheduler do not authenticate; the independent reader shares the
+    signature verdict rather than restating it.
+45. NEW. No equivalence policy for backends (directive 11): different is
+    refused, never reconciled.
+
+### Next, exactly
+
+E (directive 52): the generic numerical configuration and the 45 active
+Mode-letter labels -- `mode_d_temp_threshold_K` first, then the seven
+physics plugins -- not begun. Stopping here per section 60.
