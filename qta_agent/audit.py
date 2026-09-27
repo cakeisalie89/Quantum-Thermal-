@@ -439,6 +439,7 @@ class AuditIndex:
         gaps = self._gaps(task_id, outcome, seen_actions, steps,
                           transitions)
         gaps += self._execution_count_gaps(task_id, steps)
+        gaps += self._execution_phase_gaps(task_id, steps)
         actors = tuple(sorted({s.actor for s in steps}))
         return Explanation(task_id, outcome, tuple(steps), gaps, actors)
 
@@ -461,6 +462,27 @@ class AuditIndex:
             "task identity ran the work more than once, so anything binding "
             "a key to this task is suppressing duplicates it already let "
             "through",)
+
+    def _execution_phase_gaps(self, task_id: str, steps: tuple) -> tuple:
+        """Execution records the lifecycle has no place for.
+
+        The governed runner writes one in EXECUTING, between the tool's run
+        and its outcome. One anywhere else -- after the verdict above all --
+        names an executor for work that was not running, and the executor is
+        what verification is judged against.
+        """
+        found = []
+        state = None
+        for s in steps:
+            if s.action == "task.transition":
+                state = s.detail.get("dst")
+            elif s.action == "task.execution" and state != "EXECUTING":
+                found.append(
+                    f"seq {s.seq}: execution record by {s.actor!r} while "
+                    f"{task_id} was {state!r}; the tool runs between "
+                    "EXECUTING and its outcome, so this record was not "
+                    "written through the gate")
+        return tuple(found)
 
     def _gaps(self, task_id: str, outcome: str, seen: set,
               steps: tuple, transitions: list) -> tuple:
@@ -496,9 +518,12 @@ class AuditIndex:
             executed_by = None
             verified_by = None
             for s in steps:
-                if s.action == "task.execution":
+                if s.action == "task.execution" and verified_by is None:
                     # The durable statement of who ran the tool, made by the
-                    # actor that ran it. This is the only source for it.
+                    # actor that ran it. This is the only source for it --
+                    # up to the verdict: a record appended after it names
+                    # nobody the verdict judged (_execution_phase_gaps
+                    # reports it).
                     executed_by = s.actor
                 elif s.action == "task.transition":
                     if s.detail.get("dst") == "COMPLETED":

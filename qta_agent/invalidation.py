@@ -167,6 +167,57 @@ def apply_invalidation(store, origin: str, *, reason: str,
     return plan
 
 
+def plan_from(records: dict, roots, *, origin: str) -> InvalidationPlan:
+    """The plan when what changed is OUTSIDE the record graph.
+
+    ``origin`` names it -- a governed task, a withdrawn artefact -- and
+    ``roots`` are the records resting on it directly. The roots are affected
+    themselves, where their state has an edge to STALE, and so is everything
+    that transitively depends on them: each root's dependents are found by
+    :func:`plan_invalidation`, the same walk a record origin gets, so the two
+    kinds of change cannot disagree about how far staleness reaches.
+    """
+    affected: list = []
+    paths: dict = {}
+    skipped: dict = {}
+    cycles: list = []
+    for root in roots:
+        if root not in records:
+            raise KeyError(f"unknown record {root!r}")
+        paths.setdefault(root, [origin, root])
+        state = records[root].state
+        if state not in INVALIDATABLE:
+            skipped[root] = state.value
+        elif root not in affected:
+            affected.append(root)
+    for root in roots:
+        sub = plan_invalidation(records, root)
+        for rid in sub.affected:
+            if rid not in affected:
+                affected.append(rid)
+                paths.setdefault(rid, [origin] + sub.paths[rid])
+        for rid, state in sub.skipped.items():
+            if rid not in affected:
+                skipped.setdefault(rid, state)
+                paths.setdefault(rid, [origin] + sub.paths[rid])
+        cycles += sub.cycles
+    return InvalidationPlan(origin=origin, affected=tuple(affected),
+                            paths=paths, skipped=skipped,
+                            cycles=tuple(dict.fromkeys(cycles)))
+
+
+def apply_plan(store, plan: InvalidationPlan, *, reason: str,
+               actor: str = "SYSTEM") -> InvalidationPlan:
+    """Execute a plan computed in full beforehand, citing its origin."""
+    cited = _origin_evidence(store, plan.origin, reason)
+    for rid in plan.affected:
+        store.transition(
+            record_id=rid, dst=State.STALE, actor=actor, role=Role.SYSTEM,
+            evidence={"invalidated_by": cited},
+            stale_reason=f"{reason}: {plan.explain(rid)}")
+    return plan
+
+
 def _origin_evidence(store, origin: str, reason: str) -> str:
     """The digest cited as ``invalidated_by`` -- STORED, not just computed.
 

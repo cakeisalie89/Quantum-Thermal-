@@ -271,6 +271,7 @@ _TASK_TERMINAL = frozenset({"VERIFIED", "REJECTED", "CANCELLED",
                             "INVALIDATED"})
 
 _TASK_LEASED = "LEASED"
+_TASK_EXECUTING = "EXECUTING"
 _TASK_QUEUED = "QUEUED"
 _TASK_COMPLETED = "COMPLETED"
 _TASK_VERIFIED = "VERIFIED"
@@ -972,6 +973,27 @@ def reconstruct_tasks(log: EventLog, *,
             cur["captured"].extend((ev.seq, dg) for dg in arts.values())
             continue
         if action == "task.execution":
+            # Restated, not imported: the tool runs in EXECUTING, under the
+            # lease, and only the holder runs it. Folded anywhere else, a
+            # record appended after the verdict renamed the executor of work
+            # already judged -- and this reader agreed with the primary,
+            # which had the same defect.
+            if reauthorize:
+                held = _lease_of(cur)
+                holder = held.get("holder") if held else None
+                if cur["state"] != _TASK_EXECUTING:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {tid} execution record while "
+                        f"{cur['state']}; a tool runs between EXECUTING and "
+                        "its outcome, so this would rename the executor of "
+                        "work that is not running")
+                    continue
+                if ev.actor != holder:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {tid} execution recorded by "
+                        f"{ev.actor!r}, and the lease is held by "
+                        f"{holder!r}; only the holder runs the task")
+                    continue
             cur["executed_by"] = ev.actor
             cur["result_digest"] = p.get("result_digest")
             cur["executions"].append((ev.seq, ev.actor))

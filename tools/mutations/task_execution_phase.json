@@ -1,0 +1,79 @@
+{
+  "title": "An execution record is accepted only in EXECUTING, from the lease holder",
+  "note": "Three readers fold task.execution: the production projection (tasks.check_execution), the independent reconstruction (restated) and the auditor. Each refusal is disabled in turn; the suite holds a genuine governed run as the control, a forged record after the verdict by the verifier, a stranger and the worker, and hand-built lifecycles placing the record before EXECUTING or writing it as a non-holder.",
+  "suites": [
+    "tests/test_task_execution_phase.py"
+  ],
+  "mutations": [
+    {
+      "name": "EP1_production_accepts_any_phase",
+      "path": "qta_agent/tasks.py",
+      "find": "    if task.state is not TaskState.EXECUTING:\n        raise TaskTransitionError(\n            f\"seq {at_seq}: an execution record",
+      "replace": "    if False:\n        raise TaskTransitionError(\n            f\"seq {at_seq}: an execution record",
+      "rationale": "the production projection folds an execution record after the verdict, renaming the executor of judged work"
+    },
+    {
+      "name": "EP2_production_accepts_leased",
+      "path": "qta_agent/tasks.py",
+      "find": "    if task.state is not TaskState.EXECUTING:\n",
+      "replace": "    if task.state not in (TaskState.LEASED, TaskState.EXECUTING):\n",
+      "rationale": "a record written before the task is running names the executor of work that has not started"
+    },
+    {
+      "name": "EP3_production_accepts_any_writer",
+      "path": "qta_agent/tasks.py",
+      "find": "    if actor != holder:\n",
+      "replace": "    if False:\n",
+      "rationale": "an actor that never held the lease names itself the executor"
+    },
+    {
+      "name": "EP4_production_never_asks",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                check_execution(task, ev.actor, at_seq=ev.seq)\n",
+      "replace": "                pass\n",
+      "rationale": "the rule exists and the projection does not apply it"
+    },
+    {
+      "name": "EP5_reconstruction_accepts_any_phase",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                if cur[\"state\"] != _TASK_EXECUTING:\n",
+      "replace": "                if False:\n",
+      "rationale": "the second reader folds an out-of-phase record and agrees with a defective primary"
+    },
+    {
+      "name": "EP6_reconstruction_accepts_any_writer",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                if ev.actor != holder:\n",
+      "replace": "                if False:\n",
+      "rationale": "the second reader takes a non-holder as the executor"
+    },
+    {
+      "name": "EP7_reconstruction_reports_and_folds",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                        \"work that is not running\")\n                    continue\n",
+      "replace": "                        \"work that is not running\")\n",
+      "rationale": "the refusal is recorded and the record is folded anyway: the reader tells the truth and believes the lie"
+    },
+    {
+      "name": "EP8_auditor_reports_no_phase_gap",
+      "path": "qta_agent/audit.py",
+      "find": "        gaps += self._execution_phase_gaps(task_id, steps)\n",
+      "replace": "        gaps += ()\n",
+      "rationale": "the auditor is silent about an execution record the lifecycle has no place for"
+    },
+    {
+      "name": "EP9_auditor_phase_gap_accepts_any_phase",
+      "path": "qta_agent/audit.py",
+      "find": "            elif s.action == \"task.execution\" and state != \"EXECUTING\":\n",
+      "replace": "            elif False:\n",
+      "rationale": "the gap's own test is disabled"
+    },
+    {
+      "name": "EP10_auditor_executor_is_the_last_record",
+      "path": "qta_agent/audit.py",
+      "find": "                if s.action == \"task.execution\" and verified_by is None:\n",
+      "replace": "                if s.action == \"task.execution\":\n",
+      "rationale": "a record after the verdict renames the executor the separation-of-duties check judges, silencing or inventing self-verification"
+    }
+  ]
+}

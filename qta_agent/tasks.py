@@ -391,6 +391,32 @@ def apply_transition(task: Task, edge: TaskEdge, req: TaskTransition, *,
         updated_seq=seq, reason=edge.reason)
 
 
+def check_execution(task: Task, actor: str, *, at_seq: int) -> None:
+    """Refuse an execution record the lifecycle has no place for.
+
+    The execution record is what establishes WHO RAN the task, and the
+    executor is what verification must differ from. So a record accepted in
+    the wrong phase is not a harmless extra line: appended after the verdict
+    it renamed the executor of work already judged, and appended by an actor
+    that never held the task it named the wrong one. The governed runner
+    writes it at exactly one point -- in EXECUTING, by the worker holding the
+    lease, between the tool's run and its outcome -- and a record anywhere
+    else was not written by it.
+    """
+    if task.state is not TaskState.EXECUTING:
+        raise TaskTransitionError(
+            f"seq {at_seq}: an execution record for {task.task_id!r} while "
+            f"it is {task.state.value}; the tool runs between EXECUTING and "
+            "its outcome, so a record anywhere else would rename the "
+            "executor of work that is not running")
+    holder = task.lease.holder if task.lease is not None else None
+    if actor != holder:
+        raise TaskTransitionError(
+            f"seq {at_seq}: {actor!r} records executing {task.task_id!r}, "
+            f"whose lease is held by {holder!r}; only the holder runs the "
+            "task, so any other actor would be naming itself the executor")
+
+
 @dataclass(frozen=True)
 class TaskProjection:
     """Tasks as of a log position. Built by replay, never mutated in place."""

@@ -544,6 +544,7 @@ tests/test_scientific_authority_replay.py,KEEP_AND_HARDEN,1 (this tranche) / ong
 tests/test_scientific_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_import_isolation.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_interfaces.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
+tests/test_scientific_invalidation.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-87): a result resting on an invalidated or withdrawn governed origin goes STALE, transitively, replayed by both readers.",
 tests/test_scientific_thermal_1d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_thermal_2d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_second_reader_audit_actions.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (follow-up A, D-2026-84/85): the seven audit actions read a second time; a forged one moves no authority.",
@@ -557,6 +558,7 @@ tests/test_stage7_boundary.py,RETIRE_TO_HISTORY,5,Pydantic models over QTA vocab
 tests/test_stage8_data_provenance.py,REWRITE_GENERIC,2-7 (see rationale),HDF5/RO-Crate boundary over the QTA payload.,
 tests/test_stage9_release.py,KEEP_AS_IS,-,Consumer release verification on a fixture release.,
 tests/test_surface_adsorption.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 22): the extracted Langmuir capture -- regression equivalence with the cryopanel, the model's invariants each broken, and its independent check.",
+tests/test_task_execution_phase.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-86): an execution record accepted only in EXECUTING from the lease holder, by the projection, the second reader and the auditor.",
 tests/test_test_isolation.py,KEEP_AS_IS,-,Collection isolation.,
 tests/test_thermal_3d.py,KEEP_AS_MODEL_PLUGIN,4,3D thermal physics invariants.,
 tests/test_unit_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Unit inventory.,
@@ -640,12 +642,14 @@ tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained s
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_authority_replay.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_interfaces.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/scientific_invalidation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_thermal_1d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/second_reader_audit_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/surface_adsorption.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/task_execution_phase.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/unit_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/verified_read_guard.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over both halves of the verify-then-read guard (D-2026-76).,

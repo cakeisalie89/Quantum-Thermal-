@@ -7984,3 +7984,109 @@ holds the registry to every `ACT_*` constant in `qta_agent/`, parsed from
 source; `test_a_provisioned_secret_does_not_stop_the_other_readers` is the
 consequence, end to end. **MUTATION.**
 `second_reader_audit_actions.json` `AR_REG_secret_provision_is_unregistered`.
+
+## D-2026-86 — an execution record appended after the verdict renamed the executor, in all three readers
+
+**CLASS** — `DEFECT`, `qta_agent/governed_stage10.py` (the task
+projection), `qta_agent/reconstruct.py` (the independent task reader) and
+`qta_agent/audit.py`. Recorded in D-2026-83's NOT DONE and plan 9.7;
+reproduced against `fafa7c4` before the repair.
+
+The execution record is the one durable statement of WHO RAN a task, and
+the executor is what verification must differ from. Every reader folded it
+wherever it appeared. On a genuine governed run (`stage10.emit_artifact`,
+VERIFIED), one appended `task.execution` -- a copy of the genuine payload,
+written by the verifier -- reloaded with the task projection's
+`executed_by` equal to the verifier and the second reader's equal to the
+verifier: two readers, one renamed executor, and `compare_tasks` empty,
+because a shared defect is exactly what a differential comparison cannot
+see. The auditor took the LAST execution record as the executor in its
+separation-of-duties check, so the same line could silence a real
+self-verification finding (a history where one actor ran and verified its
+own work, then a record naming somebody else) or invent one (an honest
+verdict, then a record by the verifier). Scientific admission was not
+reached -- both of its origin views already take the executor as of the
+verdict -- which is why this was recorded as a residual and not a hole in
+admission.
+
+**REPAIR.** `tasks.check_execution`: an execution record is accepted only
+while the task is EXECUTING, and only from the actor holding its lease --
+the one point the governed runner writes it, between the tool's run and its
+outcome. The plan's "done when" said LEASED/EXECUTING; LEASED is narrower
+than it reads (the tool has not started), so the rule is EXECUTING alone.
+The task projection refuses (TaskTransitionError); the reconstruction
+restates the rule in its own code and records the refusal as unauthorized
+without folding it (with `reauthorize=False`, the gate off, it folds, as
+every other gate there does); the auditor reports an execution record
+outside EXECUTING as a gap and judges the executor as of the verdict.
+Retries are unaffected: a requeued task is LEASED and EXECUTING again, by
+its new holder.
+
+**TEST.** `tests/test_task_execution_phase.py`: the genuine run as control
+(the record sits between the move into EXECUTING and the outcome, by the
+lease holder, and no reader objects); a record after the verdict by the
+verifier, by a stranger and by the worker itself, refused by the
+projection, refused and not folded by the reconstruction (the executor and
+the execution list unchanged), reported by the auditor; hand-built
+lifecycles with the record while QUEUED, while LEASED, and in EXECUTING by
+a non-holder, refused by both task readers; the auditor judging the
+executor as of the verdict in both directions. **MUTATIONS.**
+`task_execution_phase.json` (new, 10).
+
+## D-2026-87 — a scientific result stayed VERIFIED when the governed task it rested on was invalidated
+
+**CLASS** — `GAP`, `qta_agent/governed_model.py`, `qta_agent/invalidation.py`.
+Plan 9.7 "Admission does not follow invalidation".
+
+Admission is judged where the transition stands (D-2026-83), so a check or
+model-run task invalidated afterwards left the result VERIFIED and ADMITTED
+-- right about the history, silent about the present. Reuse refused it
+(it asks whether origin holds now); the record itself and anything
+depending on it did not know. Nothing in the governed path moved a
+task to INVALIDATED at all: the edge existed in the task machine and only
+tests wrote it, straight to the log.
+
+**REPAIR.** `GovernedStage10.invalidate` writes VERIFIED -> INVALIDATED
+through the gate (SYSTEM, with the reason). `GovernedModelRuns.invalidate_task`
+follows it: every `scientific_result` citing an artefact that task
+captured before its own verdict -- the bundle of a model run, the report of
+a check -- goes STALE when its origin no longer holds NOW (a second
+governed task that produced the same bytes keeps it standing, reported as
+kept), and so does every record depending on it, by the same transitive
+walk a record origin gets (`invalidation.plan_from`, which calls
+`plan_invalidation` per root rather than restating it). The STALE record
+cites a stored `{"origin", "reason"}` (`task:<id>` or `evidence:<digest>`).
+`withdraw_evidence` starts from an artefact -- a bundle, a report, or any
+file a model run produced -- and invalidates every task standing VERIFIED
+that captured it before its verdict: the bytes are content-addressed
+history and stay; what gave them authority is withdrawn. REVOKED, REJECTED
+and undecided records are reached and left, never moved. Nothing already
+written changes; both readers replay the result to the same states.
+
+The task move and the STALE records are separate appends, so a writer that
+stops between them leaves a result VERIFIED on a dead origin.
+`GovernedModelRuns.settle` follows every INVALIDATED task again, citing it;
+a task already followed reaches nothing, so settling twice is settling once.
+Nothing calls it automatically: it is the recovery step, as
+`GovernedStage10`'s stranded-task recovery is.
+
+"Model artifact withdrawn" is read here as an artefact the model RUN
+produced. Withdrawing a model VERSION from the registry -- every result any
+run of it produced -- has no representation in this repository, and is not
+claimed.
+
+**TEST.** `tests/test_scientific_invalidation.py`, on one genuine
+thermal-1D history with two decided results, copied per case: the control;
+the producing run invalidated; the check invalidated; the STALE record's
+citation resolving to what changed; the report withdrawn; a model artefact
+other than the bundle withdrawn; bytes nobody vouched for, and bytes
+attached to a task after its verdict, refused; transitive through two
+dependent records; an unrelated task changing nothing but its own result; a
+second origin keeping the result standing until the report itself is
+withdrawn; REVOKED and REJECTED left as they are; a task not standing
+VERIFIED refused, with nothing written; the stale result neither reused nor
+re-admitted (re-verification asks origin again, at its own position); the
+history's prefix byte-identical; an interrupted invalidation settled, and
+settling again a no-op. Every case replays through the store, the
+independent reader, and both task readers, with no refusal and no
+divergence. **MUTATIONS.** `scientific_invalidation.json` (new, 14).

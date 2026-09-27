@@ -796,6 +796,15 @@ RULES = [
      "each re-decide a scientific result's admission; forged histories "
      "refused by both readers.",
      ""),
+    ("tests/test_scientific_invalidation.py", KAH,
+     "NEW (D-2026-87): a result resting on an invalidated or withdrawn "
+     "governed origin goes STALE, transitively, replayed by both readers.",
+     ""),
+    ("tests/test_task_execution_phase.py", KAH,
+     "NEW (D-2026-86): an execution record accepted only in EXECUTING from "
+     "the lease holder, by the projection, the second reader and the "
+     "auditor.",
+     ""),
     ("tests/test_scientific_*.py", KAI,
      "NEW in Phase 2: the interfaces, the implementation identity (held to "
      "the substrate's own algorithms) and cut C1 in a fresh interpreter.",

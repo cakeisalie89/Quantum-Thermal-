@@ -227,15 +227,17 @@
       "idempotency": "task-level and owner-scoped: a binding under (submitter, tool, key) is durable before dispatch, so a resubmission returns the first task and starts nothing. Deduplication is at the TASK record, not only at the queue",
       "cancellation": "reachable from every pre-terminal state",
       "concurrency": "leases; optimistic only, no multi-process test",
-      "security_boundary": "separation of duties between executor and verifier",
+      "security_boundary": "separation of duties between executor and verifier; the executor it is judged against comes from an execution record accepted only in EXECUTING from the lease holder (D-2026-86)",
       "tests": [
         "tests/test_agent_governed_stage10.py",
-        "tests/test_agent_recovery.py"
+        "tests/test_agent_recovery.py",
+        "tests/test_task_execution_phase.py"
       ],
       "property_tests": [],
       "mutation_tests": [
         "tools/mutations/agent_recovery.json",
-        "tools/mutations/agent_tasks.json"
+        "tools/mutations/agent_tasks.json",
+        "tools/mutations/task_execution_phase.json"
       ],
       "fuzzing": "none",
       "differential": "none",
@@ -1373,31 +1375,35 @@
       "requirement": "Invalidation across every real dependency",
       "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
-        "qta_agent/invalidation.py"
+        "qta_agent/invalidation.py",
+        "qta_agent/governed_model.py"
       ],
       "callers": [
-        "qta_agent/store.py"
+        "qta_agent/store.py",
+        "qta_agent/governed_model.py"
       ],
       "production_caller": null,
       "persistent_state": "STALE transitions recorded in the log",
       "authority_owner": "invalidation.plan_invalidation",
-      "evidence": "explain() returns the dependency path",
+      "evidence": "explain() returns the dependency path; a governed task invalidated, or an artefact withdrawn, makes STALE the scientific results resting on it and every record depending on them, by the same walk (plan_from), each STALE record citing what changed (D-2026-87)",
       "provenance": "none",
       "failure_semantics": "cycle-tolerant; reports rather than looping",
-      "recovery": "none",
+      "recovery": "GovernedModelRuns.settle follows again every INVALIDATED task, finishing an invalidation interrupted between the task's move and its results; settling twice is settling once",
       "retry": "n/a",
       "idempotency": "n/a",
       "cancellation": "n/a",
       "concurrency": "n/a",
       "security_boundary": "none",
       "tests": [
-        "tests/test_agent_substrate.py"
+        "tests/test_agent_substrate.py",
+        "tests/test_scientific_invalidation.py"
       ],
       "property_tests": [
         "tests/test_agent_substrate_properties.py"
       ],
       "mutation_tests": [
-        "tools/mutations/agent_substrate.json"
+        "tools/mutations/agent_substrate.json",
+        "tools/mutations/scientific_invalidation.json"
       ],
       "fuzzing": "none",
       "differential": "none",
@@ -1405,7 +1411,7 @@
       "residual_gaps": [],
       "boundaries": [
         {
-          "limit": "dependencies are explicit record-to-record edges; nothing derives them from real scientific inputs",
+          "limit": "record-to-record dependencies are explicit edges; the one derived dependency is a scientific result's on the governed tasks that captured its bundle and report, and nothing derives edges from the scientific inputs themselves -- parameters, model versions",
           "reason": "architectural_by_design",
           "detail": "deriving them would require the agent to read the scientific tree's data model, and the import isolation that keeps a gate from depending on an authority verdict is the property this whole package exists to hold. The edges are declared by whoever asserts the dependency, and the transitive consequence of one changing is complete"
         }
@@ -1511,11 +1517,13 @@
         "tests/test_agent_audit.py",
         "tests/test_agent_audit_cli.py",
         "tests/test_agent_crash_recovery.py",
-        "tests/test_agent_hostile_campaign.py"
+        "tests/test_agent_hostile_campaign.py",
+        "tests/test_task_execution_phase.py"
       ],
       "property_tests": [],
       "mutation_tests": [
-        "tools/mutations/agent_audit.json"
+        "tools/mutations/agent_audit.json",
+        "tools/mutations/task_execution_phase.json"
       ],
       "fuzzing": "none",
       "differential": "none",
@@ -1871,7 +1879,7 @@
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "none",
       "authority_owner": "tools/mutation_matrix.py",
-      "evidence": "60 committed specs run in CI -- since the Phase-1 closure in eight deterministic shards (tools/mutation_shards.py; every spec in exactly one, every cycle, the matrix generated and checked) under an aggregate job that is green only when every shard succeeded (the count was 34 and went stale as specs were added; it is now checked against the workflow rather than asserted -- D-2026-47), covering qta_agent, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over qta_agent/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24. The fortieth is output_resolution.json: what a serialised number is allowed to mean, where a marking decided by magnitude instead of by why a value is zero, a floor of zero, and a claims table that names a rule without matching it are each restored and killed. The forty-first is unit_inventory.json: the dimension of every published number, where a suffix rule had been publishing a temperature gradient as metres and two fluxes as seconds. The forty-fifth and forty-sixth are agent_snapshot_coherence.json -- every reducer folds exactly the bytes it verified, 20/20 -- and enforcement_asserts.json -- enforcement that python -O cannot delete, 3/3 (D-2026-70, D-2026-73). The fifty-second and fifty-third are authority_result_rules.json -- the content rule for a scientific result, enforced by the authority store on the edge itself, 13/13 -- and governed_model_reuse.json -- a verified result reused only on evidence re-derived intact, every exclusion restored and killed, 20/20. The fifty-fourth and fifty-fifth are scientific_thermal_2d.json -- the second model's invariants, declared boundary and window, the 3D check speaking only to the problem it solves, and per-model tool routing -- and cryopanel_operating_point.json -- the cryopanel model's operating point as a declared input, with the ontology import put back and seen by the C1 test (retired to tools/mutations/legacy/ with the component model in tranche 4). The fifty-sixth is performance_counters.json: a regression planted in the ready queue -- a per-job rescan, a history re-read, a hidden scan of the job map -- killed by a counter where only a clock used to look (R49). The fifty-seventh is scientific_authority_replay.json: a scientific result's admission re-decided on replay, on snapshot restore and by the independent reader in its own code -- a forged admission applied on replay, evidence captured after a verdict, an invalidated check, an unknown policy, lost evidence read as admitted, and the second reader's content table emptied are each restored and killed, 25/25; authority_result_rules.json grew to 17/17 with it (D-2026-83). The fifty-eighth is second_reader_audit_actions.json: ledger follow-up A's seven audit actions, each rule of their second readers removed and killed, and secret.provision taken back out of the action registry (D-2026-85). Tranche 4 also took one OUT: hardware_governance.json retired with its subject to tools/mutations/legacy/, which no shard runs (directive 21); and added framework_boundary.json -- the ACTIVE/LEGACY boundary's own rules, each removed against a planted violation. The fifty-ninth is claims_boundary.json: the framework claims boundary's checker, where a dropped, inverted, duplicated or unstated boundary, code that does not define its symbol and a test that does not exist are each restored and killed, 16/16 (directive 14). The cryopanel extraction swapped one for one: surface_adsorption.json -- the Langmuir capture law extracted from the component model, its invariants and its independent check, each restored and killed as a generic scientific or trust error, 25/25 (directive 22). The sixtieth is generic_consistency.json: the framework's successor to the legacy verifier, each of its checks -- the chain, the store re-hashed, cited digests resolving, refused and undecidable transitions, the live store compared with the independent reader, the schemas, the subject, the admitted model and check, the exit status -- removed against a real governed history damaged that way (directive 17). scientific_interfaces.json grew to 27 with the generic observation boundary's time, sequence, exact record and digest (directive 26)",
+      "evidence": "62 committed specs run in CI -- since the Phase-1 closure in eight deterministic shards (tools/mutation_shards.py; every spec in exactly one, every cycle, the matrix generated and checked) under an aggregate job that is green only when every shard succeeded (the count was 34 and went stale as specs were added; it is now checked against the workflow rather than asserted -- D-2026-47), covering qta_agent, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over qta_agent/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24. The fortieth is output_resolution.json: what a serialised number is allowed to mean, where a marking decided by magnitude instead of by why a value is zero, a floor of zero, and a claims table that names a rule without matching it are each restored and killed. The forty-first is unit_inventory.json: the dimension of every published number, where a suffix rule had been publishing a temperature gradient as metres and two fluxes as seconds. The forty-fifth and forty-sixth are agent_snapshot_coherence.json -- every reducer folds exactly the bytes it verified, 20/20 -- and enforcement_asserts.json -- enforcement that python -O cannot delete, 3/3 (D-2026-70, D-2026-73). The fifty-second and fifty-third are authority_result_rules.json -- the content rule for a scientific result, enforced by the authority store on the edge itself, 13/13 -- and governed_model_reuse.json -- a verified result reused only on evidence re-derived intact, every exclusion restored and killed, 20/20. The fifty-fourth and fifty-fifth are scientific_thermal_2d.json -- the second model's invariants, declared boundary and window, the 3D check speaking only to the problem it solves, and per-model tool routing -- and cryopanel_operating_point.json -- the cryopanel model's operating point as a declared input, with the ontology import put back and seen by the C1 test (retired to tools/mutations/legacy/ with the component model in tranche 4). The fifty-sixth is performance_counters.json: a regression planted in the ready queue -- a per-job rescan, a history re-read, a hidden scan of the job map -- killed by a counter where only a clock used to look (R49). The fifty-seventh is scientific_authority_replay.json: a scientific result's admission re-decided on replay, on snapshot restore and by the independent reader in its own code -- a forged admission applied on replay, evidence captured after a verdict, an invalidated check, an unknown policy, lost evidence read as admitted, and the second reader's content table emptied are each restored and killed, 25/25; authority_result_rules.json grew to 17/17 with it (D-2026-83). The fifty-eighth is second_reader_audit_actions.json: ledger follow-up A's seven audit actions, each rule of their second readers removed and killed, and secret.provision taken back out of the action registry (D-2026-85). Tranche 4 also took one OUT: hardware_governance.json retired with its subject to tools/mutations/legacy/, which no shard runs (directive 21); and added framework_boundary.json -- the ACTIVE/LEGACY boundary's own rules, each removed against a planted violation. The fifty-ninth is claims_boundary.json: the framework claims boundary's checker, where a dropped, inverted, duplicated or unstated boundary, code that does not define its symbol and a test that does not exist are each restored and killed, 16/16 (directive 14). The cryopanel extraction swapped one for one: surface_adsorption.json -- the Langmuir capture law extracted from the component model, its invariants and its independent check, each restored and killed as a generic scientific or trust error, 25/25 (directive 22). The sixtieth is generic_consistency.json: the framework's successor to the legacy verifier, each of its checks -- the chain, the store re-hashed, cited digests resolving, refused and undecidable transitions, the live store compared with the independent reader, the schemas, the subject, the admitted model and check, the exit status -- removed against a real governed history damaged that way (directive 17). scientific_interfaces.json grew to 27 with the generic observation boundary's time, sequence, exact record and digest (directive 26). The sixty-first and sixty-second are task_execution_phase.json -- an execution record accepted only in EXECUTING from the lease holder, by the task projection, the independent reader and the auditor, each refusal removed and killed, 10/10 (D-2026-86) -- and scientific_invalidation.json -- a scientific result resting on an invalidated or withdrawn governed origin made STALE and its dependents after it, a second origin keeping it, an interrupted invalidation settled, 14/14 (D-2026-87)",
       "provenance": "none",
       "failure_semantics": "a survivor, an anchor that matches anything but once, a source not restored byte-identical, a test that damaged a tracked file, or a mutation killed ONLY by the suite timeout each fail the run. A timeout is not counted as coverage: it says nothing about which check was lost and costs the whole timeout every run",
       "recovery": "a recovery sidecar plus SIGTERM/SIGINT handlers restore sources; --recover restores from an interrupted run",

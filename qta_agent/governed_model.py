@@ -57,6 +57,8 @@ from .authority import Role, State
 from .canonical import canonical_bytes, digest
 from .events import EventLog
 from .evidence import EvidenceStore
+from .invalidation import (INVALIDATABLE, InvalidationPlan, apply_plan,
+                           plan_from)
 from . import result_rules
 from .result_rules import KIND as RECORD_KIND
 from .result_rules import record_problems
@@ -277,6 +279,24 @@ class GovernedOrigins:
             out.append((tid, executor))
         return out
 
+    def captured_by(self, sha: str) -> tuple:
+        """Tasks standing VERIFIED now that captured ``sha`` before their
+        own verdict: the governed origins an artefact's authority comes
+        from."""
+        _, when, captured = self._view()
+        return tuple(sorted({
+            tid for seq, tid in captured.get(sha, ())
+            if tid in when and when[tid][1] is None and seq < when[tid][0]}))
+
+    def artefacts_of(self, task_ids) -> frozenset:
+        """Every artefact ``task_ids`` captured before their own verdicts:
+        what those verdicts lent authority to."""
+        ids = frozenset(task_ids)
+        _, when, captured = self._view()
+        return frozenset(
+            sha for sha, seen in captured.items() for seq, tid in seen
+            if tid in ids and tid in when and seq < when[tid][0])
+
     def problems(self, *, report_sha: str, bundle_sha: str, proposer: str,
                  actor: str, before_seq) -> list:
         checks = self._producers(report_sha, self.verifier_tools, before_seq)
@@ -303,6 +323,23 @@ class GovernedOrigins:
                     "executed by the proposer, the decider, or an executor "
                     "of the model run it checks")
         return problems
+
+
+@dataclass(frozen=True)
+class Invalidation:
+    """What following one change through the governed history did."""
+
+    #: What changed: ``task:<id>`` or ``evidence:<digest>``.
+    origin: str
+    #: Tasks moved VERIFIED -> INVALIDATED, in order.
+    tasks: tuple
+    #: The authority plan applied: the records made STALE, each with the
+    #: path from the origin that reached it, and those it reached that had
+    #: no edge to STALE (rejected, revoked, undecided) left as they were.
+    plan: InvalidationPlan
+    #: Results citing an artefact of those tasks whose origin still holds:
+    #: another governed task standing VERIFIED produced the same bytes.
+    kept: tuple
 
 
 class GovernedModelRuns:
@@ -462,6 +499,99 @@ class GovernedModelRuns:
             policy_id=POLICY_ID)
         return ModelRun(run, rel, sha, bundle_digest, record_id,
                         submitter, worker)
+
+    def invalidate_task(self, task_id: str, *, reason: str,
+                        actor: str = "system") -> Invalidation:
+        """A governed task's verdict no longer stands; what rested on it
+        goes STALE.
+
+        The task moves VERIFIED -> INVALIDATED through the gate. A
+        scientific result citing an artefact that task captured before its
+        verdict -- the bundle of a model run, the report of a check -- goes
+        STALE when its origin no longer holds now, and so does every record
+        depending on it, transitively. Nothing is rewritten: the admission
+        stays in the history, judged where it stands, and the staleness is a
+        later record citing what changed.
+        """
+        return self._invalidate(f"task:{task_id}", (task_id,),
+                                reason=reason, actor=actor)
+
+    def withdraw_evidence(self, sha: str, *, reason: str,
+                          actor: str = "system") -> Invalidation:
+        """Withdraw an artefact: a bundle, a report, or any file a model run
+        produced that its bundle rests on.
+
+        The bytes are content-addressed history and stay. What gave them
+        authority is the governed task that captured them, so withdrawing
+        them is invalidating every task standing VERIFIED that did -- and
+        then following that as :meth:`invalidate_task` does.
+        """
+        tasks = self.origins.captured_by(sha)
+        if not tasks:
+            raise ModelRunRefused(
+                f"no governed task standing VERIFIED captured {sha[:12]}; "
+                "there is no authority here to withdraw")
+        return self._invalidate(f"evidence:{sha}", tasks, reason=reason,
+                                actor=actor)
+
+    def settle(self, *, actor: str = "system") -> tuple:
+        """Finish invalidations that were not followed through.
+
+        The task's move and the records it makes STALE are separate appends,
+        so a writer that stopped between them -- or one that moved the task
+        and never followed it -- leaves a result VERIFIED on an origin that
+        no longer holds. Reuse already refuses such a result; this makes the
+        record say so. Every INVALIDATED task is followed again, citing
+        itself as the origin; a task already followed through reaches
+        nothing, so settling twice is settling once.
+        """
+        out = []
+        for task in self.gov.projection().in_state(TaskState.INVALIDATED):
+            inv = self._follow(
+                f"task:{task.task_id}", (task.task_id,), actor=actor,
+                reason="an invalidation not followed through when it was "
+                       "made")
+            if inv.plan.affected:
+                out.append(inv)
+        return tuple(out)
+
+    def _invalidate(self, origin: str, task_ids: tuple, *, reason: str,
+                    actor: str) -> Invalidation:
+        if not reason:
+            raise ValueError("an invalidation states what changed")
+        for tid in task_ids:
+            self.gov.invalidate(tid, reason=f"{origin}: {reason}",
+                                actor=actor)
+        return self._follow(origin, task_ids, reason=reason, actor=actor)
+
+    def _follow(self, origin: str, task_ids: tuple, *, reason: str,
+                actor: str) -> Invalidation:
+        """Make STALE what rested on ``task_ids``, now INVALIDATED."""
+        withdrawn = self.origins.artefacts_of(task_ids)
+        self.authority.catch_up()
+        roots, kept = [], []
+        for rid, rec in sorted(self.authority.all_records().items()):
+            cited = {rec.evidence.get("result_bundle"),
+                     rec.evidence.get("verification_report")}
+            if rec.kind != RECORD_KIND or not cited & withdrawn:
+                continue
+            if rec.state in INVALIDATABLE:
+                # Asked now, as reuse asks it: another governed task
+                # standing VERIFIED may have produced the same bytes, and
+                # then the result still has an origin.
+                basis = rec.admission_basis or {}
+                lost = self.origins.problems(
+                    report_sha=rec.evidence.get("verification_report", ""),
+                    bundle_sha=rec.evidence.get("result_bundle", ""),
+                    proposer=rec.proposer, actor=basis.get("actor", ""),
+                    before_seq=None)
+                if not lost:
+                    kept.append(rid)
+                    continue
+            roots.append(rid)
+        plan = plan_from(self.authority.all_records(), roots, origin=origin)
+        apply_plan(self.authority, plan, reason=reason, actor=actor)
+        return Invalidation(origin, tuple(task_ids), plan, tuple(kept))
 
     def check(self, run: ModelRun, *, check_id: str, out_dir: str,
               worker: str = CHECK_WORKER_ID) -> CheckRun:

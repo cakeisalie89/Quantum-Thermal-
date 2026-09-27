@@ -1,0 +1,107 @@
+{
+  "title": "Admission follows invalidation: what rested on a withdrawn origin goes STALE",
+  "note": "GovernedModelRuns.invalidate_task / withdraw_evidence / settle, GovernedStage10.invalidate, GovernedOrigins.captured_by / artefacts_of, and invalidation.plan_from / apply_plan. The suite runs on one genuine thermal-1D history with two decided results, copied per case; every case replays through both readers and both task readers.",
+  "suites": [
+    "tests/test_scientific_invalidation.py"
+  ],
+  "mutations": [
+    {
+      "name": "SI1_nothing_is_made_stale",
+      "path": "qta_agent/invalidation.py",
+      "find": "    cited = _origin_evidence(store, plan.origin, reason)\n    for rid in plan.affected:\n",
+      "replace": "    cited = _origin_evidence(store, plan.origin, reason)\n    for rid in ():\n",
+      "rationale": "the plan is computed and never applied"
+    },
+    {
+      "name": "SI2_the_roots_are_not_affected",
+      "path": "qta_agent/invalidation.py",
+      "find": "        elif root not in affected:\n            affected.append(root)\n",
+      "replace": "        elif False:\n            affected.append(root)\n",
+      "rationale": "only the dependents of a result go stale, never the result itself"
+    },
+    {
+      "name": "SI3_not_transitive",
+      "path": "qta_agent/invalidation.py",
+      "find": "        for rid in sub.affected:\n            if rid not in affected:\n",
+      "replace": "        for rid in ():\n            if rid not in affected:\n",
+      "rationale": "staleness stops at the result; a claim built on it stays canonical"
+    },
+    {
+      "name": "SI4_terminal_roots_are_moved",
+      "path": "qta_agent/invalidation.py",
+      "find": "        if state not in INVALIDATABLE:\n            skipped[root] = state.value\n",
+      "replace": "        if False:\n            skipped[root] = state.value\n",
+      "rationale": "a REVOKED or REJECTED result is moved to STALE, an edge that does not exist, and the cascade stops"
+    },
+    {
+      "name": "SI5_the_origin_path_is_lost",
+      "path": "qta_agent/invalidation.py",
+      "find": "        paths.setdefault(root, [origin, root])\n",
+      "replace": "        paths.setdefault(root, [root])\n",
+      "rationale": "the STALE record no longer says what changed"
+    },
+    {
+      "name": "SI6_the_task_is_not_moved",
+      "path": "qta_agent/governed_model.py",
+      "find": "        for tid in task_ids:\n            self.gov.invalidate(",
+      "replace": "        for tid in ():\n            self.gov.invalidate(",
+      "rationale": "the results are followed and the task itself still stands VERIFIED"
+    },
+    {
+      "name": "SI7_a_second_origin_is_ignored",
+      "path": "qta_agent/governed_model.py",
+      "find": "                if not lost:\n                    kept.append(rid)\n                    continue\n",
+      "replace": "                if False:\n                    kept.append(rid)\n                    continue\n",
+      "rationale": "a result another governed task still vouches for is made stale"
+    },
+    {
+      "name": "SI8_origin_is_asked_at_the_admission",
+      "path": "qta_agent/governed_model.py",
+      "find": "                    before_seq=None)\n                if not lost:\n",
+      "replace": "                    before_seq=rec.updated_seq)\n                if not lost:\n",
+      "rationale": "the origin is judged where the admission stood, where it always held, so nothing ever goes stale"
+    },
+    {
+      "name": "SI9_the_report_is_not_followed",
+      "path": "qta_agent/governed_model.py",
+      "find": "            cited = {rec.evidence.get(\"result_bundle\"),\n                     rec.evidence.get(\"verification_report\")}\n            if rec.kind",
+      "replace": "            cited = {rec.evidence.get(\"result_bundle\")}\n            if rec.kind",
+      "rationale": "an invalidated check leaves the result it checked standing"
+    },
+    {
+      "name": "SI10_late_bytes_carry_authority",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if tid in when and when[tid][1] is None and seq < when[tid][0]}))",
+      "replace": "            if tid in when and when[tid][1] is None}))",
+      "rationale": "bytes attached to a task after its verdict are withdrawn as though the verdict examined them"
+    },
+    {
+      "name": "SI11_an_invalidated_task_still_vouches",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if tid in when and when[tid][1] is None and seq < when[tid][0]}))",
+      "replace": "            if tid in when and seq < when[tid][0]}))",
+      "rationale": "a task already invalidated is chosen again as an origin to withdraw"
+    },
+    {
+      "name": "SI12_settle_follows_nothing",
+      "path": "qta_agent/governed_model.py",
+      "find": "        for task in self.gov.projection().in_state(TaskState.INVALIDATED):\n",
+      "replace": "        for task in self.gov.projection().in_state(TaskState.VERIFIED):\n",
+      "rationale": "an invalidation interrupted between the task and its results is never finished"
+    },
+    {
+      "name": "SI13_the_gate_takes_no_reason",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if not reason:\n            raise ValueError(\"an invalidation states what changed\")\n        task = self.projection()",
+      "replace": "        task = self.projection()",
+      "rationale": "a task is invalidated with nothing recorded about what changed"
+    },
+    {
+      "name": "SI14_withdrawal_needs_no_origin",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if not tasks:\n            raise ModelRunRefused(\n                f\"no governed task standing VERIFIED captured",
+      "replace": "        if False:\n            raise ModelRunRefused(\n                f\"no governed task standing VERIFIED captured",
+      "rationale": "withdrawing bytes nothing vouched for is accepted as though it withdrew authority"
+    }
+  ]
+}

@@ -524,12 +524,29 @@ work and does not close the entry by being planned.
   outside LEASED/EXECUTING is refused by both task readers. (Follow-up A
   gave the audit actions second readers; `task.execution` is folded state,
   and the rule belongs to its primary first.)
+  *Closed (D-2026-86).* Accepted only in EXECUTING, from the lease holder --
+  the one point the runner writes it; LEASED is narrower than it read. The
+  projection refuses, the independent reader restates the rule and refuses
+  without folding, and the auditor -- which had the same fold in its
+  separation-of-duties check -- reports the record and judges the executor
+  as of the verdict. 10 mutations (`task_execution_phase.json`).
 * **Admission does not follow invalidation.** A check or model-run task
   invalidated after a result was admitted leaves the result VERIFIED and
   ADMITTED, which is right about the history; reuse refuses it (it asks
   whether origin still holds now), but nothing moves the record to STALE.
   *Done when:* invalidating a governed task cascades to the scientific
   results whose admission rests on it.
+  *Closed (D-2026-87).* `GovernedModelRuns.invalidate_task` and
+  `withdraw_evidence` move the origin tasks to INVALIDATED through the gate
+  and make STALE every result whose bundle or report they captured and whose
+  origin no longer holds now, then its dependents by the same walk
+  (`invalidation.plan_from`); a second governed origin keeps a result
+  standing; `settle` finishes an invalidation interrupted between the task
+  and its results. Nothing already written changes. 14 mutations
+  (`scientific_invalidation.json`). Still open: nothing calls `settle`
+  automatically, nothing in production invalidates a task yet (the API is
+  the seam), and withdrawing a model VERSION from the registry has no
+  representation.
 * **Replay cost.** Each scientific admission during a load is one verified
   read of the log and one task fold. Linear per admission, so a load is
   O(n·k) in admitted results; at today's sizes it is invisible, and no

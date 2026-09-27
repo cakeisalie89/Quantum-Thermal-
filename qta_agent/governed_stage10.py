@@ -135,7 +135,7 @@ from .scheduler import (FailureClass, RETRYABLE as SCHED_RETRYABLE,
                         Scheduler)
 from .tasks import (
     Lease, Task, TaskProjection, TaskRole, TaskState, TaskTransition,
-    TaskTransitionError, apply_transition, check,
+    TaskTransitionError, apply_transition, check, check_execution,
 )
 from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
                     ToolError, ToolNotRegistered, ToolSpec)
@@ -691,7 +691,13 @@ class GovernedStage10:
                 # this is where the projection learns it. Skipping this record
                 # and reading the executor out of a later transition payload
                 # is what let a worker verify its own work.
+                #
+                # And only where the lifecycle has a place for it. Folded
+                # unconditionally, a record appended after the verdict
+                # renamed the executor of work already judged, and both
+                # readers agreed with it.
                 task = tasks[p["task_id"]]
+                check_execution(task, ev.actor, at_seq=ev.seq)
                 tasks[p["task_id"]] = replace(
                     task, executed_by=ev.actor,
                     result_digest=p.get("result_digest")
@@ -1851,6 +1857,21 @@ class GovernedStage10:
         self.log.append(actor=actor, action=ACT_TASK_TRANSITION,
                         target=task.task_id, payload=payload)
         return self.projection().get(task.task_id)
+
+    def invalidate(self, task_id: str, *, reason: str,
+                   actor: str = "system") -> Task:
+        """VERIFIED -> INVALIDATED: something the verdict rested on changed.
+
+        Written through the gate like every other move, by SYSTEM, with the
+        reason in the record. Nothing already written changes: the verdict
+        stays in the history, and this is a later fact about it. What rested
+        on the task is the caller's to follow (``GovernedModelRuns``).
+        """
+        if not reason:
+            raise ValueError("an invalidation states what changed")
+        task = self.projection().get(task_id)
+        return self._move(task, TaskState.INVALIDATED, actor,
+                          TaskRole.SYSTEM, note=reason)
 
     def _capture(self, out_dir: Path, task_id: str) -> dict:
         """Content-address every file the tool produced, and record it."""
