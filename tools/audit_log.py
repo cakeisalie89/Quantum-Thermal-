@@ -181,15 +181,32 @@ def cmd_replay(log, args) -> int:
     this reports is what they REFUSE -- a transition that would not be
     authorized today is in the log and is not state -- and any structural
     anomaly they found on the way.
+
+    A scientific result's admission needs the evidence it cites: with
+    ``--evidence`` the second reader reads it and decides; without, every
+    such admission is UNVERIFIABLE. Either way an admission it could not
+    decide is a FINDING -- an auditor that cannot stand behind a claim of
+    scientific authority does not exit as though it could.
     """
-    rec = reconstruct(log)
+    evidence = None
+    if getattr(args, "evidence", None):
+        from qta_agent.evidence import EvidenceStore
+        if not Path(args.evidence).is_dir():
+            print(f"no evidence store at {args.evidence}", file=sys.stderr)
+            return CANNOT_ASK
+        evidence = EvidenceStore(Path(args.evidence))
+    rec = reconstruct(log, evidence=evidence)
     tasks = reconstruct_tasks(log)
     payload = {
         "records": {"replayed": rec.events_replayed,
                     "foreign": rec.foreign_events,
                     "states": rec.states(),
+                    "admission": {rid: r["admission"]
+                                  for rid, r in sorted(rec.records.items())
+                                  if r["admission"] is not None},
                     "canonical": list(rec.canonical_ids()),
                     "unauthorized": rec.unauthorized,
+                    "unverifiable": rec.unverifiable,
                     "anomalies": rec.anomalies},
         "tasks": {"replayed": tasks.events_replayed,
                   "foreign": tasks.foreign_events,
@@ -198,13 +215,15 @@ def cmd_replay(log, args) -> int:
                   "unauthorized": tasks.unauthorized,
                   "anomalies": tasks.anomalies},
     }
-    findings = (rec.unauthorized + rec.anomalies
+    findings = (rec.unauthorized + rec.anomalies + rec.unverifiable
                 + tasks.unauthorized + tasks.anomalies)
     if args.json:
         _out(payload, as_json=True, text="")
     else:
         print(f"authority records: {len(rec.records)} "
               f"({len(rec.canonical_ids())} canonical)")
+        for rid, verdict in payload["records"]["admission"].items():
+            print(f"  scientific admission: {rid} {verdict}")
         print(f"tasks: {len(tasks.tasks)} "
               f"({len(tasks.verified_ids())} verified)")
         for f in findings:
@@ -251,7 +270,11 @@ def build_parser() -> argparse.ArgumentParser:
     t = sub.add_parser("timeline", help="events in order")
     t.add_argument("--actor", help="only this actor's events")
 
-    sub.add_parser("replay", help="what an independent second reader finds")
+    r = sub.add_parser("replay",
+                       help="what an independent second reader finds")
+    r.add_argument("--evidence", metavar="DIR",
+                   help="the evidence store the log cites; without it a "
+                        "scientific result's admission cannot be decided")
     return p
 
 

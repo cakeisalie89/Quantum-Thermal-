@@ -566,7 +566,14 @@ class GovernedStage10:
         # not: a record landing between the two calls is folded without its
         # chain link ever being checked by this call, and a forged one was
         # (D-2026-41). It is also half the file reads.
-        events = self._verified_events()
+        return self._project(self._verified_events())
+
+    def _project(self, events: list) -> TaskProjection:
+        """Fold ``events`` -- which the caller has just read VERIFIED, in one
+        pass -- into task state. Private: :meth:`projection` is the entry
+        point, and a caller holding its own verified read (the origin view of
+        :mod:`qta_agent.governed_model`) folds that same read rather than
+        reading the log a second time."""
         tasks: dict = {}
         seq = -1
         for ev in events:

@@ -7850,3 +7850,87 @@ recover from. **MUTATIONS.** `mutation_harness.json` gains
 **RECOVERED HERE.** Both leftovers were undone by hand -- `git checkout
 HEAD -- qta_agent/authority.py`, and the probe removed from the index and the
 disk -- and the diff digest then matched the pre-run one again.
+
+## D-2026-83 — a scientific result's admission was decided once, live, and replayed as authority
+
+**CLASS** — `DEFECT`, `qta_agent/store.py` and `qta_agent/reconstruct.py`.
+Recorded as part of the trust-closure work this entry belongs to; reproduced
+against `f003e38` before any of it was written.
+
+Tranche 3's content rule put the question "does the cited
+evidence support this scientific result" on the store's edge into VERIFIED
+and PROMOTED -- in `AuthorityStore.transition`, the LIVE path. Replay did
+not ask it. `load()` re-authorizes every transition against the state
+machine (roles, separation of duties, digest-shaped evidence) and then
+applied the edge; so did snapshot restore, and so did the independent reader
+in `qta_agent/reconstruct.py`, whose restated rules are the same machine.
+A record.transition line appended to the log directly -- the writer the
+replay re-authorization exists to catch -- moved a `scientific_result` into
+VERIFIED on a report that says FAIL, and both readers agreed with it.
+
+Reproduced at `f003e38` on a genuine governed history (thermal 1D run and
+checked as governed tasks): the live transition citing a FAIL report is
+refused ("the check reported FAIL"); the same transition appended to the log
+reloads as `VERIFIED` in the store and `VERIFIED` in the second reader, with
+nothing unauthorized. Presence in the log was authority, for the one record
+kind whose authority depends on what its evidence says.
+
+The content rule also read content only. A well-formed PASS written into the
+evidence store by hand -- the genuine report's own fields in other bytes --
+satisfied it, live or replayed; plan 9.7 recorded that residual.
+
+**REPAIR.**
+* `result_rules` states the rule as a named, versioned ADMISSION POLICY,
+  `scientific_result.admission/1`: exact field sets, a PASS about this
+  bundle from an independent implementation establishing independent
+  numerical agreement and nothing more, a simulation result whose invariants
+  all hold -- and ORIGIN: the report captured by a governed verification task
+  before that task's own VERIFIED verdict and still VERIFIED at the
+  transition, the bundle likewise by a governed model run, and the check
+  executed by none of the proposer, the decider and the run's executor.
+  A transition records the policy it was admitted under; a name this code
+  does not know, or none, is refused on replay rather than re-read under the
+  current rule.
+* The store re-decides every such admission on replay and on snapshot
+  restore (SNAPSHOT_VERSION 3). Evidence that resolves and does not support
+  the transition is a refusal, like any unauthorized transition. Evidence
+  that cannot be read here -- archived, lost, no evidence store, no view of
+  governed execution -- is not a pass and not a refusal: the record keeps
+  its position and reads UNVERIFIABLE, which is not canonical and not
+  reused.
+* Origin is the governed-execution view in `governed_model` (the store sits
+  below the task layer, so it is injected): one verified read of the log,
+  folded by the task projection's own reducer, judged AS OF the transition.
+* The independent reader decides the same admission again in its own code:
+  its own field sets, policy set, tool sets and canonical digest; its
+  content rule as a table of questions; origin from its own task replay,
+  which now keeps when each artefact was captured and who each execution
+  record names. `compare()` compares admission.
+
+**FOUND ON THE WAY, BEFORE COMMIT.** My first origin check asked only that
+the report be an artefact of a VERIFIED check task. The task projection
+does not fold `task.evidence` at all, so one appended record could attach a
+hand-written report to a check task verified long before -- and the check
+passed. Origin now requires capture BEFORE the task's verdict, in both
+readers, and the forgery is a test (`late-evidence`). Judged at the head, the
+same check would also have refused to load a history whose check task was
+invalidated after the result was admitted; it is judged at the transition.
+
+**TEST.** `tests/test_scientific_authority_replay.py`: a genuine history
+admitted by both readers (control); twelve forged histories -- wrong subject,
+FAIL, NOT_RUN, producer's own code, experimental validation, a failed
+invariant, a forged PASS, a check decided by its own executor, late
+evidence, a check invalidated first, an unknown policy, no policy -- each
+refused by both, with the store's reasons shown to differ; a forged
+promotion; lost evidence UNVERIFIABLE to both and canonical to neither;
+snapshot restore re-derived; the auditor refusing without evidence; and the
+second reader's content table checked question by question against the
+store's. **MUTATIONS.** `scientific_authority_replay.json` (new, 25);
+`authority_result_rules.json` re-anchored and extended (17).
+
+**NOT DONE.** Actors in this log are names, not keys: a writer who appends a
+complete, rule-abiding governed lifecycle under other names is refused by no
+replay here, for this record kind or any other. And the task projection
+still folds a `task.execution` record appended after a task's verdict --
+the executor it reports changes; admission measures the executor at the
+verdict instead. Both are in plan 9.7.

@@ -57,11 +57,13 @@ from .authority import Role, State
 from .canonical import canonical_bytes, digest
 from .events import EventLog
 from .evidence import EvidenceStore
+from . import result_rules
 from .result_rules import KIND as RECORD_KIND
-from .result_rules import record_problems, verification_problems
+from .result_rules import record_problems
 from .governed_stage10 import (
-    POLICY_ID, SUBMITTER_ID, VERIFIER_ID, WORKER_ID, WORKSPACE_PREFIX,
-    GovernedRun, GovernedStage10,
+    ACT_EVIDENCE, ACT_EXECUTION, ACT_TASK_TRANSITION, POLICY_ID,
+    SUBMITTER_ID, VERIFIER_ID, WORKER_ID, WORKSPACE_PREFIX, GovernedRun,
+    GovernedStage10,
 )
 from .store import AuthorityStore
 from .tasks import TaskState
@@ -174,6 +176,135 @@ class CheckRun:
     worker: str
 
 
+#: The governed tools whose captured artefacts count as a VerificationResult's
+#: origin, and as a ResultBundle's. Restated as data in qta_agent.reconstruct;
+#: a conformance test holds the two to each other.
+VERIFIER_TOOLS = frozenset({TOOL_CHECK})
+MODEL_RUN_TOOLS = frozenset(MODEL_TOOLS.values())
+
+
+class GovernedOrigins:
+    """Where a scientific result's evidence came from, read from the governed
+    task history in the same log. The store's view of governed execution.
+
+    ORIGIN, NOT CONTENT. The content rule asks whether a report SAYS the
+    right things; a document written into the evidence store by hand can
+    say all of them. This asks whether the report is an artefact that an
+    authorized governed verification task captured -- a VERIFIED task of an
+    admitted verifier tool, completed before the transition -- and whether
+    the bundle is an artefact of a VERIFIED governed model run. And it asks
+    WHO: the verification's executor must be none of the proposer, the
+    decider, or an executor of a run that produced the bundle.
+
+    Tasks come from the task projection, which re-authorizes every task
+    transition on replay; artefacts from the ``task.evidence`` records of the
+    same verified read. Every question is AS OF the transition's position:
+    the task stood VERIFIED there, and the artefact was captured before the
+    task's own verdict. Judged at the head instead, a check task invalidated
+    after the result was verified would make the log's older history refuse
+    to load -- a later fact rewriting what an earlier decision rested on.
+
+    What it cannot see: actors in this log are names, not keys. A writer able
+    to append a complete, rule-abiding governed lifecycle under other names
+    is refused by no replay here; that residual is every record's in this
+    log, not this rule's alone.
+    """
+
+    def __init__(self, gov, *, verifier_tools=VERIFIER_TOOLS,
+                 model_tools=MODEL_RUN_TOOLS):
+        self.gov = gov
+        self.verifier_tools = frozenset(verifier_tools)
+        self.model_tools = frozenset(model_tools)
+
+    def _view(self):
+        """``(projection, when, captured)`` from ONE verified read of the
+        log, so no record can land between the three.
+
+        ``when[task_id]`` is ``(verified_seq, left_seq, executor)``: the
+        position of the task's move into VERIFIED, of its move out of it
+        (None while it is still there), and who had executed it at the
+        verdict. The projection has re-authorized every task
+        transition in this read -- it raises otherwise -- so these positions
+        are of transitions the task machine admits. ``captured[sha]`` lists
+        ``(seq, task_id)`` for every ``task.evidence`` record naming ``sha``.
+        """
+        report, events = self.gov.log.read_verified()
+        report.raise_if_bad()
+        captured: dict = {}
+        when: dict = {}
+        ran: dict = {}
+        for ev in events:
+            p = ev.payload
+            if ev.action == ACT_EVIDENCE:
+                tid = p.get("task_id")
+                for sha in (p.get("artifacts") or {}).values():
+                    captured.setdefault(sha, []).append((ev.seq, tid))
+            elif ev.action == ACT_EXECUTION:
+                ran[p.get("task_id")] = ev.actor
+            elif ev.action == ACT_TASK_TRANSITION:
+                tid = p.get("task_id")
+                if p.get("dst") == TaskState.VERIFIED.value:
+                    # Who ran the work THIS verdict judged: an execution
+                    # record appended after the verdict does not change it.
+                    when[tid] = (ev.seq, None, ran.get(tid))
+                elif p.get("src") == TaskState.VERIFIED.value \
+                        and tid in when:
+                    when[tid] = (when[tid][0], ev.seq, when[tid][2])
+        return self.gov._project(events), when, captured
+
+    def _producers(self, sha: str, tools: frozenset, before_seq) -> list:
+        """Tasks of ``tools`` that produced ``sha`` and stood VERIFIED at
+        ``before_seq`` (None: now).
+
+        Produced means CAPTURED BEFORE THE TASK WAS VERIFIED: the artefacts a
+        governed verification examined are the ones captured before its
+        verdict. The projection does not fold ``task.evidence`` records, so a
+        record naming a new artefact for a task verified long ago is refused
+        here rather than attached to somebody else's verdict.
+        """
+        projection, when, captured = self._view()
+        horizon = float("inf") if before_seq is None else before_seq
+        out = []
+        for seq, tid in captured.get(sha, ()):
+            task = projection.tasks.get(tid)
+            if task is None or task.tool_id not in tools or tid not in when:
+                continue
+            verified, left, executor = when[tid]
+            if not (seq < verified < horizon):
+                continue
+            if left is not None and left < horizon:
+                continue
+            out.append((tid, executor))
+        return out
+
+    def problems(self, *, report_sha: str, bundle_sha: str, proposer: str,
+                 actor: str, before_seq) -> list:
+        checks = self._producers(report_sha, self.verifier_tools, before_seq)
+        runs = self._producers(bundle_sha, self.model_tools, before_seq)
+        problems = []
+        if not checks:
+            problems.append(
+                f"the report {report_sha[:12]} is not an artefact of any "
+                "VERIFIED governed verification task completed before this "
+                "transition; a well-formed report nobody's governed "
+                "verification produced is not evidence")
+        if not runs:
+            problems.append(
+                f"the bundle {bundle_sha[:12]} is not an artefact of any "
+                "VERIFIED governed model run completed before this "
+                "transition")
+        if checks and runs:
+            run_executors = {ran for _, ran in runs}
+            if not any(ran is not None and ran not in (proposer, actor)
+                       and ran not in run_executors
+                       for _, ran in checks):
+                problems.append(
+                    "every verification that produced this report was "
+                    "executed by the proposer, the decider, or an executor "
+                    "of the model run it checks")
+        return problems
+
+
 class GovernedModelRuns:
     def __init__(self, *, root: Path, log: EventLog,
                  evidence: EvidenceStore):
@@ -182,7 +313,9 @@ class GovernedModelRuns:
                                    registry=model_registry())
         self.gov.tool_modules = dict(_TOOL_MODULES)
         self.evidence = evidence
-        self.authority = AuthorityStore(log, evidence=evidence).load()
+        self.origins = GovernedOrigins(self.gov)
+        self.authority = AuthorityStore(log, evidence=evidence,
+                                        origins=self.origins).load()
         for iid, role in ((CHECK_WORKER_ID, AgentRole.EXECUTOR),
                           (REVIEWER_ID, AgentRole.VERIFIER)):
             try:
@@ -232,8 +365,11 @@ class GovernedModelRuns:
         the bundle must carry it in its OWN provenance -- a record whose
         citation and bundle disagree is not believed either way. The bundle
         must still be in the store (every read re-hashes it), and every
-        artefact it references must still resolve. A result is reused by its
-        evidence, never by its name.
+        artefact it references must still resolve. The record must have been
+        ADMITTED when this history was read, its report must still support
+        its bundle, and both must still be the artefacts of governed tasks
+        standing VERIFIED now. A result is reused by its evidence, never by
+        its name.
         """
         out = []
         for rid, rec in sorted(self.authority.all_records().items()):
@@ -253,9 +389,25 @@ class GovernedModelRuns:
                 continue
             if not all(self.evidence.contains(a) for a in artifacts):
                 continue
-            # The decision is re-derived too: the report the record cites
-            # must still resolve and still support this bundle.
-            if record_problems(rec.evidence, self.evidence.get):
+            # The decision is re-derived too: the record must have been
+            # ADMITTED when this history was read, and the report it cites
+            # must still resolve and still support this bundle now.
+            if rec.admission != result_rules.ADMITTED:
+                continue
+            try:
+                if record_problems(rec.evidence, self.evidence.get):
+                    continue
+            except result_rules.EvidenceUnavailable:
+                continue
+            # AND ITS ORIGIN STILL HOLDS NOW. Admission was judged where the
+            # transition stands in the log; a check task invalidated since
+            # leaves that history admitted, and leaves nothing to reuse.
+            basis = rec.admission_basis or {}
+            if self.origins.problems(
+                    report_sha=rec.evidence["verification_report"],
+                    bundle_sha=rec.evidence["result_bundle"],
+                    proposer=rec.proposer, actor=basis.get("actor", ""),
+                    before_seq=None):
                 continue
             out.append(rid)
         return out
@@ -348,15 +500,19 @@ class GovernedModelRuns:
                 "decide on it")
         self.gov.agents.require(reviewer, AgentRole.VERIFIER)
         bundle = self._record_of(run.bundle_sha256)
-        report = self._record_of(check.report_sha256)
         problems = []
         if digest(bundle) != run.bundle_digest:
             problems.append("the bundle in evidence is not the one proposed")
-        # The same rule the store enforces on the edge into VERIFIED
-        # (qta_agent.result_rules): here it chooses between VERIFIED and
-        # REJECTED and supplies the reasons; there it is what a caller
-        # writing the transition directly cannot get past.
-        problems += verification_problems(bundle, report)
+        # The same admission the store enforces on the edge into VERIFIED
+        # (qta_agent.result_rules), content AND origin: here it chooses
+        # between VERIFIED and REJECTED and supplies the reasons; there it is
+        # what a caller writing the transition directly cannot get past.
+        problems += result_rules.admission_problems(
+            result_rules.CURRENT_POLICY,
+            {"result_bundle": run.bundle_sha256,
+             "verification_report": check.report_sha256},
+            fetch=self.evidence.get, origins=self.origins,
+            proposer=run.submitter, actor=reviewer, before_seq=None)
 
         self.authority.transition(record_id=run.record_id,
                                   dst=State.UNDER_REVIEW, actor=reviewer,

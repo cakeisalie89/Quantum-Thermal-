@@ -49,7 +49,8 @@ from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
 PROJECTION_KIND = "authority_store"
 #: Serialized snapshot shape. 2 added the ``projection`` identity; a v1
 #: snapshot cannot say which reducer made it, so it is replayed, not trusted.
-SNAPSHOT_VERSION = 2
+#: 3 added each record's scientific admission and its basis.
+SNAPSHOT_VERSION = 3
 #: Bump when ``_apply``'s semantics change ON PURPOSE. The source digest
 #: already changes with the code; this is the declaration for what it cannot
 #: see -- a behaviour change arriving through a dependency outside the package.
@@ -85,6 +86,16 @@ class Record:
     updated_seq: int = -1
     #: Set when the record left PROMOTED because a dependency moved.
     stale_reason: str | None = None
+    #: For a scientific_result in VERIFIED or PROMOTED only: whether the
+    #: transition that put it there is admitted HERE, re-derived from its
+    #: evidence and its origin -- ``result_rules.ADMITTED`` or
+    #: ``result_rules.UNVERIFIABLE``. None for every other record and state.
+    #: The state is where the log walked the record; this is whether that
+    #: walk is authority this reader can stand behind.
+    admission: str | None = None
+    #: What the admission was decided on: the policy the transition named,
+    #: its position, its actor, and -- when UNVERIFIABLE -- why.
+    admission_basis: dict | None = None
 
     def to_record(self) -> dict:
         return {
@@ -94,6 +105,9 @@ class Record:
             "depends_on": list(self.depends_on), "policy_id": self.policy_id,
             "created_seq": self.created_seq, "updated_seq": self.updated_seq,
             "stale_reason": self.stale_reason,
+            "admission": self.admission,
+            "admission_basis": (dict(self.admission_basis)
+                                if self.admission_basis else None),
         }
 
 
@@ -128,8 +142,16 @@ OWNED = frozenset({ACT_CREATE, ACT_TRANSITION, ACT_DEPEND,
 class AuthorityStore:
     """Live projection with transactional mutation through the log."""
 
-    def __init__(self, log: EventLog, *, evidence=None):
+    def __init__(self, log: EventLog, *, evidence=None, origins=None):
         self.log = log
+        #: Optional view of governed execution (see
+        #: :func:`qta_agent.result_rules.admission_problems`): answers "did an
+        #: authorized governed verification produce this report, about this
+        #: bundle, before this position". Supplied by the layer that runs
+        #: governed tasks, because this one sits below them. Without it a
+        #: scientific_result can be neither admitted live nor re-admitted on
+        #: replay -- it reads back UNVERIFIABLE.
+        self.origins = origins
         #: Optional :class:`~qta_agent.evidence.EvidenceStore` (or anything
         #: with a compatible ``contains``). When present, every cited digest
         #: must resolve to content this store actually holds, which is what
@@ -160,6 +182,37 @@ class AuthorityStore:
         :func:`~qta_agent.authority.check`.
         """
         return None if self.evidence is None else self.evidence.contains
+
+    @property
+    def _fetch(self):
+        """Bytes by digest, verified on every read; None without a store."""
+        return None if self.evidence is None else self.evidence.get
+
+    def _admit(self, rec: "Record", dst: State, evidence: dict, *,
+               policy, actor: str, seq: int | None) -> tuple:
+        """``(admission, basis)`` for a scientific_result moving into ``dst``.
+
+        Raises :class:`StoreError` when the evidence resolves and does NOT
+        support the transition -- the same answer as any transition the
+        machine would refuse today. Evidence this reader cannot resolve is
+        not a refusal and not a pass: UNVERIFIABLE, with the reason.
+        """
+        if rec.kind != result_rules.KIND or dst not in (State.VERIFIED,
+                                                        State.PROMOTED):
+            return None, None
+        basis = {"policy": policy, "seq": seq, "actor": actor}
+        try:
+            problems = result_rules.admission_problems(
+                policy, evidence, fetch=self._fetch, origins=self.origins,
+                proposer=rec.proposer, actor=actor, before_seq=seq)
+        except result_rules.EvidenceUnavailable as exc:
+            return result_rules.UNVERIFIABLE, {**basis, "detail": str(exc)}
+        if problems:
+            raise StoreError(
+                f"seq {seq}: {rec.record_id!r} -> {dst.value} is not "
+                f"admissible under {policy!r}: {'; '.join(problems)}. "
+                "Presence in the log is not authority.")
+        return result_rules.ADMITTED, basis
 
     # ---- projection ---------------------------------------------------
     def load(self) -> "AuthorityStore":
@@ -401,12 +454,24 @@ class AuthorityStore:
                     f"seq {ev.seq}: {rid!r} {cur.state.value} -> "
                     f"{p.get('dst')} would be refused today: {exc}. Presence "
                     "in the log is not authority.") from exc
+            # AND RE-ADMIT, FOR A SCIENTIFIC RESULT. The edge above checks
+            # roles and that evidence is SHAPED like a digest; for this kind
+            # that is not authority. The cited bundle and report are read,
+            # held to the admission policy the transition names, and bound
+            # to the governed executions that produced them -- or, if they
+            # cannot be read here, the record is UNVERIFIABLE rather than
+            # silently VERIFIED. See qta_agent.result_rules.
+            admission, basis = self._admit(
+                cur, State(p["dst"]), merged_evidence,
+                policy=p.get("admission_policy"), actor=ev.actor,
+                seq=ev.seq)
             self._records[rid] = replace(
                 cur, state=State(p["dst"]), revision=cur.revision + 1,
                 evidence=merged_evidence,
                 updated_seq=ev.seq,
                 stale_reason=p.get("stale_reason", cur.stale_reason),
-                policy_id=p.get("policy_id", cur.policy_id))
+                policy_id=p.get("policy_id", cur.policy_id),
+                admission=admission, admission_basis=basis)
         elif ev.action == ACT_DEPEND:
             rid = p["record_id"]
             if rid not in self._records:
@@ -520,7 +585,9 @@ class AuthorityStore:
                     depends_on=tuple(r["depends_on"]),
                     policy_id=r["policy_id"], created_seq=r["created_seq"],
                     updated_seq=r["updated_seq"],
-                    stale_reason=r["stale_reason"])
+                    stale_reason=r["stale_reason"],
+                    admission=r["admission"],
+                    admission_basis=r["admission_basis"])
             except (KeyError, TypeError, ValueError) as exc:
                 raise StoreError(
                     f"snapshot record {rid!r} is malformed: {exc}") from exc
@@ -528,6 +595,21 @@ class AuthorityStore:
                 raise StoreError(
                     f"snapshot key {rid!r} disagrees with the record it holds "
                     f"({rebuilt[rid].record_id!r})")
+        # A SNAPSHOT'S ADMISSION IS RE-DERIVED, NOT INHERITED. It was
+        # decided by whichever store took the checkpoint, with whatever
+        # evidence and view of governed execution that store had; this store
+        # may have less (or more). Authority is what THIS reader can
+        # establish now, so each admitted scientific result is decided again
+        # on the basis it was recorded with.
+        for rid, rec in list(rebuilt.items()):
+            if rec.admission is None:
+                continue
+            b = rec.admission_basis or {}
+            admission, basis = self._admit(
+                rec, rec.state, rec.evidence, policy=b.get("policy"),
+                actor=b.get("actor", ""), seq=b.get("seq"))
+            rebuilt[rid] = replace(rec, admission=admission,
+                                   admission_basis=basis)
         self._records = rebuilt
         if not all(isinstance(k, str) and isinstance(v, str)
                    for k, v in keys.items()):
@@ -610,6 +692,7 @@ class AuthorityStore:
 
     @classmethod
     def load_from(cls, log, checkpoints, *, blobs, evidence=None,
+                  origins=None,
                   require_checkpoint: bool = False) -> "AuthorityStore":
         """Load by restoring the newest usable snapshot and replaying the tail.
 
@@ -631,7 +714,7 @@ class AuthorityStore:
         """
         from . import checkpoint as cp_mod
 
-        store = cls(log, evidence=evidence)
+        store = cls(log, evidence=evidence, origins=origins)
         cp = checkpoints.latest_usable(log)
         if cp is None:
             if require_checkpoint:
@@ -843,6 +926,11 @@ class AuthorityStore:
             rec = self._records.get(rid)
             if rec is None or rec.state is not State.PROMOTED:
                 return False
+            if (rec.kind == result_rules.KIND
+                    and rec.admission != result_rules.ADMITTED):
+                # PROMOTED on evidence this reader cannot re-derive is a
+                # position in the log, not authority it can stand behind.
+                return False
             ok = all(sound(dep, seen | {rid}) for dep in rec.depends_on)
             verdict[rid] = ok
             return ok
@@ -943,35 +1031,47 @@ class AuthorityStore:
             # raises TransitionError if not permitted, including when a
             # cited digest does not resolve in the attached evidence store
             edge = check(req, resolve=self._resolver)
+            payload = {"record_id": record_id, "src": cur.state.value,
+                       "dst": dst.value, "role": role.value,
+                       "evidence": evidence,
+                       "policy_id": policy_id or cur.policy_id,
+                       "stale_reason": stale_reason,
+                       "edge_reason": edge.reason,
+                       "idempotency_key": idempotency_key}
             if cur.kind == result_rules.KIND and dst in (State.VERIFIED,
                                                          State.PROMOTED):
-                self._require_supported_result(req.evidence)
-            return dict(
-                actor=actor, action=ACT_TRANSITION, target=record_id,
-                payload={"record_id": record_id, "src": cur.state.value,
-                         "dst": dst.value, "role": role.value,
-                         "evidence": evidence,
-                         "policy_id": policy_id or cur.policy_id,
-                         "stale_reason": stale_reason,
-                         "edge_reason": edge.reason,
-                         "idempotency_key": idempotency_key})
+                self._require_admissible(cur, dst, req.evidence, actor)
+                # The durable record names the rule it was admitted under,
+                # so replay decides it under THAT rule and not under
+                # whatever this code says in a later version.
+                payload["admission_policy"] = result_rules.CURRENT_POLICY
+            return dict(actor=actor, action=ACT_TRANSITION,
+                        target=record_id, payload=payload)
 
         self._append_decided(build)
         return self.get(record_id)
 
-    def _require_supported_result(self, evidence: dict) -> None:
-        """A scientific result is VERIFIED only on evidence that supports it.
+    def _require_admissible(self, cur: "Record", dst: State,
+                            evidence: dict, actor: str) -> None:
+        """A scientific result is VERIFIED only on evidence that supports it,
+        produced by governed execution. Decided BEFORE the append: live, what
+        cannot be established is refused, because a claim that cannot be
+        checked must not become a permanent fact of the log.
 
         The edge's own rule is that the cited report EXISTS; for this kind
-        that is not enough, so the content is read and held to
-        :mod:`qta_agent.result_rules`. Without an evidence store there is
-        nothing to read, and a claim that cannot be checked is refused.
+        that is not enough, so the content is read and held to the current
+        admission policy of :mod:`qta_agent.result_rules`, and its origin is
+        asked of the governed-execution view.
         """
-        if self.evidence is None:
+        try:
+            problems = result_rules.admission_problems(
+                result_rules.CURRENT_POLICY, evidence, fetch=self._fetch,
+                origins=self.origins, proposer=cur.proposer, actor=actor,
+                before_seq=None)
+        except result_rules.EvidenceUnavailable as exc:
             raise TransitionError(
-                "a scientific_result cannot be verified by a store with no "
-                "evidence attached: its report cannot be read")
-        problems = result_rules.record_problems(evidence, self.evidence.get)
+                f"a scientific_result cannot be verified here: {exc}"
+            ) from None
         if problems:
             raise TransitionError(
                 "the cited evidence does not support this scientific "

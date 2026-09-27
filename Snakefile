@@ -995,6 +995,18 @@ rule s10_governed_model:
         divergences = compare_tasks(g.gov.projection(), recon)
         assert not divergences, divergences
         assert not recon.unauthorized and not recon.anomalies
+        # The authority records too, by the second reader WITH the evidence:
+        # it re-decides each scientific admission in its own code, and must
+        # admit both results and agree with the store field by field.
+        from qta_agent.reconstruct import compare, reconstruct
+        authority = reconstruct(log, evidence=g.evidence)
+        assert not authority.unauthorized and not authority.anomalies, (
+            authority.unauthorized + authority.anomalies)
+        assert not authority.unverifiable, authority.unverifiable
+        assert compare(g.authority, authority) == ()
+        for rid in (first.record_id, second.record_id):
+            assert authority.records[rid]["admission"] == "ADMITTED", rid
+            assert g.authority.get(rid).admission == "ADMITTED", rid
 
         bundle = json.loads(g.evidence.get(first.bundle_sha256))
         verification = json.loads(g.evidence.get(check.report_sha256))

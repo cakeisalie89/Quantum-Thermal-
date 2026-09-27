@@ -38,7 +38,7 @@ rather than a web:
 | `safeio.py` | confined reads: symlink-refusing, descriptor-relative, bound to an inode rather than a name |
 | `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
 | `actions.py` | every durable action name, and which reducer owns it |
-| `result_rules.py` | what a `scientific_result` must show before its record is VERIFIED or PROMOTED: a PASS from independent code about that exact bundle, every invariant holding; read from the evidence by the store on the edge itself |
+| `result_rules.py` | what a `scientific_result` must show before its record is VERIFIED or PROMOTED -- the named, versioned admission policy `scientific_result.admission/1`: a PASS from independent code about that exact bundle, every invariant holding, and ORIGIN: both documents captured by governed tasks before their verdicts, the check run by none of the proposer, the decider and the run's executor. Decided by the store on the live edge, again on replay and on snapshot restore (unreadable evidence: UNVERIFIABLE, never silently VERIFIED), and again by `reconstruct.py` in its own code |
 | `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Each model runs under its own governed tool (thermal 1D and 2D today). Its production caller is the Snakemake rule `s10_governed_model` |
 | `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `qta_agent` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
@@ -906,6 +906,28 @@ says it produced, and a second actor confirmed those bytes are still there.
 That is a statement about **provenance and nothing else**. It is not a claim
 that the result is scientifically correct, that anything was measured, or that
 any gate moved. PASS remains 0, and no gate is reachable from here.
+
+### Three meanings of "verified", and a scientific result's admission
+
+They are kept apart because each is easy to mistake for the next:
+
+* **artifact integrity** -- the same declared bytes; a digest, established
+  on every evidence read;
+* **scientific verification** -- a VerificationResult: a bounded numerical
+  check that passed, produced by a governed verification task;
+* **authority** -- a record's state: evidence judged sufficient for a
+  declared purpose by a reviewer who is none of the parties above.
+
+A VERIFIED *task* is the first. A `scientific_result` record reaches
+VERIFIED (the third) only through the second, under the admission policy of
+`qta_agent/result_rules.py`, and the policy is re-decided wherever authority
+is read back: the live edge refuses what it cannot establish; replay and
+snapshot restore re-decide under the policy the transition recorded, refuse
+what the evidence refutes, and mark UNVERIFIABLE what they cannot read --
+never silently VERIFIED; `reconstruct.py` decides it a third time in its own
+code, and `compare()` names any disagreement. The policy admits a
+simulation result on independent numerical agreement. It cannot establish
+experimental validation, and a report claiming to is refused.
 
 ## 7. Status: a production caller exists; most of the system does not yet
 

@@ -491,13 +491,44 @@ work and does not close the entry by being planned.
   supports the bundle. The production rule shows both halves: the identical
   proposal reuses with no second model run, other parameters recompute. 20
   mutations (`governed_model_reuse.json`).
-* **The content rule reads a report's content, not its origin.** A VERIFIER
-  distinct from the proposer can cite any stored document whose fields say
-  PASS about this bundle from other code; the store does not require that
-  the report was captured from a governed check task. `decide()` only ever
-  cites a captured one. *Done when:* the edge into VERIFIED for a
-  `scientific_result` requires the report digest to be an artefact of a
-  VERIFIED governed task of an admitted check tool, in the same history.
+* ~~**The content rule reads a report's content, not its origin.**~~
+  *Closed in tranche 4 (D-2026-83).* The rule is now admission policy
+  `scientific_result.admission/1`, and origin is part of it: the report must
+  have been captured by a governed verification task before that task's own
+  VERIFIED verdict and still be VERIFIED at the transition, the bundle
+  likewise by a governed model run, and the check executed by none of the
+  proposer, the decider and the run's executor. The same tranche found the
+  larger gap underneath: replay and snapshot restore never asked the content
+  question at all. Both now re-decide each admission, under the policy the
+  transition records; the independent reader decides it again in its own
+  code; evidence that cannot be read makes the record UNVERIFIABLE (kept,
+  not canonical, not reused), and evidence that refutes it is a refusal.
+  25 mutations (`scientific_authority_replay.json`).
+* **Actors are names, not keys.** Origin binds a report to a governed task
+  in the same log, and the log's hash chain makes that history
+  tamper-evident. It does not make it authentic: a writer able to append a
+  complete, rule-abiding governed lifecycle under other actor names is
+  refused by no replay here -- for scientific results or for any other
+  record. *Done when:* appends are signed by the principal they name and
+  replay verifies the signature against the identity registry.
+* **`task.execution` after a verdict is folded.** The task projection (and
+  the second reader) set a task's executor from the latest execution record,
+  including one appended after the task was VERIFIED. Admission measures the
+  executor at the verdict, so this does not reach scientific authority; the
+  task views still report the later name. *Done when:* an execution record
+  outside LEASED/EXECUTING is refused by both task readers -- with ledger
+  follow-up A's other action classes.
+* **Admission does not follow invalidation.** A check or model-run task
+  invalidated after a result was admitted leaves the result VERIFIED and
+  ADMITTED, which is right about the history; reuse refuses it (it asks
+  whether origin still holds now), but nothing moves the record to STALE.
+  *Done when:* invalidating a governed task cascades to the scientific
+  results whose admission rests on it.
+* **Replay cost.** Each scientific admission during a load is one verified
+  read of the log and one task fold. Linear per admission, so a load is
+  O(n·k) in admitted results; at today's sizes it is invisible, and no
+  counter holds it. *Done when:* one load shares one origin view, with a
+  counter test in the R49 style.
 * **The run identity does not see CPU dispatch.** The environment digest is
   Python, interpreter, machine and the numpy/scipy versions, read from
   metadata; R59 shows the same versions on a different CPU dispatch change

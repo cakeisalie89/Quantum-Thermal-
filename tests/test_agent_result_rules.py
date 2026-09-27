@@ -41,10 +41,22 @@ def _put(ev, doc) -> str:
     return ev.put(json.dumps(doc, sort_keys=True).encode())
 
 
+class _EveryArtefactGoverned:
+    """A view of governed execution under which every cited artefact came
+    from separated governed tasks. This module holds the CONTENT rule, so
+    origin is taken as satisfied here; it is held against the real governed
+    path, where it is not, in ``tests/test_scientific_authority_replay.py``.
+    """
+
+    def problems(self, **_):
+        return []
+
+
 @pytest.fixture()
 def world(tmp_path, pair):
     ev = EvidenceStore(tmp_path / "evidence")
-    store = AuthorityStore(EventLog(tmp_path / "log.jsonl"), evidence=ev)
+    store = AuthorityStore(EventLog(tmp_path / "log.jsonl"), evidence=ev,
+                           origins=_EveryArtefactGoverned())
     bundle, report = pair
     return store, ev, bundle, report
 
@@ -83,6 +95,12 @@ def test_a_supported_result_is_verified(world):
     ({"verifier_implementation_digest": "PRODUCER"}, "producer's own code"),
     ({"verifier_implementation_digest": "not-a-digest"},
      "producer's own code"),
+    ({"establishes": "EXPERIMENTAL_VALIDATION"},
+     "cannot establish experimental validation"),
+    ({"establishes": "NUMERICAL_CONSISTENCY"},
+     "claims to establish NUMERICAL_CONSISTENCY"),
+    ({"independence": "NONE"}, "declares no independence"),
+    ({"surplus": 1}, "not a VerificationResult record"),
 ])
 def test_the_store_refuses_a_report_that_does_not_support_it(world, change,
                                                              why):
@@ -110,15 +128,84 @@ def test_a_bundle_whose_invariant_failed_is_not_verified(world):
 
 
 def test_a_store_without_evidence_cannot_verify_a_result(tmp_path, pair):
-    store = AuthorityStore(EventLog(tmp_path / "log.jsonl"))
+    store = AuthorityStore(EventLog(tmp_path / "log.jsonl"),
+                           origins=_EveryArtefactGoverned())
     store.create(record_id="r", kind=result_rules.KIND, proposer="p",
                  evidence={"result_bundle": "a" * 64})
     store.transition(record_id="r", dst=State.UNDER_REVIEW, actor="v",
                      role=Role.VERIFIER)
-    with pytest.raises(TransitionError, match="no evidence attached"):
+    with pytest.raises(TransitionError,
+                       match="no evidence store is attached"):
         store.transition(record_id="r", dst=State.VERIFIED, actor="v",
                          role=Role.VERIFIER,
                          evidence={"verification_report": "b" * 64})
+    assert store.get("r").state is State.UNDER_REVIEW
+
+
+def test_a_store_that_cannot_see_governed_execution_cannot_verify(
+        tmp_path, pair):
+    """The documents are genuine and say everything the content rule asks.
+    Without a view of governed execution nobody can say a governed
+    verification produced the report, so live, the edge is refused -- a
+    claim that cannot be checked does not become a fact of the log."""
+    bundle, report = pair
+    ev = EvidenceStore(tmp_path / "evidence")
+    store = AuthorityStore(EventLog(tmp_path / "log.jsonl"), evidence=ev)
+    rid = _under_review(store, ev, bundle)
+    with pytest.raises(TransitionError,
+                       match="no view of governed execution"):
+        _verify(store, rid, _put(ev, report))
+    assert store.get(rid).state is State.UNDER_REVIEW
+
+
+def test_a_bundle_that_is_not_a_simulation_result_is_not_verified(world):
+    """Numerical verification admits a simulation result and nothing else.
+    A bundle presented as an observation is refused even with a report
+    that is about it and says PASS."""
+    store, ev, bundle, report = world
+    from qta_agent.canonical import digest
+    measured = {**json.loads(json.dumps(bundle)),
+                "observation_kind": "PROCESSED_OBSERVATION"}
+    rid = _under_review(store, ev, measured)
+    with pytest.raises(TransitionError, match="simulation results only"):
+        _verify(store, rid, _put(ev, {**report,
+                                      "subject_digest": digest(measured)}))
+
+
+@pytest.mark.parametrize("policy", [None, "", "scientific_result.admission/0",
+                                    "scientific_result.admission/2"])
+def test_a_policy_this_code_does_not_know_is_refused(pair, policy):
+    """Old authority is not reinterpreted under a newer rule, and a name
+    nothing here defines is not read as the current one."""
+    bundle, report = pair
+    problems = result_rules.admission_problems(
+        policy, {}, fetch=None, origins=None, proposer="p", actor="v",
+        before_seq=None)
+    assert problems and "not one this code can decide under" in problems[0]
+
+
+def test_the_current_policy_is_the_one_transitions_record(world):
+    store, ev, bundle, report = world
+    rid = _under_review(store, ev, bundle)
+    _verify(store, rid, _put(ev, report))
+    _, events = store.log.read_verified()
+    last = [e for e in events if e.action == "record.transition"][-1]
+    assert last.payload["admission_policy"] == result_rules.CURRENT_POLICY
+    assert result_rules.CURRENT_POLICY == "scientific_result.admission/1"
+    rec = store.get(rid)
+    assert rec.admission == result_rules.ADMITTED
+    assert rec.admission_basis == {"policy": result_rules.CURRENT_POLICY,
+                                   "seq": last.seq, "actor": "reviewer"}
+
+
+def test_other_kinds_carry_no_admission(world):
+    store, ev, bundle, report = world
+    rid = _under_review(store, ev, bundle, kind="stage10_artifact")
+    _verify(store, rid, _put(ev, report))
+    _, events = store.log.read_verified()
+    last = [e for e in events if e.action == "record.transition"][-1]
+    assert "admission_policy" not in last.payload
+    assert store.get(rid).admission is None
 
 
 def test_evidence_that_is_not_json_is_a_problem_not_a_pass(world):

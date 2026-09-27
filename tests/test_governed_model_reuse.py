@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from qta_agent.authority import Role, State  # noqa: E402
+from qta_agent.authority import Role, State, TransitionError  # noqa: E402
 from qta_agent.canonical import digest  # noqa: E402
 from qta_agent.events import EventLog  # noqa: E402
 from qta_agent.evidence import EvidenceStore  # noqa: E402
@@ -132,20 +132,22 @@ def _put(ev, doc) -> str:
     return ev.put(json.dumps(doc, sort_keys=True).encode())
 
 
-def _record(world, name, *, bundle=None, report=None, state=State.VERIFIED,
-            identity=None):
+def _record(world, name, *, state=State.VERIFIED, identity=None,
+            bundle_sha=None, report_sha=None):
     """A scientific_result record taken to ``state`` through the store,
-    citing ``identity`` as its run identity. Every argument left out is the
-    genuine first result's."""
+    citing ``identity`` as its run identity. It cites the genuine first
+    result's bundle and report -- the artefacts the governed run and the
+    governed check captured -- unless told which others to cite. Documents
+    re-serialized here would be other bytes, which no governed task
+    produced, and the store would refuse them (as
+    :func:`test_a_forged_bundle_is_refused_by_the_store` shows)."""
     g, first, chk, _, ev = world
     rec0 = g.authority.get(first.record_id)
-    bundle = bundle if bundle is not None else _doc(ev, first.bundle_sha256)
-    report = report if report is not None else _doc(ev, chk.report_sha256)
-    report = {**report, "subject_digest": digest(bundle)}
     rid = f"{first.record_id}-{name}"
     g.authority.create(record_id=rid, kind="scientific_result",
                        proposer=SUBMITTER_ID,
-                       evidence={"result_bundle": _put(ev, bundle),
+                       evidence={"result_bundle":
+                                     bundle_sha or first.bundle_sha256,
                                  "run_identity":
                                      identity or rec0.evidence["run_identity"]})
     if state is State.PROPOSED:
@@ -154,12 +156,15 @@ def _record(world, name, *, bundle=None, report=None, state=State.VERIFIED,
                            actor=REVIEWER_ID, role=Role.VERIFIER)
     if state is State.UNDER_REVIEW:
         return rid
-    dst = State.VERIFIED if state is State.VERIFIED else State.REJECTED
-    key = ("verification_report" if dst is State.VERIFIED
-           else "rejection_reason")
-    g.authority.transition(record_id=rid, dst=dst, actor=REVIEWER_ID,
-                           role=Role.VERIFIER,
-                           evidence={key: _put(ev, report)})
+    if state is State.VERIFIED:
+        evidence = {"verification_report": report_sha or chk.report_sha256}
+    else:
+        evidence = {"rejection_reason": _put(ev, {"why": "test"})}
+    g.authority.transition(record_id=rid,
+                           dst=(State.VERIFIED if state is State.VERIFIED
+                                else State.REJECTED),
+                           actor=REVIEWER_ID, role=Role.VERIFIER,
+                           evidence=evidence)
     return rid
 
 
@@ -170,6 +175,7 @@ def _ident(world) -> str:
 
 def test_control_the_genuine_record_is_reusable(world):
     g, first, _, _, _ = world
+    assert g.authority.get(first.record_id).admission == "ADMITTED"
     assert first.record_id in g.reusable(_ident(world))
 
 
@@ -182,16 +188,45 @@ def test_an_undecided_or_rejected_result_is_not_reused(world, state):
     assert rid not in g.reusable(_ident(world))
 
 
-def test_a_record_citing_an_identity_its_bundle_does_not_carry(world):
-    """The record says the identity matches; the bundle's own provenance
-    says otherwise. The bundle is believed, not the citation -- and the
-    record is VERIFIED, so only this check excludes it."""
-    g, first, _, _, ev = world
-    bundle = _doc(ev, first.bundle_sha256)
-    lie = json.loads(json.dumps(bundle))
+def test_a_forged_bundle_is_refused_by_the_store(world):
+    """What the identity check used to be the only defence against: a bundle
+    written by hand, carrying another identity, with a matching report. The
+    report says PASS about it; neither was produced by governed execution,
+    and the store refuses the edge before reuse is ever asked."""
+    g, first, chk, _, ev = world
+    lie = json.loads(json.dumps(_doc(ev, first.bundle_sha256)))
     lie["provenance"]["run_identity"]["parameter_digest"] = "a" * 64
-    rid = _record(world, "forged-identity", bundle=lie)
-    assert g.authority.get(rid).state is State.VERIFIED
+    report = {**_doc(ev, chk.report_sha256), "subject_digest": digest(lie)}
+    rid = f"{first.record_id}-forged-bundle"
+    g.authority.create(record_id=rid, kind="scientific_result",
+                       proposer=SUBMITTER_ID,
+                       evidence={"result_bundle": _put(ev, lie),
+                                 "run_identity": _ident(world)})
+    g.authority.transition(record_id=rid, dst=State.UNDER_REVIEW,
+                           actor=REVIEWER_ID, role=Role.VERIFIER)
+    with pytest.raises(TransitionError, match="not an artefact of any"):
+        g.authority.transition(
+            record_id=rid, dst=State.VERIFIED, actor=REVIEWER_ID,
+            role=Role.VERIFIER,
+            evidence={"verification_report": _put(ev, report)})
+    assert g.authority.get(rid).state is State.UNDER_REVIEW
+    assert rid not in g.reusable(_ident(world))
+
+
+def test_a_record_citing_an_identity_its_bundle_does_not_carry(world):
+    """The record cites the identity being asked for; its bundle -- a genuine
+    governed run's, with the genuine check of it, so the store ADMITS it --
+    carries another. The bundle is believed, not the citation, and only this
+    check excludes it."""
+    g, first, _, _, _ = world
+    other = g.propose(**MODEL, parameters={**PARAMS, "n_cells": 61},
+                      out_dir=f"{WS}/carried", reuse=False)
+    ochk = g.check(other, check_id=CHECK, out_dir=f"{WS}/carried-check")
+    rid = _record(world, "carries-another", bundle_sha=other.bundle_sha256,
+                  report_sha=ochk.report_sha256)
+    rec = g.authority.get(rid)
+    assert rec.state is State.VERIFIED and rec.admission == "ADMITTED"
+    assert rec.evidence["run_identity"] == _ident(world)
     assert rid not in g.reusable(_ident(world))
 
 
@@ -224,11 +259,46 @@ def test_a_result_withdrawn_after_verification_is_not_reused(world, steps):
               **({"policy_id": "p"} if dst is State.PROMOTED else {}))
     rec = g.authority.get(rid)
     assert rec.state is steps[-1][0]
+    # The store clears the admission when authority is withdrawn.
+    assert rec.admission is None
     from qta_agent.result_rules import record_problems
     assert record_problems(rec.evidence, g.evidence.get) == [], (
         "the report no longer supports the bundle: the test would not "
         "isolate the state filter")
     assert rid not in g.reusable(_ident(world))
+
+
+@pytest.mark.parametrize("state", [State.PROPOSED, State.UNDER_REVIEW,
+                                   State.REJECTED, State.REVOKED,
+                                   State.STALE, State.SUPERSEDED])
+def test_reuse_does_not_lean_on_the_admission_for_the_state(world, state):
+    """Through the store, ADMITTED implies VERIFIED or PROMOTED: the store
+    clears the admission whenever a record leaves them, so every withdrawn
+    result above is excluded by its admission before its state is asked.
+    Reuse does not lean on that. The genuine result, forced behind the
+    store's back into a state that carries no authority while still reading
+    ADMITTED, is not reused."""
+    g, first, _, _, _ = world
+    g2 = _copy(f"forced-{state.value.lower()}")
+    assert first.record_id in g2.reusable(_ident(world))        # control
+    rec = g2.authority.get(first.record_id)
+    g2.authority._records[first.record_id] = dataclasses.replace(
+        rec, state=state)
+    assert g2.authority.get(first.record_id).admission == "ADMITTED"
+    assert first.record_id not in g2.reusable(_ident(world))
+
+
+def test_reuse_does_not_lean_on_the_admission_for_the_kind(world):
+    """The same for the kind: only a scientific_result is ever admitted, and
+    reuse still asks. Forced to another kind while reading ADMITTED, the
+    genuine result is not reused."""
+    g, first, _, _, _ = world
+    g2 = _copy("forced-kind")
+    rec = g2.authority.get(first.record_id)
+    g2.authority._records[first.record_id] = dataclasses.replace(
+        rec, kind="stage10_artifact")
+    assert g2.authority.get(first.record_id).admission == "ADMITTED"
+    assert first.record_id not in g2.reusable(_ident(world))
 
 
 def test_a_record_whose_citation_disagrees_with_its_bundle(world):
@@ -249,7 +319,7 @@ def test_a_promoted_result_is_reusable(world):
         evidence={"verification_report":
                   g.authority.get(rid).evidence["verification_report"],
                   "policy_id": "p"})
-    assert rec.state is State.PROMOTED
+    assert rec.state is State.PROMOTED and rec.admission == "ADMITTED"
     assert rid in g.reusable(_ident(world))
 
 
@@ -265,43 +335,70 @@ def test_a_bundle_that_is_not_a_bundle_is_skipped_not_fatal(world):
                        proposer=SUBMITTER_ID,
                        evidence={"result_bundle": _put(ev, ["not", "a"]),
                                  "run_identity": rec0.evidence["run_identity"]})
-    # Forced to VERIFIED behind the store's back. The store would refuse
-    # this edge now; a record replayed from a log written before the content
-    # rule existed is not re-judged on replay, and can be in this state.
+    # Forced to VERIFIED and ADMITTED behind the store's back, which neither
+    # the store nor its replay would do: the only way to reach reuse's own
+    # guard against an unreadable bundle is to place the record there.
     g.authority._records[rid] = dataclasses.replace(
-        g.authority._records[rid], state=State.VERIFIED)
+        g.authority._records[rid], state=State.VERIFIED,
+        admission="ADMITTED")
     found = g.reusable(_ident(world))
     assert rid not in found and first.record_id in found
 
 
 def test_a_result_whose_artefact_no_longer_resolves(world):
-    g, first, _, _, ev = world
-    bundle = json.loads(json.dumps(_doc(ev, first.bundle_sha256)))
+    """Admission reads the bundle and the report; the field files the bundle
+    names are reuse's own question. Removed from a copy, the record stays
+    ADMITTED and only the artefact check excludes it."""
+    g, first, _, _, _ = world
+    g2 = _copy("copy-lost-artefact")
+    bundle = _doc(g2.evidence, first.bundle_sha256)
     assert bundle["artifacts"], "no artefact: the test would be vacuous"
-    bundle["artifacts"][0]["digest"] = "f" * 64
-    rid = _record(world, "lost-artefact", bundle=bundle)
-    assert g.authority.get(rid).state is State.VERIFIED
-    assert rid not in g.reusable(_ident(world))
+    g2.evidence._blob_path(bundle["artifacts"][0]["digest"]).unlink()
+    assert g2.authority.get(first.record_id).admission == "ADMITTED"
+    assert first.record_id not in g2.reusable(_ident(world))
 
 
-def test_a_result_whose_report_no_longer_resolves(world):
-    """The decision is re-derived too. The report the record cites is
-    removed from the store after the record was VERIFIED."""
-    g, _, chk, _, ev = world
-    report = {**_doc(ev, chk.report_sha256), "limitations_note": "unique"}
-    rid = _record(world, "lost-report", report=report)
-    rec = g.authority.get(rid)
-    assert rec.state is State.VERIFIED
-    ev._blob_path(rec.evidence["verification_report"]).unlink()
-    assert rid not in g.reusable(_ident(world))
+@pytest.mark.parametrize("key", ["verification_report", "result_bundle"])
+def test_a_result_whose_evidence_went_while_loaded_is_not_reused(world, key):
+    """The decision is re-derived too. Admitted when this store loaded, the
+    cited document is then removed: the record still reads ADMITTED here,
+    and reuse's own re-read is what excludes it."""
+    g, first, _, _, _ = world
+    g2 = _copy(f"copy-went-{key}")
+    rec = g2.authority.get(first.record_id)
+    assert rec.admission == "ADMITTED"
+    g2.evidence._blob_path(rec.evidence[key]).unlink()
+    assert g2.authority.get(first.record_id).admission == "ADMITTED"
+    assert first.record_id not in g2.reusable(_ident(world))
 
 
-def test_a_result_whose_bundle_no_longer_resolves(world):
-    g, first, _, _, ev = world
-    bundle = {**_doc(ev, first.bundle_sha256), "limitations_note": "unique"}
-    rid = _record(world, "lost-bundle", bundle=bundle)
-    ev._blob_path(g.authority.get(rid).evidence["result_bundle"]).unlink()
-    assert rid not in g.reusable(_ident(world))
+def test_a_result_this_reader_could_not_admit_is_not_reused(world):
+    """UNVERIFIABLE is not reusable, even once the evidence is back.
+
+    Loaded while the report was away, the record's admission is
+    UNVERIFIABLE; the report is then restored, so every document resolves
+    and supports the bundle -- only the admission filter excludes it. A
+    fresh load, with the evidence present, admits it again (control)."""
+    g, first, chk, _, _ = world
+    base = ROOT / WS / "copy-unverifiable"
+    g_prep = _copy("copy-unverifiable")
+    blob = g_prep.evidence._blob_path(chk.report_sha256)
+    kept = blob.read_bytes()
+    blob.unlink()
+    g2 = GovernedModelRuns(root=ROOT, log=EventLog(base / "log.jsonl"),
+                           evidence=EvidenceStore(base / "evidence"))
+    rec = g2.authority.get(first.record_id)
+    assert rec.state is State.VERIFIED and rec.admission == "UNVERIFIABLE"
+    assert "does not resolve" in rec.admission_basis["detail"]
+    blob.parent.mkdir(parents=True, exist_ok=True)
+    blob.write_bytes(kept)
+    from qta_agent.result_rules import record_problems
+    assert record_problems(rec.evidence, g2.evidence.get) == []
+    assert first.record_id not in g2.reusable(_ident(world))
+    g3 = GovernedModelRuns(root=ROOT, log=EventLog(base / "log.jsonl"),
+                           evidence=EvidenceStore(base / "evidence"))
+    assert g3.authority.get(first.record_id).admission == "ADMITTED"
+    assert first.record_id in g3.reusable(_ident(world))
 
 
 def test_another_kind_is_never_reused(world):

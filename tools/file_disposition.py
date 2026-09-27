@@ -714,6 +714,11 @@ RULES = [
      "NEW in Phase 2: a verified model result reused only on evidence "
      "re-derived intact; every exclusion against a genuine control.",
      ""),
+    ("tests/test_scientific_authority_replay.py", KAH,
+     "NEW (D-2026-83): replay, snapshot restore and the independent reader "
+     "each re-decide a scientific result's admission; forged histories "
+     "refused by both readers.",
+     ""),
     ("tests/test_scientific_*.py", KAI,
      "NEW in Phase 2: the interfaces, the implementation identity (held to "
      "the substrate's own algorithms) and cut C1 in a fresh interpreter.",

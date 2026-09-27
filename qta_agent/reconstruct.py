@@ -409,6 +409,222 @@ def _task_refusal(*, task_id, src, dst, actor, role, at_seq, lease, lease_id,
     return None
 
 
+# ---------------------------------------------------------------------------
+# SCIENTIFIC ADMISSION, RESTATED.
+#
+# For a record of kind scientific_result, the edge into VERIFIED or PROMOTED
+# is not authority because the table above permits it. The cited bundle and
+# report are read, held to the admission policy the transition names, and
+# bound to the governed tasks that produced them. Production decides this in
+# qta_agent.result_rules and the origin view of qta_agent.governed_model;
+# this reader decides it again from the log and the evidence bytes, in its
+# own code, importing neither -- nor qta_agent.canonical: the digest a report
+# must name is recomputed below from its definition.
+#
+# Three outcomes, and they are not two:
+#   ADMITTED      the evidence resolves here and supports the transition;
+#   refused       it resolves and does NOT -- reported as unauthorized and
+#                 not applied, like any transition the rules refuse;
+#   UNVERIFIABLE  it cannot be read here (no evidence store given, or a cited
+#                 digest that does not resolve): the record keeps the state
+#                 the log walked it to, and is not canonical.
+# ---------------------------------------------------------------------------
+
+_SCI_KIND = "scientific_result"
+
+#: The states whose entry is an admission.
+_SCI_ADMITTING = frozenset({"VERIFIED", "PROMOTED"})
+
+#: Admission policies this reader can decide under. A transition naming any
+#: other -- or none -- is refused: old authority is not re-read under a rule
+#: it was never admitted by.
+_SCI_POLICIES = frozenset({"scientific_result.admission/1"})
+
+_SCI_ADMITTED = "ADMITTED"
+_SCI_UNVERIFIABLE = "UNVERIFIABLE"
+
+#: The fields of a ResultBundle and of a VerificationResult record, as this
+#: reader states them. Sorted tuples rather than sets, so a conformance test
+#: that finds them different can print the difference in order.
+_SCI_BUNDLE_FIELDS = (
+    "artifacts", "convergence", "environment_digest",
+    "implementation_digest", "invariants", "model_id", "model_version",
+    "observation_kind", "outputs", "parameter_digest", "parameters",
+    "provenance", "schema_version", "seeds", "solver_config", "warnings")
+_SCI_REPORT_FIELDS = (
+    "check_id", "check_type", "criterion", "criterion_derivation",
+    "establishes", "evidence", "independence", "limitations", "measured",
+    "observations", "producer_implementation_digest", "shared_components",
+    "status", "subject_digest", "subject_model", "threshold", "verifier_id",
+    "verifier_implementation_digest")
+
+#: Governed tools whose captured artefacts count, by what they are. A report
+#: from any other tool -- or from no tool -- is not a governed verification.
+_SCI_CHECK_TOOLS = frozenset({"model.independent_check"})
+_SCI_RUN_TOOLS = frozenset({"model.thermal.conduction_1d.run",
+                            "model.thermal.conduction_2d_axisymmetric.run"})
+
+
+class _SciUnreadable(Exception):
+    """A cited digest does not resolve to its own bytes here."""
+
+
+def _sci_json_digest(obj) -> str:
+    """The digest a report names its subject by: sha256 of the one canonical
+    JSON text (sorted keys, ASCII, no whitespace, no NaN)."""
+    import hashlib
+    import json
+    text = json.dumps(obj, sort_keys=True, ensure_ascii=True,
+                      separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _sci_fetch(evidence, sha: str):
+    """The parsed document ``sha`` names, or the string ``"not JSON"``.
+
+    Raises :class:`_SciUnreadable` when the store does not give back bytes
+    that hash to ``sha`` -- re-hashed HERE rather than trusted to the store,
+    which is production code this reader does not lean on."""
+    import hashlib
+    import json
+    try:
+        raw = evidence.get(sha)
+    except Exception as exc:                             # noqa: BLE001
+        raise _SciUnreadable(
+            f"{sha[:12]} does not resolve ({type(exc).__name__})") from None
+    if not isinstance(raw, (bytes, bytearray)) \
+            or hashlib.sha256(raw).hexdigest() != sha:
+        raise _SciUnreadable(f"{sha[:12]} did not come back as its own bytes")
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return "not JSON"
+
+
+def _sci_invariants_hold(bundle) -> bool:
+    inv = bundle.get("invariants")
+    return (isinstance(inv, list) and len(inv) > 0
+            and all(isinstance(i, dict) and i.get("holds") is True
+                    for i in inv))
+
+
+#: The content rule as a table: (what is asked, the question). Each question
+#: takes the bundle, the report, and the digest of the bundle.
+_SCI_CONTENT = (
+    ("the bundle has exactly a ResultBundle's fields",
+     lambda b, r, d: tuple(sorted(b)) == _SCI_BUNDLE_FIELDS),
+    ("the report has exactly a VerificationResult's fields",
+     lambda b, r, d: tuple(sorted(r)) == _SCI_REPORT_FIELDS),
+    ("the report is about this bundle",
+     lambda b, r, d: r.get("subject_digest") == d),
+    ("the check passed",
+     lambda b, r, d: r.get("status") == "PASS"),
+    ("the check is an independent implementation",
+     lambda b, r, d: r.get("check_type") == "INDEPENDENT_IMPLEMENTATION"),
+    ("the check establishes independent numerical agreement and nothing "
+     "more -- not experimental validation",
+     lambda b, r, d: r.get("establishes")
+     == "INDEPENDENT_NUMERICAL_AGREEMENT"),
+    ("the check declares an independence",
+     lambda b, r, d: r.get("independence") not in (None, "NONE")),
+    ("the report names this bundle's producer",
+     lambda b, r, d: r.get("producer_implementation_digest")
+     == b.get("implementation_digest")),
+    ("the verifying code is not the producer's",
+     lambda b, r, d: _is_digest(r.get("verifier_implementation_digest"))
+     and r.get("verifier_implementation_digest")
+     != b.get("implementation_digest")),
+    ("the bundle is a simulation result",
+     lambda b, r, d: b.get("observation_kind") == "SIMULATION_RESULT"),
+    ("the bundle ran invariants and every one holds",
+     lambda b, r, d: _sci_invariants_hold(b)),
+)
+
+
+def _sci_task_producers(tasks: dict, sha: str, tools: frozenset,
+                        at_seq: int) -> list:
+    """``(task_id, executor)`` for every task of ``tools`` that captured
+    ``sha`` before its own VERIFIED verdict and was still VERIFIED at
+    ``at_seq``. ``executor`` is whoever the last execution record before the
+    verdict names."""
+    found = []
+    for tid, t in sorted(tasks.items()):
+        if t.get("tool_id") not in tools:
+            continue
+        state_then = None
+        verdict = None
+        for seq, state in t.get("history", ()):
+            if seq >= at_seq:
+                break
+            state_then = state
+            if state == "VERIFIED" and verdict is None:
+                verdict = seq
+        if state_then != "VERIFIED" or verdict is None:
+            continue
+        if not any(seq < verdict and dg == sha
+                   for seq, dg in t.get("captured", ())):
+            continue
+        before = [actor for seq, actor in t.get("executions", ())
+                  if seq < verdict]
+        found.append((tid, before[-1] if before else None))
+    return found
+
+
+def _sci_admission(*, record_id, evidence, policy, proposer, actor, at_seq,
+                   store, tasks):
+    """``(verdict, why)`` for a scientific_result entering VERIFIED or
+    PROMOTED at ``at_seq``. ``verdict`` is ADMITTED, UNVERIFIABLE, or None
+    for refused. ``tasks`` is a zero-argument callable returning this
+    module's own task replay of the same log."""
+    if policy not in _SCI_POLICIES:
+        return None, (f"admission policy {policy!r} is not one this reader "
+                      f"decides under ({sorted(_SCI_POLICIES)})")
+    bundle_sha = evidence.get("result_bundle")
+    report_sha = evidence.get("verification_report")
+    for name, sha in (("result_bundle", bundle_sha),
+                      ("verification_report", report_sha)):
+        if not _is_digest(sha):
+            return None, f"{record_id} cites no {name} digest"
+    if store is None:
+        return _SCI_UNVERIFIABLE, ("no evidence store was given to this "
+                                   "reader, so nothing it cites can be read")
+    try:
+        bundle = _sci_fetch(store, bundle_sha)
+        report = _sci_fetch(store, report_sha)
+    except _SciUnreadable as exc:
+        return _SCI_UNVERIFIABLE, str(exc)
+    if not isinstance(bundle, dict) or not isinstance(report, dict):
+        return None, "the cited bundle or report is not a JSON object"
+    try:
+        subject = _sci_json_digest(bundle)
+    except ValueError:
+        return None, "the cited bundle has no canonical form"
+    failed = [asked for asked, question in _SCI_CONTENT
+              if not question(bundle, report, subject)]
+    if failed:
+        return None, "not so: " + "; ".join(failed)
+    view = tasks()
+    checks = _sci_task_producers(view, report_sha, _SCI_CHECK_TOOLS, at_seq)
+    runs = _sci_task_producers(view, bundle_sha, _SCI_RUN_TOOLS, at_seq)
+    if not checks:
+        return None, (f"report {report_sha[:12]} was captured by no governed "
+                      "verification task standing VERIFIED before this "
+                      "transition")
+    if not runs:
+        return None, (f"bundle {bundle_sha[:12]} was captured by no governed "
+                      "model run standing VERIFIED before this transition")
+    ran_it = {who for _, who in runs}
+    independent = [tid for tid, who in checks
+                   if who is not None and who != proposer and who != actor
+                   and who not in ran_it]
+    if not independent:
+        return None, ("no verification of this report was executed by "
+                      "someone other than the proposer, the decider and "
+                      "the model run's executor")
+    return _SCI_ADMITTED, f"checked by {', '.join(independent)}"
+
+
+
 
 @dataclass
 class Reconstruction:
@@ -419,6 +635,10 @@ class Reconstruction:
     unauthorized: list = field(default_factory=list)
     #: Structural problems in the log that did not stop replay.
     anomalies: list = field(default_factory=list)
+    #: Scientific results the log walked into VERIFIED or PROMOTED whose
+    #: admission this reader could not decide, and why. Applied -- the state
+    #: is where the log put them -- and never canonical.
+    unverifiable: list = field(default_factory=list)
     events_replayed: int = 0
     #: Events belonging to another subsystem on the same log. Counted so a
     #: reader can tell "this reconstruction saw a mixed log and ignored the
@@ -449,6 +669,8 @@ class Reconstruction:
             rec = self.records.get(rid)
             if rec is None or rec["state"] != _AUTH_PROMOTED:
                 return False
+            if rec["kind"] == _SCI_KIND and rec["admission"] != _SCI_ADMITTED:
+                return False
             ok = all(sound(dep, seen | {rid})
                      for dep in rec.get("depends_on") or ())
             verdict[rid] = ok
@@ -467,11 +689,17 @@ _AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
                                 "record.depend"})
 
 
-def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
+def reconstruct(log: EventLog, *, reauthorize: bool = True,
+                evidence=None) -> Reconstruction:
     """Rebuild authority state from a verified log.
 
     Verification comes first and is fatal: reconstructing from a chain that
     does not verify would produce a confident answer from untrusted bytes.
+
+    ``evidence`` is anything with ``get(digest) -> bytes``. Without it, a
+    scientific result's admission cannot be decided and reads UNVERIFIABLE;
+    with it, the admission is decided here -- see SCIENTIFIC ADMISSION,
+    RESTATED, above.
     """
     report, events = log.read_verified()
     report.raise_if_bad()
@@ -479,6 +707,14 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
     out = Reconstruction(head_seq=report.head_seq, head_hash=report.head_hash)
     # Deliberately dict-of-dicts rather than the store's dataclasses.
     recs: dict = out.records
+    # This module's own task replay, for origin -- built once, and only if a
+    # scientific admission is actually asked.
+    held: list = []
+
+    def task_view() -> dict:
+        if not held:
+            held.append(reconstruct_tasks(log).tasks)
+        return held[0]
 
     for ev in events:
         out.events_replayed += 1
@@ -503,6 +739,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
                 "created_seq": ev.seq,
                 "updated_seq": ev.seq,
                 "stale_reason": None,
+                "admission": None,
                 "history": [(ev.seq, p.get("state", _AUTH_INITIAL))],
             }
 
@@ -539,6 +776,23 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
                     # Do NOT apply. An unauthorized transition must not become
                     # canonical merely because it is present in the log.
                     continue
+            admission = None
+            if (reauthorize and cur["kind"] == _SCI_KIND
+                    and p.get("dst") in _SCI_ADMITTING):
+                admission, why = _sci_admission(
+                    record_id=rid,
+                    evidence={**cur["evidence"], **p.get("evidence", {})},
+                    policy=p.get("admission_policy"),
+                    proposer=cur["proposer"], actor=ev.actor,
+                    at_seq=ev.seq, store=evidence, tasks=task_view)
+                if admission is None:
+                    out.unauthorized.append(
+                        f"seq {ev.seq}: {rid} {cur['state']} -> "
+                        f"{p.get('dst')} would be refused today: {why}")
+                    continue
+                if admission == _SCI_UNVERIFIABLE:
+                    out.unverifiable.append(
+                        f"seq {ev.seq}: {rid} -> {p.get('dst')}: {why}")
             if p.get("dst") not in _AUTH_STATES:
                 # Reachable only with reauthorize=False, which is a DIAGNOSTIC
                 # mode and not a permissive one: a state this reader cannot
@@ -552,6 +806,7 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True) -> Reconstruction:
             cur["revision"] += 1
             cur["evidence"].update(p.get("evidence", {}))
             cur["updated_seq"] = ev.seq
+            cur["admission"] = admission
             if p.get("stale_reason") is not None:
                 cur["stale_reason"] = p["stale_reason"]
             if p.get("policy_id") is not None:
@@ -691,6 +946,11 @@ def reconstruct_tasks(log: EventLog, *,
                 "lease": None, "depends_on": list(p.get("depends_on") or ()),
                 "created_seq": ev.seq, "updated_seq": ev.seq,
                 "artifacts": {}, "history": [(ev.seq, _TASK_INITIAL)],
+                # (seq, digest) of every artefact captured, and (seq, actor)
+                # of every execution record: WHEN matters to a scientific
+                # admission, which asks what had been captured and who had
+                # run the task at the moment of its verdict.
+                "captured": [], "executions": [],
             }
             continue
 
@@ -704,10 +964,12 @@ def reconstruct_tasks(log: EventLog, *,
         if action == "task.evidence":
             arts = p.get("artifacts") or {}
             cur["artifacts"].update(arts)
+            cur["captured"].extend((ev.seq, dg) for dg in arts.values())
             continue
         if action == "task.execution":
             cur["executed_by"] = ev.actor
             cur["result_digest"] = p.get("result_digest")
+            cur["executions"].append((ev.seq, ev.actor))
             continue
 
         # task.transition
@@ -2235,6 +2497,11 @@ def compare(store, recon: Reconstruction) -> tuple:
             ("evidence", dict(lv.evidence), rc["evidence"]),
             ("depends_on", list(lv.depends_on), rc["depends_on"]),
             ("policy_id", lv.policy_id, rc["policy_id"]),
+            # Decided by two implementations from the same bytes: the store
+            # through result_rules and its origin view, this reader through
+            # its own restatement. A weakened rule on either side is a
+            # disagreement here.
+            ("admission", lv.admission, rc["admission"]),
         ):
             if lval != rval:
                 diffs.append(Divergence(rid, name, lval, rval))
