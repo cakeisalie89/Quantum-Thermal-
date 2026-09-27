@@ -153,6 +153,15 @@ RULES = [
      "Second governed tool (digest index); generalize with "
      "governed_stage10 in Phase 2.",
      "docstring names results_gate_table.csv as a possible input"),
+    ("scientific/models/surface_adsorption.py", PLG,
+     "EXTRACTED in tranche 4 (directive 22) from the cryopanel component "
+     "model: ideal-gas density, impingement flux and exact Langmuir "
+     "capture, with five invariants; standard library only.",
+     "tests/test_surface_adsorption.py"),
+    ("scientific/checks/langmuir_rk4.py", PLG,
+     "NEW in tranche 4 (directive 22): the independent check of Langmuir "
+     "capture -- the flux in its pressure form, the rate law by RK4.",
+     "tests/test_surface_adsorption.py"),
     ("scientific/models/*.py", PLG,
      "NEW in Phase 2: ScientificModel adapters over existing solvers, "
      "unchanged -- thermal 1D is the proving case.",
@@ -283,13 +292,17 @@ RULES = [
      "Superconducting heat-switch lumped conductance: generic cryogenic "
      "component physics.",
      "directive s3B 'generic cryogenic component physics'"),
-    ("qta_multiphysics/cryopanel_dynamics_3d.py", EXG,
-     "Cryopanel adsorption inventory. Not a retained hardware model "
-     "(directive 22): extract its generic physics -- adsorption isotherm, "
-     "desorption kinetics, capacity and breakthrough -- into scientific "
-     "models with invariants and an independent check, then retire the "
-     "component model. The B->C->D phase windows retire with it.",
-     "8 Mode-letter hits"),
+    ("qta_multiphysics/cryopanel_dynamics_3d.py", RTH,
+     "EXTRACTED THEN RETIRED (tranche 4, directive 22). Its generic "
+     "physics -- ideal-gas density, impingement flux, exact Langmuir "
+     "capture -- is scientific/models/surface_adsorption.py, with five "
+     "invariants and an independent check; the legacy campaign's rows are "
+     "regenerated through it bit for bit. What remains is apparatus "
+     "policy (the B/C/D phase windows, which gas in which phase, panel "
+     "names, memory-table sticking), kept only for the legacy campaign "
+     "layer and retired with it. It had no desorption, isotherm or "
+     "breakthrough term to extract.",
+     "tests/test_surface_adsorption.py"),
     ("qta_multiphysics/nv_spin/runner.py", RWG,
      "Enforces Mode C readiness before Mode D (machine-mode semantics) and"
      " orchestrates outputs. Rewrite as a plugin runner.",
@@ -735,6 +748,11 @@ RULES = [
     ("tests/test_claude_workflow_prompt.py", KAH,
      "NEW (directive 11): the Claude workflow's prompt states the "
      "framework's rules and none of QTA's retired invariants.",
+     ""),
+    ("tests/test_surface_adsorption.py", KAH,
+     "NEW (directive 22): the extracted Langmuir capture -- regression "
+     "equivalence with the cryopanel, the model's invariants each broken, "
+     "and its independent check.",
      ""),
     ("tests/test_framework_boundary.py", KAH,
      "NEW (directive 28): the boundary holds, and a planted legacy import, "

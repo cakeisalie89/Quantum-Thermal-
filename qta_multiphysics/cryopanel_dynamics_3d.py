@@ -1,5 +1,16 @@
 """Dynamic cryopanel inventory model for the campaign-continuity layer.
 
+LEGACY QTA (tranche 4, directive 22). The component model is retired: its
+equations -- ideal-gas density, impingement flux, the exact Langmuir capture
+step -- were extracted to ``scientific.models.surface_adsorption``, a generic
+model with its own invariants and an independent check, and this module now
+calls them for all of its arithmetic. What remains here is the apparatus's:
+which gas reaches which panel in which machine phase, the panels' names, the
+sticking coefficients of its memory table, its phase windows. It stays only
+because the legacy campaign layer runs it, and it retires with that layer.
+The canonical campaign outputs are regenerated through the extracted
+functions byte for byte (``tests/test_surface_adsorption.py``).
+
 MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
 
 Evolves per-panel adsorbed inventory (per unit panel area) for the in-scope
@@ -57,13 +68,14 @@ saturation-time forecasts inherit that status; per-panel area is not needed
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from .surface_coverage import kinetic_flux
+from scientific.models.surface_adsorption import (
+    impingement_flux, langmuir_capture, number_density,
+)
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
-K_B = 1.380649e-23
 SITES_PER_M2 = 1.0e19          # canonical monolayer basis (surface_coverage)
 N_ML_CAP = 1.0                 # PLACEHOLDER worst-case capacity [monolayers]
 T_GAS_K = 300.0                # ASSUMED chamber-gas thermalization temperature
@@ -103,15 +115,16 @@ class OperatingPoint:
 #: which species has a nonzero incident flux in which phase (mode/species
 #: policy: methane exposure only in B; He dose only in D; H2 residual always)
 def phase_fluxes_per_m2_s(phase: str, op: OperatingPoint) -> dict:
-    f = {"H2": kinetic_flux(P_H2_RESIDUAL_PA / (K_B * T_GAS_K), T_GAS_K,
-                            MASS_AMU["H2"]),
+    f = {"H2": impingement_flux(number_density(P_H2_RESIDUAL_PA, T_GAS_K),
+                                T_GAS_K, MASS_AMU["H2"]),
          "C13_CH4": 0.0, "He": 0.0}
     if phase == "MODE_B":
-        f["C13_CH4"] = kinetic_flux(op.p_c13_work_Pa / (K_B * T_GAS_K),
-                                    T_GAS_K, MASS_AMU["C13_CH4"])
+        f["C13_CH4"] = impingement_flux(
+            number_density(op.p_c13_work_Pa, T_GAS_K), T_GAS_K,
+            MASS_AMU["C13_CH4"])
     if phase == "MODE_D":
-        f["He"] = kinetic_flux(op.p_he_dose_Pa / (K_B * T_GAS_K), T_GAS_K,
-                               MASS_AMU["He"])
+        f["He"] = impingement_flux(number_density(op.p_he_dose_Pa, T_GAS_K),
+                                   T_GAS_K, MASS_AMU["He"])
     return f
 
 
@@ -137,17 +150,10 @@ class PanelInventory:
 
     def capture_window(self, flux_per_m2_s: float, dt_s: float) -> None:
         """Advance by one constant-flux window (exact Langmuir solution)."""
-        if dt_s < 0:
-            raise ValueError("dt_s must be >= 0")
+        N = langmuir_capture(self.N_per_m2, flux_per_m2_s, self.sticking,
+                             self.N_cap, dt_s)
         self.admitted_per_m2 += flux_per_m2_s * dt_s
-        s = self.sticking
-        if s <= 0.0 or flux_per_m2_s <= 0.0 or dt_s == 0.0:
-            return
-        Nc = self.N_cap
-        self.N_per_m2 = Nc - (Nc - self.N_per_m2) * math.exp(
-            -s * flux_per_m2_s * dt_s / Nc)
-        # numerical guard (exact solution is bounded by construction)
-        self.N_per_m2 = min(self.N_per_m2, Nc)
+        self.N_per_m2 = N
 
     def row(self, cycle: int, phase: str) -> dict:
         return {"cycle": str(cycle), "phase": phase,

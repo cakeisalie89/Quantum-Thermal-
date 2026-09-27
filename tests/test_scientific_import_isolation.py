@@ -172,7 +172,9 @@ def test_the_package_no_longer_offers_the_orchestrator():
 STDLIB_ONLY = ("scientific", "scientific.identity", "scientific.quantity",
                "scientific.observation", "scientific.result",
                "scientific.verification", "scientific.model",
-               "scientific.registry", "scientific.run_identity")
+               "scientific.registry", "scientific.run_identity",
+               "scientific.models.surface_adsorption",
+               "scientific.checks.langmuir_rk4")
 
 
 @pytest.fixture(scope="module")

@@ -1,6 +1,6 @@
 {
   "title": "The cryopanel model's operating point is a declared input, not an import",
-  "note": "Cut C5: the three constants cryopanel_dynamics_3d imported from species_accounting_3d (and with them the mode ontology) are an OperatingPoint the caller declares; the canonical one comes from species_accounting_3d. CP9 puts the import back and the C1 test must see it.",
+  "note": "Cut C5: the three constants cryopanel_dynamics_3d imported from species_accounting_3d (and with them the mode ontology) are an OperatingPoint the caller declares; the canonical one comes from species_accounting_3d. CP9 puts the import back and the C1 test must see it. Retired with the component model in tranche 4 (directive 22) and run by no shard. CP1, CP2 and CP9 were re-anchored when the module began calling scientific.models.surface_adsorption for its arithmetic. CP9's invariant retired with the component: the cryopanel is legacy, outside the C1 clean set, so run today CP9 survives by design; the same invariant for the extracted physics is the stdlib-only interface test.",
   "suites": [
     "tests/test_campaign_3d.py",
     "tests/test_campaign_uncertainty.py",
@@ -10,15 +10,15 @@
     {
       "name": "CP1_the_methane_pressure_is_fixed",
       "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
-      "find": "        f[\"C13_CH4\"] = kinetic_flux(op.p_c13_work_Pa / (K_B * T_GAS_K),",
-      "replace": "        f[\"C13_CH4\"] = kinetic_flux(1.0e-4 / (K_B * T_GAS_K),",
+      "find": "            number_density(op.p_c13_work_Pa, T_GAS_K), T_GAS_K,\n",
+      "replace": "            number_density(1.0e-4, T_GAS_K), T_GAS_K,\n",
       "rationale": "the declared Mode-B pressure is ignored for a hard-coded one"
     },
     {
       "name": "CP2_the_helium_pressure_is_fixed",
       "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
-      "find": "        f[\"He\"] = kinetic_flux(op.p_he_dose_Pa / (K_B * T_GAS_K), T_GAS_K,",
-      "replace": "        f[\"He\"] = kinetic_flux(1.0e-6 / (K_B * T_GAS_K), T_GAS_K,",
+      "find": "        f[\"He\"] = impingement_flux(number_density(op.p_he_dose_Pa, T_GAS_K),\n",
+      "replace": "        f[\"He\"] = impingement_flux(number_density(1.0e-6, T_GAS_K),\n",
       "rationale": "the declared He dose pressure is ignored"
     },
     {
@@ -66,8 +66,8 @@
     {
       "name": "CP9_the_ontology_import_returns",
       "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
-      "find": "from .surface_coverage import kinetic_flux\n",
-      "replace": "from .surface_coverage import kinetic_flux\nfrom . import species_accounting_3d  # noqa: F401\n",
+      "find": "from scientific.models.surface_adsorption import (\n",
+      "replace": "from . import species_accounting_3d  # noqa: F401\nfrom scientific.models.surface_adsorption import (\n",
       "rationale": "importing the cryopanel model loads the mode ontology again (the C1 residual, back)"
     }
   ]

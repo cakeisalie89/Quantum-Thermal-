@@ -36,10 +36,12 @@ implementation verifies it; observation kinds keep simulated and measured
 values apart by lineage.
 
 **Models** (`scientific/models/`, `scientific/checks/`, and retained physics
-in `qta_multiphysics/`). Thermal 1D and thermal 2D axisymmetric are behind
-the interface today, each with an independent check (a 2D solver reduced, a
-3D solver with adiabatic sides). More retained physics is being extracted
-into the same shape.
+in `qta_multiphysics/`). Thermal 1D, thermal 2D axisymmetric and Langmuir
+surface capture are behind the interface today, each with an independent
+check (a 2D solver reduced, a 3D solver with adiabatic sides, the capture
+law integrated by Runge-Kutta with the flux taken in its other form). The
+last was extracted from a legacy component model, which now computes
+through it. More retained physics is being extracted into the same shape.
 
 ## The trust model
 

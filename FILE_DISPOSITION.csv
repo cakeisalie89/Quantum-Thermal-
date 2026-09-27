@@ -266,7 +266,7 @@ qta_multiphysics/convergence_3d.py,EXTRACT_GENERIC,3,Convergence analysis.,direc
 qta_multiphysics/coupled_mode_solver.py,REWRITE_GENERIC,2-7 (see rationale),Sequenced multi-phase coupled solve with state hand-off (generic) hard-wired to Mode B->C->D. Rewrite as a declared phase schedule over plugins.,23 Mode-letter hits
 qta_multiphysics/coupling_ledger_3d.py,REWRITE_GENERIC,2-7 (see rationale),"Coupling-arrow ledger with honesty statuses: generic concept, QTA channel list.",20 Mode-letter hits
 qta_multiphysics/cryo_stack_3d.py,RETIRE_TO_HISTORY,5,"Registry of the QTA cryogenic architecture; its numeric loads are REUSED from radiation_paths (plugin), so no physics is lost. Verify no unique equation before retirement.",docstring: 'loads are REUSED from the existing canonical modules'
-qta_multiphysics/cryopanel_dynamics_3d.py,EXTRACT_GENERIC,3,"Cryopanel adsorption inventory. Not a retained hardware model (directive 22): extract its generic physics -- adsorption isotherm, desorption kinetics, capacity and breakthrough -- into scientific models with invariants and an independent check, then retire the component model. The B->C->D phase windows retire with it.",8 Mode-letter hits
+qta_multiphysics/cryopanel_dynamics_3d.py,RETIRE_TO_HISTORY,5,"EXTRACTED THEN RETIRED (tranche 4, directive 22). Its generic physics -- ideal-gas density, impingement flux, exact Langmuir capture -- is scientific/models/surface_adsorption.py, with five invariants and an independent check; the legacy campaign's rows are regenerated through it bit for bit. What remains is apparatus policy (the B/C/D phase windows, which gas in which phase, panel names, memory-table sticking), kept only for the legacy campaign layer and retired with it. It had no desorption, isotherm or breakthrough term to extract.",tests/test_surface_adsorption.py
 qta_multiphysics/deep_expdesign/__init__.py,REWRITE_GENERIC,2-7 (see rationale),Package docstring binds the layer to QTA.,docstring
 qta_multiphysics/deep_expdesign/calibration.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
 qta_multiphysics/deep_expdesign/config.py,EXTRACT_GENERIC,3,"Generic SBI/UQ machinery (calibration, inference, posterior model, transforms, OOD, trainer, EIG surrogate, dataset, validation, config, io).",directive s14 list
@@ -389,11 +389,13 @@ scientific/_governed_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic inter
 scientific/_governed_run.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/catalog.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/checks/__init__.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
+scientific/checks/langmuir_rk4.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in tranche 4 (directive 22): the independent check of Langmuir capture -- the flux in its pressure form, the rate law by RK4.",tests/test_surface_adsorption.py
 scientific/checks/reduction_2d.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
 scientific/checks/reduction_3d.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
 scientific/identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/model.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/models/__init__.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
+scientific/models/surface_adsorption.py,KEEP_AS_MODEL_PLUGIN,4,"EXTRACTED in tranche 4 (directive 22) from the cryopanel component model: ideal-gas density, impingement flux and exact Langmuir capture, with five invariants; standard library only.",tests/test_surface_adsorption.py
 scientific/models/thermal_1d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
 scientific/models/thermal_2d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: ScientificModel adapters over existing solvers, unchanged -- thermal 1D is the proving case.",tests/test_scientific_thermal_1d.py
 scientific/observation.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
@@ -553,6 +555,7 @@ tests/test_stage7_5_resilience.py,REWRITE_GENERIC,2-7 (see rationale),Checkpoint
 tests/test_stage7_boundary.py,RETIRE_TO_HISTORY,5,Pydantic models over QTA vocabularies.,
 tests/test_stage8_data_provenance.py,REWRITE_GENERIC,2-7 (see rationale),HDF5/RO-Crate boundary over the QTA payload.,
 tests/test_stage9_release.py,KEEP_AS_IS,-,Consumer release verification on a fixture release.,
+tests/test_surface_adsorption.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 22): the extracted Langmuir capture -- regression equivalence with the cryopanel, the model's invariants each broken, and its independent check.",
 tests/test_test_isolation.py,KEEP_AS_IS,-,Collection isolation.,
 tests/test_thermal_3d.py,KEEP_AS_MODEL_PLUGIN,4,3D thermal physics invariants.,
 tests/test_unit_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Unit inventory.,
@@ -615,7 +618,6 @@ tools/mutations/claims_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained
 tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/corpus_allowlist.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/cross_environment.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
-tools/mutations/cryopanel_operating_point.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over the declaration rules and the inventory derivation.,
 tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
 tools/mutations/framework_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -623,6 +625,7 @@ tools/mutations/fuzz_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained su
 tools/mutations/governed_breadth.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/governed_model_reuse.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/identity_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/legacy/cryopanel_operating_point.json,RETIRE_TO_HISTORY,5,"Legacy QTA mutation specs: kept as historical test evidence, run by no active shard (tools/mutation_shards.py schedules the top level only). hardware_governance.json moved here in tranche 4 (directive s21).",targets hardware_governance_3d.py
 tools/mutations/legacy/hardware_governance.json,RETIRE_TO_HISTORY,5,"Legacy QTA mutation specs: kept as historical test evidence, run by no active shard (tools/mutation_shards.py schedules the top level only). hardware_governance.json moved here in tranche 4 (directive s21).",targets hardware_governance_3d.py
 tools/mutations/model_check.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/mutation_harness.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -638,6 +641,7 @@ tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a re
 tools/mutations/second_reader_audit_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/surface_adsorption.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/unit_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/verified_read_guard.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over both halves of the verify-then-read guard (D-2026-76).,

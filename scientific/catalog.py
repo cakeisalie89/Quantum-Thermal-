@@ -11,11 +11,13 @@ from .registry import ModelRegistry
 
 
 def models() -> ModelRegistry:
+    from .models.surface_adsorption import SurfaceAdsorptionModel
     from .models.thermal_1d import Thermal1DModel
     from .models.thermal_2d import Thermal2DModel
     reg = ModelRegistry()
     reg.register(Thermal1DModel())
     reg.register(Thermal2DModel())
+    reg.register(SurfaceAdsorptionModel())
     return reg
 
 
@@ -27,4 +29,7 @@ def check(check_id: str):
     if check_id == "thermal_2d.reduction_3d_adiabatic_lateral":
         from .checks import reduction_3d
         return reduction_3d.run_check, reduction_3d.check_digest
+    if check_id == "surface_adsorption.rk4_pressure_form":
+        from .checks import langmuir_rk4
+        return langmuir_rk4.run_check, langmuir_rk4.check_digest
     raise KeyError(f"no independent check {check_id!r} is admitted")

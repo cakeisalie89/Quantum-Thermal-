@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "80a1cc9cb971e493b06728e9d9a25c4b24fd4ac02062a7c19480bad071902a2c",
+  "entries_digest": "ef951482aecb516cb71c19b5c9fbc6afd5d883233bf2a1fca1a987fbf1650b5a",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -10,7 +10,7 @@
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "sha256": "badc7aa3ea74090b803ea3422b75a3863735cdd8c76be7693055e908c29001bf"
+      "sha256": "c1e47dbabb37f21a3df624112b31c909e2bf30d8a3d2c1598af42e05481a1cc7"
     },
     {
       "path": "AUTHORITIES.md",
@@ -118,7 +118,7 @@
     },
     {
       "path": "PHYSICS_INVENTORY.md",
-      "sha256": "03ae2cf4da48a951261c7e7d8013ed62d0b18826ac5077421c85004c698e69c9"
+      "sha256": "8052462ec00ee34423d832f6203c3fc3db98b466b455518ac49d5cd23570da62"
     },
     {
       "path": "QTA_stage9_release_verification/RELEASE_POLICY.md",
@@ -130,7 +130,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "3171aa0f6d7553f4e2cea7686889da6db642a979918f6a5882adbd0613da7222"
+      "sha256": "e19fb09026ad918847cf7232af753259d5bb35badb57ab801eaa8e9d430d62f5"
     },
     {
       "path": "RELEASE_POLICY.md",

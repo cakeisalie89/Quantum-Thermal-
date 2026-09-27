@@ -85,7 +85,8 @@
    "means": "which models exist, at which version, with which declared inputs",
    "does_not_mean": "that a registered model is validated",
    "enforced_by": [
-    "tests/test_scientific_interfaces.py"
+    "tests/test_scientific_interfaces.py",
+    "tests/test_surface_adsorption.py"
    ]
   },
   "scientific_result_schema": {
@@ -334,7 +335,7 @@
    ]
   },
   "cryopanel_dynamics": {
-   "authority": "qta_multiphysics/cryopanel_dynamics_3d.py :: PanelInventory, advance_phase (exact Langmuir capture; ASSUMED sticking; PLACEHOLDER 1-ML capacity)",
+   "authority": "qta_multiphysics/cryopanel_dynamics_3d.py :: PanelInventory, advance_phase (apparatus policy only: which gas in which phase, panel names, ASSUMED sticking, PLACEHOLDER 1-ML capacity; its arithmetic is scientific/models/surface_adsorption.py since tranche 4)",
    "owner": "cryopanel_dynamics_3d",
    "schema_version": "1.0",
    "consumers": [

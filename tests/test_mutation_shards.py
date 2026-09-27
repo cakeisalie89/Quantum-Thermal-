@@ -227,11 +227,14 @@ def test_the_shard_job_checks_the_tree_with_git_even_when_it_failed():
 
 
 def test_legacy_specs_are_kept_and_scheduled_by_no_shard():
-    """Directive 21: the hardware-governance spec retired with its subject.
-    It is kept, as historical evidence, and no active shard runs it."""
+    """Directive 21: the hardware-governance spec retired with its subject,
+    and the cryopanel's operating-point spec with the component model
+    (directive 22). Each is kept, as historical evidence, and no active
+    shard runs it."""
     import csv
     legacy = sorted((ROOT / "tools" / "mutations" / "legacy").glob("*.json"))
-    assert [p.name for p in legacy] == ["hardware_governance.json"]
+    assert [p.name for p in legacy] == ["cryopanel_operating_point.json",
+                                        "hardware_governance.json"]
     scheduled = {s for shard in MS.plan() for s in shard}
     disp = {r["path"]: r["disposition"] for r in csv.DictReader(
         (ROOT / "FILE_DISPOSITION.csv").open(encoding="utf-8"))}
