@@ -73,7 +73,7 @@ def _read(tmp_path, registry=None):
 
 def _crash_append(log, att, i, how):
     """signed_append, with the process dying at ``how``."""
-    real = pr._preparer(att, ALICE)
+    real = pr._preparer(att, ALICE, _registry())
 
     def before_write(ev):
         if how == "before_prepare":
@@ -103,7 +103,7 @@ def test_the_attestation_is_durable_before_the_record(tmp_path):
     lines = {}
 
     def spy(ev):
-        pr._preparer(att, ALICE)(ev)
+        pr._preparer(att, ALICE, _registry())(ev)
         lines["log"] = len(log.path.read_bytes().splitlines())
         lines["att"] = len(att.path.read_bytes().splitlines())
     log.append(actor="alice", action="record.create", target="r",
@@ -376,11 +376,12 @@ def test_the_old_key_past_its_rotation_is_expired(tmp_path):
     log, att = _open(tmp_path, reg)
     pr.begin_history(log, att, OWNER)
     _put(log, att, 1)
-    log.authenticator = None       # the WRITER does not police the registry
-    log.required_profile = None
-    log._profile = None
-    with pytest.raises(EventLogError):
-        _put(log, att, 2)          # ... but its head check still reads
+    before = (log.path.read_bytes(), att.path.read_bytes())
+    # The WRITER polices the registry: the old key may not sign seq 2, and
+    # it is refused before a byte of the record or its attestation lands.
+    with pytest.raises(pr.AuthenticationError, match=pr.KEY_EXPIRED):
+        _put(log, att, 2)
+    assert (log.path.read_bytes(), att.path.read_bytes()) == before
     report, _ = _read(tmp_path, reg)
     assert report.ok
     # Written straight past it: the reader refuses.
@@ -415,6 +416,92 @@ def test_a_revocation_refuses_forward_and_leaves_history_standing(tmp_path):
     assert [e.seq for e in events] == [0, 1, 2], (
         "authorship before the revocation stands")
     assert any(pr.KEY_REVOKED in p for p in report.problems)
+
+
+def _revoking(**change):
+    return _registry(OWNER.registered(),
+                     replace(ALICE.registered(), **change))
+
+
+@pytest.mark.parametrize("change, kind", [
+    ({"revoked_at_seq": 3, "revocation_reason": "retired"}, pr.KEY_REVOKED),
+    ({"revoked_at_seq": 3, "revocation_reason": "stolen",
+      "compromised_from_seq": 3}, pr.KEY_COMPROMISED),
+    ({"valid_until_seq": 2}, pr.KEY_EXPIRED),
+])
+def test_a_key_that_may_no_longer_sign_is_refused_at_the_write(
+        tmp_path, change, kind):
+    """The writer's question, "may this key sign the NEXT event", is asked
+    before anything is written -- and its answer does not reach back: every
+    event the key signed while it could still authenticates."""
+    reg = _revoking(**change)
+    log, att = _open(tmp_path, reg)
+    pr.begin_history(log, att, OWNER)
+    _put(log, att, 1)
+    _put(log, att, 2)
+    before = (log.path.read_bytes(), att.path.read_bytes())
+    with pytest.raises(pr.AuthenticationError, match=kind):
+        _put(log, att, 3)
+    assert (log.path.read_bytes(), att.path.read_bytes()) == before, (
+        "a refused signer leaves no record and no prepared attestation")
+    report, events = _read(tmp_path, reg)
+    assert report.ok, report.problems
+    assert [e.seq for e in events] == [0, 1, 2]
+
+
+def test_the_writer_and_the_reader_ask_different_questions():
+    """Valid for historical seq N is not allowed to sign now."""
+    reg = _revoking(revoked_at_seq=3, revocation_reason="retired")
+    key = reg.get(ALICE.key_id)
+    assert key.refusal_at(2) is None, "seq 2 stays authentic"
+    pr.may_sign(reg, ALICE, 2)
+    with pytest.raises(pr.AuthenticationError, match=pr.KEY_REVOKED):
+        pr.may_sign(reg, ALICE, 3)
+
+
+def test_a_key_not_yet_valid_may_not_sign_early(tmp_path):
+    reg = _rotating(tmp_path, rotate_at=5)
+    log, att = _open(tmp_path, reg)
+    pr.begin_history(log, att, OWNER)
+    with pytest.raises(pr.AuthenticationError, match=pr.KEY_NOT_YET_VALID):
+        _put(log, att, 1, signer=_alice2())
+
+
+def test_a_key_the_registry_does_not_hold_may_not_sign(tmp_path):
+    log, att = _open(tmp_path)
+    pr.begin_history(log, att, OWNER)
+    with pytest.raises(pr.AuthenticationError, match=pr.UNKNOWN_KEY):
+        _put(log, att, 1, signer=pr.test_identity("mallory"))
+
+
+def test_a_key_registered_for_someone_else_may_not_sign(tmp_path):
+    impostor = pr.Signer("mallory", ALICE.secret, test=True)
+    log, att = _open(tmp_path)
+    pr.begin_history(log, att, OWNER)
+    with pytest.raises(pr.AuthenticationError, match=pr.WRONG_PRINCIPAL):
+        _put(log, att, 1, signer=impostor)
+
+
+def test_a_signed_append_with_no_registry_at_all_is_refused(tmp_path):
+    """Nothing could say whether the key may sign, so it does not."""
+    att = pr.Attestations(tmp_path / "log.attestations.jsonl")
+    log = EventLog(tmp_path / "log.jsonl")
+    with pytest.raises(pr.AuthenticationError, match="needs the registry"):
+        pr.begin_history(log, att, OWNER)
+    with pytest.raises(pr.AuthenticationError, match="needs the registry"):
+        _put(log, att, 1)
+    assert not log.path.exists() and not att.path.exists()
+
+
+def test_the_registry_named_at_the_write_is_the_one_asked(tmp_path):
+    """An explicit registry is asked, not the log's: a writer handed a
+    registry that revokes the key is refused although the log's own would
+    have allowed it."""
+    log, att = _open(tmp_path)
+    pr.begin_history(log, att, OWNER)
+    strict = _revoking(revoked_at_seq=1, revocation_reason="retired")
+    with pytest.raises(pr.AuthenticationError, match=pr.KEY_REVOKED):
+        _put(log, att, 1, registry=strict)
 
 
 def test_a_declared_compromise_reaches_back_as_far_as_declared(tmp_path):

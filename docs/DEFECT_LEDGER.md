@@ -8670,3 +8670,41 @@ under the dispatch override and without it.
 **NOT CHANGED.** The probe, the identity and the tool's environment
 allowlist: a dispatch override in the supervisor does not reach the
 governed tool, and the identity says what the tool actually ran on.
+
+## D-2026-96 — a key that could no longer sign was refused by every reader, and never by the writer
+
+**CLASS** — `TRUST_BOUNDARY_GAP`, `qta_agent/principals.py`. Found by the
+directive-7 inventory of D-2026-93's key lifecycle; not R59.
+
+**WHAT WAS THERE.** D-2026-93 gave a key a life in log positions:
+`RegisteredKey.refusal_at(seq)` answers "was this key good for event N", and
+every authenticating reader asks it of every event. That answer is
+historical and stays put -- a key revoked at seq 10 still authenticates
+seq 5. What nothing asked was the WRITER's question, "may this key sign the
+NEXT event": `signed_append` took no registry at all, and a test said so in
+as many words ("the WRITER does not police the registry"). A revoked,
+expired, not-yet-valid or compromised key signed, the attestation was
+prepared, the record written, and only the next reader refused it -- in an
+AUTHENTICATED_REQUIRED history, a record that makes every later read of the
+history fail.
+
+**REPAIR.** `may_sign(registry, signer, seq)` asks the writer's question and
+`signed_append` and `begin_history` ask it under the writer lock, from the
+record's own seq, before the attestation is prepared or the record written:
+a refused key leaves no record and no prepared attestation. The registry is
+the one named at the call or the one the log's authenticator reads with; a
+write with neither is refused, because nothing could say whether the key may
+sign. The two questions are now distinct functions answering from the same
+lifecycle: `refusal_at(N)` for authorship of N, `may_sign(..., head + 1)`
+for the next event.
+
+**EVIDENCE.** `tests/test_signed_append_lifecycle.py`: revoked, compromised
+and expired keys refused at the write with the files byte-unchanged and the
+earlier events still authenticating; a not-yet-valid key, a key the registry
+does not hold and a key registered for another principal refused; a write
+with no registry refused; an explicitly named registry is the one asked.
+Mutations KW1-KW6 in `tools/mutations/signed_append_lifecycle.json`.
+
+**NOT CHANGED.** The readers, the lifecycle semantics and the attestation
+format. No governed writer signs yet (plan item 79), so no production path
+changes behaviour; the refusal is where a signing writer will meet it.

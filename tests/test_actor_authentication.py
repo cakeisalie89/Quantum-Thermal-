@@ -102,8 +102,8 @@ def _history(tmp_path, *, unsigned_by=None):
     log = EventLog(tmp_path / "log.jsonl")
     att = pr.Attestations(tmp_path / "log.attestations.jsonl")
     for i, who in enumerate((ALICE, BOB, ALICE)):
-        pr.signed_append(log, att, who, action="record.create",
-                         target=f"r{i}",
+        pr.signed_append(log, att, who, registry=REGISTRY,
+                         action="record.create", target=f"r{i}",
                          payload={"record_id": f"r{i}", "kind": "k",
                                   "proposer": who.principal})
     if unsigned_by is not None:
@@ -280,7 +280,8 @@ def _authority_history(tmp_path, *, forge_last=False):
     ``forge_last`` has mallory's name put on bob's review, unattested."""
     log = EventLog(tmp_path / "log.jsonl")
     att = pr.Attestations(tmp_path / "log.attestations.jsonl")
-    pr.signed_append(log, att, ALICE, action="record.create", target="r1",
+    pr.signed_append(log, att, ALICE, registry=REGISTRY,
+                     action="record.create", target="r1",
                      payload={"record_id": "r1", "kind": "claim",
                               "proposer": "alice", "state": "PROPOSED",
                               "evidence": {}, "depends_on": []})

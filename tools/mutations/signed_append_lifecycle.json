@@ -1,6 +1,6 @@
 {
   "title": "A signed append survives a crash, the registry is the one pinned, and a key has a life",
-  "note": "D-2026-93. SA1-SA15: the signed append across a crash -- the attestation prepared first under the writer lock, torn and stale prepares repaired and aborted, the one pending prepare neither a finding nor an authentication, an abort of a committed event a finding, unsigned writes to a REQUIRED history refused, and the attestation file read canonically and without crashing. KR1-KR5: the registry trusted at the digest the deployment pinned, and its lifecycles coherent. KL1-KL7: a key's life in log positions -- rotation, revocation forward-only, a declared compromise back exactly as far as declared.",
+  "note": "D-2026-93. SA1-SA15: the signed append across a crash -- the attestation prepared first under the writer lock, torn and stale prepares repaired and aborted, the one pending prepare neither a finding nor an authentication, an abort of a committed event a finding, unsigned writes to a REQUIRED history refused, and the attestation file read canonically and without crashing. KR1-KR5: the registry trusted at the digest the deployment pinned, and its lifecycles coherent. KL1-KL7: a key's life in log positions -- rotation, revocation forward-only, a declared compromise back exactly as far as declared. KW1-KW6 (D-2026-96): the writer's own question -- may this key sign the NEXT event -- asked under the writer lock before a byte is written, against the registry named or the log's own.",
   "suites": [
     "tests/test_signed_append_lifecycle.py"
   ],
@@ -193,6 +193,48 @@
       "find": "                and seq >= self.compromised_from_seq):\n",
       "replace": "                and seq >= 0):\n",
       "rationale": "a compromise declared from a position refuses everything the key ever signed"
+    },
+    {
+      "name": "KW1_the_writer_does_not_ask_whether_the_key_may_sign",
+      "path": "qta_agent/principals.py",
+      "find": "        may_sign(registry, signer, ev.seq)\n        attestations.prepare(signer.attest(ev))\n",
+      "replace": "        attestations.prepare(signer.attest(ev))\n",
+      "rationale": "a revoked, expired or not-yet-valid key signs the next event, and every reader refuses it later"
+    },
+    {
+      "name": "KW2_the_writer_ignores_the_lifecycle",
+      "path": "qta_agent/principals.py",
+      "find": "    why = key.refusal_at(seq)\n    if why is not None:\n        raise AuthenticationError(\n            f\"{why[0]}: {why[1]}; it may not sign seq {seq}, and nothing \"\n",
+      "replace": "    why = None\n    if why is not None:\n        raise AuthenticationError(\n            f\"{why[0]}: {why[1]}; it may not sign seq {seq}, and nothing \"\n",
+      "rationale": "the writer asks only whether the key is registered, never whether it may sign HERE"
+    },
+    {
+      "name": "KW3_an_unknown_key_signs",
+      "path": "qta_agent/principals.py",
+      "find": "    key = registry.get(signer.key_id)\n    if key is None:\n        raise AuthenticationError(\n            f\"{UNKNOWN_KEY}: ",
+      "replace": "    key = registry.get(signer.key_id)\n    if key is None:\n        return\n        raise AuthenticationError(\n            f\"{UNKNOWN_KEY}: ",
+      "rationale": "a key the registry does not hold is let sign"
+    },
+    {
+      "name": "KW4_a_key_signs_for_another_principal",
+      "path": "qta_agent/principals.py",
+      "find": "    if key.principal != signer.principal:\n        raise AuthenticationError(\n            f\"{WRONG_PRINCIPAL}: ",
+      "replace": "    if False:\n        raise AuthenticationError(\n            f\"{WRONG_PRINCIPAL}: ",
+      "rationale": "a key registered for one principal signs as another"
+    },
+    {
+      "name": "KW5_no_registry_means_no_check",
+      "path": "qta_agent/principals.py",
+      "find": "    if not isinstance(registry, KeyRegistry):\n        raise AuthenticationError(\n            \"a signed append needs the registry",
+      "replace": "    if not isinstance(registry, KeyRegistry):\n        return\n        raise AuthenticationError(\n            \"a signed append needs the registry",
+      "rationale": "a writer with no registry signs unchecked"
+    },
+    {
+      "name": "KW6_the_named_registry_is_not_the_one_asked",
+      "path": "qta_agent/principals.py",
+      "find": "    if registry is None:\n        registry = getattr(getattr(log, \"authenticator\", None), \"registry\",\n                           None)\n",
+      "replace": "    if True:\n        registry = getattr(getattr(log, \"authenticator\", None), \"registry\",\n                           None)\n",
+      "rationale": "an explicit registry is overridden by whatever the log happens to authenticate with"
     }
   ]
 }

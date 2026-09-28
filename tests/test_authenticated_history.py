@@ -359,10 +359,11 @@ def test_a_writer_without_an_authenticator_cannot_extend_it(tmp_path):
     wrote the head itself performs."""
     att = pr.Attestations(tmp_path / "log.attestations.jsonl")
     bare = EventLog(tmp_path / "log.jsonl")
-    pr.begin_history(bare, att, OWNER)
+    pr.begin_history(bare, att, OWNER, registry=_authenticator(att).registry)
     assert bare._anchor is not None, "the writer holds an anchor at its head"
     with pytest.raises(ChainBroken, match="no authenticator"):
-        pr.signed_append(bare, att, ALICE, action="record.create",
+        pr.signed_append(bare, att, ALICE, registry=_authenticator(att).registry,
+                         action="record.create",
                          target="r0", payload={"record_id": "r0", "kind": "k",
                                                "proposer": "alice"})
     report = bare.verify_from(bare._anchor)

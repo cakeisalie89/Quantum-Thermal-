@@ -589,22 +589,75 @@ class Attestations:
         return out
 
 
-def signed_append(log, attestations: Attestations, signer: Signer,
-                  **fields):
+def signed_append(log, attestations: Attestations, signer: Signer, *,
+                  registry: "KeyRegistry | None" = None, **fields):
     """Append as ``signer``'s principal and attest the event. The actor IS
-    the signer: there is no parameter to name anybody else."""
+    the signer: there is no parameter to name anybody else.
+
+    The key must be one ``registry`` holds for the signer AND one that may
+    sign at the record's seq -- checked under the writer lock, before a byte
+    is written. That is a different question from the reader's. A key
+    revoked at seq 10 still authenticates seq 5 for every reader, for ever;
+    it may not sign seq 11, and a writer holding it is refused NOW rather
+    than leaving an event every reader will refuse later. ``registry``
+    defaults to the one the log's authenticator reads with; a log with
+    neither is refused, because nothing could then say whether the key may
+    sign."""
     if "actor" in fields:
         raise AuthenticationError(
             "the actor of a signed append is the signer; it is not a "
             "parameter")
     return log.append(actor=signer.principal,
-                      before_write=_preparer(attestations, signer), **fields)
+                      before_write=_preparer(attestations, signer,
+                                             _write_registry(log, registry)),
+                      **fields)
 
 
-def _preparer(attestations: Attestations, signer: Signer):
+def _write_registry(log, registry):
+    """The registry that decides whether a key may sign here: the one given,
+    else the one the log authenticates with. Neither is refused, by
+    :func:`may_sign`, before anything is written."""
+    if registry is None:
+        registry = getattr(getattr(log, "authenticator", None), "registry",
+                           None)
+    return registry
+
+
+def may_sign(registry: "KeyRegistry", signer: Signer, seq: int) -> None:
+    """Refuse unless ``signer``'s key may sign the event at ``seq`` NOW.
+
+    The WRITER's question. The reader's -- was this key good for event N
+    when N was written -- is :meth:`RegisteredKey.refusal_at` on N, and its
+    answer for an old event does not change when the key is later revoked or
+    rotated; this one does, for every event from the revocation on."""
+    if not isinstance(registry, KeyRegistry):
+        raise AuthenticationError(
+            "a signed append needs the registry that says whether this key "
+            "may sign the next event: pass registry=, or open the log with "
+            "an authenticator")
+    key = registry.get(signer.key_id)
+    if key is None:
+        raise AuthenticationError(
+            f"{UNKNOWN_KEY}: {signer.key_id!r} is not in the registry; it "
+            f"may not sign seq {seq}")
+    if key.principal != signer.principal:
+        raise AuthenticationError(
+            f"{WRONG_PRINCIPAL}: {signer.key_id!r} is registered for "
+            f"{key.principal!r}, not {signer.principal!r}")
+    why = key.refusal_at(seq)
+    if why is not None:
+        raise AuthenticationError(
+            f"{why[0]}: {why[1]}; it may not sign seq {seq}, and nothing "
+            "was written")
+
+
+def _preparer(attestations: Attestations, signer: Signer,
+              registry: "KeyRegistry"):
     """What the log calls with the exact record, under its writer lock,
-    before writing it: sign it, and make the attestation durable first."""
+    before writing it: check the key may sign THIS seq, sign it, and make
+    the attestation durable first."""
     def prepare(ev):
+        may_sign(registry, signer, ev.seq)
         attestations.prepare(signer.attest(ev))
     return prepare
 
@@ -738,10 +791,13 @@ class Authenticator:
 
 
 def begin_history(log, attestations: Attestations, signer: Signer, *,
-                  profile: str = PROFILE_AUTHENTICATED_REQUIRED):
+                  profile: str = PROFILE_AUTHENTICATED_REQUIRED,
+                  registry: "KeyRegistry | None" = None):
     """Declare ``log``'s security profile as its FIRST event, attested by
     ``signer``. Refused on a log that already has a history: a profile is
-    what a history is written under, not something it switches to."""
+    what a history is written under, not something it switches to. The key
+    must be allowed to sign seq 0, as for :func:`signed_append`."""
+    registry = _write_registry(log, registry)
     def decide(head_seq):
         if head_seq != -1:
             raise AuthenticationError(
@@ -750,7 +806,8 @@ def begin_history(log, attestations: Attestations, signer: Signer, *,
         return {"actor": signer.principal, "action": ACT_SECURITY_PROFILE,
                 "target": "history", "payload": {"profile": profile}}
     return log.append_decided(decide,
-                              before_write=_preparer(attestations, signer))
+                              before_write=_preparer(attestations, signer,
+                                                     registry))
 
 
 #: WHO AUTHENTICATES, reader by reader -- the coverage the actor-
