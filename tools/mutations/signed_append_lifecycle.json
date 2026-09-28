@@ -1,0 +1,198 @@
+{
+  "title": "A signed append survives a crash, the registry is the one pinned, and a key has a life",
+  "note": "D-2026-93. SA1-SA15: the signed append across a crash -- the attestation prepared first under the writer lock, torn and stale prepares repaired and aborted, the one pending prepare neither a finding nor an authentication, an abort of a committed event a finding, unsigned writes to a REQUIRED history refused, and the attestation file read canonically and without crashing. KR1-KR5: the registry trusted at the digest the deployment pinned, and its lifecycles coherent. KL1-KL7: a key's life in log positions -- rotation, revocation forward-only, a declared compromise back exactly as far as declared.",
+  "suites": [
+    "tests/test_signed_append_lifecycle.py"
+  ],
+  "mutations": [
+    {
+      "name": "SA1_the_attestation_is_written_after_the_record",
+      "path": "qta_agent/events.py",
+      "find": "        if before_write is not None:\n            before_write(ev)\n\n        self.path.parent.mkdir(parents=True, exist_ok=True)\n        with self.path.open(\"ab\") as fh:\n            # Offsets are taken from the handle, not from a prior stat: an\n            # append-mode write lands at the true end of file, which a stat\n            # taken earlier may no longer describe.\n            start = fh.tell()\n            written = fh.write(line)\n            if written != len(line):\n                # A SHORT WRITE. write() is allowed to store fewer bytes\n                # than it was given and say so in its return value rather\n                # than by raising -- the classic way a full disk produces a\n                # half record with nothing in the logs. BufferedWriter\n                # normally retries until it raises, so this is cheap\n                # insurance against a file-like object that does not, and\n                # against the day this opens something other than a plain\n                # file. Raising here leaves the partial line on disk for the\n                # reader to refuse, which is the safe direction: the\n                # alternative is a witness that names a record only half\n                # present.\n                raise OSError(\n                    errno.ENOSPC,\n                    f\"short write: {written} of {len(line)} bytes reached \"\n                    f\"{self.path}; the record is not durable and the \"\n                    \"witness will not be advanced\")\n            fh.flush()\n            os.fsync(fh.fileno())\n            end = fh.tell()\n",
+      "replace": "        self.path.parent.mkdir(parents=True, exist_ok=True)\n        with self.path.open(\"ab\") as fh:\n            # Offsets are taken from the handle, not from a prior stat: an\n            # append-mode write lands at the true end of file, which a stat\n            # taken earlier may no longer describe.\n            start = fh.tell()\n            written = fh.write(line)\n            if written != len(line):\n                # A SHORT WRITE. write() is allowed to store fewer bytes\n                # than it was given and say so in its return value rather\n                # than by raising -- the classic way a full disk produces a\n                # half record with nothing in the logs. BufferedWriter\n                # normally retries until it raises, so this is cheap\n                # insurance against a file-like object that does not, and\n                # against the day this opens something other than a plain\n                # file. Raising here leaves the partial line on disk for the\n                # reader to refuse, which is the safe direction: the\n                # alternative is a witness that names a record only half\n                # present.\n                raise OSError(\n                    errno.ENOSPC,\n                    f\"short write: {written} of {len(line)} bytes reached \"\n                    f\"{self.path}; the record is not durable and the \"\n                    \"witness will not be advanced\")\n            fh.flush()\n            os.fsync(fh.fileno())\n            end = fh.tell()\n        if before_write is not None:\n            before_write(ev)\n",
+      "rationale": "the record is durable before its attestation: a crash between them leaves an unattested event no reader can tell from a forgery"
+    },
+    {
+      "name": "SA2_nothing_is_prepared",
+      "path": "qta_agent/events.py",
+      "find": "        if before_write is not None:\n            before_write(ev)\n\n",
+      "replace": "\n",
+      "rationale": "a signed append writes the record and never its attestation"
+    },
+    {
+      "name": "SA3_an_unsigned_append_is_let_through",
+      "path": "qta_agent/events.py",
+      "find": "        if before_write is None and (\n                declares\n",
+      "replace": "        if False and (\n                declares\n",
+      "rationale": "an unsigned append to a REQUIRED history is written, and every later read fails closed on it"
+    },
+    {
+      "name": "SA4_an_unsigned_declaration_is_let_through",
+      "path": "qta_agent/events.py",
+      "find": "        declares = (action == ACT_SECURITY_PROFILE\n",
+      "replace": "        declares = False and (action == ACT_SECURITY_PROFILE\n",
+      "rationale": "a REQUIRED declaration is written unsigned"
+    },
+    {
+      "name": "SA5_the_pinned_profile_is_not_consulted_on_write",
+      "path": "qta_agent/events.py",
+      "find": "                or self.required_profile == PROFILE_AUTHENTICATED_REQUIRED\n                or current == PROFILE_AUTHENTICATED_REQUIRED):\n",
+      "replace": "                or current == PROFILE_AUTHENTICATED_REQUIRED):\n",
+      "rationale": "a deployment pinned to REQUIRED accepts an unsigned first event"
+    },
+    {
+      "name": "SA6_a_torn_prepare_is_not_repaired",
+      "path": "qta_agent/principals.py",
+      "find": "        self._repair_torn_tail()\n        seen = self.read()\n",
+      "replace": "        seen = self.read()\n",
+      "rationale": "the next prepare is appended onto a torn line, and both are lost to a malformed one"
+    },
+    {
+      "name": "SA7_a_stale_prepare_is_not_aborted",
+      "path": "qta_agent/principals.py",
+      "find": "        for seq, h in stale:\n",
+      "replace": "        for seq, h in ():\n",
+      "rationale": "a prepare whose record never landed stays live beside the next one"
+    },
+    {
+      "name": "SA8_a_pending_prepare_is_a_finding",
+      "path": "qta_agent/principals.py",
+      "find": "    pending = {h for h, atts in by_hash.items()\n",
+      "replace": "    pending = set() and {h for h, atts in by_hash.items()\n",
+      "rationale": "a crash between the two writes, or a writer between them now, fails every reader"
+    },
+    {
+      "name": "SA9_any_unseen_attestation_is_pending",
+      "path": "qta_agent/principals.py",
+      "find": "               and all(a[\"seq\"] == head + 1 for a in atts)}\n",
+      "replace": "               and True}\n",
+      "rationale": "an attestation of no event anywhere in the history passes as a prepare in flight"
+    },
+    {
+      "name": "SA10_two_prepares_are_both_pending",
+      "path": "qta_agent/principals.py",
+      "find": "    if len(pending) > 1:\n        pending = set()",
+      "replace": "    if False:\n        pending = set()",
+      "rationale": "two prepares in flight at once -- which one lock cannot produce -- pass unremarked"
+    },
+    {
+      "name": "SA11_an_abort_of_a_committed_event_is_ignored",
+      "path": "qta_agent/principals.py",
+      "find": "    for h in sorted(file.aborted & committed):\n",
+      "replace": "    for h in ():\n",
+      "rationale": "an abort naming an event the history committed says nothing"
+    },
+    {
+      "name": "SA12_a_torn_tail_is_read_as_malformed",
+      "path": "qta_agent/principals.py",
+      "find": "        elif lines:\n            out.torn_tail = True",
+      "replace": "        elif False:\n            out.torn_tail = True",
+      "rationale": "a crash mid-prepare fails every reader instead of reading as a prepare that did not finish"
+    },
+    {
+      "name": "SA13_a_signature_in_any_encoding",
+      "path": "qta_agent/principals.py",
+      "find": "            and _LOWER_HEX.fullmatch(value) is not None)\n",
+      "replace": "            and True)\n",
+      "rationale": "an uppercase digit is the same signature bytes in a record no signer wrote"
+    },
+    {
+      "name": "SA14_deep_nesting_crashes_the_reader",
+      "path": "qta_agent/principals.py",
+      "find": "            except (ValueError, RecursionError):\n                # RecursionError",
+      "replace": "            except ValueError:\n                # RecursionError",
+      "rationale": "one deeply nested line crashes every authenticating reader"
+    },
+    {
+      "name": "SA15_deep_nesting_crashes_the_registry",
+      "path": "qta_agent/principals.py",
+      "find": "        except (ValueError, RecursionError) as exc:\n            raise AuthenticationError(\n                \"the key registry is not a JSON document \"",
+      "replace": "        except ValueError as exc:\n            raise AuthenticationError(\n                \"the key registry is not a JSON document \"",
+      "rationale": "a registry file nested deep enough crashes instead of being refused"
+    },
+    {
+      "name": "KR1_the_pin_is_not_checked",
+      "path": "qta_agent/principals.py",
+      "find": "            if not pinned:\n                raise AuthenticationError(\n",
+      "replace": "            if False:\n                raise AuthenticationError(\n",
+      "rationale": "any registry that parses is trusted, whatever the deployment pinned"
+    },
+    {
+      "name": "KR2_production_without_the_pin",
+      "path": "qta_agent/principals.py",
+      "find": "    if PRODUCTION_KEYS is None or PRODUCTION_REGISTRY_DIGEST is None:\n        raise NotConfigured(",
+      "replace": "    if PRODUCTION_KEYS is None:\n        raise NotConfigured(",
+      "rationale": "production reads whatever file is at the configured path"
+    },
+    {
+      "name": "KR3_the_status_need_not_agree",
+      "path": "qta_agent/principals.py",
+      "find": "    if v2 and entry[\"status\"] != key.status:\n",
+      "replace": "    if False:\n",
+      "rationale": "a key recorded ACTIVE whose revocation is also recorded is believed"
+    },
+    {
+      "name": "KR4_a_key_may_expire_before_it_begins",
+      "path": "qta_agent/principals.py",
+      "find": "    if k.valid_until_seq is not None and k.valid_until_seq < k.valid_from_seq:\n",
+      "replace": "    if False:\n",
+      "rationale": "an incoherent lifecycle is accepted"
+    },
+    {
+      "name": "KR5_a_replacement_of_another_principal",
+      "path": "qta_agent/principals.py",
+      "find": "                if nxt is None or nxt.principal != k.principal:\n",
+      "replace": "                if nxt is None:\n",
+      "rationale": "bob's key is named as alice's successor"
+    },
+    {
+      "name": "KL1_the_lifecycle_is_not_consulted",
+      "path": "qta_agent/principals.py",
+      "find": "            elif key.refusal_at(ev.seq) is not None:\n",
+      "replace": "            elif False:\n",
+      "rationale": "a key is good for every event, whatever its life"
+    },
+    {
+      "name": "KL2_an_expired_key_still_speaks",
+      "path": "qta_agent/principals.py",
+      "find": "        if self.valid_until_seq is not None and seq > self.valid_until_seq:\n",
+      "replace": "        if False:\n",
+      "rationale": "the old key signs past its rotation"
+    },
+    {
+      "name": "KL3_a_key_speaks_before_it_begins",
+      "path": "qta_agent/principals.py",
+      "find": "        if seq < self.valid_from_seq:\n",
+      "replace": "        if False:\n",
+      "rationale": "the new key signs before its rotation"
+    },
+    {
+      "name": "KL4_a_revocation_is_ignored",
+      "path": "qta_agent/principals.py",
+      "find": "        if self.revoked_at_seq is not None and seq >= self.revoked_at_seq:\n",
+      "replace": "        if False:\n",
+      "rationale": "a revoked key keeps signing"
+    },
+    {
+      "name": "KL5_a_revocation_reaches_back",
+      "path": "qta_agent/principals.py",
+      "find": "        if self.revoked_at_seq is not None and seq >= self.revoked_at_seq:\n",
+      "replace": "        if self.revoked_at_seq is not None:\n",
+      "rationale": "retiring a key unauthenticates everything it rightly signed"
+    },
+    {
+      "name": "KL6_a_compromise_is_ignored",
+      "path": "qta_agent/principals.py",
+      "find": "                and seq >= self.compromised_from_seq):\n",
+      "replace": "                and False):\n",
+      "rationale": "a declared compromise refuses nothing"
+    },
+    {
+      "name": "KL7_a_compromise_reaches_back_further_than_declared",
+      "path": "qta_agent/principals.py",
+      "find": "                and seq >= self.compromised_from_seq):\n",
+      "replace": "                and seq >= 0):\n",
+      "rationale": "a compromise declared from a position refuses everything the key ever signed"
+    }
+  ]
+}

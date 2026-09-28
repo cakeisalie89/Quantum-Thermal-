@@ -112,6 +112,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_replay_origin_view.py",
     "tests/test_actor_authentication.py",
     "tests/test_authenticated_history.py",
+    "tests/test_signed_append_lifecycle.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".

@@ -808,6 +808,10 @@ RULES = [
      "NEW (D-2026-89): the actor-authentication seam; every attack shown "
      "past the hash chain, refused by both readers.",
      ""),
+    ("tests/test_signed_append_lifecycle.py", KAH,
+     "NEW (D-2026-93): the signed append across every crash point, "
+     "the pinned registry, and a key's life by log position.",
+     ""),
     ("tests/test_authenticated_history.py", KAH,
      "NEW (D-2026-92): the signature-provider seam, the history's "
      "security profile enforced where every reader reads, and "

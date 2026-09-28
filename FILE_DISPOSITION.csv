@@ -432,8 +432,15 @@ surface_coverage_profile.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of th
 synthetic_measurements_example.json,REWRITE_GENERIC,2-7 (see rationale),Becomes a SYNTHETIC_OBSERVATION example.,
 tau_c_sweep.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 tests/fuzz_corpus/README.md,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/attestations-crashed-15745568.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/attestations-crashed-86793407.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/attestations-crashed-91599894.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/egress_grant-crashed-65392841.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/egress_grant-crashed-96370079.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/key_registry-crashed-40256896.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/key_registry-crashed-47792088.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/key_registry-crashed-70115345.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/key_registry-crashed-76585265.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/hangguard.py,KEEP_AS_IS,-,Shared wall-clock bound.,
 tests/hw_reviewer_fixtures.py,RETIRE_TO_HISTORY,5,Hardware reviewer rosters.,imports hardware_governance_3d
 tests/test_actor_authentication.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-89): the actor-authentication seam; every attack shown past the hash chain, refused by both readers.",
@@ -555,6 +562,7 @@ tests/test_scientific_invalidation.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing
 tests/test_scientific_thermal_1d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_scientific_thermal_2d.py,KEEP_AS_IS,-,"NEW in Phase 2: the interfaces, the implementation identity (held to the substrate's own algorithms) and cut C1 in a fresh interpreter.",
 tests/test_second_reader_audit_actions.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (follow-up A, D-2026-84/85): the seven audit actions read a second time; a forged one moves no authority.",
+tests/test_signed_append_lifecycle.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-93): the signed append across every crash point, the pinned registry, and a key's life by log position.",
 tests/test_signing_finalizer.py,KEEP_AS_IS,-,Signing finalizer.,
 tests/test_single_source_of_truth.py,REWRITE_GENERIC,2-7 (see rationale),Single-definition rule is generic; subject list is QTA.,
 tests/test_solver_failclosed.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,A failed solve grants nothing (directive s20 model).,
@@ -657,6 +665,7 @@ tools/mutations/scientific_invalidation.json,KEEP_AS_IS,-,"Mutation spec over a 
 tools/mutations/scientific_thermal_1d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_thermal_2d.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/second_reader_audit_actions.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/signed_append_lifecycle.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/solver_failclosed.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Scientific fail-closed mutations; the model for directive s20 numerical mutations.,
 tools/mutations/stage10_authority.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/stress_campaign_coverage.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

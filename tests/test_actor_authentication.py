@@ -155,7 +155,7 @@ def test_actor_substitution_is_refused(tmp_path):
                       if ev.actor == "bob" else None)
     new = {ev.seq: ev.hash for ev in _events(forged)}
     moved = pr.Attestations(tmp_path / "moved.jsonl")
-    by_hash, _ = att.read()
+    by_hash = att.read().by_hash
     for seq, h in old.items():
         for a in by_hash[h]:
             moved.add({**a, "event_hash": new[seq]})
@@ -187,7 +187,7 @@ def test_a_tampered_payload_is_refused(tmp_path):
     assert {pr.MISSING, pr.DANGLING} <= _kinds(report)
     assert report.refused == {0, 1, 2}         # every later hash moved too
     moved = pr.Attestations(tmp_path / "moved.jsonl")
-    by_hash, _ = att.read()
+    by_hash = att.read().by_hash
     for old, new in zip(_events(log), _events(forged)):
         for a in by_hash[old.hash]:
             moved.add({**a, "event_hash": new.hash})

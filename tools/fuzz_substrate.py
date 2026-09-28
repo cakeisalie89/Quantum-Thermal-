@@ -415,6 +415,98 @@ def _rag_index(data: bytes):
         return rag_index.load_index(path)
 
 
+
+def _auth_error():
+    from qta_agent.principals import AuthenticationError
+    return AuthenticationError
+
+
+def _registry_seed() -> bytes:
+    from qta_agent import principals as pr
+    reg = pr.KeyRegistry([pr.test_identity("owner").registered(),
+                          pr.test_identity("alice").registered()],
+                         allow_test_keys=True)
+    return json.dumps(reg.to_document(), sort_keys=True).encode()
+
+
+# ---- actor authentication -------------------------------------------------
+#: One genuine history, built once: three events by fixed test identities
+#: with fixed ids and times, so their hashes -- and their genuine
+#: attestations -- are the same on every run.
+_GENUINE: dict = {}
+
+
+def _genuine_history():
+    if _GENUINE:
+        return _GENUINE
+    from qta_agent import principals as pr
+    from qta_agent.events import EventLog
+    tmp = Path(tempfile.mkdtemp(prefix="fuzz-att-"))
+    log = EventLog(tmp / "log.jsonl")
+    owner, alice = pr.test_identity("owner"), pr.test_identity("alice")
+    for i, who in enumerate((owner, alice, alice)):
+        log.append(actor=who.principal, action="record.create",
+                   target=f"r{i}", event_id=f"fuzz-{i}", wall_time=1.0 + i,
+                   payload={"record_id": f"r{i}", "kind": "k",
+                            "proposer": who.principal})
+    report, events = log.read_verified()
+    signer = {"owner": owner, "alice": alice}
+    genuine = [signer[ev.actor].attest(ev) for ev in events]
+    _GENUINE.update(
+        events=events, genuine=genuine,
+        registry=pr.KeyRegistry([owner.registered(), alice.registered()],
+                                allow_test_keys=True),
+        seed=b"".join(json.dumps(a, sort_keys=True).encode() + b"\n"
+                      for a in genuine))
+    return _GENUINE
+
+
+def _attestation_file(data: bytes):
+    """Fuzz the attestation file against a fixed, genuine history.
+
+    Refusing is not the point here -- authenticate REPORTS, it does not
+    raise. The oracle is the claim: whatever the file says, an event is
+    authenticated only if the file holds its GENUINE attestation. Anything
+    else authenticated is ACCEPTED, the finding that matters.
+    """
+    from qta_agent import principals as pr
+    g = _genuine_history()
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "att.jsonl"
+        path.write_bytes(data)
+        report = pr.authenticate(g["events"], pr.Attestations(path),
+                                 g["registry"])
+    lines = set()
+    for raw in data.split(b"\n"):
+        try:
+            rec = json.loads(raw)
+        except (ValueError, UnicodeDecodeError, RecursionError):
+            continue
+        if isinstance(rec, dict):
+            lines.add(json.dumps(rec, sort_keys=True))
+    for ev, att in zip(g["events"], g["genuine"]):
+        if ev.seq not in report.refused and \
+                json.dumps(att, sort_keys=True) not in lines:
+            raise AssertionError(
+                f"ACCEPTED: seq {ev.seq} authenticated without its genuine "
+                "attestation")
+    return report
+
+
+def _key_registry(data: bytes):
+    """Fuzz a key-registry document. A document is refused or it is a
+    registry whose every key id is derived from its key and whose every
+    lifecycle is coherent -- nothing in between."""
+    from qta_agent import principals as pr
+    reg = pr.KeyRegistry.from_bytes(data, allow_test_keys=True)
+    for key in reg._keys.values():
+        if key.key_id != pr.key_id(key.public, test=key.is_test):
+            raise AssertionError(f"ACCEPTED: {key.key_id!r} is not the id "
+                                 "of its key")
+        if not isinstance(key.principal, str) or not key.principal:
+            raise AssertionError("ACCEPTED: a key with no principal")
+    return reg
+
 def _targets() -> dict:
     """name -> (callable, declared refusal exceptions, seed inputs)."""
     from qta_agent.agents import (
@@ -441,6 +533,13 @@ def _targets() -> dict:
               json.JSONDecodeError)
 
     return {
+        "attestations": (_attestation_file, (),
+                         [_genuine_history()["seed"],
+                          _genuine_history()["seed"] + b'{"seq": 3, "ev',
+                          b'{"abort": "' + b"a" * 64 + b'", "seq": 9}\n',
+                          b"[" * 100_000 + b"\n"]),
+        "key_registry": (_key_registry, (_auth_error(),),
+                         [_registry_seed(), b"[" * 100_000]),
         "events": (_log_reader, (EventLogError,) + common,
                    [b'{"seq":0,"event_id":"a","wall_time":1.0,"actor":"a",'
                     b'"action":"record.create","target":"t","payload":{},'

@@ -1183,18 +1183,25 @@ class EventLog:
     def append(self, *, actor: str, action: str, target: str,
                payload: dict | None = None,
                event_id: str | None = None,
-               wall_time: float | None = None) -> Event:
+               wall_time: float | None = None,
+               before_write=None) -> Event:
         """Append one event, linked to the current head. Durable on return.
 
         Verifies the existing chain first: appending onto a broken log would
         extend the damage and make the break harder to locate.
+
+        ``before_write``, when given, is called with the exact record --
+        seq, hash and all -- under the writer lock and BEFORE its bytes are
+        written; if it raises, nothing is written. It is how a signed append
+        makes the record's attestation durable first
+        (:func:`qta_agent.principals.signed_append`).
         """
         with self.exclusive():
             report = self._checked_head()
             ev, new_anchor = self._write_event(
                 report.head_seq, report.head_hash, actor=actor, action=action,
                 target=target, payload=payload, event_id=event_id,
-                wall_time=wall_time)
+                wall_time=wall_time, before_write=before_write)
             self._anchor = new_anchor
             self._appends_since_full = (
                 0 if report.prefix_verified else self._appends_since_full + 1)
@@ -1229,7 +1236,7 @@ class EventLog:
                 + "; ".join(report.problems))
         return report
 
-    def append_decided(self, decide) -> "Event":
+    def append_decided(self, decide, *, before_write=None) -> "Event":
         """Decide and record under ONE lock. The read-decide-write primitive.
 
         ``decide`` is called with the verified head sequence, while the
@@ -1272,7 +1279,8 @@ class EventLog:
                 actor=kwargs["actor"], action=kwargs["action"],
                 target=kwargs["target"], payload=kwargs.get("payload"),
                 event_id=kwargs.get("event_id"),
-                wall_time=kwargs.get("wall_time"))
+                wall_time=kwargs.get("wall_time"),
+                before_write=before_write)
             self._anchor = new_anchor
             self._appends_since_full = (
                 0 if report.prefix_verified else self._appends_since_full + 1)
@@ -1316,7 +1324,8 @@ class EventLog:
 
     def _write_event(self, head_seq: int, head_hash: str, *, actor: str,
                      action: str, target: str, payload: dict | None,
-                     event_id: str | None, wall_time: float | None) -> tuple:
+                     event_id: str | None, wall_time: float | None,
+                     before_write=None) -> tuple:
         """Build, bound-check and durably write one record. One writer."""
         import uuid
 
@@ -1345,6 +1354,36 @@ class EventLog:
             raise MalformedEvent(
                 f"event is {len(line)} bytes, above the "
                 f"{MAX_EVENT_BYTES}-byte bound")
+        # A REQUIRED history is written only with its attestation prepared
+        # FIRST: an unsigned record would be durable and unauthenticated,
+        # and every read after it would fail closed. Refused here, before
+        # anything is written, rather than found by the next reader. The
+        # profile is the one the head check just read -- or the one this
+        # record declares, when it is genesis.
+        declares = (action == ACT_SECURITY_PROFILE
+                    and payload.get("profile")
+                    == PROFILE_AUTHENTICATED_REQUIRED)
+        current = None
+        if before_write is None and head_seq >= 0:
+            # Whatever path reached here, the profile is known before an
+            # unsigned write: the head check read it, or genesis is read now.
+            unread: list = []
+            current = (self._profile if self._profile is not None
+                       else self._genesis_profile(unread))
+            if current is None:
+                raise EventLogError(
+                    "refusing an unsigned append: the history's security "
+                    "profile cannot be read (" + "; ".join(unread) + ")")
+        if before_write is None and (
+                declares
+                or self.required_profile == PROFILE_AUTHENTICATED_REQUIRED
+                or current == PROFILE_AUTHENTICATED_REQUIRED):
+            raise EventLogError(
+                f"an {PROFILE_AUTHENTICATED_REQUIRED} history is written "
+                "only with the record's attestation prepared before it "
+                "(qta_agent.principals.signed_append)")
+        if before_write is not None:
+            before_write(ev)
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("ab") as fh:

@@ -8434,3 +8434,105 @@ three tools refuse; the independent reader refuses on its own.
 * The three tools that open their own log cannot yet be given an
   authenticator; the registry they would need is not yet pinned (s.39).
 * A downgrade is refused only where the deployment pins the profile.
+
+## D-2026-93 — a signed append was two unordered writes, the registry was any file, and a key had no life
+
+**CLASS** — `GAP` and `CRASH_SEMANTICS`, `qta_agent/principals.py`,
+`qta_agent/events.py`, `tools/fuzz_substrate.py`. Directive 6, sections 36,
+39, 40 and 42.
+
+1. **A signed append was two appends in the wrong order.** The event was
+   written, then its attestation. A crash between them left a durable,
+   unattested event: an AUTHENTICATED_REQUIRED history that failed closed on
+   every read afterwards, with no way to tell a crash from a forgery, and a
+   repair -- attesting it afterwards -- that would sign whatever a writer had
+   put there. And an unsigned append to a REQUIRED history was caught only
+   by the next reader.
+2. **The registry was trusted because it parsed.** An external file is not
+   a trusted registry: a file beside the log is as writable as the log.
+3. **A key had no life.** Rotation, revocation and compromise had no
+   representation; a key registered was a key valid for every event ever,
+   and removing it would have unauthenticated history it had rightly signed.
+4. **Neither parser had been fuzzed.** Run against the parsers as they stood before this change -- a scratch export of the CB tree, 5000 cases each, seed 20260927 -- the fuzzer found both wanting: the attestation reader authenticated three files whose only difference from the genuine one was an uppercase hex digit in a signature (the same signature bytes, a record no signer wrote), and the registry reader crashed with `TypeError` on four documents whose `keys` was not a list. The seven inputs are in the regression corpus, each refused now.
+
+**REPAIR.**
+
+* PREPARE FIRST. `EventLog.append` and `append_decided` take `before_write`,
+  called with the exact record -- seq, hash and all -- under the writer lock
+  and before its bytes are written; if it raises, nothing is written.
+  `signed_append` and `begin_history` use it to make the attestation durable
+  first (`Attestations.prepare`). A crash therefore leaves one of four states,
+  each with one meaning: nothing; a torn final attestation line (a prepare
+  that did not finish -- truncated by the next prepare); a complete
+  attestation one past the history (a prepare whose record never landed --
+  PENDING, not a finding, and ABORTED by the next prepare with an explicit
+  abort record); or the record and its attestation. What cannot arise is a
+  durable record without its attestation. Two appends are not atomic and
+  nothing here claims they are; the order is what is arranged.
+* NO FALSE AUTHENTICATION. A pending prepare authenticates nothing but the
+  record it signed; two prepares cannot both be pending; an abort naming a
+  COMMITTED event is itself a finding (ABORTED_COMMITTED); a torn line that is
+  not the last is MALFORMED; every attestation field is typed and bounded
+  before it is used.
+* ONE ENCODING. Every hex field -- an attestation's signature and event
+  hash, an abort's hash, a registry key -- is exactly its length in
+  LOWERCASE hex, the one encoding a signer writes. `bytes.fromhex` also
+  takes uppercase (and spaces), so one signature had many records, and a
+  record no signer wrote authenticated as though one had. Not a forgery; a
+  second encoding of one, which a record of who signed what must not have.
+* NO CRASH ON NESTING. A line nested deep enough to exhaust the JSON parser
+  raised `RecursionError` out of the attestation reader -- a crash of every
+  authenticating reader from one line of an attacker-writable file. It is a
+  MALFORMED line now. Found by review, not by the fuzzer, whose mutators had
+  not produced such depth; it is a seed of both campaigns now.
+* UNSIGNED WRITES REFUSED. An append to a history whose profile is
+  AUTHENTICATED_REQUIRED -- declared, or pinned by the deployment -- without a
+  prepared attestation is refused before anything is written, and so is an
+  unsigned declaration of that profile.
+* THE REGISTRY IS THE ONE THE DEPLOYMENT PINNED. `registry_digest` is the
+  sha256 of the document's canonical form; `from_document(pinned_digest=)`
+  refuses a document that differs before believing a single entry; production
+  needs `PRODUCTION_REGISTRY_DIGEST` as well as `PRODUCTION_KEYS`, and neither
+  is configured. `from_bytes` maps every decoding failure -- nesting deep
+  enough to exhaust the parser included -- to a refusal. A key "registered"
+  in the log's own events authenticates nothing: the history does not choose
+  its registry.
+* A KEY'S LIFE, IN LOG POSITIONS. Registry v2 entries carry
+  `valid_from_seq`, `valid_until_seq`, `revoked_at_seq` with
+  `revocation_reason`, `compromised_from_seq` and `replacement_key`, and a
+  `status` that must agree with them. Positions, not wall time, so every
+  replay agrees: a rotation hands over at a position; a revocation refuses the
+  key from its position on and leaves earlier authorship standing; only a
+  declared compromise reaches back, and only as far as declared; a
+  replacement must be a key of the same principal. v1 documents still read:
+  every key valid from genesis, for good.
+* FUZZED. `attestations` (against a fixed genuine history; the oracle is that
+  nothing authenticates without its genuine attestation) and `key_registry`
+  (a document is refused, or every key id derives from its key), both in the
+  bounded CI campaign and required by the fuzz test; the findings from before
+  the fix are committed to the regression corpus.
+
+**TEST.** `tests/test_signed_append_lifecycle.py` (new, 51): the attestation is on
+disk before the record; unsigned appends and declarations refused; each crash
+point -- before the prepare, during it, between the writes, during the record,
+after both -- leaves a history that authenticates, or fails only on the log's
+own torn tail, and the next append repairs it; nothing false is authenticated;
+replay is deterministic; ill-typed lines, a signature or key in another
+encoding, and nesting that exhausts the parser are malformed or refused, not
+crashes; registry bytes that are not a document are refused. Rotation,
+expiry, not-yet-valid, revocation and compromise each refused or kept at the
+right position; incoherent lifecycles refused; the registry round-trips at its
+pin, refuses tampering, and production needs the pin. Three CB tests change
+with the premises they tested: production authentication needs the pin as
+well as the file; an unattested event in a REQUIRED history is now written
+past the write-side guard, as a holder of the file could; and
+`Attestations.read` returns an `AttestationFile` (by hash, malformed,
+aborted, torn tail) rather than a pair.
+
+**MUTATIONS.** `signed_append_lifecycle.json` (new) 27/27.
+
+**NOT DONE, and not claimed.** No production key, registry, pin or vetted
+provider exists (EXTERNALLY_BLOCKED). The governed writers do not sign yet,
+so no governed history is AUTHENTICATED_REQUIRED today. A revocation is only
+as timely as the deployment's registry update. Multi-host writers are outside
+this (the lock is local; open item 71).

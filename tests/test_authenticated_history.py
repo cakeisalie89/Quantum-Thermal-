@@ -148,6 +148,10 @@ def test_production_authentication_needs_a_registry_and_a_vetted_provider(
     doc.write_text(json.dumps(pr.KeyRegistry([carol.registered()])
                               .to_document()), encoding="utf-8")
     monkeypatch.setattr(pr, "PRODUCTION_KEYS", str(doc))
+    with pytest.raises(pr.NotConfigured):
+        pr.production_authenticator(att, provider=_StandIn())
+    monkeypatch.setattr(pr, "PRODUCTION_REGISTRY_DIGEST", pr.registry_digest(
+        json.loads(doc.read_text(encoding="utf-8"))))
     with pytest.raises(signature.ProviderError, match="REFERENCE_ONLY"):
         pr.production_authenticator(att, provider=signature.REFERENCE)
     with pytest.raises(signature.ProviderError):
@@ -251,10 +255,12 @@ def test_with_the_authenticator_it_is_read_whole(tmp_path):
 
 def test_an_unattested_event_ends_what_is_read(tmp_path):
     log, att = _required_history(tmp_path)
-    EventLog(tmp_path / "log.jsonl", authenticator=_authenticator(att)
-             ).append(actor="alice", action="record.create", target="r9",
-                      payload={"record_id": "r9", "kind": "k",
-                               "proposer": "alice"})
+    # Past the write-side guard, which refuses an unsigned append to a
+    # REQUIRED history outright (D-2026-93): written as a holder of the
+    # file can write it.
+    _forge(tmp_path / "log.jsonl", actor="alice", action="record.create",
+           target="r9", payload={"record_id": "r9", "kind": "k",
+                                 "proposer": "alice"})
     # A writer does not build on it either: its own head check is gated.
     with pytest.raises(ev_mod.ChainBroken, match="MISSING"):
         pr.signed_append(log, att, ALICE, action="record.create",

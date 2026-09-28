@@ -64,8 +64,8 @@
     {
       "name": "AA9_unconfigured_production_authenticates_nothing",
       "path": "qta_agent/principals.py",
-      "find": "    if PRODUCTION_KEYS is None:\n        raise NotConfigured(",
-      "replace": "    if PRODUCTION_KEYS is None:\n        return KeyRegistry([])\n        raise NotConfigured(",
+      "find": "    if PRODUCTION_KEYS is None or PRODUCTION_REGISTRY_DIGEST is None:\n        raise NotConfigured(",
+      "replace": "    if PRODUCTION_KEYS is None or PRODUCTION_REGISTRY_DIGEST is None:\n        return KeyRegistry([])\n        raise NotConfigured(",
       "rationale": "no keys provisioned reads as a registry that checked"
     },
     {
@@ -85,7 +85,7 @@
     {
       "name": "AA12_dangling_attestations_are_silent",
       "path": "qta_agent/principals.py",
-      "find": "    for h in sorted(set(by_hash) - seen) if complete else ():\n",
+      "find": "    for h in sorted(set(by_hash) - seen - file.aborted - pending\n                    ) if complete else ():\n",
       "replace": "    for h in ():\n",
       "rationale": "an attestation of an event the history no longer contains says nothing"
     },
