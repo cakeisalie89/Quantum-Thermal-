@@ -128,6 +128,26 @@ _HASHED_FIELDS = (
 #: malformed or hostile log from exhausting memory during verification.
 MAX_EVENT_BYTES = 4 * 1024 * 1024
 
+#: THE SECURITY PROFILE A HISTORY IS WRITTEN UNDER, declared by its FIRST
+#: event and by no other. A history with no declaration is
+#: ``UNAUTHENTICATED_LEGACY`` -- every log written before the declaration
+#: existed, read exactly as before. ``AUTHENTICATED_REQUIRED`` means every
+#: event must be authenticated, and it is enforced HERE, in the verified-read
+#: primitives every reader in this package reads through, so a reader cannot
+#: skip authentication by leaving out one optional argument: handed a
+#: REQUIRED history without an authenticator, it is handed no events.
+#:
+#: What the declaration does not do on its own: stop a writer holding the
+#: file from rewriting the whole history WITHOUT it. That is a downgrade,
+#: and it is refused by a deployment that pins the profile it requires
+#: (``EventLog(..., required_profile=...)``) -- the same division as the
+#: chain and its external head witness.
+ACT_SECURITY_PROFILE = "history.security_profile"
+PROFILE_UNAUTHENTICATED_LEGACY = "UNAUTHENTICATED_LEGACY"
+PROFILE_AUTHENTICATED_REQUIRED = "AUTHENTICATED_REQUIRED"
+PROFILES = frozenset({PROFILE_UNAUTHENTICATED_LEGACY,
+                      PROFILE_AUTHENTICATED_REQUIRED})
+
 
 class UnverifiedReadRefused(RuntimeError):
     """An authority-layer module asked the log for records nothing verified.
@@ -427,8 +447,24 @@ class EventLog:
     #: held for 30 seconds by pid N".
     LOCK_TIMEOUT_S = 30.0
 
-    def __init__(self, path: Path | str):
+    def __init__(self, path: Path | str, *, authenticator=None,
+                 required_profile: str | None = None):
         self.path = Path(path)
+        if required_profile is not None and required_profile not in PROFILES:
+            raise EventLogError(
+                f"unknown security profile {required_profile!r}")
+        #: Called with the verified events of every read (``complete`` for a
+        #: whole-history read, not for an anchored tail) and returning a
+        #: report with ``ok``, ``lines()`` and ``refused`` seqs -- in
+        #: practice :class:`qta_agent.principals.Authenticator`, which this
+        #: module does not import: the log sits below the key layer.
+        self.authenticator = authenticator
+        #: The profile the DEPLOYMENT requires. A history declaring less is
+        #: a downgrade and does not read.
+        self.required_profile = required_profile
+        #: The declared profile, once a read has established it. Genesis
+        #: never changes, so it is learned once per object.
+        self._profile: str | None = None
         self.head_path = self.path.with_suffix(self.path.suffix + ".head")
         #: A SIDECAR, not the log itself: the lock must outlive a log that is
         #: rotated, truncated or not yet created, and locking a file that does
@@ -668,10 +704,115 @@ class EventLog:
         head_seq = events[-1].seq if events else -1
         head_hash = events[-1].hash if events else ZERO_DIGEST
         self._check_witness(head_seq, head_hash, witness, problems, notes)
+        admitted = self._security_gate(events[:verified], problems,
+                                       whole=True)
         return (VerifyReport(not problems, len(events), head_seq, head_hash,
                              problems, notes,
                              truncated_tail=truncated_tail),
-                events[:verified])
+                admitted)
+
+    # ---- the security profile ------------------------------------------
+    def _security_gate(self, events: list, problems: list, *,
+                       whole: bool) -> list:
+        """The history's security profile, enforced on a read. Returns a
+        PREFIX of ``events`` -- the ones that may be folded -- and adds a
+        problem for everything it refuses, so the report fails closed.
+
+        ``whole`` is a read from genesis; otherwise ``events`` is a tail
+        after an anchor, and the profile is the one genesis declared.
+        """
+        profile = (self._profile_of(events, problems) if whole
+                   else self._genesis_profile(problems))
+        if not whole:
+            for ev in events:
+                if ev.action == ACT_SECURITY_PROFILE:
+                    problems.append(
+                        f"seq {ev.seq}: a history declares its security "
+                        "profile once, as its first event")
+                    profile = None
+        if profile is None:
+            return []
+        nonempty = bool(events) or not whole
+        if nonempty:
+            # Remembered only once the history HAS a genesis to have
+            # declared it. An empty history declares nothing yet: its first
+            # event may declare AUTHENTICATED_REQUIRED, and an anchored read
+            # takes this for genesis's answer.
+            self._profile = profile
+        if (self.required_profile == PROFILE_AUTHENTICATED_REQUIRED
+                and profile != PROFILE_AUTHENTICATED_REQUIRED and nonempty):
+            problems.append(
+                f"DOWNGRADE: this deployment requires "
+                f"{PROFILE_AUTHENTICATED_REQUIRED} and the history declares "
+                f"{profile}")
+            return []
+        required = PROFILE_AUTHENTICATED_REQUIRED in (profile,
+                                                      self.required_profile)
+        if self.authenticator is None:
+            # NON-EMPTY, not "returned events": an anchored read of an empty
+            # tail is a writer's head check, and a writer that cannot
+            # authenticate its head must not extend the history either.
+            if required and nonempty:
+                problems.append(
+                    f"this history is {PROFILE_AUTHENTICATED_REQUIRED} and "
+                    "the reader was given no authenticator: none of its "
+                    "events is read")
+                return []
+            return events
+        report = self.authenticator(events, complete=whole)
+        if report.ok:
+            return events
+        problems.extend(f"unauthenticated: {line}" for line in report.lines())
+        if report.refused:
+            first = min(report.refused)
+            return [ev for ev in events if ev.seq < first]
+        return events
+
+    def _profile_of(self, events: list, problems: list) -> str | None:
+        """The profile ``events`` -- a whole history -- declares. None, with
+        a problem, when the declaration is misplaced or unknown."""
+        profile = PROFILE_UNAUTHENTICATED_LEGACY
+        for ev in events:
+            if ev.action != ACT_SECURITY_PROFILE:
+                continue
+            declared = ev.payload.get("profile")
+            if ev.seq != 0:
+                problems.append(
+                    f"seq {ev.seq}: a history declares its security profile "
+                    "once, as its first event")
+                return None
+            if declared not in PROFILES:
+                problems.append(
+                    f"seq 0: unknown security profile {declared!r}")
+                return None
+            profile = declared
+        return profile
+
+    def _genesis_profile(self, problems: list) -> str | None:
+        """The profile genesis declares, for a read that starts after an
+        anchor. Genesis is inside the prefix an anchored read already
+        trusts; its own record is still checked -- parsed, its hash
+        recomputed, its link to nothing confirmed -- before it is believed."""
+        if self._profile is not None:
+            return self._profile
+        try:
+            with self.path.open("rb") as fh:
+                line = fh.readline(MAX_EVENT_BYTES + 1)
+            rec = json.loads(line)
+            if not isinstance(rec, dict):
+                raise MalformedEvent("genesis record is not an object")
+            _validate_field_types(rec, "seq 0")
+            ev = Event(**rec)
+        except (OSError, ValueError, KeyError, TypeError,
+                MalformedEvent) as exc:
+            problems.append(f"genesis record is unreadable: "
+                            f"{type(exc).__name__}")
+            return None
+        if (ev.seq != 0 or ev.prev_hash != ZERO_DIGEST
+                or ev.recompute_hash() != ev.hash):
+            problems.append("genesis record does not check")
+            return None
+        return self._profile_of([ev], problems)
 
     def _verified_prefix_length(self, events, first_seq: int,
                                 prev_hash: str, prev_wall, problems: list,
@@ -949,11 +1090,13 @@ class EventLog:
         head_seq = tail[-1][0].seq if tail else anchor.seq
         head_hash = tail[-1][0].hash if tail else anchor.head_hash
         self._check_witness(head_seq, head_hash, witness, problems, notes)
+        admitted = self._security_gate(
+            [ev for ev, _, _ in tail[:verified]], problems, whole=False)
 
         return (VerifyReport(not problems, len(tail), head_seq, head_hash,
                              problems, notes, prefix_verified=False,
                              unverified_through=anchor.seq),
-                tail[:verified])
+                tail[:len(admitted)])
 
     def advance(self, anchor: "Anchor") -> tuple:
         """Verify and read what follows ``anchor``; return it and a new one.
@@ -1178,6 +1321,11 @@ class EventLog:
         import uuid
 
         payload = dict(payload or {})
+        if action == ACT_SECURITY_PROFILE and (
+                head_seq != -1 or payload.get("profile") not in PROFILES):
+            raise EventLogError(
+                "a security profile is declared once, as a history's first "
+                "event, and must be one of " + ", ".join(sorted(PROFILES)))
         body = {
             "seq": head_seq + 1,
             "event_id": event_id or uuid.uuid4().hex,

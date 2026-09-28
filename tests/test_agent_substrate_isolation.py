@@ -111,6 +111,7 @@ ALLOWED_IMPORTERS = {
     "tests/test_task_execution_phase.py",
     "tests/test_replay_origin_view.py",
     "tests/test_actor_authentication.py",
+    "tests/test_authenticated_history.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
@@ -152,11 +153,11 @@ ALLOWED_IMPORTERS = {
 # it identifies would be a cycle waiting for its first caller.
 LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           "evidence",
-          # Actor authentication: the signature primitive, then the
-          # attestations and key registry built on it. Nothing below imports
-          # them; the store and the independent reader are HANDED an
-          # authenticator rather than importing one.
-          "ed25519", "principals",
+          # Actor authentication: the signature primitive, the provider
+          # seam that says what may stand behind it, then the attestations
+          # and key registry built on it. Nothing below imports them; every
+          # reader is HANDED an authenticator, on the log it reads.
+          "ed25519", "signature", "principals",
           "capability", "idempotency", "readpath", "tools",
           "execution", "checkpoint", "authority",
           # The content rule for scientific results: JSON over canonical

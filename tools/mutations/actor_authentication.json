@@ -36,8 +36,8 @@
     {
       "name": "AA5_the_signature_is_not_checked",
       "path": "qta_agent/principals.py",
-      "find": "            elif att.get(\"seq\") != ev.seq or not _verifies(key, ev.hash,\n",
-      "replace": "            elif False and not _verifies(key, ev.hash,\n",
+      "find": "            elif att.get(\"seq\") != ev.seq or not _verifies(\n",
+      "replace": "            elif False and not _verifies(\n",
       "rationale": "a tampered signature or payload passes on the key id alone"
     },
     {

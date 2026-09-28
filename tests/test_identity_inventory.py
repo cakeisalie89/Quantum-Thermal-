@@ -75,8 +75,9 @@ def test_independent_reader_coverage_is_MEASURED_not_claimed():
     For a long time it was not true, and the number was recorded rather than
     rounded up: 31 of 38, the seven uncovered each classified as not
     authority-changing with its reason. Ledger follow-up A gave those seven
-    readers, and the measurement now says 38 of 38 -- measured from the
-    parse tree, not asserted. The step title quoting it is checked below.
+    readers, and the measurement said 38 of 38; the history's security
+    profile made it 39 of 39 (D-2026-92) -- measured from the parse tree,
+    not asserted. The step title quoting it is checked below.
     """
     doc = json.loads(INVENTORY.read_text(encoding="utf-8"))
     recorded = {e["action"] for e in doc["actions"]

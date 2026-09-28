@@ -634,6 +634,21 @@
       "note": "",
       "authority_changing": true,
       "authority_note": "The task state machine itself."
+    },
+    {
+      "action": "history.security_profile",
+      "module": "events.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "profile",
+          "role": "NONE",
+          "note": "which security profile the history is written under; names no one"
+        }
+      ],
+      "note": "Declared once, as seq 0 (principals.begin_history); written by the principal whose attestation opens an AUTHENTICATED_REQUIRED history. Enforced by the verified-read primitives every reader reads through, and restated by reconstruct in its own code (D-2026-92).",
+      "authority_changing": true,
+      "authority_note": "Decides whether every event of the history must be authenticated before any reader folds it. A declaration forged, misplaced or dropped would switch authentication on or off for the whole history."
     }
   ]
 }

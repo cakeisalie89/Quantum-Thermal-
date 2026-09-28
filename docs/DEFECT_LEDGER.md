@@ -8336,3 +8336,101 @@ requeue, retry or failure at all is possible in principle -- it would now be
 reported as VACUOUS by name, with its safety already checked. Generating
 cross-process schedules deterministically would need control of the kernel's
 scheduling -- R50 states that boundary.
+
+## D-2026-92 — the reference signer could stand in for production, and authentication was optional by omission
+
+**CLASS** — `GAP`, `qta_agent/principals.py`, `qta_agent/events.py`,
+`qta_agent/ed25519.py`. Directive 6, sections 34-38 and 41.
+
+Three things the actor-authentication seam (D-2026-89) left open:
+
+1. **The primitive had no assurance boundary.** `qta_agent/ed25519.py` -- a
+   pure-Python transcription of RFC 8032 -- was the only implementation, and
+   nothing distinguished "the oracle the tests use" from "what production
+   trusts". Constant time was the only stated caveat; the others are larger:
+   one unaudited transcription, point-encoding and non-canonical-input edge
+   cases, the small-order behaviour vetted libraries themselves disagree
+   about, the malleability class, and a review surface nobody else maintains.
+2. **Authentication was optional by omission.** A reader handed no
+   authenticator read every event. A caller could skip authentication by
+   leaving out one argument, and nothing in a history said it had to be.
+3. **Coverage was unstated.** The store and the independent reader could
+   authenticate; whether any other reader could was not recorded anywhere.
+
+**REPAIR.**
+
+* `qta_agent/signature.py` (new): a provider states its scheme and its
+  ASSURANCE. `REFERENCE_ONLY` verifies and signs only TEST identities -- a
+  `Signer` holding a production key refuses to sign through it. Production
+  authentication (`principals.production_authenticator`) needs a provider
+  that states `VETTED` and passes a conformance gate judged on BEHAVIOUR --
+  RFC 8032's vectors 1-3 (key, signature, verification) and every refusal a
+  conforming Ed25519 makes: another message, a flipped bit, another key, a
+  short signature, a short key, the malleable `s + Q`, and a verifier that
+  raises rather than answering is refused too -- and a provisioned registry.
+* THE PROFILE (`qta_agent/events.py`): a history is written under
+  `UNAUTHENTICATED_LEGACY` (every existing log, read exactly as before) or
+  `AUTHENTICATED_REQUIRED`, declared by its FIRST event
+  (`principals.begin_history`, attested) and by no other. It is enforced in
+  `read_verified` and `read_verified_from`, the primitives every reader in
+  `qta_agent` reads through: a REQUIRED history gives a reader with no
+  authenticator no events; with one, any finding fails the report and the
+  read ends before the first refused event; a writer's own head check is the
+  same gate, so nothing is appended on top of an unauthenticated event. A
+  declaration past genesis or of an unknown profile is refused on write and
+  on read. A deployment that pins the profile (`EventLog(...,
+  required_profile=...)`) refuses a history rewritten without its
+  declaration -- a DOWNGRADE, which the declaration alone cannot stop, like
+  the chain and its external witness. The profile a log object remembers
+  is genesis's, remembered only once there IS a genesis: a draft of this
+  commit also remembered the answer an EMPTY history gave, so a reader that
+  had looked before the first event kept "legacy" and folded a REQUIRED
+  history's anchored tail with no authenticator. Found while building the
+  signed append on top of it, before any push; tested and mutated (AH22).
+  And a reader given no authenticator refuses ANY non-empty REQUIRED
+  history -- an anchored read whose tail is empty included, because that is
+  exactly a writer's own head check: the same draft let a writer holding an
+  anchor extend a REQUIRED history without ever authenticating its head
+  (found the same way; AH23).
+* THE INDEPENDENT READER restates the profile in its own code (literals, not
+  imports): with the primitive's gate switched off, it still folds nothing of
+  a REQUIRED history it was given no authenticator for, and refuses a
+  misplaced declaration. `history.security_profile` is a registered action
+  and an inventoried one: 39 of 39 durable actions independently read.
+* COVERAGE: `principals.READER_COVERAGE`, reader by reader. Fourteen readers
+  in `qta_agent` are GATED (two also give their own per-event verdict);
+  three tools that open their own log can only REFUSE a REQUIRED history;
+  the hypothesis lifecycle is NOT_BUILT. A structural test holds that every
+  module reading the log is in the table -- and `tools/verified_read_guard.py`
+  already holds that none reads it any other way.
+
+**TEST.** `tests/test_authenticated_history.py` (new, 38): the reference
+conforms and is refused for production; a provider saying VETTED that
+accepts forgeries, raises, or signs what the RFC does not is refused by name;
+a conforming stand-in is accepted; production refuses without a registry and
+without a vetted provider; the authenticator's verdict is its provider's. A
+legacy history reads unchanged; a REQUIRED one reads nothing without an
+authenticator and everything with one; an unattested event ends the read and
+blocks the next append; declarations are genesis-only and known, on write and
+on read (forged past the write guard); the anchored read is gated, also for
+a reader that saw the history before its genesis; a writer with no
+authenticator cannot extend a REQUIRED history, its own head included; a pinned
+deployment refuses a downgrade. Eleven readers refuse without and read with;
+three tools refuse; the independent reader refuses on its own.
+
+**MUTATIONS.** `authenticated_history.json` (new) 23/23;
+`actor_authentication.json` re-run against the provider seam, 19/19.
+
+**NOT DONE, and not claimed.**
+* No VETTED provider is configured: choosing and declaring one
+  (`cryptography`, libsodium) is a supply-chain decision for the deployment.
+  EXTERNALLY_BLOCKED, with the seam and its gate ready.
+* No production key or registry exists (D-2026-89): EXTERNALLY_BLOCKED.
+* The governed writers do not sign: every subsystem appends with the plain
+  `append`, so today a REQUIRED history is written only through
+  `signed_append`, and an unsigned append to one is caught by the next read,
+  not refused at the write. The attestation is written after the event,
+  leaving a crash window. Both are the next commit's (directive 6, s.36).
+* The three tools that open their own log cannot yet be given an
+  authenticator; the registry they would need is not yet pinned (s.39).
+* A downgrade is refused only where the deployment pins the profile.

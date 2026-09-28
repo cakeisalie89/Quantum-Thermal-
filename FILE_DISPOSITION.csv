@@ -253,6 +253,7 @@ qta_agent/safeio.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/autho
 qta_agent/scheduler.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Job FSM. Phase 1.1: load/_fold_new on the verified snapshot.,verify-then-read at load + fallback fold
 qta_agent/secrets.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Phase 1.1: load() folds only the verified snapshot.,verify-then-read at load
 qta_agent/separate_verify.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
+qta_agent/signature.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/store.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Authority projection. Phase 1.1 (load/_fold_new/load_from on one verified snapshot) + 1.4 (reducer identity bound into snapshots).,"defect: verify-then-read at load, _fold_new, load_from"
 qta_agent/tasks.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
 qta_agent/tools.py,KEEP_AS_IS,-,Generic governed-agent substrate (actions/authority/canonical/evidence/execution/hostid/invalidation/readpath/safeio/separate_verify/tasks/tools). No QTA-hardware import or data reference.,import closure of qta_agent reaches no hardware module (p0/reach.json)
@@ -477,6 +478,7 @@ tests/test_agent_snapshot_coherence.py,KEEP_AND_HARDEN,1 (this tranche) / ongoin
 tests/test_agent_substrate.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
 tests/test_agent_substrate_isolation.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Layering and IO_LAYER extended for qta_agent/projection.py; new test importer allowed (Phase 1).,
 tests/test_agent_substrate_properties.py,KEEP_AS_IS,-,Agent-substrate trust invariants (directive s26: preserve).,
+tests/test_authenticated_history.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-92): the signature-provider seam, the history's security profile enforced where every reader reads, and reader-by-reader coverage.",
 tests/test_authority_consistency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,authorities.json agrees with reality (retained).,
 tests/test_authority_invariants.py,REWRITE_GENERIC,2-7 (see rationale),Authority invariants over machine FSM + qta_full_sim; keep the non-hardware ones.,
 tests/test_authority_promotion_barrier.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Nothing descriptive/statistical/learned becomes authority -- a retained trust invariant.,
@@ -623,6 +625,7 @@ tools/mutations/agent_service_authority.json,KEEP_AS_IS,-,"Mutation spec over a 
 tools/mutations/agent_snapshot_coherence.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in Phase 1.1: verify-then-read regression operators.,
 tools/mutations/agent_substrate.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,M16/M20/M30 re-anchored to the single verified read (Phase 1.1).,
 tools/mutations/agent_tasks.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/authenticated_history.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/authority_result_rules.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/canonical_output_set.json,REWRITE_GENERIC,2-7 (see rationale),Targets the QTA canonical-output set in package_consistency_check.py.,
 tools/mutations/claims_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

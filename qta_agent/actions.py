@@ -91,6 +91,10 @@ OWNERS: dict = {
     "file.read": "readpath",
     # qta_agent.idempotency -- durable, owner-scoped request identity
     "idempotency.bind": "idempotency",
+    # qta_agent.events -- the security profile a history is written under,
+    # declared by its first event and enforced by the read primitives
+    # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)
+    "history.security_profile": "events",
 }
 
 KNOWN: FrozenSet[str] = frozenset(OWNERS)

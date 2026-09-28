@@ -695,6 +695,15 @@ _AUTHORITY_ACTIONS = frozenset({"record.create", "record.transition",
                                 "record.depend"})
 
 
+#: THE SECURITY PROFILE, RESTATED from :mod:`qta_agent.events` as data and
+#: not imported: the read primitive refuses an AUTHENTICATED_REQUIRED history
+#: to a reader with no authenticator, and this reader refuses it in its own
+#: code as well, so a primitive that stopped refusing is disagreed with.
+_PROFILE_ACTION = "history.security_profile"
+_PROFILE_REQUIRED = "AUTHENTICATED_REQUIRED"
+_PROFILES = frozenset({"UNAUTHENTICATED_LEGACY", _PROFILE_REQUIRED})
+
+
 def reconstruct(log: EventLog, *, reauthorize: bool = True,
                 evidence=None, authenticator=None) -> Reconstruction:
     """Rebuild authority state from a verified log.
@@ -727,6 +736,12 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
         out.unauthorized.extend(f"unauthenticated: {line}"
                                 for line in auth.lines())
         unattested = auth.refused
+    elif (events and events[0].action == _PROFILE_ACTION
+          and events[0].payload.get("profile") == _PROFILE_REQUIRED):
+        out.unauthorized.append(
+            f"the history is {_PROFILE_REQUIRED} and no authenticator was "
+            "given: none of its events is folded")
+        events = []
 
     def task_view() -> dict:
         if not held:
@@ -741,6 +756,13 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
         p = ev.payload
         action = ev.action
         rid = p.get("record_id")
+
+        if action == "history.security_profile":
+            if ev.seq != 0 or p.get("profile") not in _PROFILES:
+                out.unauthorized.append(
+                    f"seq {ev.seq}: a security profile is declared once, by "
+                    "a history's first event, and must be a known one")
+            continue
 
         if action == "record.create":
             if rid in recs:

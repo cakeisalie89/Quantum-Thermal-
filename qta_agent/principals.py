@@ -37,10 +37,21 @@ identities exist for the tests (:func:`test_identity`); their key ids are
 marked, and a registry built for production refuses them. Provisioning real
 keys -- who holds them, where, how they rotate -- is a deployment decision.
 
-THE PRIMITIVE. Ed25519 (RFC 8032), in :mod:`qta_agent.ed25519`, standard
-library only and checked against the RFC's own vectors. It is not constant
-time: fine for VERIFYING public data, not a signer to hold production keys
-with. A production signer is part of the pending provisioning.
+THE PRIMITIVE, AND WHO STANDS BEHIND IT. Ed25519 (RFC 8032), behind the
+provider seam of :mod:`qta_agent.signature`. The only implementation here,
+:mod:`qta_agent.ed25519`, is a REFERENCE: it verifies, and it signs only TEST
+identities -- a :class:`Signer` holding a production key refuses to sign with
+it. Production authentication (:func:`production_authenticator`) needs a
+provider the deployment injects, which states VETTED and passes the seam's
+conformance gate, AND a provisioned registry. Neither exists in this
+repository: EXTERNALLY_BLOCKED, and nothing here pretends otherwise.
+
+THE PROFILE. An authenticator given to a reader is an option; a history
+declared ``AUTHENTICATED_REQUIRED`` (:func:`begin_history`) is not. Its
+declaration is the first event, and :mod:`qta_agent.events` enforces it in
+the verified-read primitives every reader reads through: without an
+authenticator, no event of such a history is read. :data:`READER_COVERAGE`
+says, reader by reader, what that means -- and the tests hold each line.
 """
 from __future__ import annotations
 
@@ -50,8 +61,9 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import ed25519
+from . import signature
 from .canonical import canonical_bytes
+from .events import ACT_SECURITY_PROFILE, PROFILE_AUTHENTICATED_REQUIRED
 
 SCHEME = "ed25519"
 REGISTRY_SCHEMA = "qta-agent/key-registry/v1"
@@ -161,6 +173,17 @@ class KeyRegistry:
         return cls(keys, allow_test_keys=allow_test_keys)
 
 
+def production_authenticator(attestations: "Attestations", *, provider,
+                             require=None) -> "Authenticator":
+    """The authenticator a PRODUCTION reader is given: the provisioned
+    registry, and a provider that states VETTED and passes the conformance
+    gate. Refuses while either is missing -- both are, here -- rather than
+    falling back to the reference implementation or to an empty registry."""
+    registry = production_registry()
+    return Authenticator(attestations, registry, require,
+                         signature.require_vetted(provider))
+
+
 def production_registry() -> KeyRegistry:
     """The deployment's registry. Refuses while none is provisioned rather
     than answering with an empty one, which would authenticate nothing and
@@ -187,10 +210,11 @@ class Signer:
     principal: str
     secret: bytes = field(repr=False)
     test: bool = False
+    provider: object = field(default=signature.REFERENCE, repr=False)
 
     @property
     def public(self) -> bytes:
-        return ed25519.public_key(self.secret)
+        return self.provider.public_key(self.secret)
 
     @property
     def key_id(self) -> str:
@@ -206,9 +230,17 @@ class Signer:
             raise AuthenticationError(
                 f"{self.principal!r} may attest only its own events; this "
                 f"one names {event.actor!r}")
+        if (getattr(self.provider, "assurance", None) != signature.VETTED
+                and not self.test):
+            raise AuthenticationError(
+                f"{getattr(self.provider, 'provider_id', self.provider)!r} "
+                "is not a VETTED provider, and it signs only TEST "
+                "identities: a production key is not held by a reference "
+                "implementation")
         return {"seq": event.seq, "event_hash": event.hash,
                 "key_id": self.key_id,
-                "sig": ed25519.sign(self.secret, _message(event.hash)).hex()}
+                "sig": self.provider.sign(self.secret,
+                                          _message(event.hash)).hex()}
 
 
 def test_identity(principal: str) -> Signer:
@@ -286,8 +318,8 @@ class AuthenticationReport:
 
 
 def authenticate(events, attestations: Attestations, registry: KeyRegistry,
-                 *, require=None, complete: bool = True
-                 ) -> AuthenticationReport:
+                 *, require=None, complete: bool = True,
+                 provider=signature.REFERENCE) -> AuthenticationReport:
     """Every event whose actor is required to authenticate -- ``require``, a
     set of principals, or every actor when None -- must carry an attestation
     by a key the registry holds FOR THAT ACTOR, whose signature verifies over
@@ -324,8 +356,8 @@ def authenticate(events, attestations: Attestations, registry: KeyRegistry,
                 why.append((WRONG_PRINCIPAL, f"signed by a key of "
                             f"{key.principal!r}, and the event names "
                             f"{ev.actor!r}"))
-            elif att.get("seq") != ev.seq or not _verifies(key, ev.hash,
-                                                             att):
+            elif att.get("seq") != ev.seq or not _verifies(
+                    key, ev.hash, att, provider):
                 why.append((BAD_SIGNATURE, f"{key.key_id!r} did not sign "
                             "this event"))
             else:
@@ -349,14 +381,15 @@ def authenticate(events, attestations: Attestations, registry: KeyRegistry,
     return out
 
 
-def _verifies(key: RegisteredKey, event_hash: str, att: dict) -> bool:
+def _verifies(key: RegisteredKey, event_hash: str, att: dict,
+              provider) -> bool:
     sig = att.get("sig")
     try:
         raw = bytes.fromhex(sig) if isinstance(sig, str) else None
     except ValueError:
         raw = None
-    return raw is not None and ed25519.verify(key.public,
-                                              _message(event_hash), raw)
+    return raw is not None and provider.verify(key.public,
+                                               _message(event_hash), raw)
 
 
 @dataclass(frozen=True)
@@ -367,8 +400,63 @@ class Authenticator:
     attestations: Attestations
     registry: KeyRegistry
     require: frozenset | None = None
+    provider: object = signature.REFERENCE
 
     def __call__(self, events, *, complete: bool = True
                  ) -> AuthenticationReport:
         return authenticate(events, self.attestations, self.registry,
-                            require=self.require, complete=complete)
+                            require=self.require, complete=complete,
+                            provider=self.provider)
+
+
+def begin_history(log, attestations: Attestations, signer: Signer, *,
+                  profile: str = PROFILE_AUTHENTICATED_REQUIRED):
+    """Declare ``log``'s security profile as its FIRST event, attested by
+    ``signer``. Refused on a log that already has a history: a profile is
+    what a history is written under, not something it switches to."""
+    def decide(head_seq):
+        if head_seq != -1:
+            raise AuthenticationError(
+                "a security profile is declared by a history's first event; "
+                f"this log already reaches seq {head_seq}")
+        return {"actor": signer.principal, "action": ACT_SECURITY_PROFILE,
+                "target": "history", "payload": {"profile": profile}}
+    ev = log.append_decided(decide)
+    attestations.add(signer.attest(ev))
+    return ev
+
+
+#: WHO AUTHENTICATES, reader by reader -- the coverage the actor-
+#: authentication directive asks to be kept rather than assumed. Every
+#: reader in ``qta_agent`` reads the log through ``read_verified`` or
+#: ``read_verified_from`` on the EventLog it is GIVEN, so each is GATED: it
+#: authenticates every event when that log carries an authenticator, and
+#: reads nothing of an AUTHENTICATED_REQUIRED history when it does not.
+#: Two also give their own per-event verdict. A tool that builds its own
+#: EventLog from a path has no way yet to be handed an authenticator, so it
+#: can only refuse a REQUIRED history. ``tests/test_authenticated_history
+#: .py`` exercises every entry.
+GATED = "GATED"
+GATED_AND_OWN_VERDICT = "GATED_AND_OWN_VERDICT"
+REFUSES_REQUIRED_ONLY = "REFUSES_REQUIRED_ONLY"
+NOT_BUILT = "NOT_BUILT"
+READER_COVERAGE = {
+    "qta_agent.store.AuthorityStore": GATED_AND_OWN_VERDICT,
+    "qta_agent.reconstruct": GATED_AND_OWN_VERDICT,
+    "qta_agent.governed_stage10.GovernedStage10": GATED,
+    "qta_agent.governed_model.GovernedOrigins": GATED,
+    "qta_agent.scheduler.Scheduler": GATED,
+    "qta_agent.memory.MemoryStore": GATED,
+    "qta_agent.policy.PolicyStore": GATED,
+    "qta_agent.audit.AuditIndex": GATED,
+    "qta_agent.agents.AgentDirectory": GATED,
+    "qta_agent.capability.CapabilityLedger": GATED,
+    "qta_agent.idempotency.IdempotencyLedger": GATED,
+    "qta_agent.netauth.NetworkAuthority": GATED,
+    "qta_agent.secrets.SecretStore": GATED,
+    "qta_agent.checkpoint.CheckpointStore": GATED,
+    "tools/audit_log.py": REFUSES_REQUIRED_ONLY,
+    "tools/generic_consistency.py": REFUSES_REQUIRED_ONLY,
+    "tools/independent_verify.py": REFUSES_REQUIRED_ONLY,
+    "hypothesis lifecycle": NOT_BUILT,
+}

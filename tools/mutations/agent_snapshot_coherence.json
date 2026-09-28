@@ -127,15 +127,15 @@
   {
    "name": "V_read_verified_returns_records_past_the_break",
    "path": "qta_agent/events.py",
-   "find": "                events[:verified])",
-   "replace": "                events)",
+   "find": "        admitted = self._security_gate(events[:verified], problems,\n",
+   "replace": "        admitted = self._security_gate(events, problems,\n",
    "rationale": "a report that refuses the log comes back holding the records it refused"
   },
   {
    "name": "V_the_anchored_tail_returns_records_past_the_break",
    "path": "qta_agent/events.py",
-   "find": "                tail[:verified])",
-   "replace": "                tail)",
+   "find": "            [ev for ev, _, _ in tail[:verified]], problems, whole=False)\n",
+   "replace": "            [ev for ev, _, _ in tail], problems, whole=False)\n",
    "rationale": "the same on the anchored path, where the last record also becomes the next anchor"
   },
   {
