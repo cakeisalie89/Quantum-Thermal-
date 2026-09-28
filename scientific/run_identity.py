@@ -45,11 +45,16 @@ _CORE_KEYS = ("vendor_id", "cpu family", "model", "CPU implementer",
 #: Variables that change a numeric result's bits: thread counts change the
 #: order of a reduction, and the dispatch and core-type overrides change
 #: which kernel runs.
+#: ``GLIBC_TUNABLES`` belongs here too: glibc's math library selects its
+#: FMA and AVX2 variants of exp, log, pow and the rest by IFUNC from the same
+#: CPU features, and a tunable can mask them.
 BACKEND_VARIABLES = (
-    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
-    "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
+    "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "GOTO_NUM_THREADS",
+    "MKL_NUM_THREADS", "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
     "NPY_DISABLE_CPU_FEATURES", "NPY_ENABLE_CPU_FEATURES",
-    "OPENBLAS_CORETYPE", "MKL_CBWR", "MKL_ENABLE_INSTRUCTIONS")
+    "OPENBLAS_CORETYPE", "MKL_CBWR", "MKL_ENABLE_INSTRUCTIONS",
+    "GLIBC_TUNABLES")
 #: Compiled code in a distribution: extension modules and bundled libraries
 #: (numpy ships its BLAS and LAPACK this way).
 _NATIVE_FILE = re.compile(r"\.(so(\.\d+)*|pyd|dylib)$")

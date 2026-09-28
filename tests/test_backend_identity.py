@@ -160,16 +160,22 @@ def test_importing_the_probe_imports_no_numpy():
 
 @pytest.mark.parametrize("change, part", [
     ({"numpy": "cpu_features"}, "a dispatched CPU feature"),
+    ({"numpy": "dispatch"}, "one function's dispatch choice"),
     ({"blas": "kernel"}, "a BLAS kernel"),
     ({"blas": "sha256"}, "a BLAS library's bytes"),
+    ({"blas": "threads"}, "a BLAS thread count"),
     ({"system_libraries": "m"}, "the math library's bytes"),
 ])
 def test_each_part_of_the_runtime_changes_the_environment(runtime, change,
                                                           part):
     (section, key), = change.items()
     other = json.loads(json.dumps(runtime))
-    if section == "numpy":
+    if section == "numpy" and key == "dispatch":
+        other["numpy"]["dispatch"]["sha256"] = "e" * 64
+    elif section == "numpy":
         other["numpy"]["cpu_features"] = other["numpy"]["cpu_features"][:-1]
+    elif section == "blas" and key == "threads":
+        other["blas"]["bundled"][-1]["threads"] += 1
     elif section == "blas":
         other["blas"]["bundled"][-1][key] = (
             "Nehalem" if key == "kernel" else "e" * 64)
@@ -179,6 +185,99 @@ def test_each_part_of_the_runtime_changes_the_environment(runtime, change,
     a = environment_digest(environment_record(runtime=runtime))
     b = environment_digest(environment_record(runtime=other))
     assert a != b, f"{part} did not reach the environment digest"
+
+
+# ---- what NumPy dispatched, and how many threads the BLAS runs ---------------
+def _probe_in(env_extra: dict) -> dict:
+    import os
+    code = ("import sys, json; sys.path.insert(0, %r);"
+            "from scientific import backend_probe as bp;"
+            "print(json.dumps(bp.runtime_record(), sort_keys=True))"
+            % str(ROOT))
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                         text=True, timeout=120, check=True,
+                         env=dict(os.environ, **env_extra))
+    return json.loads(out.stdout)
+
+
+def test_the_probe_records_what_numpy_dispatched(runtime):
+    d = runtime["numpy"]["dispatch"]
+    assert d["functions"] > 0
+    assert sum(d["targets"].values()) == d["functions"]
+    assert len(d["sha256"]) == 64
+
+
+def test_the_dispatch_record_follows_the_runtime_choice_not_the_cpu(runtime):
+    """Disable every dispatch target this host selected: the CPU still
+    offers the features -- ``cpu_features`` may still list them -- but the
+    dispatcher chooses the baseline, and the record says so."""
+    chosen = [t for t in runtime["numpy"]["dispatch"]["targets"]
+              if not t.startswith("baseline")]
+    if not chosen:
+        pytest.skip("this host dispatches nothing above the baseline")
+    rec = _probe_in({"NPY_DISABLE_CPU_FEATURES": " ".join(chosen)})
+    assert rec["status"] == bp.RESOLVED, rec["unresolved"]
+    d = rec["numpy"]["dispatch"]
+    assert all(t.startswith("baseline") for t in d["targets"]), d["targets"]
+    assert d["sha256"] != runtime["numpy"]["dispatch"]["sha256"]
+
+
+def test_the_dispatch_digest_is_over_each_choice(monkeypatch):
+    """Two processes that dispatch the same functions to different targets
+    have different records -- a digest over the function names alone would
+    call them the same."""
+    import numpy.lib.introspect as intro
+    fake = {"add": {"dd": {"current": "X86_V4", "available": ["X86_V4"]}},
+            "sqrt": {"d": {"current": "X86_V3", "available": ["X86_V3"]}}}
+    monkeypatch.setattr(intro, "opt_func_info", lambda: fake)
+    a = bp._numpy_dispatch()
+    fake["add"]["dd"]["current"] = "X86_V3"
+    b = bp._numpy_dispatch()
+    assert a["functions"] == b["functions"] == 2
+    assert a["sha256"] != b["sha256"]
+    assert b["targets"] == {"X86_V3": 2}
+
+
+def test_a_numpy_that_cannot_say_what_it_dispatched_is_unresolved(
+        monkeypatch):
+    monkeypatch.setattr(bp, "_numpy_dispatch", lambda: None)
+    rec = bp.runtime_record()
+    assert rec["status"] == bp.UNRESOLVED
+    assert "numpy runtime dispatch" in rec["unresolved"]
+    assert environment_record(runtime=rec)["backend_status"] == "UNRESOLVED"
+
+
+def test_an_empty_dispatch_table_is_not_an_answer(monkeypatch):
+    import numpy.lib.introspect as intro
+    monkeypatch.setattr(intro, "opt_func_info", lambda: {})
+    assert bp._numpy_dispatch() is None
+
+
+def test_the_blas_thread_count_is_what_the_library_answers(runtime):
+    for lib in runtime["blas"]["bundled"]:
+        assert isinstance(lib["threads"], int) and lib["threads"] >= 1, lib
+        assert isinstance(lib["parallel"], int), lib
+    one = _probe_in({"OPENBLAS_NUM_THREADS": "1"})
+    assert [b["threads"] for b in one["blas"]["bundled"]] == [
+        1 for _ in one["blas"]["bundled"]]
+
+
+def test_a_blas_that_cannot_say_its_threads_is_unresolved(monkeypatch):
+    monkeypatch.setattr(bp, "_THREADS", ("no_such_symbol",))
+    rec = bp.runtime_record()
+    assert rec["status"] == bp.UNRESOLVED
+    assert "numpy blas threads" in rec["unresolved"]
+
+
+def test_glibc_tunables_is_part_of_the_backend():
+    """glibc's libm picks its FMA/AVX2 variants by IFUNC; a tunable that
+    masks a feature changes which variant computes exp and log."""
+    assert "GLIBC_TUNABLES" in ri.BACKEND_VARIABLES
+    a = environment_record(environ={})
+    b = environment_record(environ={"GLIBC_TUNABLES":
+                                    "glibc.cpu.hwcaps=-AVX2_Usable"})
+    assert b["backend"]["variables"]["GLIBC_TUNABLES"]
+    assert environment_digest(a) != environment_digest(b)
 
 
 def test_a_bundled_blas_that_does_not_name_its_kernel_is_unresolved(

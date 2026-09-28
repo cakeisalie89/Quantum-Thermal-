@@ -1,6 +1,6 @@
 {
   "title": "The backend a run actually used, and reuse refused where it is not known",
-  "note": "scientific.backend_probe and scientific.run_identity (D-2026-94): the runtime probe (NumPy's dispatched CPU features, every bundled OpenBLAS found by its distribution's RECORD and asked its kernel, the system C and math libraries by their bytes) independent of import order; the native build by its installed bytes as well as its RECORD; backend_status digested with the identity; an UNRESOLVED backend recomputed, never reused; the governed identity and its bundle computed from the one probed environment.",
+  "note": "scientific.backend_probe and scientific.run_identity (D-2026-94): the runtime probe (NumPy's dispatched CPU features, every bundled OpenBLAS found by its distribution's RECORD and asked its kernel, the system C and math libraries by their bytes) independent of import order; the native build by its installed bytes as well as its RECORD; backend_status digested with the identity; an UNRESOLVED backend recomputed, never reused; the governed identity and its bundle computed from the one probed environment. BK27-BK33 (D-2026-97): NumPy's per-function runtime dispatch and each OpenBLAS's runtime thread count and threading model recorded, unresolved when unanswered; GLIBC_TUNABLES a backend variable.",
   "suites": [
     "tests/test_backend_identity.py"
   ],
@@ -186,6 +186,55 @@
       "find": "    if _installed(\"scipy\") and \"scipy\" not in have:\n",
       "replace": "    if False:\n",
       "rationale": "scipy.linalg runs on a BLAS nobody named and the backend is RESOLVED"
+    },
+    {
+      "name": "BK27_the_dispatch_is_a_constant",
+      "path": "scientific/backend_probe.py",
+      "find": "    dispatch = _numpy_dispatch()\n",
+      "replace": "    dispatch = {\"functions\": 1, \"targets\": {\"X86_V3\": 1}, \"sha256\": \"0\" * 64}\n",
+      "rationale": "the record names a dispatch whatever NumPy actually chose"
+    },
+    {
+      "name": "BK28_an_unanswered_dispatch_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "    if dispatch is None:\n        unresolved.append(\"numpy runtime dispatch\")\n",
+      "replace": "    if dispatch is None:\n        pass\n",
+      "rationale": "a NumPy that cannot say what it dispatched is called resolved"
+    },
+    {
+      "name": "BK29_the_dispatch_digest_is_over_names_only",
+      "path": "scientific/backend_probe.py",
+      "find": "                \"\\0\".join(r) for r in rows).encode()).hexdigest()}\n",
+      "replace": "                \"\\0\".join(r[:2]) for r in rows).encode()).hexdigest()}\n",
+      "rationale": "two processes that dispatch the same functions to different targets get one digest"
+    },
+    {
+      "name": "BK30_the_thread_count_is_assumed",
+      "path": "scientific/backend_probe.py",
+      "find": "                threads = _ask_int(handle, _THREADS)\n",
+      "replace": "                threads = os.cpu_count()\n",
+      "rationale": "the thread count is the host's CPU count, not what the library will run"
+    },
+    {
+      "name": "BK31_an_unanswered_thread_count_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "        for part in (\"sha256\", \"kernel\", \"config\", \"threads\", \"parallel\"):\n",
+      "replace": "        for part in (\"sha256\", \"kernel\", \"config\"):\n",
+      "rationale": "a BLAS that cannot say how many threads it runs is called resolved"
+    },
+    {
+      "name": "BK32_an_empty_dispatch_table_is_an_answer",
+      "path": "scientific/backend_probe.py",
+      "find": "    if not rows:\n        return None\n",
+      "replace": "    if not rows and False:\n        return None\n",
+      "rationale": "an empty table -- nothing dispatched, nothing said -- reads as a dispatch"
+    },
+    {
+      "name": "BK33_glibc_tunables_are_not_recorded",
+      "path": "scientific/run_identity.py",
+      "find": "    \"OPENBLAS_CORETYPE\", \"MKL_CBWR\", \"MKL_ENABLE_INSTRUCTIONS\",\n    \"GLIBC_TUNABLES\")",
+      "replace": "    \"OPENBLAS_CORETYPE\", \"MKL_CBWR\", \"MKL_ENABLE_INSTRUCTIONS\")",
+      "rationale": "a tunable masking libm's FMA/AVX2 variants changes nothing in the identity"
     }
   ]
 }

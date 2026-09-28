@@ -142,6 +142,15 @@ _CORENAME = ("scipy_openblas_get_corename64_", "scipy_openblas_get_corename",
              "openblas_get_corename64_", "openblas_get_corename")
 _CONFIG = ("scipy_openblas_get_config64_", "scipy_openblas_get_config",
            "openblas_get_config64_", "openblas_get_config")
+#: How many threads the library WILL use for a level-3 call, as it answers
+#: at runtime -- not what a variable asked for. A thread count changes the
+#: order of a blocked reduction, so it is part of which arithmetic runs.
+_THREADS = ("scipy_openblas_get_num_threads64_",
+            "scipy_openblas_get_num_threads",
+            "openblas_get_num_threads64_", "openblas_get_num_threads")
+#: Which threading model the build uses (0 sequential, 1 pthreads, 2 OpenMP).
+_PARALLEL = ("scipy_openblas_get_parallel64_", "scipy_openblas_get_parallel",
+             "openblas_get_parallel64_", "openblas_get_parallel")
 #: The distributions whose bundled BLAS a scientific run can execute on.
 BLAS_DISTRIBUTIONS = ("numpy", "scipy")
 
@@ -154,6 +163,15 @@ def _ask(handle, names) -> str | None:
             answer = fn()
             return None if answer is None else answer.decode("ascii",
                                                              "replace")
+    return None
+
+
+def _ask_int(handle, names) -> int | None:
+    for sym in names:
+        fn = getattr(handle, sym, None)
+        if fn is not None:
+            fn.restype = ctypes.c_int
+            return int(fn())
     return None
 
 
@@ -180,10 +198,17 @@ def _bundled_blas() -> list:
             try:
                 handle = ctypes.CDLL(path)
             except OSError:
-                entry.update(kernel=UNRESOLVED, config=UNRESOLVED)
+                entry.update(kernel=UNRESOLVED, config=UNRESOLVED,
+                             threads=UNRESOLVED, parallel=UNRESOLVED)
             else:
+                threads = _ask_int(handle, _THREADS)
+                parallel = _ask_int(handle, _PARALLEL)
                 entry.update(kernel=_ask(handle, _CORENAME) or UNRESOLVED,
-                             config=_ask(handle, _CONFIG) or UNRESOLVED)
+                             config=_ask(handle, _CONFIG) or UNRESOLVED,
+                             threads=UNRESOLVED if threads is None
+                             else threads,
+                             parallel=UNRESOLVED if parallel is None
+                             else parallel)
             out.append(entry)
     return out
 
@@ -209,6 +234,33 @@ def _build_blas(np) -> dict:
             for k in ("blas", "lapack")}
 
 
+def _numpy_dispatch() -> dict | None:
+    """Which implementation NumPy's runtime dispatch SELECTED, function by
+    function and signature by signature, in this process.
+
+    ``__cpu_features__`` says what the CPU offers and a disabled feature
+    may still read as present there; this is what the dispatcher chose from
+    it -- the thing R59 measured, and the only reading on which a build with
+    no runtime dispatch and a host-dispatched build can be told apart. None
+    when NumPy cannot say, which is unresolved rather than assumed."""
+    try:
+        from numpy.lib.introspect import opt_func_info
+        info = opt_func_info()
+    except Exception:                               # noqa: BLE001
+        return None
+    rows = sorted((str(func), str(sig), str(chosen.get("current")))
+                  for func, sigs in info.items()
+                  for sig, chosen in sigs.items())
+    if not rows:
+        return None
+    targets: dict = {}
+    for _, _, current in rows:
+        targets[current] = targets.get(current, 0) + 1
+    return {"functions": len(rows), "targets": dict(sorted(targets.items())),
+            "sha256": hashlib.sha256("\n".join(
+                "\0".join(r) for r in rows).encode()).hexdigest()}
+
+
 def runtime_record() -> dict:
     """The numeric backend of THIS process, canonicalisable. Imports NumPy
     when it is installed; a process with no NumPy installed has no NumPy
@@ -229,10 +281,14 @@ def runtime_record() -> dict:
     except Exception:                               # noqa: BLE001
         simd = {}
         unresolved.append("numpy simd configuration")
+    dispatch = _numpy_dispatch()
+    if dispatch is None:
+        unresolved.append("numpy runtime dispatch")
     numpy = {"version": np.__version__,
              "cpu_features": sorted(k for k, v in (feats or {}).items() if v),
              "simd": {k: simd.get(k) for k in ("baseline", "found",
-                                               "not found")}}
+                                               "not found")},
+             "dispatch": dispatch}
     return _record(unresolved, numpy=numpy, build=_build_blas(np))
 
 
@@ -258,7 +314,7 @@ def _record(unresolved: list, *, numpy, build) -> dict:
         unresolved.append("scipy's BLAS is not a bundled build the probe "
                           "identifies")
     for lib in bundled:
-        for part in ("sha256", "kernel", "config"):
+        for part in ("sha256", "kernel", "config", "threads", "parallel"):
             if lib[part] == UNRESOLVED:
                 unresolved.append(f"{lib['distribution']} blas {part}")
     libs = {}

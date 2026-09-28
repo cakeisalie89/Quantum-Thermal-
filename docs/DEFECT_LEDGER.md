@@ -8708,3 +8708,43 @@ Mutations KW1-KW6 in `tools/mutations/signed_append_lifecycle.json`.
 **NOT CHANGED.** The readers, the lifecycle semantics and the attestation
 format. No governed writer signs yet (plan item 79), so no production path
 changes behaviour; the refusal is where a signing writer will meet it.
+
+## D-2026-97 — the probe named the CPU features NumPy saw, not the loops it chose, and never asked the BLAS how many threads it runs
+
+**CLASS** — `IDENTITY_INCOMPLETE`, `scientific/backend_probe.py`,
+`scientific/run_identity.py`. Found by the directive-7 inventory of
+D-2026-94; part of R59-A's evidence base, not a repair of R59.
+
+**WHAT WAS THERE.** The runtime record carried `numpy.__cpu_features__` --
+what the CPU offers -- and each bundled OpenBLAS's kernel and build string.
+Measured here: with `NPY_DISABLE_CPU_FEATURES=X86_V4 AVX512_ICL AVX512_SPR`
+the feature table still lists AVX512F, AVX512BW and the rest as present;
+only the group tokens change. What changed the bytes in R59 is what the
+dispatcher SELECTED, function by function -- 477 selections on this host,
+244 of them X86_V3, 159 X86_V4, 20 AVX512_SPR, 54 baseline -- and nothing
+recorded that. Nor was the BLAS thread count recorded as the library
+answers it: the identity held the variables that request a count and the
+host's CPU count, which is not what a library with a compiled-in maximum or
+a pinned count actually runs. And `GLIBC_TUNABLES`, which can mask the
+features glibc's libm IFUNCs select FMA and AVX2 variants of exp, log and
+pow by, was not a backend variable.
+
+**REPAIR.** The record carries `numpy.dispatch`: the count of selections,
+the count per selected target, and a digest over every (function,
+signature, selected target) -- read from `numpy.lib.introspect.
+opt_func_info`, and `UNRESOLVED` when NumPy cannot answer or answers with
+an empty table. Each bundled OpenBLAS is asked `get_num_threads` and
+`get_parallel`; an unanswered one is `UNRESOLVED`. `GLIBC_TUNABLES` and
+`GOTO_NUM_THREADS` are backend variables.
+
+**EVIDENCE.** `tests/test_backend_identity.py`: the dispatch record follows
+the runtime choice (every selected target disabled -> every selection
+baseline, a different digest) while the CPU is unchanged; the digest is
+over each choice, not the function names; unanswered dispatch and thread
+count are unresolved; `OPENBLAS_NUM_THREADS=1` is read back as 1 from the
+library itself; each new part reaches the environment digest. Mutations
+BK27-BK33.
+
+**NOT CHANGED.** Which runs may be reused: an unresolved or different
+backend is recomputed exactly as before; a run identity simply names more of
+what executed.
