@@ -1682,3 +1682,314 @@ external environment. DEFERRED: not built. LEGACY: retained as history.
 E (directive 52): the generic numerical configuration and the 45 active
 Mode-letter labels -- `mode_d_temp_threshold_K` first, then the seven
 physics plugins -- not begun. Stopping here per section 60.
+
+## 15. Corrective tranche checkpoint report -- the long campaign, authenticated history, the signed append, the backend a run used (directive 6, CA-CD)
+
+Directive 6, sections 28-50, the corrective tranche it orders before E, and
+section 107's report. Starting SHA `b683977`; ending code SHA `90bfe7a`; this
+report is the commit after it. Not merged; PR #17 open, no new PR, no history
+rewritten. **E is not begun**: it waits for an explicit continuation.
+Hosted CI for each SHA is below, taken from runs for that exact SHA only.
+
+### Commits
+
+| Commit | What |
+|---|---|
+| `a276931` | CA. The long mixed campaign waits at a real start line, checks safety before vacuity, and judges coverage on transition EDGES, not destination labels (D-2026-91; not R59) |
+| `1527df3` | CB. A signature provider states its assurance: the pure-Python Ed25519 is REFERENCE_ONLY and production authentication refuses it; a history is UNAUTHENTICATED_LEGACY or AUTHENTICATED_REQUIRED, declared at genesis and enforced in the verified-read primitives every reader uses; reader-by-reader coverage recorded (D-2026-92) |
+| `939f9a9` | CC. The signed append makes the attestation durable first, so a crash leaves states with one meaning each; the registry is trusted at the digest the deployment pinned; a key has a life in log positions; both parsers fuzzed (D-2026-93) |
+| `90bfe7a` | CD. The run identity reads installed native bytes and a runtime probe of the worker's backend -- dispatched features, each bundled OpenBLAS's kernel, the C, math and loader libraries -- order-independently; an unresolved backend is recomputed, never reused (D-2026-94) |
+| (next) | this report |
+
+### Counts at the ending SHA (baseline at `b683977` in brackets)
+
+* Tracked files 696 [680]; 52 files changed from `b683977` (16 added, 36
+  modified). Dispositions 696 rows [680]: +16, each one rule -- 3 test
+  files (KEEP_AND_HARDEN); 4 mutation specs, 7 fuzz-corpus findings and 2
+  modules, `qta_agent/signature.py` and `scientific/backend_probe.py`
+  (KEEP_AS_IS). No row of an existing file changed.
+* ACTIVE 113 [111] / TRANSITIONAL 75 [75] modules; ACTIVE importing legacy
+  0, naming a legacy file 0, importing legacy ontology 0; TRANSITIONAL still
+  reaching legacy 30 [30].
+* Full suite 4909 passed, 9 skipped, 0 failed [4741, 9] -- 4765 at CA, 4809
+  at CB, 4872 at CC, 4909 at CD; test modules collectable alone 137 [134].
+* Mutation specs 69 [65] in 8 shards; fuzz targets 27 [23], corpus
+  findings 9 [2].
+* Durable actions independently read 39 of 39 [38 of 38]
+  (`history.security_profile`).
+* Generic models registered 3 [3]; governed 2 [2]. Active Mode-letter
+  labels unchanged -- E is not begun.
+
+### Mutation results (local, serial, baseline and null control green, sources restored byte-identical in every run)
+
+New specs: stress_campaign_coverage 15/15 (CA), authenticated_history 23/23
+(CB), signed_append_lifecycle 27/27 (CC), backend_probe 26/26 (CD). Existing
+specs re-run on the tree of the commit that touched their files -- at CA:
+agent_cross_process 11/11; at CB: actor_authentication 19/19,
+agent_snapshot_coherence 20/20, agent_substrate 52/52, agent_incremental 9/9,
+agent_checkpoint 48/48 (on its final code), and on its first draft
+scientific_authority_replay 25/25, task_execution_phase 10/10,
+second_reader_audit_actions 27/27, agent_cross_process 11/11,
+agent_second_reader 103/103; at CC: actor_authentication 19/19,
+authenticated_history 23/23, agent_snapshot_coherence 20/20, fuzz_harness
+9/9, agent_incremental 9/9, agent_checkpoint 48/48, agent_substrate 52/52; at
+CD: run_identity_backend 9/9, scientific_interfaces 27/27, fuzz_harness 9/9
+(on the tree integrated with CC), governed_model_reuse 20/20,
+scientific_thermal_1d 12/12, scientific_thermal_2d 15/15, surface_adsorption
+25/25, scientific_authority_replay 25/25. Every final result is 100%; the
+two interim results that were not are below.
+
+**Not counted.** (1) SA9 survived CC's first run (26/27): nothing tested
+that only an attestation one past the head can be the prepare in flight.
+The test was added and the spec re-run, 27/27. (2) EP1 reported ANCHOR DRIFT
+in one CB run: the fix to the anchored gate rewrote the line it mutates. An
+anchor drift tests nothing and was not counted; EP1 was re-anchored (same
+mutation) and the spec re-run on the final tree, 23/23. (3) Two matrix runs
+and two validations were stopped on purpose when a defect was found in the
+tree they were testing (below); their partial results were discarded, and
+each tree they ran on was reset from its git tree object rather than
+assumed restored.
+
+### Defects found in this tranche's own drafts, before any push
+
+Each was reproduced, fixed, tested and mutated; none reached a pushed
+commit.
+
+* CB, **fail-open**: the log remembered the profile an EMPTY history
+  answered, so a reader that had looked before genesis folded a REQUIRED
+  history's anchored tail with no authenticator (ok, seqs 2-3 returned).
+  AH22.
+* CB, **fail-open**: the no-authenticator refusal fired only when events were
+  returned, so an anchored read with an empty tail -- a writer's own head
+  check -- passed, and a writer holding an anchor could extend a REQUIRED
+  history without authenticating its head. AH23.
+* CB: the shard matrix was regenerated before the spec's size changed; the
+  first full validation failed three workflow tests. The derived chain now
+  regenerates shards first.
+* CC: the attestation reader accepted a signature written with an uppercase
+  hex digit (found by the fuzzer on the pre-fix parser, with four registry
+  crashes); a deeply nested line crashed every authenticating reader (found
+  by review; the fuzzer's mutators had not reached that depth).
+* CD: the first probe read the process's own mappings and named whichever
+  OpenBLAS was loaded first -- order-dependent between the identity process
+  and the run. A later draft resolved a backend whose BLAS was not a bundled
+  build it could identify (MKL, Accelerate, a system BLAS). BK25, BK26.
+
+### Hosted CI, by exact SHA
+
+At the time of writing (2026-09-28, 01:10 UTC); each run is for exactly the
+SHA named, and what has not finished is not claimed.
+
+* `a276931` (CA). PR, qta-agent-substrate 36354174324: **success, every
+  job** -- including **second-interpreter (3.13), job 108718462779**, the
+  job the directive required green on this SHA, and all eight mutation
+  shards. PR, qta-stack-verify 36354174315: success. Push,
+  qta-agent-substrate 36354170435: every job green but full-suite, R59
+  below.
+* `1527df3` (CB). PR, qta-agent-substrate 36361082050: every job green --
+  agent-substrate, full-suite (byte comparison included), 3.13,
+  dispatch-sensitivity, cross-environment-3d, shards 1, 2, 4-8 -- with
+  shard 3 still running. PR, qta-stack-verify 36361082020: success. Push,
+  qta-agent-substrate 36361078292: full-suite R59 below; the rest running.
+* `939f9a9` (CC). PR, qta-stack-verify 36362758568: success. PR and push,
+  qta-agent-substrate 36362758545 / 36362754823: running; the push run's
+  full-suite is R59 below.
+* `90bfe7a` (CD). qta-agent-substrate 36364583154 (push) and 36364585753
+  (PR), qta-stack-verify 36364585757: queued.
+
+### R59, separately
+
+Classified only where all four conditions were shown for that exact job:
+the full pytest step passed; package consistency failed on its byte
+comparison of root canonical copies alone (the known 23); the dispatch step
+shows a runner kernel other than the committed SkylakeX/AVX-512 pair; and
+the decision check found DECISION 0 and SIGN_FLIP 0.
+
+* `a276931` (CA), push run 36354170435, full-suite job 108718451909:
+  **R59** -- pytest step success; runner kernel Haswell, NumPy SIMD
+  `X86_V3` (no AVX-512); package consistency failed on the byte comparison
+  alone, 23 stale root copies; decision check DECISION 0, SIGN_FLIP 0
+  (ZERO_CROSSING 27, 26 declared by their files, 1 bare; PRECISION 179).
+* `1527df3` (CB), push run 36361078292, full-suite job 108738266775:
+  **R59**, the same four facts and the same counts.
+* `939f9a9` (CC), push run 36362754823, full-suite job 108743055329:
+  **R59**, the same four facts and the same counts.
+* `1527df3` (CB), PR run 36361082050, full-suite job 108738277615: **not
+  R59 -- green**, package consistency and its byte comparison included.
+  The same commit reproduced the canonical bytes on one runner and not on
+  another; R59 is the runner's dispatch, not the commit.
+
+No tolerance was widened, no canonical output rewritten, no second R59
+comment posted on the PR. CD makes a run on such a runner a different
+computation for reuse; it does not make canonical bytes portable, and it is
+not R59's repair (item 64).
+
+### R41, R49, D-2026-69
+
+* **R41** unchanged: closed in code, not promoted -- no production code gates
+  on the audit and no hosted run is its evidence.
+* **R49** unchanged: the origin view counted; the evidence lookup's
+  filesystem half timed, no hosted margin.
+* **D-2026-69** open, unchanged: closes only when its legacy producer is
+  replaced (qta_full_sim, item 60).
+
+### Status, field by field
+
+* **Stress test (CA)**: closed. Rendezvous start line, safety before vacuity,
+  edge coverage; deterministic controls; Python 3.13 hosted green at
+  `a276931` (job 108718462779).
+* **Signature provider (CB)**: seam implemented; the reference is
+  REFERENCE_ONLY, with its reasons stated (one unaudited transcription,
+  encoding and non-canonical input, small-order behaviour, malleability, a
+  review surface nobody else maintains -- not only constant time). A VETTED
+  provider is **EXTERNALLY_BLOCKED**: adding `cryptography` or libsodium is a
+  declared supply-chain decision for the deployment; the conformance gate
+  that would admit one is built and mutated. Offered, not taken.
+* **Security profile (CB)**: closed in code. Missing: a governed writer that
+  signs, so no governed history is REQUIRED today.
+* **Common authenticated event source (CB)**: every reader in `qta_agent`
+  reads through the gated primitives -- fourteen GATED (two with their own
+  verdict too), three tools REFUSES_REQUIRED_ONLY, the hypothesis lifecycle
+  NOT_BUILT; a structural test holds the table complete.
+* **Signed-append crash semantics (CC)**: closed by ORDER, not atomicity:
+  attestation first; torn prepare truncated; stale prepare aborted by record;
+  one pending prepare, at head + 1 only, neither a finding nor an
+  authentication; an abort of a committed event a finding; unsigned writes
+  to a REQUIRED history refused at the write.
+* **Registry trust root (CC)**: closed in code (pinned canonical digest);
+  production pin and keys **EXTERNALLY_BLOCKED**.
+* **Key lifecycle (CC)**: closed -- rotation, expiry, not-yet-valid,
+  revocation forward-only, compromise back exactly as far as declared,
+  replacement of the same principal; v1 documents still read.
+* **Authentication fuzzing (CC)**: closed -- attestations and key_registry
+  in the CI campaign and required; seven pre-fix findings in the corpus.
+* **Runtime backend probe (CD)**: closed on Linux; installed bytes; bundled
+  BLAS identified, anything else UNRESOLVED; system C, math, OpenMP,
+  Fortran and loader libraries by bytes; order-independent; UNRESOLVED
+  recomputed. Parser fuzzing (cpuinfo, proc_maps) closed.
+* **Everything E and after**: unchanged -- the register below.
+
+### Capability-retention matrix (directive 6, s.100)
+
+Status is what code on an exercised path does. Changed rows first.
+
+| Capability | Status | Where | Residual |
+|---|---|---|---|
+| actor authentication | ACTIVE (seam), production EXTERNALLY_BLOCKED | `qta_agent/signature.py`, `principals.py`, `events.py` | no vetted provider, keys or pin (3, 8); writers unsigned (79) |
+| event sourcing | ACTIVE | `qta_agent/events.py` (+ prepare-first signed append) | multi-host (71); external witness (72) |
+| reconstruction | ACTIVE | `qta_agent/reconstruct.py` restates the profile | signature verdict shared, not restated (81) |
+| run identity / backend | ACTIVE on Linux | `scientific/run_identity.py`, `backend_probe.py` | equivalence policy (23); non-Linux UNRESOLVED (82) |
+| fuzzing | ACTIVE | `tools/fuzz_substrate.py`, 27 targets incl. attestations, key_registry, cpuinfo, proc_maps | a floor, not a programme |
+| mutation | ACTIVE | 69 specs in 8 hosted shards | -- |
+| memory, authority, scheduler, network authority, secrets, context, evidence | ACTIVE | as in section 14 | writers unsigned (79); evidence lookup timed (66) |
+| Monte Carlo, UQ, Bayesian inference, EIG, surrogates, OOD, SALib, OpenMDAO, HDF5, VTK/ParaView, OpenUSD, Rust, FMI, RO-Crate | TRANSITIONAL | as in section 14 | items 35-36, 48-57, 68-69 |
+| adaptive campaigns | LEGACY / DEFERRED | as in section 14 | item 55 |
+| FEniCSx, Sigstore | STAGED | as in section 14 | EXTERNALLY_BLOCKED (67, 73) |
+| Snakemake, RAG, SLSA (limited), in-toto, CycloneDX, long-horizon | ACTIVE | as in section 14 | items 58-59, 70 |
+
+### Open items (directive 6, s.101), all kept visible
+
+1. ~~Stress-test start barrier.~~ Closed (CA, D-2026-91).
+2. ~~Label-based anti-vacuity.~~ Closed: edge coverage, safety first (CA).
+3. Vetted signature provider: **EXTERNALLY_BLOCKED / PENDING**. Seam and
+   behavioural conformance gate built (CB); choosing and declaring
+   `cryptography` or libsodium is the deployment's decision.
+4. ~~Pure-Python Ed25519 as a trust provider.~~ Closed: REFERENCE_ONLY;
+   production refuses it and refuses to sign production keys through it (CB).
+5. ~~Signed-append crash window.~~ Closed by ordering, not atomicity (CC).
+6. ~~Authentication optional by omission.~~ Closed: AUTHENTICATED_REQUIRED
+   profile, downgrade refused where pinned (CB).
+7. ~~No common authenticated event source.~~ Closed at the primitives;
+   residual 80.
+8. Registry trust root: closed in code (pinned digest, CC); the production
+   pin is **EXTERNALLY_BLOCKED**.
+9. ~~Key rotation.~~ Closed, by log position (CC).
+10. ~~Key revocation.~~ Closed, forward-only; compromise back as declared (CC).
+11. ~~Historical key validity.~~ Closed (CC).
+12. Task authentication: reads GATED (the task projection through
+    `reconstruct`, with its own verdict); task writes unsigned (79).
+13. Scheduler authentication: reads GATED; writes unsigned (79).
+14. Memory authentication: reads GATED; writes unsigned (79).
+15. Hypothesis authentication: NOT_BUILT, with the lifecycle (37).
+16. ~~Attestation parser unfuzzed.~~ Closed (CC).
+17. ~~Registry parser unfuzzed.~~ Closed (CC).
+18. ~~CPU/backend parsers unfuzzed.~~ Closed (CD).
+19. ~~Native build by RECORD only.~~ Closed: installed bytes (CD).
+20. System BLAS: a bundled BLAS is identified; any other is UNRESOLVED and
+    recomputed, not identified (CD).
+21. System LAPACK: as 20.
+22. ~~No runtime backend probe.~~ Closed on Linux (CD); residual 82.
+23. Cross-backend equivalence policy: open -- different is refused, never
+    reconciled.
+24. ~~Cross-machine reuse fail-closed.~~ Closed: unresolved or different is
+    recomputed (CD).
+25. Cross-history reuse: intentionally undeveloped.
+26. Invalidation has no production caller.
+27. `settle` is not automatic.
+28. A model VERSION cannot be withdrawn.
+29. Generic numerical configuration (E).
+30. Mode semantics in active configuration (E).
+31. Semantic ontology lint (E/F).
+32. Phase graph -- coupled_mode_solver's fixed schedule (F).
+33. deep_expdesign's import of the design registry (G).
+34. Generic design space (G).
+35. Generic Monte Carlo over ScientificModel (H).
+36. Typed uncertainty taxonomy (H).
+37. Hypothesis lifecycle FSM (I).
+38. Model migration: gas transport 1D (J).
+39. Model migration: gas transport 2D (J).
+40. Model migration: species (J).
+41. Model migration: surface beyond Langmuir capture (J).
+42. Model migration: radiation (J).
+43. Model migration: vibration (J).
+44. Model migration: optical (J).
+45. Model migration: microwave (J).
+46. Model migration: materials (J).
+47. Model migration: spin/NV and thermal 3D (J).
+48. SALib on ScientificModel (K).
+49. OpenMDAO off operating-point authority (K).
+50. Bayesian inference on generic observations (K).
+51. Calibration on generic observations (K).
+52. Surrogate trust off QTA design-space assumptions (K).
+53. OOD off QTA design-space assumptions (K).
+54. EIG candidate contracts (K).
+55. Adaptive campaigns as event-sourced orchestration.
+56. HDF5 payload QTA-shaped (L).
+57. RO-Crate payload QTA-shaped (L).
+58. Release artifact set partly QTA-shaped (M).
+59. Generic manifest / release scope (M).
+60. qta_full_sim.py unmined (N).
+61. qta_full_sim.py not retired (N).
+62. Stage-10 naming in generic paths (O).
+63. D-2026-69 open.
+64. R59 open: classified twice this tranche, never repaired by widening.
+65. R41 not promoted.
+66. R49's filesystem half timed, no hosted margin.
+67. FEniCSx staged, EXTERNALLY_BLOCKED.
+68. Rust host-conditional.
+69. FMI deferred.
+70. Long-horizon evidence is not millions-scale.
+71. Multi-host semantics untested; the signed append's ordering rests on
+    the local writer lock.
+72. External head witness / storage trust.
+73. Release signing EXTERNALLY_BLOCKED.
+74. Legacy release retirement.
+75. Legacy corpus retained as history.
+76. 30 of 75 transitional modules still reach legacy.
+77. Capability accounting -- the matrix above.
+78. Final hostile audit: at the end of the programme, not now.
+79. NEW. No governed writer signs, so no governed history is
+    AUTHENTICATED_REQUIRED today; every subsystem appends unsigned.
+80. NEW. The three tools that open their own log (`audit_log`,
+    `generic_consistency`, `independent_verify`) cannot be handed a registry
+    and can only refuse a REQUIRED history.
+81. NEW (carried from section 14's 44). The independent reader restates the
+    profile but shares the signature verdict with the primary.
+82. NEW. A backend resolves only on Linux (procfs, the loader's search);
+    elsewhere it is UNRESOLVED and every run recomputes.
+
+### Next, exactly
+
+E (directive 6): the generic numerical configuration and the Mode
+semantics -- not begun. **Stopping here**, per the directive, until an
+explicit continuation.
