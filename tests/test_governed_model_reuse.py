@@ -464,8 +464,9 @@ def test_the_identity_is_this_model_these_parameters_this_environment(world):
     in), and the interpreter, the numeric libraries and the numeric backend
     -- of the environment the governed tool RAN in, whose thread counts are
     pinned, not of this test process's."""
+    from scientific.backend_probe import run_environment
     from scientific.models.thermal_1d import Thermal1DModel
-    from scientific.run_identity import environment_digest, environment_record
+    from scientific.run_identity import environment_digest
     g, first, _, _, ev = world
     ident = _doc(ev, g.authority.get(first.record_id)
                  .evidence["run_identity"])
@@ -475,5 +476,8 @@ def test_the_identity_is_this_model_these_parameters_this_environment(world):
     assert ident["implementation_digest"] == model.implementation_digest()
     assert ident["parameter_digest"] == digest(model.validate(PARAMS))
     assert ident["parameter_digest"] != digest(PARAMS)
+    # the worker probed its runtime backend; the probe answers the same in
+    # any process on this host, whatever it loaded first
     assert ident["environment_digest"] == environment_digest(
-        environment_record(environ=g.gov._tool_environment()))
+        run_environment(environ=g.gov._tool_environment()))
+    assert ident["backend_status"] == "RESOLVED"

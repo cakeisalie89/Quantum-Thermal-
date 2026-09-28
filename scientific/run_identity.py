@@ -76,21 +76,72 @@ def cpu_record(cpuinfo: str | None) -> dict:
     return {"source": "cpuinfo", "simd": sorted(flags), "core": core}
 
 
+#: Installed-byte digests, cached per (path, size, mtime, inode) within a
+#: process: hashing a numeric stack's native payload is tens of megabytes,
+#: and a process computes its identity more than once.
+_BYTES: dict = {}
+
+
+def _installed_sha256(path) -> str | None:
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    key = (str(path), st.st_size, st.st_mtime_ns, st.st_ino)
+    if key not in _BYTES:
+        h = hashlib.sha256()
+        try:
+            with open(path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+        except OSError:
+            return None
+        _BYTES[key] = h.hexdigest()
+    return _BYTES[key]
+
+
 def native_record(distribution: str) -> dict:
-    """Which compiled code a distribution installed, from its own RECORD:
-    every extension module and bundled library, by the digest its wheel
-    recorded. The native build, read without loading it."""
+    """Which compiled code a distribution installed: every extension module
+    and bundled library, by the digest its wheel RECORDED and by the digest
+    of the bytes INSTALLED now. The two are different claims. RECORD says
+    what the wheel shipped; a library replaced after installation leaves
+    RECORD unchanged, so a digest of RECORD alone would call the replaced
+    build the same computation. A file that cannot be read is named and the
+    record is ``UNRESOLVED``; one whose bytes no longer match RECORD makes
+    it ``MODIFIED`` -- both stated, neither guessed."""
     try:
         files = importlib.metadata.files(distribution) or []
     except importlib.metadata.PackageNotFoundError:
         return {"status": "ABSENT"}
-    h = hashlib.sha256()
+    declared = hashlib.sha256()
+    installed = hashlib.sha256()
     n = 0
+    unreadable, modified = [], []
     for f in sorted(files, key=str):
-        if _NATIVE_FILE.search(str(f)) and f.hash is not None:
-            h.update(f"{f}\0{f.hash.mode}:{f.hash.value}\n".encode())
-            n += 1
-    return {"native_files": n, "native_sha256": h.hexdigest()}
+        if not _NATIVE_FILE.search(str(f)) or f.hash is None:
+            continue
+        declared.update(f"{f}\0{f.hash.mode}:{f.hash.value}\n".encode())
+        n += 1
+        now = _installed_sha256(f.locate())
+        if now is None:
+            unreadable.append(str(f))
+            continue
+        installed.update(f"{f}\0sha256:{now}\n".encode())
+        if f.hash.mode == "sha256" and _b64_sha(now) != f.hash.value:
+            modified.append(str(f))
+    status = ("UNRESOLVED" if unreadable
+              else "MODIFIED" if modified else "RESOLVED")
+    return {"status": status, "native_files": n,
+            "native_sha256": declared.hexdigest(),
+            "installed_sha256": installed.hexdigest(),
+            "unreadable": unreadable, "modified": modified}
+
+
+def _b64_sha(hexdigest: str) -> str:
+    """A hex sha256 in the urlsafe, unpadded base64 a wheel RECORD uses."""
+    import base64
+    return base64.urlsafe_b64encode(bytes.fromhex(hexdigest)).decode(
+        ).rstrip("=")
 
 
 def _read_cpuinfo():
@@ -101,7 +152,7 @@ def _read_cpuinfo():
 
 
 def environment_record(distributions=ENVIRONMENT_DISTRIBUTIONS, *,
-                       environ=None, cpuinfo=_READ) -> dict:
+                       environ=None, cpuinfo=_READ, runtime=None) -> dict:
     """What the interpreter, the numeric libraries and the numeric BACKEND
     are, read from metadata, ``/proc/cpuinfo`` and the environment --
     nothing is imported to find out.
@@ -114,6 +165,7 @@ def environment_record(distributions=ENVIRONMENT_DISTRIBUTIONS, *,
     ``environ`` defaults to this process's; pass the environment a governed
     tool actually got to describe that tool's run."""
     environ = os.environ if environ is None else environ
+    natives = {d: native_record(d) for d in distributions}
     versions = {}
     for d in distributions:
         try:
@@ -129,7 +181,26 @@ def environment_record(distributions=ENVIRONMENT_DISTRIBUTIONS, *,
             "backend": {"cpu_count": os.cpu_count(),
                         "variables": {v: environ.get(v)
                                       for v in BACKEND_VARIABLES}},
-            "native": {d: native_record(d) for d in distributions}}
+            "native": natives,
+            "runtime": runtime,
+            "backend_status": backend_status(natives=natives,
+                                             runtime=runtime)}
+
+
+def backend_status(*, natives=None, runtime=None,
+                   distributions=ENVIRONMENT_DISTRIBUTIONS) -> str:
+    """``RESOLVED`` only when the native builds are read, unmodified, and
+    the RUNTIME backend was probed and resolved -- what the numeric stack
+    dispatched to, not what metadata says it could. Anything less is
+    ``UNRESOLVED``: an identity that cannot say which backend it ran on
+    cannot be reused (:func:`may_reuse`)."""
+    natives = natives or {d: native_record(d) for d in distributions}
+    if any(n.get("status") != "RESOLVED" for n in natives.values()
+           if n.get("status") != "ABSENT"):
+        return "UNRESOLVED"
+    if not isinstance(runtime, dict) or runtime.get("status") != "RESOLVED":
+        return "UNRESOLVED"
+    return "RESOLVED"
 
 
 def environment_digest(record: dict | None = None) -> str:
@@ -150,6 +221,10 @@ class RunIdentity:
     seeds: tuple = ()
     workflow_revision: str = ""
     upstream_evidence: tuple = ()
+    #: Whether the environment digest names a backend that was actually
+    #: determined -- probed at runtime, native builds read and unmodified.
+    #: Digested with the rest, and consulted by :func:`may_reuse`.
+    backend_status: str = "UNRESOLVED"
 
     def __post_init__(self):
         for f in ("implementation_digest", "parameter_digest",
@@ -172,7 +247,8 @@ class RunIdentity:
                 "environment_digest": self.environment_digest,
                 "seeds": list(self.seeds),
                 "workflow_revision": self.workflow_revision,
-                "upstream_evidence": list(self.upstream_evidence)}
+                "upstream_evidence": list(self.upstream_evidence),
+                "backend_status": self.backend_status}
 
     def digest(self) -> str:
         return digest(self.to_record())
@@ -188,6 +264,13 @@ def may_reuse(prior: RunIdentity, current: RunIdentity, *,
     otherwise ``(False, why)``."""
     # Field by field rather than digest against digest: the digest is over
     # exactly these fields, and naming the one that differs is the point.
+    # AN UNRESOLVED BACKEND IS RECOMPUTED, never reused -- even against
+    # an identical identity: two runs that could not say which backend they
+    # ran on agree only in not knowing, and "same unknown" is not "same".
+    for which, ident in (("prior", prior), ("current", current)):
+        if ident.backend_status != "RESOLVED":
+            return False, (f"the {which} run's numeric backend is "
+                           f"{ident.backend_status}: recompute")
     diff = prior.differences(current)
     if diff:
         return False, f"identity differs in {diff}: recompute"

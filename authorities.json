@@ -121,15 +121,16 @@
    ]
   },
   "run_identity": {
-   "authority": "scientific/run_identity.py :: run_identity_for -- model, implementation digest, validated parameters, environment",
+   "authority": "scientific/run_identity.py :: run_identity_for -- model, implementation digest, validated parameters, environment, backend status; scientific/backend_probe.py :: runtime_record -- the backend the worker actually runs on",
    "owner": "scientific",
    "schema_version": "1",
-   "means": "what counts as 'the same run' for reuse",
-   "does_not_mean": "cross-machine equivalence: a run on another numeric backend -- SIMD set, core, thread or dispatch settings, native build -- is a different run (D-2026-90), and no policy yet says when two backends agree well enough for a given model",
+   "means": "what counts as 'the same run' for reuse: a RESOLVED backend, identical in every recorded part (D-2026-94)",
+   "does_not_mean": "cross-machine equivalence: a run on another numeric backend -- SIMD set, core, thread or dispatch settings, native build, installed bytes, the kernel a BLAS selected, the system libraries -- is a different run (D-2026-90, D-2026-94), and no policy yet says when two backends agree well enough for a given model; nor that an UNRESOLVED backend is the same as anything, itself included -- it is recomputed",
    "enforced_by": [
     "tests/test_governed_model_reuse.py",
     "tests/test_scientific_identity.py",
-    "tests/test_run_identity_backend.py"
+    "tests/test_run_identity_backend.py",
+    "tests/test_backend_identity.py"
    ]
   },
   "framework_boundary": {

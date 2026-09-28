@@ -180,11 +180,16 @@ def run_identity_for(model: ScientificModel, params: dict,
     """The identity of running ``model`` on already-validated ``params``
     here: the one definition both a bundle's provenance and a reuse check
     use, so the two cannot disagree about what "the same run" means."""
+    # The runtime backend is probed HERE, in the worker computing the
+    # identity -- lazily, so importing this interface imports no NumPy.
+    from .backend_probe import run_environment
+    env = run_environment()
     return RunIdentity(
         model_id=model.model_id, model_version=model.model_version,
         implementation_digest=model.implementation_digest(),
         parameter_digest=digest(params),
-        environment_digest=environment_digest(), seeds=tuple(seeds))
+        environment_digest=environment_digest(env), seeds=tuple(seeds),
+        backend_status=env["backend_status"])
 
 
 def run_model(model: ScientificModel, inputs: dict) -> ResultBundle:

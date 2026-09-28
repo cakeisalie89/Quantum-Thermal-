@@ -390,6 +390,7 @@ scientific/__init__.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the c
 scientific/_governed_check.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/_governed_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/_governed_run.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/backend_probe.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/catalog.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/checks/__init__.py,KEEP_AS_MODEL_PLUGIN,4,NEW in Phase 2: independent checks with their own implementation digest -- the 2D-to-1D reduction for thermal 1D.,tests/test_scientific_thermal_1d.py
 scientific/checks/langmuir_rk4.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in tranche 4 (directive 22): the independent check of Langmuir capture -- the flux in its pressure form, the rate law by RK4.",tests/test_surface_adsorption.py
@@ -489,6 +490,7 @@ tests/test_authenticated_history.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"
 tests/test_authority_consistency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,authorities.json agrees with reality (retained).,
 tests/test_authority_invariants.py,REWRITE_GENERIC,2-7 (see rationale),Authority invariants over machine FSM + qta_full_sim; keep the non-hardware ones.,
 tests/test_authority_promotion_barrier.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Nothing descriptive/statistical/learned becomes authority -- a retained trust invariant.,
+tests/test_backend_identity.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-94): the backend a run actually used -- installed bytes, the runtime probe, order-independence -- and reuse refused where it is not known.",
 tests/test_bom_status_claim.py,RETIRE_TO_HISTORY,5,"BOM claims (BOM completeness retires, directive s4).",
 tests/test_bootstrap_workflow_contract.py,KEEP_AS_IS,-,Bootstrap workflows are not trust shortcuts.,imports yaml (undeclared)
 tests/test_campaign_3d.py,REWRITE_GENERIC,2-7 (see rationale),Campaign continuity tests follow the campaign rewrite.,
@@ -635,6 +637,7 @@ tools/mutations/agent_substrate.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,
 tools/mutations/agent_tasks.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/authenticated_history.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/authority_result_rules.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/backend_probe.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/canonical_output_set.json,REWRITE_GENERIC,2-7 (see rationale),Targets the QTA canonical-output set in package_consistency_check.py.,
 tools/mutations/claims_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

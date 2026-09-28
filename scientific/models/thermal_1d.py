@@ -51,7 +51,8 @@ from ..quantity import Quantity, ResolutionClass as RC, UncertaintyClass as UC
 from ..result import (
     ArtifactRef, InvariantResult, Output, OutputStatus, ResultBundle,
 )
-from ..run_identity import environment_digest, environment_record
+from ..backend_probe import run_environment
+from ..run_identity import environment_digest
 
 MODEL_ID = "thermal.conduction_1d"
 MODEL_VERSION = "1.0.0"
@@ -223,7 +224,7 @@ class Thermal1DModel(ModelBase):
                           "application/octet-stream", len(field),
                           "magic QTSF1, a JSON header line, then z, t, T "
                           "as little-endian float64")
-        env = environment_record()
+        env = run_environment()
         bundle = ResultBundle(
             model_id=self.model_id, model_version=self.model_version,
             implementation_digest=self.implementation_digest(),

@@ -804,6 +804,11 @@ RULES = [
      "NEW (D-2026-90): each part of the numeric backend changes the run "
      "identity; what changes no kernel does not.",
      ""),
+    ("tests/test_backend_identity.py", KAH,
+     "NEW (D-2026-94): the backend a run actually used -- installed "
+     "bytes, the runtime probe, order-independence -- and reuse "
+     "refused where it is not known.",
+     ""),
     ("tests/test_actor_authentication.py", KAH,
      "NEW (D-2026-89): the actor-authentication seam; every attack shown "
      "past the hash chain, refused by both readers.",

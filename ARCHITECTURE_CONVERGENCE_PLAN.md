@@ -596,6 +596,12 @@ work and does not close the entry by being planned.
   (`run_identity_backend.json`). *Still open:* no equivalence policy says
   when two backends agree for a given model (directive 11); different is
   refused, never reconciled.
+  *Extended (D-2026-94).* The native build by its installed bytes as
+  well as its RECORD; a runtime probe in the worker (NumPy's
+  dispatched features, each bundled OpenBLAS's selected kernel, the
+  C, math and loader libraries by their bytes), order-independent;
+  a `backend_status` digested with the identity; an UNRESOLVED
+  backend recomputed, never reused.
 * **Reuse is per history.** `reusable` searches the records of the log it
   is given; nothing shares verified results between histories, and
   `s10_governed_model` starts a fresh one per invocation on purpose (so

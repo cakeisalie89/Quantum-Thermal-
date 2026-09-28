@@ -8536,3 +8536,106 @@ provider exists (EXTERNALLY_BLOCKED). The governed writers do not sign yet,
 so no governed history is AUTHENTICATED_REQUIRED today. A revocation is only
 as timely as the deployment's registry update. Multi-host writers are outside
 this (the lock is local; open item 71).
+
+## D-2026-94 — the run identity read the backend from metadata, and reused what it could not name
+
+**CLASS** — `GAP`, `scientific/run_identity.py`, `scientific/backend_probe.py`
+(new), `scientific/model.py` and the three models. Directive 6, sections
+43-50. Not R59 itself: this changes what an identity records and when a run
+is reused, and no number, tolerance or canonical output.
+
+What D-2026-90 left the identity unable to say:
+
+1. **The native build was RECORD, not bytes.** Each distribution's compiled
+   code was identified by the digests its wheel's RECORD holds. A library
+   replaced after installation leaves RECORD unchanged, so the identity
+   called the replaced build the same computation; and a file that could not
+   be read was indistinguishable from one that matched.
+2. **Nothing was asked of the running stack.** Which SIMD loops NumPy
+   dispatched to on this CPU, which kernel each bundled OpenBLAS selected,
+   and which C, math and loader libraries the process runs on are runtime
+   decisions -- R59 is one of them -- and metadata cannot see them.
+3. **An unknown backend was reusable.** Nothing distinguished "the backend is
+   known and identical" from "neither run could say what it ran on"; two
+   identities agreeing only in not knowing were reused as the same.
+
+**REPAIR.**
+
+* INSTALLED BYTES. `native_record` hashes every native file's current bytes
+  beside RECORD's digest (cached per path, size, mtime and inode within a
+  process), and states the result: `RESOLVED`; `MODIFIED` naming the files
+  whose bytes no longer match RECORD; or `UNRESOLVED` naming the files that
+  could not be read.
+* THE RUNTIME PROBE (`scientific/backend_probe.py`, new). In the WORKER that
+  runs the model -- NumPy is imported inside `runtime_record`, never at
+  import time, so the top-level scientific interfaces still import no NumPy
+  (shown in a fresh interpreter) -- the probe records NumPy's dispatched CPU
+  features and SIMD configuration; every OpenBLAS the numeric distributions
+  bundle, found through their own RECORD (NumPy's ILP64 build and SciPy's
+  LP64 one: `scipy.linalg` runs on the second), loaded and asked its selected
+  kernel and build configuration, and hashed; the C and math runtimes the
+  loader resolves, the OpenMP and Fortran runtimes where present, and the
+  dynamic loader, each by its bytes. It is ORDER-INDEPENDENT: an identity is
+  computed in one process and a run in another, and the first draft, which
+  read the process's own mappings, named SciPy's OpenBLAS in a process that
+  had imported SciPy and NumPy's in one that had not. The test runs it in
+  the same process before and after importing SciPy, and in fresh processes
+  that load SciPy first and not at all. Anything it cannot determine makes
+  the runtime `UNRESOLVED` and is named; a process with no NumPy installed
+  has no NumPy backend and says so. What it can IDENTIFY is a BLAS its
+  distribution bundles and records; a NumPy built against MKL, Accelerate
+  or a system BLAS or LAPACK, and a SciPy with no bundled BLAS, leave the
+  runtime UNRESOLVED -- the linear algebra would otherwise run on a library
+  nobody named. (A later draft still resolved those: it flagged only
+  "OpenBLAS said, none bundled". Found writing this tranche's report,
+  before the commit; BK25, BK26.)
+* BACKEND STATUS. `environment_record(runtime=...)` carries the probe and a
+  `backend_status` -- `RESOLVED` only when every native build is read and
+  unmodified AND the runtime was probed and resolved. `RunIdentity` carries
+  it and digests it. `run_identity_for` and the three models' bundles both
+  take their environment from `backend_probe.run_environment()`, so the
+  identity and the bundle it describes cannot disagree.
+* REUSE. `may_reuse` refuses, before comparing anything, when either run's
+  backend is not `RESOLVED`: an unresolved backend is recomputed, never
+  reused, even against an identical identity. A resolved, identical backend
+  may be reused (with intact evidence, as before); a different one is
+  recomputed, naming the difference. This is COMPUTATION reuse. Authority
+  is unchanged: a reused result is still admitted only on its evidence,
+  re-derived intact.
+* FUZZED. `cpuinfo` (the record lists only SIMD features the text lists, and
+  canonicalises) and `proc_maps` (an answer is an absolute path the text
+  names, of exactly that soname), in the bounded CI campaign and required by
+  the fuzz test; the fuzzer's coverage now counts lines in `scientific/` as
+  well as `qta_agent/`. 5000 cases on each: no findings.
+
+**TEST.** `tests/test_backend_identity.py` (new): installed bytes resolved,
+a replaced library MODIFIED with RECORD unchanged, an unreadable one
+UNRESOLVED, the byte cache re-reading a rewritten file; the probe resolved
+here, NumPy's and SciPy's OpenBLAS both recorded, the same record whatever
+the process loaded first (in process and in fresh interpreters); no NumPy
+imported by importing the interfaces; each runtime part -- a dispatched
+feature, a BLAS kernel, a BLAS library's bytes, libm's bytes -- changes the
+environment digest; a BLAS that will not name its kernel, an unreadable BLAS,
+a missing libm and a missing loader each UNRESOLVED; MKL, Accelerate, a
+system BLAS, an unbundled OpenBLAS and an unbundled SciPy BLAS each
+UNRESOLVED, and a NumPy with no external BLAS resolved; no NumPy installed is a
+resolved backend without one; maps lines that are not absolute mappings of
+that soname are skipped; unresolved status without a probe, resolved with
+one, unresolved with a modified build; reuse refused for an unresolved prior,
+current or both; a resolved identical pair reused and a different one not;
+backend status digested; a governed identity resolved, and its bundle's
+environment the same. Existing tests that built identities by hand now state
+`backend_status="RESOLVED"` where they test something else, and the
+interfaces test adds that the default is UNRESOLVED and refused.
+
+**MUTATIONS.** `backend_probe.json` (new) 26/26. Three mutations whose anchored lines CD rewrote are re-anchored to the same meaning: governed_model_reuse GR19 (the environment left out of the identity), run_identity_backend RB5 (the native build unrecorded) and RB6 (native hashes ignored). Regression, each killed: run_identity_backend 9/9, scientific_interfaces 27/27, fuzz_harness 9/9, governed_model_reuse 20/20, scientific_thermal_1d 12/12, scientific_thermal_2d 15/15, surface_adsorption 25/25, scientific_authority_replay 25/25.
+
+**NOT DONE, and not claimed.** Reuse across backends is refused, never
+reconciled: there is still no equivalence policy saying when two backends
+agree well enough for a model (D-2026-90, directive 11). A resolved backend
+is resolved on Linux: the probe reads `/proc/self/maps` and the loader's
+search, and elsewhere it would be UNRESOLVED -- recomputed, not guessed. The
+kernel an OpenBLAS reports is the one it selected for its own calls; a
+library that dispatches per call below that is not seen. A backend variable
+set AFTER the probe ran is not seen either; the governed worker's
+environment is fixed before it starts.

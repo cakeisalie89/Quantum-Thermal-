@@ -102,6 +102,7 @@ def test_every_trust_boundary_has_a_target(fuzz):
         "policy", "job", "memory", "identity", "message", "escalation",
         "egress_grant", "context_manifest", "url", "canonical", "rag_index",
         "scheduler_sequence", "attestations", "key_registry",
+        "cpuinfo", "proc_maps",
     }
     missing = required - targets
     assert not missing, f"trust boundaries with no fuzz target: {missing}"

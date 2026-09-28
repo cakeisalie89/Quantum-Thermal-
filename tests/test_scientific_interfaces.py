@@ -496,13 +496,23 @@ def test_a_model_whose_code_changed_is_not_looked_up():
 
 def _rid(**kw):
     base = dict(model_id="m", model_version="1", implementation_digest=A,
-                parameter_digest=B, environment_digest=environment_digest())
+                parameter_digest=B, environment_digest=environment_digest(),
+                backend_status="RESOLVED")
     base.update(kw)
     return RunIdentity(**base)
 
 
 def test_an_identical_run_with_intact_evidence_is_reused():
     assert may_reuse(_rid(), _rid(), prior_evidence_intact=True) == (True, "")
+
+
+def test_an_identity_that_does_not_say_its_backend_is_not_reused():
+    """The default is UNRESOLVED -- an identity has to be given a resolved
+    backend to be reusable -- and an identical unresolved pair is refused."""
+    unknown = _rid(backend_status=RunIdentity.backend_status)
+    assert unknown.backend_status == "UNRESOLVED"
+    ok, why = may_reuse(unknown, unknown, prior_evidence_intact=True)
+    assert not ok and "UNRESOLVED" in why
 
 
 @pytest.mark.parametrize("kw,field", [

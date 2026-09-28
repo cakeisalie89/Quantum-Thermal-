@@ -53,7 +53,8 @@ from ..model import (
 )
 from ..quantity import Quantity, ResolutionClass as RC
 from ..result import InvariantResult, Output, OutputStatus, ResultBundle
-from ..run_identity import environment_digest, environment_record
+from ..backend_probe import run_environment
+from ..run_identity import environment_digest
 
 MODEL_ID = "surface.langmuir_capture"
 MODEL_VERSION = "1.0.0"
@@ -257,7 +258,7 @@ class SurfaceAdsorptionModel(ModelBase):
                                    reason=f"{nonfinite} non-finite values")
                             for n in names)
 
-        env = environment_record()
+        env = run_environment()
         return ResultBundle(
             model_id=self.model_id, model_version=self.model_version,
             implementation_digest=self.implementation_digest(),

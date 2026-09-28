@@ -50,9 +50,13 @@ B = "b" * 64
 
 
 def _identity(env: dict) -> ri.RunIdentity:
+    # Held RESOLVED on both sides, so that what refuses reuse here is the
+    # difference in the environment itself; an unresolved backend refuses
+    # on its own (tests/test_backend_identity.py).
     return ri.RunIdentity(model_id="m", model_version="1",
                           implementation_digest=B, parameter_digest=B,
-                          environment_digest=ri.environment_digest(env))
+                          environment_digest=ri.environment_digest(env),
+                          backend_status="RESOLVED")
 
 
 def _record(**kw):
@@ -131,14 +135,16 @@ def test_the_native_build_is_read_from_the_wheel_record():
     assert ri.native_record("no-such-distribution") == {"status": "ABSENT"}
 
 
-def _fake_files(so_hash: str):
+def _fake_files(so_hash: str, root=Path("/nonexistent")):
     import importlib.metadata as md
+    from types import SimpleNamespace
     files = []
     for name, h in (("pkg/core.cpython-312-x86_64-linux-gnu.so", so_hash),
                     ("pkg.libs/libopenblas-abc.so.0.3", "b" * 8),
                     ("pkg/__init__.py", "c" * 8)):
         f = md.PackagePath(name)
         f.hash = md.FileHash(f"sha256={h}")
+        f.dist = SimpleNamespace(locate_file=lambda p: root / p)
         files.append(f)
     return files
 
@@ -154,6 +160,8 @@ def test_the_native_digest_is_of_the_recorded_compiled_code(monkeypatch):
     other = ri.native_record("pkg")
     assert one["native_files"] == other["native_files"] == 2
     assert one["native_sha256"] != other["native_sha256"]
+    # nothing of the fake is installed: its bytes are UNRESOLVED, not assumed
+    assert one["status"] == "UNRESOLVED" and len(one["unreadable"]) == 2
 
 
 def test_the_environment_is_read_without_importing_the_numeric_stack():

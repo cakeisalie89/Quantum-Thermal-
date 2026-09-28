@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import pathlib
 import random
 import signal
@@ -507,6 +508,42 @@ def _key_registry(data: bytes):
             raise AssertionError("ACCEPTED: a key with no principal")
     return reg
 
+# ---- the numeric backend's parsers ------------------------------------------
+def _cpuinfo(data: bytes):
+    """``/proc/cpuinfo`` text, as the run identity reads it. Whatever the
+    text, the record names only SIMD features the text itself lists, and it
+    canonicalises -- it is digested into every run identity."""
+    from scientific.identity import digest
+    from scientific.run_identity import cpu_record
+    text = data.decode("utf-8", "replace")
+    rec = cpu_record(text)
+    listed = set()
+    for line in text.splitlines():
+        key, sep, value = line.partition(":")
+        if sep and key.strip() in ("flags", "Features"):
+            listed |= set(value.split())
+    invented = sorted(set(rec["simd"]) - listed)
+    if invented:
+        raise AssertionError(f"ACCEPTED: SIMD features {invented[:3]} the "
+                             "text does not list")
+    digest(rec)
+    return rec
+
+
+def _proc_maps(data: bytes):
+    """``/proc/self/maps`` text, as the backend probe reads it: an answer is
+    an absolute path the text names, whose basename is the soname asked
+    for -- or no answer."""
+    from scientific.backend_probe import _path_for_soname
+    text = data.decode("utf-8", "replace")
+    found = _path_for_soname(text, "libm.so.6")
+    if found is not None and (not found.startswith("/")
+                              or found.rsplit("/", 1)[-1] != "libm.so.6"
+                              or found not in text):
+        raise AssertionError(f"ACCEPTED: {found!r} named for libm.so.6")
+    return found
+
+
 def _targets() -> dict:
     """name -> (callable, declared refusal exceptions, seed inputs)."""
     from qta_agent.agents import (
@@ -540,6 +577,14 @@ def _targets() -> dict:
                           b"[" * 100_000 + b"\n"]),
         "key_registry": (_key_registry, (_auth_error(),),
                          [_registry_seed(), b"[" * 100_000]),
+        "cpuinfo": (_cpuinfo, (),
+                    [b"processor\t: 0\nvendor_id\t: GenuineIntel\n"
+                     b"flags\t\t: fpu sse sse2 avx avx2 avx512f\n",
+                     b"processor\t: 0\nFeatures\t: fp asimd sve\n"
+                     b"CPU part\t: 0xd0c\n"]),
+        "proc_maps": (_proc_maps, (),
+                      [b"7f0-7f1 r-xp 0 08:01 1 /usr/lib/libm.so.6\n"
+                       b"7f2-7f3 r--p 0 00:00 0 [vdso]\n"]),
         "events": (_log_reader, (EventLogError,) + common,
                    [b'{"seq":0,"event_id":"a","wall_time":1.0,"actor":"a",'
                     b'"action":"record.create","target":"t","payload":{},'
@@ -719,8 +764,14 @@ def _take_features() -> frozenset:
     return out
 
 
+#: Where coverage is counted: the substrate, and the scientific core, whose
+#: parsers read what the host says about itself (``cpuinfo``, ``proc_maps``).
+_COVERED = ("qta_agent", f"{os.sep}scientific{os.sep}")
+
+
 class Coverage:
-    """Line coverage inside ``qta_agent``, collected per case.
+    """Line coverage inside ``qta_agent`` and ``scientific``, collected per
+    case.
 
     Falls back to collecting NOTHING when sys.monitoring is unavailable or
     its tool slot is taken -- and says so rather than reporting an empty
@@ -746,7 +797,7 @@ class Coverage:
         self.available = True
 
     def _line(self, code, line):
-        if "qta_agent" not in code.co_filename:
+        if not any(pkg in code.co_filename for pkg in _COVERED):
             # DISABLE is permanent for this instruction until events are
             # restarted, which is exactly what makes the cost bearable.
             return self._mon.DISABLE

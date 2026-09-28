@@ -36,15 +36,15 @@
     {
       "name": "RB5_the_native_build_unrecorded",
       "path": "scientific/run_identity.py",
-      "find": "            \"native\": {d: native_record(d) for d in distributions}}\n",
-      "replace": "            \"native\": {}}\n",
+      "find": "            \"native\": natives,\n",
+      "replace": "            \"native\": {},\n",
       "rationale": "another native build of the same version is the same run"
     },
     {
       "name": "RB6_native_hashes_ignored",
       "path": "scientific/run_identity.py",
-      "find": "            h.update(f\"{f}\\0{f.hash.mode}:{f.hash.value}\\n\".encode())\n",
-      "replace": "            h.update(f\"{f}\\n\".encode())\n",
+      "find": "        declared.update(f\"{f}\\0{f.hash.mode}:{f.hash.value}\\n\".encode())\n",
+      "replace": "        declared.update(f\"{f}\\n\".encode())\n",
       "rationale": "the native digest names the files and not what they contain"
     },
     {

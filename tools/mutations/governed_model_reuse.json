@@ -135,8 +135,8 @@
     {
       "name": "GR19_the_environment_leaves_the_identity",
       "path": "scientific/model.py",
-      "find": "        environment_digest=environment_digest(), seeds=tuple(seeds))",
-      "replace": "        environment_digest=\"0\" * 64, seeds=tuple(seeds))",
+      "find": "        environment_digest=environment_digest(env), seeds=tuple(seeds),\n",
+      "replace": "        environment_digest=\"0\" * 64, seeds=tuple(seeds),\n",
       "rationale": "a result computed under another interpreter or numeric library is reused"
     },
     {
