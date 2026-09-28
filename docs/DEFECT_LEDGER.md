@@ -8639,3 +8639,34 @@ kernel an OpenBLAS reports is the one it selected for its own calls; a
 library that dispatches per call below that is not seen. A backend variable
 set AFTER the probe ran is not seen either; the governed worker's
 environment is fixed before it starts.
+
+## D-2026-95 — the governed-identity test expected the test process's backend, not the worker's
+
+**CLASS** — `TEST_DEFECT`, `tests/test_governed_model_reuse.py`. Introduced
+by D-2026-94 (`90bfe7a`); not R59, and no production code is wrong.
+
+**DISCOVERED BY.** Hosted CI at `ac427a7`, run 36366385733, job
+`dispatch-sensitivity` 108753534811: the full suite under
+`OPENBLAS_CORETYPE=Haswell` and `NPY_DISABLE_CPU_FEATURES=X86_V4 AVX512_ICL
+AVX512_SPR` failed one test,
+`test_the_identity_is_this_model_these_parameters_this_environment`
+(environment digests `48ef3cb9...` recorded, `cf6fe912...` expected).
+Reproduced locally with the same two variables; green without them.
+
+**CAUSE.** The test recomputed the expected environment by probing the
+runtime in the TEST process, passing only the tool's environment variables
+as data. The governed tool runs with exactly the allowlisted environment,
+which by design does not carry dispatch overrides; the test process in that
+job does. The worker's identity named the backend the worker ran on --
+SkylakeX, AVX-512 -- correctly; the expectation named the test process's,
+Haswell without AVX-512. The comment above the assertion ("the probe
+answers the same in any process on this host") was true for processes that
+share an environment and false here.
+
+**REPAIR.** The expectation is computed in a subprocess launched with
+exactly the tool's environment, so it probes what the worker probes. Green
+under the dispatch override and without it.
+
+**NOT CHANGED.** The probe, the identity and the tool's environment
+allowlist: a dispatch override in the supervisor does not reach the
+governed tool, and the identity says what the tool actually ran on.

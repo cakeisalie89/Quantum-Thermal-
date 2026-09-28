@@ -1797,6 +1797,16 @@ SHA named, and what has not finished is not claimed.
 * `90bfe7a` (CD). qta-agent-substrate 36364583154 (push) and 36364585753
   (PR), qta-stack-verify 36364585757: queued.
 
+**After the report.** Hosted CI at the report's own commit `ac427a7`
+found a defect this tranche introduced: the dispatch-sensitivity job (the
+suite under a NumPy and OpenBLAS without AVX-512) failed one governed-reuse
+test, which compared the worker's probed identity with one probed in the
+test process -- a process under a dispatch override the governed tool does
+not inherit. A test defect, not R59; fixed in the commit after the report
+(D-2026-95). The CD and CC PR runs' full-suite failures that arrived after
+the report was written are R59 by the same four checks (jobs 108748357158
+and 108743065633).
+
 ### R59, separately
 
 Classified only where all four conditions were shown for that exact job:
