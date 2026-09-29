@@ -649,6 +649,34 @@ RULES = [
      "NEW (D-2026-101): establishes, checks and consults the byte-"
      "reproduction witness profile; the release's early strict refusal.",
      "R59-B/D"),
+    ("tools/reference_backend.py", KAH,
+     "NEW (D-2026-102): the canonical reference backend's recipe check, "
+     "build record, in-runtime conformance and identity. STAGED: it defines "
+     "no canonical bytes until an owner-authorised migration (directive 7 "
+     "s.35).",
+     "R59-D5"),
+    ("reference_backend/spec.json", KAH,
+     "NEW (D-2026-102): the declared reference backend -- pinned sources, "
+     "toolchain, OpenBLAS/NumPy/SciPy build options, software CPU, FP policy.",
+     "R59-D5"),
+    ("reference_backend/build.sh", KAH,
+     "NEW (D-2026-102): builds the reference runtime from spec.json, "
+     "verifying every input by sha256 or exact version.",
+     "R59-D5"),
+    ("reference_backend/run.sh", KAH,
+     "NEW (D-2026-102): runs a command on the reference runtime under the "
+     "pinned software CPU (qemu-user) and root filesystem, env emptied.",
+     "R59-D5"),
+    ("docs/reference_backend_host_a.json", KAH,
+     "NEW (D-2026-102): host A's measured run of the reference backend -- "
+     "physical CPU class, emulator bytes, recipe and generator digests, "
+     "reference identity, output digests; re-recorded when the recipe or "
+     "the generator changes (a test refuses a stale one). Not the corpus.",
+     "R59-E"),
+    ("reference_backend/patches/*.patch", KAH,
+     "NEW (D-2026-102): source patches the reference build applies, each "
+     "pinned by sha256 in spec.json with its reason.",
+     "R59-D5"),
     ("tools/resolution_inventory.py", KAH,
      "Method-resolution inventory; holds deferred D-2026-69 "
      "(artefact-as-method proxy).",
@@ -996,6 +1024,10 @@ RULES = [
     ("tests/test_regenerate_instrumented.py", KAH,
      "NEW (D-2026-101): the regeneration wrapper's measured closure.",
      ""),
+    ("tests/test_reference_backend.py", KAH,
+     "NEW (D-2026-102): the reference recipe refused wherever it leaves the "
+     "arithmetic to the host; conformance and identity of the runtime.",
+     ""),
     ("tests/test_quantity_resolution.py", KAH,
      "NEW (D-2026-98): every quantity that crossed zero between backends "
      "states its resolution, and each class is bound to its quantity.",
@@ -1309,6 +1341,11 @@ RULES = [
     (".github/workflows/identity-discovery.yml", KAI,
      "Identity discovery.",
      ""),
+    (".github/workflows/reference-backend.yml", KAH,
+     "NEW (D-2026-102): the two-physical-host acceptance test -- a hosted "
+     "runner builds and runs the STAGED reference backend and compares "
+     "with host A. Not a required job.",
+     "R59-E"),
     (".github/workflows/claude.yml", KAH,
      "Assistant workflow; its prompt now states the framework's rules and "
      "none of QTA's retired invariants, held by "

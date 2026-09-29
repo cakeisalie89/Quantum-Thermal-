@@ -8973,3 +8973,126 @@ compared, nothing but digits did).
 stays open). A hosted runner that is not a witnessed backend cannot answer
 the strict question: strict hosted reproduction is EXTERNALLY_BLOCKED
 (R59-D).
+
+## D-2026-102 — the physical CPU chose the arithmetic that defines the canonical bytes, and nothing existed that it could not choose
+
+**CLASS** — `REFERENCE_ENVIRONMENT_ABSENT`, R59-E. `reference_backend/`,
+`tools/reference_backend.py`, `.github/workflows/reference-backend.yml`.
+
+**WHAT WAS THERE.** The canonical corpus is reproduced by one numerical
+backend: the locked wheels on a host whose CPU has AVX-512, where OpenBLAS's
+DYNAMIC_ARCH picks the SkylakeX kernel and NumPy's dispatcher picks its
+AVX-512 loops (the witness, D-2026-101). Both choices are made at load time
+from the CPU's flags, and glibc's libm makes a third the same way (IFUNCs:
+FMA variants of exp, log, pow, sin where the CPU has FMA). So the host CPU
+selects the arithmetic path, a runner without AVX-512 cannot produce the
+canonical bytes, and forcing the SkylakeX kernel there dies on an illegal
+instruction. No environment existed in which the arithmetic was fixed
+independently of the machine running it.
+
+**REPAIR — STAGED, not a migration.** A canonical reference backend, declared
+in `reference_backend/spec.json` and checked by `tools/reference_backend.py
+recipe` in the required agent-substrate job:
+
+* OpenBLAS 0.3.31 built for ONE target (`TARGET=NEHALEM`, `DYNAMIC_ARCH=0`),
+  `USE_THREAD=0`, `NUM_THREADS=1`: one set of kernels, chosen at build time.
+  One pinned patch (`reference_backend/patches/`, sha256 in the spec):
+  0.3.31 exports `openblas_set_threads_callback_function` from every build
+  but compiles it only for threaded ones, so a serial shared library fails
+  its own link test; the patch compiles the setter -- a store nothing in a
+  serial library reads -- into the serial build. No arithmetic changes.
+* NumPy 2.4.4 built with `cpu-baseline=X86_V2`, `cpu-dispatch=none`: no
+  function has a second implementation for a dispatcher to prefer. SciPy
+  1.17.1 on the same OpenBLAS. Wheels repaired by auditwheel, so the
+  OpenBLAS and Fortran runtime they run on travel inside them, by bytes.
+* `-O2 -fno-fast-math -ffp-contract=off` everywhere; no `-march=native`.
+* A pinned interpreter (cpython 3.12.11 standalone, binary sha256), a
+  pinned root filesystem (ubuntu-base 24.04.3, sha256) supplying libc,
+  libm and the loader, one thread in every runtime.
+* RUN on a pinned SOFTWARE CPU: `reference_backend/run.sh` executes under
+  qemu-user 8.2.2 with `-cpu Nehalem-v1` and `-L rootfs`, environment
+  emptied. qemu-user translates every instruction, so the CPUID the
+  dispatchers and libm's IFUNCs see is the declared model's, whatever the
+  physical CPU is.
+
+`tools/reference_backend.py verify`, run INSIDE the reference runtime,
+refuses anything that is not the declaration: NumPy dispatching outside its
+baseline or built with dispatch targets, a baseline other than X86_V2, a CPU
+offering AVX/AVX2/FMA/AVX-512, an OpenBLAS kernel other than Nehalem or with
+more than one thread or built with DYNAMIC_ARCH, a thread variable that is
+not 1 (or not recorded), another interpreter, a libc/libm/loader that is not
+the root filesystem's by bytes (or no build record to compare against),
+flushed subnormals, a rounding mode other than ties-to-even. The reference
+identity it prints keeps what the dispatchers saw (NumPy's features and
+dispatch, the BLAS, the libraries by bytes, the interpreter, the native
+builds, the spec) and leaves out /proc/cpuinfo, which under qemu-user is the
+physical host's.
+
+**MEASURED.** On one host (GenuineIntel family 6 model 207: AVX-512, AMX), with
+the runtime built from the recipe:
+
+* `verify` under qemu-user 8.2.2 (binary sha256 90e3ce3f...) `-cpu
+  Nehalem-v1`: conformance clean. NumPy sees CX16, LAHF, MMX, POPCNT and
+  SSE through SSE4.2, and nothing else; all 477 of its dispatchable
+  functions run their `baseline(X86_V2)` loop; NumPy and SciPy bundle the
+  same OpenBLAS, which reports kernel `NEHALEM`, one thread,
+  `SINGLE_THREADED`; libc, libm and the loader are the root filesystem's by
+  bytes; the interpreter is the pinned binary. Reference identity
+  `d2907025758c88d7...`.
+* The same `verify` on the same userspace run NATIVELY is refused: the CPU
+  offers AVX, AVX2, FMA3 and AVX512F. (A first `verify` was refused for a
+  declaration error of this entry's own: the spec expected the kernel name
+  a DYNAMIC_ARCH build reports, "Nehalem"; a TARGET=NEHALEM build reports
+  "NEHALEM". The check stays exact; the declaration was corrected.)
+* The full canonical generator on the reference: 3866 s under the
+  software CPU (194 s natively), 89 outputs.
+* THE HIDDEN INPUT THE SOFTWARE CPU REMOVES, measured, not assumed: the
+  same userspace -- OpenBLAS fixed, NumPy without dispatch, the root
+  filesystem's libm -- run natively differs from the software-CPU run in
+  19 of 88 files. Run natively again with `GLIBC_TUNABLES=glibc.cpu.hwcaps=
+  -AVX,-AVX2,-FMA,-FMA4,-AVX512F,...` it differs in 0 of 88. With the BLAS
+  and NumPy paths fixed at build time, the arithmetic the physical CPU
+  still chose was glibc libm's IFUNC selection -- which only a CPU the host
+  cannot supply, or a mask the host could forget, takes away. The run also
+  shows qemu's emulated SSE arithmetic agreeing bit for bit with this
+  physical CPU's on these paths; that is one host, not the two-host proof.
+* Against the committed corpus (s.35 step 4; nothing migrated): 24 of 88
+  files differ; 5598 leaves compared; 0 structural, decision, discrete,
+  non-finite or unclassified differences, 0 bare zero crossings, 3 bound
+  zero crossings, 198 precision differences -- and 17 bare sign flips, all
+  in `surface_coverage_3d_summary.csv`: the sixteen cells the NV-plane
+  coverage table lists are chosen by roundoff (D-2026-99), so the reference
+  lists different cells. The comparator refuses it
+  (`RESOLUTION_AMBIGUITY`). A migration of the corpus to this backend
+  would therefore change which cells that table names; D-2026-99 must be
+  resolved, and the owner must authorize the migration, before any
+  canonical byte moves.
+
+**THE TWO-HOST TEST.** `docs/reference_backend_host_a.json` records host A: its physical
+CPU class, the emulator's bytes, the recipe and generator digests, the
+reference identity and the sha256 of all 89 outputs.
+`.github/workflows/reference-backend.yml` is host B: it runs when the
+recipe changes, builds the same recipe on a GitHub-hosted runner, runs the
+same generator on the same software CPU, and asks `two-host`, which passes
+only as `TWO_HOST_BYTE_IDENTICAL` -- different physical CPU classes, equal
+reference identities, every non-exempt output byte-equal; one CPU class
+twice is `NOT_TWO_HOSTS`, and a differing byte is `BYTES_DIFFER`, never
+normalised. Its result is reported with the tranche; until a hosted run on
+a materially different CPU class returns TWO_HOST_BYTE_IDENTICAL, R59-E
+stays open, and if the hosted runner cannot build or run it, the proof is
+EXTERNALLY_BLOCKED.
+
+**EVIDENCE.** `tests/test_reference_backend.py`; mutations RB1-RB46,
+RBS1-RBS16 (the recipe itself: DYNAMIC_ARCH enabled, a host target, NumPy
+dispatch, a native baseline, threads raised, a passthrough CPU, an
+unresolved FP policy, FMA contraction, build.sh ignoring the spec or
+trusting what it fetches or patches, run.sh on the host CPU, host
+userspace or inherited environment), RBT1-RBT13 (the two-host verdict, the generator it compares).
+
+**NOT CLAIMED.** The reference is reproducible, not correct: it is not
+physically validated, not experimentally verified, not ground truth. It
+does NOT define the canonical corpus: migrating the corpus to it needs
+separate owner authorization (directive 7 s.35), and the corpus is
+untouched. A generator that started processes would run them on the
+physical CPU (qemu-user emulates only the process it starts); the current
+closure starts none, and a test keeps it so.

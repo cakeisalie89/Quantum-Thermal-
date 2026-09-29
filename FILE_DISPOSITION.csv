@@ -4,6 +4,7 @@ path,disposition,phase,rationale,evidence
 .github/workflows/claude.yml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Assistant workflow; its prompt now states the framework's rules and none of QTA's retired invariants, held by tests/test_claude_workflow_prompt.py (directive 11).",
 .github/workflows/container-verify.yml,KEEP_AS_IS,-,Container verification.,
 .github/workflows/identity-discovery.yml,KEEP_AS_IS,-,Identity discovery.,
+.github/workflows/reference-backend.yml,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-102): the two-physical-host acceptance test -- a hosted runner builds and runs the STAGED reference backend and compares with host A. Not a required job.,R59-E
 .github/workflows/release.yml,REWRITE_GENERIC,2-7 (see rationale),Release workflow; QTA payload expectations retire (Phase 7).,
 .github/workflows/stack-verify.yml,REWRITE_GENERIC,2-7 (see rationale),Runs qta_full_sim/PCC byte gate; rewritten with the workflow (Phase 6).,
 .gitignore,KEEP_AS_IS,-,Ignore rules.,
@@ -147,6 +148,7 @@ docs/legacy/qta/HDF5_DATA_MODEL.md,RETIRE_TO_HISTORY,5,"QTA's own documentation 
 docs/legacy/qta/README.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
 docs/legacy/qta/RELEASE_POLICY.md,RETIRE_TO_HISTORY,5,"QTA's own documentation -- README, claims boundary, authorities, release policy, HDF5 model -- moved unchanged out of the root in tranche 4 (directive 13); still read by the legacy verifier.",directive 13
 docs/performance_baseline.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/reference_backend_host_a.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): host A's measured run of the reference backend -- physical CPU class, emulator bytes, recipe and generator digests, reference identity, output digests; re-recorded when the recipe or the generator changes (a test refuses a stale one). Not the corpus.",R59-E
 docs/resolution_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/unit_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 energy_ledger_cumulative_3d.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
@@ -374,6 +376,10 @@ radiation_leakage_paths.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the
 radiation_paths_3d_budget.csv,DELETE_GENERATED_AND_REBUILD,6-7,Model output of the QTA pipeline (qta_full_sim.py -> outputs/ -> root). Old output contract; rebuilt from ScientificModel runs by the generic workflow (Phases 6-7). Byte-gated and untouched until then (directive s25 Phase 0 rule 3).,in hdf5_output_mapping.json regeneration set
 radiation_rf_leakage_budget.csv,RETIRE_TO_HISTORY,5,Apparatus RF leakage budget.,
 raw_data_standard.md,REWRITE_GENERIC,2-7 (see rationale),Becomes the Observation schema narrative (directive s15).,
+reference_backend/build.sh,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): builds the reference runtime from spec.json, verifying every input by sha256 or exact version.",R59-D5
+reference_backend/patches/openblas-0.3.31-serial-callback.patch,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): source patches the reference build applies, each pinned by sha256 in spec.json with its reason.",R59-D5
+reference_backend/run.sh,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): runs a command on the reference runtime under the pinned software CPU (qemu-user) and root filesystem, env emptied.",R59-D5
+reference_backend/spec.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): the declared reference backend -- pinned sources, toolchain, OpenBLAS/NumPy/SciPy build options, software CPU, FP policy.",R59-D5
 rejected_baseline_BOM.csv,RETIRE_TO_HISTORY,5,Rejected BOM.,
 release_revision_gate.py,KEEP_AS_IS,-,Revision-binding gate.,no hardware marker
 release_trust.py,KEEP_AS_IS,-,Release trust policy authority; no QTA payload knowledge.,no hardware marker; reach.json
@@ -553,6 +559,7 @@ tests/test_parameter_semantics.py,KEEP_AS_MODEL_PLUGIN,4,Dimensional/sign semant
 tests/test_quantity_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-98): every quantity that crossed zero between backends states its resolution, and each class is bound to its quantity.",
 tests/test_radiation_contract.py,KEEP_AS_MODEL_PLUGIN,4,Radiation producer/consumer contract.,
 tests/test_record_parsers.py,RETIRE_TO_HISTORY,5,Gate-reference/mode parsers of the design registry.,
+tests/test_reference_backend.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-102): the reference recipe refused wherever it leaves the arithmetic to the host; conformance and identity of the runtime.,
 tests/test_regenerate_instrumented.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-101): the regeneration wrapper's measured closure.,
 tests/test_release_trust_enforcement.py,KEEP_AS_IS,-,Release trust boundary (directive s18).,
 tests/test_release_workflow_contract.py,KEEP_AS_IS,-,Release workflow executable.,"imports yaml (undeclared, see DEPENDENCY_CUTOVER.md)"
@@ -665,6 +672,7 @@ tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
 tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/quantity_resolution.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/reference_backend.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/replay_origin_view.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/reproduction_policy.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -686,6 +694,7 @@ tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained 
 tools/mutations/unit_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/verified_read_guard.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over both halves of the verify-then-read guard (D-2026-76).,
 tools/performance_baseline.py,KEEP_AS_IS,-,Scaling-guard drift record.,
+tools/reference_backend.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): the canonical reference backend's recipe check, build record, in-runtime conformance and identity. STAGED: it defines no canonical bytes until an owner-authorised migration (directive 7 s.35).",R59-D5
 tools/regenerate_instrumented.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-101): runs the canonical generator in-process, records its measured input closure and probes the backend of that same process.",R59-B
 tools/repo_scope.py,KEEP_AS_IS,-,Single definition of 'a file in this repository'.,
 tools/reproduction_witness.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-101): establishes, checks and consults the byte-reproduction witness profile; the release's early strict refusal.",R59-B/D

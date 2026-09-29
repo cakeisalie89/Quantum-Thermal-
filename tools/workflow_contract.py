@@ -81,6 +81,9 @@ REQUIRED_COMMANDS = (
      "(directive 7)"),
     ("uv run python tools/reproduction_witness.py check",
      "the byte-reproduction witness still applies to the tree it binds"),
+    ("uv run python tools/reference_backend.py recipe",
+     "the reference backend's recipe leaves no part of the arithmetic to "
+     "the host"),
     ("uv run python -m pytest tests/ -q",
      "the complete pytest suite, in full-suite"),
     ("analysis/collect_container_3d.py",

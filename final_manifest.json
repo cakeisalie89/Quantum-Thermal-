@@ -2997,8 +2997,8 @@
     },
     {
       "filename": ".github/workflows/agent-substrate.yml",
-      "size_bytes": 42428,
-      "sha256": "8adf9bb28f19be3213f86ae977d0ab6fafcc6c18c2c137adcd995d274f324968",
+      "size_bytes": 42962,
+      "sha256": "f617d3f02d17d27e45dfbd38762b8a2b4a2c6b3aea3cbbae9c878fc0139cc146",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3158,8 +3158,8 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 200859,
-      "sha256": "30acc5d677a95fbcbc848ecc2920aa8d2726eeb5f2923b2fc4d00075eb743a05",
+      "size_bytes": 202527,
+      "sha256": "27f9345421a6196d3c5789dca453d3db195b1e606822e551ba98183942343be0",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3669,8 +3669,8 @@
     },
     {
       "filename": "tools/workflow_contract.py",
-      "size_bytes": 19243,
-      "sha256": "170d890b8364612d67cf6b6f12da4851dd32abb1394d35758753ab7000681e79",
+      "size_bytes": 19392,
+      "sha256": "2a006887e29d7e81eaec425ac1a6c86119ca5b54a177b6a1cd28a5afc61ab57c",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 8743,
-      "sha256": "0d7bf024f19841ee3bca8bf1039a6a21124512e6d235f1055ceae1f33dfe4f5b",
+      "sha256": "da994f860a48a7a94ed984e4bd26f25a00486ab0e1c45d32718e635ceec680df",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3963,8 +3963,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 494388,
-      "sha256": "8bebc1e5e65000ee0af3d0abc16ac169b4bb60c88881e31f2618ccda8f09ae1c",
+      "size_bytes": 502170,
+      "sha256": "f0c332311f9dff56b0978aa2b8edb2c0ab742eb89a4f90f3b2de704b5a7eb67a",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4194,8 +4194,8 @@
     },
     {
       "filename": "FILE_DISPOSITION.csv",
-      "size_bytes": 129555,
-      "sha256": "85adeacb45ea02327400b74af42a906b0770037912606162ffd130ab18e20c86",
+      "size_bytes": 131678,
+      "sha256": "136ed7614a6ebd67ce1313549536d51c0b8b034cf78af18e9a576ddd88ca07c5",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4222,8 +4222,8 @@
     },
     {
       "filename": "tools/file_disposition.py",
-      "size_bytes": 64672,
-      "sha256": "180b757f289a2380386e76ac465bef971703ea6a1a93faee3e263c25b26db815",
+      "size_bytes": 66594,
+      "sha256": "24aff3458ff8a996b3cbf175e78163ea7ccdba7c4267a112258844559af231c7",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5022,6 +5022,69 @@
       "filename": "tools/reproduction_witness.py",
       "size_bytes": 14062,
       "sha256": "4f8ab3d2e58321f9b04d59d88ee76e47f4db051812ab8d5880f0382d99a51a91",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": ".github/workflows/reference-backend.yml",
+      "size_bytes": 4579,
+      "sha256": "d8bc760ee163b23598735855a1bc53ac824133004fab789ffc19046f16262353",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "docs/reference_backend_host_a.json",
+      "size_bytes": 9728,
+      "sha256": "354b2ac04789d681baee2e150e755f764da8f6399bb223e1131954f8b26bfb02",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "reference_backend/build.sh",
+      "size_bytes": 8680,
+      "sha256": "ae92cd4479aa99f7f73d29dd4cbade7cd113b679b323df8670d6df140bfdabf7",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "reference_backend/patches/openblas-0.3.31-serial-callback.patch",
+      "size_bytes": 606,
+      "sha256": "2b40741be5fe6d1210303986736bfe88641a696e8e56745099aa6a6ad8db72e1",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "reference_backend/run.sh",
+      "size_bytes": 1540,
+      "sha256": "c0c642e6f9565298dd51531df7b43a19fb197d2f8e576e4e9485c2c45925fbbf",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "reference_backend/spec.json",
+      "size_bytes": 5118,
+      "sha256": "bbc81df37f5ee9c2f5cccf3203beaecef827b5d7eacfe21366d7558e837d662f",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_reference_backend.py",
+      "size_bytes": 28302,
+      "sha256": "b9ec4cc2c523259cc4545d5d1dbe26b3f0417ee880a9191a2646ad0219af736e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tools/mutations/reference_backend.json",
+      "size_bytes": 23807,
+      "sha256": "de3b43dd12954793d4d5ffe0756c6cf3e718d3751df8d5fd31cdf7d98656bbe1",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tools/reference_backend.py",
+      "size_bytes": 24122,
+      "sha256": "d2ff9ca8f8d956fb9bb6d453b80d7848f6b15dc9a4a41b291302f8aa345e148e",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     }

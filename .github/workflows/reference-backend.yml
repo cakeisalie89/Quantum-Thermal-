@@ -1,0 +1,101 @@
+# The TWO-PHYSICAL-HOST acceptance test for the STAGED canonical reference
+# backend (directive 7 s.34; D-2026-102).
+#
+# Host A is recorded in docs/reference_backend_host_a.json: the physical CPU
+# it ran on, the emulator's bytes, the reference runtime's identity and the
+# sha256 of every output it regenerated. This job is host B: it builds the
+# same recipe from the same pinned sources, runs the same generator on the
+# same software CPU and root filesystem, and asks tools/reference_backend.py
+# two-host whether
+#
+#     physical CPU class A != physical CPU class B
+#     reference identity A == reference identity B
+#     every non-exempt canonical output: sha256 A == sha256 B
+#
+# Only TWO_HOST_BYTE_IDENTICAL passes. The same CPU class on both sides is
+# NOT_TWO_HOSTS (proves nothing), and any differing byte is BYTES_DIFFER --
+# never normalised, never tolerated: it names an environmental input that is
+# still outside the reference boundary.
+#
+# Nothing here touches the canonical corpus. The reference backend defines no
+# canonical bytes until a separately authorised migration (directive 7 s.35);
+# this job regenerates into its own checkout and publishes digests only.
+#
+# NOT a required job: it runs when the recipe changes, and on demand.
+#
+# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3), as in agent-substrate.yml; uv
+# is pinned to the version that resolved the reference interpreter, because
+# which build of cpython 3.12.11 `uv python install` fetches is uv's choice
+# and the recipe pins that build's bytes.
+name: reference-backend
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "reference_backend/**"
+      - "tools/reference_backend.py"
+      - "docs/reference_backend_host_a.json"
+      - ".github/workflows/reference-backend.yml"
+permissions:
+  contents: read
+jobs:
+  two-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+        with: {version: "0.8.17"}
+      - name: this host's physical CPU
+        run: |
+          grep -m1 "model name" /proc/cpuinfo
+          grep -m1 "vendor_id" /proc/cpuinfo
+          nproc
+      - name: the pinned toolchain
+        run: |
+          eval "$(python3 tools/reference_backend.py env)"
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends --allow-downgrades \
+            "gcc-13=$QTA_REF_TOOL_GCC_13" "g++-13=$QTA_REF_TOOL_GCC_13" \
+            "gfortran-13=$QTA_REF_TOOL_GFORTRAN_13" \
+            "binutils=$QTA_REF_TOOL_BINUTILS" \
+            "qemu-user=$QTA_REF_TOOL_QEMU_USER" patch pkg-config
+          sudo mkdir -p "$QTA_REF_PREFIX"
+          sudo chown "$(id -u):$(id -g)" "$QTA_REF_PREFIX"
+      - name: build the reference runtime
+        run: QTA_REF_JOBS="$(nproc)" bash reference_backend/build.sh
+      - name: the runtime is the declared one
+        run: |
+          reference_backend/run.sh tools/reference_backend.py verify \
+            > "$RUNNER_TEMP/verify.json" || { cat "$RUNNER_TEMP/verify.json"; exit 1; }
+          python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['identity_digest'])" \
+            "$RUNNER_TEMP/verify.json"
+      - name: regenerate the canonical corpus on the reference
+        run: |
+          rm -rf outputs
+          start=$(date +%s)
+          reference_backend/run.sh qta_full_sim.py > "$RUNNER_TEMP/generator.log" 2>&1 \
+            || { tail -50 "$RUNNER_TEMP/generator.log"; exit 1; }
+          echo "generator on the software CPU: $(( $(date +%s) - start )) s"
+          tail -5 "$RUNNER_TEMP/generator.log"
+      - name: this host's run
+        run: |
+          python3 tools/reference_backend.py host-record \
+            --verify "$RUNNER_TEMP/verify.json" --outputs outputs \
+            > "$RUNNER_TEMP/host_b.json"
+          cp /opt/qta-ref/BUILD_RECORD.json "$RUNNER_TEMP/build_record_b.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: reference-backend-host-b
+          path: |
+            ${{ runner.temp }}/host_b.json
+            ${{ runner.temp }}/verify.json
+            ${{ runner.temp }}/build_record_b.json
+            ${{ runner.temp }}/generator.log
+          if-no-files-found: warn
+      - name: two-host acceptance
+        run: |
+          python3 tools/reference_backend.py two-host \
+            docs/reference_backend_host_a.json "$RUNNER_TEMP/host_b.json"

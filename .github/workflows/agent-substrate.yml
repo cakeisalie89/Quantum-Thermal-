@@ -182,6 +182,13 @@ jobs:
         # an unexplained WITNESS_INAPPLICABLE on the next runner that happens
         # to dispatch differently.
         run: uv run python tools/reproduction_witness.py check
+      - name: canonical reference backend recipe
+        # The STAGED reference backend (reference_backend/, D-2026-102) must
+        # leave no part of the arithmetic to the host: one OpenBLAS target
+        # without DYNAMIC_ARCH, NumPy without runtime dispatch, one thread,
+        # no FMA contraction or fast-math, every source and patch pinned, run
+        # on a declared software CPU. Static: it builds nothing.
+        run: uv run python tools/reference_backend.py recipe
       - name: agent test suites
         run: |
           uv run python -m pytest tests/test_agent_*.py \
@@ -338,90 +345,91 @@ jobs:
           - shard: 1
             specs: >-
               tools/mutations/agent_second_reader.json
-              tools/mutations/agent_snapshot_coherence.json
-              tools/mutations/corpus_allowlist.json
-              tools/mutations/output_resolution.json
+              tools/mutations/dependency_declarations.json
+              tools/mutations/identity_inventory.json
+              tools/mutations/model_check.json
+              tools/mutations/scientific_invalidation.json
           - shard: 2
             specs: >-
               tools/mutations/agent_tasks.json
-              tools/mutations/completion_matrix.json
-              tools/mutations/governed_model_reuse.json
-              tools/mutations/identity_inventory.json
-              tools/mutations/mutation_shards.json
-              tools/mutations/scientific_authority_replay.json
-              tools/mutations/scientific_invalidation.json
-              tools/mutations/test_isolation.json
+              tools/mutations/authenticated_history.json
+              tools/mutations/canonical_output_set.json
+              tools/mutations/cross_environment.json
+              tools/mutations/output_resolution.json
+              tools/mutations/second_reader_audit_actions.json
+              tools/mutations/stress_campaign_coverage.json
+              tools/mutations/unit_inventory.json
           - shard: 3
             specs: >-
+              tools/mutations/actor_authentication.json
+              tools/mutations/agent_agents.json
+              tools/mutations/agent_compensation.json
               tools/mutations/agent_policy.json
-              tools/mutations/authenticated_history.json
-              tools/mutations/backend_probe.json
-              tools/mutations/enforcement_asserts.json
-              tools/mutations/resolution_inventory.json
-              tools/mutations/scientific_interfaces.json
+              tools/mutations/agent_secret_provider.json
+              tools/mutations/reproduction_policy.json
               tools/mutations/scientific_thermal_1d.json
               tools/mutations/solver_failclosed.json
-              tools/mutations/stress_campaign_coverage.json
+              tools/mutations/test_isolation.json
           - shard: 4
             specs: >-
               tools/mutations/agent_checkpoint.json
-              tools/mutations/agent_cross_process.json
               tools/mutations/agent_fault_injection.json
               tools/mutations/agent_netauth.json
-              tools/mutations/agent_recovery.json
-              tools/mutations/agent_secret_provider.json
+              tools/mutations/agent_scheduler.json
               tools/mutations/agent_secrets.json
+              tools/mutations/backend_probe.json
+              tools/mutations/governed_model_reuse.json
               tools/mutations/mutation_harness.json
-              tools/mutations/quantity_resolution.json
+              tools/mutations/resolution_inventory.json
               tools/mutations/verified_read_guard.json
           - shard: 5
             specs: >-
-              tools/mutations/agent_compensation.json
-              tools/mutations/agent_scheduler.json
-              tools/mutations/agent_substrate.json
-              tools/mutations/canonical_output_set.json
-              tools/mutations/fuzz_harness.json
-              tools/mutations/generic_consistency.json
-              tools/mutations/run_identity_backend.json
-              tools/mutations/scientific_thermal_2d.json
-              tools/mutations/second_reader_audit_actions.json
-              tools/mutations/unit_inventory.json
-          - shard: 6
-            specs: >-
-              tools/mutations/actor_authentication.json
-              tools/mutations/agent_actions.json
-              tools/mutations/agent_memory_context.json
-              tools/mutations/dependency_declarations.json
-              tools/mutations/governed_breadth.json
-              tools/mutations/performance_counters.json
-              tools/mutations/replay_origin_view.json
-              tools/mutations/signed_append_lifecycle.json
-              tools/mutations/stage10_authority.json
-              tools/mutations/surface_adsorption.json
-          - shard: 7
-            specs: >-
-              tools/mutations/agent_execution.json
-              tools/mutations/agent_idempotency.json
-              tools/mutations/agent_lease_renewal.json
-              tools/mutations/agent_readpath.json
-              tools/mutations/agent_separate_verify.json
-              tools/mutations/authority_result_rules.json
-              tools/mutations/framework_boundary.json
-              tools/mutations/model_check.json
-              tools/mutations/repo_contract.json
-              tools/mutations/reproduction_policy.json
-          - shard: 8
-            specs: >-
-              tools/mutations/agent_agents.json
-              tools/mutations/agent_audit.json
               tools/mutations/agent_delegation.json
               tools/mutations/agent_evidence.json
+              tools/mutations/agent_substrate.json
+              tools/mutations/corpus_allowlist.json
+              tools/mutations/fuzz_harness.json
+              tools/mutations/generic_consistency.json
+              tools/mutations/governed_breadth.json
+              tools/mutations/quantity_resolution.json
+              tools/mutations/scientific_interfaces.json
+              tools/mutations/task_execution_phase.json
+          - shard: 6
+            specs: >-
+              tools/mutations/agent_idempotency.json
+              tools/mutations/agent_readpath.json
+              tools/mutations/agent_separate_verify.json
+              tools/mutations/agent_service_authority.json
+              tools/mutations/authority_result_rules.json
+              tools/mutations/mutation_shards.json
+              tools/mutations/performance_counters.json
+              tools/mutations/run_identity_backend.json
+              tools/mutations/scientific_authority_replay.json
+              tools/mutations/stage10_authority.json
+          - shard: 7
+            specs: >-
+              tools/mutations/agent_cross_process.json
+              tools/mutations/agent_execution.json
+              tools/mutations/agent_lease_renewal.json
+              tools/mutations/agent_memory_context.json
+              tools/mutations/agent_recovery.json
+              tools/mutations/agent_snapshot_coherence.json
+              tools/mutations/completion_matrix.json
+              tools/mutations/reference_backend.json
+              tools/mutations/repo_contract.json
+              tools/mutations/scientific_thermal_2d.json
+          - shard: 8
+            specs: >-
+              tools/mutations/agent_actions.json
+              tools/mutations/agent_audit.json
               tools/mutations/agent_incremental.json
               tools/mutations/agent_job_graph.json
-              tools/mutations/agent_service_authority.json
               tools/mutations/claims_boundary.json
-              tools/mutations/cross_environment.json
-              tools/mutations/task_execution_phase.json
+              tools/mutations/enforcement_asserts.json
+              tools/mutations/framework_boundary.json
+              tools/mutations/replay_origin_view.json
+              tools/mutations/signed_append_lifecycle.json
+              tools/mutations/surface_adsorption.json
           # END generated by tools/mutation_shards.py --emit
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
