@@ -197,6 +197,35 @@ def build_campaign(cfg, seq, species_rows, vib_metrics,
 # CP3: cumulative cross-phase / cross-cycle energy ledger + bookkeeping
 # --------------------------------------------------------------------------
 from .energy_accounting_3d import ENERGY_CLOSURE_TOL  # noqa: E402
+from .numerics import resolution_class  # noqa: E402
+
+#: Unit roundoff of IEEE double precision, 2**-53.
+_UNIT_ROUNDOFF = 2.0 ** -53
+
+
+def ledger_floor(unexplained_J: float, terms_abs_J: float,
+                 operations: int) -> float:
+    """What an energy ledger can resolve: the energy its own balance leaves
+    UNEXPLAINED, plus the rounding bound of the arithmetic that formed it.
+
+    A phase closes ``source - sink - dU = residual`` by quadrature of the
+    solution; ``|residual|`` is energy the accounting cannot place. A term of
+    the ledger smaller than that is not distinguished from zero by it --
+    whatever the digits say. Summed over phases, the unexplained parts add
+    in magnitude (signed residuals could cancel; what they fail to explain
+    does not). The rounding term, ``operations * u * sum|terms|``, is the
+    first-order bound for that many floating-point additions over those
+    magnitudes; it keeps the floor positive for a closure that happens to
+    land on exactly zero, and it is ~1e-25 J here, far below every residual.
+
+    This is not a tolerance chosen to absorb a difference between hosts. It
+    is the ledger's own closure, and it is what makes the cycle-1 MODE_C
+    cumulative dU -- a cancellation of +9.114e-12 J against -9.114e-12 J
+    that leaves one ulp on one backend and nothing on another -- BELOW
+    RESOLUTION on both, instead of an exact zero on one and a claim of
+    1.6e-27 J of stored energy on the other (D-2026-98).
+    """
+    return abs(unexplained_J) + operations * _UNIT_ROUNDOFF * terms_abs_J
 
 
 def attach_energy_ledger(st: CampaignState, seq) -> None:
@@ -204,11 +233,17 @@ def attach_energy_ledger(st: CampaignState, seq) -> None:
 
     Identical-cycle basis: every cycle reuses the deterministic single-cycle
     phase energies (stated approximation). No new physics; sums only.
+
+    Every energy term is published with its resolution class against the
+    ledger's own floor (:func:`ledger_floor`), per phase and cumulatively,
+    and the floor is published beside it.
     """
     phases = [("MODE_B", seq.tB.energy), ("MODE_C", seq.tC.energy)]
     if seq.tD_hold is not None:
         phases.append(("MODE_D_HOLD", seq.tD_hold.energy))
     cum = {"source_J": 0.0, "sink_J": 0.0, "dU_J": 0.0, "residual_J": 0.0}
+    unexplained = terms_abs = 0.0
+    n_phases = 0
     for cyc in range(1, st.n_cycles + 1):
         for name, e in phases:
             src = float(e["integrated_source_energy_J"])
@@ -219,22 +254,49 @@ def attach_energy_ledger(st: CampaignState, seq) -> None:
             cum["dU_J"] += dU; cum["residual_J"] += res
             denom = max(abs(cum["source_J"]), abs(cum["sink_J"]),
                         abs(cum["dU_J"]), 1e-30)
+            phase_abs = abs(src) + abs(snk) + abs(dU)
+            # the phase's own balance: two subtractions
+            phase_floor = ledger_floor(res, phase_abs, 2)
+            n_phases += 1
+            unexplained += abs(res)
+            terms_abs += phase_abs
+            # every phase balance, plus a running sum of n_phases terms
+            cum_floor = ledger_floor(unexplained, terms_abs, n_phases + 2)
             st.energy_rows.append({
                 "cycle": str(cyc), "phase": name,
                 "phase_source_J": f"{src:.9e}", "phase_sink_J": f"{snk:.9e}",
                 "phase_dU_J": f"{dU:.9e}", "phase_residual_J": f"{res:.9e}",
                 "phase_rel_residual": f"{float(e['rel_residual']):.6e}",
+                "phase_resolution_floor_J": f"{phase_floor:.9e}",
+                "phase_source_J_resolution":
+                    resolution_class(src, phase_floor),
+                "phase_sink_J_resolution": resolution_class(snk, phase_floor),
+                "phase_dU_J_resolution": resolution_class(dU, phase_floor),
                 "cumulative_source_J": f"{cum['source_J']:.9e}",
                 "cumulative_sink_J": f"{cum['sink_J']:.9e}",
                 "cumulative_dU_J": f"{cum['dU_J']:.9e}",
                 "cumulative_residual_J": f"{cum['residual_J']:.9e}",
                 "cumulative_rel_residual":
                     f"{cum['residual_J']/denom:.6e}",
+                "cumulative_resolution_floor_J": f"{cum_floor:.9e}",
+                "cumulative_source_J_resolution":
+                    resolution_class(cum["source_J"], cum_floor),
+                "cumulative_sink_J_resolution":
+                    resolution_class(cum["sink_J"], cum_floor),
+                "cumulative_dU_J_resolution":
+                    resolution_class(cum["dU_J"], cum_floor),
                 "basis": "identical-cycle sums of the existing phase-level "
                          "closures; no new physics",
                 "label": LABEL})
     st.cumulative = dict(cum)
     st.cumulative["closure_tol"] = ENERGY_CLOSURE_TOL
+    if st.energy_rows:
+        last = st.energy_rows[-1]
+        st.cumulative["resolution_floor_J"] = float(
+            last["cumulative_resolution_floor_J"])
+        for k in ("source_J", "sink_J", "dU_J"):
+            st.cumulative[f"{k}_resolution"] = last[
+                f"cumulative_{k}_resolution"]
 
 
 def energy_conservation_ok(st: CampaignState) -> bool:

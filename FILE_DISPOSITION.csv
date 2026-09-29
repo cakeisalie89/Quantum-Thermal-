@@ -547,6 +547,7 @@ tests/test_online_success_path.py,KEEP_AS_IS,-,Online success path.,
 tests/test_optimized_mode_invariants.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Assert guard extended to release/root modules and pinned by count (Phase 1.3).,docstring claimed a count pin the code did not implement
 tests/test_output_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Outputs state their method resolution.,
 tests/test_parameter_semantics.py,KEEP_AS_MODEL_PLUGIN,4,Dimensional/sign semantics of parameters (mode letters to drop).,
+tests/test_quantity_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-98): every quantity that crossed zero between backends states its resolution, and each class is bound to its quantity.",
 tests/test_radiation_contract.py,KEEP_AS_MODEL_PLUGIN,4,Radiation producer/consumer contract.,
 tests/test_record_parsers.py,RETIRE_TO_HISTORY,5,Gate-reference/mode parsers of the design registry.,
 tests/test_release_trust_enforcement.py,KEEP_AS_IS,-,Release trust boundary (directive s18).,
@@ -658,6 +659,7 @@ tools/mutations/mutation_harness.json,KEEP_AS_IS,-,"Mutation spec over a retaine
 tools/mutations/mutation_shards.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in the Phase-1 closure: operators over coverage, determinism, the aggregate's meaning and the shard runner.",
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
 tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/quantity_resolution.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/replay_origin_view.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

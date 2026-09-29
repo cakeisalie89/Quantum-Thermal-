@@ -2585,6 +2585,40 @@ for _fname, (_vfmt, _mfmt, (_mfile, _fcol)) in RESOLUTION_MARKED.items():
                         f"{_fname}:{_i} {_vc}={_v:.6e} marked EXACT_ZERO")
     except Exception as e:
         _res_problems.append(f"{_fname}: {type(e).__name__}: {e}")
+# The same re-derivation for every CARRIER whose floor is a column of its
+# own row -- the energy ledger's phase and cumulative floors (D-2026-98). The
+# binding is read from docs/resolution_inventory.json, the declaration
+# tools/resolution_inventory.py reconciles, rather than restated here.
+try:
+    _rinv = json.loads((PKG / "docs" / "resolution_inventory.json")
+                       .read_text(encoding="utf-8"))
+    for _key, _e in sorted(_rinv.get("columns", {}).items()):
+        if _e.get("basis") != "CARRIER" or not _e.get("floor_from"):
+            continue
+        _fname, _vc = _key.split(":", 1)
+        _mc, _fc = _e["resolution_from"], _e["floor_from"]
+        for _i, _r in enumerate(_read_csv_rows(_fname), 1):
+            _v, _m, _f = float(_r[_vc]), _r[_mc], float(_r[_fc])
+            _res_pairs += 1
+            if not (_f > 0.0):
+                _res_problems.append(f"{_fname}:{_i} {_fc}={_f!r} is not a "
+                                     "positive floor")
+            elif _m not in ("RESOLVED", "BELOW_RESOLUTION", "EXACT_ZERO",
+                            "OUT_OF_RANGE"):
+                _res_problems.append(f"{_fname}:{_i} {_mc}={_m!r}")
+            elif _m == "RESOLVED" and abs(_v) < _f:
+                _res_problems.append(
+                    f"{_fname}:{_i} {_vc}={_v:.6e} is below its floor "
+                    f"{_f:.6e} but marked RESOLVED")
+            elif _m == "BELOW_RESOLUTION" and abs(_v) > _f:
+                _res_problems.append(
+                    f"{_fname}:{_i} {_vc}={_v:.6e} is above its floor "
+                    f"{_f:.6e} but marked BELOW_RESOLUTION")
+            elif _m == "EXACT_ZERO" and _v != 0.0:
+                _res_problems.append(
+                    f"{_fname}:{_i} {_vc}={_v:.6e} marked EXACT_ZERO")
+except Exception as e:
+    _res_problems.append(f"row-floor carriers: {type(e).__name__}: {e}")
 if _res_problems:
     fail("multiphysics: serialised values state what the solve resolves",
          f"{len(_res_problems)} problems (first 5): {_res_problems[:5]}")

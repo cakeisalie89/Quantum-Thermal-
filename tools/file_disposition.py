@@ -978,6 +978,10 @@ RULES = [
     ("tests/test_resolution_inventory.py", KAH,
      "Resolution inventory.",
      ""),
+    ("tests/test_quantity_resolution.py", KAH,
+     "NEW (D-2026-98): every quantity that crossed zero between backends "
+     "states its resolution, and each class is bound to its quantity.",
+     ""),
     ("tests/test_unit_inventory.py", KAH,
      "Unit inventory.",
      ""),

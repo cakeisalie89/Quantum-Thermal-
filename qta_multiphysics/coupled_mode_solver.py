@@ -53,8 +53,12 @@ def run_coupled(cfg: MultiphysicsConfig):
     gasB_sample = {s.name: gasB.sample_region_density(s.name) for s in species}
     B_contam_flux = max(gasB_sample.get("CH4", 0.0), gasB_sample.get("H2", 0.0))
 
-    covB, _, _ = surface_coverage_1d(gasB_sample, T_surface_K=max(B_surf_T, 1.0),
+    # The whole coverage solve is kept, not just its numbers: its floor and
+    # the reason a species is zero live on it (surface_coverage.CoverageSolve).
+    solve_covB = surface_coverage_1d(gasB_sample,
+                                     T_surface_K=max(B_surf_T, 1.0),
                                      t_end=1.0, mode="B")
+    covB, _, _ = solve_covB
     thetaB = {k: float(v[-1]) for k, v in covB.items()}
 
     # ---- Mode C: recovery (source OFF, init from Mode B) ----
@@ -80,8 +84,10 @@ def run_coupled(cfg: MultiphysicsConfig):
     gasC = solve_gas_transport_1d(mode="C", t_end=2.0, n_init=n_init)
     gasC_sample = {s.name: gasC.sample_region_density(s.name) for s in species}
 
-    covC, tcov, _ = surface_coverage_1d({}, T_surface_K=cfg.fridge.T_fridge_K,
-                                        t_end=2.0, mode="C", theta0=thetaB, purge_1_s=5.0)
+    solve_covC = surface_coverage_1d({}, T_surface_K=cfg.fridge.T_fridge_K,
+                                     t_end=2.0, mode="C", theta0=thetaB,
+                                     purge_1_s=5.0)
+    covC, tcov, _ = solve_covC
     thetaC = {k: float(v[-1]) for k, v in covC.items()}
     # surface decay time: first time total coverage falls below 1e-6
     tot = np.sum([covC[k] for k in covC], axis=0)
@@ -156,9 +162,25 @@ def run_coupled(cfg: MultiphysicsConfig):
         "thermal_solver_status_B": tB.solver_status,
         "thermal_solver_status_C": tC.solver_status,
     }
+    # Every per-species number in the state travels with what its solve
+    # resolves, species by species, in a parallel object beside it. The
+    # sample densities used to be published bare: Mode C's methane read 0.0
+    # on one host and 4.0e-09 on another -- both inside the integrator's
+    # 1e3 m^-3 floor, both the same physics -- and only the metrics copy of
+    # the same number said BELOW_RESOLUTION. The file declared a resolution
+    # somewhere, so a comparator that asked the FILE rather than the
+    # QUANTITY called that crossing declared (D-2026-98).
     state = {
         "thetaB": thetaB, "thetaC": thetaC,
+        "thetaB_resolution": {k: solve_covB.resolution_final(k)
+                              for k in thetaB},
+        "thetaC_resolution": {k: solve_covC.resolution_final(k)
+                              for k in thetaC},
         "gasB_sample": gasB_sample, "gasC_sample": gasC_sample,
+        "gasB_sample_resolution": {k: gasB.resolution_of_region_mean(k)
+                                   for k in gasB_sample},
+        "gasC_sample_resolution": {k: gasC.resolution_of_region_mean(k)
+                                   for k in gasC_sample},
         "ready_terms": ready_terms,
         "microwave": mw_m, "radiation": rad_m, "vibration": vib_m,
     }

@@ -4,386 +4,479 @@ Every refusal test here is paired with a positive control. A comparator that
 refused everything would pass all the refusal tests and be worthless, and a
 comparator that refused nothing would pass all the acceptance tests and be
 worse than worthless -- it would license the sentence "no decision changed".
+
+The comparator answers ONE question -- cross-environment decision stability
+-- and every report says scientific equivalence is NOT ESTABLISHED.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
+from pathlib import Path
 
 import pytest
 
 from tools.cross_env_semantics import (
-    DECISION, IDENTICAL, MEASURED, PRECISION, SIGN_FLIP, ZERO_CROSSING,
-    ScopeError, check_scope, classify, compare, declares_resolution, main,
+    DECISION, DECISION_DRIFT, DECISION_STABLE, DISCRETE, IDENTICAL, MEASURED,
+    NONFINITE, NOT_NEEDED_BYTE_IDENTICAL, PRECISION, RESOLUTION_AMBIGUITY,
+    SIGN_FLIP_BARE, SIGN_FLIP_BOUND, STRUCTURAL, STRUCTURAL_DRIFT,
+    UNCLASSIFIED, UNCLASSIFIED_DIVERGENCE, ZERO_CROSSING_BARE,
+    ZERO_CROSSING_BOUND, ScopeError, check_scope, compare, declared_scope,
+    main, number, structured, summary_line,
 )
 
+ROOT = Path(__file__).resolve().parents[1]
+B, R, E = "BELOW_RESOLUTION", "RESOLVED", "EXACT_ZERO"
+EMPTY_INV: dict = {"columns": {}}
 
-def _tree(root, name, payload):
+
+def _write(root: Path, name: str, payload):
     root.mkdir(parents=True, exist_ok=True)
     p = root / name
-    p.write_text(payload if isinstance(payload, str)
-                 else json.dumps(payload, indent=2))
+    if isinstance(payload, str):
+        p.write_text(payload)
+    else:
+        p.write_text(json.dumps(payload, indent=2))
     return p
 
 
-def _kinds(before, after):
-    return [k for k, _, _, _ in classify(before, after)]
+def _csv(rows) -> str:
+    buf = io.StringIO()
+    csv.writer(buf, lineterminator="\n").writerows(rows)
+    return buf.getvalue()
 
 
-# --- what counts as a decision -------------------------------------------
-
-def test_a_changed_status_is_a_decision():
-    assert _kinds("CONDITIONAL", "PASS") == [DECISION]
-
-
-def test_a_changed_boolean_is_a_decision():
-    assert _kinds("{'ok': True}", "{'ok': False}") == [DECISION]
-
-
-def test_a_word_changing_is_a_decision_even_when_every_number_agrees():
-    """The residue is compared BEFORE the numbers, and this is why.
-
-    Both sides carry the identical quantity. Comparing them as whole strings
-    would find a difference and have to guess what kind; comparing what is
-    left after the numbers are removed knows immediately.
-    """
-    assert _kinds("status=OK; v=1.5", "status=BAD; v=1.5") == [DECISION]
+def _pair(tmp_path, name, committed, other, *, inv=EMPTY_INV, extra=None):
+    """One declared artefact on each side (plus ``extra`` identical ones)."""
+    a, b = tmp_path / "committed", tmp_path / "other"
+    _write(a, name, committed)
+    _write(b, name, other)
+    declared = {name}
+    for n, v in (extra or {}).items():
+        _write(a, n, v)
+        _write(b, n, v)
+        declared.add(n)
+    return compare(b, a, declared=declared, exempt=frozenset(),
+                   inventory=inv)
 
 
-def test_a_number_that_became_nan_is_not_called_a_precision_event():
-    assert _kinds("1.5", "nan") == [DECISION]
+def _classes(report):
+    return sorted(f["class"] for f in report["findings"])
 
 
-# --- what counts as precision, and the control that it is not everything ---
-
-def test_a_moved_last_digit_is_precision_and_is_not_refused():
-    (kind, _, _, rel), = classify("108740.08984348577", "108740.08984349713")
-    assert kind == PRECISION
-    assert rel < 1e-12
-
-
-def test_the_classifier_is_not_simply_calling_everything_a_decision():
-    """The control for every refusal test above."""
-    assert _kinds("1.0000001", "1.0000002") == [PRECISION]
-    assert _kinds("CONDITIONAL", "CONDITIONAL") == []
+# ---- tokens -----------------------------------------------------------------
+def test_a_number_is_a_whole_token():
+    assert number("1.25e-3") == ("float", 1.25e-3)
+    assert number("-7") == ("int", -7)
+    assert number("nan")[0] == "float"
+    for text in ("model_v2", "1.0 K", "v1.2", "3e", "", " 1.0", "True"):
+        assert number(text) is None, text
+    assert number(True) is None and number(None) is None
 
 
-# --- the class that is neither ------------------------------------------
-
-def test_exactly_zero_becoming_nonzero_is_not_a_precision_event():
-    """A published exact zero is a claim; a nonzero neighbour contradicts it.
-
-    Relative difference cannot express this: against zero it is 1.0 for any
-    nonzero value whatsoever, which would rank a 4e-09 underflow alongside a
-    catastrophe. It gets its own class because it is its own kind of event.
-    """
-    assert _kinds("0.000000000e+00", "1.561645593e-02") == [ZERO_CROSSING]
-    assert _kinds("1.615587134e-27", "0.000000000e+00") == [ZERO_CROSSING]
+def test_structured_cells_are_parsed_safely_not_evaluated():
+    assert structured("{'ok': True, 'x': 1.5}") == {"ok": True, "x": 1.5}
+    assert structured('{"a": [1, 2]}') == {"a": [1, 2]}
+    assert structured("[__import__('os')]") is None
+    assert structured("plain text") is None
 
 
-def test_opposite_signs_are_a_sign_flip_not_a_precision_event():
-    assert _kinds("1.510451e-06", "-1.510451e-06") == [SIGN_FLIP]
+# ---- decisions --------------------------------------------------------------
+def test_a_changed_status_is_a_decision(tmp_path):
+    r = _pair(tmp_path, "s.json", {"status": "CONDITIONAL"},
+              {"status": "PASS"})
+    assert _classes(r) == [DECISION] and r["status"] == DECISION_DRIFT
 
 
-def test_a_zero_crossing_is_not_also_counted_as_a_sign_flip():
-    """Ordering inside the classifier: zero is tested before sign."""
-    kinds = _kinds("0.0", "-4.0e-09")
-    assert kinds == [ZERO_CROSSING]
+def test_a_changed_boolean_is_a_decision(tmp_path):
+    r = _pair(tmp_path, "s.json", {"ok": True}, {"ok": False})
+    assert _classes(r) == [DECISION]
 
 
-# --- the scope check: "nothing changed" must not be true of nothing -------
-
-def test_a_comparison_that_lines_up_no_files_at_all_is_refused(tmp_path):
-    _tree(tmp_path / "other", "renamed_output.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "committed", "original_output.csv", "a,b\n1,2\n")
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["files_compared"] == 0
-    with pytest.raises(ScopeError, match="compared 0 files"):
-        check_scope(report)
+def test_a_version_label_is_not_a_digit(tmp_path):
+    """The hostile fixture the old digit-stripping comparator got wrong:
+    ``model_v2`` minus its digits equals ``model_v3`` minus its digits."""
+    r = _pair(tmp_path, "m.csv", _csv([["model"], ["model_v2"]]),
+              _csv([["model"], ["model_v3"]]))
+    assert _classes(r) == [DECISION]
 
 
-def test_the_scope_check_accepts_a_comparison_that_did_look_at_something(
+def test_a_mode_label_is_a_decision(tmp_path):
+    r = _pair(tmp_path, "m.csv", _csv([["mode"], ["Mode_D"]]),
+              _csv([["mode"], ["Mode_C"]]))
+    assert _classes(r) == [DECISION]
+
+
+def test_text_that_carries_a_number_is_compared_as_text(tmp_path):
+    r = _pair(tmp_path, "m.csv", _csv([["note"], ["theta=1.686e-10 (ok)"]]),
+              _csv([["note"], ["theta=1.687e-10 (ok)"]]))
+    assert _classes(r) == [DECISION]
+
+
+def test_a_unit_or_a_resolution_class_that_changes_is_a_decision(tmp_path):
+    r = _pair(tmp_path, "m.csv", _csv([["unit", "cls"], ["K", E]]),
+              _csv([["unit", "cls"], ["mK", B]]))
+    assert _classes(r) == [DECISION, DECISION]
+
+
+def test_a_boolean_inside_a_structured_cell_is_a_decision(tmp_path):
+    r = _pair(tmp_path, "m.csv", _csv([["d"], ["{'ok': True, 'x': 1.5}"]]),
+              _csv([["d"], ["{'ok': False, 'x': 1.5}"]]))
+    assert _classes(r) == [DECISION]
+
+
+# ---- discrete, non-finite ---------------------------------------------------
+def test_an_integer_that_moves_is_a_discrete_change(tmp_path):
+    r = _pair(tmp_path, "c.csv", _csv([["n_failed"], ["12"]]),
+              _csv([["n_failed"], ["13"]]))
+    assert _classes(r) == [DISCRETE] and r["status"] == DECISION_DRIFT
+
+
+def test_a_column_declared_exact_refuses_any_change(tmp_path):
+    inv = {"columns": {"c.csv:x_m": {"basis": "COORDINATE", "why": "mesh"}}}
+    r = _pair(tmp_path, "c.csv", _csv([["x_m"], ["3.536778e-05"]]),
+              _csv([["x_m"], ["3.536779e-05"]]), inv=inv)
+    assert _classes(r) == [DISCRETE]
+    control = _pair(tmp_path / "ctl", "c.csv",
+                    _csv([["x_m"], ["3.536778e-05"]]),
+                    _csv([["x_m"], ["3.536779e-05"]]))
+    assert _classes(control) == [PRECISION]
+
+
+@pytest.mark.parametrize("before, after", [
+    (1.5, float("nan")), (1.5, float("inf")), (float("inf"), float("-inf")),
+    (float("nan"), 1.0)])
+def test_nan_and_infinity_are_never_precision(tmp_path, before, after):
+    r = _pair(tmp_path, "n.json", {"x": before}, {"x": after})
+    assert _classes(r) == [NONFINITE]
+
+
+def test_nan_on_both_sides_is_the_same_value(tmp_path):
+    r = _pair(tmp_path, "n.json", {"x": float("nan"), "y": 1.0},
+              {"x": float("nan"), "y": 1.0000001})
+    assert _classes(r) == [PRECISION]
+
+
+# ---- structure --------------------------------------------------------------
+def test_a_key_on_one_side_only_is_refused_not_reported(tmp_path):
+    r = _pair(tmp_path, "k.json", {"a": 1.0}, {"a": 1.0, "b": 2.0})
+    assert _classes(r) == [STRUCTURAL] and r["status"] == STRUCTURAL_DRIFT
+
+
+def test_a_list_that_changes_length_is_structural(tmp_path):
+    r = _pair(tmp_path, "l.json", {"a": [1.0, 2.0]}, {"a": [1.0]})
+    assert _classes(r) == [STRUCTURAL]
+
+
+def test_a_changed_type_is_structural(tmp_path):
+    r = _pair(tmp_path, "t.json", {"a": 1}, {"a": 1.0})
+    assert _classes(r) == [STRUCTURAL]
+    r = _pair(tmp_path / "2", "t.json", {"a": "1.0"}, {"a": "one"})
+    assert _classes(r) == [STRUCTURAL]
+
+
+def test_a_structured_cell_that_becomes_plain_text_is_structural(tmp_path):
+    """A cell that carried a container on one side and a word on the other
+    has changed what it IS, not what it says."""
+    r = _pair(tmp_path, "m.csv", _csv([["d"], ["{'ok': True}"]]),
+              _csv([["d"], ["ok"]]))
+    assert _classes(r) == [STRUCTURAL]
+
+
+def test_a_changed_csv_header_or_row_count_is_structural(tmp_path):
+    r = _pair(tmp_path, "h.csv", _csv([["a", "b"], ["1.0", "2.0"]]),
+              _csv([["a", "c"], ["1.0", "2.0"]]))
+    assert _classes(r) == [STRUCTURAL]
+    r = _pair(tmp_path / "2", "h.csv", _csv([["a"], ["1.0"], ["2.0"]]),
+              _csv([["a"], ["1.0"]]))
+    assert _classes(r) == [STRUCTURAL]
+
+
+def test_a_missing_declared_artefact_is_structural(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    _write(a, "x.json", {"v": 1.0})
+    _write(a, "y.json", {"v": 1.0})
+    _write(b, "x.json", {"v": 1.0})
+    r = compare(b, a, declared={"x.json", "y.json"}, exempt=frozenset(),
+                inventory=EMPTY_INV)
+    assert r["files"]["y.json"] == "MISSING_OTHER"
+    assert r["status"] == STRUCTURAL_DRIFT
+
+
+def test_a_foreign_artefact_is_structural(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    _write(a, "x.json", {"v": 1.0})
+    _write(b, "x.json", {"v": 1.0})
+    _write(b, "stray.json", {"v": 1.0})
+    r = compare(b, a, declared={"x.json"}, exempt=frozenset(),
+                inventory=EMPTY_INV)
+    assert r["files"]["stray.json"] == "FOREIGN"
+    assert r["status"] == STRUCTURAL_DRIFT
+
+
+# ---- unclassified -----------------------------------------------------------
+def test_a_differing_artefact_it_cannot_parse_is_unclassified(tmp_path):
+    r = _pair(tmp_path, "d.mmd", "graph A-->B\n", "graph A-->C\n")
+    assert _classes(r) == [UNCLASSIFIED]
+    assert r["status"] == UNCLASSIFIED_DIVERGENCE
+
+
+def test_bytes_that_do_not_parse_are_unclassified(tmp_path):
+    r = _pair(tmp_path, "d.json", '{"a": 1}', '{"a": 1,')
+    assert _classes(r) == [UNCLASSIFIED]
+
+
+def test_a_duplicated_json_key_is_not_silently_resolved(tmp_path):
+    r = _pair(tmp_path, "d.json", '{"a": 1}', '{"a": 1, "a": 2}')
+    assert _classes(r) == [UNCLASSIFIED]
+
+
+def test_the_same_value_in_different_text_is_not_guessed_at(tmp_path):
+    r = _pair(tmp_path, "d.csv", _csv([["x"], ["1.0e3"]]),
+              _csv([["x"], ["1000.0"]]))
+    assert _classes(r) == [UNCLASSIFIED]
+
+
+# ---- precision, and its control ---------------------------------------------
+def test_a_moved_last_digit_is_precision_and_is_permitted(tmp_path):
+    r = _pair(tmp_path, "p.csv", _csv([["q"], ["108740.08984348577"]]),
+              _csv([["q"], ["108740.08984349713"]]))
+    assert _classes(r) == [PRECISION]
+    assert r["status"] == DECISION_STABLE
+    assert r["max_precision_rel"] < 1e-12
+
+
+def test_precision_inside_a_structured_cell_is_precision(tmp_path):
+    r = _pair(tmp_path, "m.csv", _csv([["d"], ["{'ok': True, 'x': 1.5}"]]),
+              _csv([["d"], ["{'ok': True, 'x': 1.5000001}"]]))
+    assert _classes(r) == [PRECISION]
+
+
+# ---- zero crossings and sign flips: bound or bare ---------------------------
+def test_an_unbound_zero_crossing_is_bare(tmp_path):
+    r = _pair(tmp_path, "z.csv", _csv([["q"], ["0.0"]]),
+              _csv([["q"], ["1e-9"]]))
+    assert _classes(r) == [ZERO_CROSSING_BARE]
+    assert r["status"] == RESOLUTION_AMBIGUITY
+
+
+WIDE = {"columns": {"w.csv:n": {"basis": "CARRIER", "resolution_from":
+                                "n_resolution"}}}
+
+
+def test_a_crossing_bound_below_resolution_on_both_sides_is_permitted(
         tmp_path):
-    """The control. Otherwise the test above passes on a check wired to
-    refuse unconditionally."""
-    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,3\n")
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["files_compared"] == 1
-    check_scope(report)
+    r = _pair(tmp_path, "w.csv", _csv([["n", "n_resolution"], ["0.0", B]]),
+              _csv([["n", "n_resolution"], ["4e-9", B]]), inv=WIDE)
+    assert _classes(r) == [ZERO_CROSSING_BOUND]
+    assert r["status"] == DECISION_STABLE
 
 
-# --- what the headline is drawn from -------------------------------------
-#
-# D-2026-62. There are two ways to compare nothing. One is an error the scope
-# check already refuses. The other -- two byte-identical trees -- is the
-# outcome this project wants, and it produced the same closing sentence as a
-# 5404-leaf measurement.
+def test_a_class_for_one_quantity_does_not_bind_another(tmp_path):
+    """CASE 18: the resolution is quantity A's; the crossing is B's."""
+    rows_a = [["n", "n_resolution", "m"], ["1.0", B, "0.0"]]
+    rows_b = [["n", "n_resolution", "m"], ["1.0", B, "4e-9"]]
+    r = _pair(tmp_path, "w.csv", _csv(rows_a), _csv(rows_b), inv=WIDE)
+    assert _classes(r) == [ZERO_CROSSING_BARE]
 
 
-def test_two_identical_trees_are_not_reported_as_a_measurement(tmp_path):
-    """The defect. Zero leaves compared, and the old headline regardless."""
-    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,2\n")
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["files_compared"] == 1
-    assert report["files_differing"] == 0
-    assert report["leaves_compared"] == 0
-    assert report["basis"] == IDENTICAL
-    check_scope(report)          # and it is NOT an error: it must not refuse
+def test_exact_zero_against_below_resolution_is_a_decision(tmp_path):
+    """CASE 19: the class itself moved -- "absent by design" became "less
+    than we can see" -- which is a changed claim, and the crossing it
+    carries is not permitted either."""
+    r = _pair(tmp_path, "w.csv", _csv([["n", "n_resolution"], ["0.0", E]]),
+              _csv([["n", "n_resolution"], ["4e-9", B]]), inv=WIDE)
+    assert _classes(r) == [DECISION, ZERO_CROSSING_BARE]
 
 
-def test_a_real_comparison_is_marked_as_measured(tmp_path):
-    """The control. A basis that is always IDENTICAL says nothing either."""
-    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,3\n")
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["files_differing"] == 1
-    assert report["leaves_compared"] > 0
-    assert report["basis"] == MEASURED
+def test_a_class_that_says_resolved_does_not_permit_a_crossing(tmp_path):
+    r = _pair(tmp_path, "w.csv", _csv([["n", "n_resolution"], ["0.0", R]]),
+              _csv([["n", "n_resolution"], ["4e-9", R]]), inv=WIDE)
+    assert _classes(r) == [ZERO_CROSSING_BARE]
 
 
-def test_the_two_bases_do_not_print_the_same_conclusion(tmp_path, capsys):
-    """The sentence is the artefact a reader takes away; it has to differ.
-
-    Both runs exit 0 and both are correct. Only one of them compared
-    anything, and a log that cannot be told apart is how a reproduction gets
-    quoted as an invariance.
-    """
-    _tree(tmp_path / "same_other", "shared.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "same_committed", "shared.csv", "a,b\n1,2\n")
-    assert main([str(tmp_path / "same_other"),
-                 str(tmp_path / "same_committed")]) == 0
-    identical = capsys.readouterr().out
-
-    _tree(tmp_path / "diff_other", "shared.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "diff_committed", "shared.csv", "a,b\n1,3\n")
-    assert main([str(tmp_path / "diff_other"),
-                 str(tmp_path / "diff_committed")]) == 0
-    measured = capsys.readouterr().out
-
-    assert "IDENTICAL_TREES" in identical
-    assert "IDENTICAL_TREES" not in measured
-    assert "leaves compared" in measured
-    assert "No decision-bearing token differs" not in identical, (
-        "the tautology must not borrow the measurement's sentence")
-    assert "No decision-bearing token differs" in measured
+FLOORED = {"columns": {"w.csv:n": {"basis": "CARRIER",
+                                   "resolution_from": "n_resolution",
+                                   "floor_from": "floor"},
+                       "w.csv:floor": {"basis": "FLOOR", "why": "floor"}}}
 
 
-def test_the_measured_conclusion_carries_its_own_leaf_count(tmp_path, capsys):
-    """The scope belongs in the sentence, not only in the header.
+def test_inside_a_bound_floor_the_crossing_is_permitted(tmp_path):
+    """CASE 20: 0 against a tiny value, both classed BELOW_RESOLUTION, both
+    inside the floor bound beside them."""
+    hdr = ["n", "n_resolution", "floor"]
+    r = _pair(tmp_path, "w.csv", _csv([hdr, ["0.0", B, "1e-6"]]),
+              _csv([hdr, ["4e-9", B, "1e-6"]]), inv=FLOORED)
+    assert _classes(r) == [ZERO_CROSSING_BOUND]
 
-    A reader quoting the closing line is quoting the claim. Without the count
-    in it, a comparison over five leaves and one over five thousand read the
-    same -- the unit substitution R59 is made of.
-    """
-    _tree(tmp_path / "other", "shared.csv", "a,b,c\n1,2,3\n")
-    _tree(tmp_path / "committed", "shared.csv", "a,b,c\n1,9,3\n")
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    n = report["leaves_compared"]
-    assert n > 0
-    main([str(tmp_path / "other"), str(tmp_path / "committed")])
+
+def test_a_value_outside_its_bound_floor_is_bare_whatever_the_class(
+        tmp_path):
+    hdr = ["n", "n_resolution", "floor"]
+    r = _pair(tmp_path, "w.csv", _csv([hdr, ["0.0", B, "1e-6"]]),
+              _csv([hdr, ["4e-3", B, "1e-6"]]), inv=FLOORED)
+    assert _classes(r) == [ZERO_CROSSING_BARE]
+
+
+@pytest.mark.parametrize("floor", ["0.0", "-1e-6", "inf", "nan", "wide"])
+def test_a_floor_that_is_not_a_positive_number_authorises_nothing(tmp_path,
+                                                                  floor):
+    """An infinite floor would put every value inside it."""
+    hdr = ["n", "n_resolution", "floor"]
+    r = _pair(tmp_path, "w.csv", _csv([hdr, ["0.0", B, floor]]),
+              _csv([hdr, ["4e-9", B, floor]]), inv=FLOORED)
+    assert _classes(r) == [ZERO_CROSSING_BARE]
+
+
+def test_a_sign_flip_is_permitted_only_inside_a_bound_class(tmp_path):
+    bare = _pair(tmp_path, "s.csv", _csv([["q"], ["-1e-9"]]),
+                 _csv([["q"], ["2e-9"]]))
+    assert _classes(bare) == [SIGN_FLIP_BARE]
+    bound = _pair(tmp_path / "b", "w.csv",
+                  _csv([["n", "n_resolution"], ["-1e-9", B]]),
+                  _csv([["n", "n_resolution"], ["2e-9", B]]), inv=WIDE)
+    assert _classes(bound) == [SIGN_FLIP_BOUND]
+
+
+LONG = {"columns": {}, "row_bindings": {"m.csv": {
+    "key_column": "metric", "value_column": "value",
+    "floor_row": "floor", "bindings": {"residual_m3": "residual_resolution"}}}}
+
+
+def test_a_long_table_binds_by_row(tmp_path):
+    def t(v):
+        return _csv([["metric", "value"], ["residual_m3", v],
+                     ["residual_resolution", B], ["floor", "1000.0"],
+                     ["other_m3", v]])
+    r = _pair(tmp_path, "m.csv", t("0.0"), t("4e-9"), inv=LONG)
+    assert sorted(f["key"] for f in r["findings"]) == \
+        ["r1[residual_m3]", "r4[other_m3]"]
+    assert {f["key"]: f["class"] for f in r["findings"]} == {
+        "r1[residual_m3]": ZERO_CROSSING_BOUND,
+        "r4[other_m3]": ZERO_CROSSING_BARE}
+
+
+JSONB = {"columns": {}, "json_bindings": {"s.json": {
+    ".state.gas.*": ".state.gas_resolution.*",
+    ".metrics.r": ".metrics.r_resolution"}}}
+
+
+def test_a_json_leaf_binds_to_its_own_class(tmp_path):
+    def doc(ch4, r):
+        return {"state": {"gas": {"CH4": ch4, "H2": 1e11},
+                          "gas_resolution": {"CH4": B, "H2": R},
+                          "other": {"CH4": ch4}},
+                "metrics": {"r": r, "r_resolution": B}}
+    rep = _pair(tmp_path, "s.json", doc(0.0, 0.0), doc(4e-9, 4e-9),
+                inv=JSONB)
+    got = {f["key"]: f["class"] for f in rep["findings"]}
+    assert got == {".state.gas.CH4": ZERO_CROSSING_BOUND,
+                   ".metrics.r": ZERO_CROSSING_BOUND,
+                   ".state.other.CH4": ZERO_CROSSING_BARE}, got
+
+
+# ---- scope ------------------------------------------------------------------
+def test_zero_files_compared_is_refused(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    r = compare(b, a, declared={"x.json"}, exempt=frozenset(),
+                inventory=EMPTY_INV)
+    with pytest.raises(ScopeError):
+        check_scope(r)
+
+
+def test_an_empty_declaration_is_refused(tmp_path):
+    with pytest.raises(ScopeError, match="empty"):
+        compare(tmp_path, tmp_path, declared=set(), exempt=frozenset(),
+                inventory=EMPTY_INV)
+
+
+def test_an_exemption_must_name_a_declared_artefact(tmp_path):
+    with pytest.raises(ScopeError, match="undeclared"):
+        compare(tmp_path, tmp_path, declared={"x.json"},
+                exempt=frozenset({"y.json"}), inventory=EMPTY_INV)
+
+
+def test_an_exempt_artefact_is_recorded_and_its_control_is_refused(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    _write(a, "x.json", {"status": "A"})
+    _write(b, "x.json", {"status": "B"})
+    _write(a, "y.json", {"v": 1.0})
+    _write(b, "y.json", {"v": 1.0})
+    r = compare(b, a, declared={"x.json", "y.json"},
+                exempt=frozenset({"x.json"}), inventory=EMPTY_INV)
+    assert r["exempted"] == ["x.json"] and r["status"] == \
+        NOT_NEEDED_BYTE_IDENTICAL
+    control = compare(b, a, declared={"x.json", "y.json"},
+                      exempt=frozenset(), inventory=EMPTY_INV)
+    assert control["status"] == DECISION_DRIFT
+
+
+def test_identical_trees_say_what_they_establish(tmp_path):
+    r = _pair(tmp_path, "i.json", {"v": 1.0}, {"v": 1.0})
+    assert r["basis"] == IDENTICAL and r["files_differing"] == 0
+    assert r["status"] == NOT_NEEDED_BYTE_IDENTICAL
+    m = _pair(tmp_path / "m", "i.json", {"v": 1.0}, {"v": 1.1})
+    assert m["basis"] == MEASURED
+
+
+def test_every_report_says_scientific_equivalence_is_not_established(
+        tmp_path):
+    for r in (_pair(tmp_path, "a.json", {"v": 1.0}, {"v": 1.0}),
+              _pair(tmp_path / "2", "a.json", {"v": 1.0}, {"v": 1.1})):
+        assert r["scientific_equivalence"] == "NOT_ESTABLISHED"
+        assert "SCIENTIFIC_EQUIVALENCE_STATUS=NOT_ESTABLISHED" in \
+            summary_line(r)
+
+
+# ---- precedence of the status -----------------------------------------------
+def test_structural_outranks_decision_outranks_ambiguity(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    _write(a, "x.json", {"k": 1.0, "s": "A", "z": 0.0})
+    _write(b, "x.json", {"k": 1.0, "s": "B", "z": 1e-9, "extra": 1})
+    r = compare(b, a, declared={"x.json"}, exempt=frozenset(),
+                inventory=EMPTY_INV)
+    assert r["status"] == STRUCTURAL_DRIFT
+    _write(b, "x.json", {"k": 1.0, "s": "B", "z": 1e-9})
+    assert compare(b, a, declared={"x.json"}, exempt=frozenset(),
+                   inventory=EMPTY_INV)["status"] == DECISION_DRIFT
+    _write(b, "x.json", {"k": 1.0, "s": "A", "z": 1e-9})
+    assert compare(b, a, declared={"x.json"}, exempt=frozenset(),
+                   inventory=EMPTY_INV)["status"] == RESOLUTION_AMBIGUITY
+
+
+# ---- the committed tree -----------------------------------------------------
+def test_the_declared_scope_is_the_byte_gates_own(tmp_path):
+    declared, exempt = declared_scope(ROOT)
+    assert len(declared) >= 80
+    assert exempt == {"deep_surrogate_readiness.json"}
+    assert exempt <= declared
+
+
+def _output_set_copy(tmp_path):
+    """The committed canonical outputs, copied as a regeneration would lay
+    them out: exactly the declared set, nothing else."""
+    other = tmp_path / "other"
+    other.mkdir()
+    declared, _ = declared_scope(ROOT)
+    for name in declared:
+        (other / name).write_bytes((ROOT / name).read_bytes())
+    return other
+
+
+def test_the_committed_outputs_against_themselves_are_identical(tmp_path,
+                                                                 capsys):
+    assert main([str(_output_set_copy(tmp_path)), str(ROOT)]) == 0
     out = capsys.readouterr().out
-    assert f"{n} leaves compared" in out
+    assert "CROSS_ENV_STATUS=NOT_NEEDED_BYTE_IDENTICAL" in out
 
 
-def test_the_identical_basis_says_what_it_does_establish(tmp_path, capsys):
-    """Not a refusal and not an apology: a byte-exact regeneration is a
-    result. It just is not the result the other sentence reports."""
-    _tree(tmp_path / "other", "shared.csv", "a,b\n1,2\n")
-    _tree(tmp_path / "committed", "shared.csv", "a,b\n1,2\n")
-    main([str(tmp_path / "other"), str(tmp_path / "committed")])
-    out = capsys.readouterr().out
-    assert "REPRODUCED" in out
-    assert "establishes nothing about invariance" in out
-
-
-def test_scope_is_refused_when_files_differ_but_share_no_shape(tmp_path):
-    _tree(tmp_path / "other", "s.json", {"only_here": 1})
-    _tree(tmp_path / "committed", "s.json", {"only_there": 1})
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["files_differing"] == 1
-    with pytest.raises(ScopeError, match="do not share a shape"):
-        check_scope(report)
-
-
-def test_scope_refusal_is_a_raise_and_not_an_assert():
-    """`python -O` deletes asserts. An enforcement point a flag removes is
-    not an enforcement point -- the lesson D-2026-45 recorded."""
-    src = (__import__("pathlib").Path(__file__).resolve().parent.parent
-           / "tools" / "cross_env_semantics.py").read_text()
-    body = src.split("def check_scope")[1].split("\ndef ")[0]
-    assert "assert " not in body
-    assert "raise ScopeError" in body
-
-
-# --- end to end -----------------------------------------------------------
-
-def test_a_flipped_readiness_status_is_refused_end_to_end(tmp_path):
-    """The exact claim this package exists to prevent, smuggled in as a
-    byte difference that `cmp` would report the same as a moved digit."""
-    _tree(tmp_path / "committed", "r.json",
-          {"status": "FORECAST_ONLY_IMPLEMENTED", "value": 1.25})
-    _tree(tmp_path / "other", "r.json",
-          {"status": "VALIDATED_ON_HARDWARE", "value": 1.25})
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["counts"][DECISION] == 1
-
-
-def test_the_same_file_differing_only_in_digits_is_not_refused(tmp_path):
-    """The control for the test above: same shape, same words, moved float."""
-    _tree(tmp_path / "committed", "r.json",
-          {"status": "FORECAST_ONLY_IMPLEMENTED", "value": 1.2500000000001})
-    _tree(tmp_path / "other", "r.json",
-          {"status": "FORECAST_ONLY_IMPLEMENTED", "value": 1.2500000000002})
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["counts"][DECISION] == 0
-    assert report["counts"][PRECISION] == 1
-
-
-def test_a_key_present_on_one_side_only_is_reported_not_ignored(tmp_path):
-    _tree(tmp_path / "committed", "s.json", {"a": 1, "b": 2})
-    _tree(tmp_path / "other", "s.json", {"a": 1, "c": 2})
-    report = compare(tmp_path / "other", tmp_path / "committed")
-    assert report["shape_changes"], "a changed shape must not pass silently"
-    assert report["shape_changes"][0]["file"] == "s.json"
-
-
-# --- the exemption must not drift away from the one it mirrors ------------
-
-def test_the_exemption_matches_the_one_the_byte_gate_already_uses():
-    """`REGEN_EXEMPT` is duplicated from `package_consistency_check.py`
-    because importing that module runs its entire check. A duplicated
-    constant with no owner is the defect D-2026-47 recorded, so this is the
-    owner: the two sets must be equal, and a name added to either one alone
-    fails here rather than quietly changing what one gate looks at.
-    """
-    import ast
-    import pathlib
-
-    from tools.cross_env_semantics import REGEN_EXEMPT
-
-    src = (pathlib.Path(__file__).resolve().parent.parent
-           / "package_consistency_check.py").read_text()
-    for node in ast.walk(ast.parse(src)):
-        if (isinstance(node, ast.Assign)
-                and any(getattr(t, "id", None) == "_REGEN_EXEMPT"
-                        for t in node.targets)):
-            theirs = frozenset(ast.literal_eval(node.value.args[0]))
-            break
-    else:                                       # pragma: no cover - defensive
-        raise AssertionError(
-            "package_consistency_check.py no longer defines _REGEN_EXEMPT; "
-            "the exemption this tool mirrors has moved or gone")
-    assert REGEN_EXEMPT == theirs, (
-        f"exemptions have drifted: this tool skips {sorted(REGEN_EXEMPT)}, "
-        f"the byte gate skips {sorted(theirs)}")
-
-
-def test_an_exempt_file_is_reported_rather_than_silently_dropped(tmp_path):
-    _tree(tmp_path / "committed", "x.json", {"status": "A"})
-    _tree(tmp_path / "other", "x.json", {"status": "B"})
-    report = compare(tmp_path / "other", tmp_path / "committed",
-                     exempt=frozenset({"x.json"}))
-    assert report["exempted"] == ["x.json"]
-    assert report["counts"][DECISION] == 0
-
-
-def test_exempting_a_file_is_the_only_reason_it_is_skipped(tmp_path):
-    """The control: without the exemption the same pair IS refused, so the
-    test above is measuring the exemption and not an empty comparison."""
-    _tree(tmp_path / "committed", "x.json", {"status": "A"})
-    _tree(tmp_path / "other", "x.json", {"status": "B"})
-    report = compare(tmp_path / "other", tmp_path / "committed",
-                     exempt=frozenset())
-    assert report["counts"][DECISION] == 1
-
-
-# --- does the artefact already say the zero is unresolved? ----------------
-#
-# The ZERO_CROSSING message used to say, of every crossing, that a published
-# 0.000000000e+00 "states that the model determined the quantity to be
-# exactly nothing". Since D-2026-53 the transport outputs publish the zero
-# BESIDE a resolution class that says the opposite, and an instrument that
-# kept asserting the old sentence would be overstating what the artefact
-# claims -- the defect class it exists to find.
-
-import pathlib as _pathlib                                        # noqa: E402
-
-_ROOT = _pathlib.Path(__file__).resolve().parents[1]
-
-
-def test_a_wide_table_declares_by_column(tmp_path):
-    p = tmp_path / "wide.csv"
-    p.write_text("x_m,n_CH4_1m3,resolution_CH4\n0.1,0.0,BELOW_RESOLUTION\n")
-    assert declares_resolution(p) is True
-
-
-def test_a_long_table_declares_by_row(tmp_path):
-    """The case a header-only check got wrong.
-
-    coupled_mode_recovery_metrics.csv is a metric/value table -- the PER_ROW
-    shape D-2026-57 had to name -- and its declaration is a ROW:
-    ``Mode_D_residual_CH4_resolution, BELOW_RESOLUTION``. Reading only the
-    header called that file bare while it was declaring, which is the same
-    proxy error in a checker written to report on proxies.
-    """
-    p = tmp_path / "long.csv"
-    p.write_text("metric,value\n"
-                 "Mode_D_residual_CH4_density_m3,0.0\n"
-                 "Mode_D_residual_CH4_resolution,BELOW_RESOLUTION\n")
-    assert declares_resolution(p) is True
-
-
-def test_a_file_that_declares_nothing_is_bare(tmp_path):
-    p = tmp_path / "bare.csv"
-    p.write_text("metric,value\nresidual,0.0\n")
-    assert declares_resolution(p) is False
-    q = tmp_path / "bare.json"
-    q.write_text(json.dumps({"metrics": {"residual": 0.0}}))
-    assert declares_resolution(q) is False
-
-
-def test_json_declares_by_key(tmp_path):
-    p = tmp_path / "d.json"
-    p.write_text(json.dumps({"metrics": {"r": 0.0, "r_resolution": "X"}}))
-    assert declares_resolution(p) is True
-
-
-def test_an_empty_or_unreadable_file_is_not_a_declaration(tmp_path):
-    p = tmp_path / "empty.csv"
-    p.write_text("")
-    assert declares_resolution(p) is False
-    assert declares_resolution(tmp_path / "missing.csv") is False
-
-
-def test_the_committed_transport_outputs_declare():
-    """The real artefacts, not fixtures. Both shapes, both declaring."""
-    for name in ("gas_transport_profile.csv",          # wide: a column
-                 "gas_transport_metrics.csv",
-                 "surface_coverage_profile.csv",
-                 "coupled_mode_recovery_metrics.csv",  # long: a row
-                 "coupled_mode_state_summary.json"):
-        assert declares_resolution(_ROOT / name) is True, name
-    # ... and the control: a governed output that does not, so the split the
-    # report prints is a real division and not a label everything carries.
-    assert declares_resolution(_ROOT / "tau_c_sweep.csv") is False
-
-
-def test_every_finding_records_whether_its_file_declares(tmp_path):
-    _tree(tmp_path / "committed", "x.csv", "metric,value\nr,0.0\n")
-    _tree(tmp_path / "other", "x.csv", "metric,value\nr,1e-9\n")
-    report = compare(tmp_path / "other", tmp_path / "committed",
-                     exempt=frozenset())
-    assert report["counts"][ZERO_CROSSING] == 1
-    f = next(f for f in report["findings"] if f["class"] == ZERO_CROSSING)
-    assert f["file_declares_resolution"] is False
-
-    _tree(tmp_path / "c2", "x.csv",
-          "metric,value\nr,0.0\nr_resolution,BELOW_RESOLUTION\n")
-    _tree(tmp_path / "o2", "x.csv",
-          "metric,value\nr,1e-9\nr_resolution,BELOW_RESOLUTION\n")
-    report = compare(tmp_path / "o2", tmp_path / "c2", exempt=frozenset())
-    f = next(f for f in report["findings"] if f["class"] == ZERO_CROSSING)
-    assert f["file_declares_resolution"] is True
-    # The class agreeing is what keeps this out of DECISION.
-    assert report["counts"][DECISION] == 0
+def test_the_cli_exits_nonzero_on_drift(tmp_path, capsys):
+    other = _output_set_copy(tmp_path)
+    doc = json.loads((other / "coupled_mode_state_summary.json").read_text())
+    doc["metrics"]["Mode_D_readiness_status"] = "FORECAST_READY_IF_MEASURED"
+    (other / "coupled_mode_state_summary.json").write_text(json.dumps(doc))
+    assert main([str(other), str(ROOT)]) == 1
+    assert "CROSS_ENV_STATUS=DECISION_DRIFT" in capsys.readouterr().out

@@ -1,6 +1,6 @@
 {
  "title": "The cross-environment measurement, and the instruments that make it readable",
- "note": "R59 spent weeks on a number that was a slice width, resting on a comparison that could not have disagreed with itself, with a fingerprint naming the build kernel rather than the running one. E1-E2 attack the fingerprint field the whole attribution turns on. E3-E7 attack the sensitivity sweep, including the two ways it can vary nothing and still report a result, and the numpy row without which the attribution stops at 'the counts are close'. E8-E11 attack the container script's step record and its ordering -- the record exists because 'steps 1-3 passed' was an inference from set -e ordering, and the ordering matters because set -e once skipped the diagnostic in exactly the case it was written for. E18-E20 attack the second empty comparison: two byte-identical trees, which is not an error and must not be refused, but which printed the measurement's headline after classifying nothing (D-2026-62).",
+ "note": "R59 spent weeks on a number that was a slice width, resting on a comparison that could not have disagreed with itself, with a fingerprint naming the build kernel rather than the running one. E1-E2 attack the fingerprint field the whole attribution turns on. E3-E7 attack the sensitivity sweep, including the two ways it can vary nothing and still report a result, and the numpy row without which the attribution stops at 'the counts are close'. E8-E11 attack the container script's step record and its ordering -- the record exists because 'steps 1-3 passed' was an inference from set -e ordering, and the ordering matters because set -e once skipped the diagnostic in exactly the case it was written for. E18-E20 attack the second empty comparison: two byte-identical trees, which is not an error and must not be refused, but which printed the measurement's headline after classifying nothing (D-2026-62). X1-X28 (D-2026-100) replace E12-E20: the comparator rewritten -- exact scope, structural and decision refusal, integers and exact columns discrete, NaN/Inf refused, unparsed artefacts unclassified, zero crossings and sign flips permitted only under a quantity-bound BELOW_RESOLUTION class inside its floor, scientific equivalence never claimed.",
  "suites": [
   "tests/test_container_diagnostic_fidelity.py",
   "tests/test_cross_env_semantics.py"
@@ -84,67 +84,200 @@
    "rationale": "a pure REORDER, not a deletion: every step is still there and still announces itself, so only a test that checks the ORDER can see it. set -e then ends the run at the byte divergence and the diagnostic that exists to EXPLAIN a byte divergence never executes -- the one case the measurement matters most is the one it is skipped in"
   },
   {
-   "name": "E12_a_changed_word_is_classified_as_a_number",
+   "name": "X1_a_key_on_one_side_only_is_ignored",
    "path": "tools/cross_env_semantics.py",
-   "find": "    if NUMBER.sub(\"#\", b) != NUMBER.sub(\"#\", a) or len(b_nums) != len(a_nums):",
-   "replace": "    if False:",
-   "rationale": "the residue check is the whole instrument: without it a status flipping CONDITIONAL -> PASS is never a DECISION and the gate reports 'no decision changed'"
+   "find": "            for k in sorted(set(a) ^ set(b), key=str):\n",
+   "replace": "            for k in []:\n",
+   "rationale": "an added or removed JSON key passes"
   },
   {
-   "name": "E13_a_published_exact_zero_is_demoted_to_a_precision_event",
+   "name": "X2_a_changed_header_is_ignored",
    "path": "tools/cross_env_semantics.py",
-   "find": "        elif fb == 0.0 or fa == 0.0:",
-   "replace": "        elif False:",
-   "rationale": "0 -> nonzero would be folded into PRECISION with a relative difference of 1.0, so a claim of exactness the other environment contradicts reads as a rounding artifact"
+   "find": "        if ha != hb:\n            return self.add(STRUCTURAL, \"[header]\"",
+   "replace": "        if False:\n            return self.add(STRUCTURAL, \"[header]\"",
+   "rationale": "a CSV whose columns changed is compared cell by cell as if they had not"
   },
   {
-   "name": "E14_a_verdict_drawn_from_an_empty_comparison_is_accepted",
+   "name": "X3_a_changed_row_count_is_ignored",
    "path": "tools/cross_env_semantics.py",
-   "find": "    if report[\"files_compared\"] == 0:",
-   "replace": "    if False:",
-   "rationale": "'no decision-bearing token differs' would be reported for a comparison that lined up no files at all -- the vacuous pass a renamed output directory produces"
+   "find": "        if len(a_rows) != len(b_rows):\n",
+   "replace": "        if False:\n",
+   "rationale": "a table that gained or lost rows passes"
   },
   {
-   "name": "E15_the_exemption_swallows_every_file",
+   "name": "X4_a_changed_list_length_is_ignored",
    "path": "tools/cross_env_semantics.py",
-   "find": "        if gen.name in exempt:",
-   "replace": "        if True:",
-   "rationale": "an exemption that grows to cover the whole tree leaves the gate passing because it looked at nothing; the scope check is what must catch this"
+   "find": "            if len(a) != len(b):\n                return self.add(STRUCTURAL, f\"{where}[#]\"",
+   "replace": "            if False:\n                return self.add(STRUCTURAL, f\"{where}[#]\"",
+   "rationale": "a list that changed length is zipped short and passes"
   },
   {
-   "name": "E16_a_long_format_declaration_is_missed",
+   "name": "X5_text_is_compared_with_its_digits_deleted",
    "path": "tools/cross_env_semantics.py",
-   "find": "            names = list(rows[0]) + [r[0] for r in rows[1:] if r]",
-   "replace": "            names = list(rows[0])",
-   "rationale": "the header-only version, which called coupled_mode_recovery_metrics.csv BARE while that file declares Mode_D_residual_CH4_resolution on a row of its own -- the PER_ROW shape D-2026-57 had to name, and a proxy error inside a checker written to report on proxies"
+   "find": "        return self.add(DECISION, where, a, b)\n\n    # -- JSON",
+   "replace": "        return self.add(PRECISION if re.sub(r\"\\d\", \"\", str(a)) == re.sub(r\"\\d\", \"\", str(b)) else DECISION, where, a, b, rel=0.0)\n\n    # -- JSON",
+   "rationale": "the old proxy: model_v2 -> model_v3 is a precision event"
   },
   {
-   "name": "E17_every_zero_crossing_is_reported_as_an_exactness_claim",
+   "name": "X6_an_integer_is_a_float",
    "path": "tools/cross_env_semantics.py",
-   "find": "                                 \"file_declares_resolution\":\n                                     declares_resolution(com)})",
-   "replace": "                                 \"file_declares_resolution\": False})",
-   "rationale": "the instrument goes back to saying, of every crossing, that a published zero claims the quantity is exactly nothing -- false for every transport output since D-2026-53, and an overstatement is the class this tool exists to find"
+   "find": "        if ka == \"int\" or exact:\n",
+   "replace": "        if exact:\n",
+   "rationale": "a count that moved is a last digit"
   },
   {
-   "name": "E18_every_comparison_claims_to_have_measured_something",
+   "name": "X7_an_exact_column_is_not_exact",
    "path": "tools/cross_env_semantics.py",
-   "find": "        \"basis\": IDENTICAL if files_differing == 0 else MEASURED,",
-   "replace": "        \"basis\": MEASURED,",
-   "rationale": "two byte-identical trees are recorded as a measurement across dispatches; the run that compared 0 leaves becomes indistinguishable in the report from the one that compared 5404"
+   "find": "                exact = entry.get(\"basis\") in EXACT_BASES\n",
+   "replace": "                exact = False\n",
+   "rationale": "a coordinate or configured constant may drift as precision"
   },
   {
-   "name": "E19_both_bases_print_the_measurement_sentence",
+   "name": "X8_nan_and_infinity_are_precision",
    "path": "tools/cross_env_semantics.py",
-   "find": "    if report[\"basis\"] == IDENTICAL:",
-   "replace": "    if False:",
-   "rationale": "restores the defect exactly: 'No decision-bearing token differs between the two environments' printed after classifying nothing, which is what a runner whose dispatch matches the committed tree produces"
+   "find": "            return self.add(NONFINITE, where, a, b)\n",
+   "replace": "            return self.add(PRECISION, where, a, b, rel=0.0)\n",
+   "rationale": "a number that became NaN is a precision event"
   },
   {
-   "name": "E20_the_measured_conclusion_drops_its_leaf_count",
+   "name": "X9_every_zero_crossing_is_permitted",
    "path": "tools/cross_env_semantics.py",
-   "find": "          f\"environments ({report['leaves_compared']} leaves compared, \"",
-   "replace": "          f\"environments ({0} leaves compared, \"",
-   "rationale": "the sentence keeps its shape and loses its scope, so a comparison over five leaves and one over five thousand read the same -- the unit substitution R59 is made of"
+   "find": "            return self.add(ZERO_CROSSING_BOUND if ok else ZERO_CROSSING_BARE,\n",
+   "replace": "            return self.add(ZERO_CROSSING_BOUND,\n",
+   "rationale": "an unbound zero crossing passes"
+  },
+  {
+   "name": "X10_every_sign_flip_is_permitted",
+   "path": "tools/cross_env_semantics.py",
+   "find": "            return self.add(SIGN_FLIP_BOUND if ok else SIGN_FLIP_BARE, where,\n",
+   "replace": "            return self.add(SIGN_FLIP_BOUND, where,\n",
+   "rationale": "an unbound sign flip passes"
+  },
+  {
+   "name": "X11_any_binding_in_the_file_binds_every_leaf",
+   "path": "tools/cross_env_semantics.py",
+   "find": "            carrier = RI.json_carrier(self.inv, self.src, where)\n",
+   "replace": "            carrier = next(iter(self.inv.get(\"json_bindings\", {}).get(self.src, {}).values()), None)\n",
+   "rationale": "the file-level proxy: a class declared for one quantity authorises every other"
+  },
+  {
+   "name": "X12_only_one_side_need_be_below_resolution",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if bound[\"committed\"] != BELOW_RESOLUTION or \\\n",
+   "replace": "    if False or \\\n",
+   "rationale": "EXACT_ZERO against BELOW_RESOLUTION is a permitted crossing"
+  },
+  {
+   "name": "X13_the_bound_floor_is_not_consulted",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if bound[\"floor_declared\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "a value far outside its declared floor is called below resolution"
+  },
+  {
+   "name": "X14_an_artefact_it_cannot_parse_passes",
+   "path": "tools/cross_env_semantics.py",
+   "find": "            else:\n                c.add(UNCLASSIFIED, \"[artefact]\",\n                      f\"{len(da)} bytes\", f\"{len(db)} bytes\")\n",
+   "replace": "            else:\n                pass\n",
+   "rationale": "a differing .mmd or other unparsed artefact is skipped"
+  },
+  {
+   "name": "X15_unparseable_bytes_pass",
+   "path": "tools/cross_env_semantics.py",
+   "find": "            c.add(UNCLASSIFIED, \"[artefact]\", f\"unparseable: {exc}\", None)\n",
+   "replace": "            pass\n",
+   "rationale": "a differing artefact that does not parse is skipped"
+  },
+  {
+   "name": "X16_a_missing_artefact_is_not_structural",
+   "path": "tools/cross_env_semantics.py",
+   "find": "                             \"class\": STRUCTURAL, \"committed\": pa.is_file(),\n",
+   "replace": "                             \"class\": PRECISION, \"committed\": pa.is_file(),\n",
+   "rationale": "a declared artefact missing from one side is not a structural change"
+  },
+  {
+   "name": "X17_a_foreign_artefact_is_ignored",
+   "path": "tools/cross_env_semantics.py",
+   "find": "                     if p.is_file() and p.name not in declared) \\\n",
+   "replace": "                     if False) \\\n",
+   "rationale": "an undeclared output passes"
+  },
+  {
+   "name": "X18_an_exemption_may_name_anything",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if not exempt <= declared:\n",
+   "replace": "    if False:\n",
+   "rationale": "an exemption for an undeclared name is accepted"
+  },
+  {
+   "name": "X19_an_empty_declaration_is_compared",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if not declared:\n        raise ScopeError(\"the declared canonical set is empty",
+   "replace": "    if False:\n        raise ScopeError(\"the declared canonical set is empty",
+   "rationale": "a comparison over no declared artefacts reports agreement"
+  },
+  {
+   "name": "X20_zero_files_compared_is_a_verdict",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if report[\"files_compared\"] == 0:\n",
+   "replace": "    if False:\n",
+   "rationale": "no decision changed, of nothing"
+  },
+  {
+   "name": "X21_structure_does_not_outrank",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if c[STRUCTURAL]:\n        return STRUCTURAL_DRIFT\n",
+   "replace": "    if False:\n        return STRUCTURAL_DRIFT\n",
+   "rationale": "a structural change is reported as whatever else was found, or as stable"
+  },
+  {
+   "name": "X22_scientific_equivalence_is_claimed",
+   "path": "tools/cross_env_semantics.py",
+   "find": "SCIENTIFIC_EQUIVALENCE = \"NOT_ESTABLISHED\"\n",
+   "replace": "SCIENTIFIC_EQUIVALENCE = \"ESTABLISHED_BY_MODEL_POLICY\"\n",
+   "rationale": "decision stability is reported as equivalence"
+  },
+  {
+   "name": "X23_a_duplicated_key_is_resolved_silently",
+   "path": "tools/cross_env_semantics.py",
+   "find": "                raise ValueError(f\"duplicate key {k!r}\")\n",
+   "replace": "                pass\n",
+   "rationale": "a JSON document with two values for one key passes"
+  },
+  {
+   "name": "X24_the_same_value_in_new_text_is_guessed",
+   "path": "tools/cross_env_semantics.py",
+   "find": "            # the same value in different text: nothing this comparator\n            # knows produces that, so it does not guess\n            return self.add(UNCLASSIFIED, where, a, b)\n",
+   "replace": "            return None\n",
+   "rationale": "a changed serialisation of an equal value is silently equal"
+  },
+  {
+   "name": "X25_a_structured_cell_becoming_text_passes",
+   "path": "tools/cross_env_semantics.py",
+   "find": "            if sa is None or sb is None:\n                return self.add(STRUCTURAL, where, a, b)\n",
+   "replace": "            if sa is None or sb is None:\n                return self.add(DECISION if False else PRECISION, where, a, b, rel=0.0)\n",
+   "rationale": "a cell that stopped being structured is a precision event"
+  },
+  {
+   "name": "X26_a_changed_type_passes",
+   "path": "tools/cross_env_semantics.py",
+   "find": "        if ka != kb:\n            return self.add(STRUCTURAL, where, a, b)\n        if ka == \"int\"",
+   "replace": "        if False:\n            return self.add(STRUCTURAL, where, a, b)\n        if ka == \"int\"",
+   "rationale": "an int that became a float is not structural"
+  },
+  {
+   "name": "X27_a_long_table_is_never_bound",
+   "path": "tools/cross_env_semantics.py",
+   "find": "                    bound = self._row_bound(long_spec, ra[ki], a_keyed,\n",
+   "replace": "                    bound = None and self._row_bound(long_spec, ra[ki], a_keyed,\n",
+   "rationale": "a long-format residual bound by its row is bare"
+  },
+  {
+   "name": "X28_a_non_numeric_floor_authorises",
+   "path": "tools/cross_env_semantics.py",
+   "find": "    if n is None or not math.isfinite(n[1]) or n[1] <= 0:\n",
+   "replace": "    if n is None:\n",
+   "rationale": "a floor of zero authorises a crossing"
   }
  ]
 }

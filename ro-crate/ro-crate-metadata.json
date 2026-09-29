@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "217078",
+   "contentSize": "217690",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -204,18 +204,18 @@
   {
    "@id": "hdf5_output_mapping.json",
    "@type": "File",
-   "contentSize": "142789",
+   "contentSize": "144589",
    "description": "88-output -> HDF5 mapping registry (schema 1.0.0)",
    "name": "hdf5_output_mapping.json",
-   "sha256": "2bb4b3b40c63fdfbd227c033ef1ca17b443f8bf432b167ba09c2d7160a1b8625"
+   "sha256": "c895abb74dd932ee599194e5b44296264cf5a3121f0555c4d0e3c34358ea87d1"
   },
   {
    "@id": "hdf5_schema.json",
    "@type": "File",
-   "contentSize": "154343",
+   "contentSize": "156143",
    "description": "HDF5 dataset schema (1.0.0)",
    "name": "hdf5_schema.json",
-   "sha256": "50640be42f4c31fae466e4538173b6c43d64a791e69d1133aff2fbfcbd49d9ce"
+   "sha256": "cc0496fde9cd1f592fe3cb327d16ec6a096c497bfc3407af83877b9ff2dc8e34"
   },
   {
    "@id": "manifest_hash.txt",
@@ -236,10 +236,10 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "136341",
+   "contentSize": "138218",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "7e5c79515362ba9fe017d6760ef2c785b7c5035df218505e647b0333a2a99719"
+   "sha256": "adb3b96a15574917a4efc70a26e8a4cab305621f45f50f258e813ecff5adcce0"
   },
   {
    "@id": "pyproject.toml",
@@ -268,10 +268,10 @@
   {
    "@id": "qta_scientific_results.h5",
    "@type": "File",
-   "contentSize": "2059417",
+   "contentSize": "2085183",
    "description": "HDF5 representation of existing simulation outputs (NOT new scientific evidence)",
    "name": "qta_scientific_results.h5",
-   "sha256": "8e07ccdf44ae21a809c55979f9fc7cdad3fb039bb2e12690571ebe7e0bc87e72"
+   "sha256": "538a9a90fa3c0369a34c82f869192a90c9affc7dbf4f571f50c359c9ea5c0926"
   },
   {
    "@id": "qta_sim_stages.py",
@@ -321,7 +321,7 @@
    "contentSize": "548",
    "description": "HDF5<->source exact-equivalence report",
    "name": "hdf5_equivalence_report.json",
-   "sha256": "d3fa12bd7bbb5dc5c0e945d16d3789378f76909b39bf8ad3730dfcc311774253"
+   "sha256": "411fc3af0bef898d97decc37959b5c49364a52c770d87b37c391fba841378f9b"
   },
   {
    "@id": "uv.lock",

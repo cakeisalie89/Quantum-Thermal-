@@ -78,6 +78,9 @@
   "energy_ledger_cumulative_3d.csv:cumulative_residual_J": {
    "unit": "J"
   },
+  "energy_ledger_cumulative_3d.csv:cumulative_resolution_floor_J": {
+   "unit": "J"
+  },
   "energy_ledger_cumulative_3d.csv:cumulative_sink_J": {
    "unit": "J"
   },
@@ -94,6 +97,9 @@
    "unit": "DIMENSIONLESS"
   },
   "energy_ledger_cumulative_3d.csv:phase_residual_J": {
+   "unit": "J"
+  },
+  "energy_ledger_cumulative_3d.csv:phase_resolution_floor_J": {
    "unit": "J"
   },
   "energy_ledger_cumulative_3d.csv:phase_sink_J": {

@@ -71,7 +71,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "b5ced2e137786c9cee4cbc09f2a2cba6359af52675576a643f9a1b83a7d42fe6"
+   "sha256": "2f521cb1a9b8d90c6530f75a3da9b3a6731c91738d880150949c3bfd3171174e"
   },
   {
    "byte_preservation": true,
@@ -161,7 +161,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "df51975a7d4f4bb6aa9ea043accadc75d1ece4ff80de8e8e935145d727b26710"
+   "sha256": "335c62bec5d43ab32b9be26401bbde70e415e79f61a8eb6fff9b436ef4d2100e"
   },
   {
    "byte_preservation": true,
@@ -217,7 +217,7 @@
    "rationale": "nested heterogeneous governance/summary record; arrayization would invent schema",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "4a87a4fd15eadb0656b03d36e6bf8ea724cd4343a9da66a510e0223a54ee88e2"
+   "sha256": "09902c0b3c42c26bcf156b472ada4ae09e04c26aaeb3c243f84bdad59657031e"
   },
   {
    "byte_preservation": true,
@@ -698,47 +698,103 @@
      "dtype": "float64",
      "index": 7,
      "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "phase_resolution_floor_J",
+     "unit": "J"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 8,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase_source_J_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 9,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase_sink_J_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 10,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "phase_dU_J_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "float64",
+     "index": 11,
+     "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_source_J",
      "unit": "J"
     },
     {
      "dtype": "float64",
-     "index": 8,
+     "index": 12,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_sink_J",
      "unit": "J"
     },
     {
      "dtype": "float64",
-     "index": 9,
+     "index": 13,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_dU_J",
      "unit": "J"
     },
     {
      "dtype": "float64",
-     "index": 10,
+     "index": 14,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_residual_J",
      "unit": "J"
     },
     {
      "dtype": "float64",
-     "index": 11,
+     "index": 15,
      "missing_value_policy": "no empty cells (uniform numeric)",
      "name": "cumulative_rel_residual",
      "unit": "DIMENSIONLESS"
     },
     {
+     "dtype": "float64",
+     "index": 16,
+     "missing_value_policy": "no empty cells (uniform numeric)",
+     "name": "cumulative_resolution_floor_J",
+     "unit": "J"
+    },
+    {
      "dtype": "utf8_string",
-     "index": 12,
+     "index": 17,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "cumulative_source_J_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 18,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "cumulative_sink_J_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 19,
+     "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
+     "name": "cumulative_dU_J_resolution",
+     "unit": "n/a (string)"
+    },
+    {
+     "dtype": "utf8_string",
+     "index": 20,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "basis",
      "unit": "n/a (string)"
     },
     {
      "dtype": "utf8_string",
-     "index": 13,
+     "index": 21,
      "missing_value_policy": "verbatim strings (empties preserved as empty strings; never coerced to zero)",
      "name": "label",
      "unit": "n/a (string)"
@@ -747,12 +803,12 @@
    "format": "csv",
    "hdf5_group": "/tables/energy_ledger_cumulative_3d",
    "in_hdf5": true,
-   "n_columns": 14,
+   "n_columns": 22,
    "n_rows": 9,
    "path": "energy_ledger_cumulative_3d.csv",
    "referenced_by_ro_crate": true,
    "role": "governed scientific/governance output (forecast-only)",
-   "sha256": "9c38d248d64f83f591dd63ed3249fe701a1b414989a19e8a1a1216c49b4acac2"
+   "sha256": "df9e42cca3d10c6ca175280556df680db6bb1aa7906141d892aeac87f9b0d386"
   },
   {
    "byte_preservation": true,

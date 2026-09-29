@@ -8748,3 +8748,152 @@ BK27-BK33.
 **NOT CHANGED.** Which runs may be reused: an unresolved or different
 backend is recomputed exactly as before; a run identity simply names more of
 what executed.
+
+## D-2026-98 — three quantities crossed zero between backends with nothing in the file saying what their method resolves, and one of them was called declared
+
+**CLASS** — `RESOLUTION_UNDECLARED` (D-2026-53's class), three producers;
+`INSTRUMENT_PROXY` in `tools/cross_env_semantics.py`. Found by the
+directive-7 remeasurement of R59; part of R59-B's evidence, not of R59-C.
+
+**MEASURED.** The full canonical corpus (88 compared, 1 exempt) regenerated
+on this host under seven dispatch configurations (OpenBLAS Haswell or
+Nehalem kernel, NumPy with AVX-512 or with every dispatch target disabled,
+one thread or the default), each probed in the regenerating process, and
+every differing leaf classified. The existing comparator counted 27 zero
+crossings in the Haswell + AVX2 configuration, 26 "declared by the file they
+are in" and 1 bare. Asked quantity by quantity, the 27 are:
+
+* 25 bound to a class of their own -- 18 in `gas_transport_profile.csv`,
+  1 in `gas_transport_metrics.csv`, and the Mode C/D methane residuals, 2
+  each in `coupled_mode_recovery_metrics.csv`, `multiphysics_summary.json`
+  and `coupled_mode_state_summary.json` `.metrics` -- all BELOW_RESOLUTION
+  on both sides;
+* `coupled_mode_state_summary.json` `.state.gasC_sample.CH4`, 0.0 against
+  4.0e-09: **bare**. The same physical number as `.metrics.Mode_C_cleanup_
+  residual_CH4_m3`, which the file does classify; the comparator called the
+  state copy declared because the FILE contains `_resolution` somewhere
+  (`declares_resolution` read the text);
+* `energy_ledger_cumulative_3d.csv` `cumulative_dU_J` after cycle 1 MODE_C,
+  1.615587134e-27 against 0.0: **bare**. +9.114286125e-12 J stored in MODE B
+  and released in MODE C, cancelling to one ulp on one backend and to
+  nothing on another -- to two ulp (3.23e-27) with the Haswell kernel
+  alone, which is why no rounding bound on the sum can be the floor: the
+  inputs themselves differ.
+
+The configuration with no NumPy dispatch at all added a third:
+`convergence_report_3d.json` `.time_integration_check.rel_change`, 0.0
+against 1.29e-16 -- one ulp of a 13.73 K probe, between two solves
+integrated to 1e-6 and 1e-7.
+
+**REPAIR, in the producers.** None rounds, clips or edits an artefact; each
+class is computed by the code that produced the number, against a floor
+that code establishes, and the canonical copies are that code's output on
+the witness backend.
+
+* The energy ledger publishes `phase_resolution_floor_J` and
+  `cumulative_resolution_floor_J` -- the energy its own balance leaves
+  unexplained (`|source - sink - dU|`, summed in magnitude across phases)
+  plus the first-order rounding bound of the sums -- and a class beside
+  every energy term, per phase and cumulatively (`campaign_state_3d.
+  ledger_floor`). After a full B->C cycle the stored energy is
+  BELOW_RESOLUTION against ~2e-13 J; so is the end-of-campaign dU in
+  `campaign_state_3d.json`. MODE_C's 2.8e-25 J laser source is
+  BELOW_RESOLUTION against its phase's 1.9e-13 J closure.
+* The coupled-mode state publishes `gasB_sample_resolution`,
+  `gasC_sample_resolution`, `thetaB_resolution` and `thetaC_resolution`,
+  species by species, from the solves that produced them.
+* The 3D convergence report publishes the class of each relative change
+  against the tightest tolerance of the solves compared
+  (`convergence_3d.rel_change_resolution`).
+
+**REPAIR, in the binding.** `docs/resolution_inventory.json` binds classes
+to quantities one at a time: `floor_from` on a wide column, `row_bindings`
+for a long-format table, `json_bindings` (with `.*` for a parallel
+resolution object) for JSON. `tools/resolution_inventory.py` reconciles
+every binding against the committed artefact -- the path exists, the value
+is a number, the carrier holds a class, parallel objects have the same
+members, `floor_from` names a declared FLOOR. The ledger's twelve
+formerly-bare columns are now CARRIER or FLOOR; rule 4 (no bare column in an
+artefact that classifies another) holds for it. `package_consistency_check
+.py` re-derives every row-floor class from the value and the floor in the
+same row.
+
+**EVIDENCE.** `tests/test_quantity_resolution.py`; mutations QR1-QR16. The
+regenerated corpus differs from the committed one in exactly the four
+files the producers write (and the by-design-exempt readiness stub).
+
+**NOT CLAIMED.** The floors bound what each method RESOLVES; they are not
+error bars, and a BELOW_RESOLUTION class is not a statement that the
+quantity is zero. Nothing here establishes scientific equivalence between
+backends (R59-C).
+
+## D-2026-99 — which sixteen cells the NV-plane coverage table lists is chosen by roundoff
+
+**CLASS** — `SELECTION_BELOW_RESOLUTION`, `qta_multiphysics/
+surface_coverage_3d.nv_plane_coverage_rows`. Found by the directive-7
+remeasurement; OPEN.
+
+**MEASURED.** With the OpenBLAS Nehalem kernel and every NumPy dispatch
+target disabled, `surface_coverage_3d_summary.csv` lists a DIFFERENT SET of
+cells: the table is "the 16 hottest cells of the NV plane at Mode-D entry
+plus the beam-axis cell", chosen by `argsort` of a plane whose temperatures
+agree to ten significant digits (1.000000000e-02 K), so the order is decided
+in the last bits and moves with the backend. The old comparator reported 17
+SIGN_FLIPs in the x/y coordinates and passed; the rows describe different
+cells.
+
+**WHY NOT REPAIRED HERE.** A defensible tie-break needs the resolution of
+the 3D thermal solve's temperatures, and that method declares no floor
+(its columns are NO_FLOOR_DEFINED). Inventing one to make the selection
+stable is the fabricated floor D-2026-66 refuses. Until a floor exists the
+portable comparison refuses this artefact wherever the selection moves --
+as STRUCTURAL, because the rows no longer name the same cells. Observed only
+in the configuration with no SIMD dispatch at all. The native AVX-512
+configuration and Haswell + AVX2 -- the one that reproduced the non-AVX-512
+hosted runner's divergence file for file -- select the committed cells.
+
+## D-2026-100 — the cross-environment comparator stripped digits from text, printed structure changes it should refuse, and asked files what their quantities resolve
+
+**CLASS** — `INSTRUMENT_PROXY`, `tools/cross_env_semantics.py`. Found by the
+directive-7 review of the instrument R59 was to fall back on; not R59 itself.
+
+**WHAT WAS THERE.** A differing leaf was classified by deleting every digit
+from both sides with a regex and comparing what was left: the residue
+matched, so every number was a number. `model_v2` -> `model_v3` was a
+precision event; so was any count that moved by one. A key present on one
+side only was printed and not refused. A zero crossing or a sign flip was
+never refused at all -- counted, and split DECLARED/BARE by whether the FILE
+mentioned a resolution anywhere, which called `.state.gasC_sample.CH4`
+declared (D-2026-98). Its scope was "every file in the other tree with a
+committed counterpart", so a differing artefact it did not parse -- the
+`.mmd` diagram -- was silently skipped, and a missing one never noticed.
+The only refusal was a changed non-numeric residue.
+
+**REPAIR.** Rewritten type-aware. JSON is parsed (duplicate keys refused)
+and walked; CSV headers, row counts and row lengths must agree; a cell that
+is a whole numeric token is a number, a cell that parses as a JSON or Python
+literal container is recursed, anything else is text compared whole. Refused:
+STRUCTURAL (keys, lengths, headers, rows, types, missing or foreign
+artefacts), DECISION (any text, boolean, null, label, unit, class), DISCRETE
+(an integer that moved; any change in a COORDINATE, EXACT_BY_CONSTRUCTION or
+INPUT_CONSTANT column), NONFINITE, UNCLASSIFIED (an unparsed or unparseable
+differing artefact, an equal value in changed text), and a zero crossing or
+sign flip that is not bound -- through `docs/resolution_inventory.json`, per
+quantity -- to BELOW_RESOLUTION on BOTH sides and, where a floor is bound,
+inside it. Permitted and reported: PRECISION and bound crossings. The scope
+is the declared canonical set minus exact exemptions, both passed in by the
+caller (the CLI parses them from `package_consistency_check.py`). Every
+report carries `CROSS_ENV_STATUS` and `scientific_equivalence:
+NOT_ESTABLISHED`.
+
+**MEASURED WITH IT.** On the seven pre-repair regenerations it finds exactly
+the bare crossings D-2026-98 names, the 17 coordinate sign flips of
+D-2026-99 in the no-SIMD configuration, and no structural, decision,
+discrete, non-finite or unclassified difference in any.
+
+**EVIDENCE.** `tests/test_cross_env_semantics.py` (hostile fixtures:
+version labels, mode labels, text carrying a number, integer counts,
+coordinates, NaN/Inf, header/row/key/type changes, unparsed artefacts,
+duplicate keys, wide/long/JSON bindings, CASES 18-20, precedence, scope).
+Mutations X1-X28 in `tools/mutations/cross_environment.json`, replacing
+E12-E20, which anchored the code this replaces.

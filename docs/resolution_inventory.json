@@ -3,7 +3,7 @@
   "what_this_is": "For every governed numeric column, what states the resolution of the method that produced it -- or, honestly, that nothing does.",
   "does_not_mean": "that a column with a CARRIER is measured, or that one with NO_FLOOR_DEFINED is wrong. MODEL-ONLY / FORECAST-ONLY; PASS remains 0.",
   "vocabulary": {
-    "CARRIER": "another column in the same artefact publishes this one's resolution class; resolution_from names it",
+    "CARRIER": "another column in the same artefact publishes this one's resolution class, in the same row; resolution_from names it, and floor_from, when present, names the FLOOR column the class was decided against",
     "FLOOR": "this column is the declared resolution floor itself",
     "COORDINATE": "an independent variable set by the mesh or the output schedule, not produced by the solve",
     "EXACT_BY_CONSTRUCTION": "a count or an ordinal; no floating-point method, so no resolution to state",
@@ -100,48 +100,62 @@
       "why": "no resolution floor is defined for the method that produces this column"
     },
     "energy_ledger_cumulative_3d.csv:cumulative_dU_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "CARRIER",
+      "resolution_from": "cumulative_dU_J_resolution",
+      "floor_from": "cumulative_resolution_floor_J"
     },
     "energy_ledger_cumulative_3d.csv:cumulative_rel_residual": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "FLOOR",
+      "why": "the closure residual in relative form; a statement of what the ledger resolves, not a quantity it resolves"
     },
     "energy_ledger_cumulative_3d.csv:cumulative_residual_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "FLOOR",
+      "why": "the closure residual source - sink - dU is the energy the accounting cannot place; its magnitude is what the cumulative_resolution_floor_J beside it is formed from"
+    },
+    "energy_ledger_cumulative_3d.csv:cumulative_resolution_floor_J": {
+      "basis": "FLOOR",
+      "why": "this column IS the ledger's resolution floor: the energy its balance leaves unexplained plus the rounding bound of the arithmetic that formed it (campaign_state_3d.ledger_floor)"
     },
     "energy_ledger_cumulative_3d.csv:cumulative_sink_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "CARRIER",
+      "resolution_from": "cumulative_sink_J_resolution",
+      "floor_from": "cumulative_resolution_floor_J"
     },
     "energy_ledger_cumulative_3d.csv:cumulative_source_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "CARRIER",
+      "resolution_from": "cumulative_source_J_resolution",
+      "floor_from": "cumulative_resolution_floor_J"
     },
     "energy_ledger_cumulative_3d.csv:cycle": {
       "basis": "EXACT_BY_CONSTRUCTION",
       "why": "a count is exact; there is no floating-point method whose resolution could be stated"
     },
     "energy_ledger_cumulative_3d.csv:phase_dU_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "CARRIER",
+      "resolution_from": "phase_dU_J_resolution",
+      "floor_from": "phase_resolution_floor_J"
     },
     "energy_ledger_cumulative_3d.csv:phase_rel_residual": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "FLOOR",
+      "why": "the closure residual in relative form; a statement of what the ledger resolves, not a quantity it resolves"
     },
     "energy_ledger_cumulative_3d.csv:phase_residual_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "FLOOR",
+      "why": "the closure residual source - sink - dU is the energy the accounting cannot place; its magnitude is what the phase_resolution_floor_J beside it is formed from"
+    },
+    "energy_ledger_cumulative_3d.csv:phase_resolution_floor_J": {
+      "basis": "FLOOR",
+      "why": "this column IS the ledger's resolution floor: the energy its balance leaves unexplained plus the rounding bound of the arithmetic that formed it (campaign_state_3d.ledger_floor)"
     },
     "energy_ledger_cumulative_3d.csv:phase_sink_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "CARRIER",
+      "resolution_from": "phase_sink_J_resolution",
+      "floor_from": "phase_resolution_floor_J"
     },
     "energy_ledger_cumulative_3d.csv:phase_source_J": {
-      "basis": "NO_FLOOR_DEFINED",
-      "why": "no resolution floor is defined for the method that produces this column"
+      "basis": "CARRIER",
+      "resolution_from": "phase_source_J_resolution",
+      "floor_from": "phase_resolution_floor_J"
     },
     "expected_information_gain.csv:eig_nats": {
       "basis": "NO_FLOOR_DEFINED",
@@ -659,5 +673,44 @@
       "basis": "NO_FLOOR_DEFINED",
       "why": "no resolution floor is defined for the method that produces this column"
     }
-  }
+  },
+  "row_bindings": {
+    "coupled_mode_recovery_metrics.csv": {
+      "key_column": "metric",
+      "value_column": "value",
+      "floor_row": "gas_resolution_floor_1m3",
+      "bindings": {
+        "Mode_C_cleanup_residual_CH4_m3": "Mode_C_cleanup_residual_CH4_resolution",
+        "Mode_D_residual_CH4_density_m3": "Mode_D_residual_CH4_resolution",
+        "Mode_D_residual_H2_density_m3": "Mode_D_residual_H2_resolution"
+      }
+    }
+  },
+  "json_bindings": {
+    "campaign_state_3d.json": {
+      ".cumulative_energy.source_J": ".cumulative_energy.source_J_resolution",
+      ".cumulative_energy.sink_J": ".cumulative_energy.sink_J_resolution",
+      ".cumulative_energy.dU_J": ".cumulative_energy.dU_J_resolution"
+    },
+    "convergence_report_3d.json": {
+      ".mesh_check.probe_rel_change": ".mesh_check.probe_rel_change_resolution",
+      ".mesh_check.hotspot_rel_change": ".mesh_check.hotspot_rel_change_resolution",
+      ".time_integration_check.rel_change": ".time_integration_check.rel_change_resolution"
+    },
+    "coupled_mode_state_summary.json": {
+      ".metrics.Mode_C_cleanup_residual_CH4_m3": ".metrics.Mode_C_cleanup_residual_CH4_resolution",
+      ".metrics.Mode_D_residual_CH4_density_m3": ".metrics.Mode_D_residual_CH4_resolution",
+      ".metrics.Mode_D_residual_H2_density_m3": ".metrics.Mode_D_residual_H2_resolution",
+      ".state.gasB_sample.*": ".state.gasB_sample_resolution.*",
+      ".state.gasC_sample.*": ".state.gasC_sample_resolution.*",
+      ".state.thetaB.*": ".state.thetaB_resolution.*",
+      ".state.thetaC.*": ".state.thetaC_resolution.*"
+    },
+    "multiphysics_summary.json": {
+      ".coupled_metrics.Mode_C_cleanup_residual_CH4_m3": ".coupled_metrics.Mode_C_cleanup_residual_CH4_resolution",
+      ".coupled_metrics.Mode_D_residual_CH4_density_m3": ".coupled_metrics.Mode_D_residual_CH4_resolution",
+      ".coupled_metrics.Mode_D_residual_H2_density_m3": ".coupled_metrics.Mode_D_residual_H2_resolution"
+    }
+  },
+  "bindings_note": "row_bindings and json_bindings bind a quantity to the class that states its resolution, one quantity at a time: a long-format table's value row to its class row, a JSON leaf to the leaf holding its class (a trailing * binds each key of an object to the same key of its parallel resolution object). A file that carries SOME resolution field authorises nothing else in it; an unbound quantity that crosses zero between two environments is bare (D-2026-98)."
 }
