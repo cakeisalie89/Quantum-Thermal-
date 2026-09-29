@@ -9096,3 +9096,19 @@ separate owner authorization (directive 7 s.35), and the corpus is
 untouched. A generator that started processes would run them on the
 physical CPU (qemu-user emulates only the process it starts); the current
 closure starts none, and a test keeps it so.
+
+**THE TWO-HOST RESULT** (recorded with the tranche report, section 16 of
+the plan). `reference-backend` run 36513496040, job 109230591297, at
+`f6b24ab`: host B, a GitHub-hosted ubuntu-24.04 runner on an AMD EPYC 9V45
+(AuthenticAMD, 4 vCPUs), installed the pinned toolchain, built the recipe
+in 10 minutes with every source, patch and the interpreter verified, and
+`verify` printed reference identity `d2907025758c88d7...` -- host A's,
+exactly, so the reference builds were byte-reproducible across the hosts.
+It regenerated the corpus in 2079 s on the software CPU. `two-host`
+against host A (GenuineIntel family 6 model 207, AVX-512/AMX):
+**`TWO_HOST_BYTE_IDENTICAL`** -- all 88 non-exempt canonical outputs
+byte-equal, on two CPU classes that differ in vendor and feature set.
+R59-E closes for the STAGED reference. Both hosts are virtual machines,
+so "physical CPU" is the class each guest sees; it is one pair of hosts;
+it proves reproducibility across them, not that any number is right; and
+the canonical corpus is still the witnessed native backend's.

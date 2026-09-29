@@ -2003,3 +2003,284 @@ Status is what code on an exercised path does. Changed rows first.
 E (directive 6): the generic numerical configuration and the Mode
 semantics -- not begun. **Stopping here**, per the directive, until an
 explicit continuation.
+
+## 16. Directive 7 checkpoint report -- which question a byte comparison answers, and a reference backend the physical CPU cannot choose (CE-B..CE-D5)
+
+Directive 7, section 49's report. Starting SHA `ea4ddfa`; ending code SHA
+`f6b24ab`; this report is the commit after it. Not merged; PR #17 open, no
+new PR, no history rewritten, nothing force-pushed. **E is not begun**: it
+waits for an explicit owner continuation. Hosted CI below is taken from
+runs for each exact SHA only.
+
+### Commits
+
+| Commit | What |
+|---|---|
+| `7753951` | CE-B. A key that may no longer sign is refused by the WRITER (may_sign under the writer lock, before the attestation or the record), not only by its readers (D-2026-96) |
+| `1a38fdd` | CE-C. The probe names what NumPy DISPATCHED, function by function, and asks each OpenBLAS how many threads it runs; GLIBC_TUNABLES and GOTO_NUM_THREADS are backend variables (D-2026-97) |
+| `39fd469` | CE-D2. Every quantity that crossed zero between backends states what its method resolves, bound to the quantity; the comparator is type-aware and refuses what it cannot explain (D-2026-98, D-2026-100; D-2026-99 recorded open) |
+| `55e4f3c` | CE-D1/D3/D4. The byte-reproduction witness; two package-consistency policies; no required job red by design; release strict and refusing early (D-2026-101) |
+| `f6b24ab` | CE-D5. The STAGED canonical reference backend: fixed OpenBLAS and NumPy paths, one thread, pinned userspace, run on qemu-user Nehalem-v1; host A recorded; the two-host test wired (D-2026-102) |
+| (next) | this report |
+
+CE-A (the scheduler stress campaign) was inventoried at the start and found
+complete to the directive (barrier SC1-SC7, safety first SF1-SF3, edge
+coverage CV1-CV5, deterministic controls, Python 3.13 green); nothing was
+added. The CE-B/CE-C gaps the inventory found -- the writer's key-lifecycle
+question, NumPy's per-function dispatch, the BLAS thread count -- were
+closed by `7753951` and `1a38fdd`.
+
+### Counts at the ending SHA (start `ea4ddfa` in brackets)
+
+* Tracked files 715 [696]; dispositions 715 rows [696], each by
+  exactly one rule.
+* Full suite 5189 passed, 9 skipped, 0 failed [4909 passed, 9 skipped] -- 4918 at CE-B, 4928 at
+  CE-C, 4984 at CE-D2, 5063 at CE-D134, 5189 at CE-D5; test modules
+  collectable alone 142 [137].
+* Mutation specs 72 [69] in 8 shards -- new: quantity_resolution,
+  reproduction_policy, reference_backend; R51 states 72.
+* ACTIVE modules 116 [113]; none imports or names legacy.
+
+### Mutation results (local, serial, baseline and null control green, sources restored byte-identical in every counted run)
+
+New specs: quantity_resolution 16/16 (QR1-QR16, D-2026-98),
+reproduction_policy 29/29 (RP1-RP29, D-2026-101), reference_backend
+75/75 (RB1-RB46, RBS1-RBS16 on the recipe itself, RBT1-RBT13 on the
+two-host verdict; D-2026-102). Extended: signed_append_lifecycle 33/33
+(KW1-KW6, the writer's key question), backend_probe 35/35 (BK27-BK35:
+NumPy's per-function dispatch, the BLAS thread count and threading model,
+GLIBC_TUNABLES, the interpreter by its bytes), cross_environment 39/39
+(E1-E11 plus X1-X28 on the rewritten comparator). Re-run on the tree of the
+commit that touched their files: actor_authentication 19/19 and
+authenticated_history 23/23 (CE-B); run_identity_backend 9/9,
+governed_model_reuse 20/20, scientific_interfaces 27/27 (CE-C);
+resolution_inventory 7/7, output_resolution 17/17, canonical_output_set
+8/8, solver_failclosed 25/25 (CE-D2); canonical_output_set 8/8,
+output_resolution 17/17, mutation_shards 12/12, repo_contract 18/18
+(CE-D134); reference_backend 75/75, mutation_shards 12/12, repo_contract 18/18, cross_environment 39/39, canonical_output_set 8/8 (CE-D5). Classified equivalents: none. Every final
+result is 100%.
+
+**Not counted, and why.** Each of these was a real result about a tree
+that was then corrected; none is in the totals above.
+(1) X25 and X28 survived the first cross_environment run (37/39): nothing
+tested a structured cell becoming text, or a non-numeric floor; tests
+added, re-run 39/39. (2) BK35 survived (34/35): the interpreter test
+compared names, not bytes; now it compares the executing binary's sha256.
+(3) RP18 survived (28/29) -- a MIS-SPECIFIED mutation: its anchor covered
+the first of three lines and dropped only a file count, an equivalent
+change; re-specified to drop the native byte digests, with a split test,
+29/29. (4) RB36 survived the first reference_backend run (35/36): with the
+spec digest dropped, the explicit software_cpu key still carried the CPU;
+a different-rootfs test now kills it. (5) E11 reported ANCHOR DRIFT once
+-- CE-D134 rewrote the container step it reorders; an anchor drift tests
+nothing, E11 was re-anchored (same reorder) and re-run 39/39.
+(6) reproduction_policy's baseline was RED twice on early drafts (a bytecode
+test that assumed `__pycache__`, then assumed no PYTHONPYCACHEPREFIX): a red
+baseline makes every mutation look killed, so those runs were discarded.
+**Interruptions.** Eight runs were stopped on purpose when the tree they
+tested was found defective (stale R51 count, stale R59 row, a mutation
+fix): each is listed in the session checklist and none was counted. One
+matrix was stopped mid-mutation (the null control on
+tools/workflow_contract.py); `mutation_matrix.py --recover` restored it,
+the worktree's tree object was verified equal to the tree it started from,
+and the quarantine was empty. The container restarted once between runs;
+every run counted here started after it.
+
+### Defects found in this tranche's own drafts, before any push
+
+* R51's spec count stale in two cut trees (70 and 71 specs, R51 said 69):
+  caught by the completion-matrix test before validation finished; trees
+  re-cut.
+* R59's matrix row still said the required job fails on any dispatch
+  difference, after the policy split made that untrue; row rewritten in the
+  same commit as the split.
+* The first reference `verify` refused the runtime for a declaration error
+  -- "Nehalem" (the DYNAMIC_ARCH name) declared, "NEHALEM" reported by a
+  TARGET=NEHALEM build; the check stayed exact.
+* The reference build found three recipe defects, each fixed in the recipe
+  rather than worked around: OpenBLAS 0.3.31's serial shared library fails
+  its own link test (pinned patch), the build venv's tools were not on PATH,
+  and filtering NumPy/SciPy out of the export left their hash lines behind
+  (now `--no-emit-package`).
+* One inaccuracy reached a pushed commit MESSAGE, not its tree: `f6b24ab`'s
+  message says "RBT1-RBT12"; the spec it commits runs RBT1-RBT13 (the
+  thirteenth, generators not compared, was added with the generator digest
+  and is in the 75/75). History is not rewritten; the ledger entry and this
+  report state it correctly.
+* Two fail-open defaults in the conformance check (an unrecorded thread
+  variable read as declared; no build record skipping the library check)
+  and a substring check that let `fetch()` stop verifying while another
+  `sha256sum -c` remained -- each found by writing the mutation first.
+
+### Hosted CI, by exact SHA (push runs)
+
+The pull_request run of the same workflow at each SHA: `7753951` 36465694669,
+`1a38fdd` 36469154950 and `39fd469` 36502784828 each failed the full-suite
+job alone (1 of 14), as their push runs did; `55e4f3c` 36505116540 and
+`f6b24ab` 36513500524 success.
+
+| SHA | agent-substrate | full-suite, and why |
+|---|---|---|
+| `7753951` | 36465687134: 13/14 green (8 shards + aggregate, agent-substrate, 3.13, dispatch-sensitivity, cross-environment-3d) | red: pytest green; the old strict package step, 23 files on a Haswell runner with NumPy X86_V3 -- R59, the step CE-D134 removes |
+| `1a38fdd` | 36469146115: 13/14 green | red: same step, same 23 files, same runner class |
+| `39fd469` | 36502781594: 13/14 green | red: same step; on the SAME runner the hardened comparator reports DECISION_STABLE_WITH_NUMERIC_DRIFT, 27 bound crossings and 0 bare (the old one had counted 1 bare) |
+| `55e4f3c` | 36505111338: **all green** | green on a Haswell/X86_V3 runner: `policy=ci`, `BACKEND_STATUS=RESOLVED`, `REPRODUCTION_STATUS=DIFFERENT_RESOLVED_BACKEND`, `CROSS_ENV_STATUS=DECISION_STABLE_WITH_NUMERIC_DRIFT`, `SCIENTIFIC_EQUIVALENCE_STATUS=NOT_ESTABLISHED`, 88 compared, 23 differing, 5411 leaves, 0 refused; dispatch-sensitivity's anti-vacuity checks all PASS |
+| `f6b24ab` | 36513495780: **all green** (agent-substrate with the recipe check, full-suite, dispatch-sensitivity, 3.13, cross-environment-3d, 8 shards, aggregate) | green on a runner that reproduced every byte: `REPRODUCTION_STATUS=BYTE_IDENTICAL`, `CROSS_ENV_STATUS=NOT_NEEDED_BYTE_IDENTICAL`, 88 compared, 0 differing -- its backend (`5dcbca97...`) is not the witness's, so `witness=None`: the bytes agree, and the strict release would still refuse it as unwitnessed |
+
+stack-verify green on every SHA above (runs 36465694002, 36469154972, 36502785332, 36505116516, 36513500266). Not one of these
+jobs is green by tolerance: the Haswell runner at `55e4f3c` is green
+because the question it answers is the portable one and it says so; the
+full-suite red at the first three SHAs is the pre-split byte gate, and is
+exactly what CE-D134 was for.
+
+**The two-host acceptance test** -- `reference-backend` run 36513496040,
+job 109230591297, at `f6b24ab`. Host B: AMD EPYC 9V45 (AuthenticAMD), 4
+vCPUs, a GitHub-hosted ubuntu-24.04 runner. It installed the pinned
+toolchain (gcc-13, gfortran-13 and binutils already at the pinned versions;
+qemu-user 1:8.2.2+ds-0ubuntu1.18 installed), built the recipe in 10 minutes
+with every source, patch and the interpreter verified, and `verify`
+printed reference identity `d2907025758c88d770a84f85241f27a7c0eb526f
+6515ddbfa043a97ed3d73bfd` -- host A's, exactly: the reference builds were
+byte-reproducible across the two hosts. The generator ran 2079 s on the
+software CPU. `two-host` against `docs/reference_backend_host_a.json`
+(host A: GenuineIntel family 6 model 207, AVX-512/AMX):
+**`TWO_HOST_BYTE_IDENTICAL`** -- different physical CPU classes (vendor
+and feature set), equal reference identities, the same emulator bytes,
+recipe and generator, and all 88 non-exempt canonical outputs byte-equal.
+
+### Corrective A-D, item by item (directive 7 s.49)
+
+* **Corrective A.** Scheduler barrier: real (SC1-SC7). Safety ordering:
+  safety before anti-vacuity (SF1-SF3). Edge coverage: transition edges,
+  not labels (CV1-CV5). Deterministic controls: present. Python 3.13: the
+  second-interpreter job green at every SHA of this tranche.
+  Unchanged this tranche -- inventoried complete.
+* **Corrective B/C.** Signature provider seam: explicit;
+  reference-only Ed25519 refused as production authority; authenticated
+  profile (UNAUTHENTICATED_LEGACY / AUTHENTICATED_REQUIRED) declared at
+  genesis; one authenticated event source for every reader; the append
+  prepares the attestation first; registry trusted at its pinned digest;
+  key rotation, revocation and compromise by log position, read side
+  since CC and now write side too (`may_sign`, D-2026-96); historical
+  validity preserved (a key revoked at seq 10 still authenticates seq 5);
+  reader coverage 39 of 39; both parsers fuzzed. Production keys, the vetted
+  provider and the production pin remain EXTERNALLY_BLOCKED.
+* **Corrective D.** Native RECORD hashes and the installed native bytes;
+  a runtime probe in the worker; OpenBLAS identity (each bundled library
+  asked its kernel, config, thread count and threading model); NumPy's
+  runtime dispatch per function (D-2026-97), not its build flags; libc,
+  libm and the loader by bytes; the interpreter by bytes (BK34-BK35);
+  backend_status digested with the identity; an unresolved backend never
+  reused; backend_probe 35/35.
+
+### Package consistency, as the hosted full-suite now reports it
+
+Canonical outputs 89 declared, 88 byte-compared, 1 exempt
+(`deep_surrogate_readiness.json`, by design). On the witnessed backend
+(this host): PACKAGE_STATUS CONSISTENT, REPRODUCTION_STATUS BYTE_IDENTICAL
+under both policies. On the hosted runner at `55e4f3c` (Haswell kernel,
+NumPy X86_V3): `PACKAGE_STATUS=CONSISTENT`, `BACKEND_STATUS=RESOLVED`,
+`REPRODUCTION_STATUS=DIFFERENT_RESOLVED_BACKEND`,
+`CROSS_ENV_STATUS=DECISION_STABLE_WITH_NUMERIC_DRIFT`,
+`SCIENTIFIC_EQUIVALENCE_STATUS=NOT_ESTABLISHED`, 88 compared, 23 differing
+-- not byte-reproduced, and not said to be.
+
+### Reproduction profile
+
+`docs/byte_reproduction_profile.json`: status applies (checked in the
+required agent-substrate job); binds the corpus (88 files by sha256), the
+exemption, the generator's measured closure (98 files, digest
+`8a335342...`), the lock (uv.lock, pyproject.toml), and one witness,
+backend identity `97b7772c...` (SkylakeX kernel, NumPy AVX-512 dispatch,
+this host's libc/libm/loader and interpreter by bytes). A witness, not the
+corpus's historical provenance.
+
+### Cross-environment (the hardened comparator, hosted, `55e4f3c`)
+
+Files compared 88; differing 23; leaves compared 5411; structural drift 0;
+decision drift 0; discrete 0; non-finite 0; unclassified 0; zero crossings
+27, all quantity-bound (resolution-bound crossings 27, bare 0); sign flips
+0 bound, 0 bare; precision differences 195 (largest relative 0.328, a
+resolution floor of 3.7e-23 J against 2.5e-23 J).
+
+### The bare zero crossing
+
+File `energy_ledger_cumulative_3d.csv`; quantity `cumulative_dU_J` after
+cycle 1, MODE_C; producer `qta_multiphysics/campaign_state_3d.py` (the
+ledger's cumulative sum); numerical semantics: 9.114286125e-12 J stored in
+MODE B and released in MODE C cancel to one ulp (1.6e-27) on one backend,
+to exactly nothing on another and to two ulp under the Haswell kernel alone
+-- the inputs differ, so no rounding bound on the sum is the floor. FIXED in
+the producer: the ledger now publishes, per row, the energy its balance
+leaves unexplained plus the rounding bound of its sums as
+`resolution_floor_J`, and a class per source, sink and dU; the crossing is
+bound, not tolerated. The second bare crossing the old comparator hid
+(`coupled_mode_state_summary.json .state.gasC_sample.CH4`) and the third
+that appears with no NumPy dispatch (`convergence_report_3d.json
+.time_integration_check.rel_change`) are bound the same way (D-2026-98).
+
+### CPU reference (D-2026-102)
+
+* OpenBLAS fixed target: DONE -- TARGET=NEHALEM, DYNAMIC_ARCH=0; the runtime
+  reports kernel NEHALEM, config SINGLE_THREADED.
+* NumPy fixed dispatch: DONE -- cpu-baseline=X86_V2, cpu-dispatch=none; all
+  477 functions run `baseline(X86_V2)`.
+* Single thread: DONE -- USE_THREAD=0, NUM_THREADS=1, every thread variable
+  1, read back from the library.
+* Floating-point policy: DONE -- no fast-math, -ffp-contract=off, subnormals
+  and ties-to-even checked at run time.
+* Reference userspace: DONE -- pinned interpreter build and root
+  filesystem, libc/libm/loader by bytes.
+* Fixed software CPU: DONE -- qemu-user 8.2.2 `-cpu Nehalem-v1`; the
+  runtime conforms under it and is refused natively. Measured: the same
+  fixed userspace run natively differs in 19 of 88 files and in 0 once
+  glibc's FMA/AVX IFUNC selection is masked -- the software CPU is what
+  removes the last CPU-chosen arithmetic.
+* Two-host proof: DONE, on hosted evidence: `TWO_HOST_BYTE_IDENTICAL` between host A (GenuineIntel family 6 model 207) and host B (AMD EPYC 9V45) -- run 36513496040 at `f6b24ab`. Both are virtual machines, so "physical CPU" is the CPU class each guest sees; it is one pair of hosts, and the proof is of reproducibility across them, not of any number's correctness.
+
+### R59
+
+* R59-A, cause attribution -- CLOSED on current evidence: the remeasurement
+  table in D-2026-98 (0 / 20 / 20 / 23 / 22 / 23 files).
+* R59-B, CI classification -- CLOSED on hosted exact-SHA evidence: at `55e4f3c` every agent-substrate job is green and full-suite, on a Haswell/X86_V3 runner, reports DIFFERENT_RESOLVED_BACKEND / DECISION_STABLE_WITH_NUMERIC_DRIFT / scientific equivalence NOT_ESTABLISHED; at `f6b24ab` a runner that reproduced every byte reports BYTE_IDENTICAL; dispatch-sensitivity exercises the different-backend path on every commit with its anti-vacuity checks passing; no required job is red by design. Same-backend drift still fails (experiment D, CASE 2); an unknown backend fails (CASE 10).
+* R59-C, scientific equivalence -- OPEN. Decision stability is not
+  equivalence; no policy here establishes it.
+* R59-D, strict hosted reproduction executor -- EXTERNALLY_BLOCKED: no
+  hosted runner is a witnessed backend; the release refuses early as
+  CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED.
+* R59-E, physical-host-independent reference CPU -- CLOSED on hosted evidence for the reference backend: the STAGED reference regenerated the canonical corpus byte-identically on two materially different CPU classes (Intel family 6 model 207; AMD EPYC 9V45) with equal reference identities -- run 36513496040 at `f6b24ab`. It is STAGED: the corpus is still defined by the witnessed native backend, and moving it needs D-2026-99 and an owner authorization.
+
+### R41, R49, D-2026-69
+
+R41 and R49 unchanged (DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS). D-2026-69
+(artefact-as-method proxy) unchanged and still deferred; D-2026-98 extends
+quantity-bound resolution to three more quantities without touching it.
+
+### New defects
+
+D-2026-96 (writer key lifecycle), D-2026-97 (dispatch and BLAS threads
+unrecorded), D-2026-98 (three quantities without a resolution), D-2026-99
+(the NV coverage table's cells chosen by roundoff -- OPEN; it is what the
+reference backend's run refuses, and it blocks any corpus migration),
+D-2026-100 (the comparator), D-2026-101 (the required job red by design),
+D-2026-102 (no reference the CPU could not choose).
+
+### Unfinished, and exactly why
+
+* D-2026-99: needs the resolution of the ranking quantity before a
+  tie-break can be defended; recorded, refused by the comparator, not
+  repaired.
+* The corpus migration to the reference backend: blocked by D-2026-99 and
+  by the owner authorization s.35 requires; the corpus is untouched.
+* R59-C: no scientific-equivalence policy exists.
+* R59-D: no hosted witnessed backend.
+* R59-E: closed for the staged reference (TWO_HOST_BYTE_IDENTICAL, Intel and AMD); what remains is the corpus migration, blocked by D-2026-99 and the s.35 authorization.
+* Carried from earlier tranches and unchanged here: the vetted signature
+  provider, production keys, the registry pin, release signing
+  (EXTERNALLY_BLOCKED); the open-item register of section 15.
+
+### Next, exactly
+
+Nothing. Tranche E (semantic QTA clean-up) is not begun and waits for an
+explicit owner continuation. Migrating the canonical corpus to the
+reference backend waits for D-2026-99 and a separate owner authorization.
