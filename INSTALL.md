@@ -1,9 +1,25 @@
-# INSTALL
+# Installing the framework
+
+```
+uv sync --frozen --all-groups
+uv run python -m pytest tests/ -q
+```
+
+`uv.lock` pins every dependency; `pyproject.toml` declares them, grouped
+by what needs them. The optional stack elements (SALib, OpenMDAO, usd-core,
+the Rust kernels, FEniCSx) are described below and in `STACK.md`; an absent
+one reports itself UNAVAILABLE and never substitutes a result.
+
+## The legacy QTA verifier
+
+The rest of this section concerns `package_consistency_check.py`, the
+LEGACY_QTA_VERIFIER that re-runs the QTA pipeline and byte-compares its
+outputs.
 
 ## External system dependencies
 
-This package's core consistency verification has minimal dependencies. The
-optional full PDF text validation requires one external binary.
+The legacy verifier's core has minimal dependencies. The optional full PDF
+text validation requires one external binary.
 
 ### Required
 
@@ -66,9 +82,9 @@ backends can be swapped for a pinned CPU PyTorch build behind their existing int
 Run: `python tests/test_deep_expdesign.py && python tests/test_deep_expdesign_stage2.py`, then
 `python qta_full_sim.py --ci --deep`.
 
-> QTA includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.
+> The framework includes direct Bayesian experimental design. A deep simulation-based inference and EIG layer may be trained and numerically validated against the direct reference estimator. This does not constitute experimental validation of the physical architecture.
 
-## Canonical regeneration and profiles
+## Canonical regeneration and profiles (legacy QTA pipeline)
 
 The canonical regeneration command — the one `package_consistency_check.py`
 runs and the one all committed root outputs must byte-match — is:

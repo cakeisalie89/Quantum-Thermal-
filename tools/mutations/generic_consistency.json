@@ -1,0 +1,93 @@
+{
+  "title": "The generic consistency verifier: every check it makes, removed",
+  "note": "tools/generic_consistency.py is the framework's successor to the legacy QTA verifier (directive 17): event history, evidence, independent reconstruction, scientific artifacts, model identity. Each check is removed here and tests/test_generic_consistency.py, on a real governed history damaged one way at a time, must notice.",
+  "suites": [
+    "tests/test_generic_consistency.py"
+  ],
+  "mutations": [
+    {
+      "name": "GC1_the_chain_is_not_verified",
+      "path": "tools/generic_consistency.py",
+      "find": "    if not chain.ok:\n        out[\"EVENT_HISTORY\"]",
+      "replace": "    if False:\n        out[\"EVENT_HISTORY\"]",
+      "rationale": "trust a history whose hash chain is broken"
+    },
+    {
+      "name": "GC2_the_store_is_not_re_hashed",
+      "path": "tools/generic_consistency.py",
+      "find": "    out[\"EVIDENCE\"] += [f\"store: {p}\" for p in\n                        evidence.verify_store().problems]\n",
+      "replace": "\n",
+      "rationale": "trust wrong evidence bytes: a tampered object reads as its digest"
+    },
+    {
+      "name": "GC3_cited_digests_are_not_resolved",
+      "path": "tools/generic_consistency.py",
+      "find": "                    evidence.get(value)\n",
+      "replace": "                    pass\n",
+      "rationale": "lost evidence cited by an authority record goes unnoticed"
+    },
+    {
+      "name": "GC4_refused_transitions_are_ignored",
+      "path": "tools/generic_consistency.py",
+      "find": "    out[\"RECONSTRUCTION\"] += [f\"refused: {u}\" for u in recon.unauthorized]\n",
+      "replace": "\n",
+      "rationale": "bypass replay admission: a forged transition in the log is not reported"
+    },
+    {
+      "name": "GC5_undecidable_admissions_are_ignored",
+      "path": "tools/generic_consistency.py",
+      "find": "    out[\"RECONSTRUCTION\"] += [f\"undecidable: {u}\"\n                              for u in recon.unverifiable]\n",
+      "replace": "\n",
+      "rationale": "an admission nobody can re-decide passes as decided"
+    },
+    {
+      "name": "GC6_the_live_store_is_not_compared",
+      "path": "tools/generic_consistency.py",
+      "find": "        for d in rc.compare(live, recon):\n",
+      "replace": "        for d in ():\n",
+      "rationale": "the live projection and the independent reader may disagree"
+    },
+    {
+      "name": "GC7_a_store_refusal_is_swallowed",
+      "path": "tools/generic_consistency.py",
+      "find": "        out[\"RECONSTRUCTION\"].append(f\"the live store refuses the history: \"\n                                     f\"{exc}\")\n",
+      "replace": "        pass\n",
+      "rationale": "a history the live store will not load reads as consistent"
+    },
+    {
+      "name": "GC8_documents_are_not_parsed",
+      "path": "tools/generic_consistency.py",
+      "find": "            docs[key] = cls.from_record(json.loads(fetch(ev[key])))\n",
+      "replace": "            docs[key] = None\n",
+      "rationale": "a document that is not a ResultBundle or VerificationResult passes the schema check"
+    },
+    {
+      "name": "GC9_the_subject_is_not_compared",
+      "path": "tools/generic_consistency.py",
+      "find": "            and vr.subject_digest != bundle.digest():\n",
+      "replace": "            and False:\n",
+      "rationale": "a report about another bundle passes"
+    },
+    {
+      "name": "GC10_any_model_is_admitted",
+      "path": "tools/generic_consistency.py",
+      "find": "        registry.lookup(bundle.model_id, bundle.model_version)\n    except",
+      "replace": "        pass\n    except",
+      "rationale": "a model the catalog does not admit passes the identity check"
+    },
+    {
+      "name": "GC11_any_check_is_admitted",
+      "path": "tools/generic_consistency.py",
+      "find": "            admitted_check(vr.check_id)\n",
+      "replace": "            pass\n",
+      "rationale": "a check the catalog does not admit passes the identity check"
+    },
+    {
+      "name": "GC12_findings_exit_zero",
+      "path": "tools/generic_consistency.py",
+      "find": "    return FINDING if found else OK\n",
+      "replace": "    return OK\n",
+      "rationale": "the CI step exits 0 with findings printed"
+    }
+  ]
+}

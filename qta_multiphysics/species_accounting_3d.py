@@ -38,6 +38,17 @@ DOSE_WINDOW_S = 1.0            # canonical coverage window (1D layer)
 THETA0_WORST_CASE = 1.0        # stated worst-case Mode-B end coverage
 
 
+def cryopanel_operating_point():
+    """The canonical operating point the cryopanel model runs at: the three
+    constants above, handed to it as a declared input. The cryopanel module
+    used to import them from here, and with them the mode ontology this
+    module imports; now it imports nothing of this layer (cut C5)."""
+    from .cryopanel_dynamics_3d import OperatingPoint
+    return OperatingPoint(p_c13_work_Pa=P_C13_WORK_PA,
+                          p_he_dose_Pa=P_HE_DOSE_PA,
+                          dose_window_s=DOSE_WINDOW_S)
+
+
 def _canonical_name(internal: str) -> str:
     inv = {v: k for k, v in LEGACY_ALIASES.items()}
     return {v: k for k, v in inv.items()}.get(internal, internal)

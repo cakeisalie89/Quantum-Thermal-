@@ -136,24 +136,66 @@ def test_no_module_imports_a_root_level_copy():
             assert hashlib.sha256(rp.read_bytes()).hexdigest() == \
                    hashlib.sha256(pp.read_bytes()).hexdigest(), \
                    f"root {f} has diverged from the package copy"
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import files_matching
+
     stems = "|".join(f[:-3] for f in ROOT_DUPLICATES)
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-nE",
-         rf"^\s*(from|import)\s+({stems})\b", "--", "*.py"],
-        capture_output=True, text=True)
-    assert r.stdout.strip() == "", f"root copies are imported:\n{r.stdout}"
+    # Tracked AND untracked-unignored: a new module importing a root copy
+    # would otherwise pass this guard until it was committed.
+    importers = files_matching(rf"^\s*(from|import)\s+({stems})\b")
+    assert not importers, f"root copies are imported: {list(importers)}"
 
 
 # ---------------------------------------- registered authority paths resolve --
 
 def test_registered_authority_modules_exist():
+    """Active and legacy alike: a legacy authority is history, and history
+    that names a file which is not there is not history either."""
     missing = []
     pat = re.compile(r"\b([\w/]+\.py)\b")
-    for name, entry in AUTHORITIES["authorities"].items():
-        for rel in pat.findall(entry.get("authority", "")):
-            if not (ROOT / rel).exists():
-                missing.append(f"{name}: {rel}")
+    for section in ("authorities", "legacy_authorities"):
+        for name, entry in AUTHORITIES[section].items():
+            for rel in pat.findall(entry.get("authority", "")):
+                if not (ROOT / rel).exists():
+                    missing.append(f"{section}.{name}: {rel}")
     assert not missing, f"authorities.json names modules that do not exist: {missing}"
+
+
+def test_every_active_authority_names_the_tests_that_enforce_it():
+    """Directive 18: the active registry describes the framework, and each
+    entry says how it is held, not only what it is."""
+    missing = []
+    for name, entry in AUTHORITIES["authorities"].items():
+        tests = entry.get("enforced_by")
+        if entry.get("owner") in ("stage10_stack", "agent_substrate",
+                                  "generate_manifest") and tests is None:
+            continue                       # the three kept from schema 1.0
+        if not tests:
+            missing.append(f"{name}: names no test")
+        for t in tests or ():
+            if not (ROOT / t).exists():
+                missing.append(f"{name}: {t} does not exist")
+    assert not missing, missing
+
+
+def test_no_active_authority_is_a_legacy_module():
+    """Directive 10 and 18: the QTA package's authorities are in
+    legacy_authorities, and nothing in the active section names a module
+    FILE_DISPOSITION.csv retires."""
+    import csv
+    disp = {r["path"]: r["disposition"] for r in csv.DictReader(
+        (ROOT / "FILE_DISPOSITION.csv").open(encoding="utf-8"))}
+    pat = re.compile(r"\b([\w/]+\.(?:py|json|csv|md))\b")
+    bad = [f"{name}: {rel}"
+           for name, entry in AUTHORITIES["authorities"].items()
+           for rel in pat.findall(entry.get("authority", ""))
+           if disp.get(rel) == "RETIRE_TO_HISTORY"]
+    assert not bad, bad
+    assert {"gates", "hardware_governance", "legal_transitions_states_"
+            "interlocks", "modes_and_species"} <= set(
+        AUTHORITIES["legacy_authorities"])
 
 
 # ------------------------------ §31 single source of truth: duplicate values --

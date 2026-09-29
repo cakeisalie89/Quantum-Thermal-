@@ -1,0 +1,151 @@
+{
+  "title": "Owner-scoped idempotency and durable request identity",
+  "note": "Every mutation here removes one thing that keeps an idempotency key a NAME rather than an AUTHORITY. The scope (owner, tool, key) is what makes a guessed string unreachable; the owner coming from the event rather than the payload is what stops a binding choosing whose namespace it lives in; the rebinding refusal is what stops a second request inheriting the first one's identity. The production mutations remove the suppression itself, which is the failure that runs the work twice while reporting that it did not.",
+  "suites": [
+    "tests/test_agent_idempotency.py",
+    "tests/test_agent_governed_stage10.py",
+    "tests/test_agent_hostile_campaign.py"
+  ],
+  "mutations": [
+    {
+      "name": "I1_the_owner_is_taken_from_the_payload",
+      "path": "qta_agent/idempotency.py",
+      "find": "    if claimed_owner is not None and claimed_owner != actor:",
+      "replace": "    if False:",
+      "rationale": "a forged binding names whoever it likes as its owner, so it chooses whose key namespace to write into and a later lookup hands that actor the attacker's task"
+    },
+    {
+      "name": "I2_the_scope_drops_the_owner",
+      "path": "qta_agent/idempotency.py",
+      "find": "    return digest({\"owner\": owner, \"tool_id\": tool_id, \"key\": key})",
+      "replace": "    return digest({\"tool_id\": tool_id, \"key\": key})",
+      "rationale": "the key becomes global, so guessing the string reaches another actor's task, evidence and result -- the whole reason the namespace is scoped"
+    },
+    {
+      "name": "I3_the_scope_drops_the_tool",
+      "path": "qta_agent/idempotency.py",
+      "find": "    return digest({\"owner\": owner, \"tool_id\": tool_id, \"key\": key})",
+      "replace": "    return digest({\"owner\": owner, \"key\": key})",
+      "rationale": "one key collides across tools, so a submission to a second tool is suppressed as a duplicate of work that ran somewhere else"
+    },
+    {
+      "name": "I4_the_scope_is_a_joined_string",
+      "path": "qta_agent/idempotency.py",
+      "find": "    return digest({\"owner\": owner, \"tool_id\": tool_id, \"key\": key})",
+      "replace": "    return digest(f\"{owner}:{tool_id}:{key}\")",
+      "rationale": "an owner literally named 'a:b' with key 'c' collides with owner 'a' and key 'b:c'; a separator that can appear in the values is not a separator"
+    },
+    {
+      "name": "I5_a_rebinding_replaces_the_live_binding",
+      "path": "qta_agent/idempotency.py",
+      "find": "            raise IdempotencyError(\n                f\"seq {ev.seq}: idempotency key {binding.key!r} for tool \"",
+      "replace": "            self._bindings[scope] = binding\n            return True\n            raise IdempotencyError(\n                f\"seq {ev.seq}: idempotency key {binding.key!r} for tool \"",
+      "rationale": "every later resubmission of the ORIGINAL request resolves to the attacker's task, so the original never runs and the caller is told it already did"
+    },
+    {
+      "name": "I6_a_binding_may_backdate_itself",
+      "path": "qta_agent/idempotency.py",
+      "find": "        if binding.bound_seq != ev.seq:",
+      "replace": "        if False:",
+      "rationale": "a binding appended late claims an earlier position, backdating the moment a duplicate would first have been caught"
+    },
+    {
+      "name": "I7_request_identity_ignores_the_inputs",
+      "path": "qta_agent/idempotency.py",
+      "find": "    return digest({\"tool_id\": tool_id, \"inputs\": inputs})",
+      "replace": "    return digest({\"tool_id\": tool_id})",
+      "rationale": "any two submissions to one tool look like the same request, so a genuinely different request is suppressed and never runs"
+    },
+    {
+      "name": "I8_a_changed_request_reuses_the_binding",
+      "path": "qta_agent/idempotency.py",
+      "find": "            if existing.request_digest != request_digest:",
+      "replace": "            if False:",
+      "rationale": "the key stops naming one request; a second, different request inherits the first one's identity and result"
+    },
+    {
+      "name": "I9_request_identity_is_not_required_to_be_canonical",
+      "path": "qta_agent/idempotency.py",
+      "find": "    if not is_digest(payload[\"request_digest\"]):",
+      "replace": "    if False:",
+      "rationale": "identity derived from something other than canonical bytes stops matching across a restart, which is the only time this subsystem does anything"
+    },
+    {
+      "name": "I10_production_never_looks_the_key_up",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            prior = self.idempotency.lookup(\n                owner=submitter, tool_id=tool_id, key=idempotency_key)",
+      "replace": "            prior = None",
+      "rationale": "every resubmission runs the work again; the binding is written and never consulted, which is duplicate suppression that suppresses nothing"
+    },
+    {
+      "name": "I11_production_never_binds",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if idempotency_key:\n            self.idempotency.bind(",
+      "replace": "        if False:\n            self.idempotency.bind(",
+      "rationale": "nothing durable records the submission, so a resubmission after a lost response starts the work a second time"
+    },
+    {
+      "name": "I12_the_lookup_takes_the_owner_from_the_tool_id",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            prior = self.idempotency.lookup(\n                owner=submitter, tool_id=tool_id, key=idempotency_key)",
+      "replace": "            prior = self.idempotency.lookup(\n                owner=tool_id, tool_id=tool_id, key=idempotency_key)",
+      "rationale": "the namespace stops being per-submitter at the production boundary even though the ledger still scopes it, so two submitters share one key"
+    },
+    {
+      "name": "I13_the_binding_lands_after_the_work_is_dispatched",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if idempotency_key:\n            self.idempotency.bind(\n                owner=submitter, tool_id=tool_id, key=idempotency_key,\n                request_digest=request_digest, task_id=task_id,\n                job_id=job_id)\n\n        # Validation is a real gate",
+      "replace": "        # Validation is a real gate",
+      "rationale": "the window between submitting and binding is exactly the window a crash makes a duplicate; binding after dispatch does not cover it"
+    },
+    {
+      "name": "I14_the_submitter_is_not_a_registered_identity",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        self.agents.require(submitter, AgentRole.PROPOSER)",
+      "replace": "        pass",
+      "rationale": "an arbitrary string becomes the policy subject and the owner of a durable key namespace"
+    },
+    {
+      "name": "I15_an_external_effect_is_reported_as_a_clean_duplicate",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if external and not settled:",
+      "replace": "        if False:",
+      "rationale": "a run that may have performed an irreversible external action and died before recording it is reported as a settled duplicate, which invents the one fact nobody has"
+    },
+    {
+      "name": "I16_a_timeout_counts_as_a_settled_external_effect",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "EXTERNAL_SETTLED: frozenset = frozenset({\n    TaskState.VERIFIED, TaskState.REJECTED, TaskState.INVALIDATED,\n})",
+      "replace": "EXTERNAL_SETTLED: frozenset = frozenset({\n    TaskState.VERIFIED, TaskState.REJECTED, TaskState.INVALIDATED,\n    TaskState.TIMED_OUT, TaskState.FAILED, TaskState.CANCELLED,\n})",
+      "rationale": "a timeout is precisely the case where nothing observed the tool finish, so treating it as settled reports 'the external effect did not happen' with no basis"
+    },
+    {
+      "name": "I17_the_second_reader_takes_the_last_binding_it_sees",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        out.anomalies.append(\n            f\"seq {ev.seq}: idempotency key {key!r} for {tool_id!r} is \"",
+      "replace": "        bindings[scope] = {\"key\": key, \"owner\": ev.actor,\n                           \"tool_id\": tool_id, \"task_id\": task_id,\n                           \"request_digest\": request_digest,\n                           \"job_id\": p.get(\"job_id\", \"\"),\n                           \"bound_seq\": ev.seq}\n        return\n        out.anomalies.append(\n            f\"seq {ev.seq}: idempotency key {key!r} for {tool_id!r} is \"",
+      "rationale": "the independent reader agrees with the attacker instead of disagreeing with the ledger, which is the one thing a second reader exists to prevent"
+    },
+    {
+      "name": "I18_the_second_reader_trusts_the_payloads_owner",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if claimed_owner is not None and claimed_owner != ev.actor:\n        out.anomalies.append(\n            f\"seq {ev.seq}: binding names owner {claimed_owner!r} but was \"",
+      "replace": "    if False:\n        out.anomalies.append(\n            f\"seq {ev.seq}: binding names owner {claimed_owner!r} but was \"",
+      "rationale": "both readers now believe a forged owner, so the differential check that would have caught it agrees with itself"
+    },
+    {
+      "name": "I19_the_audit_reports_the_payloads_owner",
+      "path": "qta_agent/audit.py",
+      "find": "                detail = {\"key\": p.get(\"key\"), \"owner\": ev.actor,",
+      "replace": "                detail = {\"key\": p.get(\"key\"), \"owner\": p.get(\"owner\"),",
+      "rationale": "the auditor reads an attacker-controlled field and tells the reader a forged binding belonged to the honest submitter"
+    },
+    {
+      "name": "I20_the_audit_stops_counting_executions",
+      "path": "qta_agent/audit.py",
+      "find": "        if len(runs) <= 1:",
+      "replace": "        if True:",
+      "rationale": "a task that ran the work twice under one identity passes audit, so 'it did not run twice' stops being checkable from the log"
+    }
+  ]
+}

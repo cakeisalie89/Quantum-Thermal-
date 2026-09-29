@@ -13,8 +13,19 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=UTC \
     PYTHONHASHSEED=0 PYTHONDONTWRITEBYTECODE=1 \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv
-# OS deps: none beyond the base image — numpy/scipy/qutip ship manylinux
-# wheels; the project writes CSV/JSON only (no HDF5 system libs in use).
+# OS deps: GIT, and nothing else.
+#
+# numpy/scipy/qutip ship manylinux wheels and the project writes CSV/JSON
+# only, so the base image covers the science. What it does not cover is the
+# GOVERNANCE half of the suite: 48 tests enumerate the corpus with `git
+# ls-files` and every one of them died with FileNotFoundError in hosted run
+# 33113363458, because python:3.12-slim carries no git binary. The container
+# reported a red suite for a reason that had nothing to do with the code
+# under test, and the alternative -- letting those tests skip -- would mean
+# the container verifies less than it claims to.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
 RUN useradd -m qta
 WORKDIR /qta
 COPY --chown=qta:qta pyproject.toml uv.lock requirements.txt ./

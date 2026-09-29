@@ -1,0 +1,121 @@
+{
+  "title": "Every quantity that crossed zero between backends states its resolution",
+  "note": "D-2026-98. QR1-QR5: the energy ledger's floor is the energy its balance leaves unexplained, in magnitude, plus the rounding bound of its sums, and the cumulative class is judged against the cumulative floor. QR6: each mode's sample densities are classified by their own solve. QR7: a relative change is judged against the tightest tolerance of the solves compared. QR8-QR16: bindings are quantity by quantity, reconciled against the committed artefacts.",
+  "suites": [
+    "tests/test_quantity_resolution.py"
+  ],
+  "mutations": [
+    {
+      "name": "QR1_the_floor_ignores_the_unexplained_energy",
+      "path": "qta_multiphysics/campaign_state_3d.py",
+      "find": "    return abs(unexplained_J) + operations * _UNIT_ROUNDOFF * terms_abs_J\n",
+      "replace": "    return operations * _UNIT_ROUNDOFF * terms_abs_J\n",
+      "rationale": "the ledger's floor is only the rounding of its sums, and a cancellation below the closure residual reads as resolved"
+    },
+    {
+      "name": "QR2_the_floor_is_signed",
+      "path": "qta_multiphysics/campaign_state_3d.py",
+      "find": "    return abs(unexplained_J) + operations * _UNIT_ROUNDOFF * terms_abs_J\n",
+      "replace": "    return unexplained_J + operations * _UNIT_ROUNDOFF * terms_abs_J\n",
+      "rationale": "a negative residual makes a negative floor"
+    },
+    {
+      "name": "QR3_unexplained_energy_cancels",
+      "path": "qta_multiphysics/campaign_state_3d.py",
+      "find": "            unexplained += abs(res)\n",
+      "replace": "            unexplained += res\n",
+      "rationale": "signed residuals cancel in the floor, so a ledger whose phases disagree in opposite directions claims to resolve everything"
+    },
+    {
+      "name": "QR4_the_cumulative_class_uses_the_phase_floor",
+      "path": "qta_multiphysics/campaign_state_3d.py",
+      "find": "                    resolution_class(cum[\"dU_J\"], cum_floor),\n",
+      "replace": "                    resolution_class(cum[\"dU_J\"], phase_floor),\n",
+      "rationale": "the cumulative dU is judged against one phase's closure, not the ledger's"
+    },
+    {
+      "name": "QR5_no_rounding_bound",
+      "path": "qta_multiphysics/campaign_state_3d.py",
+      "find": "    return abs(unexplained_J) + operations * _UNIT_ROUNDOFF * terms_abs_J\n",
+      "replace": "    return abs(unexplained_J) + 0.0 * _UNIT_ROUNDOFF * terms_abs_J\n",
+      "rationale": "a closure that lands on exactly zero has a zero floor"
+    },
+    {
+      "name": "QR6_mode_C_classified_by_mode_B",
+      "path": "qta_multiphysics/coupled_mode_solver.py",
+      "find": "        \"gasC_sample_resolution\": {k: gasC.resolution_of_region_mean(k)\n",
+      "replace": "        \"gasC_sample_resolution\": {k: gasB.resolution_of_region_mean(k)\n",
+      "rationale": "Mode C's sample densities are classified by Mode B's solve"
+    },
+    {
+      "name": "QR7_the_rel_change_floor_is_the_loosest",
+      "path": "qta_multiphysics/convergence_3d.py",
+      "find": "    floor = min(float(r) for r in rtols)\n",
+      "replace": "    floor = max(float(r) for r in rtols)\n",
+      "rationale": "a change the tighter solve resolves is absorbed by the looser one's tolerance"
+    },
+    {
+      "name": "QR8_a_pattern_binds_without_the_member",
+      "path": "tools/resolution_inventory.py",
+      "find": "        return table[pattern][:-1] + last\n",
+      "replace": "        return table[pattern]\n",
+      "rationale": "every member of an object is bound to the pattern, not to its own class"
+    },
+    {
+      "name": "QR9_any_binding_in_the_file_will_do",
+      "path": "tools/resolution_inventory.py",
+      "find": "        return table[pattern][:-1] + last\n    return None\n",
+      "replace": "        return table[pattern][:-1] + last\n    return next(iter(table.values()), None)\n",
+      "rationale": "the file-level proxy: a quantity with no binding borrows another's"
+    },
+    {
+      "name": "QR10_a_carrier_need_not_be_a_class",
+      "path": "tools/resolution_inventory.py",
+      "find": "                if cls not in CLASSES:\n",
+      "replace": "                if False:\n",
+      "rationale": "a JSON carrier holding anything is accepted"
+    },
+    {
+      "name": "QR11_parallel_members_need_not_match",
+      "path": "tools/resolution_inventory.py",
+      "find": "                    if set(qo) != set(co):\n",
+      "replace": "                    if False:\n",
+      "rationale": "a species with no class in the parallel object passes"
+    },
+    {
+      "name": "QR12_the_floor_need_not_be_a_floor",
+      "path": "tools/resolution_inventory.py",
+      "find": "            if fe.get(\"basis\") != \"FLOOR\" or _column_values(src,\n",
+      "replace": "            if False and _column_values(src,\n",
+      "rationale": "floor_from may name any column"
+    },
+    {
+      "name": "QR13_a_row_carrier_need_not_be_a_class",
+      "path": "tools/resolution_inventory.py",
+      "find": "            if by_key.get(c) not in CLASSES:\n",
+      "replace": "            if False:\n",
+      "rationale": "a long table's carrier row may hold anything"
+    },
+    {
+      "name": "QR14_a_path_is_split_not_parsed",
+      "path": "tools/resolution_inventory.py",
+      "find": "        if m.start() != pos:\n            raise ValueError(f\"not a leaf path: {path!r}\")\n",
+      "replace": "        if False:\n            raise ValueError(f\"not a leaf path: {path!r}\")\n",
+      "rationale": "a malformed path parses as something"
+    },
+    {
+      "name": "QR15_a_bound_quantity_need_not_be_a_number",
+      "path": "tools/resolution_inventory.py",
+      "find": "                if not _is_number(value):\n",
+      "replace": "                if False:\n",
+      "rationale": "a binding on a label passes as a quantity"
+    },
+    {
+      "name": "QR16_a_pattern_may_bind_a_leaf",
+      "path": "tools/resolution_inventory.py",
+      "find": "            if q.endswith(\".*\") != c.endswith(\".*\"):\n",
+      "replace": "            if False:\n",
+      "rationale": "a pattern bound to one leaf is accepted"
+    }
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "title": "Langmuir capture extracted from the cryopanel: equations, invariants and the independent check",
+  "note": "scientific/models/surface_adsorption.py holds the physics directive 22 extracted from the cryopanel component model, and scientific/checks/langmuir_rk4.py checks it independently. Each mutation is a generic scientific or trust error (wrong flux, wrong volume factor, dropped thermal dependence, accepted NaN, self-certification); tests/test_surface_adsorption.py must notice.",
+  "suites": [
+    "tests/test_surface_adsorption.py"
+  ],
+  "mutations": [
+    {
+      "name": "SA1_the_flux_prefactor_doubled",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    return 0.25 * n_m3 * vbar\n",
+      "replace": "    return 0.5 * n_m3 * vbar\n",
+      "rationale": "wrong boundary flux: the impingement flux is twice the kinetic-theory value"
+    },
+    {
+      "name": "SA2_the_mean_speed_loses_pi",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "(8.0 * K_B * T_K / (math.pi * mass_amu * AMU))",
+      "replace": "(8.0 * K_B * T_K / (mass_amu * AMU))",
+      "rationale": "the Maxwell-Boltzmann mean speed off by sqrt(pi)"
+    },
+    {
+      "name": "SA3_density_ignores_temperature",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    return pressure_Pa / (K_B * T_K)\n",
+      "replace": "    return pressure_Pa / (K_B * 300.0)\n",
+      "rationale": "thermal dependence dropped: the number density of a room-temperature gas at every temperature"
+    },
+    {
+      "name": "SA4_capacity_leaves_the_exponent",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "math.exp(-sticking * flux * dt / capacity)",
+      "replace": "math.exp(-sticking * flux * dt)",
+      "rationale": "wrong volume factor: the capture rate is not scaled by the capacity, and the surface saturates at once"
+    },
+    {
+      "name": "SA5_sticking_is_ignored",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "math.exp(-sticking * flux * dt / capacity)",
+      "replace": "math.exp(-flux * dt / capacity)",
+      "rationale": "every molecule that strikes the surface sticks"
+    },
+    {
+      "name": "SA6_no_capacity_guard",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    return min(N, capacity)\n",
+      "replace": "    return N\n",
+      "rationale": "an over-full inventory handed in grows past capacity"
+    },
+    {
+      "name": "SA7_a_negative_window_runs",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    if dt < 0:\n        raise ValueError(\"dt_s must be >= 0\")\n",
+      "replace": "    if False:\n        raise ValueError(\"dt_s must be >= 0\")\n",
+      "rationale": "time runs backwards and the inventory with it"
+    },
+    {
+      "name": "SA8_zero_sticking_is_computed",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    if sticking <= 0.0 or flux <= 0.0 or dt == 0.0:\n",
+      "replace": "    if flux <= 0.0 or dt == 0.0:\n",
+      "rationale": "a non-sticking surface is pushed through the exponential and its inventory moves by rounding"
+    },
+    {
+      "name": "SA9_bounded_is_never_checked",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "InvariantResult(\"bounded\", excursion == 0.0,",
+      "replace": "InvariantResult(\"bounded\", True,",
+      "rationale": "an inventory outside [0, N_cap] is reported as holding"
+    },
+    {
+      "name": "SA10_capture_only_is_never_checked",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "InvariantResult(\"capture_only\", decrease == 0.0,",
+      "replace": "InvariantResult(\"capture_only\", True,",
+      "rationale": "a window that loses inventory is reported as holding"
+    },
+    {
+      "name": "SA11_incidence_is_never_checked",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "                            rel_excess <= INCIDENCE_RTOL,\n",
+      "replace": "                            True,\n",
+      "rationale": "a capture beyond the incident fluence is reported as holding"
+    },
+    {
+      "name": "SA12_composition_is_never_checked",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "InvariantResult(\"composition\", gap <= COMPOSITION_MAX,",
+      "replace": "InvariantResult(\"composition\", True,",
+      "rationale": "a stepping formula that is not the law's solution is reported as holding"
+    },
+    {
+      "name": "SA13_non_finite_is_not_counted",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    nonfinite = sum(1 for v in values if not math.isfinite(v))\n",
+      "replace": "    nonfinite = 0\n",
+      "rationale": "accept NaN: a non-finite inventory is published as a result"
+    },
+    {
+      "name": "SA14_the_closed_form_spans_one_window",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    closed = langmuir_capture(N0, flux, s, cap, dt * n_win)\n",
+      "replace": "    closed = langmuir_capture(N0, flux, s, cap, dt)\n",
+      "rationale": "the composition reference is not the whole exposure"
+    },
+    {
+      "name": "SA15_the_fluence_is_not_accumulated",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "            admitted += flux * dt\n",
+      "replace": "            admitted = flux * dt\n",
+      "rationale": "the admitted fluence is one window's, whatever the count"
+    },
+    {
+      "name": "SA16_the_initial_coverage_is_ignored",
+      "path": "scientific/models/surface_adsorption.py",
+      "find": "    N0 = inputs[\"initial_coverage\"] * cap\n",
+      "replace": "    N0 = 0.0\n",
+      "rationale": "a covered surface is treated as bare"
+    },
+    {
+      "name": "RK1_the_pressure_form_loses_two",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "    return p_Pa / math.sqrt(2.0 * math.pi * mass_amu",
+      "replace": "    return p_Pa / math.sqrt(math.pi * mass_amu",
+      "rationale": "the check's own flux is wrong, and a correct producer would fail"
+    },
+    {
+      "name": "RK2_the_rk4_weights_are_uniform",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "        C += h * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0\n",
+      "replace": "        C += h * (k1 + k2 + k3 + k4) / 4.0\n",
+      "rationale": "the integrator is not fourth order"
+    },
+    {
+      "name": "RK3_saturation_is_declared_early",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "KT_SATURATED = 40.0 ",
+      "replace": "KT_SATURATED = 4.0 ",
+      "rationale": "the integration stops while the vacancy is still resolvable"
+    },
+    {
+      "name": "RK4_every_comparison_passes",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "        status=Status.PASS if rel <= REL_MAX else Status.FAIL,\n",
+      "replace": "        status=Status.PASS,\n",
+      "rationale": "self-certify: the check passes whatever it measured"
+    },
+    {
+      "name": "RK5_the_flux_is_not_compared",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "    rel = max(_rel(flux, flux_out.quantity.value),\n",
+      "replace": "    rel = max(0.0,\n",
+      "rationale": "a flux error on a saturated surface is invisible"
+    },
+    {
+      "name": "RK6_the_stated_resolution_is_ignored",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "    floor = (inv_out.quantity.resolution or 0.0) / REL_MAX\n",
+      "replace": "    floor = 0.0\n",
+      "rationale": "digits the producer never claimed are held against it"
+    },
+    {
+      "name": "RK7_failed_outputs_are_compared",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "    if flux_out.status is not OutputStatus.OK or \\\n            inv_out.status is not OutputStatus.OK:\n",
+      "replace": "    if False:\n",
+      "rationale": "a failed run is compared as though it had outputs"
+    },
+    {
+      "name": "RK8_any_model_is_checked",
+      "path": "scientific/checks/langmuir_rk4.py",
+      "find": "    if (bundle.model_id, bundle.model_version) != (MODEL_ID, MODEL_VERSION):\n",
+      "replace": "    if False:\n",
+      "rationale": "the check speaks to a model it was not written for"
+    },
+    {
+      "name": "CAT1_the_check_is_not_admitted",
+      "path": "scientific/catalog.py",
+      "find": "    if check_id == \"surface_adsorption.rk4_pressure_form\":\n",
+      "replace": "    if check_id == \"surface_adsorption.not_admitted\":\n",
+      "rationale": "the model declares a check the catalog will not resolve"
+    }
+  ]
+}

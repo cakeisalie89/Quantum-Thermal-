@@ -1,0 +1,129 @@
+{
+  "title": "A scientific result is verified only on evidence that supports it, at the store",
+  "note": "The admission policy for kind scientific_result, in qta_agent/result_rules.py, enforced by AuthorityStore.transition on the edges into VERIFIED and PROMOTED. RR1, RR2, RR3, RR5 and RR6 are ST11, ST10, ST17, ST13 and ST14 of scientific_thermal_1d, moved here with the rule they test. RR8-RR11 re-anchored when the content rule became policy scientific_result.admission/1; RR11 now breaks the store's refusal of an undecidable claim, since the old anchor became an equivalent mutant (an absent fetch is itself unreadable evidence). Origin, replay and the second reader are scientific_authority_replay.json.",
+  "suites": [
+    "tests/test_agent_result_rules.py",
+    "tests/test_governed_model.py"
+  ],
+  "mutations": [
+    {
+      "name": "RR1_the_report_may_be_about_another_bundle",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"subject_digest\") != bundle_digest:\n",
+      "replace": "    if False:\n",
+      "rationale": "a report about a different bundle verifies this one (was ST11)"
+    },
+    {
+      "name": "RR2_the_verdict_is_not_read",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"status\") != \"PASS\":\n",
+      "replace": "    if False:\n",
+      "rationale": "a FAIL report verifies the result (was ST10)"
+    },
+    {
+      "name": "RR3_any_report_type_will_do",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"check_type\") != \"INDEPENDENT_IMPLEMENTATION\":\n",
+      "replace": "    if False:\n",
+      "rationale": "an invariant report stands in for an independent check (was ST17)"
+    },
+    {
+      "name": "RR4_the_producer_is_not_matched",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"producer_implementation_digest\") != producer:\n",
+      "replace": "    if False:\n",
+      "rationale": "a report naming another producer is accepted"
+    },
+    {
+      "name": "RR5_the_producers_code_may_check_itself",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if not is_digest(verifier) or verifier == producer:\n",
+      "replace": "    if not is_digest(verifier):\n",
+      "rationale": "self-verification accepted as independent (was ST13)"
+    },
+    {
+      "name": "RR6_the_invariants_are_not_read",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if not invariants or bad:\n",
+      "replace": "    if False:\n",
+      "rationale": "a bundle that failed its own invariants is verified (was ST14)"
+    },
+    {
+      "name": "RR7_no_invariants_counts_as_all_holding",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if not invariants or bad:\n",
+      "replace": "    if bad:\n",
+      "rationale": "an empty invariant list reads as every invariant holding"
+    },
+    {
+      "name": "RR8_unreadable_evidence_passes",
+      "path": "qta_agent/result_rules.py",
+      "find": "        if isinstance(docs[key], Exception):\n            sha = evidence[key]\n            return [f\"{key} {sha[:12]} cannot be read as JSON \"\n",
+      "replace": "        if isinstance(docs[key], Exception):\n            return []\n            return [f\"{key} {sha[:12]} cannot be read as JSON \"\n",
+      "rationale": "evidence nobody could read is taken as support"
+    },
+    {
+      "name": "RR9_a_missing_citation_passes",
+      "path": "qta_agent/result_rules.py",
+      "find": "        if docs[key] is None:\n            return [f\"the record cites no {key}\"]\n",
+      "replace": "        if docs[key] is None:\n            return []\n",
+      "rationale": "a record citing no bundle is verified"
+    },
+    {
+      "name": "RR10_the_store_never_asks",
+      "path": "qta_agent/store.py",
+      "find": "                self._require_admissible(cur, dst, req.evidence, actor)\n",
+      "replace": "                pass\n",
+      "rationale": "THE bypass: the edge checks only that the report exists"
+    },
+    {
+      "name": "RR11_a_store_without_evidence_verifies",
+      "path": "qta_agent/store.py",
+      "find": "        except result_rules.EvidenceUnavailable as exc:\n            raise TransitionError(\n                f\"a scientific_result cannot be verified here: {exc}\"\n            ) from None\n",
+      "replace": "        except result_rules.EvidenceUnavailable:\n            return\n",
+      "rationale": "a claim this store cannot read -- no evidence store, or no view of governed execution -- is verified anyway"
+    },
+    {
+      "name": "RR12_promotion_is_not_held_to_the_rule",
+      "path": "qta_agent/store.py",
+      "find": "            if cur.kind == result_rules.KIND and dst in (State.VERIFIED,\n                                                         State.PROMOTED):\n",
+      "replace": "            if cur.kind == result_rules.KIND and dst in (State.VERIFIED,\n                                                         State.VERIFIED):\n",
+      "rationale": "a promotion citing a failing report goes through"
+    },
+    {
+      "name": "RR13_the_rule_applies_to_every_kind",
+      "path": "qta_agent/store.py",
+      "find": "            if cur.kind == result_rules.KIND and dst in",
+      "replace": "            if True and dst in",
+      "rationale": "a rule for scientific results imposed on every record"
+    },
+    {
+      "name": "RR14_experimental_validation_is_admitted",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"establishes\") != \"INDEPENDENT_NUMERICAL_AGREEMENT\":\n",
+      "replace": "    if report.get(\"establishes\") == \"NUMERICAL_CONSISTENCY\":\n",
+      "rationale": "a numerical check is admitted as establishing experimental validation"
+    },
+    {
+      "name": "RR15_no_independence_is_independent",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if report.get(\"independence\") in (None, \"NONE\"):\n",
+      "replace": "    if report.get(\"independence\") is None:\n",
+      "rationale": "a check declaring independence NONE counts as independent"
+    },
+    {
+      "name": "RR16_an_observation_is_admitted_as_a_simulation",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if bundle.get(\"observation_kind\") != \"SIMULATION_RESULT\":\n",
+      "replace": "    if False:\n",
+      "rationale": "numerical verification admits a processed observation"
+    },
+    {
+      "name": "RR17_the_report_shape_is_not_held",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if set(report) != REPORT_KEYS:\n",
+      "replace": "    if not REPORT_KEYS <= set(report):\n",
+      "rationale": "a report carrying fields no VerificationResult writes is read as one"
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 [project]
 name = "qta-multiphysics"
 version = "0.7.0"
-description = "Quantum Thermal Architecture — forecast-only multiphysics model (pre-hardware; scientific gate PASS count is zero by design)"
+description = "Governed scientific-agent framework with event-sourced memory and replaceable numerical models"
 requires-python = "==3.12.*"
 dependencies = [
   "numpy==2.4.4",   # pre-existing QTA runtime dependency (requirements.txt)
@@ -41,6 +41,7 @@ dev = [
   "ruff>=0.6",        # staged lint enforcement
   "mypy>=1.11",       # staged type enforcement
   "pydantic>=2.9",    # trusted-boundary validation models
+  "pyyaml>=6.0",      # imported directly by two workflow-contract trust tests (D-2026-74)
 ]
 workflow = [
   "snakemake>=8.20",  # dependency-aware wrapper over authoritative commands

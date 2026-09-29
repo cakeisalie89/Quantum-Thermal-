@@ -161,7 +161,19 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
           f"{len(graph)} entities; sha256 {sha_file(dest)[:16]}...)")
 
 
-def validate(meta_path: Path = META) -> int:
+#: Where :func:`validate` writes its verdict. A parameter rather than a
+#: constant reached for inside the function, because the function writes a
+#: TRACKED artefact and a caller that only wants the verdict -- a test, say --
+#: must be able to say so. Without it, running the validator against a
+#: throwaway crate overwrote the committed report with a verdict about the
+#: throwaway, and the manifest then hashed a file that no longer existed in
+#: that form. Found immediately, by the manifest completeness suite, in the
+#: same session as the ledger item about tests that damage tracked files.
+DEFAULT_VALIDATION_REPORT = Path("stage8_reports/ro_crate_validation_report.json")
+
+
+def validate(meta_path: Path = META,
+             report_path: Path | None = None) -> int:
     doc: dict = json.loads(meta_path.read_text())
     g: list = doc["@graph"]
     ids = [e["@id"] for e in g]
@@ -172,6 +184,45 @@ def validate(meta_path: Path = META) -> int:
                for e in g):
         problems.append("root dataset entity missing")
     by = {e["@id"]: e for e in g}
+    if "./" not in by or "#simulation-action" not in by:
+        # Without these the checks below index a dict that has no such key,
+        # and the validator dies with a KeyError traceback instead of
+        # returning a verdict. A crash is not a refusal.
+        print(f"RO-Crate validation: {len(g)} entities | problems "
+              f"{len(problems)} {problems[:3]}")
+        print("RESULT: FAIL")
+        return 1
+
+    # A VALIDATION OF NOTHING IS NOT A VALIDATION (D-2026-39).
+    #
+    # Every checksum this function verifies is verified inside the loop
+    # below, over `hasPart`. Handed a crate with a well-formed root, a
+    # CreateAction and `"hasPart": []`, the loop ran zero times, nothing was
+    # checked, and this printed RESULT: VALID and exit 0 -- writing
+    # `"result": "VALID"` into a report the manifest hashes. Reproduced
+    # before this guard existed, in the same sweep that found the same shape
+    # in validate_hdf5_equivalence.py, which shares this step of the
+    # regeneration order.
+    #
+    # The second half is scope COMPLETENESS rather than mere non-emptiness:
+    # an entity that carries a checksum and sits outside `hasPart` is one
+    # this loop never reaches. Contextual entities -- the `#`-prefixed ones,
+    # which describe things that are not files in this tree -- are excluded,
+    # because `#stage7-input-zip` is legitimately one of those and a rule
+    # that flagged it would be a rule about the wrong thing.
+    parts = {p["@id"] for p in by["./"]["hasPart"]}
+    if not parts:
+        problems.append(
+            "the crate references no files, so no checksum was verified; a "
+            "validation with an empty scope is not a validation")
+    unchecked = sorted(e["@id"] for e in g
+                       if "sha256" in e and not e["@id"].startswith("#")
+                       and e["@id"] not in parts)
+    if unchecked:
+        problems.append(
+            f"entities carry a checksum that nothing verifies, because they "
+            f"are outside hasPart: {unchecked}")
+
     for part in by["./"]["hasPart"]:
         rid = part["@id"]
         if rid not in by:
@@ -213,8 +264,10 @@ def validate(meta_path: Path = META) -> int:
           f"{len(by['./']['hasPart'])} referenced files | "
           f"problems {len(problems)} {problems[:3]}")
     print(f"RESULT: {'VALID' if not problems else 'FAIL'}")
-    Path("stage8_reports").mkdir(exist_ok=True)
-    Path("stage8_reports/ro_crate_validation_report.json").write_text(
+    rep = Path(report_path) if report_path is not None \
+        else DEFAULT_VALIDATION_REPORT
+    rep.parent.mkdir(parents=True, exist_ok=True)
+    rep.write_text(
         json.dumps({"spec": SPEC, "entities": len(g),
                     "referenced_files": len(by["./"]["hasPart"]),
                     "problems": problems,

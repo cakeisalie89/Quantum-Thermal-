@@ -1,4 +1,8 @@
-.git
+# .git IS shipped. Installing git without it would be worse than neither:
+# the binary exists, `git ls-files` exits 128 in a directory that is not a
+# repository, and a scan built on it returns an EMPTY set -- so every
+# structural guard passes having examined nothing. 34 MB is the correct
+# cost, on the same reasoning that keeps attic/delivery_artifacts/ below.
 .venv
 .snakemake
 .pytest_cache

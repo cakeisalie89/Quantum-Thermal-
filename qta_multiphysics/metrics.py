@@ -11,6 +11,7 @@ BLOCKED.
 """
 from __future__ import annotations
 from .config import default_config
+from .numerics import render_with_resolution
 
 
 def _g(gid, name, mode, eq, computed, thresh, status, reason, fix, unit=""):
@@ -169,7 +170,20 @@ def build_gate_specs(cm, vs, mc, future3d_status):
     specs.append(_g(
         "RESIDUAL_SPECIES_MODE_D_CHECK", "Residual process species cleared for Mode D",
         "MODE_D_SENSE", "residual CH4/H2 at sample below sensing-safe level",
-        f"CH4={cm['Mode_D_residual_CH4_density_m3']:.2e}; H2={cm['Mode_D_residual_H2_density_m3']:.2e}",
+        # The gate's value states what the solve establishes, not the digit
+        # it happened to produce. Methane's Mode-C residual is inside the
+        # integrator's own tolerance, so this publishes the bound -- and the
+        # bound is the same on every host, where the digit was not.
+        # D-2026-53, reached here by the DECLARED/BARE split in
+        # tools/cross_env_semantics.py naming the GATE TABLE as bare.
+        "CH4" + render_with_resolution(
+            cm["Mode_D_residual_CH4_density_m3"],
+            cm["Mode_D_residual_CH4_resolution"],
+            cm["gas_resolution_floor_1m3"])
+        + "; H2" + render_with_resolution(
+            cm["Mode_D_residual_H2_density_m3"],
+            cm["Mode_D_residual_H2_resolution"],
+            cm["gas_resolution_floor_1m3"]),
         "REQUIRES_MEASUREMENT", "BLOCKED",
         "Mode D sensing capability is itself BLOCKED (helium-isotope sensing not "
         "validated; Mode B feasibility not established). The transport model "

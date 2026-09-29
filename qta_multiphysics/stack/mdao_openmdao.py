@@ -125,12 +125,15 @@ def evaluate(values: dict, cfg: MultiphysicsConfig | None = None
     Shared by the OpenMDAO component and by the tests, so what OpenMDAO sees
     and what the tests check cannot diverge.
     """
+    from ..numerics import require_converged
     from ..thermal_3d_transient import solve_thermal_3d
     c = copy.deepcopy(cfg or default_config())
     for p in PARAMETERS:
         if p.name in values:
             p.set_value(c, float(values[p.name]))
-    r = solve_thermal_3d(c, SCREENING_MESH, n_eval=SCREENING_N_EVAL)
+    r = require_converged(
+        solve_thermal_3d(c, SCREENING_MESH, n_eval=SCREENING_N_EVAL),
+        "mdao screening response")
     return {"probe_rise_K": float(r.probe_timeseries_K()[-1])
                             - float(c.fridge.T_fridge_K),
             "peak_T_K": float(r.peak_temperature_K())}

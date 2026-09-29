@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "label": "ACTIVE FRAMEWORK vs LEGACY QTA",
+  "rule": "Nothing in the active framework may import, open, or take authority from legacy QTA.",
+  "note": "Which side a file is on is FILE_DISPOSITION.csv's to say, and nothing here restates it per file: the dispositions below name the classes. tools/framework_boundary.py reads both, computes each active production module's static import closure (module-level AND function-level imports, plus the package initialisers every import executes), and fails on any legacy module in it, on any string literal naming a legacy file, and on any import whose module path carries a legacy-ontology token -- the last so that a legacy module moved or renamed out of the disposition's sight is still recognised. Tests are outside the scope: they exercise both sides, and a test of legacy code importing it is the point of the test. TRANSITIONAL modules are measured and reported, not enforced; each is being rewritten or mined for generic physics, and moves to ACTIVE when it no longer reaches legacy.",
+  "dispositions": {
+    "ACTIVE": [
+      "KEEP_AS_IS",
+      "KEEP_AND_HARDEN",
+      "KEEP_AS_MODEL_PLUGIN"
+    ],
+    "TRANSITIONAL": [
+      "EXTRACT_GENERIC",
+      "REWRITE_GENERIC"
+    ],
+    "LEGACY": [
+      "RETIRE_TO_HISTORY"
+    ]
+  },
+  "out_of_scope_prefixes": [
+    "tests/"
+  ],
+  "legacy_ontology_tokens": [
+    "machine_fsm",
+    "hardware_governance",
+    "hardware_registry",
+    "hardware_reviewers",
+    "mode_sequence",
+    "state_machine_3d",
+    "cryo_stack",
+    "design_component_registry",
+    "design.registry",
+    "stage7_boundary",
+    "integrated_layers",
+    "nv_eligibility",
+    "future_3d"
+  ],
+  "legacy_ontology_note": "The directive's list, as the names they carry in this repository: the machine FSM and its campaign traces (machine_fsm, state_machine_3d), hardware governance and its registries (hardware_governance, hardware_registry, hardware_reviewers), the physical component and apparatus registries (design_component_registry, design.registry, cryo_stack, stage7_boundary, integrated_layers, nv_eligibility), the fixed Mode A/B/C/D orchestration (mode_sequence, future_3d). The BOM, the QTA gate table and the validation registries are legacy FILES and are caught by the file rule, which covers every RETIRE_TO_HISTORY file by name. Mode-letter LABELS inside retained physics (e.g. a mode_d threshold) are not tokens here: they are names, not dependencies, and are removed with the physics they label (directive 27) -- the report counts them.",
+  "declared_exceptions": [
+    {
+      "module": "tools.file_disposition",
+      "rule": "OPEN",
+      "why": "It names every tracked file in order to place it on a side of this boundary; it reads none of them, and the legacy names are what it classifies."
+    },
+    {
+      "module": "qta_multiphysics.stack.rag_index",
+      "rule": "OPEN",
+      "names": [
+        "QTA_full_history-6.bundle.txt"
+      ],
+      "why": "An exclusion: the RAG corpus leaves the legacy history bundle OUT. Naming a file to refuse it is the boundary working."
+    }
+  ],
+  "file_rule_note": "A legacy file at the repository root is recognised by its file name anywhere (BOM.csv, hardware_registry.json); a nested one only by a path that includes its directory, so a generic SHA256SUMS or release_index.json in some other bundle is not mistaken for the legacy stage-9 release's."
+}

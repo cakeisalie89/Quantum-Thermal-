@@ -10,8 +10,10 @@
 #
 # SCOPE, so the green badge is not over-read: this job lints and type-checks
 # qta_multiphysics/stack, runs tests/test_stage10_stack.py only, runs the
-# 11-step s10_full Snakemake DAG, and asserts the canonical tree is untouched
-# with scientific_PASS_count == 0. It does NOT run the full pytest suite and
+# generic workflow -- the Snakefile's default target, 13 jobs, three of them
+# governed -- and then the legacy s10_full on top of it (one more job, the
+# gate-table report), and asserts the canonical tree is untouched with
+# scientific_PASS_count == 0. It does NOT run the full pytest suite and
 # does NOT run package_consistency_check.py; those remain local-only evidence.
 #
 # What this proves: the Stage-10 adapters are deterministic, fail closed
@@ -65,7 +67,9 @@ jobs:
           uv run mypy qta_multiphysics/stack
       - name: Stage-10 test suite
         run: uv run python -m pytest tests/test_stage10_stack.py -q
-      - name: Stage-10 workflow (writes only under verification/stage10)
+      - name: the generic scientific workflow (the default target)
+        run: uv run snakemake --cores 1
+      - name: LEGACY s10_full -- the gate-table report on top of it
         run: uv run snakemake --cores 1 s10_full
       - name: canonical tree untouched
         run: |

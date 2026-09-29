@@ -839,6 +839,7 @@ dev = [
     { name = "mypy" },
     { name = "pydantic" },
     { name = "pytest" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 workflow = [
@@ -863,6 +864,7 @@ dev = [
     { name = "mypy", specifier = ">=1.11" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pytest", specifier = ">=8.3" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.6" },
 ]
 workflow = [{ name = "snakemake", specifier = ">=8.20" }]

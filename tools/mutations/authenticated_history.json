@@ -1,0 +1,171 @@
+{
+  "title": "An authenticated history cannot be read around, and nothing unvetted signs for it",
+  "note": "D-2026-92. AP1-AP9: the signature-provider seam -- the reference implementation is an oracle and a test-identity signer, never a production provider by default or by label; a provider is judged on RFC 8032's vectors and on every refusal a conforming Ed25519 makes, a raising verifier included; production needs both a vetted provider and a provisioned registry. EP1-EP9: the history's security profile, enforced in the verified-read primitives every reader reads through -- no authenticator reads nothing of an AUTHENTICATED_REQUIRED history, a refused event ends the read and fails the report, a declaration is genesis-only and known, anchored catch-up is gated like a full read, and a pinned deployment refuses a downgrade. RC1-RC2: the independent reader restates the profile in its own code. AR1: the declaration is a registered action.",
+  "suites": [
+    "tests/test_authenticated_history.py",
+    "tests/test_actor_authentication.py"
+  ],
+  "mutations": [
+    {
+      "name": "AP1_the_reference_passes_for_vetted",
+      "path": "qta_agent/signature.py",
+      "find": "    if assurance != VETTED:\n",
+      "replace": "    if False:\n",
+      "rationale": "the pure-Python transcription becomes the production trust provider by default"
+    },
+    {
+      "name": "AP2_the_label_is_believed",
+      "path": "qta_agent/signature.py",
+      "find": "    problems = conformance_problems(provider)\n    if problems:\n",
+      "replace": "    problems = []\n    if problems:\n",
+      "rationale": "a provider that says VETTED is taken at its word; behaviour is not checked"
+    },
+    {
+      "name": "AP3_the_malleable_signature_is_not_asked_about",
+      "path": "qta_agent/signature.py",
+      "find": "        \"the malleable s + Q\": (pk, msg,\n                                sig[:32] + int.to_bytes(s, 32, \"little\")),\n",
+      "replace": "        \"the malleable s + Q\": (pk, msg, sig),\n",
+      "rationale": "the gate stops asking whether s + Q is refused, and a provider accepting the malleable twin passes"
+    },
+    {
+      "name": "AP4_a_raising_verifier_is_read_as_a_refusal",
+      "path": "qta_agent/signature.py",
+      "find": "            problems.append(f\"{what}: raised {type(exc).__name__}\")\n            return None\n",
+      "replace": "            return False\n",
+      "rationale": "a verifier that throws on malformed input is counted as one that refused it"
+    },
+    {
+      "name": "AP5_the_rfc_signatures_are_not_compared",
+      "path": "qta_agent/signature.py",
+      "find": "        if ask(f\"vector {n} sign\", provider.sign, sk, msg) != sig:\n",
+      "replace": "        if False:\n",
+      "rationale": "a provider that signs something other than RFC 8032 says passes"
+    },
+    {
+      "name": "AP6_the_reference_signs_a_production_key",
+      "path": "qta_agent/principals.py",
+      "find": "                and not self.test):\n",
+      "replace": "                and False):\n",
+      "rationale": "a production key is signed by the reference implementation"
+    },
+    {
+      "name": "AP7_the_authenticator_ignores_its_provider",
+      "path": "qta_agent/principals.py",
+      "find": "                    key, ev.hash, att, provider):\n",
+      "replace": "                    key, ev.hash, att, signature.REFERENCE):\n",
+      "rationale": "the injected provider is never asked; the reference decides regardless"
+    },
+    {
+      "name": "AP8_production_skips_the_vetted_check",
+      "path": "qta_agent/principals.py",
+      "find": "                         signature.require_vetted(provider))\n",
+      "replace": "                         provider)\n",
+      "rationale": "production authentication accepts any provider, the reference included"
+    },
+    {
+      "name": "AP9_a_second_genesis_is_allowed",
+      "path": "qta_agent/principals.py",
+      "find": "        if head_seq != -1:\n            raise AuthenticationError(\n                \"a security profile is declared by a history's first event; \"\n",
+      "replace": "        if False:\n            raise AuthenticationError(\n                \"a security profile is declared by a history's first event; \"\n",
+      "rationale": "begin_history no longer checks it is starting a history"
+    },
+    {
+      "name": "EP1_a_required_history_is_read_without_an_authenticator",
+      "path": "qta_agent/events.py",
+      "find": "            if required and nonempty:\n",
+      "replace": "            if False:\n",
+      "rationale": "the omission the profile exists for: no authenticator, and every event is read anyway"
+    },
+    {
+      "name": "EP2_a_refused_event_does_not_end_the_read",
+      "path": "qta_agent/events.py",
+      "find": "            return [ev for ev in events if ev.seq < first]\n",
+      "replace": "            return events\n",
+      "rationale": "events after an unauthenticated one are handed to the reader"
+    },
+    {
+      "name": "EP3_authentication_findings_are_not_problems",
+      "path": "qta_agent/events.py",
+      "find": "        problems.extend(f\"unauthenticated: {line}\" for line in report.lines())\n",
+      "replace": "        problems.extend([])\n",
+      "rationale": "the report says ok over a history that did not authenticate"
+    },
+    {
+      "name": "EP4_a_misplaced_declaration_is_accepted",
+      "path": "qta_agent/events.py",
+      "find": "            if ev.seq != 0:\n                problems.append(\n                    f\"seq {ev.seq}: a history declares its security profile \"\n",
+      "replace": "            if False:\n                problems.append(\n                    f\"seq {ev.seq}: a history declares its security profile \"\n",
+      "rationale": "a declaration past genesis switches the profile mid-history"
+    },
+    {
+      "name": "EP5_an_unknown_profile_is_accepted",
+      "path": "qta_agent/events.py",
+      "find": "            if declared not in PROFILES:\n",
+      "replace": "            if False:\n",
+      "rationale": "an unknown profile is taken as whatever it says, and reads as not requiring authentication"
+    },
+    {
+      "name": "EP6_the_anchored_read_is_not_gated",
+      "path": "qta_agent/events.py",
+      "find": "        admitted = self._security_gate(\n            [ev for ev, _, _ in tail[:verified]], problems, whole=False)\n",
+      "replace": "        admitted = [ev for ev, _, _ in tail[:verified]]\n",
+      "rationale": "a reader catching up from an anchor skips the profile altogether"
+    },
+    {
+      "name": "EP7_a_downgrade_is_accepted",
+      "path": "qta_agent/events.py",
+      "find": "                and profile != PROFILE_AUTHENTICATED_REQUIRED and nonempty):\n",
+      "replace": "                and False):\n",
+      "rationale": "a pinned deployment reads a history rewritten without its declaration"
+    },
+    {
+      "name": "EP8_a_declaration_is_written_anywhere",
+      "path": "qta_agent/events.py",
+      "find": "        if action == ACT_SECURITY_PROFILE and (\n",
+      "replace": "        if False and (\n",
+      "rationale": "an honest writer is allowed to declare a profile past genesis or an unknown one"
+    },
+    {
+      "name": "EP9_genesis_is_not_consulted_after_an_anchor",
+      "path": "qta_agent/events.py",
+      "find": "        return self._profile_of([ev], problems)\n",
+      "replace": "        return PROFILE_UNAUTHENTICATED_LEGACY\n",
+      "rationale": "an anchored read takes every history as legacy"
+    },
+    {
+      "name": "RC1_the_independent_reader_does_not_restate_the_profile",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    elif (events and events[0].action == _PROFILE_ACTION\n",
+      "replace": "    elif False and (events and events[0].action == _PROFILE_ACTION\n",
+      "rationale": "the second reader relies on the primitive's gate instead of refusing in its own code"
+    },
+    {
+      "name": "RC2_the_independent_reader_accepts_a_misplaced_declaration",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if ev.seq != 0 or p.get(\"profile\") not in _PROFILES:\n",
+      "replace": "            if False:\n",
+      "rationale": "the second reader folds past a declaration anywhere but genesis"
+    },
+    {
+      "name": "AR1_the_declaration_is_an_unknown_action",
+      "path": "qta_agent/actions.py",
+      "find": "    \"history.security_profile\": \"events\",\n",
+      "replace": "    \"history.nothing\": \"events\",\n",
+      "rationale": "the action is dropped from the registry, and every reducer refuses a REQUIRED history outright"
+    },
+    {
+      "name": "AH22_an_empty_history_is_remembered_as_legacy",
+      "path": "qta_agent/events.py",
+      "find": "        if nonempty:\n            # Remembered only once the history HAS a genesis to have\n",
+      "replace": "        if True:\n            # Remembered only once the history HAS a genesis to have\n",
+      "rationale": "a reader that saw the log before genesis keeps LEGACY and folds a REQUIRED history's anchored tail unauthenticated"
+    },
+    {
+      "name": "AH23_an_empty_anchored_tail_needs_no_authenticator",
+      "path": "qta_agent/events.py",
+      "find": "            if required and nonempty:\n",
+      "replace": "            if required and events:\n",
+      "rationale": "a writer holding an anchor extends a REQUIRED history without ever authenticating its head"
+    }
+  ]
+}

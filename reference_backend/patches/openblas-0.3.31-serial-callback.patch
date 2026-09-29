@@ -1,0 +1,16 @@
+--- a/driver/others/Makefile
++++ b/driver/others/Makefile
+@@ -5,6 +5,13 @@
+ 
+ #COMMONOBJS	+= slamch.$(SUFFIX) slamc3.$(SUFFIX) dlamch.$(SUFFIX)  dlamc3.$(SUFFIX)
+ 
++# gensymbol exports openblas_set_threads_callback_function from every build,
++# so a USE_THREAD=0 build must define it too -- a store that nothing in a
++# serial library reads -- or the shared library fails its own link test.
++ifndef SMP
++COMMONOBJS	+= blas_server_callback.$(SUFFIX)
++endif
++
+ ifdef SMP
+ COMMONOBJS	+= blas_server.$(SUFFIX) divtable.$(SUFFIX) blasL1thread.$(SUFFIX) blas_server_callback.$(SUFFIX)
+ ifneq ($(NO_AFFINITY), 1)

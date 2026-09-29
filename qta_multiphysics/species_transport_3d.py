@@ -157,7 +157,21 @@ def summary() -> dict:
         if status == RESOLVED:
             # RESOLVED entries always carry a temperature; the tuple element is
             # Optional because UNRESOLVED entries deliberately carry None.
-            assert T is not None, f"{name}: RESOLVED status with no temperature"
+            #
+            # THIS WAS AN `assert`, AND UNDER -O IT BECAME A TypeError.
+            # None would flow into mean_free_path_m and fail somewhere
+            # inside the arithmetic. That is not a fail-closed result worth
+            # having: the directive is explicit that a refusal must be an
+            # intentional governed refusal rather than an accidental runtime
+            # type failure, because the two are told apart by the reader of
+            # the traceback and by nothing else (D-2026-45).
+            if T is None:
+                raise ValueError(
+                    f"{name}: gas temperature status is {RESOLVED} and no "
+                    "temperature was resolved. A RESOLVED entry that cannot "
+                    "name its temperature is an UNRESOLVED entry wearing the "
+                    "wrong label, and the transport numbers below would be "
+                    "computed from nothing")
             lam = mean_free_path_m(T, d, P)
             kn = lam / L_CHAR_M
             row.update({"T_eval_K": T, "mean_free_path_m": lam, "Kn": kn,

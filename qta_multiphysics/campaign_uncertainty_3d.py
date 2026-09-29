@@ -53,6 +53,7 @@ import numpy as np
 from .cryopanel_dynamics_3d import (phase_fluxes_per_m2_s, phase_windows_s,
                                     SITES_PER_M2, N_ML_CAP)
 from .species_accounting_3d import DOSE_WINDOW_S  # noqa: F401 (provenance)
+from .species_accounting_3d import cryopanel_operating_point
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 SCHEMA_VERSION = "1.0"
@@ -139,8 +140,9 @@ def draw_members(n_members: int = N_MEMBERS, seed: int = CAMPAIGN_UNC_SEED):
 def _panel_ml_per_cycle(s_panel: float, cfg, n_cycles: int) -> list:
     """Exact-solution CH4 panel loading per cycle for one member (linear
     regime at canonical exposures; exact form used regardless)."""
-    F = phase_fluxes_per_m2_s("MODE_B")["C13_CH4"]
-    dt = phase_windows_s(cfg)["MODE_B"]
+    op = cryopanel_operating_point()
+    F = phase_fluxes_per_m2_s("MODE_B", op)["C13_CH4"]
+    dt = phase_windows_s(cfg, op)["MODE_B"]
     Ncap = N_ML_CAP * SITES_PER_M2
     N = 0.0
     out = []

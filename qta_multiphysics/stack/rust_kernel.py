@@ -39,6 +39,24 @@ CRATE_PATH = "rust/qta_kernels"
 BUILD_COMMAND = ("maturin build --release --manifest-path "
                  f"{CRATE_PATH}/Cargo.toml -i python3.12")
 PARITY_RULE = "bit_for_bit_identical_to_numpy_reference"
+
+
+def numpy_dispatch() -> str:
+    """The SIMD loops this process's NumPy will use, as a stable string.
+
+    A bit-parity verdict is a fact about a kernel AND the reference it was
+    compared against, and NumPy's reference moves with the host: measured
+    here, ``conductivity_power_law`` differs from the Rust kernel by 2 ulp
+    with AVX-512 available and is BIT-IDENTICAL without it. The verdict
+    flips, and with it ``dispatch()``'s choice of backend. So every verdict
+    carries the dispatch it was taken under, and none of them can be read as
+    a property of the kernel alone. D-2026-58.
+    """
+    try:
+        found = np.show_config(mode="dicts")["SIMD Extensions"]["found"]
+    except Exception:          # a NumPy that will not describe itself
+        return "UNKNOWN"
+    return "+".join(sorted(found)) or "NONE"
 PARITY_SEED = 20260819
 PARITY_N = 4096
 
@@ -121,12 +139,14 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
     if not rust_available():
         return {"kernel": name, "availability": "UNAVAILABLE",
                 "adopted": False, "backend_in_force": "numpy",
+                "numpy_dispatch": numpy_dispatch(),
                 "reason": "qta_kernels extension not importable",
                 "build_command": BUILD_COMMAND}
     fn = _rust_fn(name)
     if fn is None:
         return {"kernel": name, "availability": "AVAILABLE",
                 "adopted": False, "backend_in_force": "numpy",
+                "numpy_dispatch": numpy_dispatch(),
                 "reason": f"extension exports no '{name}'"}
     args, kwargs = _test_vectors(name, seed, n)
     reference: Callable = spec["numpy"]
@@ -135,6 +155,7 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
     if got.shape != ref.shape:
         return {"kernel": name, "availability": "AVAILABLE", "adopted": False,
                 "backend_in_force": "numpy",
+                "numpy_dispatch": numpy_dispatch(),
                 "reason": f"shape {got.shape} != reference {ref.shape}"}
     identical = bool(np.array_equal(got.view(np.int64), ref.view(np.int64)))
     ulp = int(np.max(np.abs(got.view(np.int64) - ref.view(np.int64)))) \
@@ -143,6 +164,11 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
         rel = np.abs(got - ref) / np.where(ref != 0, np.abs(ref), 1.0)
     return {"kernel": name, "availability": "AVAILABLE",
             "adopted": identical, "parity_rule": PARITY_RULE,
+            # The verdict is about this kernel AGAINST THIS NUMPY. Recorded
+            # beside it so that a report read on another host is read as a
+            # different measurement rather than a contradiction.
+            "numpy_dispatch": numpy_dispatch(),
+            "verdict_is_dispatch_conditional": True,
             "bit_identical": identical,
             "max_ulp_difference": ulp,
             "max_relative_difference": float(np.max(rel)) if ref.size else 0.0,
@@ -204,6 +230,15 @@ def status_report(out_dir: StrPath | None = None) -> dict:
         "kernels": kernels,
         "adopted_kernels": sorted(k["kernel"] for k in kernels
                                   if k.get("adopted")),
+        "numpy_dispatch": numpy_dispatch(),
+        "dispatch_conditionality": (
+            "Every verdict below was measured against THIS host's NumPy. "
+            "conductivity_power_law is REJECTED at 2 ulp where AVX-512 is "
+            "available and ADOPTED, bit-identical, where it is not -- so "
+            "which backend dispatch() selects is a property of the host, not "
+            "of the kernel. Nothing consumes these kernels today, so nothing "
+            "scientific turns on it; the record says so rather than leaving "
+            "a reader to discover it. D-2026-58."),
         "authority": "the NumPy reference in this module; a Rust kernel is "
                      "an accelerator that must re-prove bit parity on every "
                      "process start, never a second source of truth",

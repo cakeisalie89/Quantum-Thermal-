@@ -14,6 +14,9 @@ import numpy as np
 from dataclasses import dataclass, field
 from scipy.integrate import solve_ivp
 
+from .numerics import (require_integrated, resolution_class,
+                       resolution_classes)
+
 from .grids import Grid1D
 from .units import require_positive, require_nonnegative
 
@@ -53,15 +56,66 @@ def default_species():
 
 
 class GasTransport1DResult:
-    def __init__(self, grid, t, sols, specs, regions):
+    """A solve, plus what it can and cannot resolve.
+
+    ``sols`` is clipped into the physical range, which is what every consumer
+    wants and what gets serialised. ``raw`` is what the integrator returned.
+    Both are kept because the difference between them IS the resolution
+    statement: where the clip moved a value, the solver's answer was outside
+    the physical range, and for a density that means it was noise.
+    """
+
+    def __init__(self, grid, t, sols, specs, regions, raw=None,
+                 resolution_floor_1m3=None, trivially_zero=None):
         self.grid = grid
         self.t = t
-        self.sols = sols      # dict species -> (n_cells, Nt)
+        self.sols = sols      # dict species -> (n_cells, Nt), clipped
         self.specs = specs
         self.regions = regions  # dict with index ranges
+        self.raw = raw or {}    # dict species -> (n_cells, Nt), unclipped
+        #: The integrator's absolute tolerance, in the units of n. Values
+        #: smaller than this are not distinguishable from zero by this solve.
+        self.resolution_floor_1m3 = resolution_floor_1m3
+        #: species -> True when the model gives zero exactly (no source, no
+        #: initial content), which is a statement about the model and not
+        #: about the tolerance.
+        self._trivially_zero = trivially_zero or {}
 
     def profile_final(self, name):
         return self.sols[name][:, -1]
+
+    def raw_profile_final(self, name):
+        """The final profile as the integrator returned it, before the clip."""
+        return self.raw[name][:, -1]
+
+    def trivially_zero(self, name):
+        return bool(self._trivially_zero.get(name, False))
+
+    def resolution_profile(self, name):
+        """Per-cell resolution class of the final profile."""
+        return resolution_classes(
+            self.raw_profile_final(name), self.resolution_floor_1m3,
+            trivially_zero=self.trivially_zero(name), low=0.0)
+
+    def resolution_of_region_mean(self, name, region="sample"):
+        """Resolution class of the region mean reported by
+        :meth:`sample_region_density`.
+
+        The mean of unresolved cells is unresolved: averaging noise does not
+        make it a measurement. Classified on the RAW mean so that a region
+        whose cells are all negative noise does not arrive here as a clean
+        zero.
+        """
+        lo, hi = self.regions[region]
+        return resolution_class(
+            float(np.mean(self.raw[name][lo:hi, -1])),
+            self.resolution_floor_1m3,
+            trivially_zero=self.trivially_zero(name), low=0.0)
+
+    def cells_below_resolution(self, name):
+        from .numerics import BELOW_RESOLUTION
+        return sum(1 for c in self.resolution_profile(name)
+                   if c == BELOW_RESOLUTION)
 
     def sample_region_density(self, name):
         lo, hi = self.regions["sample"]
@@ -69,6 +123,18 @@ class GasTransport1DResult:
 
     def max_density(self, name):
         return float(np.max(self.sols[name]))
+
+    def resolution_of_max(self, name):
+        """Resolution class of the maximum reported by :meth:`max_density`.
+
+        Over the whole space-time array, as `max_density` is. Classified on
+        the RAW maximum: where every cell is negative noise the clip reports a
+        peak of exactly 0.0, and a peak the clip produced is not a resolved
+        peak. After the clip the two are the same number.
+        """
+        return resolution_class(
+            float(np.max(self.raw[name])), self.resolution_floor_1m3,
+            trivially_zero=self.trivially_zero(name), low=0.0)
 
 
 def solve_gas_transport_1d(specs=None, n=120, line_length_m=0.5, t_end=2.0,
@@ -91,7 +157,7 @@ def solve_gas_transport_1d(specs=None, n=120, line_length_m=0.5, t_end=2.0,
     regions = {"inlet": region_idx(0.0, 0.15), "sample": region_idx(0.35, 0.50),
                "cryobaffle": region_idx(0.60, 0.80), "pump": region_idx(0.85, 1.0)}
 
-    sols = {}
+    sols, raw, trivially_zero = {}, {}, {}
     for sp in specs:
         S = np.zeros(n)
         ilo, ihi = regions["pump"]
@@ -130,8 +196,20 @@ def solve_gas_transport_1d(specs=None, n=120, line_length_m=0.5, t_end=2.0,
             n0 = np.asarray(n_init[sp.name], dtype=float).copy()
         else:
             n0 = np.zeros(n)
+        # WHY the answer is zero, recorded where both halves of the reason are
+        # in hand. A species with no source and no initial content integrates
+        # to exactly zero in floating point; its zero is the model's, not the
+        # tolerance's. Downstream only sees the number, where the two are
+        # indistinguishable -- He3 and He4 are absent by design in Mode C and
+        # methane is present but unresolved, and all three read 0.0.
+        trivially_zero[sp.name] = bool(
+            not np.any(n0) and not np.any(src))
         t_eval = np.linspace(0.0, t_end, n_eval)
         so = solve_ivp(rhs, (0.0, t_end), n0, method="BDF", t_eval=t_eval,
                        rtol=rtol, atol=atol, max_step=t_end / 20.0)
+        require_integrated(so, f"gas transport: {sp.name}")
+        raw[sp.name] = np.array(so.y, dtype=float, copy=True)
         sols[sp.name] = np.clip(so.y, 0.0, None)
-    return GasTransport1DResult(grid, t_eval, sols, specs, regions)
+    return GasTransport1DResult(grid, t_eval, sols, specs, regions,
+                                raw=raw, resolution_floor_1m3=atol,
+                                trivially_zero=trivially_zero)

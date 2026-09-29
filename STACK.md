@@ -1,6 +1,7 @@
-# QTA Scientific Stack — Adoption Ladder (Stage 10)
+# Scientific stack — adoption ladder (Stage 10)
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+Part of the governed scientific-agent framework. An adopted tool is a
+checked claim; nothing on this ladder is a measurement or an authority.
 
 `stack.json` (schema 1.0.0) is the machine-readable form of this document and
 is checked against the code by `tests/test_stage10_stack.py`. Code is the
@@ -8,7 +9,7 @@ authority; both files mirror it and neither overrides it.
 
 ## 1. What "adoption" means here
 
-Adding a tool to a forecast-only project is a governance act, not a
+Adding a tool to a governed scientific framework is a governance act, not a
 convenience. Every element below is placed on one of three rungs, and the rung
 is a claim that can be checked:
 
@@ -174,6 +175,24 @@ Pure division and addition reproduce exactly; `powf` against NumPy's `**`
 does not (max relative difference 3.8e-16 — numerically negligible, and still
 not adoption). "Close enough" is the standard this project cannot use.
 
+**Both verdicts are conditional on the host's SIMD dispatch, and the table
+above is this machine's.** The reference side of a bit-parity comparison is
+NumPy, and NumPy's `**` loop moves with the CPU. Measured:
+
+| NumPy SIMD in force | `conductivity_power_law` | max ulp | Backend `dispatch()` selects |
+|---|---|---|---|
+| `X86_V3+X86_V4` (AVX-512) | **REJECTED** | 2 | numpy |
+| `X86_V3` only | **ADOPTED** | 0 | rust |
+
+So which code computes thermal conductivity would be decided by the host,
+not by the kernel — R59's divergence one level up, in a choice of
+implementation rather than a printed digit. Nothing turns on it today
+(`rust_kernel.py`'s own record states, and a sweep confirms, that no solver
+imports these kernels), and the rule itself is unchanged and correct. What
+changed is that `rust_kernel_status.json` now carries the dispatch every
+verdict was measured under, so a report read on another machine is read as a
+second measurement rather than as a contradiction. D-2026-58.
+
 ### The registry itself — `stack/registry.py`
 `stack.json` is hand-editable and is read by the tests, which makes it a
 trusted boundary in the same sense `stage7_boundary_models.py` uses the term,
@@ -198,8 +217,8 @@ from the interface content, so it changes when — and only when — the interfa
 changes. Five prerequisites are open (§4); the load-bearing two are state
 serialisation (FMI masters may roll a step back, and the integrator exposes no
 serialisable state) and mode-boundary semantics (a communication step
-straddling a Mode B/C/D transition would bypass an interlock the FSM
-enforces). Neither is a packaging detail.
+straddling a phase boundary of a composed model would bypass the constraint
+that boundary enforces). Neither is a packaging detail.
 
 ## 4. Open items
 
@@ -208,7 +227,7 @@ enforces). Neither is a packaging detail.
 | Container | base-image digest is **RESOLVED_AND_PINNED**; the open item is runtime, not the digest: `RUNTIME_BUILT=NO`, local build `ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS` (403 on CONNECT to `production.cloudfront.docker.com`; base image not substituted). `container-verify.yml` can close it on a hosted runner but is `workflow_dispatch`-only and needs to reach the default branch first (`container_verification.md`) |
 | SLSA / Sigstore | `stack-verify.yml` has run on a hosted runner (Actions run 32575190696, both legs green); `release.yml` has not, and no signed release exists; all actions are pinned by commit SHA per policy #3; **no SLSA level claimed** |
 | SALib | global vs. local ranking disagreement on the top parameter (§3) — open for human review |
-| Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference; NumPy stays in force |
+| Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference **on a host with AVX-512**; bit-identical and adopted without it, so the verdict — and the backend `dispatch()` would select — is host-conditional (D-2026-58). NumPy stays in force here, and no solver imports either kernel |
 | FEniCSx | dolfinx unavailable; acceptance criteria 2–4 cannot run until a build exists |
 | FMI | FMI-P1 state serialisation, FMI-P2 mode-boundary steps, FMI-P3 step-size independence, FMI-P4 claim-boundary survival, FMI-P5 unit round-trip |
 
@@ -217,5 +236,6 @@ enforces). Neither is a packaging detail.
 A STAGED element becomes ADOPTED when its acceptance criteria pass in an
 environment the project can reproduce, and the run is recorded in the
 workflow. A DEFERRED element becomes STAGED when every prerequisite is CLOSED.
-Nothing on this ladder can change a gate: `automatic_gate_effect = NONE` for
-every element, at every level, and the scientific PASS count remains zero.
+Nothing on this ladder is authority: `automatic_gate_effect = NONE` for every
+element, at every level, and a result becomes authority only through the
+governed admission path (`AUTHORITIES.md`).

@@ -1,0 +1,79 @@
+{
+  "title": "Durability under a failing filesystem",
+  "note": "Every claim this package makes about surviving a crash rests on three lines of write path: a write whose result is checked, an fsync that must succeed before anything independent claims the record is durable, and a temp-then-rename that leaves either nothing or a complete file. None of them had a fault behind them until tests/test_agent_fault_injection.py existed -- the suite exercised the happy path of the write and then reasoned about crashes by discarding projections. F1-F3 attack the log's write path, F4-F5 the content-addressed store's, F6 the checkpoint's. F7 attacks the ordering that makes the witness meaningful: a witness written before the data is durable is a witness that lies in exactly the situation it exists for.",
+  "suites": [
+    "tests/test_agent_fault_injection.py"
+  ],
+  "mutations": [
+    {
+      "name": "F1_the_log_ignores_a_short_write",
+      "path": "qta_agent/events.py",
+      "find": "            written = fh.write(line)\n            if written != len(line):",
+      "replace": "            written = fh.write(line)\n            if False:",
+      "rationale": "half a record reaches the disk, the witness is advanced to name it, and the log's independent witness now claims a record that is not there"
+    },
+    {
+      "name": "F2_the_log_swallows_a_write_failure",
+      "path": "qta_agent/events.py",
+      "find": "            start = fh.tell()\n            written = fh.write(line)",
+      "replace": "            start = fh.tell()\n            try:\n                written = fh.write(line)\n            except OSError:\n                written = len(line)",
+      "rationale": "ENOSPC becomes a successful append: the caller is told the event is recorded and the bytes are not there"
+    },
+    {
+      "name": "F3_the_log_swallows_a_failed_fsync",
+      "path": "qta_agent/events.py",
+      "find": "            fh.flush()\n            os.fsync(fh.fileno())\n            end = fh.tell()",
+      "replace": "            fh.flush()\n            try:\n                os.fsync(fh.fileno())\n            except OSError:\n                pass\n            end = fh.tell()",
+      "rationale": "EIO from the device is discarded, and a record that may never reach the platter is recorded as durable"
+    },
+    {
+      "name": "F4_the_witness_is_advanced_before_the_data_is_durable",
+      "path": "qta_agent/events.py",
+      "find": "            fh.flush()\n            os.fsync(fh.fileno())\n            end = fh.tell()\n        self._write_head(ChainState(ev.seq, ev.hash))",
+      "replace": "            fh.flush()\n            self._write_head(ChainState(ev.seq, ev.hash))\n            os.fsync(fh.fileno())\n            end = fh.tell()",
+      "rationale": "the witness exists to detect a log that lost its tail; written first, it names records the log never durably had, and reports TRUNCATED after every ordinary power loss"
+    },
+    {
+      "name": "F5_the_blob_store_ignores_a_short_write",
+      "path": "qta_agent/evidence.py",
+      "find": "                written = fh.write(content)\n                if written != len(content):",
+      "replace": "                written = fh.write(content)\n                if False:",
+      "rationale": "a prefix of the content is published under the digest of the whole, and the store's one invariant -- what is there hashes to its name -- is broken permanently"
+    },
+    {
+      "name": "F6_a_failed_blob_write_leaves_its_temporary_file",
+      "path": "qta_agent/evidence.py",
+      "find": "            os.replace(tmp, blob)\n        except BaseException:\n            tmp.unlink(missing_ok=True)\n            raise",
+      "replace": "            os.replace(tmp, blob)\n        except BaseException:\n            raise",
+      "rationale": "every failed write leaves a partial file in the store directory, and a store that accumulates debris on a full disk fills the disk it is already failing on"
+    },
+    {
+      "name": "F7_a_failed_checkpoint_write_leaves_its_temporary_file",
+      "path": "qta_agent/checkpoint.py",
+      "find": "            os.replace(tmp, path)\n        except BaseException:\n            tmp.unlink(missing_ok=True)\n            raise",
+      "replace": "            os.replace(tmp, path)\n        except BaseException:\n            raise",
+      "rationale": "same debris, in the directory whose file names are how checkpoints are found"
+    },
+    {
+      "name": "F8_a_corrupt_checkpoint_escapes_as_a_generic_error",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        except ValueError as exc:\n            raise CheckpointCorrupt(\n                f\"{where}: unparseable ({type(exc).__name__})\") from exc",
+      "replace": "        except ValueError as exc:\n            raise ValueError(\n                f\"{where}: unparseable ({type(exc).__name__})\") from exc",
+      "rationale": "the failure escapes past every caller written to handle this module's errors, and audit() -- whose contract is that it never stops -- stops"
+    },
+    {
+      "name": "F9_a_partial_trailing_line_is_read_as_the_end_of_the_log",
+      "path": "qta_agent/events.py",
+      "find": "                if not strict:\n                    break",
+      "replace": "                if True:\n                    break",
+      "rationale": "a partial trailing line would be silently treated as the end of the log in strict mode too; re-anchored after D-2026-50 inverted this branch"
+    },
+    {
+      "name": "F10_a_checkpoint_altered_in_place_is_restored_anyway",
+      "path": "qta_agent/checkpoint.py",
+      "find": "        recomputed = cp.recompute_hash()\n        if recomputed != cp.hash:",
+      "replace": "        recomputed = cp.recompute_hash()\n        if False:",
+      "rationale": "bit-rot inside a complete record is invisible to the parser, so this is the only check between altered bytes and a projection restored as though it had been verified"
+    }
+  ]
+}

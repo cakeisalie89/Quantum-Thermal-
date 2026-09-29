@@ -1,0 +1,159 @@
+{
+ "title": "Governed reads: confinement at the open, and who may perform one",
+ "note": "The read boundary. Every mutation here removes exactly one thing standing between an authorized NAME and unauthorized BYTES. The ones that matter most are R2 (a symlinked parent directory moves a whole subtree somewhere the authority never named), R3 (without O_NONBLOCK a substituted FIFO turns a bounded read into an indefinite hang rather than a refusal), and R14 (the read bytes reach the audit log, which is exactly how a secret would get there).",
+ "suites": [
+  "tests/test_agent_readpath.py",
+  "tests/test_agent_evidence.py",
+  "tests/test_agent_governed_stage10.py",
+  "tests/test_agent_substrate_isolation.py"
+ ],
+ "mutations": [
+  {
+   "name": "R1_leaf_open_follows_symlinks",
+   "path": "qta_agent/safeio.py",
+   "find": "        return _openat(cur, parts[-1],\n                       os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,",
+   "replace": "        return _openat(cur, parts[-1],\n                       os.O_RDONLY | os.O_NONBLOCK,",
+   "rationale": "a symlink at the leaf is followed, so an authorized name delivers bytes from wherever the link points"
+  },
+  {
+   "name": "R2_intermediate_open_follows_symlinks",
+   "path": "qta_agent/safeio.py",
+   "find": "            fd = _openat(cur, part,\n                         os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,",
+   "replace": "            fd = _openat(cur, part,\n                         os.O_RDONLY | os.O_DIRECTORY,",
+   "rationale": "a symlinked PARENT moves the whole subtree outside the root while every leaf name still looks correct"
+  },
+  {
+   "name": "R3_open_can_block_on_a_fifo",
+   "path": "qta_agent/safeio.py",
+   "find": "os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,",
+   "replace": "os.O_RDONLY | os.O_NOFOLLOW,",
+   "rationale": "a substituted named pipe turns a bounded read into an indefinite hang, which is a denial of service that looks like a slow disk"
+  },
+  {
+   "name": "R4_opened_object_type_not_checked",
+   "path": "qta_agent/safeio.py",
+   "find": "        if not stat.S_ISREG(st.st_mode):",
+   "replace": "        if False:",
+   "rationale": "a pipe, device or directory is read as though it were a file; the pathname was checked and the OBJECT was not"
+  },
+  {
+   "name": "R5_size_bound_removed",
+   "path": "qta_agent/safeio.py",
+   "find": "        if st.st_size > max_bytes:",
+   "replace": "        if False:",
+   "rationale": "an unbounded read: a large file exhausts memory before anything notices"
+  },
+  {
+   "name": "R6_growth_during_read_ignored",
+   "path": "qta_agent/safeio.py",
+   "find": "            if total > max_bytes:",
+   "replace": "            if False:",
+   "rationale": "a file that grows while being read escapes the bound the size check established"
+  },
+  {
+   "name": "R7_traversal_allowed",
+   "path": "qta_agent/safeio.py",
+   "find": "        if part == \"..\":",
+   "replace": "        if False:",
+   "rationale": "'..' climbs out of the authorized root, which is the oldest path attack there is"
+  },
+  {
+   "name": "R8_absolute_paths_allowed",
+   "path": "qta_agent/safeio.py",
+   "find": "    if rel.startswith(\"/\"):",
+   "replace": "    if False:",
+   "rationale": "an absolute path is a request to leave the root, and it is accepted"
+  },
+  {
+   "name": "R9_digest_expectation_ignored",
+   "path": "qta_agent/safeio.py",
+   "find": "    if expect_digest is not None and dg != expect_digest:",
+   "replace": "    if False:",
+   "rationale": "content substitution stops being detected: the only defence that survives an attacker who wins the pre-open race"
+  },
+  {
+   "name": "R10_no_capabilities_means_allow",
+   "path": "qta_agent/readpath.py",
+   "find": "        if self.capabilities is None:",
+   "replace": "        if False:",
+   "rationale": "default DENY becomes default allow -- a reader holding nothing reads everything"
+  },
+  {
+   "name": "R11_capability_not_checked",
+   "path": "qta_agent/readpath.py",
+   "find": "            self.capabilities.check(capability_id, Request(",
+   "replace": "            _unused = (capability_id, Request(",
+   "rationale": "any capability id authorizes any read, including one issued to another actor for another task"
+  },
+  {
+   "name": "R12_path_not_validated_before_the_grant",
+   "path": "qta_agent/readpath.py",
+   "find": "        split_relative(req.resource)          # raises PathRefused",
+   "replace": "        pass",
+   "rationale": "a traversal attempt is reported as a scope miss instead of a traversal, sending an operator to the wrong problem"
+  },
+  {
+   "name": "R13_denials_are_not_recorded",
+   "path": "qta_agent/readpath.py",
+   "find": "            self._record(req, capability_id, allowed=False,\n                         reason=f\"{type(exc).__name__}: {exc}\")\n            raise\n        try:",
+   "replace": "            raise\n        try:",
+   "rationale": "'what did this agent try to read' has no answer, which is the question an incident starts with"
+  },
+  {
+   "name": "R14_the_bytes_are_written_to_the_log",
+   "path": "qta_agent/readpath.py",
+   "find": "            payload[\"result\"] = result.to_record()",
+   "replace": "            payload[\"result\"] = dict(result.to_record(),\n                                     content=result.data.decode(\"utf-8\", \"replace\"))",
+   "rationale": "the content of every governed read lands in the audit trail; a read is exactly how a secret would get there"
+  },
+  {
+   "name": "R15_read_scope_loses_its_root_namespace",
+   "path": "qta_agent/readpath.py",
+   "find": "    return tuple(f\"{root_id}/{p.lstrip('/')}\" for p in paths)",
+   "replace": "    return tuple(p.lstrip('/') for p in paths)",
+   "rationale": "a grant scoped to one root becomes spendable against another that happens to share a relative path"
+  },
+  {
+   "name": "R16_evidence_reads_by_pathname_again",
+   "path": "qta_agent/evidence.py",
+   "find": "                return rr.read(rel, expect_digest=dg).data",
+   "replace": "                return (Path(rr.path) / rel).read_bytes()",
+   "rationale": "the store reopens by NAME after the confined open, reintroducing the whole window and losing the digest check with it"
+  },
+  {
+   "name": "R17_evidence_stops_binding_to_the_digest",
+   "path": "qta_agent/evidence.py",
+   "find": "                return rr.read(rel, expect_digest=dg).data",
+   "replace": "                return rr.read(rel).data",
+   "rationale": "the store returns whatever is filed under the name without checking it hashes back to it: layout becomes evidence"
+  },
+  {
+   "name": "R18_verification_stops_binding_to_the_cited_digest",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                    reader.read(req, capability_id=capability_id,\n                                expect_digest=dg,\n                                require_unique_link=True)",
+   "replace": "                    reader.read(req, capability_id=capability_id,\n                                require_unique_link=True)",
+   "rationale": "verification confirms that a file EXISTS rather than that it is the file the task cited"
+  },
+  {
+   "name": "R19_verification_uses_the_executors_grant",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        read_cap = issue(capability_id=read_cap_id, subject=verifier,",
+   "replace": "        read_cap = issue(capability_id=read_cap_id, subject=worker,",
+   "rationale": "the executor's authority becomes what permits the check on its own work, which is the shape separation of duties exists to forbid"
+  },
+  {
+   "name": "R20_hard_link_alias_accepted",
+   "path": "qta_agent/safeio.py",
+   "find": "        if require_unique_link and st.st_nlink > 1:",
+   "replace": "        if False:",
+   "rationale": "a second hard link -- another name for the same bytes, possibly outside the root entirely -- stops being refused even where the caller asked for unique identity"
+  },
+  {
+   "name": "R21_verification_stops_requiring_a_unique_name",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                                require_unique_link=True)",
+   "replace": "                                require_unique_link=False)",
+   "rationale": "a governed artifact may be reachable by a name no authority saw, and verification confirms it anyway"
+  }
+ ]
+}

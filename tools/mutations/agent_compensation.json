@@ -1,0 +1,114 @@
+{
+  "title": "A compensation that runs, and a write nobody declared",
+  "note": "Two gaps, one shape: a declaration the system recorded and never acted on. The compensation was prose with four consumers and no performer; declared-output collection saw only the files the contract named and was blind to everything else the tool wrote inside its own scope.",
+  "suites": [
+    "tests/test_agent_compensation.py"
+  ],
+  "mutations": [
+    {
+      "name": "X1_a_compensation_runs_without_anyone_deciding",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if esc.state is not EscalationState.ANSWERED:",
+      "replace": "        if False:",
+      "rationale": "an automatic undo performs an unrequested external action in exactly the case where there may have been nothing to undo"
+    },
+    {
+      "name": "X2_any_answer_authorizes_the_compensation",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if esc.answer != \"COMPENSATE\":",
+      "replace": "        if False:",
+      "rationale": "ACCEPT_AS_DONE runs the undo, so the person's decision means nothing whichever way they gave it"
+    },
+    {
+      "name": "X3_an_answer_about_another_task_authorizes_this_one",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if esc.task_id != task_id:",
+      "replace": "        if False:",
+      "rationale": "one COMPENSATE answer becomes a general permission to undo anything"
+    },
+    {
+      "name": "X4_a_tool_with_no_undo_is_reported_as_compensated",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if undo is None:\n            raise ToolError(",
+      "replace": "        if False:\n            raise ToolError(",
+      "rationale": "the fabrication the declaration exists to avoid: an operator's action reported as this system's"
+    },
+    {
+      "name": "X5_the_compensation_borrows_the_runs_grant",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        cap_id = self._compensation_capability(task_id, actor)",
+      "replace": "        cap_id = next((c for c in self.capabilities.issued_ids()\n                       if c.startswith(\"cap-\")), \"\")",
+      "rationale": "'may run the thing' and 'may undo the thing' become one authority, so a component tricked into either holds both"
+    },
+    {
+      "name": "X6_the_compensation_report_claims_the_far_side_is_undone",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "                \"establishes\": \"the compensating tool ran to this outcome; \"\n                               \"it does not establish the external system's \"\n                               \"current state\"}",
+      "replace": "                \"establishes\": \"the external effect has been undone and the external system is now in its prior state\"}",
+      "rationale": "only the far side knows its own state, and a report that reads like confirmation is the fabrication this whole path avoids"
+    },
+    {
+      "name": "X7_an_unmarked_tool_may_be_used_as_a_compensation",
+      "path": "qta_agent/tools.py",
+      "find": "        if not undo.is_compensation:",
+      "replace": "        if False:",
+      "rationale": "an ordinary EXTERNAL tool is run for a purpose its own contract does not describe, and the mark that exempts it from needing an undo stops meaning anything"
+    },
+    {
+      "name": "X8_a_compensation_may_name_a_compensation",
+      "path": "qta_agent/tools.py",
+      "find": "        if spec.compensating_tool:\n            raise ToolError(\n                f\"{spec.tool_id}: is a compensation AND names one.",
+      "replace": "        if False:\n            raise ToolError(\n                f\"{spec.tool_id}: is a compensation AND names one.",
+      "rationale": "every undo needs an undo and the regress has no bottom"
+    },
+    {
+      "name": "X9_a_compensation_need_not_be_external",
+      "path": "qta_agent/tools.py",
+      "find": "        if not external:\n            raise ToolError(\n                f\"{spec.tool_id}: is_compensation with side_effect \"",
+      "replace": "        if False:\n            raise ToolError(\n                f\"{spec.tool_id}: is_compensation with side_effect \"",
+      "rationale": "the exemption from declaring a compensation leaks to tools that only write inside this system, where an ordinary scoped write is the undo"
+    },
+    {
+      "name": "X10_an_unregistered_compensating_tool_is_tolerated",
+      "path": "qta_agent/tools.py",
+      "find": "        except ToolNotRegistered:\n            raise ToolError(",
+      "replace": "        except ToolNotRegistered:\n            return None\n            raise ToolError(",
+      "rationale": "a compensation nothing can run reads as 'this effect has no automatable undo', which is a different and reassuring answer"
+    },
+    {
+      "name": "X11_undeclared_writes_are_not_detected",
+      "path": "qta_agent/execution.py",
+      "find": "        undeclared = _undeclared_writes(",
+      "replace": "        undeclared = ()\n        _discarded = _undeclared_writes(",
+      "rationale": "the original defect restored: a tool leaves an extra artifact inside its own scope and the provenance record is silently incomplete"
+    },
+    {
+      "name": "X12_undeclared_writes_are_detected_and_ignored",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "        if result.undeclared_writes:",
+      "replace": "        if False:",
+      "rationale": "the check exists and nothing consumes it, which is the shape of a defence with no caller"
+    },
+    {
+      "name": "X13_the_inventory_walks_the_whole_working_directory",
+      "path": "qta_agent/execution.py",
+      "find": "    for scope in scopes:\n        root = cwd / scope",
+      "replace": "    for scope in [\"\"]:\n        root = cwd / scope",
+      "rationale": "a bounded execution becomes proportional to the checkout, and every concurrent change anywhere is reported as this tool's write"
+    },
+    {
+      "name": "X14_deletions_are_not_undeclared_writes",
+      "path": "qta_agent/execution.py",
+      "find": "    for rel in sorted(before):\n        if rel not in after and rel not in named:",
+      "replace": "    for rel in sorted(before):\n        if False:",
+      "rationale": "a tool that REMOVES a file it did not declare has changed the workspace just as much, and this is the more destructive half"
+    },
+    {
+      "name": "X15_the_before_inventory_is_taken_after_the_run",
+      "path": "qta_agent/execution.py",
+      "find": "    before_inventory = _inventory(Path(cwd), spec.writable_scope)",
+      "replace": "    before_inventory = {}",
+      "rationale": "every pre-existing file in the scope becomes an undeclared write, so the check fails every run and stops distinguishing anything"
+    }
+  ]
+}

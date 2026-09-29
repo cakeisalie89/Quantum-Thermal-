@@ -198,7 +198,11 @@ def forward_matrix(theta_t: np.ndarray, design: ExperimentDesign,
     ``clean_forward`` to interpolation accuracy); the other observables are exact
     closed-form maps.
     """
-    from .simulator_adapter import _temp_factor, _coverage_factor, _N_OMEGA
+    # _temp_factor and _coverage_factor are already imported at module
+    # level; re-importing them here shadowed them with the same objects
+    # and hid the SAME rule (F811) that was masking dead code in
+    # deep_expdesign/runner.py. Only _N_OMEGA is not available above.
+    from .simulator_adapter import _N_OMEGA
     theta_t = np.atleast_2d(theta_t)
     n = theta_t.shape[0]
     obs = observable_names()

@@ -1,0 +1,65 @@
+{
+  "guards": {
+    "full_verification": {
+      "ceiling": 1.45,
+      "observations": [
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:14:09Z",
+          "value": 1.0115
+        },
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:43:47Z",
+          "value": 0.9997
+        }
+      ]
+    },
+    "governed_operation_vs_history": {
+      "ceiling": 4.0,
+      "observations": [
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:14:09Z",
+          "value": 1.2076
+        },
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:43:47Z",
+          "value": 1.1036
+        }
+      ]
+    },
+    "independent_reconstruction": {
+      "ceiling": 1.45,
+      "observations": [
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:14:09Z",
+          "value": 0.9819
+        },
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:43:47Z",
+          "value": 0.9535
+        }
+      ]
+    },
+    "projection_load": {
+      "ceiling": 1.45,
+      "observations": [
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:14:09Z",
+          "value": 1.0061
+        },
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:43:47Z",
+          "value": 0.997
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,93 @@
+{
+  "title": "Sharded mutation matrices lose no coverage",
+  "note": "Every spec in exactly one deterministic shard; the workflow matrix generated and checked; the aggregate green only when every shard's result is success; each shard fails on any non-zero matrix exit, runs every spec regardless, and checks the tracked tree with git.",
+  "suites": [
+    "tests/test_mutation_shards.py"
+  ],
+  "mutations": [
+    {
+      "name": "MS1_a_spec_falls_out_of_the_plan",
+      "path": "tools/mutation_shards.py",
+      "find": "    for name in sorted(names, key=lambda s: (-w[s], s)):\n",
+      "replace": "    for name in sorted(names, key=lambda s: (-w[s], s))[1:]:\n",
+      "rationale": "THE loss sharding must not cause: the heaviest spec silently runs nowhere"
+    },
+    {
+      "name": "MS2_every_spec_lands_in_one_shard",
+      "path": "tools/mutation_shards.py",
+      "find": "        load[i] += w[name]\n",
+      "replace": "        pass\n",
+      "rationale": "the loads never move, so every spec piles into shard 1 and the time is not saved"
+    },
+    {
+      "name": "MS3_the_matrix_is_not_compared_to_the_plan",
+      "path": "tools/mutation_shards.py",
+      "find": "        if block != emit():\n",
+      "replace": "        if False:\n",
+      "rationale": "a spec deleted from the workflow block would stop running with the contract green"
+    },
+    {
+      "name": "MS4_fail_fast_may_come_back",
+      "path": "tools/mutation_shards.py",
+      "find": "        if not re.search(r\"^\\s+fail-fast:\\s*false\\s*$\", shard, re.MULTILINE):\n",
+      "replace": "        if False:\n",
+      "rationale": "one red shard cancels the others and their verdicts are never taken"
+    },
+    {
+      "name": "MS5_the_aggregate_may_be_skipped",
+      "path": "tools/mutation_shards.py",
+      "find": "        if not re.search(r\"^\\s+if:\\s*\\$\\{\\{\\s*always\\(\\)\\s*\\}\\}\\s*$|\"\n",
+      "replace": "        if False and re.search(r\"^\\s+if:\\s*\\$\\{\\{\\s*always\\(\\)\\s*\\}\\}\\s*$|\"\n",
+      "rationale": "a skipped aggregate reports nothing instead of red"
+    },
+    {
+      "name": "MS6_the_aggregate_need_not_see_success",
+      "path": "tools/mutation_shards.py",
+      "find": "        if \"needs.mutation-shards.result\" not in agg or \\\n",
+      "replace": "        if False and \"needs.mutation-shards.result\" not in agg or \\\n",
+      "rationale": "overall green stops meaning every shard passed"
+    },
+    {
+      "name": "MS7_a_red_spec_is_ignored",
+      "path": "tools/mutation_shards.py",
+      "find": "        if rc != 0:\n            failed.append((p, rc))\n",
+      "replace": "        if rc > 1:\n            failed.append((p, rc))\n",
+      "rationale": "a survivor (exit 1) passes the shard"
+    },
+    {
+      "name": "MS8_the_shard_stops_at_the_first_failure",
+      "path": "tools/mutation_shards.py",
+      "find": "            failed.append((p, rc))\n",
+      "replace": "            failed.append((p, rc))\n            break\n",
+      "rationale": "one red spec hides every spec after it"
+    },
+    {
+      "name": "MS9_a_changed_tree_passes",
+      "path": "tools/mutation_shards.py",
+      "find": "    return 1 if failed or changed else 0\n",
+      "replace": "    return 1 if failed else 0\n",
+      "rationale": "git as the independent check of restoration is dropped"
+    },
+    {
+      "name": "MS10_an_empty_shard_passes",
+      "path": "tools/mutation_shards.py",
+      "find": "    if not names:\n",
+      "replace": "    if False:\n",
+      "rationale": "a shard given nothing passes having run nothing"
+    },
+    {
+      "name": "MS11_a_stale_shard_is_accepted",
+      "path": "tools/mutation_shards.py",
+      "find": "    if sorted(names) not in plan():\n",
+      "replace": "    if False:\n",
+      "rationale": "a hand-edited matrix runs whatever it lists"
+    },
+    {
+      "name": "MS12_the_contract_never_asks",
+      "path": "tools/workflow_contract.py",
+      "find": "    out += [f\"mutation shards -- {x}\" for x in MS.check_workflow(body)]\n",
+      "replace": "    pass\n",
+      "rationale": "K1: the shard check exists and the verifier CI runs never consults it"
+    }
+  ]
+}

@@ -110,6 +110,31 @@ def _tracked_files() -> list:
     return sorted(f for f in out.splitlines() if f and f not in DETACHED)
 
 
+def _untracked_but_not_ignored() -> list:
+    """Files git can see, does not track, and has not been told to ignore.
+
+    THE TRAP THIS CLOSES
+
+    The manifest is built from ``git ls-files``, which sees TRACKED files only.
+    Regenerating it while a new file is still untracked produces a manifest
+    that is correct at that instant and stale the moment the file is added --
+    and the staleness surfaces in CI, on a runner, after the commit, as
+    "tracked but not listed".
+
+    That has happened repeatedly in this repository, in three different tools,
+    always the same way: a local check reads the tracked set, the new file is
+    not in it yet, everything looks fine. So the check reports them rather
+    than leaving the next person to rediscover it. A file that is genuinely
+    scratch belongs in ``.gitignore``, which is a decision someone makes once
+    instead of a surprise everyone meets.
+    """
+    out = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    return sorted(line[3:].strip() for line in out.splitlines()
+                  if line.startswith("?? "))
+
+
 def _sha256(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
@@ -239,6 +264,16 @@ def check() -> int:
                         "appended in sorted order)")
     problems.extend(semantic)
 
+    # Reported last, and as a problem rather than a note: a manifest
+    # regenerated over a tree with untracked files is stale the moment they
+    # are committed, and the failure surfaces on a runner rather than here.
+    for f in _untracked_but_not_ignored():
+        problems.append(
+            f"untracked and not ignored: {f} -- it is absent from the "
+            "manifest now and would be required in it the moment it is "
+            "committed. Stage it before regenerating, or add it to "
+            ".gitignore.")
+
     if problems:
         print(f"MANIFEST DRIFT ({len(problems)} problem(s)):", file=sys.stderr)
         for p in problems:
@@ -247,6 +282,20 @@ def check() -> int:
         return 1
     print(f"manifest in sync ({len(listed)} files; "
           f"{len(DETACHED)} detached by policy)")
+    # WHAT "IN SYNC" DOES NOT MEAN, said out loud because it misled someone.
+    #
+    # This compares the manifest against the tracked tree: every file is
+    # listed, every listed hash matches the bytes on disk. It says nothing
+    # about whether two DERIVED artifacts agree with each other -- the HDF5
+    # mapping's recorded digest for a governed output, say, against that
+    # output's actual bytes. The manifest is last in the regeneration chain
+    # and hashes whatever it finds, including a stale link earlier in the
+    # chain, which is exactly how D-2026-35 passed this check and failed the
+    # suite one commit later.
+    print("  (coverage and hashes only -- it does not check that derived "
+          "artifacts agree with their sources; after changing a governed "
+          "output run the regeneration order in MANIFEST_BOUNDARY.md and "
+          "then the test suite)")
     return 0
 
 

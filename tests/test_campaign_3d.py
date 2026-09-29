@@ -10,6 +10,8 @@ import json
 import sys
 import pathlib
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from qta_multiphysics.config import default_config                # noqa: E402
@@ -21,13 +23,16 @@ from qta_multiphysics.verification_3d import run_verification_3d  # noqa: E402
 from qta_multiphysics.falsification_3d import falsification_report  # noqa: E402
 from qta_multiphysics.machine_fsm import run_nominal_lifecycle    # noqa: E402
 from qta_multiphysics.cryopanel_dynamics_3d import (              # noqa: E402
-    PanelInventory, new_panel_set, advance_phase, phase_fluxes_per_m2_s,
-    SITES_PER_M2, N_ML_CAP)
+    OperatingPoint, PanelInventory, new_panel_set, advance_phase,
+    phase_fluxes_per_m2_s, phase_windows_s, SITES_PER_M2, N_ML_CAP)
+from qta_multiphysics.species_accounting_3d import (                # noqa: E402
+    DOSE_WINDOW_S, P_C13_WORK_PA, P_HE_DOSE_PA, cryopanel_operating_point)
 from qta_multiphysics.campaign_state_3d import (                  # noqa: E402
     build_campaign, attach_energy_ledger, energy_conservation_ok,
     mass_bookkeeping_rows)
 
 CFG = default_config()
+OP = cryopanel_operating_point()
 SEQ = run_mode_sequence_3d(CFG, Grid3DConfig(8, 8, 10),
                            n_eval_b=7, n_eval_c=17)
 SP = species_accounting_rows(CFG)
@@ -68,14 +73,14 @@ def test_saturation_bounds():
 
 
 def test_species_mode_gating():
-    fB = phase_fluxes_per_m2_s("MODE_B")
-    fC = phase_fluxes_per_m2_s("MODE_C")
-    fD = phase_fluxes_per_m2_s("MODE_D")
+    fB = phase_fluxes_per_m2_s("MODE_B", OP)
+    fC = phase_fluxes_per_m2_s("MODE_C", OP)
+    fD = phase_fluxes_per_m2_s("MODE_D", OP)
     assert fB["C13_CH4"] > 0 and fC["C13_CH4"] == 0 and fD["C13_CH4"] == 0
     assert fD["He"] > 0 and fB["He"] == 0 and fC["He"] == 0
     assert fB["H2"] > 0 and fC["H2"] > 0 and fD["H2"] > 0
     panels = new_panel_set()
-    advance_phase(panels, "MODE_D", 1.0)
+    advance_phase(panels, "MODE_D", 1.0, OP)
     he = [p for p in panels if p.species == "He"][0]
     assert he.admitted_per_m2 > 0 and he.N_per_m2 == 0.0   # zero capture
 
@@ -161,3 +166,41 @@ if __name__ == "__main__":
             failed += 1
     print(f"\n{passed} passed, {failed} failed, {passed + failed} total")
     sys.exit(1 if failed else 0)
+
+
+# ---- the operating point is a declared input (cut C5) -----------------------
+
+def test_the_canonical_operating_point_is_the_single_source():
+    """The values the campaign runs at are the species layer's constants,
+    handed over -- not a second copy in the cryopanel module."""
+    assert (OP.p_c13_work_Pa, OP.p_he_dose_Pa, OP.dose_window_s) == \
+        (P_C13_WORK_PA, P_HE_DOSE_PA, DOSE_WINDOW_S)
+    import qta_multiphysics.cryopanel_dynamics_3d as C
+    for name in ("P_C13_WORK_PA", "P_HE_DOSE_PA", "DOSE_WINDOW_S"):
+        assert not hasattr(C, name), name
+
+
+def test_the_declared_operating_point_is_the_one_used():
+    """Kinetic flux is linear in pressure, so doubling a declared pressure
+    doubles that species' flux and nothing else; the dose window is the
+    declared one."""
+    import dataclasses
+    twice = dataclasses.replace(OP, p_c13_work_Pa=2 * OP.p_c13_work_Pa,
+                                p_he_dose_Pa=2 * OP.p_he_dose_Pa,
+                                dose_window_s=3.0)
+    for phase, sp in (("MODE_B", "C13_CH4"), ("MODE_D", "He")):
+        a = phase_fluxes_per_m2_s(phase, OP)
+        b = phase_fluxes_per_m2_s(phase, twice)
+        assert abs(b[sp] / a[sp] - 2.0) < 1e-12
+        assert b["H2"] == a["H2"]
+    assert phase_windows_s(CFG, twice)["MODE_D"] == 3.0
+    assert phase_windows_s(CFG, OP)["MODE_D"] == DOSE_WINDOW_S
+
+
+@pytest.mark.parametrize("bad", [0.0, -1e-4, float("nan"), float("inf"),
+                                 True, "1e-4"])
+def test_an_operating_point_that_would_mean_nothing_is_refused(bad):
+    with pytest.raises(ValueError, match="finite positive"):
+        OperatingPoint(p_c13_work_Pa=bad, p_he_dose_Pa=1e-6,
+                       dose_window_s=1.0)
+
