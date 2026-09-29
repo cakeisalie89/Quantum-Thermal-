@@ -641,6 +641,14 @@ RULES = [
     ("tools/blas_kernel_sensitivity.py", KAH,
      "BLAS-kernel dependence diagnostic (directive s19).",
      "R59"),
+    ("tools/regenerate_instrumented.py", KAH,
+     "NEW (D-2026-101): runs the canonical generator in-process, records its "
+     "measured input closure and probes the backend of that same process.",
+     "R59-B"),
+    ("tools/reproduction_witness.py", KAH,
+     "NEW (D-2026-101): establishes, checks and consults the byte-"
+     "reproduction witness profile; the release's early strict refusal.",
+     "R59-B/D"),
     ("tools/resolution_inventory.py", KAH,
      "Method-resolution inventory; holds deferred D-2026-69 "
      "(artefact-as-method proxy).",
@@ -977,6 +985,16 @@ RULES = [
      ""),
     ("tests/test_resolution_inventory.py", KAH,
      "Resolution inventory.",
+     ""),
+    ("tests/test_reproduction_verdict.py", KAH,
+     "NEW (D-2026-101): which question a byte comparison answers; the "
+     "witness profile; directive-7 CASES 1-17.",
+     ""),
+    ("tests/test_checker_reproduction_policy.py", KAH,
+     "NEW (D-2026-101): the checker's two policies end to end.",
+     ""),
+    ("tests/test_regenerate_instrumented.py", KAH,
+     "NEW (D-2026-101): the regeneration wrapper's measured closure.",
      ""),
     ("tests/test_quantity_resolution.py", KAH,
      "NEW (D-2026-98): every quantity that crossed zero between backends "

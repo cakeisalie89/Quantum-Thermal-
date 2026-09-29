@@ -109,7 +109,8 @@ rule tests_fast:
 rule package_checker:
     output: f"{WS}/package_checker.txt"
     shell:
-        "{PY} package_consistency_check.py > {output} 2>&1 && "
+        "{PY} package_consistency_check.py --policy strict-reproduction "
+        "> {output} 2>&1 && "
         "grep -q 'RESULT: PASS' {output}"
 
 rule manuscript_checker:

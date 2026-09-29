@@ -269,6 +269,28 @@ def test_a_blas_that_cannot_say_its_threads_is_unresolved(monkeypatch):
     assert "numpy blas threads" in rec["unresolved"]
 
 
+def test_the_interpreter_is_recorded_by_its_bytes(runtime):
+    import hashlib
+    import os
+    exe = os.path.realpath(sys.executable)
+    interp = runtime["interpreter"]
+    assert interp["name"] == os.path.basename(exe)
+    with open(exe, "rb") as fh:
+        assert interp["sha256"] == hashlib.sha256(fh.read()).hexdigest()
+
+
+def test_an_interpreter_that_cannot_be_read_is_unresolved(monkeypatch):
+    import os
+    exe = os.path.realpath(sys.executable)
+    real = bp.installed_sha256
+    monkeypatch.setattr(bp, "installed_sha256",
+                        lambda p: None if os.path.realpath(str(p)) == exe
+                        else real(p))
+    rec = bp.runtime_record()
+    assert rec["status"] == bp.UNRESOLVED
+    assert "interpreter bytes" in rec["unresolved"]
+
+
 def test_glibc_tunables_is_part_of_the_backend():
     """glibc's libm picks its FMA/AVX2 variants by IFUNC; a tunable that
     masks a feature changes which variant computes exp and log."""

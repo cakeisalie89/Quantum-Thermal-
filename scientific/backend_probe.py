@@ -336,13 +336,41 @@ def _record(unresolved: list, *, numpy, build) -> dict:
         unresolved.append("dynamic loader")
     libs["loader"] = (UNRESOLVED if sha is None else
                       {"name": os.path.basename(loader), "sha256": sha})
+    interpreter = _interpreter(unresolved)
     return {
         "status": UNRESOLVED if unresolved else RESOLVED,
         "unresolved": sorted(unresolved),
         "numpy": numpy,
         "blas": {"build": build, "bundled": bundled},
         "system_libraries": libs,
+        "interpreter": interpreter,
     }
+
+
+def _interpreter(unresolved: list) -> dict:
+    """The interpreter executing this process, by its installed bytes --
+    and a shared libpython, when it runs from one. A version string names a
+    release; two builds of one release are two binaries, and the one that
+    ran is the one that parsed every float literal and called libm."""
+    import sys
+    exe = os.path.realpath(sys.executable)
+    sha = installed_sha256(exe)
+    out = {"name": os.path.basename(exe), "sha256": sha or UNRESOLVED}
+    try:
+        maps = Path("/proc/self/maps").read_text(encoding="utf-8",
+                                                 errors="replace")
+    except OSError:
+        maps = ""
+    for path in _mapped_files(maps):
+        if os.path.basename(path).startswith("libpython"):
+            out["libpython"] = {"name": os.path.basename(path),
+                                "sha256": installed_sha256(path)
+                                or UNRESOLVED}
+            break
+    if sha is None or (out.get("libpython") or {}).get("sha256") == \
+            UNRESOLVED:
+        unresolved.append("interpreter bytes")
+    return out
 
 
 def run_environment(**kw) -> dict:

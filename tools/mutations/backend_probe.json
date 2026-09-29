@@ -1,6 +1,6 @@
 {
   "title": "The backend a run actually used, and reuse refused where it is not known",
-  "note": "scientific.backend_probe and scientific.run_identity (D-2026-94): the runtime probe (NumPy's dispatched CPU features, every bundled OpenBLAS found by its distribution's RECORD and asked its kernel, the system C and math libraries by their bytes) independent of import order; the native build by its installed bytes as well as its RECORD; backend_status digested with the identity; an UNRESOLVED backend recomputed, never reused; the governed identity and its bundle computed from the one probed environment. BK27-BK33 (D-2026-97): NumPy's per-function runtime dispatch and each OpenBLAS's runtime thread count and threading model recorded, unresolved when unanswered; GLIBC_TUNABLES a backend variable.",
+  "note": "scientific.backend_probe and scientific.run_identity (D-2026-94): the runtime probe (NumPy's dispatched CPU features, every bundled OpenBLAS found by its distribution's RECORD and asked its kernel, the system C and math libraries by their bytes) independent of import order; the native build by its installed bytes as well as its RECORD; backend_status digested with the identity; an UNRESOLVED backend recomputed, never reused; the governed identity and its bundle computed from the one probed environment. BK27-BK33 (D-2026-97): NumPy's per-function runtime dispatch and each OpenBLAS's runtime thread count and threading model recorded, unresolved when unanswered; GLIBC_TUNABLES a backend variable. BK34-BK35 (D-2026-101): the interpreter executing the process, by its installed bytes.",
   "suites": [
     "tests/test_backend_identity.py"
   ],
@@ -235,6 +235,20 @@
       "find": "    \"OPENBLAS_CORETYPE\", \"MKL_CBWR\", \"MKL_ENABLE_INSTRUCTIONS\",\n    \"GLIBC_TUNABLES\")",
       "replace": "    \"OPENBLAS_CORETYPE\", \"MKL_CBWR\", \"MKL_ENABLE_INSTRUCTIONS\")",
       "rationale": "a tunable masking libm's FMA/AVX2 variants changes nothing in the identity"
+    },
+    {
+      "name": "BK34_an_unreadable_interpreter_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "        unresolved.append(\"interpreter bytes\")\n",
+      "replace": "        pass\n",
+      "rationale": "an interpreter whose bytes could not be read is called resolved"
+    },
+    {
+      "name": "BK35_the_interpreter_is_named_not_hashed",
+      "path": "scientific/backend_probe.py",
+      "find": "    out = {\"name\": os.path.basename(exe), \"sha256\": sha or UNRESOLVED}\n",
+      "replace": "    out = {\"name\": os.path.basename(exe), \"sha256\": \"0\" * 64}\n",
+      "rationale": "two builds of one Python release are the same interpreter"
     }
   ]
 }

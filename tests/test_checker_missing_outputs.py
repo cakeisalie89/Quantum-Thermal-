@@ -423,8 +423,14 @@ def _scratch_default(tmp_path, produced, *, root_copies=True):
 
 
 def _run_default(workdir, *, timeout=180):
-    return subprocess.run([sys.executable, CHECKER], cwd=workdir,
-                          capture_output=True, text=True, timeout=timeout)
+    """The regeneration path. ``--policy ci`` because these stubs are not a
+    corpus any witness reproduced: under the default strict policy the
+    checker refuses such a tree BEFORE regenerating
+    (tests/test_checker_reproduction_policy.py), and the set checks below
+    would never run."""
+    return subprocess.run([sys.executable, CHECKER, "--policy", "ci"],
+                          cwd=workdir, capture_output=True, text=True,
+                          timeout=timeout)
 
 
 def _assert_default_refusal(r):

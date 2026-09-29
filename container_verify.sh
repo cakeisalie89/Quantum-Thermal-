@@ -103,8 +103,13 @@ step "cross-environment-3d"
 python analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary
 done_ "cross-environment-3d"
 
+# --policy ci, explicitly. A pinned userspace does not pin the CPU the
+# container is scheduled on: this container is not a witnessed backend by
+# virtue of being a container, so it asks the portable question -- byte-
+# identical, or decision-stable under a different resolved backend -- and
+# never the release one (directive 7).
 step "package_consistency"
-python package_consistency_check.py
+python package_consistency_check.py --policy ci
 done_ "package_consistency"
 
 step "manuscript_consistency"

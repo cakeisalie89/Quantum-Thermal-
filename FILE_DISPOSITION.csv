@@ -134,6 +134,7 @@ docs/DEFECT_LEDGER.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"Defect history
 docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md,KEEP_AS_IS,-,Cross-environment lessons (directive s19).,
 docs/SESSION_REPORT.md,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Session evidence record.,
 docs/blas_kernel_sensitivity.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
+docs/byte_reproduction_profile.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/claims_boundary.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 14): the framework claims boundary, each entry naming the module and symbol that enforce it and the tests that hold it.",hand-written; checked by tools/claims_enforcement.py
 docs/clip_provenance.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/completion_matrix.json,REWRITE_GENERIC,2-7 (see rationale),Completion model tied to QTA rows; retire the 83-gate completion model (directive s4).,
@@ -405,6 +406,7 @@ scientific/models/thermal_2d.py,KEEP_AS_MODEL_PLUGIN,4,"NEW in Phase 2: Scientif
 scientific/observation.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/quantity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/registry.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
+scientific/reproduction.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/result.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/run_identity.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
 scientific/verification.py,KEEP_AS_IS,-,"NEW in Phase 2: the generic interface the convergence targets -- ScientificModel, ModelRegistry, ResultBundle, VerificationResult, Observation kinds, Quantity, run and implementation identity. Standard library only; knows neither the agent nor the apparatus.",tests/test_scientific_import_isolation.py
@@ -497,6 +499,7 @@ tests/test_campaign_3d.py,REWRITE_GENERIC,2-7 (see rationale),Campaign continuit
 tests/test_campaign_uncertainty.py,REWRITE_GENERIC,2-7 (see rationale),Campaign UQ determinism tests follow the UQ rewrite.,
 tests/test_candidate_structure.py,KEEP_AS_IS,-,Hostile bundle structure.,
 tests/test_checker_missing_outputs.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
+tests/test_checker_reproduction_policy.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-101): the checker's two policies end to end.,
 tests/test_checker_runtime_contract.py,REWRITE_GENERIC,2-7 (see rationale),Follows package_consistency_check rewrite.,
 tests/test_claims_boundary.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (directive 14): the framework claims boundary holds, and a dropped boundary, a missing symbol or a missing test is caught.",
 tests/test_claude_workflow_prompt.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (directive 11): the Claude workflow's prompt states the framework's rules and none of QTA's retired invariants.,
@@ -550,10 +553,12 @@ tests/test_parameter_semantics.py,KEEP_AS_MODEL_PLUGIN,4,Dimensional/sign semant
 tests/test_quantity_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-98): every quantity that crossed zero between backends states its resolution, and each class is bound to its quantity.",
 tests/test_radiation_contract.py,KEEP_AS_MODEL_PLUGIN,4,Radiation producer/consumer contract.,
 tests/test_record_parsers.py,RETIRE_TO_HISTORY,5,Gate-reference/mode parsers of the design registry.,
+tests/test_regenerate_instrumented.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-101): the regeneration wrapper's measured closure.,
 tests/test_release_trust_enforcement.py,KEEP_AS_IS,-,Release trust boundary (directive s18).,
 tests/test_release_workflow_contract.py,KEEP_AS_IS,-,Release workflow executable.,"imports yaml (undeclared, see DEPENDENCY_CUTOVER.md)"
 tests/test_replay_origin_view.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-88): one view of governed execution per replay, counted against the questions asked, with the probe shown to see a view per question.",
 tests/test_repo_contract.py,KEEP_AS_IS,-,Repository file-set contract.,
+tests/test_reproduction_verdict.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-101): which question a byte comparison answers; the witness profile; directive-7 CASES 1-17.,
 tests/test_resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution inventory.,
 tests/test_review_binding.py,RETIRE_TO_HISTORY,5,Hardware review binding.,imports hardware_governance_3d
 tests/test_run_identity_backend.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-90): each part of the numeric backend changes the run identity; what changes no kernel does not.,
@@ -662,6 +667,7 @@ tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a ret
 tools/mutations/quantity_resolution.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/replay_origin_view.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/repo_contract.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/reproduction_policy.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/resolution_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/run_identity_backend.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/scientific_authority_replay.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -680,7 +686,9 @@ tools/mutations/test_isolation.json,KEEP_AS_IS,-,"Mutation spec over a retained 
 tools/mutations/unit_inventory.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/verified_read_guard.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over both halves of the verify-then-read guard (D-2026-76).,
 tools/performance_baseline.py,KEEP_AS_IS,-,Scaling-guard drift record.,
+tools/regenerate_instrumented.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-101): runs the canonical generator in-process, records its measured input closure and probes the backend of that same process.",R59-B
 tools/repo_scope.py,KEEP_AS_IS,-,Single definition of 'a file in this repository'.,
+tools/reproduction_witness.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-101): establishes, checks and consults the byte-reproduction witness profile; the release's early strict refusal.",R59-B/D
 tools/resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Method-resolution inventory; holds deferred D-2026-69 (artefact-as-method proxy).,D-2026-66/69
 tools/test_isolation.py,KEEP_AS_IS,-,Per-module collection isolation.,
 tools/unit_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reviewed dimensions for every governed column.,

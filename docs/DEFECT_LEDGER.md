@@ -8897,3 +8897,79 @@ coordinates, NaN/Inf, header/row/key/type changes, unparsed artefacts,
 duplicate keys, wide/long/JSON bindings, CASES 18-20, precedence, scope).
 Mutations X1-X28 in `tools/mutations/cross_environment.json`, replacing
 E12-E20, which anchored the code this replaces.
+
+## D-2026-101 — a required job was red by design, and a different machine's digits were reported as stale outputs
+
+**CLASS** — `CI_CLASSIFICATION`, `.github/workflows/agent-substrate.yml`
+(full-suite), `package_consistency_check.py` Step 2b, `.github/workflows/
+release.yml`. R59-B.
+
+**WHAT WAS THERE.** `full-suite` ran `package_consistency_check.py`, whose
+Step 2b failed every byte difference between the regenerated corpus and the
+committed copies as "N stale root copies", and the step's comment said
+"Expected RED on a runner whose dispatch differs from the committed
+outputs'". A REQUIRED job red by design: red for a legitimate CPU
+assignment and red for a regression look the same, so the second hides in
+the first -- which is what R59 was classified as, run after run. The
+checker's strict question -- did this machine reproduce the canonical
+bytes? -- was being asked of whatever machine GitHub assigned, as though
+the runner pool were one numerical environment; it is not (remeasured here:
+OpenBLAS's runtime kernel and NumPy's runtime dispatch each move 20 of 88
+files on their own, 23 together). The release workflow asked the same
+question of an arbitrary `ubuntu-latest` and would have spent the job to
+report a different CPU's digits as stale outputs.
+
+**REPAIR.** Four questions, not one boolean (`scientific/reproduction.py`):
+package integrity (unchanged), byte reproduction, cross-environment decision
+stability, scientific equivalence -- and two policies in the checker.
+
+* `--policy strict-reproduction` (the default; the release; the legacy
+  Snakemake rule): exact bytes, and only on a backend the witness profile
+  saw reproduce this corpus. Any other backend is refused BEFORE anything is
+  regenerated, as `CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED`; the release
+  runs `tools/reproduction_witness.py require-reference` as its first
+  legacy step for the same reason.
+* `--policy ci` (full-suite, dispatch-sensitivity, the container): exact
+  bytes pass as `BYTE_IDENTICAL`; ANY byte difference on a witnessed backend
+  fails as `BYTE_DRIFT_COMPARABLE_BACKEND`, with no semantic fallback; a
+  resolved backend the profile never witnessed passes only as
+  `DIFFERENT_RESOLVED_BACKEND` with `DECISION_STABLE_WITH_NUMERIC_DRIFT`
+  from the hardened comparator (D-2026-100), and says scientific
+  equivalence is `NOT_ESTABLISHED`; an unresolved backend, an invalid
+  profile or one that no longer applies fails.
+
+The identity the verdict reads is the REGENERATING process's own:
+`tools/regenerate_instrumented.py` runs the generator in-process, measures
+its input closure with an audit hook and the modules it loaded, and probes
+the backend in that process afterwards. `--verify-existing` classifies a
+supplied tree only with a generation record that names exactly its bytes;
+it never borrows the verifying process's identity. "Stale" is now said only
+of drift on a witnessed backend.
+
+**THE WITNESS.** `docs/byte_reproduction_profile.json`, written only by
+`tools/reproduction_witness.py establish` from an observed regeneration
+(exact declared set, all 88 non-exempt outputs byte-identical, backend
+RESOLVED), binds the corpus, the exemptions, the generator's measured
+closure (98 files), the lock and the witnessed backend's identity; every
+digest in it is recomputed on read. It is not the corpus's historical
+provenance and not evidence the numbers are right. The agent-substrate job
+checks in seconds that it still applies to the tree.
+
+**MEASURED, on this tree.** Native (the witness): `BYTE_IDENTICAL` under both
+policies. `OPENBLAS_CORETYPE=Haswell` + NumPy without AVX-512: ci ->
+`DIFFERENT_RESOLVED_BACKEND`, 23 of 88 files differ, 5411 leaves compared, 27
+bound zero crossings, 195 precision differences, 0 structural / decision /
+discrete / non-finite / unclassified / bare -> `DECISION_STABLE_WITH_
+NUMERIC_DRIFT`; strict -> refused before regenerating.
+
+**EVIDENCE.** `tests/test_reproduction_verdict.py` (directive CASES 1-17),
+`tests/test_checker_reproduction_policy.py`, `tests/test_regenerate_
+instrumented.py`; mutations RP1-RP29, BK34-BK35. The dispatch-sensitivity
+job now runs the different-backend path on every commit and asserts it
+compared something (the backend differed, a file differed, leaves were
+compared, nothing but digits did).
+
+**NOT CLAIMED.** Decision stability is not scientific equivalence (R59-C
+stays open). A hosted runner that is not a witnessed backend cannot answer
+the strict question: strict hosted reproduction is EXTERNALLY_BLOCKED
+(R59-D).

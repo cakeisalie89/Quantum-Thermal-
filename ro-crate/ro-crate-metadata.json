@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "217690",
+   "contentSize": "220109",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -236,10 +236,10 @@
   {
    "@id": "package_consistency_check.py",
    "@type": "SoftwareSourceCode",
-   "contentSize": "138218",
+   "contentSize": "145977",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
-   "sha256": "adb3b96a15574917a4efc70a26e8a4cab305621f45f50f258e813ecff5adcce0"
+   "sha256": "538002c494fe01e2e3246b657c69c6b040e1278c20bdf3650feaef8b6b07c17e"
   },
   {
    "@id": "pyproject.toml",

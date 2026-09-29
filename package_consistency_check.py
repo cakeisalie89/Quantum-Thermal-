@@ -260,6 +260,33 @@ if "--sim-log" in sys.argv:
     _i = sys.argv.index("--sim-log")
     _SIM_LOG = sys.argv[_i + 1] if _i + 1 < len(sys.argv) else None
 
+
+def _arg(name):
+    """The value after ``name`` in argv, '' when the flag has none, None
+    when the flag is absent."""
+    if name not in sys.argv:
+        return None
+    _j = sys.argv.index(name)
+    return sys.argv[_j + 1] if _j + 1 < len(sys.argv) else ""
+
+
+# ---- which question the byte comparison answers (directive 7) --------------
+# strict-reproduction: the release question. Only exact bytes pass, and only
+#   on a numerical backend the witness profile saw reproduce this corpus;
+#   any other backend is refused BEFORE regenerating, as
+#   CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED -- never as "stale" outputs.
+# ci: the portable question. Exact bytes pass. A RESOLVED backend the
+#   profile never witnessed may differ in digits and passes only if every
+#   structural and decision-bearing fact agrees (tools/cross_env_semantics
+#   .py); on a witnessed backend any byte difference fails with no
+#   fallback; an unresolved backend fails.
+# The default is the strict one: a caller who asks nothing gets the release
+# question, never the permissive one.
+POLICY = _arg("--policy") or "strict-reproduction"
+SUMMARY_JSON = _arg("--summary-json")
+GENERATION_RECORD = _arg("--generation-record")
+_REGEN_RECORD = None          # the regenerating process's own record
+
 #: Classification of the existing generated output set. "USABLE" means the
 #: set is present and iterable; every other value names a specific refusal and
 #: suppresses the steps that would otherwise raise on it. Full-regeneration
@@ -299,12 +326,66 @@ if VERIFY_EXISTING:
 elif not sim_path.exists():
     fail("qta_full_sim.py present", f"missing {sim_path}")
 else:
+    if POLICY not in ("ci", "strict-reproduction"):
+        print(f"REFUSED: --policy {POLICY!r} is not 'ci' or "
+              "'strict-reproduction'")
+        sys.exit(2)
+    print(f"  POLICY: {POLICY}")
+    if POLICY == "strict-reproduction":
+        # FAIL EARLY. Strict reproduction runs only on a backend the witness
+        # profile saw reproduce this corpus; asking the question anywhere
+        # else would spend the regeneration and then misname a different
+        # machine's digits as stale outputs.
+        try:
+            sys.path.insert(0, str(PKG / "tools"))
+            import reproduction_witness as _rw
+            _early = _rw.reference_environment(PKG)
+        except Exception as e:                      # noqa: BLE001
+            _early = {"ok": False, "reasons": [
+                f"the reproduction machinery could not run: "
+                f"{type(e).__name__}: {e}"]}
+        if not _early["ok"]:
+            print("REPRODUCTION_VERDICT policy=strict-reproduction "
+                  "PACKAGE_STATUS=REFUSED BACKEND_STATUS="
+                  f"{_early.get('backend_status', 'UNRESOLVED')} "
+                  "REPRODUCTION_STATUS="
+                  "CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED "
+                  "CROSS_ENV_STATUS=NOT_CHECKED "
+                  "SCIENTIFIC_EQUIVALENCE_STATUS=NOT_APPLICABLE "
+                  "files_byte_compared=0 files_differing=0")
+            for _r in _early["reasons"]:
+                print(f"  - {_r}")
+            print("RESULT: FAIL -- this machine cannot execute the canonical "
+                  "reproduction environment; nothing was regenerated, and "
+                  "no output is called stale. Run --policy ci for the "
+                  "portable question.")
+            if SUMMARY_JSON:
+                Path(SUMMARY_JSON).write_text(json.dumps(
+                    {"policy": POLICY, "PACKAGE_STATUS": "REFUSED",
+                     "REPRODUCTION_STATUS":
+                         "CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED",
+                     "reasons": _early["reasons"]}, indent=1))
+            sys.exit(1)
+        print(f"  reference environment: witnessed backend "
+              f"{_early['backend_digest'][:16]}")
     shutil.rmtree(gen_outputs_dir, ignore_errors=True)
     sim_stdout = ""
     sim_elapsed = None
     _t0 = time.monotonic()
+    # The regeneration runs INSIDE an instrumented process that records its
+    # input closure and probes its backend afterwards, in that same process
+    # -- so the identity the verdict reads is the computation's own
+    # (tools/regenerate_instrumented.py). Without the wrapper the record is
+    # absent and the backend UNRESOLVED: the verdict refuses, never guesses.
+    import tempfile as _tempfile
+    _rec_dir = _tempfile.mkdtemp(prefix="qta-regen-")
+    _rec_path = Path(_rec_dir) / "record.json"
+    _wrapper = PKG / "tools" / "regenerate_instrumented.py"
+    _cmd = ([sys.executable, str(_wrapper), "--entry", str(sim_path),
+             "--record", str(_rec_path)] if _wrapper.is_file()
+            else [sys.executable, str(sim_path)])
     try:
-        proc = subprocess.run([sys.executable, str(sim_path)],
+        proc = subprocess.run(_cmd,
                               capture_output=True, text=True,
                               encoding="utf-8", errors="replace",
                               cwd=str(PKG), timeout=SIM_TIMEOUT_S)
@@ -342,6 +423,12 @@ else:
             ok("qta_full_sim.py executes (exit 0)",
                f"{sim_elapsed:.1f} s of a {SIM_TIMEOUT_S} s budget "
                f"({SIM_TIMEOUT_S - sim_elapsed:.1f} s margin)")
+            try:
+                _REGEN_RECORD = json.loads(_rec_path.read_text(
+                    encoding="utf-8"))
+            except (OSError, ValueError):
+                _REGEN_RECORD = None
+    shutil.rmtree(_rec_dir, ignore_errors=True)
 
 #: The one output whose ROOT copy is a different artifact from the
 #: regenerated one by design: the root copy is the deep layer's
@@ -452,8 +539,14 @@ else:
     gen_sha = hashlib.sha256(open(gen_gate,"rb").read()).hexdigest()
     pkg_sha = hashlib.sha256(open(pkg_gate,"rb").read()).hexdigest()
     if gen_sha != pkg_sha:
-        fail("generated vs packaged results_gate_table.csv byte-identical",
-             f"SHAs differ ({gen_sha[:16]} vs {pkg_sha[:16]})")
+        # Not decided here. The gate table is one of the declared canonical
+        # outputs, and whether a byte difference in it is a regression, a
+        # different machine's digits, or a changed decision is the question
+        # Step 2b's reproduction verdict answers for every output alike --
+        # a changed status is a DECISION there and refused.
+        print(f"  [NOTE] results_gate_table.csv differs from the packaged "
+              f"copy ({gen_sha[:16]} vs {pkg_sha[:16]}); judged by the "
+              "reproduction verdict in Step 2b")
     else:
         ok("generated vs packaged results_gate_table.csv byte-identical")
 
@@ -556,23 +649,81 @@ else:
              f"UNREADABLE_EXISTING_OUTPUT: {len(_unreadable)} unreadable"
              + (f" (first 8 shown): {_unreadable[:8]}"
                 if len(_unreadable) > 8 else f": {_unreadable}"))
-    if _drift:
-        # THE COUNT FIRST, then a sample. This printed `_drift[:8]` alone,
-        # and a hosted run that diverged in twenty files reported eight
-        # names -- which was then read, here and in the completion matrix,
-        # as "an 8-file divergence". R59 spent a long time trying to
-        # re-read the provenance of a number that was the slice width.
-        #
-        # A truncated list is fine. A truncated list that looks like a
-        # total is a measurement that reports the wrong quantity, which is
-        # the failure this project keeps finding in its own instruments.
-        fail("root canonical outputs byte-match the canonical regeneration",
-             f"{len(_drift)} stale root copies"
-             + (f" (first 8 shown): {_drift[:8]}" if len(_drift) > 8
-                else f": {_drift}"))
-    elif not _unreadable:
-        ok("root canonical outputs byte-match the canonical regeneration "
-           "(exempt by design: deep_surrogate_readiness.json)")
+    # WHICH QUESTION A BYTE DIFFERENCE ANSWERS. This used to fail every
+    # difference as "N stale root copies" -- the right words for a
+    # regression on the machine that reproduces the corpus, and the wrong
+    # ones for a correct regeneration on a CPU that dispatches different
+    # kernels (R59). The verdict now names which it is, from the identity
+    # of the process that actually regenerated (scientific/reproduction.py).
+    # THE COUNT FIRST, then a sample: a truncated list that looks like a
+    # total is how an 8-file slice was once read as an 8-file divergence.
+    _n_compared = len(_DECLARED_OUTPUTS - _REGEN_EXEMPT)
+    _verdict = None
+    try:
+        sys.path.insert(0, str(PKG / "tools"))
+        from scientific import reproduction as _repro
+        import cross_env_semantics as _xenv
+        import reproduction_witness as _rw
+        _record = _REGEN_RECORD
+        if VERIFY_EXISTING:
+            _record = _rw.generation_record_for(GENERATION_RECORD,
+                                                gen_outputs_dir)
+        _profile, _problems, _inapplicable = _rw.profile_for_tree(
+            PKG, _DECLARED_OUTPUTS, _REGEN_EXEMPT,
+            closure=(_record or {}).get("closure"))
+
+        def _cross_env():
+            _rep = _xenv.compare(
+                gen_outputs_dir, PKG, declared=_DECLARED_OUTPUTS,
+                exempt=_REGEN_EXEMPT,
+                inventory=_xenv.load_inventory(
+                    PKG / "docs" / "resolution_inventory.json"))
+            _xenv.check_scope(_rep)
+            _xenv.print_report(_rep)
+            return _rep
+
+        _verdict = _repro.decide(
+            "ci" if POLICY == "ci" else "strict-reproduction",
+            byte_identical=not (_drift or _unreadable),
+            files_compared=_n_compared,
+            drift=_drift + _unreadable,
+            record=(_record or {}).get("environment"), profile=_profile,
+            profile_problems=_problems, inapplicable=_inapplicable,
+            cross_env=_cross_env)
+    except Exception as e:                          # noqa: BLE001
+        fail("the reproduction verdict could be reached",
+             f"REPRODUCTION_MACHINERY_FAILED: {type(e).__name__}: {e}")
+    if _verdict is not None:
+        print("  " + _repro.verdict_line(_verdict))
+        for _r in _verdict["reasons"]:
+            print(f"    - {_r}")
+        for _w, _d in (_verdict.get("backend_differences") or {}).items():
+            print(f"    - differs from witness {_w} in: {_d}")
+        if SUMMARY_JSON:
+            Path(SUMMARY_JSON).write_text(json.dumps(
+                _verdict, indent=1, sort_keys=True, default=str))
+        _rs = _verdict["REPRODUCTION_STATUS"]
+        if _verdict["PACKAGE_STATUS"] != "CONSISTENT":
+            if _rs == "BYTE_DRIFT_COMPARABLE_BACKEND":
+                _what = (f"{len(_drift)} stale or regressed root copies on "
+                         "a witnessed backend")
+            else:
+                _what = f"{len(_drift)} file(s) differ; {_rs}"
+            fail("root canonical outputs are consistent with the "
+                 "regeneration under the reproduction policy",
+                 f"{_what}"
+                 + (f" (first 8 shown): {_drift[:8]}" if len(_drift) > 8
+                    else f": {_drift}"))
+        elif _rs == "BYTE_IDENTICAL" and not _unreadable:
+            ok("root canonical outputs byte-match the canonical regeneration "
+               "(exempt by design: deep_surrogate_readiness.json)",
+               f"BYTE_IDENTICAL, {_n_compared} compared")
+        else:
+            ok("root canonical outputs are consistent under a DIFFERENT "
+               "resolved backend -- NOT byte-reproduced here",
+               f"{_rs}; {_verdict['CROSS_ENV_STATUS']}; "
+               f"{len(_drift)} of {_n_compared} differ in digits only; "
+               "scientific equivalence NOT_ESTABLISHED")
 
 # ===================== STEP 3: sim stdout stale audit ========================
 print()

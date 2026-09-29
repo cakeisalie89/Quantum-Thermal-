@@ -73,6 +73,14 @@ REQUIRED_COMMANDS = (
      "the RO-Crate validates"),
     ("uv run python package_consistency_check.py",
      "package consistency, in full-suite"),
+    ("uv run python package_consistency_check.py --policy ci",
+     "the PORTABLE question in the required jobs: byte-identical, or "
+     "decision-stable under a different resolved backend. The strict one "
+     "there would make a required job red whenever GitHub assigns a CPU the "
+     "witness never saw -- red by design, which is how a real failure hides "
+     "(directive 7)"),
+    ("uv run python tools/reproduction_witness.py check",
+     "the byte-reproduction witness still applies to the tree it binds"),
     ("uv run python -m pytest tests/ -q",
      "the complete pytest suite, in full-suite"),
     ("analysis/collect_container_3d.py",
@@ -290,6 +298,11 @@ VERIFIER_EXEMPT = {
         "a subprocess verifier spawned by qta_agent/separate_verify.py with a "
         "log path on argv, exercised by the agent suites; it is not a "
         "standalone gate and has no tree-wide verdict to report",
+    "tools/regenerate_instrumented.py":
+        "the wrapper package_consistency_check.py and reproduction_witness.py "
+        "run the canonical generator INSIDE, with an entry and a record path "
+        "on argv; it runs on the real tree every time the package check does "
+        "and has no verdict of its own",
 }
 
 

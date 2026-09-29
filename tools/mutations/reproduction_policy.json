@@ -1,0 +1,214 @@
+{
+  "title": "Which question a byte comparison answers, and the witness that decides it",
+  "note": "D-2026-101. RP1-RP18: the verdict and the backend identity -- unresolved never different, a witnessed backend's drift never excused, strict never answered off the reference, the profile applicable only to the corpus, closure, exemptions and lock it binds, and every part of the arithmetic path in the identity. RP19-RP22: the witness tool's generation-record binding and early strict check. RP23-RP25: the wrapper's measured closure. RP26-RP29: the checker's wiring -- strict by default, strict fails early, 'stale' only for witnessed drift, a supplied tree never inherits the verifier's identity.",
+  "suites": [
+    "tests/test_reproduction_verdict.py",
+    "tests/test_regenerate_instrumented.py",
+    "tests/test_checker_reproduction_policy.py"
+  ],
+  "mutations": [
+    {
+      "name": "RP1_the_record_verdict_is_not_required",
+      "path": "scientific/reproduction.py",
+      "find": "    if not isinstance(record, dict) or \\\n            record.get(\"backend_status\") != RESOLVED:\n        return None\n",
+      "replace": "    if not isinstance(record, dict):\n        return None\n",
+      "rationale": "a record that calls its own backend UNRESOLVED (a modified native build) yields an identity"
+    },
+    {
+      "name": "RP2_unresolved_is_treated_as_different",
+      "path": "scientific/reproduction.py",
+      "find": "    identity = backend_identity(record)\n    if identity is None:\n        return done(REFUSED, UNRESOLVED, BACKEND_UNRESOLVED,\n",
+      "replace": "    identity = backend_identity(record) or {\"unresolved\": True}\n    if identity is None:\n        return done(REFUSED, UNRESOLVED, BACKEND_UNRESOLVED,\n",
+      "rationale": "an unknown backend takes the different-backend path"
+    },
+    {
+      "name": "RP3_the_corpus_digest_is_ignored",
+      "path": "scientific/reproduction.py",
+      "find": "    if dict(sorted(corpus.items())) != c[\"files\"]:\n",
+      "replace": "    if False:\n",
+      "rationale": "a profile applies to a corpus it never saw"
+    },
+    {
+      "name": "RP4_the_generator_is_ignored",
+      "path": "scientific/reproduction.py",
+      "find": "    if closure is not None and manifest_digest(closure) != \\\n",
+      "replace": "    if False and manifest_digest(closure) != \\\n",
+      "rationale": "a profile applies to code that changed"
+    },
+    {
+      "name": "RP5_a_profile_of_another_schema_is_read",
+      "path": "scientific/reproduction.py",
+      "find": "    if doc.get(\"schema\") != SCHEMA:\n        return [",
+      "replace": "    if False:\n        return [",
+      "rationale": "a malformed profile authorises"
+    },
+    {
+      "name": "RP6_a_witness_is_taken_at_its_word",
+      "path": "scientific/reproduction.py",
+      "find": "            if not isinstance(b, dict) or identity_digest(b) != \\\n                    w.get(\"backend_digest\"):\n",
+      "replace": "            if not isinstance(b, dict):\n",
+      "rationale": "a witness whose recorded identity is another backend's is accepted"
+    },
+    {
+      "name": "RP7_witnessed_drift_falls_back_to_semantics",
+      "path": "scientific/reproduction.py",
+      "find": "    if witness is not None:\n        return done(REFUSED, RESOLVED, BYTE_DRIFT_COMPARABLE_BACKEND,\n                    f\"{len(drift)} file(s) differ on a witnessed backend; \"\n",
+      "replace": "    if False:\n        return done(REFUSED, RESOLVED, BYTE_DRIFT_COMPARABLE_BACKEND,\n                    f\"{len(drift)} file(s) differ on a witnessed backend; \"\n",
+      "rationale": "same-backend byte drift is excused by decision stability"
+    },
+    {
+      "name": "RP8_strict_accepts_another_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        if witness is None:\n            why = (",
+      "replace": "        if False:\n            why = (",
+      "rationale": "the release question is answered on a machine that is not the reference"
+    },
+    {
+      "name": "RP9_nothing_compared_is_a_verdict",
+      "path": "scientific/reproduction.py",
+      "find": "    if files_compared <= 0:\n",
+      "replace": "    if False:\n",
+      "rationale": "a verdict over no compared files"
+    },
+    {
+      "name": "RP10_the_exemption_set_may_move",
+      "path": "scientific/reproduction.py",
+      "find": "    if set(exempt) != set(c[\"exempt\"]):\n",
+      "replace": "    if False:\n",
+      "rationale": "an exemption added after the witness keeps the profile applicable"
+    },
+    {
+      "name": "RP11_the_lock_may_move",
+      "path": "scientific/reproduction.py",
+      "find": "    if dict(sorted(lock.items())) != doc[\"environment\"][\"lock\"]:\n",
+      "replace": "    if False:\n",
+      "rationale": "a profile applies to a different locked environment"
+    },
+    {
+      "name": "RP12_a_stale_profile_licenses_the_fallback",
+      "path": "scientific/reproduction.py",
+      "find": "    if inapplicable:\n        return done(REFUSED, RESOLVED, WITNESS_INAPPLICABLE, *inapplicable)\n",
+      "replace": "    if False:\n        return done(REFUSED, RESOLVED, WITNESS_INAPPLICABLE, *inapplicable)\n",
+      "rationale": "a witness for another corpus classifies this one's drift"
+    },
+    {
+      "name": "RP13_the_cpu_features_are_not_the_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        \"cpu_simd\": cpu.get(\"simd\"),\n",
+      "replace": "        \"cpu_simd\": None,\n",
+      "rationale": "libm's IFUNC inputs leave the identity"
+    },
+    {
+      "name": "RP14_numpys_dispatch_is_not_the_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        \"numpy\": runtime.get(\"numpy\"),\n",
+      "replace": "        \"numpy\": None,\n",
+      "rationale": "what NumPy dispatched leaves the identity"
+    },
+    {
+      "name": "RP15_the_blas_is_not_the_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        \"blas\": runtime.get(\"blas\"),\n",
+      "replace": "        \"blas\": None,\n",
+      "rationale": "the OpenBLAS kernel, threads and bytes leave the identity"
+    },
+    {
+      "name": "RP16_the_system_libraries_are_not_the_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        \"system_libraries\": runtime.get(\"system_libraries\"),\n",
+      "replace": "        \"system_libraries\": None,\n",
+      "rationale": "libm, libc and the loader leave the identity"
+    },
+    {
+      "name": "RP17_the_interpreter_is_not_the_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        \"interpreter\": runtime.get(\"interpreter\"),\n",
+      "replace": "        \"interpreter\": None,\n",
+      "rationale": "the interpreter's bytes leave the identity"
+    },
+    {
+      "name": "RP18_native_bytes_are_not_the_backend",
+      "path": "scientific/reproduction.py",
+      "find": "        \"native\": {d: {k: n.get(k) for k in (\"status\", \"native_files\",\n                                             \"native_sha256\",\n                                             \"installed_sha256\")}\n",
+      "replace": "        \"native\": {d: {k: n.get(k) for k in (\"status\", \"native_files\")}\n",
+      "rationale": "the installed native bytes leave the identity: a rebuilt or patched NumPy with the same version and file count is the same backend"
+    },
+    {
+      "name": "RP19_a_generation_record_binds_any_tree",
+      "path": "tools/reproduction_witness.py",
+      "find": "    if not produced or rec.get(\"outputs\") != produced:\n",
+      "replace": "    if not produced:\n",
+      "rationale": "a supplied tree inherits a record of other bytes"
+    },
+    {
+      "name": "RP20_any_backend_is_the_reference",
+      "path": "tools/reproduction_witness.py",
+      "find": "    witness = R.witness_for(doc, identity)\n    if witness is None:\n",
+      "replace": "    witness = R.witness_for(doc, identity) or doc[\"witnesses\"][0]\n    if witness is None:\n",
+      "rationale": "the early strict check accepts a backend nobody witnessed"
+    },
+    {
+      "name": "RP21_an_unresolved_backend_passes_the_early_check",
+      "path": "tools/reproduction_witness.py",
+      "find": "    identity = R.backend_identity(record)\n    if identity is None:\n        return {\"ok\": False, \"backend_status\": R.UNRESOLVED,\n",
+      "replace": "    identity = R.backend_identity(record) or {}\n    if identity is None:\n        return {\"ok\": False, \"backend_status\": R.UNRESOLVED,\n",
+      "rationale": "an unresolved backend is reported as a resolved stranger"
+    },
+    {
+      "name": "RP22_the_early_check_ignores_applicability",
+      "path": "tools/reproduction_witness.py",
+      "find": "    if inapplicable:\n        return {\"ok\": False, \"reasons\": [\n",
+      "replace": "    if False:\n        return {\"ok\": False, \"reasons\": [\n",
+      "rationale": "the release runs on a tree its witness never saw"
+    },
+    {
+      "name": "RP23_outputs_read_back_are_inputs",
+      "path": "tools/regenerate_instrumented.py",
+      "find": "        if p == me or (p + os.sep).startswith(outputs + os.sep) \\\n",
+      "replace": "        if p == me \\\n",
+      "rationale": "an output the generator reads back binds the profile to itself"
+    },
+    {
+      "name": "RP24_written_files_are_inputs",
+      "path": "tools/regenerate_instrumented.py",
+      "find": "    if isinstance(mode, str) and any(c in mode for c in \"wax+\"):\n        return\n",
+      "replace": "    if False:\n        return\n",
+      "rationale": "a file only written counts as read"
+    },
+    {
+      "name": "RP25_loaded_modules_are_not_inputs",
+      "path": "tools/regenerate_instrumented.py",
+      "find": "    for mod in list(sys.modules.values()):\n",
+      "replace": "    for mod in []:\n",
+      "rationale": "a module imported from its byte-code cache escapes the closure"
+    },
+    {
+      "name": "RP26_the_default_policy_is_permissive",
+      "path": "package_consistency_check.py",
+      "find": "POLICY = _arg(\"--policy\") or \"strict-reproduction\"\n",
+      "replace": "POLICY = _arg(\"--policy\") or \"ci\"\n",
+      "rationale": "a caller who asks nothing gets the portable question"
+    },
+    {
+      "name": "RP27_strict_regenerates_anyway",
+      "path": "package_consistency_check.py",
+      "find": "        if not _early[\"ok\"]:\n",
+      "replace": "        if False:\n",
+      "rationale": "strict spends the regeneration on a machine it will refuse"
+    },
+    {
+      "name": "RP28_every_refusal_is_called_stale",
+      "path": "package_consistency_check.py",
+      "find": "            if _rs == \"BYTE_DRIFT_COMPARABLE_BACKEND\":\n",
+      "replace": "            if True:\n",
+      "rationale": "a different machine's digits are reported as stale outputs again"
+    },
+    {
+      "name": "RP29_verify_existing_borrows_the_verifier",
+      "path": "package_consistency_check.py",
+      "find": "            _record = _rw.generation_record_for(GENERATION_RECORD,\n                                                gen_outputs_dir)\n",
+      "replace": "            _record = {\"environment\": _rw.probe_environment(PKG, [\"numpy\", \"scipy\"])}\n",
+      "rationale": "a supplied tree is classified by the identity of the process verifying it"
+    }
+  ]
+}
