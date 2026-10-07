@@ -2615,10 +2615,10 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "no hosted run has covered this row yet; the commit that introduces it pushes it",
+      "hosted_ci": "the code commit's hosted runs (agent-substrate push and pull_request, stack-verify) were green on every job, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1 and every mutation shard included; the evidence commit changes tools/neural.py, so hosted_evidence is recorded against the evidence commit's own runs, whose implementation is the one this row lists",
       "hosted_evidence": {
         "runs": [],
-        "note": "introduced by the NF-1T commit; recorded once a hosted run on that exact commit has covered it"
+        "note": "recorded against the evidence commit once a hosted run on that exact commit has covered it; the code commit's green runs cover an earlier tools/neural.py"
       },
       "residual_gaps": [
         "the ~1T configuration has not been allocated or trained, and neither has any rung of the ladder above the development member: that needs paid accelerator compute this tranche does not authorise",
@@ -2627,7 +2627,9 @@
         "no admission policy for learned models exists, so no learned output can be accepted for any use; writing one is the programme owner's decision",
         "expert-parallel communication volume, memory and throughput are estimated, not measured",
         "the active generic modules that still name hardware-era machine semantics are reported by the audit, not cleaned: that is the semantic tranche E, not authorised",
-        "the substrate is outside the repository's staged mypy enforcement (Stage-7 and Stage-10 modules only, as for scientific/ and qta_agent/): mypy reports 61 errors in 16 of its 30 new modules -- the optional MoE section of a configuration used without narrowing, dictionary value types inferred from a first entry, untyped containers -- and a triage of all 61 found none that is a runtime defect; bringing it under enforcement is open"
+        "the substrate is outside the repository's staged mypy enforcement (Stage-7 and Stage-10 modules only, as for scientific/ and qta_agent/): mypy reports 61 errors in 16 of its 30 new modules -- the optional MoE section of a configuration used without narrowing, dictionary value types inferred from a first entry, untyped containers -- and a triage of all 61 found none that is a runtime defect; bringing it under enforcement is open",
+        "the development model's predictions violate declared invariants of its own source model on part of the in-distribution test split (capture_only 32 of 476, inventory_within_capacity 86, within_incidence 26): reported in the evaluation and never clipped, and nothing in training enforces them",
+        "the development model's impingement-flux intervals undercover (65.5 % inside the nominal 90 % interval on the test split, predicted spread uncorrelated with error), and out of distribution 90 % coverage falls to 17 % for fluence and flux"
       ],
       "boundaries": [
         {

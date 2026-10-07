@@ -1,0 +1,538 @@
+{
+ "backend_versions": {
+  "jaxlib": "0.11.2",
+  "xla_backend": "cpu"
+ },
+ "batch_size": 64,
+ "checkpoint_interval": 2000,
+ "checkpoints": [
+  {
+   "checkpoint_digest": "25e4afea25237423a5de8f2a551225eb6a4de5e1e2a8164025b62f5947ad2dbd",
+   "step": 2000,
+   "stored": false
+  }
+ ],
+ "completion_state": "INTERRUPTED",
+ "data_order_seed": 1,
+ "dataset_digest": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137",
+ "distributed_topology": {
+  "kind": "single_process",
+  "mesh": null
+ },
+ "end_time": "2026-10-07T03:33:50+00:00",
+ "evaluation_configuration": {
+  "metrics": [
+   "mae",
+   "rmse",
+   "median_ae",
+   "p90_ae",
+   "p99_ae",
+   "median_relative_error",
+   "nll_standardised",
+   "interval_coverage",
+   "std_vs_error_spearman"
+  ],
+  "nominal_intervals": [
+   0.5,
+   0.8,
+   0.9,
+   0.95
+  ],
+  "selection": "none: the schedule is fixed before training; no checkpoint is chosen on test or OOD data",
+  "splits": [
+   "train",
+   "validation",
+   "test",
+   "ood"
+  ]
+ },
+ "feature_schema_digest": "dabb403f7957a9449a206fc359aef6ded1d083ed09a1cacae735b3261cd8abb0",
+ "framework_versions": {
+  "backend": "cpu",
+  "devices": [
+   "cpu:0"
+  ],
+  "jax": "0.11.2",
+  "jaxlib": "0.11.2",
+  "ml_dtypes": "0.6.0",
+  "numpy": "2.4.4",
+  "python": "3.12.3"
+ },
+ "gradient_accumulation": 1,
+ "hardware_identity": {
+  "accelerators": [],
+  "cpu": {
+   "core": {
+    "cpu family": "6",
+    "model": "207",
+    "vendor_id": "GenuineIntel"
+   },
+   "simd": [
+    "amx_bf16",
+    "amx_int8",
+    "amx_tile",
+    "avx",
+    "avx2",
+    "avx512_bf16",
+    "avx512_bitalg",
+    "avx512_fp16",
+    "avx512_vbmi2",
+    "avx512_vnni",
+    "avx512_vpopcntdq",
+    "avx512bw",
+    "avx512cd",
+    "avx512dq",
+    "avx512f",
+    "avx512ifma",
+    "avx512vbmi",
+    "avx512vl",
+    "avx_vnni",
+    "bmi1",
+    "bmi2",
+    "f16c",
+    "fma",
+    "pni",
+    "popcnt",
+    "sse",
+    "sse2",
+    "sse4_1",
+    "sse4_2",
+    "ssse3"
+   ],
+   "source": "cpuinfo"
+  },
+  "note": "the CPU as a numeric kernel sees it (SIMD flags, vendor, family, model); no host name"
+ },
+ "initialization_seed": 0,
+ "loss_definition": "mean over samples and targets of the Gaussian negative log-likelihood 0.5*(log(2*pi) + log(var) + (y - mean)^2/var) in each target's standardised transform space, plus moe.aux_loss_coef times the sum over MoE layers of num_experts * sum_i f_i * P_i",
+ "loss_history": [
+  {
+   "aux": 3.2254133224487305,
+   "grad_norm": 2.1755030155181885,
+   "loss": 1.5509742498397827,
+   "lr": 1.4999999621068127e-05,
+   "nll": 1.5187201499938965,
+   "step": 0
+  },
+  {
+   "aux": 2.229753255844116,
+   "grad_norm": 1.913970708847046,
+   "loss": 1.0499987602233887,
+   "lr": 0.0007650000043213367,
+   "nll": 1.0277012586593628,
+   "step": 50
+  },
+  {
+   "aux": 2.335444450378418,
+   "grad_norm": 13.826264381408691,
+   "loss": 0.22013793885707855,
+   "lr": 0.0015150000108405948,
+   "nll": 0.19678349792957306,
+   "step": 100
+  },
+  {
+   "aux": 2.1770691871643066,
+   "grad_norm": 29.38702392578125,
+   "loss": -0.08160901814699173,
+   "lr": 0.002265000017359853,
+   "nll": -0.10337971150875092,
+   "step": 150
+  },
+  {
+   "aux": 2.266171932220459,
+   "grad_norm": 30.984121322631836,
+   "loss": -0.21591876447200775,
+   "lr": 0.003000000026077032,
+   "nll": -0.23858048021793365,
+   "step": 200
+  },
+  {
+   "aux": 2.4075655937194824,
+   "grad_norm": 22.15614128112793,
+   "loss": -0.3273140490055084,
+   "lr": 0.002998846583068371,
+   "nll": -0.35138970613479614,
+   "step": 250
+  },
+  {
+   "aux": 2.2240848541259766,
+   "grad_norm": 42.115291595458984,
+   "loss": -0.7666692733764648,
+   "lr": 0.002995389048010111,
+   "nll": -0.7889100909233093,
+   "step": 300
+  },
+  {
+   "aux": 2.7357468605041504,
+   "grad_norm": 48.808284759521484,
+   "loss": -0.5523257851600647,
+   "lr": 0.0029896327760070562,
+   "nll": -0.579683244228363,
+   "step": 350
+  },
+  {
+   "aux": 2.269841194152832,
+   "grad_norm": 17.860811233520508,
+   "loss": -0.8482728004455566,
+   "lr": 0.002981587778776884,
+   "nll": -0.8709712028503418,
+   "step": 400
+  },
+  {
+   "aux": 2.8243961334228516,
+   "grad_norm": 42.98369598388672,
+   "loss": -0.7760679721832275,
+   "lr": 0.0029712675604969263,
+   "nll": -0.8043119311332703,
+   "step": 450
+  },
+  {
+   "aux": 2.4690685272216797,
+   "grad_norm": 46.03300476074219,
+   "loss": -1.5073297023773193,
+   "lr": 0.0029586905147880316,
+   "nll": -1.5320203304290771,
+   "step": 500
+  },
+  {
+   "aux": 2.293921947479248,
+   "grad_norm": 14.97680377960205,
+   "loss": -1.2895846366882324,
+   "lr": 0.0029438768979161978,
+   "nll": -1.3125238418579102,
+   "step": 550
+  },
+  {
+   "aux": 2.3878426551818848,
+   "grad_norm": 108.3598861694336,
+   "loss": -1.3311728239059448,
+   "lr": 0.0029268532525748014,
+   "nll": -1.3550512790679932,
+   "step": 600
+  },
+  {
+   "aux": 2.3101706504821777,
+   "grad_norm": 12.247723579406738,
+   "loss": -1.777215838432312,
+   "lr": 0.0029076477512717247,
+   "nll": -1.8003175258636475,
+   "step": 650
+  },
+  {
+   "aux": 2.280296564102173,
+   "grad_norm": 20.700666427612305,
+   "loss": -1.0108174085617065,
+   "lr": 0.0028862939216196537,
+   "nll": -1.0336203575134277,
+   "step": 700
+  },
+  {
+   "aux": 2.528113842010498,
+   "grad_norm": 72.92493438720703,
+   "loss": -1.0948538780212402,
+   "lr": 0.002862827852368355,
+   "nll": -1.1201350688934326,
+   "step": 750
+  },
+  {
+   "aux": 2.4386534690856934,
+   "grad_norm": 36.783843994140625,
+   "loss": -1.7774854898452759,
+   "lr": 0.002837289357557893,
+   "nll": -1.8018720149993896,
+   "step": 800
+  },
+  {
+   "aux": 2.4840121269226074,
+   "grad_norm": 41.67300796508789,
+   "loss": -1.5495634078979492,
+   "lr": 0.0028097229078412056,
+   "nll": -1.5744035243988037,
+   "step": 850
+  },
+  {
+   "aux": 2.3249759674072266,
+   "grad_norm": 35.42582321166992,
+   "loss": -1.5900720357894897,
+   "lr": 0.0027801748365163803,
+   "nll": -1.6133217811584473,
+   "step": 900
+  },
+  {
+   "aux": 2.257319688796997,
+   "grad_norm": 78.7174301147461,
+   "loss": -1.6920154094696045,
+   "lr": 0.0027486959006637335,
+   "nll": -1.7145886421203613,
+   "step": 950
+  },
+  {
+   "aux": 2.297813892364502,
+   "grad_norm": 117.97444152832031,
+   "loss": -1.2134349346160889,
+   "lr": 0.002715339418500662,
+   "nll": -1.2364131212234497,
+   "step": 1000
+  },
+  {
+   "aux": 2.2273411750793457,
+   "grad_norm": 119.35135650634766,
+   "loss": -1.528001070022583,
+   "lr": 0.0026801633648574352,
+   "nll": -1.5502744913101196,
+   "step": 1050
+  },
+  {
+   "aux": 2.2285001277923584,
+   "grad_norm": 82.84925079345703,
+   "loss": -1.8424160480499268,
+   "lr": 0.002643227344378829,
+   "nll": -1.8647010326385498,
+   "step": 1100
+  },
+  {
+   "aux": 2.162524700164795,
+   "grad_norm": 50.08404541015625,
+   "loss": -1.9608893394470215,
+   "lr": 0.0026045942213386297,
+   "nll": -1.9825146198272705,
+   "step": 1150
+  },
+  {
+   "aux": 2.1984951496124268,
+   "grad_norm": 26.75345802307129,
+   "loss": -2.088576316833496,
+   "lr": 0.002564330119639635,
+   "nll": -2.1105613708496094,
+   "step": 1200
+  },
+  {
+   "aux": 2.3300259113311768,
+   "grad_norm": 53.95582580566406,
+   "loss": -1.877442479133606,
+   "lr": 0.0025225039571523666,
+   "nll": -1.900742769241333,
+   "step": 1250
+  },
+  {
+   "aux": 2.2029263973236084,
+   "grad_norm": 72.83513641357422,
+   "loss": -2.0220978260040283,
+   "lr": 0.002479187212884426,
+   "nll": -2.0441269874572754,
+   "step": 1300
+  },
+  {
+   "aux": 2.214303493499756,
+   "grad_norm": 90.09335327148438,
+   "loss": -2.095188856124878,
+   "lr": 0.002434453694149852,
+   "nll": -2.1173319816589355,
+   "step": 1350
+  },
+  {
+   "aux": 2.2484188079833984,
+   "grad_norm": 49.56178283691406,
+   "loss": -2.5843281745910645,
+   "lr": 0.002388380002230406,
+   "nll": -2.6068124771118164,
+   "step": 1400
+  },
+  {
+   "aux": 2.2175564765930176,
+   "grad_norm": 54.52891159057617,
+   "loss": -2.600079298019409,
+   "lr": 0.002341044833883643,
+   "nll": -2.6222548484802246,
+   "step": 1450
+  },
+  {
+   "aux": 2.1689956188201904,
+   "grad_norm": 42.96472930908203,
+   "loss": -2.3925254344940186,
+   "lr": 0.0022925289813429117,
+   "nll": -2.414215326309204,
+   "step": 1500
+  },
+  {
+   "aux": 2.2332513332366943,
+   "grad_norm": 155.5611572265625,
+   "loss": -1.9629830121994019,
+   "lr": 0.0022429153323173523,
+   "nll": -1.9853155612945557,
+   "step": 1550
+  },
+  {
+   "aux": 2.19954252243042,
+   "grad_norm": 126.50811767578125,
+   "loss": -2.07220458984375,
+   "lr": 0.0021922888699918985,
+   "nll": -2.0942001342773438,
+   "step": 1600
+  },
+  {
+   "aux": 2.1474967002868652,
+   "grad_norm": 117.03795623779297,
+   "loss": -2.3116867542266846,
+   "lr": 0.002140735974535346,
+   "nll": -2.3331618309020996,
+   "step": 1650
+  },
+  {
+   "aux": 2.1819164752960205,
+   "grad_norm": 131.1820068359375,
+   "loss": -2.3782529830932617,
+   "lr": 0.0020883444231003523,
+   "nll": -2.4000720977783203,
+   "step": 1700
+  },
+  {
+   "aux": 2.14080548286438,
+   "grad_norm": 83.1307373046875,
+   "loss": -2.5006775856018066,
+   "lr": 0.002035203855484724,
+   "nll": -2.522085666656494,
+   "step": 1750
+  },
+  {
+   "aux": 2.189027786254883,
+   "grad_norm": 74.75574493408203,
+   "loss": -2.6499037742614746,
+   "lr": 0.00198140530847013,
+   "nll": -2.6717939376831055,
+   "step": 1800
+  },
+  {
+   "aux": 2.153442859649658,
+   "grad_norm": 98.40752410888672,
+   "loss": -2.761430025100708,
+   "lr": 0.0019270406337454915,
+   "nll": -2.7829644680023193,
+   "step": 1850
+  },
+  {
+   "aux": 2.190835952758789,
+   "grad_norm": 77.71601104736328,
+   "loss": -2.5538864135742188,
+   "lr": 0.0018722026143223047,
+   "nll": -2.5757946968078613,
+   "step": 1900
+  },
+  {
+   "aux": 2.258046865463257,
+   "grad_norm": 126.73053741455078,
+   "loss": -2.4962704181671143,
+   "lr": 0.0018169850809499621,
+   "nll": -2.518850803375244,
+   "step": 1950
+  },
+  {
+   "aux": 2.1692748069763184,
+   "grad_norm": 120.26787567138672,
+   "loss": -2.382214069366455,
+   "lr": 0.0017625943291932344,
+   "nll": -2.40390682220459,
+   "step": 1999
+  }
+ ],
+ "model_configuration_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+ "normalization_digest": "9e8390c187c4b9c1f3d451c2c3603e3b58babbc773d22d40392d0f9d4db64eea",
+ "optimizer": "adam",
+ "optimizer_configuration": {
+  "beta1": 0.9,
+  "beta2": 0.999,
+  "clip_global_norm": 1.0,
+  "eps": 1e-08,
+  "master_dtype": "float32",
+  "name": "adam",
+  "weight_decay": 0.0
+ },
+ "parameter_count": 431784,
+ "parent_checkpoint": null,
+ "parent_run": null,
+ "precision": {
+  "compute_dtype": "float32",
+  "param_dtype": "float32",
+  "router_dtype": "float32"
+ },
+ "reproducibility": {
+  "claimed": [
+   "CONFIGURATION_REPRODUCIBLE",
+   "DATASET_REPRODUCIBLE",
+   "SEEDED_EXECUTION",
+   "NUMERICALLY_REPRODUCIBLE",
+   "BITWISE_REPRODUCIBLE",
+   "CHECKPOINT_REPRODUCIBLE"
+  ],
+  "evidence": {
+   "exact_resume_bitwise_equal_to_uninterrupted": true,
+   "fresh_run_tensor_digests_equal": true,
+   "fresh_runs_bitwise_equal_at_step": 2000,
+   "resume_runs": [
+    "nf1t-dev-52e707b0a2dd-resume-a",
+    "nf1t-dev-52e707b0a2dd-resume-b"
+   ]
+  },
+  "not_claimed": [
+   "any agreement across hosts, CPUs, devices, frameworks or framework versions",
+   "multi-device or GPU determinism"
+  ],
+  "scope": "this backend (the hardware_identity and framework_versions recorded here), one process, CPU"
+ },
+ "resume_semantics": "FRESH_TRAINING",
+ "router_health": {
+  "final_entropy": [
+   1.7160041332244873,
+   1.3761245012283325
+  ],
+  "final_expert_counts": [
+   [
+    123.0,
+    24.0,
+    222.0,
+    226.0,
+    175.0,
+    42.0,
+    125.0,
+    215.0
+   ],
+   [
+    132.0,
+    39.0,
+    162.0,
+    204.0,
+    173.0,
+    135.0,
+    161.0,
+    146.0
+   ]
+  ],
+  "final_max_load_fraction": [
+   0.1961805522441864,
+   0.1770833283662796
+  ],
+  "logged_steps": 41,
+  "max_load_fraction_seen": 0.3949652910232544,
+  "moe": true,
+  "total_dropped_logged": 0.0
+ },
+ "run_id": "nf1t-dev-52e707b0a2dd-resume-a",
+ "scheduler": "linear_warmup_cosine",
+ "scheduler_configuration": {
+  "min_lr_ratio": 0.1,
+  "name": "linear_warmup_cosine",
+  "peak_learning_rate": 0.003,
+  "total_steps": 4000,
+  "warmup_steps": 200
+ },
+ "schema": "scientific-moe-training-manifest/1",
+ "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "start_time": "2026-10-07T03:33:01+00:00",
+ "steps": {
+  "planned": 4000,
+  "start": 0,
+  "stop": 2000
+ },
+ "target_schema_digest": "eaff6ceeb34f386acf33ac240918a8216417c08c768b7fb935e0ee2d74c86e1c",
+ "world_size": 1
+}

@@ -1,0 +1,622 @@
+{
+ "dataset_digest": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137",
+ "dataset_id": "surface_adsorption_dev_v1",
+ "exclusion_rules": [
+  "pressure, sticking and window are drawn from strictly positive ranges: a zero gives zero gain and zero fluence, which a log10 target cannot represent",
+  "a run whose outputs are not all OK, or whose invariants do not all hold, is rejected and counted, never kept",
+  "a run whose output unit differs from the target schema's is rejected"
+ ],
+ "feature_schema": {
+  "features": [
+   {
+    "description": "temperature of the impinging gas",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "K"
+    },
+    "integer": false,
+    "lower": 1.0,
+    "missing_allowed": false,
+    "name": "T_gas_K",
+    "role": "INPUT",
+    "transform": "log10_positive",
+    "unit": "K",
+    "upper": 10000.0
+   },
+   {
+    "description": "saturation inventory of the surface",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      -2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "m^-2"
+    },
+    "integer": false,
+    "lower": 1000000000000.0,
+    "missing_allowed": false,
+    "name": "capacity_per_m2",
+    "role": "INPUT",
+    "transform": "log10_positive",
+    "unit": "m^-2",
+    "upper": 1e+21
+   },
+   {
+    "description": "coverage before the first window",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "1"
+    },
+    "integer": false,
+    "lower": 0.0,
+    "missing_allowed": false,
+    "name": "initial_coverage",
+    "role": "INPUT",
+    "transform": "linear",
+    "unit": "1",
+    "upper": 1.0
+   },
+   {
+    "description": "molecular mass",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.6605390666e-27,
+     "unit": "u"
+    },
+    "integer": false,
+    "lower": 1.0,
+    "missing_allowed": false,
+    "name": "mass_amu",
+    "role": "INPUT",
+    "transform": "log10_positive",
+    "unit": "u",
+    "upper": 1000.0
+   },
+   {
+    "description": "consecutive exposure windows",
+    "dimension": {
+     "dimension_class": "COUNT",
+     "exponents": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "COUNT"
+    },
+    "integer": true,
+    "lower": 1,
+    "missing_allowed": false,
+    "name": "n_windows",
+    "role": "CONDITION",
+    "transform": "linear",
+    "unit": "COUNT",
+    "upper": 10000
+   },
+   {
+    "description": "gas pressure at the surface",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      -1,
+      1,
+      -2,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "Pa"
+    },
+    "integer": false,
+    "lower": 1e-12,
+    "missing_allowed": false,
+    "name": "pressure_Pa",
+    "role": "INPUT",
+    "transform": "log10_positive",
+    "unit": "Pa",
+    "upper": 100000.0
+   },
+   {
+    "description": "sticking coefficient on the bare surface",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "1"
+    },
+    "integer": false,
+    "lower": 1e-06,
+    "missing_allowed": false,
+    "name": "sticking",
+    "role": "INPUT",
+    "transform": "linear",
+    "unit": "1",
+    "upper": 1.0
+   },
+   {
+    "description": "duration of one window",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "s"
+    },
+    "integer": false,
+    "lower": 1e-09,
+    "missing_allowed": false,
+    "name": "window_s",
+    "role": "INPUT",
+    "transform": "log10_positive",
+    "unit": "s",
+    "upper": 1000000000.0
+   }
+  ],
+  "name": "surface_adsorption_v1",
+  "schema_version": "scientific-feature-schema/1",
+  "token_layout": {
+   "base_dimensions": [
+    "m",
+    "kg",
+    "s",
+    "A",
+    "K",
+    "mol",
+    "cd"
+   ],
+   "contexts": [
+    "INPUT",
+    "CONDITION",
+    "RESERVED_2",
+    "RESERVED_3"
+   ],
+   "dimension_classes": [
+    "PHYSICAL",
+    "DIMENSIONLESS",
+    "COUNT",
+    "ORDINAL"
+   ],
+   "log_mag_scale": 32.0,
+   "validity": [
+    "VALID",
+    "MISSING"
+   ],
+   "value_channels": [
+    "z",
+    "sign",
+    "log_mag",
+    "is_zero"
+   ]
+  }
+ },
+ "feature_schema_digest": "dabb403f7957a9449a206fc359aef6ded1d083ed09a1cacae735b3261cd8abb0",
+ "generation_method": {
+  "design": "per-dimension Latin hypercube, PCG64, values to 12 significant digits",
+  "design_seed": 20261006,
+  "exclusion_rules": [
+   "pressure, sticking and window are drawn from strictly positive ranges: a zero gives zero gain and zero fluence, which a log10 target cannot represent",
+   "a run whose outputs are not all OK, or whose invariants do not all hold, is rejected and counted, never kept",
+   "a run whose output unit differs from the target schema's is rejected"
+  ],
+  "n_in_distribution": 3072,
+  "n_ood": 384,
+  "ood_rule": "T_gas_K > 300 K",
+  "provenance_digest": "bfb58fa53ae4139989a1a278cd30a2aad248664fb49be1489391b568234d826c",
+  "regions": {
+   "in_distribution": {
+    "T_gas_K": [
+     "log",
+     10.0,
+     300.0
+    ],
+    "capacity_per_m2": [
+     "log",
+     1e+17,
+     1e+20
+    ],
+    "initial_coverage": [
+     "lin",
+     0.0,
+     0.5
+    ],
+    "mass_amu": [
+     "log",
+     2.0,
+     200.0
+    ],
+    "n_windows": [
+     "choice",
+     [
+      1,
+      2,
+      4,
+      8
+     ],
+     null
+    ],
+    "pressure_Pa": [
+     "log",
+     1e-07,
+     10.0
+    ],
+    "sticking": [
+     "lin",
+     0.05,
+     1.0
+    ],
+    "window_s": [
+     "log",
+     0.001,
+     1000.0
+    ]
+   },
+   "ood": {
+    "T_gas_K": [
+     "log",
+     300.0,
+     1000.0
+    ],
+    "capacity_per_m2": [
+     "log",
+     1e+17,
+     1e+20
+    ],
+    "initial_coverage": [
+     "lin",
+     0.0,
+     0.5
+    ],
+    "mass_amu": [
+     "log",
+     2.0,
+     200.0
+    ],
+    "n_windows": [
+     "choice",
+     [
+      1,
+      2,
+      4,
+      8
+     ],
+     null
+    ],
+    "pressure_Pa": [
+     "log",
+     1e-07,
+     10.0
+    ],
+    "sticking": [
+     "lin",
+     0.05,
+     1.0
+    ],
+    "window_s": [
+     "log",
+     0.001,
+     1000.0
+    ]
+   }
+  },
+  "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+  "source_model": "surface.langmuir_capture@1.0.0",
+  "split_fractions": {
+   "test": 0.15,
+   "train": 0.7,
+   "validation": 0.15
+  },
+  "split_seed": 7
+ },
+ "leakage": {
+  "checks": [
+   {
+    "check": "exact_duplicate_inputs_across_splits",
+    "detail": {
+     "crossings": 0,
+     "examples": [],
+     "what": "the same input vector in two splits"
+    },
+    "passed": true
+   },
+   {
+    "check": "provenance_family_across_splits",
+    "detail": {
+     "crossings": 0,
+     "examples": [],
+     "what": "two samples of one scientific configuration in two splits"
+    },
+    "passed": true
+   },
+   {
+    "check": "duplicate_targets_across_splits",
+    "detail": {
+     "crossings": 0,
+     "examples": [],
+     "what": "identical outputs under different sample ids in two splits"
+    },
+    "passed": true
+   },
+   {
+    "check": "normalization_from_training_split_only",
+    "detail": {
+     "fitted_on": "3c90291acc0ce0474132b1ec3b41e7040e1967e36630ce61c5604a32cdaab35b",
+     "rows": 2133,
+     "train_rows": 2133,
+     "train_split_digest": "3c90291acc0ce0474132b1ec3b41e7040e1967e36630ce61c5604a32cdaab35b"
+    },
+    "passed": true
+   },
+   {
+    "check": "target_leakage_through_features",
+    "detail": {
+     "feature_equal_to_target": []
+    },
+    "passed": true
+   },
+   {
+    "check": "seed_correlated_design_points",
+    "detail": {
+     "what": "every design point is drawn once and every sample has its own inputs; a split is a hash of the configuration, independent of the design stream's order"
+    },
+    "passed": true
+   },
+   {
+    "check": "ood_region_disjoint",
+    "detail": {
+     "examples": [],
+     "misplaced": 0
+    },
+    "passed": true
+   },
+   {
+    "check": "future_information",
+    "detail": {
+     "status": "NOT_APPLICABLE",
+     "why": "samples are independent steady computations, not a time series; no sample is computed from another"
+    },
+    "passed": true
+   }
+  ],
+  "passed": true,
+  "remaining_risks": [
+   "the source is a smooth closed-form law: a test point can sit close to a training point in input space, so in-distribution test error measures interpolation, not generalisation -- the OOD split is the extrapolation test",
+   "one computational source and one implementation: errors shared by every sample (a wrong constant in the law) are invisible to any split",
+   "duplicates are detected exactly, not approximately; two configurations equal to 1e-15 are different samples"
+  ]
+ },
+ "normalization_statistics": {
+  "feature_mean": [
+   1.7284769369086486,
+   18.515101640498944,
+   0.2481706456307956,
+   -25.479627467879503,
+   3.7801218940459447,
+   -3.0218133380352032,
+   0.5264723156131417,
+   -0.009029288644537205
+  ],
+  "feature_scale": [
+   0.42784878189246944,
+   0.8601900101605494,
+   0.14436972053448155,
+   0.5791363907360488,
+   2.672802116227788,
+   2.323529054601381,
+   0.2746794430169651,
+   1.729198061968455
+  ],
+  "feature_training_max": [
+   299.407385467,
+   9.99023633356e+19,
+   0.499852223765,
+   199.645019603,
+   8,
+   9.94808901766,
+   0.999744635612,
+   985.024614895
+  ],
+  "feature_training_min": [
+   10.0037400127,
+   1.00169338416e+17,
+   0.000201255147727,
+   2.00181930658,
+   1,
+   1.00178789514e-07,
+   0.0500756510955,
+   0.00100608386984
+  ],
+  "fitted_on_split_digest": "3c90291acc0ce0474132b1ec3b41e7040e1967e36630ce61c5604a32cdaab35b",
+  "method": "mean and population standard deviation in transform space (math.fsum); a constant feature keeps scale 1.0",
+  "rows": 2133,
+  "target_mean": [
+   20.33229729674679,
+   0.775088311248329,
+   18.320136248846254,
+   19.88463035193205
+  ],
+  "target_scale": [
+   2.9061055103759434,
+   0.32884116619987047,
+   0.8650491933815585,
+   2.3441176303497993
+  ]
+ },
+ "rejected_sample_count": 0,
+ "rejections": [],
+ "sample_count": 3456,
+ "schema": "scientific-dataset-manifest/1",
+ "schema_version": "scientific-dataset/1",
+ "source_identifiers": [
+  "surface.langmuir_capture@1.0.0#b5f98b060b0ea55ac655b34c37b5f7a81ce14a7796e54552730b8abe2dbff09b"
+ ],
+ "split_digests": {
+  "ood": "7b05d145912913efc91ca4dd18cbdcaaba90200dc6452e3f8c0ee7ec57096038",
+  "test": "5ed3d4f1cfbfc36418d0c08d362755067f67d7e7574091f9e8aa767300bd6e0b",
+  "train": "3c90291acc0ce0474132b1ec3b41e7040e1967e36630ce61c5604a32cdaab35b",
+  "validation": "8748ff1670f16ad92b1a66904aa20a680ce4dc458920213db5ed415e6a86e229"
+ },
+ "splits": {
+  "ood": 384,
+  "test": 476,
+  "train": 2133,
+  "validation": 463
+ },
+ "storage": {
+  "bytes": 5510293,
+  "format": "jsonl, one canonical sample per line, sample_id order",
+  "path": "docs/neural/dev/dataset.jsonl",
+  "sha256": "92ac3b172c7013b8ea12310776859dc9b3521b7571db9f51a10eba17caf26b19"
+ },
+ "target_schema": {
+  "name": "surface_adsorption_v1",
+  "schema_version": "scientific-feature-schema/1",
+  "targets": [
+   {
+    "description": "impinging particles per area over all windows",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      -2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "m^-2"
+    },
+    "lower": null,
+    "name": "admitted_fluence",
+    "transform": "log10_positive",
+    "unit": "m^-2",
+    "upper": null
+   },
+   {
+    "description": "N / N_cap after the last window",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "1"
+    },
+    "lower": 0.0,
+    "name": "final_coverage",
+    "transform": "linear",
+    "unit": "1",
+    "upper": 1.0
+   },
+   {
+    "description": "captured particles per area",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      -2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "m^-2"
+    },
+    "lower": null,
+    "name": "final_inventory",
+    "transform": "log10_positive",
+    "unit": "m^-2",
+    "upper": null
+   },
+   {
+    "description": "kinetic-theory flux",
+    "dimension": {
+     "dimension_class": "PHYSICAL",
+     "exponents": [
+      -2,
+      0,
+      -1,
+      0,
+      0,
+      0,
+      0
+     ],
+     "si_factor": 1.0,
+     "unit": "m^-2 s^-1"
+    },
+    "lower": null,
+    "name": "impingement_flux",
+    "transform": "log10_positive",
+    "unit": "m^-2 s^-1",
+    "upper": null
+   }
+  ]
+ },
+ "target_schema_digest": "eaff6ceeb34f386acf33ac240918a8216417c08c768b7fb935e0ee2d74c86e1c"
+}

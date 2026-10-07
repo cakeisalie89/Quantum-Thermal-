@@ -680,7 +680,7 @@ RULES = [
      "verifies it (the CI step): re-solves the budget, meta-validates the "
      "flagship, re-checks every digest link, reloads the checkpoint, "
      "recomputes the claims in a fresh authority history.",
-     ""),
+     "tests/test_neural_evidence.py"),
     ("tools/neural_ledger.py", KAH,
      "NEW (NF-1T): the one learned-model tool that imports qta_agent -- "
      "records the written documents in a fresh authority history and "
@@ -1239,11 +1239,17 @@ RULES = [
      "NEW (NF-1T): where the hardware-era machine semantics still appear "
      "and why, by rule; written only by tools/neural_legacy_audit.py.",
      "tests/test_neural_boundary.py"),
+    ("docs/neural/dev/*", KAH,
+     "NEW (NF-1T): the development member's evidence -- the governed "
+     "dataset and its manifest, the training, resume and checkpoint "
+     "manifests, the final checkpoint and the evaluation; written only by "
+     "tools/neural.py and checked by its verify step.",
+     "tests/test_neural_evidence.py"),
     ("docs/neural/*.json", KAH,
      "NEW (NF-1T): the architecture evidence -- the flagship and "
      "development manifests and meta validations, the family table, the "
      "distributed report and the claims; written only by tools/neural.py.",
-     ""),
+     "tests/test_neural_evidence.py"),
     ("docs/*.json", REG,
      "Tool-generated inventories/baselines "
      "(identity/unit/resolution/performance/clip/blas).",

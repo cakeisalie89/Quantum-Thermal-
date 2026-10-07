@@ -1,0 +1,101 @@
+{
+ "abstract_by_category": {
+  "attention": 32768,
+  "context_embedding": 384,
+  "dense_ffn": 0,
+  "dimensional_encoder": 704,
+  "expert": 393216,
+  "feature_embedding": 512,
+  "normalization": 320,
+  "numerical_encoder": 2272,
+  "output_head": 260,
+  "readout_embedding": 64,
+  "reconstruction_head": 0,
+  "router": 1024,
+  "shared_expert": 0,
+  "uncertainty_head": 260
+ },
+ "abstract_dtypes": [
+  "float32"
+ ],
+ "abstract_non_trainable": 24,
+ "abstract_trainable": 431784,
+ "allocation_guard": {
+  "every_leaf_abstract": true,
+  "live_arrays_after": 0,
+  "live_arrays_before": 0,
+  "live_bytes_after": 0,
+  "live_bytes_before": 0,
+  "passed": true,
+  "peak_rss_growth_bytes": 0,
+  "peak_rss_limit_bytes": 1073741824,
+  "real_allocation_limit_bytes": 2147483648,
+  "would_be_parameter_bytes": 1727232
+ },
+ "allocation_mode": "meta",
+ "analytic_by_category": {
+  "attention": 32768,
+  "context_embedding": 384,
+  "dense_ffn": 0,
+  "dimensional_encoder": 704,
+  "expert": 393216,
+  "feature_embedding": 512,
+  "normalization": 320,
+  "numerical_encoder": 2272,
+  "output_head": 260,
+  "readout_embedding": 64,
+  "reconstruction_head": 0,
+  "router": 1024,
+  "shared_expert": 0,
+  "uncertainty_head": 260
+ },
+ "config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+ "counts_equal": true,
+ "forward": {
+  "batch": 2,
+  "features": 16,
+  "heads_resolve": true,
+  "mean": [
+   2,
+   4
+  ],
+  "pooled": [
+   2,
+   64
+  ],
+  "traced": true,
+  "var": [
+   2,
+   4
+  ]
+ },
+ "framework": {
+  "backend": "cpu",
+  "jax": "0.11.2",
+  "jaxlib": "0.11.2",
+  "ml_dtypes": "0.6.0",
+  "numpy": "2.4.4",
+  "python": "3.12.3"
+ },
+ "method": "jax.eval_shape of network.init and network.apply: the real code traced with abstract values",
+ "real_allocation_refused": null,
+ "result": "PASS",
+ "routing": {
+  "capacity_per_expert": 34,
+  "index_dtype": [
+   "int32"
+  ],
+  "legal": true,
+  "moe_layers_declared": 2,
+  "moe_layers_traced": 2,
+  "num_experts": 8,
+  "selected_shapes": [
+   [
+    34,
+    2
+   ]
+  ],
+  "top_k": 2
+ },
+ "schema": "scientific-moe-meta-validation/1"
+}

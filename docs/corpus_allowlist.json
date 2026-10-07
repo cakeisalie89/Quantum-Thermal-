@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "b6b4429094e510e8f2be6a6e207ab9fd7d787d8da1dd877510809bf98674f6f4",
+  "entries_digest": "b5ec7e0a8cf77105f1671ab6c5a1f3d0f44e15b5c39402c204b7f01fc6a96a48",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -114,7 +114,7 @@
     },
     {
       "path": "NEURAL_SUBSTRATE.md",
-      "sha256": "bbe8df766397ec2d3193a041f07b1abfcf219776e962813f660d3615227842ec"
+      "sha256": "b47db0a03d464673e931b6f4030308508ca830c2356a781f7835e97b71234d55"
     },
     {
       "path": "NUMERICAL_METHODS.md",

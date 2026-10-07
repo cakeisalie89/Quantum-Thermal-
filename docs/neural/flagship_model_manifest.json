@@ -1,0 +1,430 @@
+{
+ "allocation_mode": "meta",
+ "architecture_family": "scientific-feature-token-moe",
+ "architecture_variant": "flagship-1t",
+ "attention_parameters": 17179869184,
+ "claim_status": {
+  "claims": {
+   "ARCHITECTURE_DEFINED": {
+    "evidence": [
+     "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18"
+    ],
+    "holds": true,
+    "reason": "the manifest's configuration re-derives the subject digest",
+    "scope": "SUBJECT"
+   },
+   "ARCHITECTURE_META_VALIDATED": {
+    "evidence": [
+     "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+    ],
+    "holds": true,
+    "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
+    "scope": "SUBJECT"
+   },
+   "ARCHITECTURE_PARAMETER_VERIFIED": {
+    "evidence": [
+     "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18",
+     "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+    ],
+    "holds": true,
+    "reason": "manifest, recomputed count and abstract tensors agree category by category",
+    "scope": "SUBJECT"
+   },
+   "CHECKPOINT_RELOAD_VALIDATED": {
+    "evidence": [
+     "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+    ],
+    "holds": true,
+    "member": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+    "reason": "a family MEMBER's checkpoint reloaded; no checkpoint of the subject exists",
+    "scope": "FAMILY_MEMBER"
+   },
+   "DEVELOPMENT_MODEL_TRAINED": {
+    "evidence": [
+     "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+     "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e"
+    ],
+    "holds": true,
+    "member": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+    "reason": "a development-scale MEMBER of the family was trained; the subject was not",
+    "scope": "FAMILY_MEMBER"
+   },
+   "DISTRIBUTED_HARDWARE_VALIDATED": {
+    "evidence": [],
+    "holds": false,
+    "reason": "no execution on distributed hardware",
+    "scope": "SUBJECT"
+   },
+   "DISTRIBUTED_SOFTWARE_READY": {
+    "evidence": [
+     "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
+    ],
+    "holds": true,
+    "reason": "every parallel check passed on SIMULATED_MULTI_DEVICE",
+    "scope": "FAMILY"
+   },
+   "LARGE_MODEL_TRAINED": {
+    "evidence": [],
+    "holds": false,
+    "reason": "no evidence",
+    "scope": "SUBJECT"
+   },
+   "SCIENTIFIC_PERFORMANCE_ESTABLISHED": {
+    "evidence": [],
+    "holds": false,
+    "reason": "established only by an authority acceptance outside this package; the store refuses one for learned records",
+    "scope": "SUBJECT"
+   }
+  },
+  "plain_language": "flagship-1t: 996,509,217,800 trainable parameters, 200,832,889,864 active per token (exact counts). Mathematically parameterised and structurally validated by zero-allocation (abstract) construction; its weights have not been allocated. A development-scale member of the same architecture family has been trained end to end; this configuration has not been trained. Its scientific performance is not established.",
+  "status": "DEVELOPMENT_PIPELINE_VALIDATED",
+  "status_history": [
+   {
+    "evidence": [
+     "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18"
+    ],
+    "from": null,
+    "to": "ARCHITECTURE_DEFINED"
+   },
+   {
+    "evidence": [
+     "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+    ],
+    "from": "ARCHITECTURE_DEFINED",
+    "to": "META_VALIDATED"
+   },
+   {
+    "evidence": [
+     "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+     "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
+     "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+    ],
+    "from": "META_VALIDATED",
+    "to": "DEVELOPMENT_PIPELINE_VALIDATED"
+   }
+  ]
+ },
+ "configuration": {
+  "attention": {
+   "head_dim": 128,
+   "num_heads": 64,
+   "num_kv_heads": 64
+  },
+  "context_vocab_size": 4,
+  "dense_ffn_hidden": 0,
+  "family": "scientific-feature-token-moe",
+  "feature_vocab_size": 4096,
+  "heads": [
+   {
+    "kind": "gaussian",
+    "lower": null,
+    "name": "admitted_fluence",
+    "upper": null
+   },
+   {
+    "kind": "bounded_gaussian",
+    "lower": 0.0,
+    "name": "final_coverage",
+    "upper": 1.0
+   },
+   {
+    "kind": "gaussian",
+    "lower": null,
+    "name": "final_inventory",
+    "upper": null
+   },
+   {
+    "kind": "gaussian",
+    "lower": null,
+    "name": "impingement_flux",
+    "upper": null
+   }
+  ],
+  "hidden_size": 8192,
+  "moe": {
+   "aux_loss_coef": 0.01,
+   "capacity_factor": null,
+   "expert_hidden": 9728,
+   "normalize_top_k": true,
+   "num_experts": 64,
+   "num_shared_experts": 0,
+   "router_temperature": 1.0,
+   "routing_profiles": [
+    [
+     "economical",
+     10
+    ],
+    [
+     "standard",
+     12
+    ],
+    [
+     "deep",
+     14
+    ]
+   ],
+   "shared_hidden": 0,
+   "top_k": 12
+  },
+  "moe_layer_interval": 1,
+  "moe_layer_start": 0,
+  "num_layers": 64,
+  "num_readout_tokens": 4,
+  "precision": {
+   "compute_dtype": "bfloat16",
+   "param_dtype": "bfloat16",
+   "router_dtype": "float32"
+  },
+  "reconstruction_head": "none",
+  "schema_version": "scientific-moe-config/1",
+  "value_encoder_hidden": 1024,
+  "variant": "flagship-1t"
+ },
+ "configuration_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+ "embedding_parameters": 42128384,
+ "estimated_active_parameters_per_token": 200832889864,
+ "expert_active_parameters": 183609851904,
+ "expert_hidden_size": 9728,
+ "expert_parameters": 979252543488,
+ "expert_parameters_per_expert": 239075328,
+ "experts_per_moe_layer": 64,
+ "experts_selected_per_token": 12,
+ "head_dimension": 128,
+ "hidden_size": 8192,
+ "moe_layers": 64,
+ "non_trainable_parameters": 8200,
+ "num_attention_heads": 64,
+ "num_kv_heads": 64,
+ "num_layers": 64,
+ "output_parameters": 32772,
+ "parameter_accounting": {
+  "active_by_category": {
+   "attention": 17179869184,
+   "context_embedding": 16384,
+   "dense_ffn": 0,
+   "dimensional_encoder": 65536,
+   "expert": 183609851904,
+   "feature_embedding": 8192,
+   "normalization": 1056768,
+   "numerical_encoder": 8401920,
+   "output_head": 32772,
+   "readout_embedding": 0,
+   "reconstruction_head": 0,
+   "router": 33554432,
+   "shared_expert": 0,
+   "uncertainty_head": 32772
+  },
+  "attention_parameters": 17179869184,
+  "by_category": {
+   "attention": 17179869184,
+   "context_embedding": 49152,
+   "dense_ffn": 0,
+   "dimensional_encoder": 90112,
+   "expert": 979252543488,
+   "feature_embedding": 33554432,
+   "normalization": 1056768,
+   "numerical_encoder": 8401920,
+   "output_head": 32772,
+   "readout_embedding": 32768,
+   "reconstruction_head": 0,
+   "router": 33554432,
+   "shared_expert": 0,
+   "uncertainty_head": 32772
+  },
+  "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+  "embedding_parameters": 42128384,
+  "estimated_total_active_parameters_per_token": 200832889864,
+  "expert_active_parameters": 183609851904,
+  "expert_parameters": 979252543488,
+  "expert_parameters_per_expert": 239075328,
+  "experts_selected_per_token": 12,
+  "moe_layer_count": 64,
+  "non_trainable_parameters": 8200,
+  "num_experts_per_moe_layer": 64,
+  "output_head_parameters": 32772,
+  "router_parameters": 33554432,
+  "routing_profiles": {
+   "deep": {
+    "active_parameters_per_token": 231434531848,
+    "expert_active_parameters": 214211493888,
+    "top_k": 14
+   },
+   "economical": {
+    "active_parameters_per_token": 170231247880,
+    "expert_active_parameters": 153008209920,
+    "top_k": 10
+   },
+   "standard": {
+    "active_parameters_per_token": 200832889864,
+    "expert_active_parameters": 183609851904,
+    "top_k": 12
+   }
+  },
+  "shared_active_parameters": 17223037960,
+  "shared_parameters": 17256674312,
+  "tied_parameters": 0,
+  "total_parameters": 996509226000,
+  "trainable_parameters": 996509217800,
+  "uncertainty_head_parameters": 32772
+ },
+ "precision_memory_estimates": {
+  "activations": {
+   "batch_tokens": 1048576,
+   "batch_with_checkpointing_bytes": 1099511627776,
+   "batch_without_checkpointing_bytes": 54700703481856,
+   "category": "under 1 PiB",
+   "label": "activation bytes per token kept for backward",
+   "with_checkpointing_bytes_per_token": 1048576,
+   "without_checkpointing_bytes_per_token": 52166656
+  },
+  "assumptions": {
+   "activation_dtype": "bfloat16",
+   "batch_tokens": 1048576,
+   "dispatch_capacity_factor": 1.25,
+   "expert_parallel_degree": 8,
+   "gradient_dtype": "float32",
+   "master_dtype": "float32",
+   "optimizer": "adam",
+   "tokens_per_sample": 16
+  },
+  "checkpoint": {
+   "label": "checkpoint bytes",
+   "parameters_only_bytes": 3986036904000,
+   "with_optimizer_state_bytes": 11958110646400
+  },
+  "communication": {
+   "bytes_per_forward_flop": 5.482193682247855e-05,
+   "combine_bytes_per_token_per_moe_layer": 196608,
+   "dispatch_buffer_bytes_per_moe_layer": 257698037760,
+   "dispatch_bytes_per_token_per_moe_layer": 196608,
+   "experts_selected_per_token": 12,
+   "label": "expert-parallel routing traffic, forward pass",
+   "note": "the cost of high activation: each token's representation travels to top_k experts and back in every MoE layer",
+   "remote_fraction": 0.875,
+   "routed_bytes_per_batch_forward": 23089744183296.0,
+   "routed_bytes_per_token_forward": 22020096.0,
+   "router_logit_buffer_bytes_per_moe_layer": 268435456
+  },
+  "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+  "flops": {
+   "active_parameters_per_token": 200832889864,
+   "batch_tokens": 1048576,
+   "forward_flops_per_token": 401699334160,
+   "label": "matmul and attention FLOPs per token (multiply-add = 2)",
+   "training_flops_per_batch": 1263636843048468480,
+   "training_flops_per_token": 1205098002480,
+   "training_flops_per_token_with_checkpointing": 1606797336640
+  },
+  "inference_state": {
+   "activation_bytes_per_token": 65536,
+   "label": "inference: the compute copy plus a few live activations per token; no key/value cache (set encoder)",
+   "parameter_bytes": 1993018435600
+  },
+  "parameter_storage": {
+   "bfloat16_bytes": 1993018435600,
+   "float32_bytes": 3986036871200,
+   "float8_e4m3_bytes": 996752506184,
+   "float8_note": "FP8 e4m3 weights plus one float32 scale per 128x128 block; an ESTIMATE of storage only -- FP8 is not validated for any scientific workload here",
+   "label": "parameter-only storage of the trainable parameters",
+   "non_trainable_float32_bytes": 32800
+  },
+  "status": "ESTIMATE -- arithmetic over exact parameter counts and the assumptions below; not a benchmark, not a measurement on any hardware",
+  "training_state": {
+   "bytes_per_parameter": 18.0,
+   "compute_copy_bytes": 1993018435600,
+   "gradient_bytes": 3986036871200,
+   "label": "mixed-precision Adam training state, excluding activations and communication buffers",
+   "master_weights_bytes": 3986036871200,
+   "optimizer_moments_bytes": 7972073742400,
+   "total_bytes": 17937165920400
+  }
+ },
+ "router_parameters": 33554432,
+ "routing_profiles": {
+  "deep": {
+   "active_parameters_per_token": 231434531848,
+   "expert_active_parameters": 214211493888,
+   "top_k": 14
+  },
+  "economical": {
+   "active_parameters_per_token": 170231247880,
+   "expert_active_parameters": 153008209920,
+   "top_k": 10
+  },
+  "standard": {
+   "active_parameters_per_token": 200832889864,
+   "expert_active_parameters": 183609851904,
+   "top_k": 12
+  }
+ },
+ "schema": "scientific-moe-model-manifest/1",
+ "schema_version": "scientific-moe-config/1",
+ "shared_active_parameters": 17223037960,
+ "shared_parameters": 17256674312,
+ "solve": {
+  "active_deviation": 832889864,
+  "active_parameters_per_token": 200832889864,
+  "active_relative_deviation": 0.00416444932,
+  "alignment": 256,
+  "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+  "evaluated": [
+   {
+    "expert_hidden": 256,
+    "top_k": 1,
+    "trainable": 43026478088
+   },
+   {
+    "expert_hidden": 9728,
+    "top_k": 1,
+    "trainable": 996509217800
+   },
+   {
+    "expert_hidden": 9984,
+    "top_k": 1,
+    "trainable": 1022279021576
+   },
+   {
+    "active": 32523858952,
+    "expert_hidden": 9728,
+    "top_k": 1
+   },
+   {
+    "active": 185532068872,
+    "expert_hidden": 9728,
+    "top_k": 11
+   },
+   {
+    "active": 200832889864,
+    "expert_hidden": 9728,
+    "top_k": 12
+   }
+  ],
+  "expert_hidden": 9728,
+  "method": "affine solve over expert_hidden then top_k; exact counts from scientific_ai.neural.accounting",
+  "slope_per_expert_hidden": 100663296,
+  "slope_per_top_k": 15300820992,
+  "target": {
+   "active": 200000000000,
+   "active_means": "estimated_total_active_parameters_per_token",
+   "active_range": [
+    150000000000,
+    250000000000
+   ],
+   "total": 1000000000000,
+   "total_means": "trainable_parameters",
+   "total_range": [
+    950000000000,
+    1050000000000
+   ]
+  },
+  "template_digest": "8d08f12d35ab9c64245911660e8a49e733df3e1225e63d4b870e3950834b5952",
+  "top_k": 12,
+  "total_deviation": -3490782200,
+  "total_relative_deviation": -0.0034907822,
+  "trainable_parameters": 996509217800
+ },
+ "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "total_parameters": 996509226000,
+ "trainable_parameters": 996509217800,
+ "uncertainty_head_parameters": 32772
+}

@@ -99,7 +99,10 @@ jobs:
             tools/mutation_shards.py tests/test_mutation_shards.py \
             tools/verified_read_guard.py tests/test_verified_read_guard.py \
             tools/dependency_declarations.py \
-            tests/test_dependency_declarations.py
+            tests/test_dependency_declarations.py \
+            scientific_ai tools/neural.py tools/neural_ledger.py \
+            tools/neural_legacy_audit.py tests/neural_support.py \
+            tests/test_neural_*.py
       - name: no definition anywhere is silently shadowed
         # F811 OVER THE WHOLE TREE, not over the linted subset.
         #
@@ -211,6 +214,18 @@ jobs:
         # substrate, its tools, tests and evidence; none unexplained; and
         # the committed report must be the one the tree produces.
         run: uv run python tools/neural_legacy_audit.py --check
+      - name: the learned-model evidence re-derives
+        # NF-1T. Re-solves the parameter budget and compares the flagship
+        # manifest's exact counts; meta-validates the ~1T configuration by
+        # abstract evaluation (nothing allocated, a real allocation
+        # refused); re-checks every digest link of the development chain
+        # (dataset -> training -> checkpoint -> evaluation); reloads the
+        # stored checkpoint; records every document in a FRESH authority
+        # history and recomputes the claims, which must equal the committed
+        # ones -- including that the flagship is not trained and that a
+        # learned record cannot be accepted. Never trains, never allocates
+        # the flagship.
+        run: uv run python tools/neural.py verify
       - name: agent test suites
         run: |
           uv run python -m pytest tests/test_agent_*.py \

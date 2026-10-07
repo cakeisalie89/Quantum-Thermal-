@@ -1,0 +1,41 @@
+{
+ "checkpoint_digest": "74de574076efc6c227a057669b3512162fe14a64b7bcaff62621ae440ae387d2",
+ "checkpoint_format": "safetensors-layout/1 (numpy writer; no pickle)",
+ "data_position": {
+  "batch_in_epoch": 7,
+  "batches_per_epoch": 33,
+  "epoch": 121,
+  "step": 4000
+ },
+ "dataset_digest": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137",
+ "epoch": 121,
+ "model_config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+ "optimizer_state_presence": false,
+ "parent_checkpoint": null,
+ "precision": {
+  "compute_dtype": "float32",
+  "param_dtype": "float32",
+  "router_dtype": "float32"
+ },
+ "rng": {
+  "data_order": "PCG64(data_order_seed + epoch) permutation",
+  "data_order_seed": 1,
+  "initialization_seed": 0
+ },
+ "schema": "scientific-moe-checkpoint-manifest/1",
+ "shard_count": 1,
+ "shards": [
+  {
+   "bytes": 1730672,
+   "digest": "74de574076efc6c227a057669b3512162fe14a64b7bcaff62621ae440ae387d2",
+   "index": 0,
+   "stored_at": "docs/neural/dev/checkpoint_final.safetensors"
+  }
+ ],
+ "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "tensor_count": 37,
+ "tensor_index_digest": "95ee69bd41ab2f42323d18c41ff2d14b19947b08e617de419256a5c7d357790d",
+ "training_manifest_digest": "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+ "training_run_id": "nf1t-dev-52e707b0a2dd-main",
+ "training_step": 4000
+}

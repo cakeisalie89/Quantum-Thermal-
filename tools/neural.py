@@ -468,7 +468,10 @@ def cmd_claims(args) -> int:
     write_json(F["claims"], {k: v for k, v in doc.items()
                              if k != "history_head"})
     for name, s in doc["subjects"].items():
-        held = [c for c, v in s["claims"].items() if v["holds"]]
+        # with its scope: a FAMILY_MEMBER claim says a member did it, not
+        # the subject, and a bare list would read as the subject's own
+        held = [f"{c} ({v['scope']})" for c, v in s["claims"].items()
+                if v["holds"]]
         print(f"{name}: status {s['status']}; holds {held}")
     print(f"acceptance refused: {doc['acceptance_attempt']['refused']}")
     return 0

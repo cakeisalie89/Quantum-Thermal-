@@ -84,6 +84,10 @@ REQUIRED_COMMANDS = (
     ("uv run python tools/neural_legacy_audit.py --check",
      "the learned-model substrate carries none of the hardware-era machine "
      "semantics, and every occurrence elsewhere is classified (NF-1T)"),
+    ("uv run python tools/neural.py verify",
+     "the learned-model evidence re-derives: exact counts, abstract "
+     "validation of the ~1T configuration, the digest chain, the claims "
+     "(NF-1T)"),
     ("uv run python tools/reference_backend.py recipe",
      "the reference backend's recipe leaves no part of the arithmetic to "
      "the host"),

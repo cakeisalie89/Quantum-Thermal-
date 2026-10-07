@@ -1,0 +1,101 @@
+{
+ "abstract_by_category": {
+  "attention": 17179869184,
+  "context_embedding": 49152,
+  "dense_ffn": 0,
+  "dimensional_encoder": 90112,
+  "expert": 979252543488,
+  "feature_embedding": 33554432,
+  "normalization": 1056768,
+  "numerical_encoder": 8401920,
+  "output_head": 32772,
+  "readout_embedding": 32768,
+  "reconstruction_head": 0,
+  "router": 33554432,
+  "shared_expert": 0,
+  "uncertainty_head": 32772
+ },
+ "abstract_dtypes": [
+  "bfloat16"
+ ],
+ "abstract_non_trainable": 8200,
+ "abstract_trainable": 996509217800,
+ "allocation_guard": {
+  "every_leaf_abstract": true,
+  "live_arrays_after": 0,
+  "live_arrays_before": 0,
+  "live_bytes_after": 0,
+  "live_bytes_before": 0,
+  "passed": true,
+  "peak_rss_growth_bytes": 0,
+  "peak_rss_limit_bytes": 1073741824,
+  "real_allocation_limit_bytes": 2147483648,
+  "would_be_parameter_bytes": 1993018468400
+ },
+ "allocation_mode": "meta",
+ "analytic_by_category": {
+  "attention": 17179869184,
+  "context_embedding": 49152,
+  "dense_ffn": 0,
+  "dimensional_encoder": 90112,
+  "expert": 979252543488,
+  "feature_embedding": 33554432,
+  "normalization": 1056768,
+  "numerical_encoder": 8401920,
+  "output_head": 32772,
+  "readout_embedding": 32768,
+  "reconstruction_head": 0,
+  "router": 33554432,
+  "shared_expert": 0,
+  "uncertainty_head": 32772
+ },
+ "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+ "counts_equal": true,
+ "forward": {
+  "batch": 2,
+  "features": 16,
+  "heads_resolve": true,
+  "mean": [
+   2,
+   4
+  ],
+  "pooled": [
+   2,
+   8192
+  ],
+  "traced": true,
+  "var": [
+   2,
+   4
+  ]
+ },
+ "framework": {
+  "backend": "cpu",
+  "jax": "0.11.2",
+  "jaxlib": "0.11.2",
+  "ml_dtypes": "0.6.0",
+  "numpy": "2.4.4",
+  "python": "3.12.3"
+ },
+ "method": "jax.eval_shape of network.init and network.apply: the real code traced with abstract values",
+ "real_allocation_refused": true,
+ "result": "PASS",
+ "routing": {
+  "capacity_per_expert": 40,
+  "index_dtype": [
+   "int32"
+  ],
+  "legal": true,
+  "moe_layers_declared": 64,
+  "moe_layers_traced": 64,
+  "num_experts": 64,
+  "selected_shapes": [
+   [
+    40,
+    12
+   ]
+  ],
+  "top_k": 12
+ },
+ "schema": "scientific-moe-meta-validation/1"
+}
