@@ -9224,3 +9224,23 @@ output is verified, promoted or scientifically validated; the training data
 are simulator outputs whose own status is INVARIANTS_HOLD, not
 authority-verified. Distributed readiness is software on simulated CPU
 devices only. The estimates are arithmetic, not measurements.
+
+**THE COMMITTED RESULT** (recorded with the tranche report, section 17 of
+the plan). At `0a0d43e`, `docs/neural/` holds what `tools/neural.py all`
+wrote at the clean commit `8ee1e5b`, which every manifest names as its
+source: 3,456 governed samples (digest `5b7332a5...`, 0 rejected, every
+leakage check passed); 4,000 training steps with fresh runs equal tensor for
+tensor and an EXACT_RESUME bit-identical to the uninterrupted run; the
+final checkpoint `74de5740...` reloaded to identical outputs; and an
+evaluation that reports what the development model gets wrong -- its
+predictions violate declared invariants of the source model on part of the
+test split, its impingement-flux intervals undercover (65.5 % at 90 %
+nominal), and out of distribution its coverage collapses -- without
+clipping any of it. Claims, recomputed in a fresh history: the flagship
+holds ARCHITECTURE_DEFINED, ARCHITECTURE_PARAMETER_VERIFIED and
+ARCHITECTURE_META_VALIDATED in its own right, training and reload only in
+FAMILY_MEMBER scope, and the attempt to accept the evaluation was refused
+by the store. Hosted: every job green at `8ee1e5b` (agent-substrate
+37566755617 and 37566759142; stack-verify 37566755602 and 37566759195) and at `0a0d43e` (agent-substrate 37574169210 and 37574174428; stack-verify 37574174415), the full suite run with the
+`neural` extra and `QTA_NEURAL_REQUIRED=1`, and all 78 mutation specs in
+8 shards.

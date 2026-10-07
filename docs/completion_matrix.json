@@ -2615,10 +2615,15 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "the code commit's hosted runs (agent-substrate push and pull_request, stack-verify) were green on every job, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1 and every mutation shard included; the evidence commit changes tools/neural.py, so hosted_evidence is recorded against the evidence commit's own runs, whose implementation is the one this row lists",
+      "hosted_ci": "agent-substrate runs 37574169210 and 37574174428 at 0a0d43e green on every job (full suite, legacy-semantics audit, the evidence verify step, 8 mutation shards and their aggregate); the code commit 8ee1e5b's runs were green too, and cover an earlier tools/neural.py",
       "hosted_evidence": {
-        "runs": [],
-        "note": "recorded against the evidence commit once a hosted run on that exact commit has covered it; the code commit's green runs cover an earlier tools/neural.py"
+        "runs": [
+          "37574169210",
+          "37574174428"
+        ],
+        "commit": "0a0d43e6ce7ed6fc5e1ec3128b248d196b2c0a95",
+        "implementation_sha256": "4ed4e338143d28fefaf7186ce2c575baae58fed67bb4967f1a9413e08598de77",
+        "note": "agent-substrate push and pull_request runs at the evidence commit, every job green: the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, `tools/neural_legacy_audit.py --check`, `tools/neural.py verify`, and all 78 mutation specs in 8 shards"
       },
       "residual_gaps": [
         "the ~1T configuration has not been allocated or trained, and neither has any rung of the ladder above the development member: that needs paid accelerator compute this tranche does not authorise",

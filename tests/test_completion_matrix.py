@@ -710,7 +710,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: matrix as committed. It is zero, and zero is the finding (D-2026-44): 21
 #: rows cite two runs from a commit 99 behind head, 4 cite runs whose commit
 #: was never recorded, and 14 have never had a hosted run at all.
-EXPECTED_EVIDENCE_COVERS = 0
+#:
+#: 0 -> 1 with the NF-1T report. R60 cites agent-substrate runs 37574169210
+#: and 37574174428 at 0a0d43e, every job green, and its implementation digest
+#: at that commit; the report commit changes none of R60's files, so the
+#: validator derives COVERS_CURRENT_IMPLEMENTATION. The next change to any of
+#: them turns it back into PREDATES, and this number has to follow.
+EXPECTED_EVIDENCE_COVERS = 1
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

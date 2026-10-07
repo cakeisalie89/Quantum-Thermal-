@@ -3158,15 +3158,15 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 212863,
-      "sha256": "9e9f5adedf50058215fd6feebf4d10c36d424022b9b57632aa9bb2b4dc217101",
+      "size_bytes": 213078,
+      "sha256": "80a380a9519abb79789427099e4088d4f97f5107f37dc7b54a2fbf53db7c7267",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 35881,
-      "sha256": "a30e1fd83900497e5496a01cd018ba1c46cfc9b92ff1dbe4da27bccddfc52394",
+      "size_bytes": 36257,
+      "sha256": "aade5f551ee3756039ab1cf74a170f036bb77501a51247f85ab36b437c29f30b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 8876,
-      "sha256": "abb82904c0198525c87c1b61459cae758f18e9487894dfe60a00b6f0f387c4f1",
+      "sha256": "e42d236aeee8eccaf3120a9b94c79864b7467a64b423f2726b770e3bcb62a2c9",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -3963,8 +3963,8 @@
     },
     {
       "filename": "docs/DEFECT_LEDGER.md",
-      "size_bytes": 510363,
-      "sha256": "6469b4c0460569a393df1d972424b78ee93f0578cb516f87002d4b13b3bbbae3",
+      "size_bytes": 511777,
+      "sha256": "fe846ef3643cb368ee7918b94e2d68b9eb1fe426c62ad2aee72be1d675c57b81",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4180,8 +4180,8 @@
     },
     {
       "filename": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "size_bytes": 141971,
-      "sha256": "185fcf971bece2077ccedff2ad219fe7a5e3caa8741aacad03b2d2a20ff74925",
+      "size_bytes": 169094,
+      "sha256": "58aabbc6a14327b49446dd45355e0cf4426f65e19bc5dae49fa6dfdf6396eb2b",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
