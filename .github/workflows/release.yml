@@ -24,6 +24,10 @@ env:
   REL_DIR: release
   REL_ZIP: release/QTA_source.zip
   REL_BUNDLE: release/bundle
+  # NF-1T: the full suite below includes the learned-model tests; with the
+  # `neural` extra synced they run, and where it is absent they FAIL rather
+  # than skip, so a release cannot be verified by skipping them.
+  QTA_NEURAL_REQUIRED: "1"
 jobs:
   verify-and-release:
     runs-on: ubuntu-latest
@@ -34,7 +38,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
         with: {persist-credentials: false}
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
-      - run: uv sync --frozen --all-groups
+      - run: uv sync --frozen --all-groups --extra neural
 
       # ---- establish WHICH revision is being released, independently ----
       # Not one environment variable copied into four files: the checkout SHA

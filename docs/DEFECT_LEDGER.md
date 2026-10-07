@@ -9112,3 +9112,115 @@ R59-E closes for the STAGED reference. Both hosts are virtual machines,
 so "physical CPU" is the class each guest sees; it is one pair of hosts;
 it proves reproducibility across them, not that any number is right; and
 the canonical corpus is still the witnessed native backend's.
+
+## D-2026-103 — a learned record could take every generic authority edge, and nothing existed that could state what a learned model is, trained on, or may claim
+
+**CLASS** — `LEARNED_SUBSTRATE_ABSENT`, NF-1T. `scientific_ai/neural/`,
+`qta_agent/learned_rules.py`, `qta_agent/learned_lifecycle.py`,
+`qta_agent/store.py`, `qta_agent/reconstruct.py`,
+`tools/neural.py`, `tools/neural_ledger.py`, `tools/neural_legacy_audit.py`.
+
+**WHAT WAS THERE** (`docs/neural/nf1t_inventory.json`, recorded at
+`f303a73` before any change). No generic neural, training, checkpoint or
+distributed code; no framework installed; the one learned layer in the
+repository (`qta_multiphysics/deep_expdesign/`) is legacy, bound to the
+apparatus's design space, and stays unimported. The authority store had
+content rules for scientific results and none for anything learned: a
+record of any kind could take PROPOSED -> UNDER_REVIEW -> VERIFIED ->
+PROMOTED, so a learned prediction registered as a record could have been
+verified by evidence about itself. Units were strings with no parser from a
+unit to its dimension, and nothing could say how many parameters a
+configuration has, how many a token uses, or whether a large configuration
+had been allocated, trained, or only described.
+
+**REPAIR.**
+
+* **The boundary first.** `qta_agent/learned_rules.py`: every kind prefixed
+  `learned_` is refused VERIFIED and PROMOTED -- in `AuthorityStore`
+  before the append (a live transition never reaches the log) and again on
+  replay (`_admit`), so a log written by anything else cannot carry one in.
+  The second reader (`qta_agent/reconstruct.py`) restates the rule
+  independently and reports such a transition as unauthorized. No admission
+  policy for learned models exists; every learned output is
+  `LEARNED_PREDICTION`, `NON_AUTHORITATIVE`,
+  `REQUIRES_EXTERNAL_VERIFICATION`. `learned_lifecycle.py` registers the
+  seven document kinds through the EXISTING `record.create` /
+  `record.depend` actions (no new action class) and refuses a document
+  whose upstream is REVOKED, REJECTED or STALE, or whose digests do not
+  link. Only `tools/neural_ledger.py` drives it; `tools/neural.py`, which
+  generates data and trains, runs that tool as a separate process and
+  imports nothing from `qta_agent` (a test pins it), so no process that
+  computes a dataset or a model loads the authority substrate.
+* **A family, not a file name.** `scientific_ai/neural/config.py`,
+  `accounting.py`, `solver.py`, `family.py`: one configuration-driven
+  feature-token MoE family. The parameter count is exact arithmetic over the
+  configuration by fourteen categories; active-per-token counts the embedding
+  rows a token reads and `top_k` of the experts, never all of them; the
+  batch-touched count is a separate, bounded quantity. The budget solver
+  resolves the expert width and `top_k` against a stated target and range and
+  records every candidate it evaluated.
+* **Meta validation is not allocation.** `model/meta.py` traces the real
+  `init` and `apply` with `jax.eval_shape`; the abstract tensors are
+  counted category by category against the arithmetic. A real allocation
+  above 2 GiB is refused twice, independently -- `meta.materialize` and
+  `network.init` -- unless `allow_large=True` AND
+  `QTA_NEURAL_ALLOW_LARGE_ALLOCATION=1`, which nothing in the repository
+  sets.
+* **Data with provenance.** `source_surface_adsorption.py` builds every
+  sample by one run of the admitted `surface.langmuir_capture@1.0.0` model
+  through `scientific.model.run_model`, carrying the bundle, parameter and
+  implementation digests and the backend identity; splits are a hash of the
+  provenance family; normalisation is fitted on the training split only; the
+  out-of-distribution split is a separate temperature region; leakage checks
+  and their remaining risks are written into the dataset manifest.
+* **Tokens that carry their units.** `units.py` parses a unit string to
+  seven SI exponents and a class (K and Pa are different dimensions; PER_ROW
+  is refused); `tokens.py` and `features.py` encode identity, a
+  standardised value, sign, log-magnitude and exact zero, the dimension, the
+  role and MISSING as its own state. NaN and infinity are refused with a
+  reason, never clipped.
+* **Checkpoints without pickle.** `model/checkpoint.py` writes the
+  safetensors layout with NumPy, decodes strictly, identifies a checkpoint by
+  the sha256 of its bytes and refuses a load whose digest, configuration,
+  tensor set or shapes differ. Resume semantics are one of five, and only
+  EXACT_RESUME continues a run's lineage.
+* **Claims that need their evidence.** `claims.py` evaluates nine claims
+  from documents, by digest, with a scope (SUBJECT, FAMILY_MEMBER, FAMILY);
+  `LARGE_MODEL_TRAINED` and `DISTRIBUTED_HARDWARE_VALIDATED` cannot hold
+  from anything this repository produces, and a simulated device profile
+  cannot record a hardware execution.
+* **No legacy semantics.** `tools/neural_legacy_audit.py` classifies every
+  hit of the hardware-era mode, routing and sequence vocabulary; the result
+  is gated in CI at zero `ACTIVE_NEURAL_SEMANTIC_LEAK`.
+* **Dependencies.** `jax`, `jaxlib` 0.11.2 and `ml-dtypes` 0.6.0 (all
+  Apache-2.0) as the optional extra `neural`, locked; `opt-einsum` 3.4.0
+  (MIT) comes in transitively. No existing locked version moved, and the
+  reference-backend export (`--all-groups`, no extras) is byte-identical
+  before and after. PyTorch was not chosen: `download.pytorch.org` is
+  refused by the network policy, and the PyPI x86-64 wheel is the CUDA
+  build.
+
+**MEASURED** (dry run before the commit; the committed evidence is
+regenerated at the commit and recorded with it). The flagship member --
+d 8192, 64 layers, 64 heads, 64 routed SwiGLU experts of width 9,728,
+`top_k` 12 -- has 996,509,217,800 trainable parameters (-0.349 % of the
+1T target), 8,200 non-trainable buffers, and 200,832,889,864 active per
+token (+0.416 % of 200B). `jax.eval_shape` resolved it with the abstract
+count equal in every category, all 64 MoE layers traced with legal routing,
+zero live arrays before and after, 16,646,144 bytes of peak-RSS growth, and
+the real allocation (1,993,018,468,400 bytes) refused.
+
+**EVIDENCE.** `tests/test_neural_{config,accounting,features,data,moe,model,
+meta,provenance,boundary,training,distributed}.py`; mutations
+NA1-NA20 (accounting, configuration, solver), NT1-NT20 (tokens, units,
+datasets, OOD, constraints), NR1-NR14 (router and MoE), NU1-NU22 (meta
+validation, claims, checkpoints, lineage, the store and second-reader
+refusal), NX1-NX7 (training and resume), NP1-NP5 (parallel plans).
+
+**NOT CLAIMED.** The flagship has never been allocated, trained or run on any
+accelerator: it is parameterised and structurally validated. The development
+member's results are its own and say nothing about the flagship's. No learned
+output is verified, promoted or scientifically validated; the training data
+are simulator outputs whose own status is INVARIANTS_HOLD, not
+authority-verified. Distributed readiness is software on simulated CPU
+devices only. The estimates are arithmetic, not measurements.

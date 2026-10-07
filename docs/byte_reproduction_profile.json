@@ -188,10 +188,10 @@
  },
  "does_not_mean": "Not the historical provenance of the corpus: the machine that first produced it is not claimed. Not evidence that any number is correct, measured or validated. Not scientific equivalence between backends. MODEL-ONLY / FORECAST-ONLY; PASS remains 0.",
  "environment": {
-  "digest": "334d616626e130de8b85ea4960d4ef5593afc99eeae3e5947d0db3e7b6594fa3",
+  "digest": "5382014ee586fd4a99a75376f1ca9530d44c344c6304861a87df5b3c0750f856",
   "lock": {
-   "pyproject.toml": "91be65fe12b834e870b0a594545d6807a905afb7646ce320ca6bae901387cf4c",
-   "uv.lock": "24809e90979a8b9ee10e9ddbb679a20a474ea2914a5174c24e20cdf14be8adc8"
+   "pyproject.toml": "c901d6faa2c347088dec6d04e00a9b9f77737d696755e65dfb588197e64560f7",
+   "uv.lock": "b312acac36b5da152cf6e53e14234a99785d69edacd3dac89e63fdfee3b78bde"
   }
  },
  "generator": {
@@ -521,8 +521,8 @@
     "by": "tools/reproduction_witness.py establish",
     "byte_identical": 88,
     "compared": 88,
-    "head": "77539515720b1e85aed83d9f03d1e8f7cd490db0",
-    "on": "2026-09-28",
+    "head": "f303a73d991c2eef75a4ac8b66c88ad64fe717a6",
+    "on": "2026-10-06",
     "regenerated": 89,
     "tracked_tree_clean": false
    }

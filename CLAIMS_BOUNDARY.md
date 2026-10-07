@@ -27,6 +27,9 @@ required boundaries is missing. A sentence nobody enforces is not listed here.
 | EB9 | A surrogate prediction is not ground truth. | `scientific/observation.py` (SIMULATED); `qta_multiphysics/deep_expdesign/ood.py` (fit_ood) |
 | EB10 | An optimization result is not a physical optimum. | `qta_multiphysics/stack/mdao_openmdao.py` (assert_design_variables); `scientific/observation.py` (SIMULATED) |
 | EB11 | Model calibration is not model validation. | `scientific/verification.py` (Establishes); `scientific/observation.py` (MEASURED) |
+| EB12 | A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED. | `qta_agent/learned_rules.py` (refusal); `qta_agent/store.py` (AuthorityStore); `qta_agent/reconstruct.py` (_LEARNED_PREFIX) |
+| EB13 | A meta-validated architecture is not an allocated, trained or validated model. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/model/meta.py` (materialize) |
+| EB14 | A development model's training is not the flagship's. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/claims.py` (derive_status) |
 
 ## Three meanings of "verified"
 

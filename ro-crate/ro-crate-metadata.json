@@ -196,7 +196,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "222817",
+   "contentSize": "238348",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -244,10 +244,10 @@
   {
    "@id": "pyproject.toml",
    "@type": "File",
-   "contentSize": "4177",
+   "contentSize": "5282",
    "description": "project/tooling authority",
    "name": "pyproject.toml",
-   "sha256": "91be65fe12b834e870b0a594545d6807a905afb7646ce320ca6bae901387cf4c"
+   "sha256": "c901d6faa2c347088dec6d04e00a9b9f77737d696755e65dfb588197e64560f7"
   },
   {
    "@id": "qta_full_sim.py",
@@ -326,10 +326,10 @@
   {
    "@id": "uv.lock",
    "@type": "File",
-   "contentSize": "153125",
+   "contentSize": "158506",
    "description": "locked dependency resolution (71+ pkgs)",
    "name": "uv.lock",
-   "sha256": "24809e90979a8b9ee10e9ddbb679a20a474ea2914a5174c24e20cdf14be8adc8"
+   "sha256": "b312acac36b5da152cf6e53e14234a99785d69edacd3dac89e63fdfee3b78bde"
   },
   {
    "@id": "validation_matrix.csv",

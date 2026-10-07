@@ -1,0 +1,165 @@
+{
+ "title": "Meta validation, claims, checkpoints, lineage and the learned-record authority boundary (NF-1T)",
+ "note": "NU1-NU22: a meta validation that allocates, a development run credited to the flagship or a large model, an interrupted run counted as trained, a tampered report accepted, a learned record made authority live or on replay or by the second reader, a broken lineage link accepted, a checkpoint's bytes or tensors unchecked, resume semantics conflated, the learned-prediction semantics dropped, a legacy import or machine-mode name planted in the substrate.",
+ "suites": [
+  "tests/test_neural_meta.py",
+  "tests/test_neural_provenance.py",
+  "tests/test_neural_boundary.py"
+ ],
+ "mutations": [
+  {
+   "name": "NU1_meta_validation_allocates",
+   "path": "scientific_ai/neural/model/meta.py",
+   "find": "    p_abs, b_abs = abstract_init(cfg)\n    leaves = jax.tree_util.tree_leaves((p_abs, b_abs))\n",
+   "replace": "    p_abs, b_abs = materialize(cfg, jax.random.key(0))\n    leaves = jax.tree_util.tree_leaves((p_abs, b_abs))\n",
+   "rationale": "the meta path builds real tensors"
+  },
+  {
+   "name": "NU2_materialize_guard_off",
+   "path": "scientific_ai/neural/model/meta.py",
+   "find": "    if need > max_bytes and not opted_in:\n",
+   "replace": "    if False:\n",
+   "rationale": "materialize no longer refuses; only network.init's own guard remains"
+  },
+  {
+   "name": "NU3_init_guard_off",
+   "path": "scientific_ai/neural/model/network.py",
+   "find": "        if need > INIT_LIMIT_BYTES and (approved_bytes is None\n",
+   "replace": "        if False and (approved_bytes is None\n",
+   "rationale": "network.init allocates any size unapproved"
+  },
+  {
+   "name": "NU4_any_run_trains_the_subject",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "            if t[\"model_configuration_digest\"] == subject\n",
+   "replace": "            if True\n",
+   "rationale": "a development run credited to the flagship"
+  },
+  {
+   "name": "NU5_interrupted_counts_as_trained",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "            and t[\"completion_state\"] == \"COMPLETED\"]\n",
+   "replace": "            or t[\"completion_state\"] == \"COMPLETED\"]\n",
+   "rationale": "an interrupted run counted as a trained model"
+  },
+  {
+   "name": "NU6_large_threshold_ignored",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "        if isinstance(params, int) and params >= LARGE_MODEL_THRESHOLD:\n",
+   "replace": "        if isinstance(params, int):\n",
+   "rationale": "a 0.4M-parameter run called a large model"
+  },
+  {
+   "name": "NU7_member_evidence_promoted",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "                    \"holds\": True, \"scope\": \"FAMILY_MEMBER\",\n                    \"member\": member, \"evidence\": [digest(t) for t in mt],\n",
+   "replace": "                    \"holds\": True, \"scope\": \"SUBJECT\",\n                    \"member\": member, \"evidence\": [digest(t) for t in mt],\n",
+   "rationale": "a member's training reported as the flagship's"
+  },
+  {
+   "name": "NU8_tampered_meta_counts_accepted",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "              and rep[\"abstract_by_category\"] == pc.by_category\n",
+   "replace": "              and True\n",
+   "rationale": "a meta report whose counts disagree accepted"
+  },
+  {
+   "name": "NU9_learned_rule_off",
+   "path": "qta_agent/learned_rules.py",
+   "find": "    if is_learned(kind) and value in REFUSED_STATES:\n",
+   "replace": "    if False:\n",
+   "rationale": "a learned record may become VERIFIED"
+  },
+  {
+   "name": "NU10_store_live_refusal_off",
+   "path": "qta_agent/store.py",
+   "find": "            learned = learned_rules.refusal(cur.kind, dst)\n",
+   "replace": "            learned = None\n",
+   "rationale": "the live edge appends a refused transition before replay objects"
+  },
+  {
+   "name": "NU11_second_reader_refusal_off",
+   "path": "qta_agent/reconstruct.py",
+   "find": "                    and cur[\"kind\"].startswith(_LEARNED_PREFIX)\n",
+   "replace": "                    and cur[\"kind\"].startswith(\"__never__\")\n",
+   "rationale": "the second reader carries a learned VERIFIED forward"
+  },
+  {
+   "name": "NU12_ledger_link_unchecked",
+   "path": "qta_agent/learned_lifecycle.py",
+   "find": "                if why is not None:\n",
+   "replace": "                if False:\n",
+   "rationale": "a training run of another dataset recorded"
+  },
+  {
+   "name": "NU13_checkpoint_digest_unchecked",
+   "path": "scientific_ai/neural/model/checkpoint.py",
+   "find": "    if got != expected_digest:\n",
+   "replace": "    if False:\n",
+   "rationale": "a checkpoint loaded whatever its bytes"
+  },
+  {
+   "name": "NU14_tensor_buffer_gap_accepted",
+   "path": "scientific_ai/neural/model/checkpoint.py",
+   "find": "        if b != pos:\n",
+   "replace": "        if False:\n",
+   "rationale": "a header whose offsets gap or overlap accepted"
+  },
+  {
+   "name": "NU15_tensor_set_unchecked",
+   "path": "scientific_ai/neural/model/checkpoint.py",
+   "find": "    if have != set(want):\n",
+   "replace": "    if False:\n",
+   "rationale": "a checkpoint with a missing or extra tensor loaded"
+  },
+  {
+   "name": "NU16_chain_dataset_unchecked",
+   "path": "scientific_ai/neural/manifests.py",
+   "find": "    if training[\"dataset_digest\"] != dataset[\"dataset_digest\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "a run of another dataset passes the chain"
+  },
+  {
+   "name": "NU17_chain_bytes_unchecked",
+   "path": "scientific_ai/neural/manifests.py",
+   "find": "    if checkpoint_bytes_digest is not None and \\\n",
+   "replace": "    if False and \\\n",
+   "rationale": "checkpoint bytes not compared with the manifest"
+  },
+  {
+   "name": "NU18_warm_start_continues_lineage",
+   "path": "scientific_ai/neural/manifests.py",
+   "find": "        if doc[\"resume_semantics\"] not in SAME_LINEAGE and \\\n",
+   "replace": "        if False and \\\n",
+   "rationale": "a warm start passed off as the same run"
+  },
+  {
+   "name": "NU19_learned_semantics_dropped",
+   "path": "scientific_ai/neural/manifests.py",
+   "find": "        if doc[\"semantics\"] != list(PREDICTION_SEMANTICS):\n",
+   "replace": "        if False:\n",
+   "rationale": "an evaluation without LEARNED_PREDICTION / NON_AUTHORITATIVE accepted"
+  },
+  {
+   "name": "NU20_legacy_import_planted",
+   "path": "scientific_ai/neural/units.py",
+   "find": "import re\nfrom dataclasses import dataclass\n",
+   "replace": "import re\nfrom dataclasses import dataclass\n\nimport qta_multiphysics.thermal_1d  # noqa: F401,E402\n",
+   "rationale": "the substrate imports a hardware-era module"
+  },
+  {
+   "name": "NU21_machine_mode_planted",
+   "path": "scientific_ai/neural/tokens.py",
+   "find": "CONTEXTS = (\"INPUT\", \"CONDITION\", \"RESERVED_2\", \"RESERVED_3\")\n",
+   "replace": "CONTEXTS = (\"INPUT\", \"CONDITION\", \"MODE_B\", \"RESERVED_3\")\n",
+   "rationale": "a machine mode becomes a token context"
+  },
+  {
+   "name": "NU22_member_not_named_in_plain_language",
+   "path": "scientific_ai/neural/documents.py",
+   "find": "    if member[\"holds\"] and member[\"scope\"] == \"FAMILY_MEMBER\":\n",
+   "replace": "    if False:\n",
+   "rationale": "the summary stops saying that only a development member was trained"
+  }
+ ]
+}

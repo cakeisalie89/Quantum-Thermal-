@@ -153,6 +153,22 @@ RULES = [
      "Second governed tool (digest index); generalize with "
      "governed_stage10 in Phase 2.",
      "docstring names results_gate_table.csv as a possible input"),
+    ("scientific_ai/neural/model/*.py", KAH,
+     "NEW (NF-1T): the learned-model substrate's JAX implementation -- "
+     "network, zero-allocation meta validation with two allocation "
+     "guards, training, safe checkpoints, evaluation, distributed plans "
+     "and the expert-parallel layer; JAX imported in one guarded place.",
+     "tests/test_neural_model.py"),
+    ("scientific_ai/neural/*.py", KAH,
+     "NEW (NF-1T): the scientific feature-token MoE family without JAX -- "
+     "configuration, units, tokens, exact parameter accounting, the budget "
+     "solver, estimates, claims, manifests, governed datasets, OOD classes "
+     "and external constraints.",
+     "tests/test_neural_accounting.py"),
+    ("scientific_ai/*.py", KAH,
+     "NEW (NF-1T): the learned-model package; a learned prediction is "
+     "never authority.",
+     "tests/test_neural_boundary.py"),
     ("scientific/models/surface_adsorption.py", PLG,
      "EXTRACTED in tranche 4 (directive 22) from the cryopanel component "
      "model: ideal-gas density, impingement flux and exact Langmuir "
@@ -176,6 +192,16 @@ RULES = [
      "Observation kinds, Quantity, run and implementation identity. "
      "Standard library only; knows neither the agent nor the apparatus.",
      "tests/test_scientific_import_isolation.py"),
+    ("qta_agent/learned_rules.py", KAH,
+     "NEW (NF-1T): no learned record becomes VERIFIED or PROMOTED -- no "
+     "admission policy for learned models exists; enforced on the store's "
+     "edge, live and on replay, and restated in the second reader.",
+     "tests/test_neural_provenance.py"),
+    ("qta_agent/learned_lifecycle.py", KAH,
+     "NEW (NF-1T): a learned model's lifecycle in the one authority log, "
+     "through the existing record actions, each link checked by digest "
+     "before anything is written.",
+     "tests/test_neural_provenance.py"),
     ("qta_agent/*.py", KAI,
      "Generic governed-agent substrate (actions/authority/canonical/eviden"
      "ce/execution/hostid/invalidation/readpath/safeio/separate_verify/tas"
@@ -649,6 +675,26 @@ RULES = [
      "NEW (D-2026-101): establishes, checks and consults the byte-"
      "reproduction witness profile; the release's early strict refusal.",
      "R59-B/D"),
+    ("tools/neural.py", KAH,
+     "NEW (NF-1T): generates the learned-model substrate's evidence and "
+     "verifies it (the CI step): re-solves the budget, meta-validates the "
+     "flagship, re-checks every digest link, reloads the checkpoint, "
+     "recomputes the claims in a fresh authority history.",
+     ""),
+    ("tools/neural_ledger.py", KAH,
+     "NEW (NF-1T): the one learned-model tool that imports qta_agent -- "
+     "records the written documents in a fresh authority history and "
+     "evaluates the claims; computes no scientific result; run by "
+     "tools/neural.py as a separate process.",
+     "tests/test_neural_boundary.py"),
+    ("tools/neural_legacy_audit.py", KAH,
+     "NEW (NF-1T): classifies every occurrence of the hardware-era machine "
+     "semantics by an ordered rule table; zero allowed in the substrate.",
+     "tests/test_neural_boundary.py"),
+    ("tools/mutations/neural_*.json", KAH,
+     "NEW (NF-1T): mutation matrices of the learned-model substrate -- "
+     "accounting, tokens, routing, authority, training, parallel plans.",
+     ""),
     ("tools/reference_backend.py", KAH,
      "NEW (D-2026-102): the canonical reference backend's recipe check, "
      "build record, in-runtime conformance and identity. STAGED: it defines "
@@ -1024,6 +1070,17 @@ RULES = [
     ("tests/test_regenerate_instrumented.py", KAH,
      "NEW (D-2026-101): the regeneration wrapper's measured closure.",
      ""),
+    ("tests/test_neural_*.py", KAH,
+     "NEW (NF-1T): the learned-model substrate's tests -- configuration, "
+     "accounting, tokens, data, routing, model, meta validation, "
+     "provenance and authority, training, distributed readiness, the "
+     "hardware-era boundary, and the committed evidence.",
+     ""),
+    ("tests/neural_support.py", KAH,
+     "NEW (NF-1T): JAX for the substrate's tests, or a decision about its "
+     "absence -- a skip on a developer's machine, a failure where "
+     "QTA_NEURAL_REQUIRED=1.",
+     ""),
     ("tests/test_reference_backend.py", KAH,
      "NEW (D-2026-102): the reference recipe refused wherever it leaves the "
      "arithmetic to the host; conformance and identity of the runtime.",
@@ -1178,6 +1235,15 @@ RULES = [
      "release policy, HDF5 model -- moved unchanged out of the root in "
      "tranche 4 (directive 13); still read by the legacy verifier.",
      "directive 13"),
+    ("docs/neural/legacy_semantic_audit.json", KAH,
+     "NEW (NF-1T): where the hardware-era machine semantics still appear "
+     "and why, by rule; written only by tools/neural_legacy_audit.py.",
+     "tests/test_neural_boundary.py"),
+    ("docs/neural/*.json", KAH,
+     "NEW (NF-1T): the architecture evidence -- the flagship and "
+     "development manifests and meta validations, the family table, the "
+     "distributed report and the claims; written only by tools/neural.py.",
+     ""),
     ("docs/*.json", REG,
      "Tool-generated inventories/baselines "
      "(identity/unit/resolution/performance/clip/blas).",
@@ -1227,6 +1293,10 @@ RULES = [
     ("TESTING.md", RWG,
      "Test discipline record; its QTA gate and byte-gate framing is "
      "rewritten with the root identity documents (directive 13).",
+     ""),
+    ("NEURAL_SUBSTRATE.md", KAH,
+     "NEW (NF-1T): what the learned-model substrate is, what may be said "
+     "about the ~1T configuration, and the exact meaning of every count.",
      ""),
     ("STACK.md", RWG,
      "Declared scientific stack; rewritten around the framework rather "

@@ -52,6 +52,11 @@ REQUIRED = (
     ("surrogate prediction", "ground truth"),
     ("optimization result", "physical optimum"),
     ("model calibration", "model validation"),
+    # NF-1T: what a learned model is not, and what a counted, abstractly
+    # validated architecture is not.
+    ("learned prediction", "authority"),
+    ("meta-validated architecture", "allocated, trained or validated model"),
+    ("development model's training", "flagship's"),
 )
 
 

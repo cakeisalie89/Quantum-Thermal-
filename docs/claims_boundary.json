@@ -188,6 +188,67 @@
         "tests/test_scientific_interfaces.py::test_a_calibration_must_cite_a_measurement"
       ],
       "note": "A CALIBRATED_PARAMETER cites measurements but is not one; a comparison against it cannot establish EXPERIMENTAL_VALIDATION."
+    },
+    {
+      "id": "EB12",
+      "statement": "A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED.",
+      "enforced_in": [
+        {
+          "module": "qta_agent/learned_rules.py",
+          "symbol": "refusal"
+        },
+        {
+          "module": "qta_agent/store.py",
+          "symbol": "AuthorityStore"
+        },
+        {
+          "module": "qta_agent/reconstruct.py",
+          "symbol": "_LEARNED_PREFIX"
+        }
+      ],
+      "tests": [
+        "tests/test_neural_provenance.py::test_the_store_refuses_to_make_a_learned_record_authority",
+        "tests/test_neural_provenance.py::test_replay_and_the_second_reader_refuse_a_forbidden_edge"
+      ],
+      "note": "Every learned output is LEARNED_PREDICTION, NON_AUTHORITATIVE, REQUIRES_EXTERNAL_VERIFICATION; no admission policy for learned models exists."
+    },
+    {
+      "id": "EB13",
+      "statement": "A meta-validated architecture is not an allocated, trained or validated model.",
+      "enforced_in": [
+        {
+          "module": "scientific_ai/neural/claims.py",
+          "symbol": "evaluate"
+        },
+        {
+          "module": "scientific_ai/neural/model/meta.py",
+          "symbol": "materialize"
+        }
+      ],
+      "tests": [
+        "tests/test_neural_meta.py::test_the_flagship_manifest_is_well_formed_and_claims_its_evidence",
+        "tests/test_neural_meta.py::test_a_real_flagship_allocation_is_refused_before_anything_exists"
+      ],
+      "note": "The ~1T configuration is parameter-verified and meta-validated; LARGE_MODEL_TRAINED and SCIENTIFIC_PERFORMANCE_ESTABLISHED do not hold."
+    },
+    {
+      "id": "EB14",
+      "statement": "A development model's training is not the flagship's.",
+      "enforced_in": [
+        {
+          "module": "scientific_ai/neural/claims.py",
+          "symbol": "evaluate"
+        },
+        {
+          "module": "scientific_ai/neural/claims.py",
+          "symbol": "derive_status"
+        }
+      ],
+      "tests": [
+        "tests/test_neural_meta.py::test_the_flagship_is_never_trained_without_a_run_of_the_flagship",
+        "tests/test_neural_meta.py::test_a_trained_development_model_is_not_a_large_model"
+      ],
+      "note": "A family member's evidence is reported in FAMILY_MEMBER scope with its digest; it satisfies no SUBJECT claim."
     }
   ]
 }

@@ -1,8 +1,8 @@
 {
  "generated_by": "tools/dependency_declarations.py --write",
  "sources": {
-  "pyproject.toml": "91be65fe12b834e870b0a594545d6807a905afb7646ce320ca6bae901387cf4c",
-  "uv.lock": "24809e90979a8b9ee10e9ddbb679a20a474ea2914a5174c24e20cdf14be8adc8"
+  "pyproject.toml": "c901d6faa2c347088dec6d04e00a9b9f77737d696755e65dfb588197e64560f7",
+  "uv.lock": "b312acac36b5da152cf6e53e14234a99785d69edacd3dac89e63fdfee3b78bde"
  },
  "direct_dependencies": [
   {
@@ -130,7 +130,34 @@
    "use": "qta_multiphysics/stack/mdao_openmdao.py",
    "behavior_sensitive": null,
    "version_authority": "uv.lock"
+  },
+  {
+   "package": "jax",
+   "version": "0.11.2",
+   "dependency_class": "extra:neural",
+   "reason": "",
+   "use": "scientific_ai/neural/model/_jax.py, tests/neural_support.py, tests/test_neural_model.py (+3 more)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "jaxlib",
+   "version": "0.11.2",
+   "dependency_class": "extra:neural",
+   "reason": "",
+   "use": "not imported by Python (a tool or CLI)",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
+  },
+  {
+   "package": "ml-dtypes",
+   "version": "0.6.0",
+   "dependency_class": "extra:neural",
+   "reason": "",
+   "use": "scientific_ai/neural/model/checkpoint.py, tests/test_neural_provenance.py",
+   "behavior_sensitive": null,
+   "version_authority": "uv.lock"
   }
  ],
- "transitive": "see uv.lock (89 packages; lockfile is the resolution authority)"
+ "transitive": "see uv.lock (93 packages; lockfile is the resolution authority)"
 }

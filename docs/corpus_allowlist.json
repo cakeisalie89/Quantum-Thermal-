@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "121fb1b9f5f0a584d6a5d23aae5d77c9512d25c6db5c83dd9ac08f075ee89992",
+  "entries_digest": "b6b4429094e510e8f2be6a6e207ab9fd7d787d8da1dd877510809bf98674f6f4",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "7b5de791bb00caaf7dfa6c9260c5bcf6dc7043256325947b277dfc248ac91326"
+      "sha256": "15b4558ba00e3d61eb5108d063055725a9c9cbd065143181d27c39ce7b26eb59"
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
@@ -18,7 +18,7 @@
     },
     {
       "path": "CLAIMS_BOUNDARY.md",
-      "sha256": "ab6b9128c13b979b452e00dbed1ababfad547f841f5db2b20cd6ca2202308db8"
+      "sha256": "33027f9516305919ebee84470560fb7d285fa783a2631d77e1213b5552a331bf"
     },
     {
       "path": "DEPENDENCY_CUTOVER.md",
@@ -113,6 +113,10 @@
       "sha256": "e3eafa1e52ef0a1fd12b30f73d6d243e98b4d7b4bdca883bd0d81552ec37b462"
     },
     {
+      "path": "NEURAL_SUBSTRATE.md",
+      "sha256": "bbe8df766397ec2d3193a041f07b1abfcf219776e962813f660d3615227842ec"
+    },
+    {
       "path": "NUMERICAL_METHODS.md",
       "sha256": "97b0753ec99aea512bee5e0866087f90c74438be15f418845b46c1aabf3006ba"
     },
@@ -186,7 +190,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "245bf5bdddff3b8419a8e5cc48258a4adc4901dbf0a8da9a1b55556e37f32d48"
+      "sha256": "6469b4c0460569a393df1d972424b78ee93f0578cb516f87002d4b13b3bbbae3"
     },
     {
       "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",

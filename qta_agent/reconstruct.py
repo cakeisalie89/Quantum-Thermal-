@@ -435,6 +435,9 @@ _SCI_KIND = "scientific_result"
 
 #: The states whose entry is an admission.
 _SCI_ADMITTING = frozenset({"VERIFIED", "PROMOTED"})
+#: NF-1T: a record whose kind begins with this has NO admission policy, so
+#: no edge into VERIFIED or PROMOTED (qta_agent.learned_rules, restated).
+_LEARNED_PREFIX = "learned_"
 
 #: Admission policies this reader can decide under. A transition naming any
 #: other -- or none -- is refused: old authority is not re-read under a rule
@@ -818,6 +821,16 @@ def reconstruct(log: EventLog, *, reauthorize: bool = True,
                     # Do NOT apply. An unauthorized transition must not become
                     # canonical merely because it is present in the log.
                     continue
+            if (reauthorize and isinstance(cur["kind"], str)
+                    and cur["kind"].startswith(_LEARNED_PREFIX)
+                    and p.get("dst") in _SCI_ADMITTING):
+                # restated here, not imported from learned_rules: a second
+                # reader that asked the gate would agree with a broken gate
+                out.unauthorized.append(
+                    f"seq {ev.seq}: {rid} {cur['state']} -> {p.get('dst')} "
+                    "would be refused today: a learned record has no "
+                    "admission policy")
+                continue
             admission = None
             if (reauthorize and cur["kind"] == _SCI_KIND
                     and p.get("dst") in _SCI_ADMITTING):

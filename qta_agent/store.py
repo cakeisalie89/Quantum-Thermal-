@@ -33,7 +33,7 @@ import json
 from contextlib import nullcontext
 from dataclasses import dataclass, field, replace
 
-from . import actions, result_rules
+from . import actions, learned_rules, result_rules
 from .authority import (
     INITIAL,
     Role,
@@ -205,6 +205,9 @@ class AuthorityStore:
         machine would refuse today. Evidence this reader cannot resolve is
         not a refusal and not a pass: UNVERIFIABLE, with the reason.
         """
+        learned = learned_rules.refusal(rec.kind, dst)
+        if learned is not None:
+            raise StoreError(f"seq {seq}: {rec.record_id!r}: {learned}")
         if rec.kind != result_rules.KIND or dst not in (State.VERIFIED,
                                                         State.PROMOTED):
             return None, None
@@ -1072,6 +1075,12 @@ class AuthorityStore:
             # raises TransitionError if not permitted, including when a
             # cited digest does not resolve in the attached evidence store
             edge = check(req, resolve=self._resolver)
+            # decided BEFORE the append, so the refused edge never reaches
+            # the log; replay refuses it too (_admit), for a log written
+            # by something other than this method
+            learned = learned_rules.refusal(cur.kind, dst)
+            if learned is not None:
+                raise StoreError(f"{record_id}: {learned}")
             payload = {"record_id": record_id, "src": cur.state.value,
                        "dst": dst.value, "role": role.value,
                        "evidence": evidence,

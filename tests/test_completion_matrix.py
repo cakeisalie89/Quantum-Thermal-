@@ -31,9 +31,9 @@ def test_the_matrix_is_self_consistent():
 
 
 def test_every_requirement_row_is_present():
-    """R21-R59, no gaps. A missing row is a requirement quietly dropped."""
+    """R21-R60, no gaps. A missing row is a requirement quietly dropped."""
     ids = {r["id"] for r in CM.load()["rows"]}
-    expected = {f"R{n}" for n in range(21, 60)}
+    expected = {f"R{n}" for n in range(21, 61)}
     assert ids == expected, f"missing {sorted(expected - ids)}, " \
                             f"unexpected {sorted(ids - expected)}"
 
@@ -99,7 +99,12 @@ EXPECTED_COMPLETE = 37
 #: complete -- an equality that held by circumstance, written down as a rule.
 #: It fired the moment a row moved, saying "one of the two numbers is wrong"
 #: about two numbers that were both right.
-EXPECTED_ROWS = 39
+#:
+#: 39 -> 40 on D-2026-103 (NF-1T). R60 is the learned-model substrate, added
+#: DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS: the ~1T configuration is counted
+#: and meta-validated, never allocated or trained, and no admission policy
+#: for learned models exists. EXPECTED_COMPLETE does not move.
+EXPECTED_ROWS = 40
 
 
 def test_the_matrix_is_not_completed_silently():

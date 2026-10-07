@@ -40,6 +40,7 @@ rather than a web:
 | `hostid.py` | whether a process that held a lease is still there: boot id, pid and start ticks |
 | `actions.py` | every durable action name, and which reducer owns it |
 | `result_rules.py` | what a `scientific_result` must show before its record is VERIFIED or PROMOTED -- the named, versioned admission policy `scientific_result.admission/1`: a PASS from independent code about that exact bundle, every invariant holding, and ORIGIN: both documents captured by governed tasks before their verdicts, the check run by none of the proposer, the decider and the run's executor. Decided by the store on the live edge, again on replay and on snapshot restore (unreadable evidence: UNVERIFIABLE, never silently VERIFIED), and again by `reconstruct.py` in its own code |
+| `learned_rules.py` | no `learned_*` record becomes VERIFIED or PROMOTED (NF-1T): no admission policy for learned models exists, and every learned output is `LEARNED_PREDICTION`, `NON_AUTHORITATIVE`, `REQUIRES_EXTERNAL_VERIFICATION`. Refused by the store on the live edge before the append and again on replay; restated, not imported, by `reconstruct.py` |
 | `governed_model.py` | a scientific-model result from proposal to authority: the model run and its independent check as two governed tasks by different executors, and the authority decision by a reviewer who did neither (Phase 2); a proposal reuses a VERIFIED or PROMOTED result with the same run identity only when that result's evidence re-derives intact. Each model runs under its own governed tool (thermal 1D and 2D today). Its production caller is the Snakemake rule `s10_governed_model` |
 | `events.py` | append-only hash-chained log; the authority history. State is folded only from `read_verified()` / `read_verified_from()`: the raw `read()` refuses any other `qta_agent` module, and `tools/verified_read_guard.py` refuses it tree-wide (D-2026-76) |
 | `authority.py` | the transition table: what may become canonical |
@@ -57,6 +58,7 @@ rather than a web:
 | `secrets.py` | references that travel, values that do not, redaction at the surface |
 | `netauth.py` | egress as a bounded grant; default deny, label-wise hosts |
 | `store.py` | live projection, transactional through the log |
+| `learned_lifecycle.py` | a learned model's documents -- architecture, meta validation, dataset, training run, checkpoint, evaluation, distributed report -- as records through the existing `record.create` / `record.depend` actions, each digest link checked before anything is written; an upstream that is REVOKED, REJECTED or STALE is refused (NF-1T) |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
 | `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that refuses the reducers it checks |

@@ -31,7 +31,9 @@ def test_the_repository_holds_its_claims_boundary():
 
 
 def test_every_required_boundary_is_registered():
-    assert len(REG["boundaries"]) >= len(CE.REQUIRED) == 11
+    # 11 from directive 14; 14 since NF-1T (EB12-EB14: what a learned
+    # prediction and a counted, abstractly validated architecture are not).
+    assert len(REG["boundaries"]) >= len(CE.REQUIRED) == 14
 
 
 @pytest.mark.parametrize("bid", [e["id"] for e in REG["boundaries"]])

@@ -113,6 +113,14 @@ ALLOWED_IMPORTERS = {
     "tests/test_actor_authentication.py",
     "tests/test_authenticated_history.py",
     "tests/test_signed_append_lifecycle.py",
+    # NF-1T. The learned-record boundary's own tests: the store's live and
+    # replayed refusal, the second reader's, and the lifecycle's links.
+    "tests/test_neural_provenance.py",
+    # NF-1T. Records ALREADY-WRITTEN learned-model documents in a fresh,
+    # throwaway history and evaluates the claims; it computes no scientific
+    # result and trains nothing. tools/neural.py, which does both, runs it
+    # as a separate process and is deliberately NOT in this set.
+    "tools/neural_ledger.py",
 }
 
 #: THE FILE SET THIS CHECK ASKS ABOUT, and why it is not "tracked".
@@ -163,8 +171,16 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           "execution", "checkpoint", "authority",
           # The content rule for scientific results: JSON over canonical
           # digests, read by the store on the edge into VERIFIED.
-          "result_rules", "policy", "secrets",
-          "netauth", "store", "invalidation", "tasks", "reconstruct",
+          "result_rules",
+          # NF-1T: no learned record becomes VERIFIED or PROMOTED. Imports
+          # nothing internal; read by the store on the same edge.
+          "learned_rules",
+          "policy", "secrets",
+          "netauth", "store",
+          # NF-1T: a learned model's documents as records, through the
+          # existing record actions. HANDED a store; imports none.
+          "learned_lifecycle",
+          "invalidation", "tasks", "reconstruct",
           # Sits directly above reconstruct and below everything that
           # consumes a verdict: it spawns the independent verifier and
           # reads its answer, and imports no reducer of its own. Placed
