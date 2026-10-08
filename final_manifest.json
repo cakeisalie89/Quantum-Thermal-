@@ -3158,15 +3158,15 @@
     },
     {
       "filename": "docs/completion_matrix.json",
-      "size_bytes": 215101,
-      "sha256": "d902f60157033a34928e79c55159c7e47b174af148cb75c77170a10f6666597c",
+      "size_bytes": 215739,
+      "sha256": "c4122751bbe1c5fc8eb8cdd48a270f56c5fd3c45e92245e094524d1a50f686da",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
     {
       "filename": "tests/test_completion_matrix.py",
-      "size_bytes": 36688,
-      "sha256": "2924ee2159723e791906a311e3be0914c76b13f390db15b71a61781f1a4e04e5",
+      "size_bytes": 36977,
+      "sha256": "8918190092e944d02c5625431fb9b9fbf4d3b9af5ff9b204842055ba261607b8",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
     },
@@ -3698,7 +3698,7 @@
     {
       "filename": "docs/corpus_allowlist.json",
       "size_bytes": 9013,
-      "sha256": "0ed77720a644a251501542b757378c6aa02338257771ce476728e862b759d68b",
+      "sha256": "a20b850eb13c6054a8b3e571b75df322b1637410e0c83bfc9aba50859652cccc",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4180,8 +4180,8 @@
     },
     {
       "filename": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "size_bytes": 186963,
-      "sha256": "3bef0ce2beec72935df9f8107fd8e87cedb817e8e71bd85931fb004850befe52",
+      "size_bytes": 189269,
+      "sha256": "cc53ff4f01bd8074bbbf4d13c7aac40dd0f638e11c1e24370da343e48d90901f",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },

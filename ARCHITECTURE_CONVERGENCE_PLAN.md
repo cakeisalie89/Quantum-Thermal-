@@ -2818,6 +2818,32 @@ legacy_semantic_audit}.json`, `FILE_DISPOSITION.csv`,
 `docs/corpus_allowlist.json`, `ro-crate/ro-crate-metadata.json`,
 `final_manifest.json`, `manifest_hash.txt`.
 
+### Hosted CI, by exact SHA (recorded by C5)
+
+| SHA | agent-substrate, push / pull_request | stack-verify |
+|---|---|---|
+| `b7807bb` (C4) | 37823848084 / 37823855560: **all green**, 14 of 14 jobs each -- lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, full-suite (the `neural` extra, `QTA_NEURAL_REQUIRED=1`), dispatch-sensitivity, second-interpreter 3.13, cross-environment-3d, 8 mutation shards (all 79 specs) and their aggregate. The push run's shard 4 lost its runner mid-step at attempt 1 (cancelled inside a step, no test had failed); that job alone was re-run once, and attempt 2 is green -- the pull_request run's shard 4 was green on the same commit at its first attempt | pull_request 37823855548: green, 2 of 2 jobs (its push trigger's path filter does not include this commit's files) |
+
+The hosted `--policy ci` package-consistency run the final validation
+above defers to, from the full-suite job of 37823848084: PACKAGE_STATUS
+CONSISTENT, BACKEND_STATUS RESOLVED, REPRODUCTION_STATUS
+DIFFERENT_RESOLVED_BACKEND on hosted backend `7b42caba...` (not the witnessed one), CROSS_ENV_STATUS
+DECISION_STABLE_WITH_NUMERIC_DRIFT (88 files compared, 23 differing byte
+for byte; 0 structural, decision, discrete, non-finite, unclassified or
+bare zero-crossing/sign-flip differences; 27 bound zero crossings and 195
+precision differences, all permitted), SCIENTIFIC_EQUIVALENCE_STATUS
+NOT_ESTABLISHED. A green job, and not a reproduction.
+
+C5 cites the two agent-substrate runs as R60's `hosted_evidence` with R60's
+implementation digest at `b7807bb` (`dfc6c872...`). C5 changes no path that
+digest covers -- `git diff b7807bb..C5` over R60's 30 implementation paths
+is empty -- so the validator derives COVERS_CURRENT_IMPLEMENTATION, and
+`EXPECTED_EVIDENCE_COVERS` goes from 0 to 1 in the same commit. C5 itself
+changes three files: `docs/completion_matrix.json` (R60's `hosted_evidence`
+and `hosted_ci`), `tests/test_completion_matrix.py` (the constant) and this
+section; and, derived, `docs/corpus_allowlist.json` (this plan's digest),
+`final_manifest.json` and `manifest_hash.txt`.
+
 ### Remaining gaps
 
 Unchanged from section 17: the flagship and every rung above the
@@ -2833,7 +2859,10 @@ wider legacy vocabulary -- tranche E, not begun.
 
 ### Next, exactly
 
-C4's hosted runs, then C5 attaching them (R60 must derive
-COVERS_CURRENT_IMPLEMENTATION again). The harness completion programme
-continues from there. No training above the development member, and no
-flagship allocation, without an explicit owner decision.
+Done: C4's hosted runs are green and C5 attaches them (R60 derives
+COVERS_CURRENT_IMPLEMENTATION). Next: hosted CI on C5, then the harness
+completion programme, whose first commit changes R60's implementation only
+if it has to -- and any change to those files turns R60 back to PREDATES
+until a later commit cites that commit's runs. No training above the
+development member, and no flagship allocation, without an explicit owner
+decision.

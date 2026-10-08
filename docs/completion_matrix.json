@@ -2619,15 +2619,15 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate runs 37574169210 and 37574174428 at 0a0d43e green on every job (full suite, legacy-semantics audit, the evidence verify step, 8 mutation shards and their aggregate); the code commit 8ee1e5b's runs were green too, and cover an earlier tools/neural.py",
+      "hosted_ci": "agent-substrate runs 37823848084 (push) and 37823855560 (pull_request) at b7807bb, the NF-1T closure commit, green on every job (14 of 14 each: lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, dispatch-sensitivity, second interpreter, cross-environment, 8 mutation shards and their aggregate); the push run's shard 4 lost its runner mid-step in attempt 1 and that job alone was re-run once (attempt 2) -- the pull_request run's shard 4 was green on the same commit at the first attempt. Earlier: 37574169210 and 37574174428 at 0a0d43e, and the code commit 8ee1e5b's runs, which cover earlier implementations",
       "hosted_evidence": {
         "runs": [
-          "37574169210",
-          "37574174428"
+          "37823848084",
+          "37823855560"
         ],
-        "commit": "0a0d43e6ce7ed6fc5e1ec3128b248d196b2c0a95",
-        "implementation_sha256": "4ed4e338143d28fefaf7186ce2c575baae58fed67bb4967f1a9413e08598de77",
-        "note": "agent-substrate push and pull_request runs at the evidence commit, every job green: the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, `tools/neural_legacy_audit.py --check`, `tools/neural.py verify`, and all 78 mutation specs in 8 shards"
+        "commit": "b7807bb5ac415174ebbd8112db7cf4781678667e",
+        "implementation_sha256": "dfc6c8724eae03e945a49874e2b7ddf767c84e89fae4c7c4cebc079592f6765e",
+        "note": "agent-substrate push run (attempt 2: shard 4 of attempt 1 lost its runner mid-step; the failed job alone was re-run once) and pull_request run at the NF-1T closure commit, every job green: lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, dispatch-sensitivity, second interpreter, cross-environment, and all 79 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [
         "the ~1T configuration has not been allocated or trained, and neither has any rung of the ladder above the development member: that needs paid accelerator compute this tranche does not authorise",

@@ -723,7 +723,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: validator derives PREDATES. The closure commit's own runs are recorded in
 #: its report; they become R60's hosted evidence only in a commit that cites
 #: them with that commit's implementation digest.
-EXPECTED_EVIDENCE_COVERS = 0
+#:
+#: 0 -> 1 with C5, the commit after the closure. R60 cites agent-substrate
+#: runs 37823848084 and 37823855560 at b7807bb, every job green, and its
+#: implementation digest at that commit; C5 changes none of R60's files, so
+#: the validator derives COVERS_CURRENT_IMPLEMENTATION again.
+EXPECTED_EVIDENCE_COVERS = 1
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
