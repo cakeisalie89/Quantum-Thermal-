@@ -766,6 +766,20 @@ def test_every_mutation_states_why_it_matters(spec_path):
     assert not thin, thin
 
 
+@pytest.mark.parametrize("spec_path", _specs(), ids=lambda p: p.name)
+def test_every_committed_spec_passes_the_harness_own_validation(spec_path):
+    """The harness refuses a malformed spec at run time -- on a CI shard,
+    after the push. A committed spec with an empty replacement reached a
+    local run that way (NF-1T closure); the same rule is applied here, so it
+    fails before the commit instead."""
+    spec = importlib.util.spec_from_file_location("mm_validate", HARNESS)
+    mm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mm)
+    problems = mm.validate_spec(json.loads(spec_path.read_text(
+        encoding="utf-8")))
+    assert problems == [], problems
+
+
 # ---- a timeout is not a kill --------------------------------------------
 def test_a_mutation_killed_only_by_a_timeout_is_not_counted_as_coverage(
         tmp_path):

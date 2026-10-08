@@ -58,7 +58,7 @@
      "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
     ],
     "holds": true,
-    "reason": "every parallel check passed on SIMULATED_MULTI_DEVICE",
+    "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
     "scope": "FAMILY"
    },
    "LARGE_MODEL_TRAINED": {
@@ -74,7 +74,7 @@
     "scope": "SUBJECT"
    }
   },
-  "plain_language": "development: 431,784 trainable parameters, 135,912 active per token (exact counts). Mathematically parameterised and structurally validated by zero-allocation (abstract) construction; its weights have not been allocated. This configuration has been trained end to end on its development dataset. Its scientific performance is not established.",
+  "plain_language": "development: 431,784 trainable parameters, 135,912 active per token (exact counts). Its architecture was first validated by zero-allocation (abstract) construction; this configuration was then allocated and trained end to end on its development dataset. Its checkpoint was reloaded to identical outputs and evaluated on held-out splits. Its scientific performance is not established.",
   "status": "EVALUATED",
   "status_history": [
    {

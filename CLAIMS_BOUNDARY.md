@@ -30,6 +30,9 @@ required boundaries is missing. A sentence nobody enforces is not listed here.
 | EB12 | A learned prediction is not authority: no learned record can be VERIFIED or PROMOTED. | `qta_agent/learned_rules.py` (refusal); `qta_agent/store.py` (AuthorityStore); `qta_agent/reconstruct.py` (_LEARNED_PREFIX) |
 | EB13 | A meta-validated architecture is not an allocated, trained or validated model. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/model/meta.py` (materialize) |
 | EB14 | A development model's training is not the flagship's. | `scientific_ai/neural/claims.py` (evaluate); `scientific_ai/neural/claims.py` (derive_status) |
+| EB15 | A legacy QTA gate-table PASS count is not a status of the current harness. | `tools/pass_semantics_audit.py` (judge); `scientific_ai/neural/status.py` (build) |
+| EB16 | Simulated distributed execution is not distributed hardware validation. | `scientific_ai/neural/claims.py` (SIMULATED_PROFILES); `scientific_ai/neural/model/parallel.py` (ExecutionProfile) |
+| EB17 | Decision stability under numeric drift is not byte identity. | `scientific/reproduction.py` (decide) |
 
 ## Three meanings of "verified"
 

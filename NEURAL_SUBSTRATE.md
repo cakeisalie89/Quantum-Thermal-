@@ -28,7 +28,7 @@ digest `docs/neural/flagship_model_manifest.json` names, and only what
 | ARCHITECTURE_META_VALIDATED | yes | yes |
 | DEVELOPMENT_MODEL_TRAINED | a *family member* was | yes |
 | CHECKPOINT_RELOAD_VALIDATED | a *family member's* was | yes |
-| DISTRIBUTED_SOFTWARE_READY | yes, simulated devices (family) | yes (family) |
+| DISTRIBUTED_SOFTWARE_READY | SIMULATED_MULTI_DEVICE software-path validation only (family) | the same (family) |
 | DISTRIBUTED_HARDWARE_VALIDATED | no | no |
 | LARGE_MODEL_TRAINED | no | no |
 | SCIENTIFIC_PERFORMANCE_ESTABLISHED | no | no |
@@ -36,6 +36,15 @@ digest `docs/neural/flagship_model_manifest.json` names, and only what
 The claims are computed (`scientific_ai/neural/claims.py`) from evidence
 bound by digest to the configuration they are about; `tools/neural.py
 verify` recomputes them and fails if the committed ones do not follow.
+`DISTRIBUTED_SOFTWARE_READY` keeps its name for the documents that carry it;
+on a simulated profile its reason says SOFTWARE-PATH VALIDATION ONLY and
+names what never ran (tensor and pipeline parallelism: PLAN_ONLY).
+
+The current status, every number derived from the committed evidence, is
+`SCIENTIFIC_AI_STATUS.md` (`tools/neural.py status`). The legacy QTA
+hardware forecast's gate table and its historical PASS_count of 0 appear
+there in their own LEGACY_QTA_ONLY section: a fact about that forecast, not
+a measure of this substrate.
 
 ## Where it sits
 

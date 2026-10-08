@@ -25,7 +25,10 @@ DEVELOPMENT_MODEL_TRAINED        a COMPLETED training manifest bound to the
 CHECKPOINT_RELOAD_VALIDATED      a checkpoint of the subject whose reload
                                  reproduced its outputs (evaluation report)
 DISTRIBUTED_SOFTWARE_READY       a distributed report whose checks all
-                                 passed, on any execution profile
+                                 passed, on any execution profile; on a
+                                 simulated one (SIMULATED_PROFILES) this is
+                                 SOFTWARE-PATH VALIDATION ONLY, and its
+                                 reason says so and names what never ran
 DISTRIBUTED_HARDWARE_VALIDATED   the same on an execution profile that is
                                  NOT simulated -- never in this tranche
 LARGE_MODEL_TRAINED              a COMPLETED training manifest bound to the
@@ -285,13 +288,31 @@ def evaluate(subject: str, evidence, *, family_members=()) -> dict:
                                       for c in rep["checks"])
         if not ok or not isinstance(prof, dict):
             continue
+        hardware = prof.get("kind") not in SIMULATED_PROFILES \
+            and prof.get("hardware_executed") is True
+        if hardware:
+            reason = f"every parallel check passed on {prof.get('kind')}"
+        else:
+            # The identifier is kept for the documents that already carry
+            # it; what it means here is said in full, so a simulated run is
+            # never read as hardware validation.
+            plan_only = [ax for ax in ("tensor", "pipeline")
+                         if not any(str(c.get("check", "")).startswith(ax)
+                                    and c.get("executed", True) is not False
+                                    for c in rep["checks"])]
+            reason = (f"{prof.get('kind')} SOFTWARE-PATH VALIDATION ONLY: "
+                      f"every parallel check passed on "
+                      f"{len(rep.get('devices') or ())} devices of that "
+                      "profile; hardware_executed is not true, so this is "
+                      "not distributed hardware validation")
+            if plan_only:
+                reason += (f"; {' and '.join(plan_only)} parallelism "
+                           f"{'is' if len(plan_only) == 1 else 'are'} "
+                           "PLAN_ONLY (validated as plans, never executed)")
         out["DISTRIBUTED_SOFTWARE_READY"] = {
             "holds": True, "scope": "FAMILY",
-            "evidence": [digest(rep)],
-            "reason": f"every parallel check passed on "
-                      f"{prof.get('kind')}"}
-        if prof.get("kind") not in SIMULATED_PROFILES \
-                and prof.get("hardware_executed") is True:
+            "evidence": [digest(rep)], "reason": reason}
+        if hardware:
             out["DISTRIBUTED_HARDWARE_VALIDATED"] = {
                 "holds": True, "scope": "FAMILY",
                 "evidence": [digest(rep)],

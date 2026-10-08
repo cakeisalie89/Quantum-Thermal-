@@ -84,6 +84,9 @@ REQUIRED_COMMANDS = (
     ("uv run python tools/neural_legacy_audit.py --check",
      "the learned-model substrate carries none of the hardware-era machine "
      "semantics, and every occurrence elsewhere is classified (NF-1T)"),
+    ("uv run python tools/pass_semantics_audit.py --check",
+     "the legacy gate table's PASS count is stated only as the legacy "
+     "forecast's, never as the current harness's status (NF-1T closure)"),
     ("uv run python tools/neural.py verify",
      "the learned-model evidence re-derives: exact counts, abstract "
      "validation of the ~1T configuration, the digest chain, the claims "

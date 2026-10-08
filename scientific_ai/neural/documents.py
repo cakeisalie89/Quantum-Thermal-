@@ -71,26 +71,47 @@ def model_manifest(cfg: ModelConfig, *, solve: dict | None,
 
 
 def plain_language(cfg: ModelConfig, table: dict) -> str:
-    """What "the model" means here, in the precision directive s.52 asks."""
+    """What "the model" means here, in the precision directive s.52 asks.
+
+    Meta validation and allocation are facts about DIFFERENT moments: the
+    architecture was validated by abstract construction, and a subject with
+    a completed training run of its own was allocated afterwards to train
+    it. So "its weights have not been allocated" is said only of a subject
+    with no SUBJECT-scoped training -- a trained configuration was allocated
+    -- while its meta validation is still reported as having happened. A
+    family member's training says nothing about the subject's weights.
+    """
     pc = accounting.count(cfg)
     held = [c for c, v in table.items() if v["holds"]
             and v["scope"] == "SUBJECT"]
     member = table["DEVELOPMENT_MODEL_TRAINED"]
+    trained = "DEVELOPMENT_MODEL_TRAINED" in held
     parts = [f"{cfg.variant}: {pc.trainable_parameters:,} trainable "
              f"parameters, {pc.active_parameters_per_token:,} active per "
              "token (exact counts)."]
-    if "ARCHITECTURE_META_VALIDATED" in held:
-        parts.append("Mathematically parameterised and structurally "
-                     "validated by zero-allocation (abstract) construction; "
-                     "its weights have not been allocated.")
-    if member["holds"] and member["scope"] == "FAMILY_MEMBER":
-        parts.append("A development-scale member of the same architecture "
-                     "family has been trained end to end; this "
-                     "configuration has not been trained.")
-    elif "DEVELOPMENT_MODEL_TRAINED" in held:
-        parts.append("This configuration has been trained end to end on "
-                     "its development dataset.")
+    if trained:
+        if "ARCHITECTURE_META_VALIDATED" in held:
+            parts.append("Its architecture was first validated by "
+                         "zero-allocation (abstract) construction; this "
+                         "configuration was then allocated and trained end "
+                         "to end on its development dataset.")
+        else:
+            parts.append("This configuration has been allocated and "
+                         "trained end to end on its development dataset.")
+        if "CHECKPOINT_RELOAD_VALIDATED" in held:
+            parts.append("Its checkpoint was reloaded to identical outputs "
+                         "and evaluated on held-out splits.")
     else:
-        parts.append("It has not been trained.")
+        if "ARCHITECTURE_META_VALIDATED" in held:
+            parts.append("Mathematically parameterised and structurally "
+                         "validated by zero-allocation (abstract) "
+                         "construction; its real weights have not been "
+                         "allocated.")
+        if member["holds"] and member["scope"] == "FAMILY_MEMBER":
+            parts.append("A development-scale member of the same "
+                         "architecture family has been trained end to end; "
+                         "this configuration has not been trained.")
+        else:
+            parts.append("It has not been trained.")
     parts.append("Its scientific performance is not established.")
     return " ".join(parts)

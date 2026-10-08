@@ -42,6 +42,7 @@ def ledger_claims() -> dict:
     from qta_agent.events import EventLog
     from qta_agent.evidence import EvidenceStore
     from qta_agent.learned_lifecycle import LearnedLedger
+    from qta_agent.learned_rules import REFUSED_STATES
     from qta_agent.store import AuthorityStore, StoreError
     with tempfile.TemporaryDirectory() as tmp:
         log = EventLog(Path(tmp) / "authority.log")
@@ -111,6 +112,9 @@ def ledger_claims() -> dict:
                 "record": ids["evaluation"], "dst": "VERIFIED",
                 "refused": refused is not None, "reason": refused},
             "subjects": out,
+            # read from the rule the store enforces, not restated here
+            "learned_refused_states": sorted(
+                getattr(st, "value", st) for st in REFUSED_STATES),
             "semantics": list(manifests.PREDICTION_SEMANTICS)}
 
 

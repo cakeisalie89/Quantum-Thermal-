@@ -716,7 +716,14 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: at that commit; the report commit changes none of R60's files, so the
 #: validator derives COVERS_CURRENT_IMPLEMENTATION. The next change to any of
 #: them turns it back into PREDATES, and this number has to follow.
-EXPECTED_EVIDENCE_COVERS = 1
+#:
+#: 1 -> 0 with the NF-1T closure. It changes R60's implementation (claims.py,
+#: documents.py, tools/neural.py; status.py and pass_semantics_audit.py
+#: added), so the runs at 0a0d43e cover an earlier implementation and the
+#: validator derives PREDATES. The closure commit's own runs are recorded in
+#: its report; they become R60's hosted evidence only in a commit that cites
+#: them with that commit's implementation digest.
+EXPECTED_EVIDENCE_COVERS = 0
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

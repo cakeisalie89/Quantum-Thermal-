@@ -5,9 +5,13 @@
   "record": "learned_evaluation:dba7c660c2934066",
   "refused": true
  },
+ "learned_refused_states": [
+  "PROMOTED",
+  "VERIFIED"
+ ],
  "records": [
-  "learned_architecture:3c8f4142974fe2f9",
-  "learned_architecture:acddfa873ef3dd57",
+  "learned_architecture:452f9c9d978260b0",
+  "learned_architecture:da7c5bea9cbad7dc",
   "learned_checkpoint:2f2faaf95e975ca3",
   "learned_checkpoint:3a536ce7e5c6dc84",
   "learned_checkpoint:64cba94026d2a550",
@@ -82,7 +86,7 @@
       "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
      ],
      "holds": true,
-     "reason": "every parallel check passed on SIMULATED_MULTI_DEVICE",
+     "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
      "scope": "FAMILY"
     },
     "LARGE_MODEL_TRAINED": {
@@ -189,7 +193,7 @@
       "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
      ],
      "holds": true,
-     "reason": "every parallel check passed on SIMULATED_MULTI_DEVICE",
+     "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
      "scope": "FAMILY"
     },
     "LARGE_MODEL_TRAINED": {

@@ -1,0 +1,373 @@
+{
+ "derived_from": {
+  "legacy_qta_gate_table": {
+   "path": "results_gate_table.csv",
+   "sha256": "d61067875068f399487d4f2eebdc597080e31e7a3be6d39dd7760ee1917fda2f"
+  },
+  "neural_evidence": {
+   "docs/neural/architecture_family.json": "92861e3d71b0d61005bd451f7a5dbb1f35daf699a0572e7aed066344641e8918",
+   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
+   "docs/neural/dev/checkpoint_manifest.json": "2875dd62cbcb0395b3a14bd52f3ca68606675f7c743b48faf0c5204a88d35f02",
+   "docs/neural/dev/dataset_manifest.json": "e51cd1d15cc66e29b4989a5ebe60bbf9f2f3a7d757d1a7b49673523ef4c3036d",
+   "docs/neural/dev/evaluation_report.json": "265c4a87a857e1bdadda21efd60f0339226d84c37812840e4702325b43a5458c",
+   "docs/neural/dev/training_manifest.json": "3524ae7532798799f9fb48af3159c9477e50126816f541ac818b2a033337b97d",
+   "docs/neural/development_model_manifest.json": "d904a3ac8e258de563bdeb258c47c8bc9a08f9742428572ee57bf3d5a7257db2",
+   "docs/neural/distributed_readiness.json": "89186c3477f467fb8d906ad2fd437e94e8439ae459c7e5d2f4e3481603ce3a72",
+   "docs/neural/flagship_meta_validation.json": "47643c0a0f988a2aeb1b627f8c786f62665914356bb195bd9f4410a6fd7c5218",
+   "docs/neural/flagship_model_manifest.json": "f880ef5412a9e3a311e8678963fd8893d76bdbf9963ff0505b42430c929bd60e"
+  },
+  "reproduction_witness": {
+   "path": "docs/byte_reproduction_profile.json",
+   "sha256": "a6487675551ffe9d99a536304794116feea0f7f0f6908d6583d7b4a0e2eeb5f1"
+  }
+ },
+ "development": {
+  "active_parameters_per_token": 135912,
+  "checkpoint_digest": "74de574076efc6c227a057669b3512162fe14a64b7bcaff62621ae440ae387d2",
+  "claims_held": [
+   "ARCHITECTURE_DEFINED",
+   "ARCHITECTURE_META_VALIDATED",
+   "ARCHITECTURE_PARAMETER_VERIFIED",
+   "CHECKPOINT_RELOAD_VALIDATED",
+   "DEVELOPMENT_MODEL_TRAINED"
+  ],
+  "config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+  "dataset": {
+   "dataset_digest": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137",
+   "dataset_id": "surface_adsorption_dev_v1",
+   "samples": 3456,
+   "splits": {
+    "ood": 384,
+    "test": 476,
+    "train": 2133,
+    "validation": 463
+   }
+  },
+  "epistemic_uncertainty": "NOT_ASSESSED",
+  "expert_hidden_size": 128,
+  "experts_per_moe_layer": 8,
+  "experts_selected_per_token": 2,
+  "hidden_size": 64,
+  "invariant_violations_ood": {
+   "capture_only": [
+    19,
+    384
+   ],
+   "inventory_within_capacity": [
+    36,
+    384
+   ],
+   "within_incidence": [
+    56,
+    384
+   ]
+  },
+  "invariant_violations_test": {
+   "capture_only": [
+    32,
+    476
+   ],
+   "inventory_within_capacity": [
+    86,
+    476
+   ],
+   "within_incidence": [
+    26,
+    476
+   ]
+  },
+  "layers": 2,
+  "limitations": [
+   "a development model of one closed-form law: its accuracy says nothing about any other member of the family",
+   "the in-distribution test split interpolates; extrapolation is the OOD split only, along one declared axis (temperature)",
+   "epistemic uncertainty is not assessed",
+   "not compared against measurement: the targets are simulation results of a governed model"
+  ],
+  "ood_interval_coverage_90": {
+   "admitted_fluence": 0.171875,
+   "final_coverage": 0.6848958333333334,
+   "final_inventory": 0.6276041666666666,
+   "impingement_flux": 0.171875
+  },
+  "ood_rmse_ratio_over_test": {
+   "admitted_fluence": 9.126628758118914,
+   "final_coverage": 5.830406148345821,
+   "final_inventory": 3.523963887223087,
+   "impingement_flux": 7.959907318099558
+  },
+  "prediction_semantics": [
+   "LEARNED_PREDICTION",
+   "NON_AUTHORITATIVE",
+   "REQUIRES_EXTERNAL_VERIFICATION"
+  ],
+  "reload_outputs_equal": true,
+  "status": "EVALUATED",
+  "test_interval_coverage_90": {
+   "admitted_fluence": 0.8970588235294118,
+   "final_coverage": 0.8739495798319328,
+   "final_inventory": 0.8529411764705882,
+   "impingement_flux": 0.6554621848739496
+  },
+  "test_median_relative_error": {
+   "admitted_fluence": 0.025289931970440608,
+   "final_coverage": 6.771621413581563e-05,
+   "final_inventory": 0.009735278633990575,
+   "impingement_flux": 0.03311027023489441
+  },
+  "trainable_parameters": 431784,
+  "training": {
+   "completion_state": "COMPLETED",
+   "reproducibility_claimed": [
+    "CONFIGURATION_REPRODUCIBLE",
+    "DATASET_REPRODUCIBLE",
+    "SEEDED_EXECUTION",
+    "NUMERICALLY_REPRODUCIBLE",
+    "BITWISE_REPRODUCIBLE",
+    "CHECKPOINT_REPRODUCIBLE"
+   ],
+   "reproducibility_scope": "this backend (the hardware_identity and framework_versions recorded here), one process, CPU",
+   "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+   "steps": 4000,
+   "world_size": 1
+  },
+  "variant": "development"
+ },
+ "distributed": {
+  "checks": [
+   {
+    "check": "expert_parallel_equivalence_ep8",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "expert_parallel_equivalence_ep4",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "expert_parallel_equivalence_ep2",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "fsdp_sharded_gradient_equivalence",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "gradient_accumulation_equivalence",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "sharded_checkpoint_roundtrip",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "data_parallel_partition",
+    "executed": true,
+    "passed": true
+   },
+   {
+    "check": "flagship_plan_validation_symbolic",
+    "executed": false,
+    "passed": true
+   }
+  ],
+  "devices": 8,
+  "execution_profile": "SIMULATED_MULTI_DEVICE",
+  "hardware": "NOT_VALIDATED",
+  "hardware_executed": false,
+  "plan_only": [
+   "tensor",
+   "pipeline"
+  ],
+  "software": "SIMULATED_MULTI_DEVICE PATHS VALIDATED"
+ },
+ "flagship": {
+  "active_parameters_per_token_standard": 200832889864,
+  "attention_heads": 64,
+  "categories_checked": [
+   "attention",
+   "context_embedding",
+   "dense_ffn",
+   "dimensional_encoder",
+   "expert",
+   "feature_embedding",
+   "normalization",
+   "numerical_encoder",
+   "output_head",
+   "readout_embedding",
+   "reconstruction_head",
+   "router",
+   "shared_expert",
+   "uncertainty_head"
+  ],
+  "claims_held": [
+   "ARCHITECTURE_DEFINED",
+   "ARCHITECTURE_META_VALIDATED",
+   "ARCHITECTURE_PARAMETER_VERIFIED"
+  ],
+  "claims_held_by_a_family_member_only": [
+   "CHECKPOINT_RELOAD_VALIDATED",
+   "DEVELOPMENT_MODEL_TRAINED"
+  ],
+  "claims_held_by_the_family": [
+   "DISTRIBUTED_SOFTWARE_READY"
+  ],
+  "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+  "estimates": {
+   "bfloat16_parameter_bytes": 1993018435600,
+   "fp8": "ESTIMATION_ONLY",
+   "status": "ESTIMATE, not a measurement",
+   "training_state_bytes": 17937165920400
+  },
+  "expert_hidden_size": 9728,
+  "expert_modules_total": 4096,
+  "expert_parameters": 979252543488,
+  "expert_selections_per_token_across_depth": 768,
+  "experts_per_moe_layer": 64,
+  "experts_selected_per_token_per_moe_layer": 12,
+  "head_dimension": 128,
+  "hidden_size": 8192,
+  "kv_heads": 64,
+  "large_model_trained": false,
+  "layers": 64,
+  "moe_layers": 64,
+  "non_trainable_parameters": 8200,
+  "parameters_per_expert": 239075328,
+  "real_weights_allocated": false,
+  "routing_profiles": {
+   "deep": {
+    "active_parameters_per_token": 231434531848,
+    "top_k": 14
+   },
+   "economical": {
+    "active_parameters_per_token": 170231247880,
+    "top_k": 10
+   },
+   "standard": {
+    "active_parameters_per_token": 200832889864,
+    "top_k": 12
+   }
+  },
+  "scientific_performance": "UNESTABLISHED",
+  "shared_parameters": 17256674312,
+  "status": "DEVELOPMENT_PIPELINE_VALIDATED",
+  "total_stored_values": 996509226000,
+  "trainable_parameters": 996509217800,
+  "variant": "flagship-1t"
+ },
+ "learned_output_authority": {
+  "acceptance_attempted": "VERIFIED",
+  "acceptance_refused": true,
+  "refused_states": [
+   "PROMOTED",
+   "VERIFIED"
+  ],
+  "semantics": [
+   "LEARNED_PREDICTION",
+   "NON_AUTHORITATIVE",
+   "REQUIRES_EXTERNAL_VERIFICATION"
+  ]
+ },
+ "legacy_qta_hardware_forecast": {
+  "PASS_count": 0,
+  "classification": "LEGACY_QTA_ONLY",
+  "gates": 83,
+  "hardware_era_mode_audit": {
+   "active_neural_semantic_leaks": 0,
+   "unclassified": 0
+  },
+  "meaning": "a historical fact about the legacy hardware forecast: no gate could pass because nothing was measured. It is not a success metric of the Scientific-AI harness, the learned-model substrate or the agent substrate, and no other section of this status reads it",
+  "pass_semantics_audit": {
+   "current_ai_semantic_leaks": 0,
+   "unclassified": 0
+  },
+  "statuses": {
+   "BLOCKED": 23,
+   "CONDITIONAL": 47,
+   "DERIVED_CHECK": 11,
+   "UNKNOWN": 2
+  },
+  "what": "the legacy QTA hardware-forecast gate table (results_gate_table.csv)"
+ },
+ "programme": {
+  "NF-1T": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+  "basis": "DECLARED by the NF-1T closure report (ARCHITECTURE_CONVERGENCE_PLAN.md, section 18) for the scope authorised and executed; not derived here"
+ },
+ "reproduction": {
+  "generic_hosted_runner": "may resolve a DIFFERENT numerical backend; such a run reports REPRODUCTION_STATUS=DIFFERENT_RESOLVED_BACKEND and at best CROSS_ENV_STATUS=DECISION_STABLE_WITH_NUMERIC_DRIFT -- decision stability, not byte identity; each run's result belongs to its own commit",
+  "scientific_equivalence": "NOT_ESTABLISHED",
+  "stored_witness": [
+   {
+    "backend_digest": "97b7772c0dbfe43fb69790d00d515240a5bb0e4d2a6de95788b99d047ff9d138",
+    "byte_identical": 88,
+    "compared": 88,
+    "context": "the witnessed numerical backend, by digest: the byte-reproduction witness profile, not a hosted runner",
+    "observed_at": "f303a73d991c2eef75a4ac8b66c88ad64fe717a6",
+    "on": "2026-10-06"
+   }
+  ]
+ },
+ "scale_ladder": [
+  {
+   "active_parameters_per_token": 10898568,
+   "meta_validation": "PASS",
+   "rung": "50m",
+   "trainable_parameters": 46815880,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 64993544,
+   "meta_validation": "PASS",
+   "rung": "300m",
+   "trainable_parameters": 278385928,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 208880392,
+   "meta_validation": "PASS",
+   "rung": "1b",
+   "trainable_parameters": 1061383432,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 1401685512,
+   "meta_validation": "PASS",
+   "rung": "7b",
+   "trainable_parameters": 7265344008,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 5780167176,
+   "meta_validation": "PASS",
+   "rung": "30b",
+   "trainable_parameters": 30899882504,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 19504237576,
+   "meta_validation": "PASS",
+   "rung": "100b",
+   "trainable_parameters": 94271943688,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 57785360392,
+   "meta_validation": "PASS",
+   "rung": "300b",
+   "trainable_parameters": 307522659336,
+   "trained": false
+  },
+  {
+   "active_parameters_per_token": 200832889864,
+   "meta_validation": "PASS",
+   "rung": "1t",
+   "trainable_parameters": 996509217800,
+   "trained": false
+  }
+ ],
+ "schema": "scientific-ai-current-status/1"
+}

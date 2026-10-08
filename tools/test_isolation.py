@@ -2,7 +2,8 @@
 """Can every test module be collected on its own?
 
 DIAGNOSTIC + GATE. Nothing here moves a threshold, authors a gate state or
-writes into the canonical tree. MODEL-ONLY / FORECAST-ONLY. PASS remains 0.
+writes into the canonical tree; the legacy QTA gate table's historical
+PASS_count stays 0.
 
 WHY THIS EXISTS
 

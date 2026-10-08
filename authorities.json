@@ -306,7 +306,7 @@
    "schema_version": "1.0"
   },
   "gates": {
-   "authority": "qta_multiphysics/metrics.py + qta_full_sim.py gate assembly -> results_gate_table.csv (83 gates; statuses CONDITIONAL/BLOCKED/UNKNOWN/DERIVED_CHECK; PASS permanently 0; can_PASS_now=NO; measured_in_this_system=false)",
+   "authority": "qta_multiphysics/metrics.py + qta_full_sim.py gate assembly -> results_gate_table.csv (83 gates; statuses CONDITIONAL/BLOCKED/UNKNOWN/DERIVED_CHECK; PASS permanently 0 in this legacy QTA hardware forecast, a fact about that forecast and not a status of the current harness; can_PASS_now=NO; measured_in_this_system=false)",
    "owner": "metrics + qta_full_sim",
    "schema_version": "1.0",
    "consumers": [

@@ -382,6 +382,28 @@ def test_replay_and_the_second_reader_refuse_a_forbidden_edge(ledger,
     assert rec.records[rid]["state"] == "UNDER_REVIEW"
 
 
+def test_the_refusal_covers_exactly_verified_and_promoted_for_every_kind():
+    """NF-1T closure: a wording change cannot widen admission. Every learned
+    kind is refused both authority states and nothing else; no other kind
+    is touched; and the claims document reports the same set, read from
+    the rule rather than restated."""
+    assert tuple(learned_rules.REFUSED_STATES) == ("VERIFIED", "PROMOTED")
+    for kind in learned_rules.KINDS.values():
+        assert learned_rules.is_learned(kind)
+        for dst in State:
+            refused = learned_rules.refusal(kind, dst) is not None
+            assert refused == (dst.value in ("VERIFIED", "PROMOTED")), \
+                (kind, dst)
+    for kind in ("scientific_result", "claim", "task"):
+        for dst in State:
+            assert learned_rules.refusal(kind, dst) is None
+    root = Path(__file__).resolve().parents[1]
+    doc = json.loads((root / "docs" / "neural" / "claims.json").read_text())
+    assert doc["learned_refused_states"] == ["PROMOTED", "VERIFIED"]
+    assert doc["acceptance_attempt"]["refused"] is True
+    assert doc["semantics"] == list(manifests.PREDICTION_SEMANTICS)
+
+
 def test_rejection_is_recorded_and_nothing_is_built_on_it(ledger,
                                                           arch_docs):
     log, ev, store, led = ledger

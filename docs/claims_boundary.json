@@ -249,6 +249,59 @@
         "tests/test_neural_meta.py::test_a_trained_development_model_is_not_a_large_model"
       ],
       "note": "A family member's evidence is reported in FAMILY_MEMBER scope with its digest; it satisfies no SUBJECT claim."
+    },
+    {
+      "id": "EB15",
+      "statement": "A legacy QTA gate-table PASS count is not a status of the current harness.",
+      "enforced_in": [
+        {
+          "module": "tools/pass_semantics_audit.py",
+          "symbol": "judge"
+        },
+        {
+          "module": "scientific_ai/neural/status.py",
+          "symbol": "build"
+        }
+      ],
+      "tests": [
+        "tests/test_claim_hygiene.py::test_no_current_section_of_the_status_reads_the_legacy_gate_table",
+        "tests/test_claim_hygiene.py::test_an_unlabelled_pass_statement_in_current_material_is_a_leak"
+      ],
+      "note": "The legacy hardware forecast's PASS_count = 0 is a fact about that forecast (nothing was measured); it is reported only in the LEGACY_QTA_ONLY section of the status, and a current document that states it without saying whose it is fails the audit."
+    },
+    {
+      "id": "EB16",
+      "statement": "Simulated distributed execution is not distributed hardware validation.",
+      "enforced_in": [
+        {
+          "module": "scientific_ai/neural/claims.py",
+          "symbol": "SIMULATED_PROFILES"
+        },
+        {
+          "module": "scientific_ai/neural/model/parallel.py",
+          "symbol": "ExecutionProfile"
+        }
+      ],
+      "tests": [
+        "tests/test_claim_hygiene.py::test_a_report_that_did_not_run_on_hardware_never_validates_hardware",
+        "tests/test_neural_distributed.py::test_a_simulated_profile_cannot_be_a_hardware_execution"
+      ],
+      "note": "DISTRIBUTED_SOFTWARE_READY on a simulated profile reads SOFTWARE-PATH VALIDATION ONLY; DISTRIBUTED_HARDWARE_VALIDATED needs a non-simulated profile that executed on hardware."
+    },
+    {
+      "id": "EB17",
+      "statement": "Decision stability under numeric drift is not byte identity.",
+      "enforced_in": [
+        {
+          "module": "scientific/reproduction.py",
+          "symbol": "decide"
+        }
+      ],
+      "tests": [
+        "tests/test_reproduction_verdict.py::test_case_3_numeric_drift_on_another_backend_is_consistent_not_reproduced",
+        "tests/test_claim_hygiene.py::test_decision_stability_is_never_written_as_identity_or_equivalence"
+      ],
+      "note": "A different resolved backend is DIFFERENT_RESOLVED_BACKEND at best with DECISION_STABLE_WITH_NUMERIC_DRIFT, never BYTE_IDENTICAL, and scientific equivalence stays NOT_ESTABLISHED; a stored witness's 88/88 is scoped to its witnessed backend."
     }
   ]
 }

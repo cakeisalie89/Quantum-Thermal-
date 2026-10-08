@@ -60,7 +60,7 @@
      "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
     ],
     "holds": true,
-    "reason": "every parallel check passed on SIMULATED_MULTI_DEVICE",
+    "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
     "scope": "FAMILY"
    },
    "LARGE_MODEL_TRAINED": {
@@ -76,7 +76,7 @@
     "scope": "SUBJECT"
    }
   },
-  "plain_language": "flagship-1t: 996,509,217,800 trainable parameters, 200,832,889,864 active per token (exact counts). Mathematically parameterised and structurally validated by zero-allocation (abstract) construction; its weights have not been allocated. A development-scale member of the same architecture family has been trained end to end; this configuration has not been trained. Its scientific performance is not established.",
+  "plain_language": "flagship-1t: 996,509,217,800 trainable parameters, 200,832,889,864 active per token (exact counts). Mathematically parameterised and structurally validated by zero-allocation (abstract) construction; its real weights have not been allocated. A development-scale member of the same architecture family has been trained end to end; this configuration has not been trained. Its scientific performance is not established.",
   "status": "DEVELOPMENT_PIPELINE_VALIDATED",
   "status_history": [
    {

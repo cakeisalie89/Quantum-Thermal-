@@ -155,6 +155,43 @@ def test_the_flagship_counts_are_pinned_and_in_range():
     assert flagship().moe.expert_hidden == 9728
 
 
+def test_the_locked_flagship_architecture_and_its_exact_counts():
+    """NF-1T closure: the committed flagship, value by value. 64 MoE layers
+    of 64 routed experts are 4,096 expert MODULES; top_k 12 in each layer
+    is 768 expert APPLICATIONS per token across depth -- 12 of 64 at each
+    layer, not 768 distinct experts."""
+    cfg = solver.config_from(family.solve_flagship())
+    pc = accounting.count(cfg)
+    c = pc.to_dict()
+    assert cfg.variant == "flagship-1t"
+    assert (cfg.hidden_size, cfg.num_layers) == (8192, 64)
+    assert (cfg.attention.num_heads, cfg.attention.head_dim,
+            cfg.attention.num_kv_heads) == (64, 128, 64)
+    assert c["moe_layer_count"] == 64 == cfg.num_layers
+    assert c["num_experts_per_moe_layer"] == 64
+    assert c["moe_layer_count"] * c["num_experts_per_moe_layer"] == 4096
+    assert c["experts_selected_per_token"] == 12 == cfg.moe.top_k
+    assert c["moe_layer_count"] * c["experts_selected_per_token"] == 768
+    assert cfg.moe.expert_hidden == 9728
+    assert cfg.moe.num_shared_experts == 0
+    assert c["expert_parameters_per_expert"] == 3 * 8192 * 9728 \
+        == 239_075_328
+    assert c["expert_parameters"] == 4096 * 239_075_328 == 979_252_543_488
+    assert pc.trainable_parameters == 996_509_217_800
+    assert c["non_trainable_parameters"] == 8_200
+    assert c["total_parameters"] == 996_509_226_000
+    assert c["shared_parameters"] == 17_256_674_312
+    assert c["expert_active_parameters"] == 64 * 12 * 239_075_328 \
+        == 183_609_851_904
+    assert pc.active_parameters_per_token == 200_832_889_864
+    prof = c["routing_profiles"]
+    assert {n: p["top_k"] for n, p in prof.items()} == {
+        "economical": 10, "standard": 12, "deep": 14}
+    assert prof["economical"]["active_parameters_per_token"] == \
+        170_231_247_880
+    assert prof["deep"]["active_parameters_per_token"] == 231_434_531_848
+
+
 def test_the_flagship_solve_is_the_nearest_aligned_solution():
     rec = family.solve_flagship()
     tpl = family.flagship_template()

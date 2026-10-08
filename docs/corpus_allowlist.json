@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "88475a319f2fa31e1ebfba6e1279d6455f9c1021d8b27761b11414d591b42754",
+  "entries_digest": "108c30b901abeec0c4cedb5c26f5e0ac332f1edab1c0f4b655f67f5cf390b6e5",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -10,7 +10,7 @@
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
-      "sha256": "58aabbc6a14327b49446dd45355e0cf4426f65e19bc5dae49fa6dfdf6396eb2b"
+      "sha256": "3bef0ce2beec72935df9f8107fd8e87cedb817e8e71bd85931fb004850befe52"
     },
     {
       "path": "AUTHORITIES.md",
@@ -18,7 +18,7 @@
     },
     {
       "path": "CLAIMS_BOUNDARY.md",
-      "sha256": "33027f9516305919ebee84470560fb7d285fa783a2631d77e1213b5552a331bf"
+      "sha256": "e77325f37b0dc1f5c0037b448bcaa9b853a7b6a4c5f62f3e540bec674245921d"
     },
     {
       "path": "DEPENDENCY_CUTOVER.md",
@@ -114,7 +114,7 @@
     },
     {
       "path": "NEURAL_SUBSTRATE.md",
-      "sha256": "b47db0a03d464673e931b6f4030308508ca830c2356a781f7835e97b71234d55"
+      "sha256": "d09621b7b44fc6dba7e5ed41757af3de88f2aa4578c130d0d57305f82ebe4432"
     },
     {
       "path": "NUMERICAL_METHODS.md",
@@ -134,7 +134,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "0cbd35bf0fe4619dcf92fcf75fcf9e3ebca7e01a3e6201c670a534009db5c973"
+      "sha256": "187218abc0ed1307b8fc853e95488a985df76e3cb050b2666dac8934fae588da"
     },
     {
       "path": "RELEASE_POLICY.md",
@@ -151,6 +151,10 @@
     {
       "path": "RUNTIME_RESILIENCE.md",
       "sha256": "f583cd809061fd983c9cb92118b12be2aea25f05b7c718ffa19e421fbe7906ab"
+    },
+    {
+      "path": "SCIENTIFIC_AI_STATUS.md",
+      "sha256": "4b40f6e4f4ab9c882b668c31ee2f74dcbdbc7b67483b53aae6c960aa73e19c89"
     },
     {
       "path": "SIGNING_BOOTSTRAP.md",
@@ -190,7 +194,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "fe846ef3643cb368ee7918b94e2d68b9eb1fe426c62ad2aee72be1d675c57b81"
+      "sha256": "bf33066dd6eb5dc4ff7c51f123c4aaf92fcce737a349b703eb00742d5722189e"
     },
     {
       "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",

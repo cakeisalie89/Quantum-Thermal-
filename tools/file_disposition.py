@@ -681,6 +681,11 @@ RULES = [
      "flagship, re-checks every digest link, reloads the checkpoint, "
      "recomputes the claims in a fresh authority history.",
      "tests/test_neural_evidence.py"),
+    ("tools/pass_semantics_audit.py", KAH,
+     "NEW (NF-1T closure): classifies every occurrence of the legacy gate "
+     "table's PASS vocabulary; in the current harness each must say whose "
+     "gates these are -- zero CURRENT_AI_SEMANTIC_LEAK (EB15).",
+     "tests/test_claim_hygiene.py"),
     ("tools/neural_ledger.py", KAH,
      "NEW (NF-1T): the one learned-model tool that imports qta_agent -- "
      "records the written documents in a fresh authority history and "
@@ -1070,6 +1075,12 @@ RULES = [
     ("tests/test_regenerate_instrumented.py", KAH,
      "NEW (D-2026-101): the regeneration wrapper's measured closure.",
      ""),
+    ("tests/test_claim_hygiene.py", KAH,
+     "NEW (NF-1T closure): the status vocabulary says what was done -- the "
+     "legacy PASS count kept to its own section, simulated distribution "
+     "never hardware validation, a stored witness never generic-host "
+     "byte identity.",
+     ""),
     ("tests/test_neural_*.py", KAH,
      "NEW (NF-1T): the learned-model substrate's tests -- configuration, "
      "accounting, tokens, data, routing, model, meta validation, "
@@ -1235,6 +1246,11 @@ RULES = [
      "release policy, HDF5 model -- moved unchanged out of the root in "
      "tranche 4 (directive 13); still read by the legacy verifier.",
      "directive 13"),
+    ("docs/pass_semantics_audit.json", KAH,
+     "NEW (NF-1T closure): where the legacy gate table's PASS vocabulary "
+     "appears and why, by rule; written only by "
+     "tools/pass_semantics_audit.py.",
+     "tests/test_claim_hygiene.py"),
     ("docs/neural/legacy_semantic_audit.json", KAH,
      "NEW (NF-1T): where the hardware-era machine semantics still appear "
      "and why, by rule; written only by tools/neural_legacy_audit.py.",
@@ -1300,6 +1316,12 @@ RULES = [
      "Test discipline record; its QTA gate and byte-gate framing is "
      "rewritten with the root identity documents (directive 13).",
      ""),
+    ("SCIENTIFIC_AI_STATUS.md", KAH,
+     "NEW (NF-1T closure): the current status of the Scientific-AI "
+     "harness, generated from the committed evidence by tools/neural.py "
+     "status and checked by its verify step; the legacy QTA gate table in "
+     "its own LEGACY_QTA_ONLY section.",
+     "tests/test_claim_hygiene.py"),
     ("NEURAL_SUBSTRATE.md", KAH,
      "NEW (NF-1T): what the learned-model substrate is, what may be said "
      "about the ~1T configuration, and the exact meaning of every count.",

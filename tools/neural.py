@@ -12,7 +12,13 @@
     claims        record every document in a fresh authority history (by
                   tools/neural_ledger.py, in its own process) and write the
                   claims and statuses it supports
-    all           every step above, in order
+    rederive      re-derive what the committed evidence implies -- the
+                  claim status (claims, ladder, plain language) of both
+                  model manifests and the claims document -- changing no
+                  evidence: no training, no dataset, no checkpoint
+    status        the current status (docs/neural/current_status.json and
+                  SCIENTIFIC_AI_STATUS.md), from the committed evidence
+    all           every step above but rederive, in order
     verify        re-derive what can be re-derived and compare it with the
                   committed evidence (the CI step)
 
@@ -60,7 +66,13 @@ F = {
     "flagship_manifest": EVID / "flagship_model_manifest.json",
     "family": EVID / "architecture_family.json",
     "claims": EVID / "claims.json",
+    "status": EVID / "current_status.json",
+    "status_md": Path("SCIENTIFIC_AI_STATUS.md"),
 }
+#: The legacy QTA hardware forecast's gate table: read for the status's
+#: LEGACY_QTA_ONLY section and nothing else.
+LEGACY_QTA_GATE_TABLE = Path("results_gate_table.csv")
+REPRODUCTION_WITNESS = Path("docs") / "byte_reproduction_profile.json"
 DATASET_ID = "surface_adsorption_dev_v1"
 DESIGN = {"n_in": 3072, "n_ood": 384, "design_seed": 20261006,
           "split_seed": 7}
@@ -477,9 +489,104 @@ def cmd_claims(args) -> int:
     return 0
 
 
+# -- re-derivation and status ----------------------------------------------
+
+def _rederived_manifest(key: str, cfg, solve, family_members) -> dict:
+    """The committed manifest with its claim status re-derived from the
+    committed evidence; refuses if anything ELSE would change, because that
+    would be new evidence rather than a re-derivation."""
+    from scientific_ai.neural import documents
+    man = read_json(F[key])
+    fresh = documents.model_manifest(
+        cfg, solve=solve, evidence=_evidence_docs(),
+        family_members=family_members, source_commit=man["source_commit"],
+        allocation_mode=man["allocation_mode"])
+    moved = sorted(k for k in man if k != "claim_status"
+                   and man[k] != fresh[k])
+    if moved:
+        raise SystemExit(f"{key}: re-deriving the claim status would also "
+                         f"change {moved} -- that is new evidence, not a "
+                         "re-derivation (tools/neural.py architecture)")
+    return dict(man, claim_status=fresh["claim_status"])
+
+
+def cmd_rederive(args) -> int:
+    dev = family.development()
+    fsolve = family.solve_flagship()
+    flag = solver.config_from(fsolve)
+    write_json(F["dev_manifest"], _rederived_manifest(
+        "dev_manifest", dev, None, ()))
+    write_json(F["flagship_manifest"], _rederived_manifest(
+        "flagship_manifest", flag, fsolve, (dev.digest(),)))
+    rc = cmd_claims(args)
+    return rc or cmd_status(args)
+
+
+def _gate_statuses() -> dict:
+    """Status counts of the legacy QTA gate table, for its own section of
+    the status and nothing else."""
+    import collections
+    import csv
+    with (ROOT / LEGACY_QTA_GATE_TABLE).open(newline="",
+                                             encoding="utf-8") as fh:
+        return dict(collections.Counter(r["status"]
+                                        for r in csv.DictReader(fh)))
+
+
+def build_status() -> dict:
+    from scientific.reproduction import NOT_ESTABLISHED
+    from scientific_ai.neural import status as S
+    import neural_legacy_audit
+    import pass_semantics_audit
+    keys = ("flagship_manifest", "flagship_meta", "dev_manifest", "claims",
+            "training", "dataset_manifest", "evaluation", "checkpoint",
+            "distributed", "family")
+
+    def sha(p):
+        return hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
+
+    sources = {
+        "neural_evidence": {str(F[k]): sha(F[k]) for k in sorted(keys)},
+        "reproduction_witness": {"path": str(REPRODUCTION_WITNESS),
+                                 "sha256": sha(REPRODUCTION_WITNESS)},
+        "legacy_qta_gate_table": {"path": str(LEGACY_QTA_GATE_TABLE),
+                                  "sha256": sha(LEGACY_QTA_GATE_TABLE)}}
+    return S.build(
+        flagship_manifest=read_json(F["flagship_manifest"]),
+        flagship_meta=read_json(F["flagship_meta"]),
+        dev_manifest=read_json(F["dev_manifest"]),
+        claims_doc=read_json(F["claims"]),
+        training=read_json(F["training"]),
+        dataset=read_json(F["dataset_manifest"]),
+        evaluation=read_json(F["evaluation"]),
+        checkpoint=read_json(F["checkpoint"]),
+        distributed=read_json(F["distributed"]),
+        family=read_json(F["family"]),
+        witness_profile=read_json(REPRODUCTION_WITNESS),
+        equivalence=NOT_ESTABLISHED,
+        pass_audit=pass_semantics_audit.audit(),
+        mode_audit=neural_legacy_audit.audit(),
+        legacy_gate_statuses=_gate_statuses(),
+        sources=sources)
+
+
+def cmd_status(args) -> int:
+    from scientific_ai.neural import status as S
+    st = build_status()
+    write_json(F["status"], st)
+    (ROOT / F["status_md"]).write_text(S.render(st), encoding="utf-8")
+    f = st["flagship"]
+    print(f"status: flagship {f['status']}, "
+          f"{f['trainable_parameters']:,} trainable; development "
+          f"{st['development']['status']}; legacy QTA PASS_count "
+          f"{st['legacy_qta_hardware_forecast']['PASS_count']} "
+          f"({st['legacy_qta_hardware_forecast']['classification']})")
+    return 0
+
+
 def cmd_all(args) -> int:
     for fn in (cmd_dataset, cmd_pipeline, cmd_distributed, cmd_architecture,
-               cmd_audit, cmd_claims):
+               cmd_audit, cmd_claims, cmd_status):
         rc = fn(args)
         if rc:
             return rc
@@ -527,8 +634,16 @@ def cmd_verify(args) -> int:
         flag, solve=fs, evidence=ev,
         family_members=(family.development().digest(),),
         source_commit=man["source_commit"])
-    need(fresh["claim_status"]["claims"] == man["claim_status"]["claims"],
-         "the flagship's claims no longer follow from the evidence")
+    need(fresh["claim_status"] == man["claim_status"],
+         "the flagship's claim status (claims, ladder, plain language) no "
+         "longer follows from the evidence: tools/neural.py rederive")
+    dman_doc = read_json(F["dev_manifest"])
+    dfresh = documents.model_manifest(
+        family.development(), solve=None, evidence=ev,
+        source_commit=dman_doc["source_commit"])
+    need(dfresh["claim_status"] == dman_doc["claim_status"],
+         "the development member's claim status no longer follows from the "
+         "evidence: tools/neural.py rederive")
     held = {c for c, v in man["claim_status"]["claims"].items()
             if v["holds"] and v["scope"] == "SUBJECT"}
     need("LARGE_MODEL_TRAINED" not in held
@@ -570,6 +685,19 @@ def cmd_verify(args) -> int:
                               "evidence recorded in a fresh history")
     need(claims_doc["acceptance_attempt"]["refused"] is True,
          "a learned record was accepted")
+    from scientific_ai.neural import status as S
+    st = build_status()
+    need(st == read_json(F["status"]),
+         "docs/neural/current_status.json does not follow from the "
+         "evidence: tools/neural.py status")
+    need((ROOT / F["status_md"]).read_text(encoding="utf-8")
+         == S.render(st), "SCIENTIFIC_AI_STATUS.md does not follow from "
+         "the evidence: tools/neural.py status")
+    need(st["legacy_qta_hardware_forecast"]["classification"]
+         == S.LEGACY_LABEL, "the legacy gate table lost its label")
+    need(st["distributed"]["hardware"] == "NOT_VALIDATED"
+         or st["distributed"]["hardware_executed"],
+         "the status claims hardware validation without a hardware run")
     import neural_legacy_audit
     aud = neural_legacy_audit.audit()
     need(aud["active_neural_semantic_leaks"] == 0 and aud["unclassified"]
@@ -596,7 +724,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("pipeline")
     p.add_argument("--steps", type=int, default=4000)
     for name in ("distributed", "_distributed-inner", "architecture",
-                 "audit", "claims", "verify"):
+                 "audit", "claims", "rederive", "status", "verify"):
         sub.add_parser(name)
     a = sub.add_parser("all")
     a.add_argument("--n-in", type=int, default=DESIGN["n_in"])
@@ -608,7 +736,8 @@ def main(argv=None) -> int:
             "distributed": cmd_distributed,
             "_distributed-inner": lambda a: _distributed_inner(),
             "architecture": cmd_architecture, "audit": cmd_audit,
-            "claims": cmd_claims, "all": cmd_all,
+            "claims": cmd_claims, "rederive": cmd_rederive,
+            "status": cmd_status, "all": cmd_all,
             "verify": cmd_verify}[args.cmd](args)
 
 

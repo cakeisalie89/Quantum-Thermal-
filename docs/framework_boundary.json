@@ -49,6 +49,22 @@
         "QTA_full_history-6.bundle.txt"
       ],
       "why": "An exclusion: the RAG corpus leaves the legacy history bundle OUT. Naming a file to refuse it is the boundary working."
+    },
+    {
+      "module": "tools.pass_semantics_audit",
+      "rule": "OPEN",
+      "names": [
+        "QTA_stage9_release_verification/SHA256SUMS"
+      ],
+      "why": "A classifier: its ordered rule table names legacy paths in order to place each file holding the legacy gate-table vocabulary in a class (here the legacy release's checksums, as TOOLING_REFERENCE). It opens every file only to count pattern matches, and the legacy names are what it classifies."
+    },
+    {
+      "module": "tools.neural",
+      "rule": "OPEN",
+      "names": [
+        "results_gate_table.csv"
+      ],
+      "why": "The current-status builder reads the legacy QTA gate table for ONE purpose: to report its historical statuses in the section labelled LEGACY_QTA_ONLY. No current status is computed from it -- tests/test_claim_hygiene.py changes the gate statuses and requires every other section to stay the same -- and nothing in the active framework takes authority from it."
     }
   ],
   "file_rule_note": "A legacy file at the repository root is recognised by its file name anywhere (BOM.csv, hardware_registry.json); a nested one only by a path that includes its directory, so a generic SHA256SUMS or release_index.json in some other bundle is not mistaken for the legacy stage-9 release's."

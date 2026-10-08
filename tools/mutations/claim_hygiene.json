@@ -1,0 +1,149 @@
+{
+ "title": "Claim hygiene: legacy PASS separation, current status, distributed and reproduction wording (NF-1T closure)",
+ "note": "CH1-CH20: the PASS-semantics audit's label, window, no-effect, scope, word-boundary, unclassified and untracked rules; the current-status builder reading the legacy gate table, dropping its label, reporting simulated execution as hardware, asserting plan-only axes, equivalence, unscoped witness identity or unallocated weights without evidence; the claims' distributed reason losing its software-path-only and plan-only qualifiers or its hardware_executed condition.",
+ "suites": [
+  "tests/test_claim_hygiene.py"
+ ],
+ "mutations": [
+  {
+   "name": "CH1_legacy_label_ignored",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    if any(rx.search(window) for rx in LEGACY_LABEL):\n",
+   "replace": "    if False:\n",
+   "rationale": "a current statement that says the gates are the legacy QTA ones is reported as a leak, so the check cannot be satisfied honestly"
+  },
+  {
+   "name": "CH2_every_current_statement_a_guard",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    return \"CURRENT_AI_SEMANTIC_LEAK\"\n\n\ndef audit(",
+   "replace": "    return \"LEGACY_COMPATIBILITY_GUARD\"\n\n\ndef audit(",
+   "rationale": "an unlabelled 'PASS remains 0' in current material passes as a guard; current AI status could inherit the legacy zero unseen"
+  },
+  {
+   "name": "CH3_label_window_unbounded",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "WINDOW = 2\n",
+   "replace": "WINDOW = 10\n",
+   "rationale": "a 'legacy' word several lines away excuses an unlabelled PASS statement"
+  },
+  {
+   "name": "CH4_gate_effect_any_value",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    if name == \"automatic_gate_effect\" and NO_EFFECT.search(window):\n",
+   "replace": "    if name == \"automatic_gate_effect\":\n",
+   "rationale": "automatic_gate_effect is accepted whatever it is set to, not only NONE"
+  },
+  {
+   "name": "CH5_status_document_not_current_scope",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    (\"SCIENTIFIC_AI_STATUS.md\", CURRENT, \"the current status\"),\n",
+   "replace": "    (\"SCIENTIFIC_AI_STATUS.md\", \"DOCUMENTATION_HISTORY\", \"the current status\"),\n",
+   "rationale": "the current status page falls to prose history and may state the legacy PASS count unlabelled"
+  },
+  {
+   "name": "CH6_pass_count_matches_inside_words",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    \"pass_count\": re.compile(r\"(?i)(?<![A-Za-z])PASS[ _]count\"),\n",
+   "replace": "    \"pass_count\": re.compile(r\"(?i)PASS[ _]count\"),\n",
+   "rationale": "'bypass count' is read as the gate PASS count: false positives drown the real findings"
+  },
+  {
+   "name": "CH7_unclassified_files_pass_the_check",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    ok = rep[\"current_ai_semantic_leaks\"] == 0 and rep[\"unclassified\"] == 0\n",
+   "replace": "    ok = rep[\"current_ai_semantic_leaks\"] == 0\n",
+   "rationale": "a new file no rule covers is never classified and the check still passes"
+  },
+  {
+   "name": "CH8_untracked_files_not_audited",
+   "path": "tools/pass_semantics_audit.py",
+   "find": "    out = subprocess.run([\"git\", \"ls-files\", \"-z\", \"--cached\", \"--others\",\n",
+   "replace": "    out = subprocess.run([\"git\", \"ls-files\", \"-z\", \"--cached\",\n",
+   "rationale": "a leak in a file not yet committed is invisible until after it lands"
+  },
+  {
+   "name": "CH9_current_status_inherits_legacy_pass",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            \"NF-1T\": \"COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT\",\n",
+   "replace": "            \"NF-1T\": \"PASS\" if legacy_gate_statuses.get(\"PASS\") else \"PASS_COUNT_0\",\n",
+   "rationale": "the programme status is computed from the legacy QTA gate table's PASS count"
+  },
+  {
+   "name": "CH10_legacy_section_unlabelled",
+   "path": "scientific_ai/neural/status.py",
+   "find": "LEGACY_LABEL = \"LEGACY_QTA_ONLY\"\n",
+   "replace": "LEGACY_LABEL = \"CURRENT\"\n",
+   "rationale": "the legacy PASS count is published without the LEGACY_QTA_ONLY label"
+  },
+  {
+   "name": "CH11_hardware_from_result_alone",
+   "path": "scientific_ai/neural/status.py",
+   "find": "        \"hardware\": \"VALIDATED\" if hardware and report[\"result\"] == \"PASS\"\n",
+   "replace": "        \"hardware\": \"VALIDATED\" if report[\"result\"] == \"PASS\"\n",
+   "rationale": "a simulated multi-device run is reported as distributed hardware validation"
+  },
+  {
+   "name": "CH12_plan_only_not_derived",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            if not any(str(c.get(\"check\", \"\")).startswith(ax)\n",
+   "replace": "            if True or not any(str(c.get(\"check\", \"\")).startswith(ax)\n",
+   "rationale": "the plan-only axes are asserted, not derived from which checks executed"
+  },
+  {
+   "name": "CH13_equivalence_asserted",
+   "path": "scientific_ai/neural/status.py",
+   "find": "        \"scientific_equivalence\": equivalence,\n",
+   "replace": "        \"scientific_equivalence\": \"ESTABLISHED\",\n",
+   "rationale": "scientific equivalence across backends is declared instead of reported as given"
+  },
+  {
+   "name": "CH14_witness_identity_unscoped",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            \"context\": \"the witnessed numerical backend, by digest: the \"\n                       \"byte-reproduction witness profile, not a hosted \"\n                       \"runner\",\n",
+   "replace": "            \"context\": \"every runner\",\n",
+   "rationale": "the stored witness's 88/88 byte identity reads as true of any hosted runner"
+  },
+  {
+   "name": "CH15_unallocated_without_evidence",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            not trained and meta_report[\"real_allocation_refused\"] is True\n",
+   "replace": "            True or not trained and meta_report[\"real_allocation_refused\"] is True\n",
+   "rationale": "real weights are said to be unallocated whether or not the evidence shows a refused allocation"
+  },
+  {
+   "name": "CH16_device_kind_assumed",
+   "path": "scientific_ai/neural/status.py",
+   "find": "            if di[\"execution_profile\"] in C.SIMULATED_PROFILES\n",
+   "replace": "            if True\n",
+   "rationale": "every distributed report is described as simulated devices, whatever its profile says"
+  },
+  {
+   "name": "CH17_rendered_pass_count_unlabelled",
+   "path": "scientific_ai/neural/status.py",
+   "find": "        f\"| legacy QTA hardware forecast | historical PASS_count \"\n",
+   "replace": "        f\"| programme | PASS_count \"\n",
+   "rationale": "the status page's headline table states the gate PASS count as the programme's"
+  },
+  {
+   "name": "CH18_simulated_reason_unqualified",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "            reason = (f\"{prof.get('kind')} SOFTWARE-PATH VALIDATION ONLY: \"\n",
+   "replace": "            reason = (f\"{prof.get('kind')} distributed validation: \"\n",
+   "rationale": "a simulated run's reason no longer says it is software-path validation only"
+  },
+  {
+   "name": "CH19_plan_only_axes_unstated",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "            if plan_only:\n                reason += (",
+   "replace": "            if False:\n                reason += (",
+   "rationale": "the reason stops saying tensor and pipeline parallelism were never executed"
+  },
+  {
+   "name": "CH20_hardware_executed_not_required",
+   "path": "scientific_ai/neural/claims.py",
+   "find": "        hardware = prof.get(\"kind\") not in SIMULATED_PROFILES \\\n            and prof.get(\"hardware_executed\") is True\n",
+   "replace": "        hardware = prof.get(\"kind\") not in SIMULATED_PROFILES\n",
+   "rationale": "a hardware-named profile that did not execute on hardware validates distributed hardware"
+  }
+ ]
+}

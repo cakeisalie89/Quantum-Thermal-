@@ -225,6 +225,53 @@ def test_plain_language_names_the_member_that_was_trained(flag, report):
     assert "this configuration has not been trained" in text
 
 
+#: What a subject with real training evidence must never be said to be.
+UNALLOCATED = ("have not been allocated", "has not been allocated",
+               "never been allocated", "not been allocated")
+
+
+def test_a_trained_subject_is_never_said_to_be_unallocated():
+    """The development member was meta-validated AND then allocated and
+    trained: both are said, in that order, and nothing says its weights
+    were never allocated (NF-1T closure)."""
+    dev = family.development()
+    rep = meta.validate(dev)
+    m = documents.model_manifest(dev, solve=None,
+                                 evidence=[rep, _training(dev.digest())],
+                                 source_commit="0" * 40)
+    text = m["claim_status"]["plain_language"]
+    assert "ARCHITECTURE_META_VALIDATED" in [
+        c for c, v in m["claim_status"]["claims"].items() if v["holds"]]
+    assert "first validated by zero-allocation (abstract) construction" \
+        in text
+    assert "allocated and trained end to end" in text
+    assert not any(u in text for u in UNALLOCATED), text
+
+
+def test_the_flagship_still_says_its_real_weights_were_never_allocated(
+        flag, report):
+    dev = family.development().digest()
+    m = manifest(flag, [report, _training(dev)], members=(dev,))
+    text = m["claim_status"]["plain_language"]
+    assert "its real weights have not been allocated" in text
+    assert "this configuration has not been trained" in text
+    assert "allocated and trained" not in text
+
+
+def test_the_committed_manifests_say_what_happened_to_each_subject():
+    root = Path(__file__).resolve().parents[1] / "docs" / "neural"
+    import json
+    dev = json.loads((root / "development_model_manifest.json").read_text())
+    flag = json.loads((root / "flagship_model_manifest.json").read_text())
+    dtext = dev["claim_status"]["plain_language"]
+    ftext = flag["claim_status"]["plain_language"]
+    assert not any(u in dtext for u in UNALLOCATED), dtext
+    assert "allocated and trained end to end" in dtext
+    assert "reloaded to identical outputs" in dtext
+    assert "its real weights have not been allocated" in ftext
+    assert "this configuration has not been trained" in ftext
+
+
 def test_an_evaluation_that_drops_the_learned_semantics_is_malformed():
     doc = {k: None for k in manifests.KEYS[manifests.EVALUATION_REPORT]}
     doc.update({"schema": manifests.EVALUATION_REPORT,

@@ -213,7 +213,8 @@ def stage10_policy(version: int = 1) -> "object":
     return document(
         policy_id=POLICY_ID, version=version,
         description=("Governed Stage-10 artifact generation. Provenance only: "
-                     "no rule here can affect a gate, and PASS remains 0."),
+                     "no rule here can affect a gate of the legacy QTA "
+                     "hardware forecast, whose PASS_count stays 0."),
         rules=(
             rule(rule_id="deny-worker-priority-escalation",
                  effect=Effect.DENY, actions=("scheduler.raise_priority",),

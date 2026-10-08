@@ -10,6 +10,19 @@ above -- what may be treated as a result. Every one of those steps is an
 event in an append-only, hash-chained log, and every reader of that log
 re-decides what it means rather than trusting what was written into it.
 
+## Where things stand
+
+`SCIENTIFIC_AI_STATUS.md` is the current status of the Scientific-AI
+harness, generated from the committed evidence by `tools/neural.py status`
+and checked by `tools/neural.py verify`: the ~1T learned-model architecture
+(counted exactly and validated by abstract construction, never allocated or
+trained), the development member that was trained and evaluated, what ran
+distributed (simulated devices only), and what learned outputs may be
+(non-authoritative). The legacy QTA hardware forecast's gate table -- no
+gate passes, because nothing was measured -- is reported there in its own
+LEGACY_QTA_ONLY section; its PASS count is a fact about that forecast and
+not a measure of this software.
+
 ## What this is not
 
 It is not a measurement system and it reports no measurement. A simulation

@@ -1,6 +1,6 @@
 {
  "title": "Meta validation, claims, checkpoints, lineage and the learned-record authority boundary (NF-1T)",
- "note": "NU1-NU22: a meta validation that allocates, a development run credited to the flagship or a large model, an interrupted run counted as trained, a tampered report accepted, a learned record made authority live or on replay or by the second reader, a broken lineage link accepted, a checkpoint's bytes or tensors unchecked, resume semantics conflated, the learned-prediction semantics dropped, a legacy import or machine-mode name planted in the substrate.",
+ "note": "NU1-NU25: a meta validation that allocates, a development run credited to the flagship or a large model, an interrupted run counted as trained, a tampered report accepted, a learned record made authority live or on replay or by the second reader, a broken lineage link accepted, a checkpoint's bytes or tensors unchecked, resume semantics conflated, the learned-prediction semantics dropped, a legacy import or machine-mode name planted in the substrate; a trained subject described as unallocated (NU23-NU24); PROMOTED left open to a learned record (NU25).",
  "suites": [
   "tests/test_neural_meta.py",
   "tests/test_neural_provenance.py",
@@ -160,6 +160,27 @@
    "find": "    if member[\"holds\"] and member[\"scope\"] == \"FAMILY_MEMBER\":\n",
    "replace": "    if False:\n",
    "rationale": "the summary stops saying that only a development member was trained"
+  },
+  {
+   "name": "NU23_trained_subject_takes_the_untrained_branch",
+   "path": "scientific_ai/neural/documents.py",
+   "find": "    if trained:\n        if \"ARCHITECTURE_META_VALIDATED\" in held:\n",
+   "replace": "    if False:\n        if \"ARCHITECTURE_META_VALIDATED\" in held:\n",
+   "rationale": "a trained subject is described as unallocated and untrained, the defect the NF-1T closure repaired"
+  },
+  {
+   "name": "NU24_trained_subject_said_unallocated",
+   "path": "scientific_ai/neural/documents.py",
+   "find": "            parts.append(\"Its architecture was first validated by \"\n                         \"zero-allocation (abstract) construction; this \"\n                         \"configuration was then allocated and trained end \"\n                         \"to end on its development dataset.\")\n",
+   "replace": "            parts.append(\"Mathematically parameterised and structurally \"\n                         \"validated by zero-allocation (abstract) \"\n                         \"construction; its weights have not been \"\n                         \"allocated. This configuration has been trained \"\n                         \"end to end on its development dataset.\")\n",
+   "rationale": "the pre-closure sentence returns: one summary says a trained configuration's weights were never allocated"
+  },
+  {
+   "name": "NU25_promoted_left_open_to_learned_records",
+   "path": "qta_agent/learned_rules.py",
+   "find": "REFUSED_STATES = (\"VERIFIED\", \"PROMOTED\")\n",
+   "replace": "REFUSED_STATES = (\"VERIFIED\",)\n",
+   "rationale": "a learned output can be promoted without passing through VERIFIED's refusal"
   }
  ]
 }

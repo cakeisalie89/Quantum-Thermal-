@@ -2405,7 +2405,7 @@ its constraint violations and calibration gaps are reported as found.
 | mutation tests | 88/88 new; re-runs below; every hosted shard green |
 | lint / type check | as fields 51-52 |
 | package consistency | PASS (default and strict-reproduction) |
-| canonical artifacts | 89/89 unchanged; witness 88/88 byte-identical |
+| canonical artifacts | 89/89 unchanged in the tree; stored witness on the witnessed backend `97b7772c...` (the host this session ran on until 2026-10-07): 88/88 byte-identical -- a generic hosted runner is a different question (section 18) |
 | provenance / dataset manifest / checkpoint | chain intact; `manifests.problems` empty for every document; checkpoint digest, configuration, tensor set verified; `verify` PASS |
 | development training | COMPLETED, 4,000 steps, bitwise fresh-run and exact-resume reproducibility |
 | meta validation | flagship and every ladder rung PASS, abstract counts equal to the arithmetic in every category |
@@ -2560,3 +2560,280 @@ false, and a simulated profile is refused if it claims otherwise.
 Nothing. Tranche E (semantic QTA clean-up) is not begun and waits for an
 explicit owner continuation; no rung above the development member is
 trained without paid compute the owner authorises.
+
+## 18. NF-1T closure -- the current Scientific-AI status separated from the legacy QTA gate table, the plain language repaired, distributed and reproduction wording scoped (NF-1T closure directive)
+
+Starting HEAD `eb716ad` (section 17's report) on
+`claude/scientific-python-stack-7rsq3m`; the tracked tree clean and equal to
+the remote; every hosted job green at that SHA. The closure's
+implementation commit (C4) carries everything below, this section
+included; its hosted runs are attached by the commit after it (C5), which
+changes no path R60's implementation digest covers. Not merged; PR #17
+open; no new
+PR; no history rewritten; nothing force-pushed; no paid compute. No model
+weight, checkpoint, dataset or evaluation byte changed; nothing was
+allocated or trained; no learned output was admitted; no historical QTA
+evidence, canonical output or hardware-era forecast value was touched.
+**Tranche E is not begun as a separate tranche**; the harness completion
+programme that follows this section takes the active/legacy separation up
+inside its own scope. Hosted CI belongs to the commit it ran on: a commit
+cannot carry its own run IDs, so C4's runs are recorded by C5.
+
+### Status
+
+    NF-1T:
+        COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT  (declared by section 17; unchanged)
+    CURRENT SCIENTIFIC-AI STATUS:
+        SCIENTIFIC_AI_STATUS.md, generated from the learned-model evidence; reads no legacy gate
+    LEGACY QTA HARDWARE-FORECAST GATE TABLE:
+        historical PASS_count 0 of 83 gates -- LEGACY_QTA_ONLY, not a current success metric
+    PLAIN-LANGUAGE CONTRADICTION (trained vs unallocated):
+        REPAIRED
+    DISTRIBUTED:
+        SIMULATED_MULTI_DEVICE software-path validation only; hardware NOT_VALIDATED;
+        tensor and pipeline parallelism PLAN_ONLY
+    REPRODUCTION:
+        stored witness 88/88 on the witnessed backend 97b7772c...;
+        a generic hosted runner DIFFERENT_RESOLVED_BACKEND / DECISION_STABLE_WITH_NUMERIC_DRIFT;
+        SCIENTIFIC_EQUIVALENCE_STATUS NOT_ESTABLISHED
+    LEARNED OUTPUTS:
+        LEARNED_PREDICTION, NON_AUTHORITATIVE, REQUIRES_EXTERNAL_VERIFICATION;
+        VERIFIED and PROMOTED refused
+
+### A. Whose PASS = 0 it is
+
+The legacy QTA hardware forecast's gate table has 83 gates (CONDITIONAL
+47, BLOCKED 23, DERIVED_CHECK 11, UNKNOWN 2) and a historical PASS_count of
+0: no gate could pass because nothing was measured. That stays true of the
+forecast and is kept everywhere the forecast is. It is not a status of the
+Scientific-AI harness, the learned-model substrate or the agent substrate.
+`tools/pass_semantics_audit.py` (D-2026-104) classes every file holding the
+legacy gate vocabulary; in the current harness each occurrence must say
+within two lines that the gates are the legacy QTA ones, or it is a leak.
+
+| class | at `eb716ad` (files / occurrences) | now |
+|---|---|---|
+| LEGACY_QTA_CANONICAL | 54 / 199 | 54 / 199 |
+| LEGACY_COMPATIBILITY_GUARD | 61 / 242 | 76 / 292 |
+| DOCUMENTATION_HISTORY | 29 / 101 | 29 / 112 |
+| TOOLING_REFERENCE | 17 / 50 | 20 / 96 |
+| FALSE_POSITIVE | 0 / 0 | 0 / 0 |
+| CURRENT_AI_SEMANTIC_LEAK | **7 / 9** | **0 / 0** |
+| UNCLASSIFIED | 0 / 0 | 0 / 0 |
+
+The nine were: the agent-substrate workflow's header, the gates authority
+in `authorities.json` (two patterns, one line), `conftest.py`, the
+completion matrix's `does_not_mean` and its R55 detail,
+`qta_agent/governed_stage10.py`'s Stage-10 policy description (its policy
+digest changes with the text; nothing pins it), the reproduction profile's
+`DOES_NOT_MEAN` in `scientific/reproduction.py`, and
+`tools/test_isolation.py`. Each now says the count belongs to the legacy
+QTA hardware forecast and is not a measure of what it describes. The
+growth in the guard, tooling and history classes is this closure's own: its
+tests, its audit, its status and their registrations, and this section and
+its ledger entry. FALSE_POSITIVE is 0 because
+the patterns are word-bounded ("bypass count" and "5190 passed" are not
+matches; a test plants them). The check runs in CI and in `verify`.
+
+### B. Plain language, before and after
+
+Development member, before (`eb716ad`): "Mathematically parameterised and
+structurally validated by zero-allocation (abstract) construction; its
+weights have not been allocated. This configuration has been trained end to
+end on its development dataset."
+
+After: "Its architecture was first validated by zero-allocation (abstract)
+construction; this configuration was then allocated and trained end to end
+on its development dataset. Its checkpoint was reloaded to identical outputs
+and evaluated on held-out splits."
+
+Flagship, after: "Mathematically parameterised and structurally validated
+by zero-allocation (abstract) construction; its real weights have not been
+allocated. A development-scale member of the same architecture family has
+been trained end to end; this configuration has not been trained." (Before,
+the same with "its weights".) Both end "Its scientific performance is not
+established." The repair is in `documents.plain_language`, not in the
+JSON: the manifests' `claim_status` -- derived state, outside the manifest
+identity -- was re-derived from the unchanged evidence by `tools/neural.py
+rederive`, which refuses if any other field would change; `source_commit`
+stays `8ee1e5b`; the ten development evidence files are byte-identical
+before and after.
+
+### C. Distributed, before and after
+
+The claim reason was "every parallel check passed on
+SIMULATED_MULTI_DEVICE". It is now "SIMULATED_MULTI_DEVICE SOFTWARE-PATH
+VALIDATION ONLY: every parallel check passed on 8 devices of that profile;
+hardware_executed is not true, so this is not distributed hardware
+validation; tensor and pipeline parallelism are PLAN_ONLY (validated as
+plans, never executed)" -- the plan-only axes derived from which checks
+executed, so an executed tensor check removes "tensor" from the sentence
+(a test does it). `DISTRIBUTED_HARDWARE_VALIDATED` does not hold and cannot
+hold from a simulated profile or without `hardware_executed` true; the
+status reports hardware NOT_VALIDATED and describes the devices from the
+profile rather than assuming them.
+
+### D. Reproduction: three facts, kept apart
+
+At `eb716ad`, read from the hosted job logs (those runs belong to that
+SHA):
+
+* **Stored witness** (`docs/byte_reproduction_profile.json`, observed at
+  `f303a73` on the host this session ran on until 2026-10-07), reproducing the committed bytes:
+  witnessed backend `97b7772c...`, 88 of 88 canonical files byte-identical.
+  It is a fact about that backend, not about a hosted runner. The
+  profile is unchanged by this closure: re-establishing it would repoint
+  historical evidence at a new commit, and `reproduction_witness.py check`
+  still applies it (88 canonical files, 98 closure files, none of them
+  touched here). It keeps the `does_not_mean` wording it was written with.
+* **Generic hosted runner** (full-suite job 112670912203): the runner
+  resolved a different backend (`7b42caba...`):
+  `REPRODUCTION_STATUS=DIFFERENT_RESOLVED_BACKEND`,
+  `CROSS_ENV_STATUS=DECISION_STABLE_WITH_NUMERIC_DRIFT` -- 88 files
+  compared, 23 differing in their digits, 5,411 leaves, 27 bound zero
+  crossings, 195 at precision, 0 refused. Decision stability, not byte
+  identity.
+* **Cross-environment 3D** (job 112670912217): with the kernel unset the
+  runner selected SkylakeX and 63 of 63 were byte-identical; pinned Haswell
+  43/63, Haswell with AVX2 NumPy 40/63, Nehalem 41/63.
+* `SCIENTIFIC_EQUIVALENCE_STATUS=NOT_ESTABLISHED` -- no policy defines it
+  (R59-C).
+
+### E. Learned outputs and the architecture
+
+`docs/neural/claims.json` now records the refused states as read from the
+rule the store enforces (`learned_refused_states`: PROMOTED, VERIFIED); the
+acceptance attempt on the evaluation is refused, as before. The locked
+flagship is unchanged and pinned exactly by a test: 64 layers, 64 experts
+per layer, 4,096 expert modules, top_k 12 (economical 10, deep 14), 768
+expert selections per token across depth, 996,509,217,800 trainable,
+996,509,226,000 with 8,200 buffers, 200,832,889,864 active per token.
+
+### Errata to section 17
+
+* **Field 52 and "Unfinished"**: "61 errors in 16 of its 30 new modules".
+  `mypy --ignore-missing-imports` over the same modules at `eb716ad` --
+  31 of them -- reports 63 errors in 16; the per-module counts equal the
+  run section 17 was written from, so 61 and 30 were miscounts, not a
+  change. Now 63 errors in 16 of 33 modules: this closure's `status.py` and
+  `pass_semantics_audit.py` add none. R60 says so.
+* **Final-validation table, canonical artifacts**: corrected in place
+  (the only edit to section 17), because it gave the witness's full-corpus
+  byte identity without its backend. Field 45 already scoped it.
+* **The development manifest behind fields 32-33**: its plain language
+  said the trained member's weights had not been allocated (B above);
+  the fields were right, the manifest was not.
+* The PR #17 description put the legacy PASS count at the top as the
+  branch's status; it is rewritten after hosted CI on this commit, the
+  current status first and the legacy sections labelled historical.
+
+### Defects found in this closure's own drafts, before any push
+
+* **The first authoritative run was red.** On the first candidate tree the
+  full suite gave 5,689 passed, 9 skipped and 3 failed, all in
+  `tests/test_framework_boundary.py`: two ACTIVE modules named legacy
+  files -- `tools/neural.py` the legacy gate table the status reports, and
+  `tools/pass_semantics_audit.py` the legacy release's `SHA256SUMS` in its
+  rule table. Both are legitimate reads of legacy material for the
+  purpose of labelling it, and the boundary has a mechanism for exactly
+  that: each is now a declared, name-scoped exception in
+  `docs/framework_boundary.json` with its reason. The targeted runs before
+  it had not included the framework-boundary suite; the run that counts
+  is the full one.
+* `claim_hygiene` mutation run 1 refused (empty replacement) and run 2 red
+  (an unscoped byte-identity line in this section): below.
+
+### Final validation, exact results
+
+| Check | Result |
+|---|---|
+| authoritative suite (local, in place, `QTA_NEURAL_REQUIRED=1`, on the tree of this commit) | 5,692 passed, 9 skipped, 0 failed (5,701 collected) |
+| tests added | 133 over `eb716ad`'s 5,568: `test_claim_hygiene` 39 (new), `test_mutation_harness` 84 (every committed spec through the harness's own validation, 79; the five per-spec checks on `claim_hygiene.json`), `test_claims_boundary` 3 (EB15-EB17), `test_neural_meta` 3, `test_neural_boundary` 2 (`status.py` placed in the substrate's layering), `test_neural_accounting` 1 (the locked architecture's exact counts), `test_neural_provenance` 1 (the refusal is exactly VERIFIED and PROMOTED for every learned kind) |
+| `tools/neural.py verify` | PASS -- both manifests' claim status, `claims.json`, the status JSON and its Markdown recomputed equal; chain intact |
+| development evidence | the ten files under `docs/neural/dev/` byte-identical to `eb716ad` |
+| PASS semantics audit (`--check`) | 0 CURRENT_AI_SEMANTIC_LEAK, 0 unclassified, report current |
+| hardware-era mode audit (`--check`) | 0 ACTIVE_NEURAL_SEMANTIC_LEAK, 0 unclassified |
+| package consistency | depends on the host, and both hosts are recorded. The session's container moved overnight; the host of the authoritative run resolves backend `638f5ada...`, which is not the witnessed one (it differs in CPU SIMD and NumPy dispatch). There `strict-reproduction` (the default) correctly REFUSED -- CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED, nothing regenerated -- and `--policy ci` failed only on its 300 s hang detector: `qta_full_sim.py` was still producing output when stopped, the slow-host breach the checker names as such, and every other check passed. The budget was not raised; that is a governed decision. On the first candidate tree, on the session's earlier host -- the witnessed backend `97b7772c...` -- both policies passed with REPRODUCTION_STATUS=BYTE_IDENTICAL and files_differing 0, and nothing since touches the simulator or its outputs. The hosted `--policy ci` run on this commit is the evidence for it (C5 records it) |
+| witness profile | `reproduction_witness.py check`: applies (88 canonical files, 98 closure files, 1 witness); unchanged |
+| canonical artifacts | 89 declared files unchanged; none is in this commit's diff |
+| lint | ruff clean on every added and modified Python file except three pre-existing E501 (line 1 of `conftest.py`; `tools/workflow_contract.py` 281 and 359); `ruff check .` 1,445 findings, as at `eb716ad` |
+| type check | `mypy --ignore-missing-imports` over the substrate's 33 modules: 63 errors in 16, the same 63 in the same 16 as at `eb716ad` (errata below) |
+| other gates | framework boundary (150 active modules: 0 importing legacy, 0 naming a legacy file outside a declared exception, 0 importing legacy ontology); workflow contract (79 specs wired, 13 commands); claims boundary 17/17; completion matrix self-consistent (R60's hosted evidence now PREDATES its implementation, as it must until hosted runs at this commit are cited); file dispositions (one rule each); dependency declarations (310 third-party imports); test isolation; manifest in sync |
+
+### Mutation results (local, serial, baseline and null control green, sources restored byte-identical in every counted run)
+
+New: `claim_hygiene` **20/20** (CH1-CH20). The harness stops a suite at
+its first failure, and six kills (CH1, CH3, CH5, CH6, CH9, CH17) first
+showed the committed-report check; each was re-applied with that test
+deselected and is killed by a semantic test as well (the label, the
+window, the status page's scope, word boundaries, the status reading the
+legacy table, the committed status), so none is vacuous.
+`neural_authority` **25/25** (NU1-NU25, NU23-NU25 new).
+
+Re-run because this closure changed their files or suites, every one with
+a green baseline and null control and sources restored byte-identical:
+`neural_accounting` 20/20, `claims_boundary` 16/16, `completion_matrix`
+18/18, `repo_contract` 18/18, `mutation_shards` 12/12, `test_isolation`
+5/5, `reproduction_policy` 29/29, `mutation_harness` 21/21; and, because
+`qta_agent/governed_stage10.py`'s policy description changed,
+`stage10_authority` 19/19, `agent_actions` 6/6, `agent_agents` 61/61,
+`agent_compensation` 15/15, `agent_idempotency` 20/20, `agent_job_graph`
+12/12, `agent_readpath` 21/21, `agent_recovery` 14/14,
+`agent_separate_verify` 11/11, `agent_tasks` 32/32, `governed_breadth`
+17/17, `scientific_invalidation` 14/14, `task_execution_phase` 10/10.
+**436/436 over 23 specs**, in separate worktrees holding this closure's
+code, run serially per worktree. Every mutation anchor of all 79 specs
+(1,774 mutations) matches exactly once.
+
+Not counted, and why: `claim_hygiene` run 1, refused by the harness
+before anything ran (CH5 had an empty replacement -- a test now applies
+the harness's validation to every committed spec); run 2, a red baseline
+(a line of this section gave the witness's full-corpus byte identity
+without its backend on the same line, and `test_claim_hygiene` refused
+it -- the line was reworded).
+
+### Files
+
+Added: `scientific_ai/neural/status.py`, `tools/pass_semantics_audit.py`,
+`tests/test_claim_hygiene.py`, `tools/mutations/claim_hygiene.json`,
+`SCIENTIFIC_AI_STATUS.md`, `docs/neural/current_status.json`,
+`docs/pass_semantics_audit.json`. Modified -- code: `scientific_ai/neural/
+documents.py`, `scientific_ai/neural/claims.py`, `tools/neural.py`
+(`rederive`, `status`, `verify` of both), `tools/neural_ledger.py`,
+`tools/neural_legacy_audit.py`, `tools/claims_enforcement.py`,
+`tools/file_disposition.py`, `tools/workflow_contract.py`, and the text of
+`qta_agent/governed_stage10.py`, `scientific/reproduction.py`,
+`tools/test_isolation.py`, `conftest.py`; tests: `test_neural_meta.py`,
+`test_neural_accounting.py`, `test_neural_provenance.py`,
+`test_claims_boundary.py`, `test_completion_matrix.py`,
+`test_mutation_harness.py`; specs: `neural_authority.json`; documents:
+`README.md`, `NEURAL_SUBSTRATE.md`, `CLAIMS_BOUNDARY.md`,
+`docs/claims_boundary.json`, `docs/framework_boundary.json` (the two
+declared exceptions), `docs/completion_matrix.json` (R51, R55, R60,
+`does_not_mean`), `authorities.json`, `docs/DEFECT_LEDGER.md` (D-2026-104),
+this plan; CI: `.github/workflows/agent-substrate.yml` (the audit step,
+lint, path triggers, regenerated mutation shards); derived:
+`docs/neural/{claims,development_model_manifest,flagship_model_manifest,
+legacy_semantic_audit}.json`, `FILE_DISPOSITION.csv`,
+`docs/corpus_allowlist.json`, `ro-crate/ro-crate-metadata.json`,
+`final_manifest.json`, `manifest_hash.txt`.
+
+### Remaining gaps
+
+Unchanged from section 17: the flagship and every rung above the
+development member unallocated and untrained (paid compute, not
+authorised); the development model's invariant violations, flux
+undercoverage and OOD collapse; epistemic uncertainty NOT_ASSESSED; tensor
+and pipeline parallelism plan-only; FP8 estimation-only; no distributed
+hardware; mypy enforcement of the substrate open (63 errors, none a
+runtime defect); no admission policy for learned models; R59-C (no
+scientific-equivalence policy) and R59-D (no hosted witnessed backend);
+the 12 ACTIVE_GENERIC files naming hardware-era machine semantics and the
+wider legacy vocabulary -- tranche E, not begun.
+
+### Next, exactly
+
+C4's hosted runs, then C5 attaching them (R60 must derive
+COVERS_CURRENT_IMPLEMENTATION again). The harness completion programme
+continues from there. No training above the development member, and no
+flagship allocation, without an explicit owner decision.

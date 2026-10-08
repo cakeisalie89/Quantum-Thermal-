@@ -58,14 +58,14 @@
    },
    "lines": {
     "helium_routing": [
-     604
+     619
     ],
     "machine_mode_label": [
-     160
+     167
     ],
     "methane_routing": [
-     602,
-     630
+     617,
+     645
     ]
    },
    "path": ".github/workflows/agent-substrate.yml",
@@ -179,7 +179,7 @@
    },
    "lines": {
     "machine_mode_label": [
-     50
+     53
     ]
    },
    "path": "CLAIMS_BOUNDARY.md",
@@ -493,19 +493,19 @@
    },
    "lines": {
     "helium_routing": [
-     290
+     293
     ],
     "machine_mode_label": [
-     290,
-     294,
-     338,
-     346,
-     352,
-     365,
-     679
+     293,
+     297,
+     341,
+     349,
+     355,
+     368,
+     684
     ],
     "mode_sequence": [
-     294
+     297
     ]
    },
    "path": "FILE_DISPOSITION.csv",
@@ -3521,8 +3521,8 @@
    },
    "lines": {
     "machine_mode_label": [
-     141,
-     142
+     143,
+     144
     ]
    },
    "path": "tests/test_claims_boundary.py",
@@ -4116,7 +4116,7 @@
      378,
      399,
      410,
-     742
+     747
     ],
     "mode_sequence": [
      341
@@ -4384,6 +4384,11 @@
    "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
    "path": "docs/neural/*",
    "why": "the substrate's evidence documents"
+  },
+  {
+   "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
+   "path": "SCIENTIFIC_AI_STATUS.md",
+   "why": "the current Scientific-AI status, generated from that evidence"
   },
   {
    "class": "TOOLING_CLASSIFIER_REFERENCE",

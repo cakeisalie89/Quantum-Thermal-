@@ -57,6 +57,11 @@ REQUIRED = (
     ("learned prediction", "authority"),
     ("meta-validated architecture", "allocated, trained or validated model"),
     ("development model's training", "flagship's"),
+    # NF-1T closure: the legacy gate table is not the current status;
+    # simulated is not hardware; decision stability is not byte identity.
+    ("legacy qta gate-table pass count", "status of the current harness"),
+    ("simulated distributed execution", "distributed hardware validation"),
+    ("decision stability under numeric drift", "byte identity"),
 )
 
 

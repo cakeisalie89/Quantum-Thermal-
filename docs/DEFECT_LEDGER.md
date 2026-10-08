@@ -9244,3 +9244,110 @@ by the store. Hosted: every job green at `8ee1e5b` (agent-substrate
 37566755617 and 37566759142; stack-verify 37566755602 and 37566759195) and at `0a0d43e` (agent-substrate 37574169210 and 37574174428; stack-verify 37574174415), the full suite run with the
 `neural` extra and `QTA_NEURAL_REQUIRED=1`, and all 78 mutation specs in
 8 shards.
+
+## D-2026-104 — the current programme read as "PASS = 0", a trained model was said to be unallocated, and simulated or witnessed results were worded as more than they are
+
+**CLASS** — `CLAIM_HYGIENE`, NF-1T closure. `scientific_ai/neural/documents.py`,
+`scientific_ai/neural/claims.py`, `scientific_ai/neural/status.py`,
+`tools/neural.py`, `tools/neural_ledger.py`, `tools/pass_semantics_audit.py`,
+and the current-harness text named below.
+
+**WHAT WAS THERE** (`eb716ad`, the NF-1T report commit, every hosted job
+green). Four reporting defects, none in a computed number:
+
+* **The legacy gate count stood in for the current status.** The QTA
+  hardware-forecast gate table's `PASS_count = 0` is a fact about that
+  forecast -- no gate could pass because nothing was measured. Nine
+  statements in seven files of the current harness (the agent-substrate
+  workflow's header, the gates authority in `authorities.json`,
+  `conftest.py`, the completion matrix's `does_not_mean` and its R55
+  detail, a policy description in `qta_agent/governed_stage10.py`, the
+  reproduction profile's `DOES_NOT_MEAN`, `tools/test_isolation.py`) said
+  "PASS remains 0" or its equivalents without saying whose PASS it was, and
+  the PR description put it at the top as the branch's status. Read
+  without context it says the software passes nothing.
+* **A trained configuration was said to be unallocated.** The development
+  manifest's `plain_language` read "...structurally validated by
+  zero-allocation (abstract) construction; its weights have not been
+  allocated. This configuration has been trained end to end..." -- two
+  facts about different moments joined as if simultaneous, the first false
+  of the configuration as it stands. `plain_language` appended the meta
+  sentence whenever ARCHITECTURE_META_VALIDATED held, whatever else did.
+* **Simulated execution was worded as distributed validation.** The claim
+  reason was "every parallel check passed on SIMULATED_MULTI_DEVICE"; that
+  the run was software-path validation only, that `hardware_executed` was
+  false, and that tensor and pipeline parallelism were never executed were
+  each true and each said elsewhere, not where the claim is read.
+* **A stored witness's byte identity read as the tree's.** Section 17's
+  validation table gave the witness's full-corpus byte identity with no
+  backend, beside hosted runs whose own verdict at the same SHA was
+  `REPRODUCTION_STATUS=DIFFERENT_RESOLVED_BACKEND`,
+  `CROSS_ENV_STATUS=DECISION_STABLE_WITH_NUMERIC_DRIFT` (23 of 88 files
+  differing in their digits).
+
+**REPAIR.**
+
+* **Whose PASS it is, checked.** `tools/pass_semantics_audit.py` finds
+  every occurrence of the legacy gate-table vocabulary (nine patterns) in
+  every tracked or untracked-unignored file and classes each file by an
+  ordered rule table: LEGACY_QTA_CANONICAL, LEGACY_COMPATIBILITY_GUARD,
+  DOCUMENTATION_HISTORY, TOOLING_REFERENCE, FALSE_POSITIVE. In the current
+  harness every occurrence is judged on its own: within two lines it must
+  say whose gates these are (legacy, historical, hardware-era, hardware
+  forecast, QTA), and `automatic_gate_effect` must be NONE; anything else
+  is a CURRENT_AI_SEMANTIC_LEAK, and a file no rule covers is UNCLASSIFIED.
+  The nine statements now say that the count belongs to the legacy QTA
+  hardware forecast and is not a measure of the code they describe. The
+  check (`--check`) is a CI step and requires zero of each; the report is
+  committed.
+* **A current status that does not read the legacy table.**
+  `scientific_ai/neural/status.py` builds `docs/neural/current_status.json`
+  and `SCIENTIFIC_AI_STATUS.md` from the committed learned-model evidence,
+  the claims, the distributed report and the stored witness; the legacy
+  gate statuses are a separate argument that only the section labelled
+  LEGACY_QTA_ONLY reads (a test changes them and requires every other
+  section to stay the same). The programme verdict is printed as DECLARED by
+  the closure report, not derived. `tools/neural.py status` writes both;
+  `verify` and a test recompute them.
+* **Plain language from the claims that hold.** A subject with its own
+  completed training is described as validated abstractly first and then
+  allocated and trained; "real weights have not been allocated" is said
+  only of a subject with no subject-scoped training. The manifests'
+  `claim_status` -- derived state -- was re-derived from the unchanged
+  evidence (`tools/neural.py rederive`, which refuses if any other field
+  would change); `source_commit` stays `8ee1e5b`, and no weight, checkpoint
+  or evaluation byte moved.
+* **Simulated is software-path only.** A non-hardware run's reason now
+  reads "<profile> SOFTWARE-PATH VALIDATION ONLY ... hardware_executed is
+  not true, so this is not distributed hardware validation", and names the
+  parallel axes no executed check covered as PLAN_ONLY, derived from the
+  check names. The status reports `hardware: NOT_VALIDATED` unless a
+  non-simulated profile executed on hardware.
+* **Three reproduction facts, kept apart.** The status and section 18 state
+  separately: the stored witness (88/88 on backend `97b7772c...`, observed
+  at `f303a73`), what a generic hosted runner reports (decision stability
+  under numeric drift, not byte identity), and
+  `SCIENTIFIC_EQUIVALENCE_STATUS=NOT_ESTABLISHED`. A test requires every
+  88/88 byte-identity line in the current documents to name the witnessed
+  backend, and no decision-stability line to claim identity or
+  equivalence.
+* **Boundaries.** EB15-EB17 in the claims boundary: the legacy QTA
+  gate-table PASS count is not a status of the current harness; simulated
+  distributed execution is not distributed hardware validation; decision
+  stability under numeric drift is not byte identity.
+
+**EVIDENCE.** `tests/test_claim_hygiene.py`; `tests/test_neural_meta.py`
+(a trained subject is never said to be unallocated; the flagship still
+is); `tests/test_neural_accounting.py` (the locked architecture's exact
+counts, 4,096 expert modules, 768 expert selections per token across
+depth); `tests/test_neural_provenance.py` (the refusal is exactly VERIFIED
+and PROMOTED for every learned kind); `tests/test_mutation_harness.py`
+(every committed spec passes the harness's own validation); mutations
+CH1-CH20 (`tools/mutations/claim_hygiene.json`) and NU23-NU25.
+
+**NOT CLAIMED.** Nothing here changes a model, a weight, a dataset, a
+canonical output, the legacy gate table or any historical result; the
+stored witness profile is unchanged and keeps the wording it was written
+with. No large configuration was allocated or trained; no learned output
+was admitted. The broader semantic clean-up of the hardware-era vocabulary
+(tranche E) is not begun.

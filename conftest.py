@@ -35,8 +35,9 @@ here makes the guarantee structural instead of a convention 103 files happen
 to follow. The per-module inserts stay: they are harmless, and removing a
 hundred of them would be churn that buys nothing.
 
-MODEL-ONLY / FORECAST-ONLY. Nothing here changes a gate, a threshold or a
-canonical output. PASS remains 0.
+Nothing here changes a gate of the legacy QTA hardware forecast, a threshold
+or a canonical output; that forecast's historical PASS_count stays 0, a fact
+about it and not a measure of this suite.
 """
 import pathlib
 import sys
