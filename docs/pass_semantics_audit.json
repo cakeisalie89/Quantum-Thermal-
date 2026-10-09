@@ -7,7 +7,7 @@
   },
   "DOCUMENTATION_HISTORY": {
    "files": 29,
-   "occurrences": 112
+   "occurrences": 113
   },
   "FALSE_POSITIVE": {
    "files": 0,
@@ -98,7 +98,7 @@
    "occurrences": {
     "DOCUMENTATION_HISTORY": {
      "gate_status": 1,
-     "pass_count": 4,
+     "pass_count": 5,
      "pass_equals_zero": 3
     }
    },

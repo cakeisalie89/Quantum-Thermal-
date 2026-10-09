@@ -791,7 +791,15 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: fmi_boundary.py in R63's and tools/supply_chain.py in R65's, so those
 #: four derive PREDATES beside R51, R58 and R69 until a later commit cites
 #: runs at this one.
-EXPECTED_EVIDENCE_COVERS = 43
+#:
+#: 43 -> 50 with the commit after 0788d17. Every row cites the hosted runs at
+#: efaf08a -- qta-agent-substrate push and pull_request on every row, and
+#: harness-integrations, stack-verify, container-verify and supply-chain on
+#: the rows whose evidence they are -- every job green. Neither 0788d17
+#: (tests and the ledger) nor the commit that attaches them changes a path
+#: any row's implementation digest covers, so the digests at efaf08a are
+#: the digests now.
+EXPECTED_EVIDENCE_COVERS = 50
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

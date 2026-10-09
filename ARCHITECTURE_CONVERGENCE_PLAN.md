@@ -2866,3 +2866,149 @@ if it has to -- and any change to those files turns R60 back to PREDATES
 until a later commit cites that commit's runs. No training above the
 development member, and no flagship allocation, without an explicit owner
 decision.
+
+## 19. Harness completion programme -- the generic Scientific-AI harness: its stack adopted or resolved on hosted evidence, its status derived, and a hostile review of the result (harness completion directive)
+
+Starting HEAD `3b82594` (section 18's C5) on
+`claude/scientific-python-stack-7rsq3m`, the tracked tree clean and equal to
+the remote. Not merged; PR #17 open; no new PR; no history rewritten;
+nothing force-pushed; no paid compute or paid service; no credential
+invented. NF-1T evidence frozen: no model weight, checkpoint, dataset,
+configuration or evaluation byte changed, nothing allocated or trained, no
+learned output admitted. No historical QTA evidence, canonical output or
+hardware-era forecast value changed, and the legacy canonical corpus was not
+migrated. A hosted run proves only the commit it ran on, and a commit cannot
+carry its own run IDs, so each implementation commit's runs are attached by
+the commit after it.
+
+### Status
+
+    SCIENTIFIC AI HARNESS:
+        COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT  (derived: tools/harness_status.py over docs/harness_contract.json, at this section's commit, 0 unsatisfied)
+    STACK (20 elements):
+        19 ADOPTED, 1 RESOLVED (selective Rust: both kernels REJECTED), 0 STAGED, 0 DEFERRED
+        at 3b82594: 17 elements -- 12 ADOPTED, 3 STAGED (containers, SLSA/Sigstore, FEniCSx),
+        1 ADOPTED_ADMISSION_MECHANISM_ONLY (Rust), 1 DEFERRED (FMI)
+    COMPLETION MATRIX:
+        50 rows, all COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT, 0 residual gaps,
+        50/50 with hosted evidence covering the current implementation
+        at 3b82594: 40 rows -- 37 complete, 3 DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS (R41, R49, R60)
+    R41, R49:
+        closed; no actionable engineering residual gap
+    CURRENT-AI SEMANTICS:
+        CURRENT_AI_SEMANTIC_LEAK 0, UNCLASSIFIED 0
+    LEGACY QTA HARDWARE-FORECAST GATE TABLE:
+        PASS_count 0 of 83 -- LEGACY_QTA_ONLY, NOT CURRENT SCIENTIFIC-AI STATUS
+    NF-1T:
+        unchanged from section 18: flagship PARAMETER_VERIFIED and META_VALIDATED,
+        NOT ALLOCATED, NOT TRAINED; learned outputs NON_AUTHORITATIVE, VERIFIED/PROMOTED refused
+
+"Complete" here is the derived outcome of a written contract
+(`docs/harness_contract.json`): every required stack element at an accepted
+level, every matrix row complete with no residual gap and with hosted
+evidence covering its current implementation, the five audits clean, and
+three NF-1T facts true. It is not a synonym for executed, verified or
+adopted; each of those is stated where it applies below.
+
+### A. The architecture registry
+
+| element | at `3b82594` | now | the evidence | boundary that remains |
+|---|---|---|---|---|
+| event-sourced authority substrate | (not an element) | ADOPTED | the hash-chained log, decided appends under one writer lock (D-2026-115, D-2026-117), the second reader and its separate-process verifier (an allow-list since D-2026-126); rows R40, R42 | decides admission and computes no science |
+| generic scientific layer | (not an element) | ADOPTED | ScientificModel / ResultBundle / VerificationResult, the governed model path, HDF5 representation; R61 | imports no hardware ontology and no legacy module |
+| AI proposal ingress | (not an element) | ADOPTED | one envelope for a recorded fixture and an external client; durable receipts; stranded requests resume (D-2026-110); R66 | a proposal is never authority; no provider SDK or network in the trusted core |
+| Python scientific core, uv, ParaView/VTK, OpenUSD, SALib, OpenMDAO | ADOPTED | ADOPTED | R56 | unchanged |
+| Snakemake | ADOPTED | ADOPTED | the generic workflow and the end-to-end demonstration rule; R55, R69 | orders, never decides |
+| pytest/Hypothesis | ADOPTED | ADOPTED | the full suite, 95 mutation specs in 8 CI shards, the fuzz campaign and its corpus; R50, R51 | software verification only |
+| Ruff/mypy/Pydantic | ADOPTED | ADOPTED | ruff over the active scope, F811 over the tree, mypy over the active scope with 0 errors; R70 | legacy typing debt recorded in `docs/typing_scope.json`, not this step's |
+| HDF5 | ADOPTED | ADOPTED | R61 | representation, equivalence checked |
+| RO-Crate | ADOPTED | ADOPTED | the internal validator and the community roc-validator on the real crate and broken controls; one control INTERNAL_STRICTER, measured (D-2026-125); R65 | packaging only |
+| containers | STAGED | ADOPTED | built and run on a hosted runner (qta-container-verify), image identity and source SHA recorded, the in-image demonstration compared with a native one: EQUIVALENT_AT_DECLARED_RESOLUTION, same authority outcome; R64 | the image fixes software, not the host CPU; both runs are of the demonstration without FEniCSx or FMI, and the comparison now records that scope |
+| SLSA/Sigstore | STAGED | ADOPTED | a release candidate built from the commit, signed keyless with the supply-chain workflow's OIDC identity, verified online and offline against the exact identity and issuer, every tampered copy refused; the archive checked against its own manifest and the commit in both directions (D-2026-127); R65 | CI_VALIDATION_ONLY policy, not a release trust root; NO SLSA level claimed; release signing PENDING, publication not authorized |
+| governed retrieval | ADOPTED | ADOPTED | R35 | retrieval only; retrieved text is never evidence |
+| FEniCSx | STAGED | ADOPTED | an INDEPENDENT_IMPLEMENTATION check of the transient slab, run from a hash-pinned conda-forge environment on hosted runners with the runtime REQUIRED (harness-integrations); R62 | one problem class; a verifier, never a producer; the legacy adapter stays STAGED for its own scope |
+| FMI 3.0 | DEFERRED | ADOPTED | one generic FMU built from C against hash-checked headers, loaded, stepped, state saved and restored, its fault twin REJECTED; units admitted by definition (D-2026-128), the description UTF-8 only (D-2026-129); R63 | one FMU; the legacy solvers are not exported (that contract stays DEFERRED) |
+| selective Rust | ADOPTED_ADMISSION_MECHANISM_ONLY | RESOLVED | `docs/rust_kernel_decisions.json`, re-derived by the hosted rust-kernels job: both kernels REJECTED; R67 | no Rust backend is active |
+
+### B. Commits
+
+| SHA | what | kind |
+|---|---|---|
+| `a2dbd2b` | H1: generic integrations (FEniCSx, FMI, container, supply chain), proposal ingress, typed active scope, the completion contract | implementation |
+| `051acf7` | mutation spec WG2: a non-empty replacement the harness accepts | implementation |
+| `9cc4a10` | H2: stranded requests resume; read-decide-write under one lock; proposals in the long horizon (D-2026-110 to D-2026-119) | implementation |
+| `d432d9d` | H2 follow-up: recovery refuses an illegal move again; the sweep ignores a concurrent append's witness temp file; the crate defines its checksum term (D-2026-120 to D-2026-123) | implementation |
+| `5ab44a7` | MPI offered only self and shared memory; the RO-Crate verdict names the one control the community validator does not check (D-2026-124, D-2026-125) | implementation |
+| `d59c3c6` | H3: the stack registry reclassified from what the hosted runs established | implementation (registry and documents) |
+| `1d14ae0` | H4: hosted evidence at `5ab44a7` attached to every row | evidence |
+| `0dc60e1` | H5: the demonstration reports the scope it was accepted in | implementation |
+| `efaf08a` | H6: the hostile review's repairs (D-2026-126 to D-2026-129); the demonstration comparison records scope; stale documents | implementation |
+| `0788d17` | documents held to the registry by tests, each with a stale control (D-2026-130) | tests and ledger; no implementation digest changes |
+| this commit | H7: hosted evidence at `efaf08a` attached to every row; the document-claim tests (D-2026-130); this section | evidence, and tests outside every implementation digest |
+
+### C. Hostile review (directive s.62)
+
+Each assumption the directive names was attacked directly; where the attack
+succeeded the defect is in the ledger, fixed, tested and mutation-tested.
+
+| assumption | attack | result |
+|---|---|---|
+| a document is stale | swept the current documents for the states H3 changed and the counts that moved | SIGNING_BOOTSTRAP.md said no signature had ever been produced (one has, of a CI artifact); STACK.md's Rust tables still read ADOPTED / "rust (when enabled)" for a kernel the committed decision rejects. **D-2026-130**: rewritten, and three tests now compare the ladder, the Rust tables and README's statuses with the registry, each with a stale control |
+| a generator writes too much | every generator, in a clean checkout at `1d14ae0` with its own environment | tracked and untracked changes afterwards: 0 |
+| a workflow skipped the thing its name implies | soft-fail constructs in every workflow; what the container job's comparison compares | `|| true` only in always-run evidence steps; the container comparison is of the demonstration without FEniCSx/FMI, said in prose -- now recorded in the comparison itself, and two runs of different scope are not a reproduction |
+| a comparison examined zero objects | zero-output equivalence; the new archive check | equivalence over zero outputs is NOT_ESTABLISHED; an archived manifest listing nothing is refused |
+| a mutation died for the wrong reason | the new mutations run against the pre-fix guards; a kill traced to its test | R105 was killed by the runtime guard, not the AST guards -- which led to the runtime guard's own gap (D-2026-126); SC7 survived once the new set comparison masked the blob comparison, and gained a case that isolates it |
+| a second reader imports the first | `from . import X` against the three AST guards and the verifier's runtime guard | **D-2026-126**: all three guards skipped that form; both lists were deny-lists, and the runtime one never named authority or tasks. Now allow-lists, held to what a real run loads |
+| a status derives from prose instead of evidence | what `tools/harness_status.py` reads | the contract, row classifications with digest-derived evidence states, re-run audits and JSON status files; no prose |
+| a clean checkout lacks a hidden local file | a fresh worktree at `1d14ae0` with an empty package cache, every check and the full demonstration with both runtimes REQUIRED | all green; the full demonstration ACCEPTED (slab and FMU VERIFIED, negative twin REJECTED, CHECKPOINT_ASSISTED recovery) |
+| a host-dependent branch silently changes implementation | every platform, import-fallback and tool-lookup branch in the active scope | each refuses, records a null explicitly, or records the identity it used; none switches silently |
+| a signature checks bytes other than those in the manifest | an archive that lost a tracked file, built consistently and verified | **D-2026-127**: verify said `MATCHES <commit>` over it, and never compared the archive with the manifest it carries |
+| an FMU import drops units | a K with a Celsius offset, a W with the dimension of energy, a K with no definition | **D-2026-128**: all three crossed with no contract difference; units were compared by name only |
+| a checkpoint belongs to another log | the anchor checks against foreign, shorter and look-alike logs | already refused (D-2026-109 and the anchor tests) |
+| an AI proposal can reach authority without independent evidence | the ingress and authority refusal tests | refused: the proposing agent cannot decide its own result, move authority through the store, run the check or act as verifier |
+
+**D-2026-129** was not found by this review but by the hosted fuzz
+campaign on `d59c3c6` (seed 1103025227): an unknown codec in an FMU model
+description's XML declaration raised LookupError out of the boundary. Fixed
+in the same commit; the input is in the regression corpus.
+
+### D. Hosted CI, by exact SHA
+
+| SHA | runs | result |
+|---|---|---|
+| `a2dbd2b` | none of its own | pushed together with `051acf7`, which carries them |
+| `051acf7` | 9 | red except supply-chain and reference-backend; the defects recorded against it, some found by these runs and some by review (D-2026-110 to D-2026-117), fixed in `9cc4a10` |
+| `9cc4a10` | 8 | agent-substrate and harness-integrations red: recovery swallowing a refusal, runtime builders refusing on stdout, an undefined crate term, a witness temp file charged to a tool (D-2026-120 to D-2026-123), fixed in `d432d9d`; the rest green |
+| `d432d9d` | 7 | harness-integrations red: MPI_Init aborting on some runners (D-2026-124) and one RO-Crate control the community validator accepts (D-2026-125), fixed in `5ab44a7`; the rest green |
+| `5ab44a7` | 7 | **all green** -- the evidence `1d14ae0` attached |
+| `d59c3c6` | 8 | 7 green; agent-substrate pull_request 37977178632 red on the fuzz campaign's finding (D-2026-129), fixed in `efaf08a` |
+| `1d14ae0` | 6 | **all green** |
+| `0dc60e1` | 7 | **all green** |
+| `efaf08a` | 8 | **all green**, every job: agent-substrate 37997302565 (push) and 37997307170 (pull_request); harness-integrations 37997302367 and 37997307194; stack-verify 37997302603 and 37997307169; container-verify 37997302749 (image `sha256:93ccb893...86f24a` built from `efaf08a`; slab EQUIVALENT_AT_DECLARED_RESOLUTION, both runs REJECTED, both of the scope without FEniCSx and FMI, which the comparison now records); supply-chain 37997302666 -- the evidence this commit attaches |
+| `0788d17` | 7 | stack-verify, harness-integrations, supply-chain and container-verify green; the agent-substrate pull_request run still running when this was written |
+
+This commit's own runs, and `0788d17`'s last one, are reported in PR #17
+and the final report: a commit cannot carry its own run IDs.
+
+### E. Outside this software completion
+
+Recorded as research, experimental or external boundaries, not as
+actionable harness engineering: no physical experiment and no hardware
+validation; the ~1T flagship neither allocated nor trained; the development
+model's scientific performance unestablished and its epistemic uncertainty
+NOT_ASSESSED; no distributed accelerator hardware validation; tensor and
+pipeline parallelism PLAN_ONLY; arbitrary-host byte identity not guaranteed
+(R59: the stored witness reproduces 88/88 on the witnessed backend; a
+generic hosted runner is DIFFERENT_RESOLVED_BACKEND,
+DECISION_STABLE_WITH_NUMERIC_DRIFT; the reference backend regenerates the
+corpus byte-identically on two hosts); historical QTA scientific
+equivalence NOT_ESTABLISHED; no admission policy for learned models; a
+signature attests origin and integrity, never scientific truth; one
+FEniCSx problem class verifies one problem class, not every model; release
+signing and publication await the owner's authorization.
+
+### Next, exactly
+
+Nothing actionable remains inside this programme's authorization. Merging
+PR #17, publishing a release, allocating or training the flagship, and any
+physical validation are the owner's decisions.

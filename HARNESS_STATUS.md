@@ -2,7 +2,7 @@
 
 Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (evidence recomputed from implementation digests), the audits re-run, and the learned-model status, against the definition of done in `docs/harness_contract.json`. Not written by hand; `verify` fails if this file differs from what the inputs give.
 
-**Outcome: INCOMPLETE**
+**Outcome: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT**
 
 ## Required stack
 
@@ -11,27 +11,27 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | authority-substrate | ADOPTED | R40 (COMPLETE, COVERS), R42 (COMPLETE, COVERS) | yes |
 | containers | ADOPTED | R64 (COMPLETE, COVERS) | yes |
 | fenicsx | ADOPTED | R62 (COMPLETE, COVERS) | yes |
-| fmi | ADOPTED | R63 (COMPLETE, PREDATES) | NO |
+| fmi | ADOPTED | R63 (COMPLETE, COVERS) | yes |
 | generic-scientific-layer | ADOPTED | R61 (COMPLETE, COVERS) | yes |
 | hdf5 | ADOPTED | R61 (COMPLETE, COVERS) | yes |
 | openmdao | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | openusd | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | paraview-vtk | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | proposal-ingress | ADOPTED | R66 (COMPLETE, COVERS) | yes |
-| pytest-hypothesis | ADOPTED | R50 (COMPLETE, PREDATES), R51 (COMPLETE, PREDATES) | NO |
+| pytest-hypothesis | ADOPTED | R50 (COMPLETE, COVERS), R51 (COMPLETE, COVERS) | yes |
 | python-scientific-core | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | rag-read-only | ADOPTED | R35 (COMPLETE, COVERS) | yes |
-| ro-crate | ADOPTED | R65 (COMPLETE, PREDATES) | NO |
+| ro-crate | ADOPTED | R65 (COMPLETE, COVERS) | yes |
 | ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, COVERS) | yes |
 | rust-selective | RESOLVED | R67 (COMPLETE, COVERS) | yes |
 | salib | ADOPTED | R56 (COMPLETE, COVERS) | yes |
-| slsa-sigstore | ADOPTED | R65 (COMPLETE, PREDATES) | NO |
-| snakemake | ADOPTED | R55 (COMPLETE, COVERS), R69 (COMPLETE, PREDATES) | NO |
+| slsa-sigstore | ADOPTED | R65 (COMPLETE, COVERS) | yes |
+| snakemake | ADOPTED | R55 (COMPLETE, COVERS), R69 (COMPLETE, COVERS) | yes |
 | uv | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 
 ## Completion matrix
 
-50 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 50. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 43, PREDATES_CURRENT_IMPLEMENTATION 7.
+50 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 50. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 50.
 
 ## Audits
 
@@ -47,20 +47,9 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * learned_outputs_refused: holds
 * flagship_not_allocated_or_trained: holds
 
-## Unsatisfied (12)
+## Unsatisfied (0)
 
-* stack fmi: ADOPTED
-* stack pytest-hypothesis: ADOPTED
-* stack ro-crate: ADOPTED
-* stack slsa-sigstore: ADOPTED
-* stack snakemake: ADOPTED
-* row R38: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R50: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R51: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R58: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R63: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R65: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
-* row R69: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* none
 
 ## Outside this software-completion claim
 

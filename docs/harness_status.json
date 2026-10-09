@@ -26,7 +26,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "f2d635144febb0c84c39291228fc745a056160afe0f037bdec2dd6a14b53e568",
+  "docs/completion_matrix.json": "2365843eb2415ca25dd304399eec31e62b43fc8d3c2c3790398b6a00fd7e8e3d",
   "docs/harness_contract.json": "3b7285fd6aea3e8b5c00a62fa5fe31032d7c49aa451f31d90437590d53366397",
   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
   "docs/neural/current_status.json": "b4f920e04b966e3aff67f66911279896d7f309ebf2d1cae84e520bff6c849675",
@@ -56,12 +56,11 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 50
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 43,
-   "PREDATES_CURRENT_IMPLEMENTATION": 7
+   "COVERS_CURRENT_IMPLEMENTATION": 50
   },
   "rows": 50
  },
- "outcome": "INCOMPLETE",
+ "outcome": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
  "outside_this_software_completion": [
   {
    "class": "EXPERIMENTAL_SCIENCE",
@@ -194,12 +193,12 @@
    "rows": {
     "R63": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "generic-scientific-layer": {
@@ -299,18 +298,18 @@
    "rows": {
     "R50": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
     "R51": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "python-scientific-core": {
@@ -350,12 +349,12 @@
    "rows": {
     "R65": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "ruff-mypy-pydantic": {
@@ -410,12 +409,12 @@
    "rows": {
     "R65": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "snakemake": {
@@ -431,12 +430,12 @@
     },
     "R69": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "uv": {
@@ -455,78 +454,5 @@
    "status": "ADOPTED"
   }
  },
- "unsatisfied": [
-  {
-   "external": false,
-   "id": "fmi",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "pytest-hypothesis",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "ro-crate",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "slsa-sigstore",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "snakemake",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "R38",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R50",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R51",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R58",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R63",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R65",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R69",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  }
- ]
+ "unsatisfied": []
 }
