@@ -313,6 +313,35 @@ def test_a_completed_task_is_reported_not_resolved(base):
     assert g.projection().get(task.task_id).state is TaskState.COMPLETED
 
 
+def test_two_supervisors_recovering_one_task_requeue_it_once(base,
+                                                            monkeypatch):
+    """Both scan the log, both find the same stranded task, and one writes
+    first -- here, in the window between the second's scan and its write.
+    The second's move is decided against the head it would be written onto,
+    finds the task already moved, and steps aside: no error, no second
+    record, nothing reported as its own (D-2026-115)."""
+    _crash_child(base, "COMPLETED")
+    first, second = _gov(base), _gov(base)
+    (task,) = list(second.projection().tasks.values())
+    real = GovernedStage10._move
+
+    def the_other_gets_there_first(self, *a, **kw):
+        monkeypatch.setattr(GovernedStage10, "_move", real)
+        (theirs,) = first.recover()
+        assert theirs["to"] == "QUEUED"
+        return real(self, *a, **kw)
+
+    monkeypatch.setattr(GovernedStage10, "_move", the_other_gets_there_first)
+    assert second.recover() == ()
+    requeued = [e for e in second.log.read()
+                if e.action == "task.transition"
+                and e.payload.get("src") == "EXECUTING"
+                and e.payload.get("dst") == "QUEUED"
+                and e.target == task.task_id]
+    assert len(requeued) == 1
+    assert second.projection().get(task.task_id).state is TaskState.QUEUED
+
+
 def test_a_governed_run_recovers_what_a_dead_predecessor_left(base):
     """The production caller. A supervisor starts by resolving the mess."""
     _crash_child(base, "COMPLETED")

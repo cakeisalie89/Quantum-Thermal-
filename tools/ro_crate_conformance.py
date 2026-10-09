@@ -144,6 +144,9 @@ def _broken(meta: dict) -> dict:
         if e.get("@id") == "Snakefile":
             e["@type"] = "SoftwareSourceCode"
     out["data_entity_not_a_file"] = m
+    m = copy.deepcopy(meta)
+    m["@context"] = RC.SPEC + "/context"           # the term's definition gone
+    out["undefined_term"] = m
     return out
 
 

@@ -167,11 +167,16 @@ def create(prefix: Path, root: Path) -> dict:
                     "--file", str(LOCK)], check=True, env=env)
     verified = verify_cache(root, SHA_RECORD.read_text(encoding="utf-8"))
     py = prefix / "bin" / "python"
-    probe = subprocess.run(
+    ran = subprocess.run(
         [str(py), "-I", "-c",
          "import dolfinx, petsc4py; from petsc4py import PETSc; "
          "print(dolfinx.__version__, PETSc.Sys.getVersion())"],
-        check=True, capture_output=True, text=True).stdout.strip()
+        capture_output=True, text=True)
+    if ran.returncode != 0:
+        # the probe's own words, not only its exit status
+        raise EnvError(f"the environment does not import dolfinx/petsc4py "
+                       f"(exit {ran.returncode}): {ran.stderr.strip()[-800:]}")
+    probe = ran.stdout.strip()
     return {"packages_locked": n, "packages_sha256_verified": verified,
             "python": str(py), "probe": probe,
             "lock_sha256": _sha256(LOCK),
@@ -200,7 +205,9 @@ def main(argv=None) -> int:
             n = verify_cache(args.root, SHA_RECORD.read_text(encoding="utf-8"))
             print(f"FENICSX CACHE: {n} packages match their sha256")
     except (EnvError, subprocess.CalledProcessError, OSError) as exc:
-        print(f"FENICSX ENVIRONMENT REFUSED: {exc}")
+        # stderr: a caller that sends stdout to a file -- the JSON record is
+        # what stdout is for -- must still see WHY in its log (D-2026-121)
+        print(f"FENICSX ENVIRONMENT REFUSED: {exc}", file=sys.stderr)
         return 1
     return 0
 

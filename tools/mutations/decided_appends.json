@@ -1,6 +1,6 @@
 {
  "title": "Decided appends: the race windows of section 45 (D-2026-115..118)",
- "note": "DA1-DA8: each repair that moved a decision under the writer lock or stopped attributing a concurrent supervisor's write, reopened one at a time. DA9-DA12: a stamped grant rebuilt by replay's own constructor before it is written, and a one-action grant's lifetime counted from its stamp. tests/test_decided_appends.py opens each window deterministically, so a kill does not depend on a race being lost.",
+ "note": "DA1-DA8: each repair that moved a decision under the writer lock or stopped attributing a concurrent supervisor's write, reopened one at a time. DA13-DA14: the head witness's temp file is a supervisor's, and a name pattern stays at its own depth (D-2026-123). DA9-DA12: a stamped grant rebuilt by replay's own constructor before it is written, and a one-action grant's lifetime counted from its stamp. tests/test_decided_appends.py opens each window deterministically, so a kill does not depend on a race being lost.",
  "suites": [
   "tests/test_decided_appends.py",
   "tests/test_agent_idempotency.py"
@@ -58,7 +58,7 @@
   {
    "name": "DA8_the_sweep_charges_every_change_to_the_tool",
    "path": "qta_agent/execution.py",
-   "find": "        return rel in named or any(rel == r or rel.startswith(r + \"/\")\n                                   for r in roots)",
+   "find": "        return rel in named or any(\n            rel == r or rel.startswith(r + \"/\") for r in roots) or any(\n            fnmatch.fnmatchcase(rel, p) and rel.count(\"/\") == p.count(\"/\")\n            for p in patterns)",
    "replace": "        return rel in named",
    "rationale": "the supervisor stores named to the sweep are inventoried anyway, and their changes charged to the tool"
   },
@@ -89,6 +89,20 @@
    "find": "            if lifetime_seqs is not None:\n                c = replace(c, expires_after_seq=c.issued_seq\n",
    "replace": "            if False:\n                c = replace(c, expires_after_seq=c.issued_seq\n",
    "rationale": "a one-action grant asked to live four positions from its stamp is minted with no expiry at all"
+  },
+  {
+   "name": "DA13_a_pattern_covers_subdirectories",
+   "path": "qta_agent/execution.py",
+   "find": "            fnmatch.fnmatchcase(rel, p) and rel.count(\"/\") == p.count(\"/\")\n",
+   "replace": "            fnmatch.fnmatchcase(rel, p)\n",
+   "rationale": "a supervisor's name pattern also covers files in directories below it, which a tool could write unseen"
+  },
+  {
+   "name": "DA14_the_runner_does_not_name_the_witness_temp",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "            out.append(str(beside / \".head-*.tmp\"))\n",
+   "replace": "            pass\n",
+   "rationale": "another supervisor's head-witness temp file, there for an instant during its append, is charged to the running tool and its run refused (D-2026-123)"
   }
  ]
 }

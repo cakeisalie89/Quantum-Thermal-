@@ -99,6 +99,13 @@
       "rationale": "the ordinary lapsed-lease case stops being recovered; only the process-liveness path remains, which does not cover a holder on another host"
     },
     {
+      "name": "V15_a_lost_recovery_race_is_an_error",
+      "path": "qta_agent/governed_stage10.py",
+      "find": "            except TaskMovedUnderWriter:\n",
+      "replace": "            except ZeroDivisionError:\n",
+      "rationale": "a supervisor that finds the task already recovered by another raises instead of stepping aside, so two supervisors starting together cannot both start"
+    },
+    {
       "name": "R53_damage_after_the_tear_is_read_as_a_torn_tail",
       "path": "qta_agent/events.py",
       "find": "                if any(x.strip() for x in lines[lineno:]):",

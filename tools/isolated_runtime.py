@@ -67,7 +67,8 @@ def main(argv=None) -> int:
     try:
         print(json.dumps(create(args.name, args.prefix), sort_keys=True))
     except (RuntimeError, subprocess.CalledProcessError, OSError) as exc:
-        print(f"ISOLATED RUNTIME REFUSED: {exc}")
+        # stderr, for the reason tools/fenicsx_env.py gives (D-2026-121)
+        print(f"ISOLATED RUNTIME REFUSED: {exc}", file=sys.stderr)
         return 1
     return 0
 

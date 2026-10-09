@@ -178,9 +178,9 @@ jobs:
           set -euo pipefail
           uv run python tools/fenicsx_env.py create \
             --prefix "$RUNNER_TEMP/fenicsx" --root "$RUNNER_TEMP/mamba" \
-            > fenicsx_environment.json
+            | tee fenicsx_environment.json
           uv run python tools/isolated_runtime.py create fmi \
-            --prefix "$RUNNER_TEMP/fmi-runtime" > fmi_runtime.json
+            --prefix "$RUNNER_TEMP/fmi-runtime" | tee fmi_runtime.json
       - name: the demonstration, through the generic Snakemake rule
         run: |
           set -euo pipefail

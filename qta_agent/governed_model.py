@@ -436,6 +436,8 @@ class GovernedModelRuns:
         self.origins = GovernedOrigins(self.gov)
         self.recovery = None
         if checkpoints is not None:
+            # a store this runner's supervisors write, not its tools
+            self.gov.supervisor_stores.append(checkpoints.root)
             self.authority, self.recovery = AuthorityStore.recover(
                 log, checkpoints, blobs=evidence, evidence=evidence,
                 origins=self.origins)
@@ -455,6 +457,8 @@ class GovernedModelRuns:
     def checkpoint(self, checkpoints, *, actor: str = "system"):
         """Checkpoint the authority projection: a cached verification
         result a later restart may begin from, never a second truth."""
+        if checkpoints.root not in self.gov.supervisor_stores:
+            self.gov.supervisor_stores.append(checkpoints.root)
         return self.authority.checkpoint(checkpoints, blobs=self.evidence,
                                          actor=actor)
 

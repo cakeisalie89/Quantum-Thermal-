@@ -9817,3 +9817,127 @@ process and receives a proposal on every cycle.
 
 **NOT CLAIMED.** That a fresh ingress per receipt is cheap. It is not, and
 the campaign does not build one per receipt.
+
+## D-2026-120 — recovery swallowed the state machine's refusal along with the race it meant to tolerate
+
+**CLASS** — `DEFECT` (a defence weakened by its own repair), harness
+completion programme (section 45). `qta_agent/governed_stage10.py`.
+
+**WHAT WAS THERE** (`9cc4a10`). D-2026-115 made `recover()` step aside
+when another supervisor had moved a stranded task first, by catching
+`TaskTransitionError` around the move. That class is also what the task
+state machine raises for a move it FORBIDS. The catch swallowed both. A
+recovery that tried an illegal move -- dragging a COMPLETED task, which
+waits for an independent verifier, back to the queue -- reported nothing
+and carried on, instead of failing. Found by mutation V10 surviving
+(13/14) in the run of `tools/mutations/agent_recovery.json` on that
+commit's tree. Before `9cc4a10` the illegal move raised and V10 was
+killed.
+
+**REPAIR.** Losing the race is its own class, `TaskMovedUnderWriter`, a
+subclass of `TaskTransitionError` raised only where the move finds the task
+moved since its caller read it. `recover()` catches that and nothing else.
+
+**EVIDENCE.** V10 is killed again, by
+`test_a_completed_task_is_reported_not_resolved`. The race itself is now
+tested deterministically:
+`test_two_supervisors_recovering_one_task_requeue_it_once` (the second
+supervisor steps aside, one requeue record). Mutation V15 makes a lost
+race an error, and that test kills it: `agent_recovery` 15/15.
+
+## D-2026-121 — two runtime builders refused on stdout, which their callers send to a file
+
+**CLASS** — `DEFECT` (a refusal nobody can read), harness completion
+programme. `tools/fenicsx_env.py`, `tools/isolated_runtime.py`,
+`.github/workflows/harness-integrations.yml`.
+
+**WHAT WAS THERE** (`9cc4a10`). Both tools print their JSON record on
+stdout and, on failure, print `... REFUSED: <reason>` on stdout as well.
+The end-to-end job redirects stdout into `fenicsx_environment.json`. Its
+environment step failed in both hosted runs of `9cc4a10`, and the log ends
+at the micromamba post-link warning and `exit code 1`, with no reason. The
+reason is in a file the job uploads as an artifact. The fenicsx job runs
+the same command through `tee` and passed in the same push. The FEniCSx
+import probe also discarded its own stderr, so a failed import could only
+say "returned non-zero exit status".
+
+**REPAIR.** Refusals go to stderr. The import probe's stderr is carried
+into the refusal. The end-to-end job tees both records, as the fenicsx job
+already did.
+
+**NOT CLAIMED.** The cause of that end-to-end failure. It was not visible in
+the log of the commit it happened on. The next hosted run of the job either
+passes or says why it fails.
+
+## D-2026-122 — the RO-Crate used a key its JSON-LD context does not define, and the internal validator passed it
+
+**CLASS** — `WRONG_SPECIFICATION` (the internal validator held a weaker
+rule than the specification), harness completion programme (R65).
+`ro_crate_tools.py`, `tools/ro_crate_conformance.py`.
+
+**WHAT WAS THERE** (`9cc4a10`). Every data entity carried a `sha256` key,
+and the crate's `@context` was the RO-Crate 1.1 context alone, which does
+not define `sha256`. RO-Crate 1.1 requires the descriptor in compacted
+JSON-LD, which admits only defined terms. The community validator refused
+the crate on hosted CI: "The 25 occurrences of the JSON-LD key "sha256"
+are not allowed in the compacted format" (check `ro-crate-1.1_3.1`,
+REQUIRED). It is the next refusal after D-2026-111: with the types fixed,
+the check that had been reached second was reached first. The internal
+validator never looked at keys, so the two validators disagreed on the
+committed crate.
+
+**REPAIR.** The crate defines the term in its own `@context`, mapped to
+the workflow-run vocabulary's `sha256`
+(`https://w3id.org/ro/terms/workflow-run#sha256`). The community
+validator's Process Run Crate profile uses that same IRI for a checksum.
+The internal validator now refuses any key that is neither one of the
+RO-Crate context terms it knows the crate uses nor defined in the crate's
+own context. That list is short and known, so an unlisted real term is
+refused rather than an undefined one accepted. The conformance tool gains
+a negative control, `undefined_term`: the crate with the term's
+definition removed.
+
+**EVIDENCE.** `tests/test_ro_crate_conformance.py`:
+`test_every_key_is_a_term_some_context_defines`; mutation RC6. The
+external verdict on the repaired crate is the next hosted ro-crate run's.
+The validator cannot fetch the RO-Crate context here (w3id.org is not
+reachable from this sandbox).
+
+## D-2026-123 — the sweep still charged a concurrent append's witness temp file to the running tool
+
+**CLASS** — `CONCURRENCY` (an incomplete repair), harness completion
+programme (section 45). `qta_agent/execution.py`,
+`qta_agent/governed_stage10.py`, `qta_agent/governed_model.py`.
+
+**WHAT WAS THERE** (`9cc4a10`). D-2026-118 stopped attributing writes to
+the log, its head witness, its lock and the evidence store to the running
+tool. But the witness is replaced atomically, through a temp file
+`.head-*.tmp` beside it, so another supervisor's append leaves one in the
+directory for an instant. Inventoried before a tool ran and gone after, it
+was reported as `deleted`. The winning run of a four-process first
+submission was refused FAILED for a file it never touched. This was found
+by repeating `tests/test_proposal_concurrency.py` under load: 1 failure in
+6 runs, `verification/stage10/_pytest_proposal_crash/.head-1tmb2_62.tmp:
+deleted`. The deterministic test below fails on `9cc4a10` with the run
+FAILED. It fails closed, never a false verdict, but concurrent supervisors
+could still fail each other's runs.
+
+**REPAIR.** The exclusion list takes name PATTERNS at their own depth, and
+the runner names `<log dir>/.head-*.tmp`. A pattern never covers a
+subdirectory, so a tool cannot hide a file under a matching directory name.
+A governed model runner also names the checkpoint stores it restarts from
+or writes to, its other supervisor store that can sit inside a tool's
+scope.
+
+**EVIDENCE.** `tests/test_decided_appends.py`:
+`test_a_concurrent_appends_witness_temp_file_is_not_the_tools` (a temp file
+there when the tool starts and gone when it ends, and another the other
+way round; the run is VERIFIED with no undeclared writes) and
+`test_a_supervisor_name_pattern_does_not_cover_a_subdirectory`. Mutations
+DA13 (a pattern covers subdirectories) and DA14 (the runner does not name
+the temp file). DA8 is re-anchored.
+
+**NOT CLAIMED.** A store a runner is not told about, written by another
+supervisor inside a tool's scope, is still inventoried and charged to the
+tool, which fails closed. The way to avoid that is to keep stores out of
+tool scopes or to name them in `supervisor_stores`.

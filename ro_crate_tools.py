@@ -35,6 +35,26 @@ CRATE_DIR = Path("ro-crate")
 DATE_PUBLISHED = "2026-10-08"
 META = CRATE_DIR / "ro-crate-metadata.json"
 SPEC = "https://w3id.org/ro/crate/1.1"
+#: The checksum term. ``sha256`` is not a term of the RO-Crate 1.1 context,
+#: and a key the context does not define is not allowed in the compacted
+#: form the specification requires (its check 3.1) -- the community
+#: validator refused the crate on exactly that, run on hosted CI
+#: (D-2026-122). So the crate defines it, the way RO-Crate 1.1 adds a term:
+#: in its own ``@context``, mapped to the workflow-run vocabulary's
+#: ``sha256``, which the Process Run Crate profile uses for the same thing.
+WFRUN_SHA256 = "https://w3id.org/ro/terms/workflow-run#sha256"
+CONTEXT = [SPEC + "/context", {"sha256": WFRUN_SHA256}]
+#: The RO-Crate 1.1 context terms this crate uses -- schema.org properties
+#: the published context maps. A key that is neither one of these nor
+#: defined in the crate's own ``@context`` is refused by :func:`validate`:
+#: a short list it KNOWS, rather than the whole context it cannot fetch in
+#: a sandbox, so an unlisted real term is refused (fail closed) and never
+#: an undefined one accepted.
+CONTEXT_TERMS = frozenset({
+    "about", "conformsTo", "contentSize", "datePublished", "description",
+    "hasPart", "identifier", "instrument", "license", "mainEntity",
+    "mentions", "name", "object", "result", "softwareRequirements",
+})
 
 FILES = [
     ("../qta_full_sim.py", ["File", "SoftwareSourceCode"],
@@ -162,7 +182,7 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
         else:
             ent["sha256"] = sha_file(p)
         graph.append(ent)
-    doc = {"@context": SPEC + "/context", "@graph":
+    doc = {"@context": CONTEXT, "@graph":
            sorted(graph, key=lambda e: str(e["@id"]))}
     dest_dir.mkdir(exist_ok=True)
     dest.write_text(json.dumps(doc, indent=1, sort_keys=True,
@@ -195,6 +215,31 @@ def validate(meta_path: Path = META,
                for e in g):
         problems.append("root dataset entity missing")
     by = {e["@id"]: e for e in g}
+    # Every key a term: of the RO-Crate 1.1 context, or of the crate's own
+    # (RO-Crate 1.1 s.3, the compacted form). Missed until the community
+    # validator refused 25 undefined "sha256" keys on hosted CI (D-2026-122).
+    ctx = doc.get("@context")
+    ctx = ctx if isinstance(ctx, list) else [ctx]
+    if not ctx or ctx[0] != SPEC + "/context":
+        problems.append(f"@context does not start with the RO-Crate 1.1 "
+                        f"context: {doc.get('@context')!r}")
+    local = {k for c in ctx if isinstance(c, dict) for k in c}
+    undefined: set = set()
+
+    def _keys(o) -> None:
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if not k.startswith("@") and k not in CONTEXT_TERMS \
+                        and k not in local:
+                    undefined.add(k)
+                _keys(v)
+        elif isinstance(o, list):
+            for x in o:
+                _keys(x)
+    _keys(g)
+    if undefined:
+        problems.append(f"keys no context defines: {sorted(undefined)}; the "
+                        "compacted form allows only defined terms")
     # The metadata descriptor (RO-Crate 1.1 s.4.1, REQUIRED): it must exist,
     # be about the root, and say which specification the crate conforms to.
     # Missed until the external validator's negative controls asked

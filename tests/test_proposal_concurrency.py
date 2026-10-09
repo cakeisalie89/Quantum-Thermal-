@@ -56,7 +56,11 @@ RX = "verification/stage10/_pytest_proposal_concurrency"
 
 #: The refusals a loser may meet, each a named refusal of the race it lost;
 #: anything else -- a KeyError, a broken chain -- is a defect, not a loss.
-REFUSALS = {"TaskTransitionError", "ModelRunRefused", "TransitionError",
+#: By class NAME, as the workers report them -- so a subclass is listed
+#: itself: TaskMovedUnderWriter is the TaskTransitionError a loser of the
+#: move race gets (D-2026-120).
+REFUSALS = {"TaskTransitionError", "TaskMovedUnderWriter",
+            "ModelRunRefused", "TransitionError",
             "JobTransitionError", "SchedulerError", "StoreError",
             "AuthorityError", "IdempotencyConflict", "DuplicateJob"}
 

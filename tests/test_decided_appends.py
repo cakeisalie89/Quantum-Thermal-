@@ -309,3 +309,40 @@ def test_a_one_action_grant_lives_from_where_it_is_stamped(tmp_path):
     assert ev.payload["expires_after_seq"] == ev.seq + 3
     again = CapabilityLedger(EventLog(log.path)).load()
     assert again.issued_ids() == ("c1",)
+
+
+def test_a_concurrent_appends_witness_temp_file_is_not_the_tools(
+        gov, monkeypatch):
+    """Another supervisor's append replaces the head witness through a temp
+    file beside the log, there for an instant. Seen by the inventory before
+    the tool ran and gone after -- or the reverse -- it was charged to the
+    tool as an undeclared write and the run refused, in four-process races
+    under load (D-2026-123)."""
+    import qta_agent.execution as X
+    real = X._collect_outputs
+    gone = gov.log.path.parent / ".head-vanishes.tmp"
+    gone.write_text("{}")                     # there when the tool starts
+    came = gov.log.path.parent / ".head-appears.tmp"
+
+    def another_supervisor_mid_append(cwd, declared):
+        gone.unlink(missing_ok=True)          # the verifier re-runs too
+        came.write_text("{}")                 # there when the tool ends
+        return real(cwd, declared)
+
+    monkeypatch.setattr(X, "_collect_outputs", another_supervisor_mid_append)
+    run = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov))
+    assert run.state is TaskState.VERIFIED, run.reason
+    (ex,) = _actions(gov, "task.execution")
+    assert ex.payload["undeclared_writes"] == []
+
+
+def test_a_supervisor_name_pattern_does_not_cover_a_subdirectory():
+    """The pattern names files at its own depth. A file under a directory
+    that happens to match it is the tool's to answer for."""
+    from qta_agent.execution import _undeclared_writes
+    stamp = (1, 1)
+    found = _undeclared_writes(
+        {}, {"d/.head-a.tmp": stamp, "d/.head-a/b.tmp": stamp,
+             "d/.head-a.tmp.x/c": stamp}, (), ignore=("d/.head-*.tmp",))
+    assert found == ("d/.head-a.tmp.x/c: created",
+                     "d/.head-a/b.tmp: created")

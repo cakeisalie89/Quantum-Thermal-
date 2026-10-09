@@ -39,6 +39,13 @@
    "find": "                rc = RC.validate(p, report_path=Path(tmp) / \"report.json\")\n",
    "replace": "                rc = RC.validate(p)\n",
    "rationale": "judging a broken crate overwrites the committed validation report"
+  },
+  {
+   "name": "RC6_undefined_keys_accepted",
+   "path": "ro_crate_tools.py",
+   "find": "    if undefined:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
+   "replace": "    if False:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
+   "rationale": "a key no JSON-LD context defines passes the internal validator, which the specification's compacted form forbids and the community validator refuses (D-2026-122)"
   }
  ]
 }

@@ -4,6 +4,8 @@ the network for the RO-Crate JSON-LD context and runs in the hosted
 ro-crate job; here its absence must read NOT_MEASURED, never agreement."""
 from __future__ import annotations
 
+import copy
+
 import json
 import sys
 from pathlib import Path
@@ -74,7 +76,8 @@ def test_without_the_external_validator_nothing_is_called_agreement():
     assert set(rep["cases"]) == {"committed_crate", "no_root_dataset",
                                  "no_conformsTo", "no_datePublished",
                                  "dangling_data_entity",
-                                 "data_entity_not_a_file"}
+                                 "data_entity_not_a_file",
+                                 "undefined_term"}
 
 
 def test_a_disagreement_is_reported_not_resolved(monkeypatch):
@@ -103,6 +106,24 @@ def test_every_data_entity_is_a_file_or_a_dataset():
         assert {"File", "Dataset"} & set(types), part["@id"]
     refused = RCC.internal(RCC._broken(meta)["data_entity_not_a_file"])
     assert any("requires File or Dataset" in p for p in refused), refused
+
+
+def test_every_key_is_a_term_some_context_defines():
+    """RO-Crate 1.1 s.3: the descriptor is compacted JSON-LD, so a key no
+    context defines is not allowed. The crate wrote 25 "sha256" keys the
+    1.1 context does not define, the internal validator passed them, and
+    the community validator on hosted CI did not (D-2026-122). The crate
+    now defines the term, mapped to the workflow-run vocabulary's."""
+    import ro_crate_tools as RC
+    meta = _meta()
+    assert meta["@context"][0] == RC.SPEC + "/context"
+    assert meta["@context"][1] == {"sha256": RC.WFRUN_SHA256}
+    refused = RCC.internal(RCC._broken(meta)["undefined_term"])
+    assert any("keys no context defines: ['sha256']" in p
+               for p in refused), refused
+    m = copy.deepcopy(meta)
+    m["@graph"][0]["checksumOfSomething"] = "x"
+    assert any("checksumOfSomething" in p for p in RCC.internal(m))
 
 
 def test_a_data_entity_of_another_type_is_still_packaged(tmp_path):

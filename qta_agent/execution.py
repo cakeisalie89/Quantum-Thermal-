@@ -66,6 +66,7 @@ different thing from this module retrying.
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import os
 import resource
@@ -522,13 +523,21 @@ def _undeclared_writes(before: dict, after: dict, declared_paths,
     and mtimes could not improve on. Inventoried, every append a CONCURRENT
     supervisor made while a tool ran was charged to that tool, and the run
     refused for writes it never made (D-2026-118).
+
+    An entry with a ``*`` is a PATTERN over names at its own depth -- the
+    temp file the head witness is atomically replaced through, which
+    another supervisor's append leaves beside the log for an instant
+    (D-2026-123). Same depth, so a pattern never covers a subdirectory.
     """
     named = set(declared_paths)
-    roots = tuple(str(x).rstrip("/") for x in ignore)
+    roots = tuple(str(x).rstrip("/") for x in ignore if "*" not in str(x))
+    patterns = tuple(str(x) for x in ignore if "*" in str(x))
 
     def unattributable(rel: str) -> bool:
-        return rel in named or any(rel == r or rel.startswith(r + "/")
-                                   for r in roots)
+        return rel in named or any(
+            rel == r or rel.startswith(r + "/") for r in roots) or any(
+            fnmatch.fnmatchcase(rel, p) and rel.count("/") == p.count("/")
+            for p in patterns)
 
     found = []
     for rel, stamp in sorted(after.items()):

@@ -390,6 +390,16 @@ def stage10_registry() -> Registry:
     ])
 
 
+class TaskMovedUnderWriter(TaskTransitionError):
+    """A move decided from a task another process has moved since.
+
+    Distinct from the state machine's own refusal on purpose: losing this
+    race is somebody else's progress, and a caller may step aside from it
+    (:meth:`GovernedStage10.recover`); a move the machine FORBIDS is never
+    that, and must not be swallowed with it.
+    """
+
+
 @dataclass(frozen=True)
 class GovernedRun:
     """What a completed governed run produced, for the caller to inspect."""
@@ -451,6 +461,10 @@ class GovernedStage10:
         self.executor = Executor(self.registry, workspace=self.root)
         #: Where this caller's verification has reached. See :meth:`_head_seq`.
         self._head_anchor: Anchor | None = None
+        #: Further stores this runner's supervisors write -- a checkpoint
+        #: store, say -- that a tool's run must not be charged with. See
+        #: :meth:`_supervisor_paths`.
+        self.supervisor_stores: list = []
 
         # Every subsystem projects the SAME log. That is the arrangement the
         # action registry exists to permit, and it is what makes the audit of
@@ -1720,11 +1734,22 @@ class GovernedStage10:
         out = []
         root = self.root.resolve()
         for path in (self.log.path, self.log.head_path, self.log.lock_path,
-                     self.evidence.root):
+                     self.evidence.root, *self.supervisor_stores):
             try:
                 out.append(str(Path(path).resolve().relative_to(root)))
             except ValueError:
                 continue                 # outside the tree: never swept
+        # The witness is replaced through a temp file beside it
+        # (EventLog._write_head), so a concurrent append leaves one there
+        # for an instant -- and the sweep, catching it, failed the run of
+        # a tool that never touched it (D-2026-123).
+        try:
+            beside = Path(self.log.head_path).resolve().parent.relative_to(
+                root)
+        except ValueError:
+            pass
+        else:
+            out.append(str(beside / ".head-*.tmp"))
         return tuple(out)
 
     def _argv(self, tool_id: str, inputs: dict) -> list:
@@ -1842,10 +1867,11 @@ class GovernedStage10:
             try:
                 moved = self._move(task, TaskState.QUEUED, actor,
                                    TaskRole.SYSTEM, note=why)
-            except TaskTransitionError:
+            except TaskMovedUnderWriter:
                 # Another supervisor recovered it between this scan and this
                 # write. Not an error, and not this call's to repeat: the
                 # task is where recovery puts it, and the record is theirs.
+                # ONLY that: a move the state machine forbids still raises.
                 continue
             actions.append({
                 "task_id": task.task_id, "from": task.state.value,
@@ -2146,7 +2172,7 @@ class GovernedStage10:
             cur = proj.tasks.get(task.task_id)
             if cur is None or cur.state is not task.state or \
                     cur.revision != task.revision:
-                raise TaskTransitionError(
+                raise TaskMovedUnderWriter(
                     f"{task.task_id} moved under this writer: it is "
                     f"{cur.state.value if cur else 'absent'}, not the "
                     f"{task.state.value} this move was decided from; "
