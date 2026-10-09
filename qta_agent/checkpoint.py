@@ -60,6 +60,8 @@ here says which it uses.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import os
 import tempfile
@@ -235,7 +237,7 @@ def create(log: EventLog, *, state_digest: str | None = None,
         raise CheckpointError("cannot checkpoint an empty log")
 
     anchor = log.anchor_at(head_seq)
-    body = {
+    body: dict[str, Any] = {
         "seq": anchor.seq,
         "head_hash": anchor.head_hash,
         "record_offset": anchor.record_offset,
@@ -278,8 +280,33 @@ def read_verified_with(log: EventLog, cp: Checkpoint) -> tuple:
     return log.read_verified_from(cp.anchor)
 
 
+def _last_seq(path: Path, window: int = 1 << 20) -> int | None:
+    """The seq of the last complete record in ``path``, or None if there is
+    none to read. A torn final line (no newline) is not a record and is
+    skipped; nothing here verifies anything."""
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            end = fh.tell()
+            fh.seek(max(0, end - window))
+            tail = fh.read()
+    except OSError:
+        return None
+    lines = tail.split(b"\n")[:-1]           # drop a torn or empty remainder
+    for raw in reversed(lines):
+        try:
+            seq = json.loads(raw).get("seq")
+        except (ValueError, AttributeError):
+            return None
+        return seq if isinstance(seq, int) and not isinstance(seq, bool) \
+            else None
+    return None
+
+
 def check_against(log: EventLog, cp: Checkpoint) -> None:
-    """Raise unless ``cp`` could describe ``log``. Cheap; reads no records.
+    """Raise unless ``cp`` could describe ``log``. Cheap: reads no records,
+    except the last one when the log is shorter than the checkpoint's end,
+    to tell a foreign checkpoint from a truncated log.
 
     Catches the case a byte-offset seek cannot: a checkpoint from a *different*
     log, or from a log that has since been truncated. ``verify_from`` would
@@ -302,6 +329,17 @@ def check_against(log: EventLog, cp: Checkpoint) -> None:
             f"checkpoint names seq {cp.seq} but the log does not exist"
         ) from None
     if cp.next_offset > size:
+        # Short in BYTES is not short in RECORDS. A checkpoint of another
+        # log whose records happen to be a few bytes longer ends past this
+        # log's end too, and calling that "records removed" sent a foreign
+        # checkpoint to the wrong class (D-2026-109). The log's own last
+        # record decides which it is.
+        last = _last_seq(log.path)
+        if last is not None and last >= cp.seq:
+            raise CheckpointMismatch(
+                f"checkpoint ends at byte {cp.next_offset} but this log is "
+                f"{size} bytes while reaching seq {last} >= {cp.seq}; its "
+                "offsets belong to a different log")
         raise CheckpointAheadOfLog(
             f"checkpoint ends at byte {cp.next_offset} but the log is {size} "
             f"bytes; {cp.next_offset - size} byte(s) are missing, so records "
@@ -546,22 +584,32 @@ class CheckpointStore:
         problems: list = []
         not_describing: list = []
         describing: list = []
+        classified: list = []
         good = 0
         for seq in self.seqs():
             try:
                 cp = self.read(seq)
             except CheckpointError as exc:
                 problems.append(f"seq {seq}: {exc}")
+                classified.append((seq, CP_CORRUPT))
                 continue
             good += 1
             if log is None:
                 continue
             try:
                 describes(log, cp)
+            except CheckpointAheadOfLog as exc:
+                not_describing.append(f"seq {seq}: {exc}")
+                classified.append((seq, CP_AHEAD_OF_LOG))
+            except CheckpointCorrupt as exc:
+                not_describing.append(f"seq {seq}: {exc}")
+                classified.append((seq, CP_CORRUPT))
             except CheckpointError as exc:
                 not_describing.append(f"seq {seq}: {exc}")
+                classified.append((seq, CP_FOREIGN_LOG))
             else:
                 describing.append(seq)
+                classified.append((seq, CP_USABLE))
         if log is None:
             return CheckpointAudit(not problems, good, problems)
         if not self.seqs():
@@ -575,7 +623,8 @@ class CheckpointStore:
         return CheckpointAudit(verdict in (AUDIT_USABLE, AUDIT_EMPTY), good,
                                problems, verdict=verdict,
                                describing=tuple(describing),
-                               not_describing=tuple(not_describing))
+                               not_describing=tuple(not_describing),
+                               classified=tuple(classified))
 
 
 #: :meth:`CheckpointStore.audit` verdicts against a log. Only USABLE and EMPTY
@@ -584,6 +633,17 @@ AUDIT_USABLE = "USABLE"
 AUDIT_NONE_USABLE = "NONE_USABLE"
 AUDIT_UNPARSEABLE = "UNPARSEABLE"
 AUDIT_EMPTY = "EMPTY"
+
+#: What each checkpoint is, against one log, kept apart because recovery
+#: and an operator need different things from each: USABLE describes this
+#: log; CORRUPT does not parse or was altered; FOREIGN_LOG parses and
+#: describes some other log (or another canonical form); AHEAD_OF_LOG names
+#: records this log no longer has -- it was truncated or rolled back after
+#: the checkpoint, so the checkpoint is stale against it.
+CP_USABLE = "USABLE"
+CP_CORRUPT = "CORRUPT"
+CP_FOREIGN_LOG = "FOREIGN_LOG"
+CP_AHEAD_OF_LOG = "AHEAD_OF_LOG"
 
 
 @dataclass(frozen=True)
@@ -596,3 +656,5 @@ class CheckpointAudit:
     verdict: str = ""
     describing: tuple = ()
     not_describing: tuple = ()
+    #: ((seq, CP_*), ...) for every checkpoint in the store, newest last.
+    classified: tuple = ()

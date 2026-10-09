@@ -198,7 +198,7 @@ def init(cfg: ModelConfig, key, *, approved_bytes: int | None = None):
             "ffn_norm": ones((d,)),
         }
         if cfg.is_moe_layer(i):
-            m = cfg.moe
+            m = cfg.moe_block
             e, f = m.num_experts, m.expert_hidden
             moe = {
                 "router": nrm(f"{pre}/moe/router", (d, e), 1 / math.sqrt(d)),
@@ -337,7 +337,7 @@ def attention(p, x, mask, cfg: ModelConfig):
 
 
 def capacity(cfg: ModelConfig, n_tokens: int) -> int:
-    m = cfg.moe
+    m = cfg.moe_block
     if m.capacity_factor is None:
         return n_tokens
     return max(1, math.ceil(m.capacity_factor * n_tokens * m.top_k
@@ -347,7 +347,7 @@ def capacity(cfg: ModelConfig, n_tokens: int) -> int:
 def route(p_router, h, token_mask, cfg: ModelConfig, top_k: int | None = None):
     """Router decision for flat tokens h [T, d]. Returns a dict of arrays."""
     jax, jnp = require()
-    m = cfg.moe
+    m = cfg.moe_block
     k = m.top_k if top_k is None else top_k
     logits = (h.astype(jnp.float32) @ p_router.astype(jnp.float32)) \
         / m.router_temperature
@@ -384,7 +384,7 @@ def dispatch_positions(selected, live, n_experts: int, cap: int):
 def moe(p, h, token_mask, cfg: ModelConfig, top_k: int | None = None):
     """Mixture of experts over flat tokens h [T, d]; returns (y, stats)."""
     jax, jnp = require()
-    m = cfg.moe
+    m = cfg.moe_block
     t, d = h.shape
     e = m.num_experts
     r = route(p["router"], h, token_mask, cfg, top_k)

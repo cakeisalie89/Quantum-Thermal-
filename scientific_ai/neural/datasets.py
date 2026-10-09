@@ -102,7 +102,7 @@ def provenance_digest(samples) -> str:
 
 
 def split_members(samples) -> dict:
-    out = {name: [] for name in SPLITS}
+    out: dict[str, list] = {name: [] for name in SPLITS}
     for s in samples:
         if s.split not in out:
             raise DatasetError(f"{s.sample_id}: unknown split {s.split!r}")

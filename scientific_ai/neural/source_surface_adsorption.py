@@ -33,6 +33,7 @@ recorded in the manifest, not a silent filter.
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 
@@ -82,7 +83,7 @@ SCHEMA = FeatureSchema(
 
 #: name -> (kind, lo, hi): ``log`` log-uniform, ``lin`` uniform,
 #: ``choice`` uniform over the listed integers.
-COMMON = {
+COMMON: dict[str, tuple[str, Any, Any]] = {
     "capacity_per_m2": ("log", 1e17, 1e20),
     "initial_coverage": ("lin", 0.0, 0.5),
     "mass_amu": ("log", 2.0, 200.0),
@@ -91,7 +92,7 @@ COMMON = {
     "sticking": ("lin", 0.05, 1.0),
     "window_s": ("log", 1e-3, 1e3),
 }
-REGIONS = {
+REGIONS: dict[str, dict[str, tuple[str, Any, Any]]] = {
     "in_distribution": {**COMMON, "T_gas_K": ("log", 10.0, 300.0)},
     "ood": {**COMMON, "T_gas_K": ("log", 300.0, 1000.0)},
 }
@@ -121,7 +122,7 @@ def design(region: str, n: int, seed: int) -> list:
         raise ValueError(f"unknown region {region!r}")
     rng = np.random.Generator(np.random.PCG64(seed))
     spec = REGIONS[region]
-    cols = {}
+    cols: dict[str, list[Any]] = {}
     for name in sorted(spec):
         kind, lo, hi = spec[name]
         if kind == "choice":

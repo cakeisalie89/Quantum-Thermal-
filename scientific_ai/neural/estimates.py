@@ -120,7 +120,7 @@ def activations(cfg: ModelConfig, a: Assumptions) -> dict:
     per_token_layer = {}
     for i in range(cfg.num_layers):
         if cfg.is_moe_layer(i):
-            m = cfg.moe
+            m = cfg.moe_block
             ffn = (m.top_k * 3 * m.expert_hidden
                    + m.num_shared_experts * 3 * m.shared_hidden)
         else:

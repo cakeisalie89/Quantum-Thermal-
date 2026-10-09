@@ -60,6 +60,11 @@ FIELD_ARTIFACT = "temperature_field"
 FIELD_MAGIC = b"QTSF1\n"
 
 ENERGY_BALANCE_MAX = 0.05
+
+#: The solver settings this model uses, and so the ones its provenance
+#: records. Not the whole legacy SolverConfig: that also carries the QTA
+#: apparatus's mode-readiness threshold, which no generic result is about.
+SOLVER_FIELDS = ("method", "rtol", "atol", "n_cells_1d")
 UNDERSHOOT_ATOL_FACTOR = 100.0
 
 
@@ -201,7 +206,7 @@ class Thermal1DModel(ModelBase):
         )
 
         if converged and nonfinite == 0:
-            outputs = (
+            outputs: tuple[Output, ...] = (
                 Output("nv_layer_peak_T", OutputStatus.OK,
                        temp(r.nv_layer_temperature_K())),
                 Output("nv_layer_final_T", OutputStatus.OK,
@@ -238,7 +243,8 @@ class Thermal1DModel(ModelBase):
                          "n_cells": int(r.grid.n),
                          "method": cfg.solver.method,
                          "rtol": rtol, "atol": atol},
-            solver_config=dataclasses.asdict(cfg.solver),
+            solver_config={k: getattr(cfg.solver, k)
+                           for k in SOLVER_FIELDS},
             warnings=(("MODEL-ONLY / FORECAST-ONLY: defaults are forecast "
                        "or assumed values, not measured in this system"),),
             artifacts=(art,),

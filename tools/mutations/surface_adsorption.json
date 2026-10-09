@@ -148,14 +148,14 @@
     {
       "name": "RK5_the_flux_is_not_compared",
       "path": "scientific/checks/langmuir_rk4.py",
-      "find": "    rel = max(_rel(flux, flux_out.quantity.value),\n",
+      "find": "    rel = max(_rel(flux, quantity(flux_out).value),\n",
       "replace": "    rel = max(0.0,\n",
       "rationale": "a flux error on a saturated surface is invisible"
     },
     {
       "name": "RK6_the_stated_resolution_is_ignored",
       "path": "scientific/checks/langmuir_rk4.py",
-      "find": "    floor = (inv_out.quantity.resolution or 0.0) / REL_MAX\n",
+      "find": "    floor = (quantity(inv_out).resolution or 0.0) / REL_MAX\n",
       "replace": "    floor = 0.0\n",
       "rationale": "digits the producer never claimed are held against it"
     },

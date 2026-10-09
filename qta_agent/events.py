@@ -102,12 +102,12 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 try:                                    # POSIX advisory locking
     import fcntl
 except ImportError:                     # pragma: no cover - non-POSIX
-    fcntl = None
+    fcntl = None  # type: ignore[assignment]  # no module: locking is off
 
 from .canonical import (
     CANONICAL_FORM_VERSION,
@@ -1335,7 +1335,7 @@ class EventLog:
             raise EventLogError(
                 "a security profile is declared once, as a history's first "
                 "event, and must be one of " + ", ".join(sorted(PROFILES)))
-        body = {
+        body: dict[str, Any] = {
             "seq": head_seq + 1,
             "event_id": event_id or uuid.uuid4().hex,
             "wall_time": time.time() if wall_time is None else wall_time,

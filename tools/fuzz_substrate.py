@@ -54,6 +54,7 @@ import sys
 import tempfile
 import traceback
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -417,6 +418,27 @@ def _rag_index(data: bytes):
 
 
 
+def _proposal_refused():
+    from qta_agent.proposals import ProposalRefused
+    return ProposalRefused
+
+
+def _fmu_refused():
+    from scientific.fmi_boundary import FmuRefused
+    return FmuRefused
+
+
+def _sc_refused():
+    sys.path.insert(0, str(ROOT / "tools"))
+    import supply_chain as SC
+    return SC.Refused
+
+
+def _hdf5_refused():
+    from scientific.hdf5_bundle import Hdf5Refused
+    return Hdf5Refused
+
+
 def _auth_error():
     from qta_agent.principals import AuthenticationError
     return AuthenticationError
@@ -542,6 +564,183 @@ def _proc_maps(data: bytes):
                               or found not in text):
         raise AssertionError(f"ACCEPTED: {found!r} named for libm.so.6")
     return found
+
+
+# ---- the harness completion programme's parsers -------------------------
+
+def _envelope_seed() -> bytes:
+    from qta_agent import proposals as PR
+    from qta_agent.canonical import digest
+    fixture = ROOT / "integrations" / "proposals" / "recorded_fixture.jsonl"
+    ad = PR.RecordedFixtureAdapter(fixture.read_text(encoding="utf-8"))
+    resp = next(iter(ad.responses({})))
+    ctx = PR.assemble_context("slab", retrieve=lambda q, k: {"hits": [{
+        "path": "STACK.md", "line_start": 1, "line_end": 3,
+        "source_sha256": digest("STACK.md"), "text": "reviewed text",
+        "evidence_status": PR.EVIDENCE_STATUS}]}, k=1)
+    rec = PR.envelope(resp, context=ctx, agent_id="ai-fuzz", adapter=ad)
+    return json.dumps(rec, sort_keys=True).encode()
+
+
+def _proposal_envelope(data: bytes):
+    """A proposal as an AI sends it. Whatever is accepted is sealed by its
+    own content, NON_AUTHORITATIVE, and carries no authority-shaped key at
+    any depth."""
+    from qta_agent import proposals as PR
+    env = PR.ProposalEnvelope.parse(json.loads(data.decode("utf-8")))
+    rec = env.record
+    if rec["proposal_id"] != PR.proposal_id_of(rec):
+        raise AssertionError("ACCEPTED: an id that is not its content's")
+    if rec.get("authority") != PR.AUTHORITY:
+        raise AssertionError(f"ACCEPTED: authority {rec.get('authority')!r}")
+
+    def keys(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                yield k
+                yield from keys(v)
+        elif isinstance(o, list):
+            for v in o:
+                yield from keys(v)
+    bad = PR.FORBIDDEN_KEYS & set(keys(rec))
+    if bad:
+        raise AssertionError(f"ACCEPTED: authority-shaped keys {sorted(bad)}")
+    return env
+
+
+_STATUS_CACHE: dict = {}
+
+
+def _harness_status_document(data: bytes):
+    """A committed harness status, as ``verify`` compares it: anything but
+    the derived bytes is stale -- never accepted because it parses."""
+    import tempfile as _tf
+    sys.path.insert(0, str(ROOT / "tools"))
+    import harness_status as HS
+    # the committed status stands in for a derivation (which re-runs every
+    # audit and takes seconds): what is under test is the comparison, and
+    # tests/test_harness_status.py holds the committed status to the derived
+    if "st" not in _STATUS_CACHE:
+        _STATUS_CACHE["st"] = json.loads(
+            (ROOT / "docs" / "harness_status.json").read_text())
+    st = _STATUS_CACHE["st"]
+    want = HS.documents(st)
+    with _tf.TemporaryDirectory() as d:
+        root = Path(d)
+        for rel, text in want.items():
+            q = root / rel
+            q.parent.mkdir(parents=True, exist_ok=True)
+            q.write_text(text, encoding="utf-8")
+        jrel = next(r for r in want if str(r).endswith(".json"))
+        (root / jrel).write_bytes(data)
+        problems = HS.stale(root, st)
+    same = data == want[jrel].encode("utf-8")
+    if not same and not problems:
+        raise AssertionError("ACCEPTED: a status document that is not the "
+                             "derived one")
+    if same and problems:
+        raise AssertionError(f"REFUSED the derived document: {problems}")
+    return problems
+
+
+def _fmu_description_seed() -> bytes:
+    return (ROOT / "integrations" / "fmi" / "thermal_rc2"
+            / "modelDescription.xml").read_bytes()
+
+
+def _fmu_description(data: bytes):
+    """A model description inside an otherwise well-formed FMU, read at the
+    boundary. Whatever is accepted is FMI 3.0, NON_AUTHORITATIVE, a
+    simulation result, and every float variable with a causality has a
+    defined unit."""
+    import tempfile as _tf
+    import zipfile as _zf
+    from scientific import fmi_boundary as FB
+    with _tf.TemporaryDirectory() as d:
+        fmu = Path(d) / "x.fmu"
+        with _zf.ZipFile(fmu, "w") as z:
+            z.writestr("modelDescription.xml", data)
+            for ident in ("thermal_rc2", "x"):
+                z.writestr(f"binaries/{FB.PLATFORM}/{ident}.so", b"\x7fELF")
+        desc = FB.describe(fmu)
+    if desc.fmi_version != "3.0":
+        raise AssertionError(f"ACCEPTED: fmiVersion {desc.fmi_version!r}")
+    for v in desc.variables:
+        if v.type == "Float64" and v.causality in ("parameter", "input",
+                                                    "output") \
+                and v.unit not in desc.units:
+            raise AssertionError(f"ACCEPTED: {v.name} in an undefined unit")
+    return desc
+
+
+def _supply_chain_policy(data: bytes):
+    """A signing policy file. Whatever is accepted names an exact identity,
+    derived from its repository, workflow and ref, under GitHub Actions'
+    issuer -- never a pattern."""
+    import tempfile as _tf
+    sys.path.insert(0, str(ROOT / "tools"))
+    import supply_chain as SC
+    with _tf.TemporaryDirectory() as d:
+        f = Path(d) / "p.json"
+        f.write_bytes(data)
+        p = SC.load_policy(f)
+    want = f"{p['source_repository']}/{p['workflow_path']}@{p['ref']}"
+    if p["signer_identity"] != want or "*" in p["signer_identity"]:
+        raise AssertionError("ACCEPTED: a signer identity that is not exact")
+    if p["oidc_issuer"] != "https://token.actions.githubusercontent.com":
+        raise AssertionError("ACCEPTED: another issuer")
+    return p
+
+
+def _sbom(data: bytes):
+    """An SBOM as verify reads it. One with no problems names exactly the
+    locked environments' packages -- the same triples, no more, no less."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import supply_chain as SC
+    doc = json.loads(data.decode("utf-8"))
+    if not isinstance(doc, dict):
+        raise ValueError("not an object")
+    probs = SC.sbom_problems(doc, ROOT)
+
+    def triples(d):
+        return {(c["name"], c["version"],
+                 json.dumps(c.get("properties"), sort_keys=True))
+                for c in d.get("components", [])}
+    if not probs and triples(doc) != triples(SC.sbom(ROOT)):
+        raise AssertionError("ACCEPTED: an SBOM naming other packages")
+    return probs
+
+
+def _hdf5_seed() -> bytes:
+    import tempfile as _tf
+    from scientific import hdf5_bundle as H
+    from scientific.models.slab_transient import SlabTransientModel
+    b = SlabTransientModel().run({"L_m": 0.05, "k_W_m_K": 15.0,
+                                  "rho_c_J_m3_K": 3.6e6, "q_W_m3": 2.0e5,
+                                  "h_W_m2_K": 50.0, "T_inf_K": 300.0,
+                                  "T0_K": 300.0, "t_end_s": 600.0})
+    with _tf.TemporaryDirectory() as d:
+        f = Path(d) / "b.h5"
+        H.write(f, b)
+        return f.read_bytes()
+
+
+def _hdf5_reader(data: bytes):
+    """A result's HDF5 representation, read back. The reader holds an
+    accepted file to the bundle digest it records; whatever it returns must
+    also round-trip as a bundle."""
+    import tempfile as _tf
+    from scientific import hdf5_bundle as H
+    from scientific.result import ResultBundle
+    with _tf.TemporaryDirectory() as d:
+        f = Path(d) / "x.h5"
+        f.write_bytes(data)
+        bundle, _artifacts, _links = H.read(f)
+    again = ResultBundle.from_record(json.loads(json.dumps(
+        bundle.to_record())))
+    if again.digest() != bundle.digest():
+        raise AssertionError("ACCEPTED: a bundle that does not round-trip")
+    return bundle
 
 
 def _targets() -> dict:
@@ -694,6 +893,22 @@ def _targets() -> dict:
              bytes([7, 8, 0, 1, 2, 6]), bytes(range(10))]),
         "rag_index": (_rag_index, common + (OSError,),
                       [b'{"schema_version": 1, "chunks": []}']),
+        # the harness completion programme's parsers
+        "proposal_envelope": (_proposal_envelope,
+                              (_proposal_refused(),) + common,
+                              [_envelope_seed(), b"{}", b"[]"]),
+        "harness_status_document": (_harness_status_document, common,
+                                    [b"{}", b"not json"]),
+        "fmu_description": (_fmu_description, (_fmu_refused(),) + common,
+                            [_fmu_description_seed()]),
+        "supply_chain_policy": (_supply_chain_policy,
+                                (_sc_refused(),) + common,
+                                [(ROOT / "docs" / "supply_chain_ci_policy"
+                                  ".json").read_bytes()]),
+        "sbom": (_sbom, common, [b'{"bomFormat": "CycloneDX", '
+                                 b'"specVersion": "1.5", "components": []}']),
+        "hdf5_bundle": (_hdf5_reader, (_hdf5_refused(), OSError) + common,
+                        [_hdf5_seed()]),
     }
 
 
@@ -783,7 +998,8 @@ class Coverage:
         self.available = False
         self.reason = ""
         self._hits: set = set()
-        self._mon = getattr(sys, "monitoring", None)
+        # the module, where this build has one: its API is the runtime's
+        self._mon: Any = getattr(sys, "monitoring", None)
         if self._mon is None:                     # pragma: no cover
             self.reason = "sys.monitoring is not available on this build"
             return

@@ -68,22 +68,38 @@ from .governed_stage10 import (
     SUBMITTER_ID, VERIFIER_ID, WORKER_ID, WORKSPACE_PREFIX, GovernedRun,
     GovernedStage10,
 )
-from .store import AuthorityStore
+from .store import AuthorityStore, UnknownRecord
 from .tasks import TaskState
 from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
                     ToolSpec)
 
 TOOL_RUN = "model.thermal.conduction_1d.run"
 TOOL_RUN_2D = "model.thermal.conduction_2d_axisymmetric.run"
+TOOL_RUN_SLAB = "model.thermal.slab_transient.run"
+TOOL_RUN_RC2 = "model.thermal.rc2_network.run"
+#: An external model: an FMI 3.0 FMU executed in its own runtime. Its
+#: bundle is a SIMULATION_RESULT like any model's and enters the same
+#: evidence boundary -- checked by an admitted independent check, decided
+#: by a reviewer -- and its FMU file is cited by digest, as a bundle is.
+TOOL_RUN_FMU = "model.fmi.thermal_rc2.run"
 TOOL_CHECK = "model.independent_check"
 TOOL_IDENTITY = "model.run_identity"
 #: Which governed tool runs which model. One tool per model, so a policy
 #: decision and the task history name the model that ran; a model with no
 #: tool here is refused before anything is submitted.
 MODEL_TOOLS = {"thermal.conduction_1d": TOOL_RUN,
-               "thermal.conduction_2d_axisymmetric": TOOL_RUN_2D}
+               "thermal.conduction_2d_axisymmetric": TOOL_RUN_2D,
+               "thermal.slab_transient": TOOL_RUN_SLAB,
+               "thermal.rc2_network": TOOL_RUN_RC2}
+#: Models whose run writes a temperature field beside the bundle.
+_FIELD_MODELS = frozenset({"thermal.conduction_1d",
+                           "thermal.conduction_2d_axisymmetric",
+                           "thermal.slab_transient"})
 _TOOL_MODULES = {TOOL_RUN: "scientific._governed_run",
                  TOOL_RUN_2D: "scientific._governed_run",
+                 TOOL_RUN_SLAB: "scientific._governed_run",
+                 TOOL_RUN_RC2: "scientific._governed_run",
+                 TOOL_RUN_FMU: "scientific._governed_fmu",
                  TOOL_CHECK: "scientific._governed_check",
                  TOOL_IDENTITY: "scientific._governed_identity"}
 
@@ -101,10 +117,11 @@ class ModelRunRefused(ValueError):
 
 
 def _model_run_tool(tool_id: str, model_id: str) -> ToolSpec:
+    field = model_id in _FIELD_MODELS
     return ToolSpec(
             tool_id=tool_id, version="1.0.0",
-            summary=f"run {model_id}@1.0.0 and write its ResultBundle and "
-                    "temperature field",
+            summary=f"run {model_id}@1.0.0 and write its ResultBundle"
+                    + (" and temperature field" if field else ""),
             inputs=(Field_("out_dir", "str"), Field_("model_id", "str"),
                     Field_("model_version", "str"),
                     Field_("parameters", "dict")),
@@ -113,8 +130,9 @@ def _model_run_tool(tool_id: str, model_id: str) -> ToolSpec:
                      Field_("all_invariants_hold", "bool")),
             output_files=(
                 OutputFile("bundle", "{out_dir}/bundle.json"),
-                OutputFile("temperature_field",
-                           "{out_dir}/temperature_field.bin")),
+                *((OutputFile("temperature_field",
+                              "{out_dir}/temperature_field.bin"),)
+                  if field else ())),
             # Measured, not assumed: the solve is deterministic on one
             # machine, and nothing time-dependent enters the bundle. The
             # verifier re-runs it and compares bytes.
@@ -127,12 +145,34 @@ def model_registry() -> Registry:
     return Registry([
         *(_model_run_tool(tool, model) for model, tool in MODEL_TOOLS.items()),
         ToolSpec(
+            tool_id=TOOL_RUN_FMU, version="1.0.0",
+            summary="run the thermal_rc2 FMI 3.0 FMU, cited by digest with "
+                    "its build record, in a declared FMI runtime, and write "
+                    "its ResultBundle",
+            inputs=(Field_("out_dir", "str"), Field_("fmu_path", "str"),
+                    Field_("fmu_sha256", "str"),
+                    Field_("build_record_path", "str"),
+                    Field_("build_record_sha256", "str"),
+                    Field_("parameters", "dict"), Field_("step_s", "float"),
+                    Field_("runtime_python", "str")),
+            outputs=(Field_("path", "str"), Field_("sha256", "str"),
+                     Field_("bundle_digest", "str"),
+                     Field_("all_invariants_hold", "bool")),
+            output_files=(OutputFile("bundle", "{out_dir}/bundle.json"),),
+            determinism=Determinism.BYTE_IDENTICAL,
+            side_effect=SideEffect.SCOPED_WRITES,
+            writable_scope=(WORKSPACE_PREFIX,), timeout_s=600.0),
+        ToolSpec(
             tool_id=TOOL_CHECK, version="1.0.0",
             summary="run an admitted independent check on a cited bundle "
                     "and write its VerificationResult",
             inputs=(Field_("out_dir", "str"), Field_("bundle_path", "str"),
                     Field_("bundle_sha256", "str"), Field_("check_id", "str"),
-                    Field_("verifier_id", "str")),
+                    Field_("verifier_id", "str"),
+                    # a check that needs an external runtime (FEniCSx) is
+                    # told which interpreter, as a declared and recorded
+                    # input -- the governed environment inherits nothing
+                    Field_("runtime_python", "str", required=False)),
             outputs=(Field_("path", "str"), Field_("sha256", "str"),
                      Field_("status", "str")),
             output_files=(OutputFile("verification",
@@ -183,7 +223,7 @@ class CheckRun:
 #: origin, and as a ResultBundle's. Restated as data in qta_agent.reconstruct;
 #: a conformance test holds the two to each other.
 VERIFIER_TOOLS = frozenset({TOOL_CHECK})
-MODEL_RUN_TOOLS = frozenset(MODEL_TOOLS.values())
+MODEL_RUN_TOOLS = frozenset(MODEL_TOOLS.values()) | {TOOL_RUN_FMU}
 
 
 class GovernedOrigins:
@@ -382,15 +422,26 @@ class Invalidation:
 
 class GovernedModelRuns:
     def __init__(self, *, root: Path, log: EventLog,
-                 evidence: EvidenceStore):
+                 evidence: EvidenceStore, checkpoints=None):
+        """``checkpoints``: a :class:`~qta_agent.checkpoint.CheckpointStore`
+        to RESTART from. The authority projection is then recovered by
+        :meth:`AuthorityStore.recover` -- the checkpoint audit decides
+        between a checkpoint-assisted load and a full replay, and
+        :attr:`recovery` says which, and why. Without one, a full replay."""
         self.root = Path(root)
         self.gov = GovernedStage10(root=root, log=log, evidence=evidence,
                                    registry=model_registry())
         self.gov.tool_modules = dict(_TOOL_MODULES)
         self.evidence = evidence
         self.origins = GovernedOrigins(self.gov)
-        self.authority = AuthorityStore(log, evidence=evidence,
-                                        origins=self.origins).load()
+        self.recovery = None
+        if checkpoints is not None:
+            self.authority, self.recovery = AuthorityStore.recover(
+                log, checkpoints, blobs=evidence, evidence=evidence,
+                origins=self.origins)
+        else:
+            self.authority = AuthorityStore(log, evidence=evidence,
+                                            origins=self.origins).load()
         for iid, role in ((CHECK_WORKER_ID, AgentRole.EXECUTOR),
                           (REVIEWER_ID, AgentRole.VERIFIER)):
             try:
@@ -400,6 +451,12 @@ class GovernedModelRuns:
                     identity(agent_id=iid, instance_id=iid,
                              kind=PrincipalKind.AGENT, roles={role}),
                     by="system")
+
+    def checkpoint(self, checkpoints, *, actor: str = "system"):
+        """Checkpoint the authority projection: a cached verification
+        result a later restart may begin from, never a second truth."""
+        return self.authority.checkpoint(checkpoints, blobs=self.evidence,
+                                         actor=actor)
 
     # -- helpers ----------------------------------------------------------
 
@@ -494,9 +551,14 @@ class GovernedModelRuns:
     def propose(self, *, model_id: str, model_version: str,
                 parameters: dict, out_dir: str,
                 submitter: str = SUBMITTER_ID,
-                worker: str = WORKER_ID, reuse: bool = True) -> ModelRun:
+                worker: str = WORKER_ID, reuse: bool = True,
+                idempotency_key: str | None = None) -> ModelRun:
         """PROPOSE a model result: reuse a verified one with the same run
-        identity and intact evidence, or run the model under governance."""
+        identity and intact evidence, or run the model under governance.
+
+        ``idempotency_key`` binds the submission durably (the proposal
+        ingress passes the proposal's id): a resubmission returns the first
+        task rather than computing twice."""
         if model_id not in MODEL_TOOLS:
             raise ModelRunRefused(f"no governed tool runs {model_id!r}")
         if reuse:
@@ -516,7 +578,33 @@ class GovernedModelRuns:
                   "model_version": model_version, "parameters": parameters}
         run = self.gov.run(tool_id=MODEL_TOOLS[model_id], inputs=inputs,
                            submitter=submitter, worker=worker,
-                           verifier=VERIFIER_ID)
+                           verifier=VERIFIER_ID,
+                           idempotency_key=idempotency_key)
+        return self._record_run(run, out_dir, submitter, worker)
+
+    def propose_fmu(self, *, fmu_path: str, fmu_sha256: str,
+                    build_record_path: str, build_record_sha256: str,
+                    parameters: dict, step_s: float, runtime_python: str,
+                    out_dir: str, submitter: str = SUBMITTER_ID,
+                    worker: str = WORKER_ID,
+                    idempotency_key: str | None = None) -> ModelRun:
+        """PROPOSE an external model's result: run the FMU, cited by
+        digest, under governance. Never reused: its identity is the FMU's
+        bytes and runtime, which no catalog model computes."""
+        inputs = {"out_dir": out_dir, "fmu_path": fmu_path,
+                  "fmu_sha256": fmu_sha256,
+                  "build_record_path": build_record_path,
+                  "build_record_sha256": build_record_sha256,
+                  "parameters": parameters, "step_s": float(step_s),
+                  "runtime_python": runtime_python}
+        run = self.gov.run(tool_id=TOOL_RUN_FMU, inputs=inputs,
+                           submitter=submitter, worker=worker,
+                           verifier=VERIFIER_ID,
+                           idempotency_key=idempotency_key)
+        return self._record_run(run, out_dir, submitter, worker)
+
+    def _record_run(self, run, out_dir: str, submitter: str,
+                    worker: str) -> ModelRun:
         if run.state is not TaskState.VERIFIED:
             raise ModelRunRefused(f"the governed run was {run.state.value}: "
                                   f"{run.reason}")
@@ -532,6 +620,18 @@ class GovernedModelRuns:
         # One record per governed task: an identical rerun is a second
         # claim, and must not collide with the first by content.
         record_id = f"result-{run.task_id}"
+        try:
+            prior = self.authority.get(record_id)
+        except UnknownRecord:
+            prior = None
+        if prior is not None:
+            # an idempotent resubmission returned the FIRST task; its record
+            # already exists and is returned, not created a second time
+            if prior.evidence.get("result_bundle") != sha:
+                raise ModelRunRefused(f"{record_id} exists for another "
+                                      "bundle")
+            return ModelRun(run, rel, sha, bundle_digest, record_id,
+                            prior.proposer, worker)
         self.authority.create(
             record_id=record_id, kind=RECORD_KIND, proposer=submitter,
             evidence={"result_bundle": sha,
@@ -642,8 +742,13 @@ class GovernedModelRuns:
         return Invalidation(origin, tuple(task_ids), plan, tuple(kept))
 
     def check(self, run: ModelRun, *, check_id: str, out_dir: str,
-              worker: str = CHECK_WORKER_ID) -> CheckRun:
-        """Run an independent check as its own governed task."""
+              worker: str = CHECK_WORKER_ID,
+              runtime_python: str = "") -> CheckRun:
+        """Run an independent check as its own governed task.
+
+        ``runtime_python`` names the interpreter of a check that runs in
+        its own environment (FEniCSx); it becomes a recorded input of the
+        task, so the history says which runtime verified the result."""
         if run.reused_from:
             raise ModelRunRefused(f"{run.record_id} was reused, and is "
                                   "already decided; there is nothing to check")
@@ -654,6 +759,8 @@ class GovernedModelRuns:
         inputs = {"out_dir": out_dir, "bundle_path": run.bundle_path,
                   "bundle_sha256": run.bundle_sha256, "check_id": check_id,
                   "verifier_id": worker}
+        if runtime_python:
+            inputs["runtime_python"] = runtime_python
         gr = self.gov.run(tool_id=TOOL_CHECK, inputs=inputs,
                           submitter=SUBMITTER_ID, worker=worker,
                           verifier=VERIFIER_ID)
@@ -692,9 +799,13 @@ class GovernedModelRuns:
             fetch=self.evidence.get, origins=self.origins,
             proposer=run.submitter, actor=reviewer, before_seq=None)
 
-        self.authority.transition(record_id=run.record_id,
-                                  dst=State.UNDER_REVIEW, actor=reviewer,
-                                  role=Role.VERIFIER)
+        # Resumable: a decision interrupted after the pickup (a crash
+        # between the two appends) finds the record UNDER_REVIEW and goes on
+        # to the verdict, which I4 still holds apart from the proposer.
+        if self.authority.get(run.record_id).state is not State.UNDER_REVIEW:
+            self.authority.transition(record_id=run.record_id,
+                                      dst=State.UNDER_REVIEW, actor=reviewer,
+                                      role=Role.VERIFIER)
         if not problems:
             return self.authority.transition(
                 record_id=run.record_id, dst=State.VERIFIED, actor=reviewer,

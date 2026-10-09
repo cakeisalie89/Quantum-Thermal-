@@ -34,6 +34,7 @@ over models. The report says so.
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 
@@ -168,7 +169,7 @@ def evaluate(cfg, params, buffers, schema: FeatureSchema,
                                        preds[name]["mean"],
                                        preds[name]["var"])
                   for name in preds}
-    ood = {}
+    ood: dict[str, Any] = {}
     if "test" in per_target and "ood" in per_target:
         ood["rmse_ratio_ood_over_test"] = {
             t: per_target["ood"][t]["rmse"] / per_target["test"][t]["rmse"]

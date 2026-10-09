@@ -39,6 +39,12 @@ ALLOWED_IMPORTERS = {
     # A verification tool, not a test: it fuzzes every parser in the package
     # and therefore has to import them. It computes nothing.
     "tools/fuzz_substrate.py",
+    # The end-to-end demonstration (section 48). It DRIVES the governed
+    # path -- a proposal through the ingress, a governed run, a reviewer's
+    # decision, a restart, the second reader -- so it has to import the
+    # substrate; it computes no gate, and its scientific results come from
+    # scientific.models and are decided by the store like any others.
+    "tools/harness_demo.py",
     # The read-only auditor. It imports the index, the log and the two
     # reconstructions in order to ASK them questions, opens nothing for
     # writing, and computes no scientific result -- which is the direction
@@ -95,6 +101,8 @@ ALLOWED_IMPORTERS = {
     "tests/test_generated_mutations.py",
     "tests/test_model_check.py",
     "tests/test_agent_crash_recovery.py",
+    "tests/test_checkpoint_recovery.py",
+    "tests/test_proposal_ingress.py",
     "tests/test_agent_fault_injection.py",
     "tests/test_agent_fuzz.py",
     "tests/test_agent_performance.py",
@@ -193,7 +201,12 @@ LAYERS = ("canonical", "projection", "hostid", "safeio", "actions", "events",
           # Above governed_stage10, which it drives with its own tool
           # registry; names the scientific tools by module string and
           # imports nothing outside the package.
-          "governed_model")
+          "governed_model",
+          # The AI proposal ingress. Imports only canonical: it is HANDED the
+          # log it records receipts on and the governed runs it submits
+          # through, so nothing below can reach it and it can reach no
+          # authority of its own.
+          "proposals")
 
 #: The ONLY modules permitted to reach into the scientific tree, and the only
 #: thing they may reach for.

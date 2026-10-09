@@ -237,14 +237,15 @@ def validate_profile(doc) -> list:
         return ["the profile is not a JSON object"]
     if doc.get("schema") != SCHEMA:
         return [f"schema is {doc.get('schema')!r}, not {SCHEMA!r}"]
-    problems = []
+    problems: list[str] = []
     corpus, gen, env = (doc.get("corpus"), doc.get("generator"),
                         doc.get("environment"))
     for name, part in (("corpus", corpus), ("generator", gen),
                        ("environment", env)):
         if not isinstance(part, dict):
             problems.append(f"{name} is missing")
-    if problems:
+    if not (isinstance(corpus, dict) and isinstance(gen, dict)
+            and isinstance(env, dict)):
         return problems
     try:
         declared, exempt = set(corpus["declared"]), set(corpus["exempt"])
@@ -362,15 +363,17 @@ def decide(policy: str, *, byte_identical: bool, files_compared: int,
         return done(REFUSED, UNRESOLVED, BACKEND_UNRESOLVED,
                     *unresolved_parts(record))
     v["backend_digest"] = identity_digest(identity)
-    profile_ok = isinstance(profile, dict) and not profile_problems
-    witness = witness_for(profile, identity) \
-        if profile_ok and not inapplicable else None
+    usable = profile if isinstance(profile, dict) \
+        and not profile_problems else None
+    profile_ok = usable is not None
+    witness = witness_for(usable, identity) \
+        if usable is not None and not inapplicable else None
     if witness is not None:
         v["witness"] = witness["backend_digest"]
-    elif profile_ok:
+    elif usable is not None:
         v["backend_differences"] = {
             w["backend_digest"][:16]: differences(w["backend"], identity)
-            for w in profile.get("witnesses", [])}
+            for w in usable.get("witnesses", [])}
 
     if policy == POLICY_STRICT:
         if witness is None:

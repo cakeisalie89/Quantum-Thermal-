@@ -327,3 +327,13 @@ def test_the_check_refuses_another_model(run):
     other = dataclasses.replace(run[0], model_id=T1.MODEL_ID)
     with pytest.raises(ValueError, match="this check is for"):
         reduction_3d.run_check(other, verifier_id="checker")
+
+
+def test_the_generic_bundle_carries_no_hardware_era_semantics(run):
+    """As for the 1-D model: the provenance records the solver settings
+    this model uses, not the legacy SolverConfig's Mode-D threshold."""
+    from test_scientific_thermal_1d import _hardware_era_terms
+    bundle, _ = run
+    rec = bundle.to_record()
+    assert set(rec["solver_config"]) == set(T2.SOLVER_FIELDS)
+    assert _hardware_era_terms(rec) == []

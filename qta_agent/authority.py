@@ -101,8 +101,12 @@ class Edge:
 def _edges() -> tuple:
     E = Edge
     return (
+        # D-2026-105: a verifier picks up the claim -- one who did not make
+        # it. Without this a proposer could take its own claim into review
+        # (and stall the reviewer who then finds it already there).
         E(State.PROPOSED, State.UNDER_REVIEW, frozenset({Role.VERIFIER}),
-          reason="a verifier picks up the claim"),
+          requires_distinct_actor=True,
+          reason="a verifier picks up the claim (I4: not the proposer)"),
         E(State.PROPOSED, State.REJECTED, frozenset({Role.VERIFIER}),
           requires_evidence=frozenset({"rejection_reason"}),
           requires_distinct_actor=True,
@@ -137,7 +141,9 @@ def _edges() -> tuple:
           reason="withdrawn before promotion"),
         # I3: STALE returns only through re-verification.
         E(State.STALE, State.UNDER_REVIEW, frozenset({Role.VERIFIER}),
-          reason="I3: re-verification is the only route back"),
+          requires_distinct_actor=True,
+          reason="I3: re-verification is the only route back, and it is "
+                 "not the proposer's (D-2026-105)"),
         E(State.STALE, State.SUPERSEDED, frozenset({Role.PROMOTER}),
           requires_evidence=frozenset({"superseded_by"}),
           reason="replaced rather than revalidated"),

@@ -45,6 +45,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -79,7 +80,8 @@ def read_result(ev: dict, fetch) -> tuple:
     package's own schema; a proposed result has no report yet."""
     from scientific.result import ResultBundle
     from scientific.verification import VerificationResult
-    docs, found = {}, []
+    docs: dict[str, Any] = {}
+    found: list[str] = []
     for key, cls in (("result_bundle", ResultBundle),
                      ("verification_report", VerificationResult)):
         if key not in ev:
@@ -98,12 +100,18 @@ def read_result(ev: dict, fetch) -> tuple:
 
 
 def identity_findings(bundle, vr, registry, admitted_check) -> list:
+    from scientific import catalog
     found = []
-    try:
-        registry.lookup(bundle.model_id, bundle.model_version)
-    except Exception:                           # noqa: BLE001 -- reported
-        found.append(f"{bundle.model_id}@{bundle.model_version} is not an "
-                     "admitted model")
+    if (bundle.model_id, bundle.model_version) in catalog.EXTERNAL_MODELS:
+        # an external model (an FMU): admitted by the catalog's external
+        # table, identified by its archive digest, not by code here
+        found += catalog.external_model_problems(bundle)
+    else:
+        try:
+            registry.lookup(bundle.model_id, bundle.model_version)
+        except Exception:                       # noqa: BLE001 -- reported
+            found.append(f"{bundle.model_id}@{bundle.model_version} is not "
+                         "an admitted model")
     if vr is not None:
         try:
             admitted_check(vr.check_id)

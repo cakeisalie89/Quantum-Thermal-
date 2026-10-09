@@ -1,5 +1,15 @@
 {
   "guards": {
+    "evidence_lookup_fill_ratio": {
+      "ceiling": 3.0,
+      "observations": [
+        {
+          "commit": "b7807bb5ac415174ebbd8112db7cf4781678667e",
+          "recorded": "2026-10-08T22:21:51Z",
+          "value": 0.9956
+        }
+      ]
+    },
     "full_verification": {
       "ceiling": 1.45,
       "observations": [
@@ -12,21 +22,6 @@
           "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
           "recorded": "2026-09-08T07:43:47Z",
           "value": 0.9997
-        }
-      ]
-    },
-    "governed_operation_vs_history": {
-      "ceiling": 4.0,
-      "observations": [
-        {
-          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
-          "recorded": "2026-09-08T07:14:09Z",
-          "value": 1.2076
-        },
-        {
-          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
-          "recorded": "2026-09-08T07:43:47Z",
-          "value": 1.1036
         }
       ]
     },
@@ -59,6 +54,24 @@
           "value": 0.997
         }
       ]
+    }
+  },
+  "retired": {
+    "governed_operation_vs_history": {
+      "ceiling": 4.0,
+      "observations": [
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:14:09Z",
+          "value": 1.2076
+        },
+        {
+          "commit": "2f9a9772eaec57644f377489d52a7ef18f1f23d4",
+          "recorded": "2026-09-08T07:43:47Z",
+          "value": 1.1036
+        }
+      ],
+      "reason": "recorded while the guard was a TIMED ratio under a 4.0 ceiling; it is now an exact re-hash count whose property is equality (D-2026-46 follow-up), published as DETERMINISTIC_WORK with an inclusive maximum of 1.0 and gated on every run. A count is not comparable with these timed values, so the series is retired here and kept, never appended to (D-2026-107)."
     }
   },
   "schema_version": 1

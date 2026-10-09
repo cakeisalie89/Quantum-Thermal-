@@ -81,6 +81,47 @@ git -C /qta rev-parse --is-inside-work-tree
 echo "::QTA-TRACKED-FILES:: $(git -C /qta ls-files | wc -l)"
 done_ "git-available"
 
+# The CURRENT harness first: its evidence, audits and generic verification,
+# none of which reads the legacy QTA corpus. The learned-model evidence is
+# re-derived (abstractly: the ~1T flagship is never allocated -- verify
+# refuses a real allocation), the PASS semantics and the active/legacy
+# boundary are re-checked, and a generic model is run and independently
+# verified -- with a deliberately wrong producer that must be rejected.
+step "harness-generic"
+QTA_NEURAL_REQUIRED=1 python tools/neural.py verify
+python tools/pass_semantics_audit.py --check
+python tools/framework_boundary.py --check
+python tools/claims_enforcement.py
+python tools/completion_matrix.py
+python - <<'PY'
+import scientific.models.slab_transient as ST
+from scientific.checks import slab_series as SS
+p = {"L_m": 0.05, "k_W_m_K": 15.0, "rho_c_J_m3_K": 3.6e6, "q_W_m3": 2.0e5,
+     "h_W_m2_K": 50.0, "T_inf_K": 300.0, "T0_K": 300.0, "t_end_s": 600.0}
+ok = SS.run_check(ST.SlabTransientModel().run(p), verifier_id="container")
+orig = ST._solve
+ST._solve = lambda q, n, m: orig({**q, "k_W_m_K": q["k_W_m_K"] * 1.1}, n, m)
+bad = SS.run_check(ST.SlabTransientModel().run(p), verifier_id="container")
+ST._solve = orig
+print("::QTA-GENERIC:: slab vs series", ok.status.value,
+      "| wrong producer", bad.status.value)
+assert ok.status.value == "PASS" and bad.status.value == "FAIL"
+PY
+done_ "harness-generic"
+
+# The generic end-to-end demonstration, in the image (section 49): proposal,
+# governed retrieval, the ingress, a governed model run, HDF5, the series
+# check, the reviewer's decision, a restart from a checkpoint, reconstruction
+# and an RO-Crate. Without the FEniCSx and FMI runtimes (not in this image)
+# its generic leg runs, whose honest outcome is REJECTED: the series check is
+# not an admitted independent check. The report goes to QTA_EVIDENCE_DIR when
+# the host mounts one, so the workflow can compare it with a native run.
+step "harness-demo"
+EVID="${QTA_EVIDENCE_DIR:-/tmp}"
+python tools/harness_demo.py run --out "$EVID/harness_demo_container.json"
+echo "::QTA-DEMO:: report sha256 $(sha256sum "$EVID/harness_demo_container.json" | cut -c1-64)"
+done_ "harness-demo"
+
 step "qta_full_sim"
 python qta_full_sim.py
 done_ "qta_full_sim"
@@ -125,7 +166,7 @@ if [ "${collected:-0}" -lt 300 ]; then
   exit 1
 fi
 echo "pytest collected ${collected} tests"
-python -m pytest tests/ -q
+QTA_NEURAL_REQUIRED=1 python -m pytest tests/ -q
 
 step "stage6_preservation"
 python stage6_preservation_check.py

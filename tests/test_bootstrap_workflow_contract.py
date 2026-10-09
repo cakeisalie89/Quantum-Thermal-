@@ -289,9 +289,15 @@ def test_release_finalizer_step_cannot_confer_trust():
 
 # ------------------------------------------------ container verification ----
 
-def test_container_verify_is_manual_and_read_only():
+def test_container_verify_runs_per_push_to_this_branch_and_is_read_only():
+    """Dispatch-only could never fire before the workflow reached the
+    default branch, and evidence about the container has to be about the
+    commit it ran on. So it runs on push -- to this branch only, never on a
+    fork's pull_request -- and stays read-only."""
     doc = _load(CONTAINER)
-    assert set(_on(doc)) == {"workflow_dispatch"}
+    on = _on(doc)
+    assert set(on) == {"push", "workflow_dispatch"}
+    assert on["push"]["branches"] == ["claude/scientific-python-stack-7rsq3m"]
     assert doc["permissions"] == {}
     perms = doc["jobs"]["container-verify"]["permissions"]
     assert perms == {"contents": "read"}, (

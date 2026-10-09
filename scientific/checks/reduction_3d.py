@@ -27,6 +27,8 @@ The criterion, rel < 0.10, is ``reduction_checks_3d.TOL_3D_TO_2D``, unchanged
 """
 from __future__ import annotations
 
+from typing import Any
+
 from ..identity import implementation_digest
 from ..models.thermal_2d import (
     MODEL_ID, MODEL_VERSION, configure, window_s,
@@ -36,6 +38,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
+from . import quantity
 
 CHECK_ID = "thermal_2d.reduction_3d_adiabatic_lateral"
 IMPLEMENTATION_MODULES = ("scientific.checks.reduction_3d",
@@ -62,7 +65,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
     if (bundle.model_id, bundle.model_version) != (MODEL_ID, MODEL_VERSION):
         raise ValueError(f"this check is for {MODEL_ID}@{MODEL_VERSION}, "
                          f"not {bundle.model_id}@{bundle.model_version}")
-    common = dict(
+    common: dict[str, Any] = dict(
         check_id=CHECK_ID, check_type=CheckType.INDEPENDENT_IMPLEMENTATION,
         subject_digest=bundle.digest(),
         subject_model=f"{bundle.model_id}@{bundle.model_version}",
@@ -99,7 +102,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
         solve_thermal_3d(cfg, source_mode="averaged", transverse="gaussian",
                          t_end=window_s(cfg, "averaged"), n_eval=N_EVAL),
         "reduction_3d: 3D Gaussian solve")
-    nv2 = out.quantity.value
+    nv2 = quantity(out).value
     nv3 = r3.nv_layer_temperature_K()
     rel = abs(nv3 - nv2) / max(abs(nv2), 1e-12)
     return VerificationResult(

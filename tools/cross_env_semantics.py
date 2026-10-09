@@ -603,11 +603,13 @@ def declared_scope(committed: Path):
         if not isinstance(node, ast.Assign):
             continue
         names = [getattr(t, "id", None) for t in node.targets]
-        if "CANONICAL_EXPECTED" in names:
+        if "CANONICAL_EXPECTED" in names and isinstance(node.value,
+                                                        ast.Dict):
             for k, v in zip(node.value.keys, node.value.values):
-                if getattr(k, "value", None) == "canonical_outputs":
-                    declared = [e.value for e in v.elts]
-        if "_REGEN_EXEMPT" in names:
+                if getattr(k, "value", None) == "canonical_outputs" \
+                        and isinstance(v, (ast.List, ast.Tuple)):
+                    declared = [ast.literal_eval(e) for e in v.elts]
+        if "_REGEN_EXEMPT" in names and isinstance(node.value, ast.Call):
             exempt = ast.literal_eval(node.value.args[0])
     if declared is None or exempt is None:
         raise ScopeError("package_consistency_check.py does not declare the "

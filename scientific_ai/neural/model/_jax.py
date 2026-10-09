@@ -11,8 +11,9 @@ try:
     import jax
     import jax.numpy as jnp
 except ImportError:   # the neural extra is not installed
-    jax = None
-    jnp = None
+    # absent, and require() refuses rather than returning these
+    jax = None  # type: ignore[assignment]
+    jnp = None  # type: ignore[assignment]
 
 
 class NeuralBackendUnavailable(RuntimeError):

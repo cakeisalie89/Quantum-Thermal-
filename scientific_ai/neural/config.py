@@ -269,6 +269,14 @@ class ModelConfig:
                 % self.moe_layer_interval == 0)
 
     @property
+    def moe_block(self) -> MoEConfig:
+        """The MoE block, for code that runs only where one exists: refused
+        here, rather than met as ``None`` one attribute later."""
+        if self.moe is None:
+            raise ConfigError(f"{self.variant} has no moe block")
+        return self.moe
+
+    @property
     def moe_layer_indices(self) -> tuple:
         return tuple(i for i in range(self.num_layers)
                      if self.is_moe_layer(i))

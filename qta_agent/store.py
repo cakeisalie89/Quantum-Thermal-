@@ -43,7 +43,7 @@ from .authority import (
     check,
 )
 from .canonical import canonical_bytes, digest, is_digest
-from .events import ChainBroken, Event, EventLog, EventLogError
+from .events import Anchor, ChainBroken, Event, EventLog, EventLogError
 from .projection import ProjectionIdentityError, ReducerIdentity, identity_of
 
 #: What a snapshot of this store is, for :class:`ReducerIdentity`.
@@ -180,7 +180,7 @@ class AuthorityStore:
         self._checkpoint_refusal: str | None = None
         #: An anchor at ``_loaded_through``, so catching up costs O(new)
         #: rather than O(history). See Scheduler for why that matters.
-        self._anchor = None
+        self._anchor: Anchor | None = None
 
     @property
     def _resolver(self):
@@ -728,6 +728,74 @@ class AuthorityStore:
                      "head_hash": cp.head_hash})
         checkpoints.write(cp)
         return cp
+
+    @classmethod
+    def recover(cls, log, checkpoints, *, blobs, evidence=None,
+                origins=None) -> tuple:
+        """Restart a projection, deciding by the checkpoint audit how.
+
+        THE PRODUCTION RECOVERY PATH (R41). A restarting process asks the
+        store's checkpoints what they are, against THIS log, and loads
+        accordingly; it never takes a checkpoint on trust and never reports
+        "nothing usable" as success:
+
+        * USABLE (or UNPARSEABLE with something usable) -- the newest
+          checkpoint that describes the log is restored and the tail folded:
+          CHECKPOINT_ASSISTED, with the weaker trust that implies -- the
+          prefix is not re-read, ``loaded_prefix_verified`` is False, and a
+          corrupt newer checkpoint is reported, not skipped silently;
+        * NONE_USABLE -- the store holds checkpoints and none describes this
+          log (foreign, corrupt, or ahead of a truncated log): a full replay
+          from genesis, and the verdict says NONE_USABLE -- a recovery that
+          found its checkpoints useless is not a healthy one;
+        * EMPTY -- a full replay; nothing to report.
+
+        A snapshot of another reducer falls back to genesis inside
+        :meth:`load_from` and says so (``checkpoint_refusal``). Truncation of
+        the log's tail is the head witness's to detect, on every read --
+        a checkpoint cannot vouch for records after it. The checkpoint is
+        never a second source of truth: the restored state must equal what
+        the log replays to, which :meth:`recover_and_compare` checks.
+
+        Returns ``(store, report)``."""
+        audit = checkpoints.audit(log)
+        report = {"verdict": audit.verdict,
+                  "classified": [list(x) for x in audit.classified],
+                  "problems": list(audit.problems),
+                  "not_describing": list(audit.not_describing)}
+        if audit.verdict in ("USABLE", "UNPARSEABLE"):
+            store = cls.load_from(log, checkpoints, blobs=blobs,
+                                  evidence=evidence, origins=origins)
+            refusal = store.checkpoint_refusal
+            report.update(
+                mode="FULL_REPLAY_FOREIGN_REDUCER" if refusal
+                else "CHECKPOINT_ASSISTED",
+                checkpoint_seq=None if refusal else audit.describing[-1],
+                prefix_verified=store.loaded_prefix_verified,
+                refusal=refusal,
+                healthy=audit.verdict == "USABLE" and not refusal)
+            return store, report
+        store = cls(log, evidence=evidence, origins=origins).load()
+        report.update(mode="FULL_REPLAY", checkpoint_seq=None,
+                      prefix_verified=store.loaded_prefix_verified,
+                      refusal=None, healthy=audit.verdict == "EMPTY")
+        return store, report
+
+    @classmethod
+    def recover_and_compare(cls, log, checkpoints, *, blobs, evidence=None,
+                            origins=None) -> tuple:
+        """:meth:`recover`, then a full replay, and the two compared record
+        by record: ``(store, report)`` with ``report["agrees"]``."""
+        store, report = cls.recover(log, checkpoints, blobs=blobs,
+                                    evidence=evidence, origins=origins)
+        full = cls(log, evidence=evidence, origins=origins).load()
+        a = {k: (v.state.value, v.evidence, v.proposer)
+             for k, v in store.all_records().items()}
+        b = {k: (v.state.value, v.evidence, v.proposer)
+             for k, v in full.all_records().items()}
+        report["agrees"] = a == b
+        report["records"] = len(b)
+        return store, report
 
     @classmethod
     def load_from(cls, log, checkpoints, *, blobs, evidence=None,

@@ -140,6 +140,12 @@ PATH_RULES = (
     ("tests/test_neural_*.py", CURRENT, "the substrate's tests"),
     ("docs/neural/*", CURRENT, "the substrate's evidence and status"),
     ("SCIENTIFIC_AI_STATUS.md", CURRENT, "the current status"),
+    ("HARNESS_STATUS.md", CURRENT, "the derived harness completion "
+     "status"),
+    ("docs/harness_status.json", CURRENT, "the derived harness "
+     "completion status"),
+    ("docs/harness_contract.json", CURRENT, "the harness "
+     "definition of done"),
     ("NEURAL_SUBSTRATE.md", CURRENT, "the substrate's specification"),
     ("AGENT_SUBSTRATE.md", CURRENT, "the agent substrate's specification"),
     ("README.md", CURRENT, "the repository's front page"),

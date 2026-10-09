@@ -56,6 +56,7 @@ import pathlib
 import sys
 import tempfile
 import traceback
+from typing import Any
 
 import numpy as np
 
@@ -85,10 +86,11 @@ def _site(root: pathlib.Path):
 
 def measure(root: pathlib.Path):
     """Run the canonical pipeline with every clip in the tree observed."""
-    rec = collections.defaultdict(
-        lambda: {"calls": 0, "moving_calls": 0, "elements": 0,
-                 "elements_moved": 0, "max_displacement": 0.0,
-                 "worst_raw": None, "worst_written": None})
+    rec: collections.defaultdict[str, dict[str, Any]] = \
+        collections.defaultdict(
+            lambda: {"calls": 0, "moving_calls": 0, "elements": 0,
+                     "elements_moved": 0, "max_displacement": 0.0,
+                     "worst_raw": None, "worst_written": None})
     real = np.clip
 
     def observed(a, a_min, a_max, *args, **kw):
@@ -119,7 +121,9 @@ def measure(root: pathlib.Path):
             pass
         return out
 
-    np.clip = observed
+    # Replacing np.clip IS the measurement, and the finally below puts the
+    # real one back: the two assignments are the only ignores here.
+    np.clip = observed  # type: ignore[assignment]
     try:
         # The script's own directory is what Python puts on the path, so the
         # package the pipeline lives in has to be asked for explicitly.
@@ -141,7 +145,8 @@ def measure(root: pathlib.Path):
             run_integrated_layers(profile="ci", output_dir=out, seed=42)
             run_3d_all(out, heavy=False)
     finally:
-        np.clip = real
+        # the real clip back, whatever the pipeline raised
+        np.clip = real  # type: ignore[assignment]
 
     if not rec:
         raise ScopeError(

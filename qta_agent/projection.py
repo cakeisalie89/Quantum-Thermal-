@@ -152,7 +152,7 @@ def _locate(name: str) -> Path | None:
 
 def _imports(tree, name: str, is_pkg: bool) -> set:
     """Module names ``tree`` imports, relative imports resolved."""
-    out = set()
+    out: set[str] = set()
     pkg = name if is_pkg else name.rpartition(".")[0]
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

@@ -116,7 +116,12 @@ def test_a_lazy_import_from_an_extra_is_accepted(pyproject, tmp_path):
 
 
 def test_the_environmental_list_is_pinned_and_reasoned():
-    assert set(dd.ENVIRONMENTAL) == {"dolfinx", "sigstore"}
+    # Pinned: widening it is a decision. The harness programme added the
+    # FEniCSx runner's four (its own conda environment) and the FMI
+    # runner's fmpy (its own hash-locked runtime) -- each imported only by
+    # a runner that executes in that environment, never by the harness.
+    assert set(dd.ENVIRONMENTAL) == {"dolfinx", "sigstore", "mpi4py",
+                                     "petsc4py", "basix", "ufl", "fmpy"}
     for name, why in dd.ENVIRONMENTAL.items():
         assert len(why) >= 40, f"{name}: say why"
 

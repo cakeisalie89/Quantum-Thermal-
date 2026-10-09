@@ -126,3 +126,17 @@ def test_the_check_sees_legacy_rules_where_they_are():
 def test_the_legacy_targets_stay_invocable(target):
     """Directive 16: separated, not deleted."""
     assert target in dag(target)
+
+
+def test_the_generic_default_target_runs_the_end_to_end_demonstration():
+    """Section 28: the DAG represents current generic harness execution --
+    proposal to decision -- and the rule doing it runs the demonstration
+    tool, whose judge fails it unless the negative twin is refused: no
+    vacuous target."""
+    assert "harness_demo" in dag(None)
+    block = _blocks(SNAKEFILE)["harness_demo"]
+    assert "tools/harness_demo.py run" in block
+    assert "directory(" in block, "the demo's workspace is a declared output"
+    src = (ROOT / "tools" / "harness_demo.py").read_text(encoding="utf-8")
+    assert "THE NEGATIVE TWIN WAS NOT REJECTED" in src
+    assert "return 0 if rep[\"accepted\"] else 1" in src

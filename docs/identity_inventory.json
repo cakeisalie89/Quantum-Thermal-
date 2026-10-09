@@ -649,6 +649,29 @@
       "note": "Declared once, as seq 0 (principals.begin_history); written by the principal whose attestation opens an AUTHENTICATED_REQUIRED history. Enforced by the verified-read primitives every reader reads through, and restated by reconstruct in its own code (D-2026-92).",
       "authority_changing": true,
       "authority_note": "Decides whether every event of the history must be authenticated before any reader folds it. A declaration forged, misplaced or dropped would switch authentication on or off for the whole history."
+    },
+    {
+      "action": "proposal.receive",
+      "module": "proposals.py",
+      "independent_reader": "YES",
+      "fields": [
+        {
+          "name": "received_by",
+          "role": "ACTOR",
+          "write_path": "ProposalIngress.receive() appends with actor=self.actor and received_by=self.actor",
+          "replay": "_sub_proposal notes received_by != ev.actor, and a receipt written by the proposing agent itself",
+          "regression_test": "test_a_receipt_in_another_writers_name_is_a_finding",
+          "note": "harness completion programme"
+        },
+        {
+          "name": "envelope.agent_id",
+          "role": "SUBJECT",
+          "note": "the agent the proposal comes from; the submitter of any governed run it leads to, never the actor of the receipt and never authority"
+        }
+      ],
+      "note": "Independently reconstructed: _sub_proposal restates the envelope's closed field set, its one authority value, its content-addressed id, the receipt digest and the authority-bearing keys a proposal may not carry, without importing the ingress.",
+      "authority_changing": false,
+      "authority_note": "A proposal permits nothing. A MODEL_RUN proposal reaches the authority store only as a governed submission by its agent (a PROPOSER), under the same policy, capability, independent check and separate reviewer as any other; the receipt is the record of what was asked, read by an investigation, which is why it has a second reader."
     }
   ]
 }

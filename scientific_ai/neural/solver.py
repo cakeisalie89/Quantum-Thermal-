@@ -77,10 +77,11 @@ class BudgetTarget:
 
 
 def _with(template: ModelConfig, f: int, k: int) -> ModelConfig:
-    profiles = template.moe.routing_profiles
+    profiles = template.moe_block.routing_profiles
     if profiles:
         shift = k - dict(profiles)["standard"]
-        profiles = tuple((n, max(1, min(template.moe.num_experts, pk + shift)))
+        profiles = tuple((n, max(1, min(template.moe_block.num_experts,
+                                         pk + shift)))
                          for n, pk in profiles)
     return template.with_moe(expert_hidden=f, top_k=k,
                              routing_profiles=profiles)
@@ -177,5 +178,5 @@ def config_from(record: dict) -> ModelConfig:
 def with_experts(template: ModelConfig, num_experts: int) -> ModelConfig:
     """``template`` with a different expert count -- for comparing
     alternatives in the same solve, never for the flagship itself."""
-    return replace(template, moe=replace(template.moe,
+    return replace(template, moe=replace(template.moe_block,
                                          num_experts=num_experts))

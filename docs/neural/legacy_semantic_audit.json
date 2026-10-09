@@ -1,9 +1,10 @@
 {
+ "active_generic_semantic_leaks": 0,
  "active_neural_semantic_leaks": 0,
  "by_class": {
   "ACTIVE_GENERIC_SEMANTIC_LEAK": {
-   "files": 12,
-   "hits": 86
+   "files": 0,
+   "hits": 0
   },
   "ACTIVE_NEURAL_SEMANTIC_LEAK": {
    "files": 0,
@@ -25,9 +26,17 @@
    "files": 78,
    "hits": 1691
   },
+  "LEGACY_SCOPED_SECTION": {
+   "files": 1,
+   "hits": 2
+  },
+  "QTA_MODEL_PLUGIN_DOMAIN": {
+   "files": 10,
+   "hits": 83
+  },
   "TEST_OF_BOUNDARY": {
    "files": 3,
-   "hits": 14
+   "hits": 21
   },
   "TOOLING_CLASSIFIER_REFERENCE": {
    "files": 9,
@@ -43,7 +52,7 @@
   "EXTRACT_GENERIC": "LEGACY_COMPATIBILITY",
   "KEEP_AND_HARDEN": "ACTIVE_GENERIC_SEMANTIC_LEAK",
   "KEEP_AS_IS": "ACTIVE_GENERIC_SEMANTIC_LEAK",
-  "KEEP_AS_MODEL_PLUGIN": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+  "KEEP_AS_MODEL_PLUGIN": "QTA_MODEL_PLUGIN_DOMAIN",
   "REGENERATE": "LEGACY_SCIENTIFIC_HISTORY",
   "RETIRE_TO_HISTORY": "LEGACY_SCIENTIFIC_HISTORY",
   "REWRITE_GENERIC": "LEGACY_COMPATIBILITY"
@@ -58,14 +67,14 @@
    },
    "lines": {
     "helium_routing": [
-     619
+     660
     ],
     "machine_mode_label": [
-     167
+     187
     ],
     "methane_routing": [
-     617,
-     645
+     658,
+     686
     ]
    },
    "path": ".github/workflows/agent-substrate.yml",
@@ -493,19 +502,19 @@
    },
    "lines": {
     "helium_routing": [
-     293
+     318
     ],
     "machine_mode_label": [
-     293,
-     297,
-     341,
-     349,
-     355,
-     368,
-     684
+     318,
+     322,
+     366,
+     374,
+     380,
+     393,
+     741
     ],
     "mode_sequence": [
-     297
+     322
     ]
    },
    "path": "FILE_DISPOSITION.csv",
@@ -660,11 +669,12 @@
    "why": "prose"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "helium_routing": 1,
     "machine_mode_label": 42
    },
+   "in_witnessed_generator_closure": false,
    "lines": {
     "helium_routing": [
      427
@@ -769,7 +779,7 @@
    "why": "disposition RETIRE_TO_HISTORY"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "LEGACY_SCOPED_SECTION",
    "hits": {
     "machine_mode_label": 1,
     "methane_routing": 1
@@ -783,7 +793,7 @@
     ]
    },
    "path": "authorities.json",
-   "why": "disposition KEEP_AND_HARDEN"
+   "why": "every occurrence is under a legacy* key"
   },
   {
    "class": "LEGACY_SCIENTIFIC_HISTORY",
@@ -2535,11 +2545,12 @@
    "why": "disposition RETIRE_TO_HISTORY"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "machine_mode_label": 4,
     "methane_routing": 1
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "machine_mode_label": [
      7,
@@ -2612,10 +2623,11 @@
    "why": "disposition RETIRE_TO_HISTORY"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "machine_mode_label": 2
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "machine_mode_label": [
      40,
@@ -2806,10 +2818,11 @@
    "why": "disposition REWRITE_GENERIC"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "machine_mode_label": 2
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "machine_mode_label": [
      18,
@@ -2924,12 +2937,13 @@
    "why": "disposition REWRITE_GENERIC"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "helium_routing": 2,
     "machine_mode_label": 7,
     "methane_routing": 9
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "helium_routing": [
      33,
@@ -3014,10 +3028,11 @@
    "why": "disposition RETIRE_TO_HISTORY"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "machine_mode_label": 1
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "machine_mode_label": [
      133
@@ -3027,12 +3042,13 @@
    "why": "disposition KEEP_AS_MODEL_PLUGIN"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "helium_routing": 1,
     "machine_mode_label": 4,
     "methane_routing": 1
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "helium_routing": [
      8
@@ -3051,10 +3067,11 @@
    "why": "disposition KEEP_AS_MODEL_PLUGIN"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "methane_routing": 1
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "methane_routing": [
      34
@@ -3064,10 +3081,11 @@
    "why": "disposition KEEP_AS_MODEL_PLUGIN"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "methane_routing": 2
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "methane_routing": [
      30,
@@ -3104,10 +3122,11 @@
    "why": "disposition REWRITE_GENERIC"
   },
   {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
    "hits": {
     "machine_mode_label": 3
    },
+   "in_witnessed_generator_closure": true,
    "lines": {
     "machine_mode_label": [
      30,
@@ -3351,19 +3370,6 @@
    },
    "path": "species_transport_3d_summary.json",
    "why": "disposition DELETE_GENERATED_AND_REBUILD"
-  },
-  {
-   "class": "ACTIVE_GENERIC_SEMANTIC_LEAK",
-   "hits": {
-    "machine_mode_label": 1
-   },
-   "lines": {
-    "machine_mode_label": [
-     247
-    ]
-   },
-   "path": "stack.json",
-   "why": "disposition KEEP_AS_IS"
   },
   {
    "class": "LEGACY_SCIENTIFIC_HISTORY",
@@ -3804,22 +3810,29 @@
    "class": "TEST_OF_BOUNDARY",
    "hits": {
     "helium_routing": 1,
-    "machine_mode_label": 1,
-    "methane_routing": 1,
+    "machine_mode_label": 7,
+    "methane_routing": 2,
     "mode_sequence": 1
    },
    "lines": {
     "helium_routing": [
-     150
+     197
     ],
     "machine_mode_label": [
-     148
+     158,
+     160,
+     161,
+     162,
+     174,
+     176,
+     195
     ],
     "methane_routing": [
-     149
+     159,
+     196
     ],
     "mode_sequence": [
-     149
+     196
     ]
    },
    "path": "tests/test_neural_boundary.py",
@@ -4106,20 +4119,20 @@
    },
    "lines": {
     "helium_routing": [
-     350
+     381
     ],
     "machine_mode_label": [
-     333,
-     341,
-     350,
-     377,
-     378,
-     399,
-     410,
-     747
+     364,
+     372,
+     381,
+     408,
+     409,
+     430,
+     441,
+     882
     ],
     "mode_sequence": [
-     341
+     372
     ]
    },
    "path": "tools/file_disposition.py",

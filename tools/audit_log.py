@@ -49,6 +49,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -197,7 +198,7 @@ def cmd_replay(log, args) -> int:
         evidence = EvidenceStore(Path(args.evidence))
     rec = reconstruct(log, evidence=evidence)
     tasks = reconstruct_tasks(log)
-    payload = {
+    payload: dict[str, Any] = {
         "records": {"replayed": rec.events_replayed,
                     "foreign": rec.foreign_events,
                     "states": rec.states(),

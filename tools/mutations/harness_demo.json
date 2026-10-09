@@ -1,0 +1,72 @@
+{
+ "title": "The end-to-end demonstration's judge",
+ "note": "A demonstration is accepted only when every leg says what a working harness must: the slab decided by the policy, the good FMU VERIFIED, the negative twin REJECTED by the independent check while its own invariants hold, the restart checkpoint-assisted and agreeing with full replay, the second reader clean, the crate clean.",
+ "suites": [
+  "tests/test_harness_demo.py"
+ ],
+ "mutations": [
+  {
+   "name": "HD1_the_twin_need_not_be_rejected",
+   "path": "tools/harness_demo.py",
+   "find": "        if twin[\"decision\"][\"state\"] != \"REJECTED\":\n",
+   "replace": "        if False:\n",
+   "rationale": "a demonstration whose fault FMU was VERIFIED is accepted"
+  },
+  {
+   "name": "HD2_the_twin_check_need_not_fail",
+   "path": "tools/harness_demo.py",
+   "find": "        if twin[\"decision\"][\"report_status\"] != \"FAIL\":\n",
+   "replace": "        if False:\n",
+   "rationale": "the twin can be rejected for a reason other than the independent check failing"
+  },
+  {
+   "name": "HD3_the_twin_may_break_its_own_invariants",
+   "path": "tools/harness_demo.py",
+   "find": "        if not all(twin[\"invariants\"].values()):\n",
+   "replace": "        if False:\n",
+   "rationale": "a fault that its own invariants would catch passes as a test of the independent check"
+  },
+  {
+   "name": "HD4_the_good_fmu_need_not_verify",
+   "path": "tools/harness_demo.py",
+   "find": "        if legs[\"fmu\"][\"decision\"][\"state\"] != \"VERIFIED\":\n",
+   "replace": "        if False:\n",
+   "rationale": "a harness that rejects everything passes the twin test"
+  },
+  {
+   "name": "HD5_the_slab_may_decide_anything",
+   "path": "tools/harness_demo.py",
+   "find": "    if slab[\"decision\"][\"state\"] != want:\n",
+   "replace": "    if False:\n",
+   "rationale": "the slab decided against the admission policy and the demonstration is accepted"
+  },
+  {
+   "name": "HD6_slab_checks_may_fail",
+   "path": "tools/harness_demo.py",
+   "find": "    if any(s != \"PASS\" for s in slab[\"checks\"].values()):\n",
+   "replace": "    if False:\n",
+   "rationale": "an independent check that failed is not noticed"
+  },
+  {
+   "name": "HD7_any_restart_is_accepted",
+   "path": "tools/harness_demo.py",
+   "find": "    if r41.get(\"mode\") != \"CHECKPOINT_ASSISTED\" or not r41.get(\"healthy\") \\\n",
+   "replace": "    if not r41.get(\"healthy\") \\\n",
+   "rationale": "a restart that fell back to full replay reads as checkpoint recovery"
+  },
+  {
+   "name": "HD8_reconstruction_findings_are_ignored",
+   "path": "tools/harness_demo.py",
+   "find": "    if rec[\"generic_consistency_findings\"] or rec[\"second_reader_anomalies\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader's anomalies do not stop the demonstration"
+  },
+  {
+   "name": "HD9_crate_problems_are_ignored",
+   "path": "tools/harness_demo.py",
+   "find": "    if report[\"crate\"][\"problems\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "an RO-Crate with missing members is packaged as the demonstration's record"
+  }
+ ]
+}

@@ -42,6 +42,7 @@ these inputs; it does not certify the provider.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from . import ed25519
 
@@ -72,6 +73,19 @@ RFC8032_VECTORS = (
 
 class ProviderError(Exception):
     """A signature provider this package will not use for what was asked."""
+
+
+class SignatureProvider(Protocol):
+    """What a key calls. Its ``provider_id`` and ``assurance`` are read with
+    ``getattr`` where they are judged, so a provider lacking them is refused
+    there rather than assumed VETTED here."""
+
+    def public_key(self, secret: bytes) -> bytes: ...
+
+    def sign(self, secret: bytes, message: bytes) -> bytes: ...
+
+    def verify(self, public: bytes, message: bytes,
+               signature: bytes) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -114,8 +128,8 @@ def conformance_problems(provider) -> list:
             problems.append(f"{what}: raised {type(exc).__name__}")
             return None
 
-    for n, (sk, pk, msg, sig) in enumerate(RFC8032_VECTORS, 1):
-        sk, pk, msg, sig = (bytes.fromhex(x) for x in (sk, pk, msg, sig))
+    for n, hexes in enumerate(RFC8032_VECTORS, 1):
+        sk, pk, msg, sig = (bytes.fromhex(x) for x in hexes)
         if ask(f"vector {n} public key", provider.public_key, sk) != pk:
             problems.append(f"vector {n}: public key differs from RFC 8032")
         if ask(f"vector {n} sign", provider.sign, sk, msg) != sig:

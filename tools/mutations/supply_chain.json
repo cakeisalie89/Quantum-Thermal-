@@ -1,0 +1,86 @@
+{
+ "title": "The harness release candidate: every verify layer, broken alone",
+ "note": "Killed in digests mode (no signature runtime needed): each layer beneath SHA256SUMS has a forgery consistent everywhere else (tests/test_supply_chain.py), so a deleted check cannot hide behind the one above it. Signature verification itself runs in the supply-chain workflow, with GitHub OIDC.",
+ "suites": [
+  "tests/test_supply_chain.py"
+ ],
+ "mutations": [
+  {
+   "name": "SC1_bytes_need_not_match_the_sums",
+   "path": "tools/supply_chain.py",
+   "find": "        if _sha((d / n).read_bytes()) != digest:\n",
+   "replace": "        if False:\n",
+   "rationale": "an artifact whose bytes changed after signing verifies"
+  },
+  {
+   "name": "SC2_the_sums_may_list_anything",
+   "path": "tools/supply_chain.py",
+   "find": "    if set(listed) != set(ARTIFACTS):\n",
+   "replace": "    if False:\n",
+   "rationale": "SHA256SUMS can sign a different set of files from the one the release is"
+  },
+  {
+   "name": "SC3_provenance_subjects_are_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "        if subjects.get(n) != listed[n]:\n",
+   "replace": "        if False:\n",
+   "rationale": "the provenance can describe other bytes than the ones signed"
+  },
+  {
+   "name": "SC4_the_source_commit_is_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "    if deps[0][\"digest\"][\"gitCommit\"] != index[\"source_commit\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "provenance and index can name different commits"
+  },
+  {
+   "name": "SC5_the_index_digests_are_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "        if listed.get(n) != digest:\n",
+   "replace": "        if False:\n",
+   "rationale": "the index can state a digest the signature never covered"
+  },
+  {
+   "name": "SC6_the_sbom_is_not_checked",
+   "path": "tools/supply_chain.py",
+   "find": "    if probs:\n        raise Refused(f\"SBOM: {probs}\")\n",
+   "replace": "    if False:\n        raise Refused(f\"SBOM: {probs}\")\n",
+   "rationale": "an SBOM that adds or drops a locked package verifies"
+  },
+  {
+   "name": "SC7_source_members_are_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "                if want.returncode != 0 or \\\n",
+   "replace": "                if False and \\\n",
+   "rationale": "source.zip can carry a file the commit does not have"
+  },
+  {
+   "name": "SC8_the_manifest_digest_is_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "                if _sha(zf.read(rel)) != index[key]:\n",
+   "replace": "                if False:\n",
+   "rationale": "the index can name a manifest digest other than the archived manifest's"
+  },
+  {
+   "name": "SC9_a_missing_signature_is_skipped",
+   "path": "tools/supply_chain.py",
+   "find": "    if not bundle.is_file():\n",
+   "replace": "    if False:\n",
+   "rationale": "a required signature that is absent is not refused as absent"
+  },
+  {
+   "name": "SC10_a_wildcard_policy_is_accepted",
+   "path": "tools/supply_chain.py",
+   "find": "        if not isinstance(v, str) or not v or \"*\" in v or \"PENDING\" in v:\n",
+   "replace": "        if not isinstance(v, str) or not v:\n",
+   "rationale": "a wildcard signer identity verifies anyone's signature"
+  },
+  {
+   "name": "SC11_any_issuer_is_accepted",
+   "path": "tools/supply_chain.py",
+   "find": "    if p[\"oidc_issuer\"] != \"https://token.actions.githubusercontent.com\":\n",
+   "replace": "    if False:\n",
+   "rationale": "a signature from an identity provider other than GitHub Actions' verifies"
+  }
+ ]
+}

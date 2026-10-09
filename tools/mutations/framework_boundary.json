@@ -8,8 +8,8 @@
     {
       "name": "FB1_lazy_imports_are_not_dependencies",
       "path": "tools/framework_boundary.py",
-      "find": "    names = set()\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Import):\n",
-      "replace": "    names = set()\n    for node in getattr(tree, \"body\", ()):\n        if isinstance(node, ast.Import):\n",
+      "find": "    names: set[str] = set()\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Import):\n",
+      "replace": "    names: set[str] = set()\n    for node in getattr(tree, \"body\", ()):\n        if isinstance(node, ast.Import):\n",
       "rationale": "an import inside a function is not a dependency, so the run_all edge would pass"
     },
     {

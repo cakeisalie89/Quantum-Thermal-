@@ -91,6 +91,9 @@ OWNERS: dict = {
     "file.read": "readpath",
     # qta_agent.idempotency -- durable, owner-scoped request identity
     "idempotency.bind": "idempotency",
+    # qta_agent.proposals -- a proposal received at the ingress: input,
+    # NON_AUTHORITATIVE, recorded before anything runs
+    "proposal.receive": "proposals",
     # qta_agent.events -- the security profile a history is written under,
     # declared by its first event and enforced by the read primitives
     # themselves; every reducer meets it at seq 0 and passes it by (D-2026-92)

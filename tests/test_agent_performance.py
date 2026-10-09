@@ -153,13 +153,27 @@ def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
 _PERF_OUT = os.environ.get("QTA_PERF_OUT")
 
 
-def _record(name: str, value: float, ceiling: float) -> None:
+#: The two kinds of measurement this file publishes (R49), kept apart
+#: because they support different claims. A DETERMINISTIC_WORK count is the
+#: same on every machine for the same code and its ceiling is a stated
+#: invariant, an INCLUSIVE maximum -- it gates, and it is not kept in the
+#: timing history, where a count beside a ratio would be a series of two
+#: different things (D-2026-107). An ENVIRONMENT_SENSITIVE_TIMING shape or ratio is
+#: measured with a clock on whatever host ran it; its ceiling is a GROSS
+#: bound for a within-run comparison, and its values are telemetry, not a
+#: statistical claim three samples could support.
+DETERMINISTIC = "DETERMINISTIC_WORK"
+TIMING = "ENVIRONMENT_SENSITIVE_TIMING"
+
+
+def _record(name: str, value: float, ceiling: float,
+            kind: str = TIMING) -> None:
     """Publish one measurement, if this run was asked to collect them."""
     if not _PERF_OUT:
         return
     with open(_PERF_OUT, "a", encoding="utf-8") as fh:
         fh.write(json.dumps({"guard": name, "value": round(value, 4),
-                             "ceiling": ceiling}) + "\n")
+                             "ceiling": ceiling, "kind": kind}) + "\n")
 
 
 def _exponent(sizes, times) -> float:
@@ -493,6 +507,10 @@ def test_scheduler_readiness_is_not_quadratic_in_the_queue(tmp_path):
     small = _ready_queue_work(build(SMALL // 3))
     large = _ready_queue_work(build(LARGE // 3))
     n_small, n_large = SMALL // 3, LARGE // 3
+    # work per queued job, which a linear readiness pass holds at 1
+    _record("scheduler_jobs_touched_per_job", large["jobs"] / n_large, 1.0,
+            DETERMINISTIC)
+    _record("scheduler_rehashes", large["rehashes"], 0, DETERMINISTIC)
     assert small == {"jobs": n_small, "policy": n_small, "rehashes": 0,
                      "ready": n_small}, small
     assert large == {"jobs": n_large, "policy": n_large, "rehashes": 0,
@@ -651,6 +669,10 @@ def test_an_evidence_lookup_examines_no_directory_entries(tmp_path,
     for i in range(SMALL, LARGE):
         store.put(f"blob {i}".encode())
     late = _lookup_work(store, first, counts)
+    _record("evidence_lookup_entries_listed", late["entries_listed"], 0,
+            DETERMINISTIC)
+    _record("evidence_lookup_open_growth", late["opens"] - early["opens"], 0,
+            DETERMINISTIC)
     assert early["entries_listed"] == 0 == late["entries_listed"], (
         early, late)
     assert early["opens"] == late["opens"] > 0, (early, late)
@@ -713,6 +735,7 @@ def test_evidence_lookup_does_not_degrade_as_the_store_fills(tmp_path):
                          _per_call(lambda: [small.get(d) for d in probe]))
         best_large = min(best_large,
                          _per_call(lambda: [large.get(d) for d in probe]))
+    _record("evidence_lookup_fill_ratio", best_large / best_small, 3.0)
     assert best_large / best_small < 3.0, (
         f"the same blobs read {best_large / best_small:.2f}x slower from a "
         "store holding eight times as many")
@@ -928,7 +951,8 @@ def test_one_governed_operation_does_not_get_slower_as_the_history_grows(
     # regression this test exists for.
     short = cycle_cost(50)
     long = cycle_cost(1200)
-    _record("governed_operation_vs_history", long / short if short else 1, 1.0)
+    _record("governed_operation_vs_history", long / short if short else 1, 1.0,
+            DETERMINISTIC)
     assert long == short, (
         f"twenty governed operations cost {long} re-hashes behind 1200 "
         f"records and {short} behind 50. Equal is the property: the "
@@ -978,7 +1002,7 @@ def test_every_recorded_ceiling_is_the_one_the_suite_enforces():
         "full_verification": EXPONENT_CEILING,
         "projection_load": EXPONENT_CEILING,
         "independent_reconstruction": EXPONENT_CEILING,
-        "governed_operation_vs_history": 4.0,
+        "evidence_lookup_fill_ratio": 3.0,
     }
     doc = _baseline()
     assert set(doc["guards"]) == set(enforced), (
@@ -990,6 +1014,22 @@ def test_every_recorded_ceiling_is_the_one_the_suite_enforces():
             f"{name}: the baseline remembers a ceiling of "
             f"{doc['guards'][name]['ceiling']} and the suite enforces "
             f"{ceiling}")
+
+
+def test_a_retired_guard_keeps_its_history_and_its_reason():
+    """governed_operation_vs_history was a timed ratio under a 4.0 ceiling
+    and became an exact re-hash count whose property is equality
+    (D-2026-46 follow-up). Its timed observations stayed in the history
+    under the old ceiling, and the drift check compared counts against
+    them; the test above pinned the stale 4.0 rather than what the suite
+    records (D-2026-107). The series is retired, kept, and never appended
+    to again."""
+    doc = _baseline()
+    retired = doc.get("retired", {})
+    assert "governed_operation_vs_history" in retired
+    for name, r in retired.items():
+        assert name not in doc["guards"]
+        assert r["reason"].strip() and r["observations"]
 
 
 def test_the_latest_recorded_observation_is_under_its_ceiling():
@@ -1144,6 +1184,10 @@ def test_a_governed_run_verifies_the_whole_chain_a_bounded_number_of_times(
             one(i)()
         later_calls, later_records = _count_full_passes(one(4))
 
+        _record("governed_run_full_log_passes", later_calls,
+                MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN, DETERMINISTIC)
+        _record("governed_run_pass_growth", later_calls - first_calls, 0,
+                DETERMINISTIC)
         assert first_calls <= MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN, (
             f"a governed run made {first_calls} whole-log passes on "
             f"a fresh log; the ceiling is "

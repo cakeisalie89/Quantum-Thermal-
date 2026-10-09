@@ -8,8 +8,8 @@
     {
       "name": "C1_a_boundary_may_describe_work",
       "path": "tools/completion_matrix.py",
-      "find": "            for phrase in _WORK_PHRASES:\n                if phrase in low:",
-      "replace": "            for phrase in _WORK_PHRASES:\n                if False:",
+      "find": "            low = f\"{limit} {detail}\".lower()\n            for phrase in _WORK_PHRASES:\n                if phrase in low:",
+      "replace": "            low = f\"{limit} {detail}\".lower()\n            for phrase in _WORK_PHRASES:\n                if False:",
       "rationale": "'not implemented' becomes a stateable limit, and every unfinished row can be closed by moving one sentence between two fields"
     },
     {
@@ -36,7 +36,7 @@
     {
       "name": "C5_a_detail_may_restate_the_limit",
       "path": "tools/completion_matrix.py",
-      "find": "            elif detail.strip() in limit or limit.strip() in detail:",
+      "find": "            elif limit and (detail.strip() in limit\n                            or limit.strip() in detail):",
       "replace": "            elif False:",
       "rationale": "the evidence requirement is satisfied by copying the claim into the evidence field"
     },
@@ -130,6 +130,34 @@
       "find": "    if not ev.get(\"commit\") or ev.get(\"commit\") == \"UNRECORDED\" \\\n            or not ev.get(\"implementation_sha256\"):\n        return EV_UNRESOLVABLE",
       "replace": "    if not ev.get(\"commit\") or ev.get(\"commit\") == \"UNRECORDED\" \\\n            or not ev.get(\"implementation_sha256\"):\n        return EV_PREDATES",
       "rationale": "'I cannot tell whether this is stale' is reported as 'I checked and it is stale', which claims a measurement nobody made -- the same overclaim the axis exists to stop"
+    },
+    {
+      "name": "FR1_any_outside_id_is_accepted",
+      "path": "tools/completion_matrix.py",
+      "find": "            if oid not in outside:\n                problems.append(\n                    f\"{where}: outside {oid!r} is not an item of the \"",
+      "replace": "            if False:\n                problems.append(\n                    f\"{where}: outside {oid!r} is not an item of the \"",
+      "rationale": "the research frontier becomes a place to park any gap under an invented reason"
+    },
+    {
+      "name": "FR2_work_prose_is_accepted",
+      "path": "tools/completion_matrix.py",
+      "find": "            low = item.lower()\n            for phrase in _WORK_PHRASES:",
+      "replace": "            low = \"\"\n            for phrase in _WORK_PHRASES:",
+      "rationale": "a frontier item describing unfinished repository work passes as research"
+    },
+    {
+      "name": "FR3_an_empty_item_is_accepted",
+      "path": "tools/completion_matrix.py",
+      "find": "            if not isinstance(item, str) or len(item.strip()) < 40:",
+      "replace": "            if not isinstance(item, str):",
+      "rationale": "a frontier entry that says nothing is accepted as a statement of what is not done"
+    },
+    {
+      "name": "FR4_the_contract_is_never_read",
+      "path": "tools/completion_matrix.py",
+      "find": "        return {o[\"id\"]: o[\"class\"]\n                for o in doc[\"outside_this_software_completion\"]}",
+      "replace": "        return {}",
+      "rationale": "no frontier item can ever be accepted, so a real one is forced into residual_gaps or deleted"
     }
   ]
 }

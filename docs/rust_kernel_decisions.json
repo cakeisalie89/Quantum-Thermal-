@@ -1,0 +1,65 @@
+{
+ "admission_mechanism": "RUST_ADMISSION_MECHANISM_ADOPTED",
+ "backend": "RUST_BACKEND_NOT_ACTIVE",
+ "call_sites": {},
+ "kernels": {
+  "conductivity_power_law": {
+   "decision": "RUST_KERNEL_conductivity_power_law_REJECTED",
+   "failed_criteria": [
+    "NOT_BIT_IDENTICAL_IN_EVERY_DISPATCH: max ulp native 2, without_x86_v4 0, x86_v2_baseline 0",
+    "NO_PRODUCTION_CALL_SITE: no scientific path consumes it, so no workload gains from it",
+    "SPEEDUP_BELOW_2X: 0.61x at n=1000000"
+   ],
+   "max_ulp_by_dispatch": {
+    "native": 2,
+    "without_x86_v4": 0,
+    "x86_v2_baseline": 0
+   },
+   "parity_by_dispatch": {
+    "native": false,
+    "without_x86_v4": true,
+    "x86_v2_baseline": true
+   },
+   "speedup_at_parity_size": 0.33,
+   "speedup_at_workload": 0.61
+  },
+  "face_conductance": {
+   "decision": "RUST_KERNEL_face_conductance_REJECTED",
+   "failed_criteria": [
+    "NO_PRODUCTION_CALL_SITE: no scientific path consumes it, so no workload gains from it"
+   ],
+   "max_ulp_by_dispatch": {
+    "native": 0,
+    "without_x86_v4": 0,
+    "x86_v2_baseline": 0
+   },
+   "parity_by_dispatch": {
+    "native": true,
+    "without_x86_v4": true,
+    "x86_v2_baseline": true
+   },
+   "speedup_at_parity_size": 1.1,
+   "speedup_at_workload": 3.31
+  }
+ },
+ "measured_on": {
+  "extension_sha256": "0173ceae62cef6645800067897b972337315b43a1097977b7ec70cad59a56e95",
+  "numpy_version": "2.4.4",
+  "simd": {
+   "baseline": [
+    "X86_V2"
+   ],
+   "found": [
+    "X86_V3",
+    "X86_V4"
+   ],
+   "not found": [
+    "AVX512_ICL",
+    "AVX512_SPR"
+   ]
+  }
+ },
+ "rule": "ADOPTED only if bit-identical to the NumPy reference in every measured dispatch configuration (native, without_x86_v4, x86_v2_baseline), at least one production call site, and >= 2x faster at n=1000000; otherwise REJECTED -- a completed decision, with NumPy in force",
+ "schema": "rust-kernel-decisions/1",
+ "selection": "explicit only: rust_kernel.dispatch(name, backend='rust') for an ADOPTED kernel whose certificate matches this process's NumPy version and dispatch; a REJECTED kernel is refused even when requested, and the host never chooses"
+}

@@ -12,7 +12,24 @@ Classes (directive s.53)
 
 ``ACTIVE_NEURAL_SEMANTIC_LEAK``   in the neural substrate, its tools or its
                                   tests -- the check requires ZERO;
-``ACTIVE_GENERIC_SEMANTIC_LEAK``  in an ACTIVE generic module (reported);
+``ACTIVE_GENERIC_SEMANTIC_LEAK``  in an ACTIVE generic module -- the check
+                                  requires ZERO (it was only reported until
+                                  the harness programme closed them);
+``QTA_MODEL_PLUGIN_DOMAIN``       a QTA reference model plugin (disposition
+                                  KEEP_AS_MODEL_PLUGIN): the apparatus is
+                                  its domain, so its vocabulary is too. Not
+                                  a leak, on two conditions held elsewhere:
+                                  the generic models that wrap a plugin
+                                  carry none of it on their contract surface
+                                  (tests/test_scientific_thermal_*.py), and
+                                  no active module imports legacy ontology
+                                  (tools/framework_boundary.py). Each
+                                  finding records whether the plugin is in
+                                  the witnessed canonical generator's
+                                  closure, whose bytes may not change;
+``LEGACY_SCOPED_SECTION``         an active JSON document all of whose
+                                  occurrences sit under a ``legacy*`` key --
+                                  the document says whose they are;
 ``LEGACY_COMPATIBILITY``          code or tests kept so legacy artefacts
                                   stay reproducible;
 ``LEGACY_SCIENTIFIC_HISTORY``     legacy outputs and retired modules;
@@ -30,7 +47,8 @@ matched text, so the report itself carries none of the terms.
     python tools/neural_legacy_audit.py            # print the summary
     python tools/neural_legacy_audit.py --write    # write the report
     python tools/neural_legacy_audit.py --check    # exit 1 unless 0 neural
-                                                   # leaks and 0 unclassified
+                                                   # leaks, 0 generic leaks
+                                                   # and 0 unclassified
 """
 from __future__ import annotations
 
@@ -42,6 +60,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = Path("docs") / "neural" / "legacy_semantic_audit.json"
@@ -54,6 +73,7 @@ PATTERNS = {
                                 r"\s*D\b"),
 }
 CLASSES = ("ACTIVE_NEURAL_SEMANTIC_LEAK", "ACTIVE_GENERIC_SEMANTIC_LEAK",
+           "QTA_MODEL_PLUGIN_DOMAIN", "LEGACY_SCOPED_SECTION",
            "LEGACY_COMPATIBILITY", "LEGACY_SCIENTIFIC_HISTORY",
            "DOCUMENTATION_HISTORY", "TEST_OF_BOUNDARY",
            "TOOLING_CLASSIFIER_REFERENCE", "FALSE_POSITIVE")
@@ -122,8 +142,10 @@ DISPOSITION_RULES = {
     "REWRITE_GENERIC": "LEGACY_COMPATIBILITY",
     "KEEP_AS_IS": "ACTIVE_GENERIC_SEMANTIC_LEAK",
     "KEEP_AND_HARDEN": "ACTIVE_GENERIC_SEMANTIC_LEAK",
-    "KEEP_AS_MODEL_PLUGIN": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+    "KEEP_AS_MODEL_PLUGIN": "QTA_MODEL_PLUGIN_DOMAIN",
 }
+#: the witnessed canonical generator: its closure's bytes are pinned
+PROFILE = Path("docs") / "byte_reproduction_profile.json"
 #: path -> why the match is not the hardware concept.
 FALSE_POSITIVES: dict = {}
 
@@ -154,8 +176,44 @@ def classify(path: str, disp: dict) -> tuple:
     return "UNCLASSIFIED", "no rule covers this file"
 
 
+def generator_closure(root: Path) -> frozenset:
+    try:
+        doc = json.loads((root / PROFILE).read_text(encoding="utf-8"))
+        return frozenset(doc["generator"]["closure"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return frozenset()
+
+
+def unscoped_json_hits(text: str) -> int | None:
+    """Occurrences in a JSON document that are NOT under a key beginning
+    with ``legacy`` (keys and string values both count); None if the text
+    is not JSON."""
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        return None
+    n = 0
+
+    def walk(o, scoped: bool):
+        nonlocal n
+        if isinstance(o, dict):
+            for k, v in o.items():
+                inner = scoped or str(k).lower().startswith("legacy")
+                if not inner:
+                    n += sum(1 for rx in PATTERNS.values()
+                             if rx.search(str(k)))
+                walk(v, inner)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v, scoped)
+        elif isinstance(o, str) and not scoped:
+            n += sum(1 for rx in PATTERNS.values() if rx.search(o))
+    walk(doc, False)
+    return n
+
+
 def hits(text: str) -> dict:
-    out = {}
+    out: dict[str, Any] = {}
     for n, line in enumerate(text.splitlines(), 1):
         for name, rx in PATTERNS.items():
             if rx.search(line):
@@ -165,6 +223,7 @@ def hits(text: str) -> dict:
 
 def audit(root: Path = ROOT, files=None) -> dict:
     disp = dispositions(root)
+    frozen = generator_closure(root)
     findings = []
     for path in (files if files is not None else tracked(root)):
         if path.endswith(BINARY) or path == str(OUT):
@@ -177,9 +236,16 @@ def audit(root: Path = ROOT, files=None) -> dict:
         if not h:
             continue
         cls, why = classify(path, disp)
-        findings.append({"path": path, "class": cls, "why": why,
-                         "hits": {k: len(v) for k, v in sorted(h.items())},
-                         "lines": {k: v[:20] for k, v in sorted(h.items())}})
+        if cls == "ACTIVE_GENERIC_SEMANTIC_LEAK" and path.endswith(".json") \
+                and unscoped_json_hits(text) == 0:
+            cls, why = ("LEGACY_SCOPED_SECTION",
+                        "every occurrence is under a legacy* key")
+        f = {"path": path, "class": cls, "why": why,
+             "hits": {k: len(v) for k, v in sorted(h.items())},
+             "lines": {k: v[:20] for k, v in sorted(h.items())}}
+        if cls == "QTA_MODEL_PLUGIN_DOMAIN":
+            f["in_witnessed_generator_closure"] = path in frozen
+        findings.append(f)
     by_class = {c: {"files": 0, "hits": 0} for c in CLASSES + (
         "UNCLASSIFIED",)}
     for f in findings:
@@ -194,6 +260,8 @@ def audit(root: Path = ROOT, files=None) -> dict:
         "by_class": by_class,
         "active_neural_semantic_leaks":
             by_class["ACTIVE_NEURAL_SEMANTIC_LEAK"]["files"],
+        "active_generic_semantic_leaks":
+            by_class["ACTIVE_GENERIC_SEMANTIC_LEAK"]["files"],
         "unclassified": by_class["UNCLASSIFIED"]["files"],
         "findings": findings,
     }
@@ -213,9 +281,11 @@ def main(argv=None) -> int:
         if v["files"]:
             print(f"  {c:30s} {v['files']:4d} files {v['hits']:6d} hits")
     ok = rep["active_neural_semantic_leaks"] == 0 and \
+        rep["active_generic_semantic_leaks"] == 0 and \
         rep["unclassified"] == 0
     print(f"legacy semantic audit: {rep['active_neural_semantic_leaks']} "
-          f"neural leak(s), {rep['unclassified']} unclassified -- "
+          f"neural leak(s), {rep['active_generic_semantic_leaks']} generic "
+          f"leak(s), {rep['unclassified']} unclassified -- "
           f"{'PASS' if ok else 'FAIL'}")
     if args.check and (ROOT / OUT).exists():
         committed = json.loads((ROOT / OUT).read_text(encoding="utf-8"))

@@ -40,7 +40,11 @@ def main(argv: list) -> int:
         return 3
     bundle = ResultBundle.from_record(json.loads(raw))
     run_check, _ = check(inputs["check_id"])
-    result = run_check(bundle, verifier_id=inputs["verifier_id"])
+    runtime = inputs.get("runtime_python") or None
+    # a check that runs in its own environment is told which interpreter by
+    # the task's declared input; one that needs none is never handed one
+    kwargs = {"exe": runtime} if runtime else {}
+    result = run_check(bundle, verifier_id=inputs["verifier_id"], **kwargs)
     with WS.governed_writer():
         out_dir = WS.guard_output_dir(inputs["out_dir"])
         target = out_dir / "verification.json"

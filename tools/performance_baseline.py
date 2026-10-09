@@ -114,18 +114,28 @@ def median(values) -> float:
     return xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
 
 
+def over(m: dict) -> bool:
+    """A DETERMINISTIC_WORK ceiling is an inclusive maximum (an invariant:
+    'no directory entry listed' is a maximum of 0); a timing ceiling is an
+    exclusive gross bound."""
+    if m.get("kind") == "DETERMINISTIC_WORK":
+        return m["value"] > m["ceiling"]
+    return m["value"] >= m["ceiling"]
+
+
 def report(doc: dict, seen: list) -> list:
     """Compare fresh measurements against the stored history."""
     problems = []
     for m in seen:
+        if over(m):
+            problems.append(
+                f"{m['guard']}: {m['value']} exceeds its ceiling "
+                f"{m['ceiling']} ({m.get('kind', 'unclassed')})")
         guard = doc["guards"].get(m["guard"])
         if guard is None:
-            print(f"  {m['guard']}: {m['value']} (new guard, no history)")
+            print(f"  {m['guard']}: {m['value']} ({m.get('kind')}, no "
+                  "timing history)")
             continue
-        if m["value"] >= m["ceiling"]:
-            problems.append(
-                f"{m['guard']}: {m['value']} is at or above its ceiling "
-                f"{m['ceiling']}")
         past = [o["value"] for o in guard["observations"]]
         if past:
             mid = median(past)
@@ -143,10 +153,53 @@ def report(doc: dict, seen: list) -> list:
     return problems
 
 
+KINDS = ("DETERMINISTIC_WORK", "ENVIRONMENT_SENSITIVE_TIMING")
+
+
+def host() -> dict:
+    """What the timing values were measured on. /proc is Linux: where it is
+    absent the CPU model reads UNKNOWN and the leak guards skip, said so."""
+    import platform
+    cpu = "UNKNOWN"
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("model name"):
+                cpu = line.split(":", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    return {"cpu": cpu, "cores": os.cpu_count(),
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "proc_available": Path("/proc/self/fd").is_dir(),
+            "runner": os.environ.get("RUNNER_NAME", "local")}
+
+
+def telemetry(seen: list, problems: list) -> dict:
+    """The run's measurements, classed, with the host they belong to. Not
+    written into the committed history: a hosted runner's numbers describe
+    that runner."""
+    by_kind = {k: [m for m in seen if m.get("kind") == k] for k in KINDS}
+    unknown = [m["guard"] for m in seen if m.get("kind") not in KINDS]
+    return {"schema": "performance-telemetry/1", "commit": _sha(),
+            "host": host(), "measurements": seen,
+            "counts": {k: len(v) for k, v in by_kind.items()},
+            "unclassified": unknown, "problems": problems,
+            "gating": {"DETERMINISTIC_WORK": "every value under its "
+                                             "ceiling, on every host",
+                       "ENVIRONMENT_SENSITIVE_TIMING": "a gross within-run "
+                       "ratio or shape under its ceiling; values published, "
+                       "drift against the committed history reported "
+                       "but not gating on a foreign host"}}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--record", action="store_true",
                     help="append this run's measurements to the baseline")
+    ap.add_argument("--telemetry", metavar="PATH",
+                    help="write this run's classed measurements and host "
+                         "to PATH (the committed history is not touched)")
     args = ap.parse_args()
 
     doc = _load()
@@ -157,11 +210,31 @@ def main() -> int:
         return 1
     print(f"{len(seen)} measurement(s):")
     problems = report(doc, seen)
+    if args.telemetry:
+        ceilings = [f"{m['guard']}: {m['value']} exceeds {m['ceiling']} "
+                    f"({m.get('kind')})" for m in seen if over(m)]
+        tel = telemetry(seen, ceilings)
+        Path(args.telemetry).write_text(json.dumps(tel, indent=1,
+                                                   sort_keys=True) + "\n",
+                                        encoding="utf-8")
+        print(f"telemetry: {tel['counts']} -> {args.telemetry}")
+        if tel["unclassified"] or not tel["counts"]["DETERMINISTIC_WORK"]:
+            print("REFUSED: every measurement must be classed, and a run "
+                  "with no deterministic work counter gated nothing")
+            return 1
+        # on a hosted runner the ceilings gate; drift against a history
+        # recorded on other machines is printed above, and does not
+        problems = ceilings
 
     if args.record:
         sha = _sha()
         when = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         for m in seen:
+            if m.get("kind") == "DETERMINISTIC_WORK":
+                continue        # exact counts gate; the history is shapes
+            if m["guard"] in doc.get("retired", {}):
+                raise SystemExit(f"{m['guard']} is retired; its series is "
+                                 "kept and never appended to")
             g = doc["guards"].setdefault(
                 m["guard"], {"ceiling": m["ceiling"], "observations": []})
             g["ceiling"] = m["ceiling"]

@@ -22,10 +22,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
 CRATE_DIR = Path("ro-crate")
+#: RO-Crate 1.1 REQUIRES the root's datePublished (ISO 8601). A DECLARED
+#: date -- when this crate was first published under the 1.1 profile with
+#: external conformance checking -- not the time of generation: the crate is
+#: rebuilt deterministically, and a clock value would make every rebuild a
+#: different file. It changes only by an edit here.
+DATE_PUBLISHED = "2026-10-08"
 META = CRATE_DIR / "ro-crate-metadata.json"
 SPEC = "https://w3id.org/ro/crate/1.1"
 
@@ -103,6 +110,7 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
              "forecast artifacts; the HDF5 file is a structured "
              "representation of existing outputs, not new evidence.",
          "license": {"@id": "#license-unspecified"},
+         "datePublished": DATE_PUBLISHED,
          "hasPart": [{"@id": rel.replace("../", "")} for rel, _, _
                      in FILES],
          "mainEntity": {"@id": "qta_full_sim.py"},
@@ -111,7 +119,9 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
                       {"@id": "#environment"}]},
         {"@id": "#license-unspecified", "@type": "CreativeWork",
          "name": "license: no authoritative project license record "
-                 "exists; none invented"},
+                 "exists; none invented",
+         "description": "the repository carries no license record; this "
+                        "entity says so rather than naming one"},
         {"@id": "#stage7-input-zip", "@type": "Dataset",
          "name": "authoritative Stage-7.5 input archive",
          "identifier": "QTA_stage7_5_runtime_resilience_source.zip",
@@ -169,7 +179,8 @@ def build(dest_dir: Path = CRATE_DIR) -> None:
 #: throwaway, and the manifest then hashed a file that no longer existed in
 #: that form. Found immediately, by the manifest completeness suite, in the
 #: same session as the ledger item about tests that damage tracked files.
-DEFAULT_VALIDATION_REPORT = Path("stage8_reports/ro_crate_validation_report.json")
+DEFAULT_VALIDATION_REPORT = Path(
+    "stage8_reports/ro_crate_validation_report.json")
 
 
 def validate(meta_path: Path = META,
@@ -184,6 +195,27 @@ def validate(meta_path: Path = META,
                for e in g):
         problems.append("root dataset entity missing")
     by = {e["@id"]: e for e in g}
+    # The metadata descriptor (RO-Crate 1.1 s.4.1, REQUIRED): it must exist,
+    # be about the root, and say which specification the crate conforms to.
+    # Missed until the external validator's negative controls asked
+    # (tools/ro_crate_conformance.py, D-2026-106).
+    desc = by.get("ro-crate-metadata.json")
+    if desc is None:
+        problems.append("metadata descriptor entity missing")
+    else:
+        if (desc.get("about") or {}).get("@id") != "./":
+            problems.append("metadata descriptor is not about the root")
+        conforms = desc.get("conformsTo")
+        conforms = conforms if isinstance(conforms, list) else [conforms]
+        if not any(isinstance(c, dict) and str(c.get("@id", "")).startswith(
+                "https://w3id.org/ro/crate/1.") for c in conforms):
+            problems.append("metadata descriptor has no conformsTo an "
+                            "RO-Crate 1.x specification")
+    root_ = by.get("./") or {}
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}",
+                        str(root_.get("datePublished", ""))):
+        problems.append("root dataset has no ISO 8601 datePublished "
+                        "(RO-Crate 1.1, REQUIRED)")
     if "./" not in by or "#simulation-action" not in by:
         # Without these the checks below index a dict that has no such key,
         # and the validator dies with a KeyError traceback instead of
@@ -272,9 +304,13 @@ def validate(meta_path: Path = META,
                     "referenced_files": len(by["./"]["hasPart"]),
                     "problems": problems,
                     "result": "VALID" if not problems else "FAIL",
-                    "limitation": "structural in-repo validator; no "
-                                   "external conformance tool was "
-                                   "executable in this sandbox"},
+                    "limitation": "structural in-repo validator; the "
+                                   "RO-Crate community validator "
+                                   "(roc-validator, profile ro-crate-1.1) "
+                                   "is run beside it by "
+                                   "tools/ro_crate_conformance.py on a "
+                                   "hosted runner, which can reach the "
+                                   "JSON-LD context this sandbox cannot"},
                    indent=1, sort_keys=True) + "\n")
     return 1 if problems else 0
 

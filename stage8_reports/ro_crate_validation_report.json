@@ -1,6 +1,6 @@
 {
  "entities": 30,
- "limitation": "structural in-repo validator; no external conformance tool was executable in this sandbox",
+ "limitation": "structural in-repo validator; the RO-Crate community validator (roc-validator, profile ro-crate-1.1) is run beside it by tools/ro_crate_conformance.py on a hosted runner, which can reach the JSON-LD context this sandbox cannot",
  "problems": [],
  "referenced_files": 24,
  "result": "VALID",

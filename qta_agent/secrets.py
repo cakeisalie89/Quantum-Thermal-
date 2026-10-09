@@ -591,7 +591,7 @@ class FileSecretProvider(SecretProvider):
                 "filename, and a name that can leave the directory is "
                 "refused before the filesystem is asked anything")
         held = self._open is not None
-        root = self._open if held else safeio.ReadRoot(
+        root = self._open if self._open is not None else safeio.ReadRoot(
             self.root, max_bytes=self.max_bytes)
         try:
             if not held:

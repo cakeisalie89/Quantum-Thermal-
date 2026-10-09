@@ -13,6 +13,7 @@ fail-closed paths are tested unconditionally.
 """
 import csv
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -579,11 +580,43 @@ def test_default_backend_is_numpy_without_the_env_var(monkeypatch):
         assert RUST.backend_in_force(name) == "numpy"
 
 
-def test_enabling_rust_without_the_extension_still_yields_numpy(monkeypatch):
+def test_requesting_rust_for_a_rejected_kernel_is_refused_not_rerouted(
+        monkeypatch):
+    """An explicit request is answered or refused -- never silently served
+    by NumPy, and never decided by an on-host parity verdict (D-2026-58)."""
     monkeypatch.setenv(RUST.ENABLE_ENV_VAR, "1")
-    monkeypatch.setattr(RUST, "rust_available", lambda: False)
     for name in RUST.KERNELS:
-        assert RUST.backend_in_force(name) == "numpy"
+        assert RUST.backend_in_force(name) == "REFUSED"
+        with pytest.raises(RUST.BackendRefused, match="REJECTED"):
+            RUST.dispatch(name)
+        assert RUST.dispatch(name, backend="numpy") is \
+            RUST.KERNELS[name]["numpy"]
+
+
+def test_an_adopted_decision_still_needs_a_certificate_for_this_process(
+        monkeypatch, tmp_path):
+    doc = RUST.decisions()
+    doc["kernels"]["face_conductance"]["decision"] = \
+        "RUST_KERNEL_face_conductance_ADOPTED"
+    doc["measured_on"]["numpy_version"] = "0.0.0"
+    p = tmp_path / "d.json"
+    p.write_text(json.dumps(doc))
+    monkeypatch.setattr(RUST, "DECISIONS", p)
+    with pytest.raises(RUST.BackendRefused, match="certified against"):
+        RUST.dispatch("face_conductance", backend="rust")
+
+
+def test_a_missing_decision_registry_refuses_rust(monkeypatch, tmp_path):
+    monkeypatch.setattr(RUST, "DECISIONS", tmp_path / "absent.json")
+    with pytest.raises(RUST.BackendRefused, match="no readable"):
+        RUST.dispatch("face_conductance", backend="rust")
+    assert RUST.dispatch("face_conductance", backend="numpy") is \
+        RUST.KERNELS["face_conductance"]["numpy"]
+
+
+def test_an_unknown_backend_name_is_an_error():
+    with pytest.raises(ValueError, match="backend"):
+        RUST.dispatch("face_conductance", backend="gpu")
 
 
 def test_dispatch_rejects_unknown_kernels():
@@ -592,27 +625,33 @@ def test_dispatch_rejects_unknown_kernels():
 
 
 def test_parity_verdicts_are_consistent():
-    """Adoption implies bit identity -- 'close enough' is never adoption."""
+    """A parity measurement decides nothing; the committed decisions do,
+    and every one of them is a decision -- adopted or rejected."""
     report = RUST.status_report()
     assert report["default_backend"] == "numpy"
     assert report["admission_rule"] == RUST.PARITY_RULE
     assert RUST.PARITY_RULE == "bit_for_bit_identical_to_numpy_reference"
     for kernel in report["kernels"]:
-        if kernel.get("adopted"):
-            assert kernel["bit_identical"] is True
+        assert "adopted" not in kernel and "backend_in_force" not in kernel
+        if kernel["parity"] == "BIT_IDENTICAL":
             assert kernel["max_ulp_difference"] == 0
-        else:
-            assert kernel["backend_in_force"] == "numpy"
-    assert set(report["adopted_kernels"]) <= set(RUST.KERNELS)
+    assert set(report["decisions"]) == set(RUST.KERNELS)
+    for name, decision in report["decisions"].items():
+        assert decision in (f"RUST_KERNEL_{name}_ADOPTED",
+                            f"RUST_KERNEL_{name}_REJECTED")
+    assert report["adopted_kernels"] == []
+    assert report["backend"] == "RUST_BACKEND_NOT_ACTIVE"
 
 
-@pytest.mark.skipif(not RUST.rust_available(),
-                    reason="qta_kernels extension not built")
 def test_built_extension_is_checked_kernel_by_kernel():
+    if not RUST.rust_available():
+        if os.environ.get("QTA_RUST_REQUIRED") == "1":
+            pytest.fail("QTA_RUST_REQUIRED=1 and qta_kernels is not built")
+        pytest.skip("qta_kernels extension not built")
     for name in sorted(RUST.KERNELS):
         rep = RUST.kernel_parity(name)
         assert rep["availability"] == "AVAILABLE"
-        assert rep["verdict"] in ("ADOPTED", "REJECTED_NOT_BIT_IDENTICAL")
+        assert rep["parity"] in ("BIT_IDENTICAL", "NOT_BIT_IDENTICAL")
         assert rep["max_relative_difference"] < 1e-12   # sane either way
 
 
@@ -779,13 +818,15 @@ def test_rust_open_item_matches_the_measured_verdict():
         "a verdict measured under a dispatch other than the one reported"
     assert entry.get("verdict_is_dispatch_conditional") is True
     # The relationship, not the value: AVX-512 is the configuration the
-    # committed note describes, and only there is REJECTED the expected
-    # answer. Anywhere else the kernel may legitimately be bit-identical.
+    # committed note describes, and only there is a parity failure the
+    # expected answer. Anywhere else the kernel may be bit-identical -- and
+    # is still REJECTED, because the decision is not this host's verdict.
     if "X86_V4" in dispatch:
-        assert entry["adopted"] is False, (
-            "the note records a rejection under AVX-512 and this host, which "
-            f"has {dispatch}, adopted it")
-    assert isinstance(entry["adopted"], bool)
+        assert entry["parity"] == "NOT_BIT_IDENTICAL", (
+            "the note records 2 ulp under AVX-512 and this host, which has "
+            f"{dispatch}, measured bit identity")
+    assert report["decisions"]["conductivity_power_law"].endswith(
+        "_REJECTED")
 
 
 # ------------------- §27: adoption truthfulness + RAG completeness ----------
@@ -822,7 +863,10 @@ def test_no_scientific_module_imports_the_rust_kernels():
     # committed, which is the blind spot that has cost this repository three
     # red pushes in other guards.
     importers = list(files_matching(r"^\s*import\s+qta_kernels"))
-    assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
+    # the mechanism, and the decision tool's measuring child (which runs in
+    # its own interpreter to time and compare the kernels, consuming none)
+    assert importers == ["qta_multiphysics/stack/rust_kernel.py",
+                         "tools/rust_kernel_decision.py"], \
         f"unexpected qta_kernels importers: {importers}"
 
 

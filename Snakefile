@@ -1,7 +1,9 @@
 # The governed scientific workflow (Snakemake).
 #
-# The DEFAULT target, scientific_generic, runs the framework's own path: a
-# governed model run checked and decided (s10_governed_model), the governed
+# The DEFAULT target, scientific_generic, runs the framework's own path: the
+# end-to-end demonstration from a recorded proposal to a decided, restarted,
+# reconstructed and packaged result (harness_demo), a governed model run
+# checked and decided (s10_governed_model), the governed
 # Stage-10 artifact path (s10_governed, s10_governed_index), and the
 # scientific-stack adapters -- VTK and OpenUSD export, the read-only retrieval
 # index, the FEniCSx acceptance harness, Rust parity, the FMI contract --
@@ -47,10 +49,29 @@ rule scientific_generic:
     # The default target. Every input is produced by a rule in this file;
     # none reaches a rule of the legacy QTA workflow file.
     input:
+        f"{W10}/harness_demo_report.json",
         f"{W10}/governed_model/governed_model_run.json",
         f"{W10}/governed/governed_run.json",
         f"{W10}/governed_index/index_run.json",
         f"{W10}/canonical_untouched.json",
+
+rule harness_demo:
+    # The generic end-to-end demonstration: a recorded proposal, governed
+    # retrieval context, the ingress, a governed model run, its HDF5
+    # representation, independent checks, the reviewer's decision, a restart
+    # from a checkpoint, reconstruction and an RO-Crate -- and, where the
+    # FEniCSx and FMI runtimes are given (QTA_FENICSX_PYTHON,
+    # QTA_FMI_PYTHON), the FEniCSx check admitting the result and the FMU
+    # leg with its negative twin, the fault FMU, which must be REJECTED.
+    # The tool exits non-zero unless its judge accepts: no vacuous success.
+    # Snakemake orders this; the store decides.
+    output:
+        report=f"{W10}/harness_demo_report.json",
+        workspace=directory(f"{W10}/harness_demo"),
+    shell:
+        "{PY} tools/harness_demo.py run --out {output.report}"
+        " ${{QTA_FENICSX_PYTHON:+--fenicsx-python $QTA_FENICSX_PYTHON}}"
+        " ${{QTA_FMI_PYTHON:+--fmi-python $QTA_FMI_PYTHON}}"
 
 # ============ Stage-10 additive rules (scientific-stack adapters) ===========
 # Visualization interchange (ParaView/VTK, OpenUSD), a read-only retrieval

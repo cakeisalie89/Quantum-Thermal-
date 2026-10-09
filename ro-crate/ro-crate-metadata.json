@@ -10,6 +10,7 @@
   {
    "@id": "#license-unspecified",
    "@type": "CreativeWork",
+   "description": "the repository carries no license record; this entity says so rather than naming one",
    "name": "license: no authoritative project license record exists; none invented"
   },
   {
@@ -43,6 +44,7 @@
   {
    "@id": "./",
    "@type": "Dataset",
+   "datePublished": "2026-10-08",
    "description": "Theoretical, forecast-only, pre-hardware, validation-gated multiphysics model. No experiment has been performed; no hardware validation, isotope-contrast demonstration, completed growth, digital-twin validation, or COMSOL equivalence is claimed. Scientific gate PASS count is zero; can_PASS_now=NO; measured_in_this_system=false; automatic_gate_effect=NONE; automatic_application=false. Campaign-1 is PROPOSED_NOT_PERFORMED; experiments are DESIGNED (EXP-V1 PLAYBOOK_READY). Outputs are simulation/forecast artifacts; the HDF5 file is a structured representation of existing outputs, not new evidence.",
    "hasPart": [
     {
@@ -156,10 +158,10 @@
   {
    "@id": "Snakefile",
    "@type": "SoftwareSourceCode",
-   "contentSize": "40006",
+   "contentSize": "41151",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "b4d64b61976529a99e7ac615dbcbd97b58503a7ee44a70b52611b7b01829d8ad"
+   "sha256": "03bdb039dcfe2b59c18020ab1917cffab18ba9092c67709a484a7458841a3924"
   },
   {
    "@id": "campaign_registry.json",
@@ -196,7 +198,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "245907",
+   "contentSize": "268651",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"

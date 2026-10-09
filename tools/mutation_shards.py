@@ -97,7 +97,7 @@ def plan(names: list | None = None, n: int = SHARDS) -> list:
     """``n`` lists of spec names; each spec in exactly one."""
     names = specs() if names is None else sorted(names)
     w = weights(names)
-    shards = [[] for _ in range(n)]
+    shards: list[list[str]] = [[] for _ in range(n)]
     load = [0.0] * n
     for name in sorted(names, key=lambda s: (-w[s], s)):
         i = min(range(n), key=lambda k: (load[k], k))

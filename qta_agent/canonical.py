@@ -37,7 +37,7 @@ from __future__ import annotations
 import hashlib
 import re
 import json
-from typing import Any
+from typing import Any, TypeGuard
 
 #: Digest of the empty chain predecessor. The genesis record's ``prev_hash``.
 #: Not a real digest of anything -- a sentinel that cannot collide with one,
@@ -90,7 +90,7 @@ def digest_bytes(raw: bytes) -> str:
 _HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
 
 
-def is_digest(value: object) -> bool:
+def is_digest(value: object) -> TypeGuard[str]:
     """True if ``value`` is syntactically a lowercase SHA-256 hex digest.
 
     Uppercase is deliberately rejected: accepting both would let one logical

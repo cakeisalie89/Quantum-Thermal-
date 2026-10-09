@@ -403,7 +403,8 @@ class Signer:
     principal: str
     secret: bytes = field(repr=False)
     test: bool = False
-    provider: object = field(default=signature.REFERENCE, repr=False)
+    provider: signature.SignatureProvider = field(
+        default=signature.REFERENCE, repr=False)
 
     @property
     def public(self) -> bytes:
@@ -715,7 +716,8 @@ def authenticate(events, attestations: Attestations, registry: KeyRegistry,
                                  f"{ev.actor!r}"))
             out.refused.add(ev.seq)
             continue
-        why = []
+        why: list[tuple[str, str]] = []
+        authenticated = False
         for att in atts:
             key = registry.get(att.get("key_id"))
             if key is None:
@@ -732,9 +734,9 @@ def authenticate(events, attestations: Attestations, registry: KeyRegistry,
                 why.append((BAD_SIGNATURE, f"{key.key_id!r} did not sign "
                             "this event"))
             else:
-                why = None
+                authenticated = True
                 break
-        if why is None:
+        if authenticated:
             out.authenticated += 1
         else:
             out.findings.extend((ev.seq, k, d) for k, d in why)
@@ -839,6 +841,10 @@ READER_COVERAGE = {
     "qta_agent.netauth.NetworkAuthority": GATED,
     "qta_agent.secrets.SecretStore": GATED,
     "qta_agent.checkpoint.CheckpointStore": GATED,
+    # The AI proposal ingress's projection of its receipts: read through
+    # read_verified, and it refuses a receipt whose digest or target is not
+    # its envelope's.
+    "qta_agent.proposals.received": GATED_AND_OWN_VERDICT,
     "tools/audit_log.py": REFUSES_REQUIRED_ONLY,
     "tools/generic_consistency.py": REFUSES_REQUIRED_ONLY,
     "tools/independent_verify.py": REFUSES_REQUIRED_ONLY,

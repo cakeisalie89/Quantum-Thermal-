@@ -103,6 +103,9 @@ def test_every_trust_boundary_has_a_target(fuzz):
         "egress_grant", "context_manifest", "url", "canonical", "rag_index",
         "scheduler_sequence", "attestations", "key_registry",
         "cpuinfo", "proc_maps",
+        # the harness completion programme's parsers (section 43)
+        "proposal_envelope", "harness_status_document", "fmu_description",
+        "supply_chain_policy", "sbom", "hdf5_bundle",
     }
     missing = required - targets
     assert not missing, f"trust boundaries with no fuzz target: {missing}"

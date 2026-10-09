@@ -235,7 +235,7 @@ def _distributed_inner() -> int:
         diff = float(jnp.max(jnp.abs(y1 - y2)))
         record(f"expert_parallel_equivalence_ep{ep}", diff == 0.0
                or bool(jnp.allclose(y1, y2, rtol=1e-5, atol=1e-6)),
-               max_abs_difference=diff, experts=cfg.moe.num_experts,
+               max_abs_difference=diff, experts=cfg.moe_block.num_experts,
                devices=ep)
 
     rng = np.random.Generator(np.random.PCG64(3))
@@ -300,9 +300,9 @@ def _distributed_inner() -> int:
                      "differs by one rounding can move a parameter by up "
                      "to 2*lr; the difference is reported, not hidden")
 
-    cfg0 = solver.with_experts(cfg, cfg.moe.num_experts)
+    cfg0 = solver.with_experts(cfg, cfg.moe_block.num_experts)
     from dataclasses import replace as _replace
-    cfg0 = _replace(cfg0, moe=_replace(cfg0.moe, aux_loss_coef=0.0))
+    cfg0 = _replace(cfg0, moe=_replace(cfg0.moe_block, aux_loss_coef=0.0))
     g_full = train.accumulated_gradient(cfg0, params, buffers, jb, jy,
                                         1)[4]
     g_acc = train.accumulated_gradient(cfg0, params, buffers, jb, jy,
@@ -431,7 +431,7 @@ def cmd_architecture(args) -> int:
             "active_relative_deviation": rec["active_relative_deviation"],
             "hidden_size": cfg.hidden_size, "num_layers": cfg.num_layers,
             "num_heads": cfg.attention.num_heads,
-            "num_experts": cfg.moe.num_experts,
+            "num_experts": cfg.moe_block.num_experts,
             "meta_validation": rep["result"],
             "meta_counts_equal": rep["counts_equal"],
             "trained": False})

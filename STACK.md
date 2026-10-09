@@ -57,7 +57,7 @@ tree was untouched.
 | HDF5 | ADOPTED | `hdf5_schema.json`, `build_hdf5.py` | representation only; equivalence checked, not assumed |
 | RO-Crate | ADOPTED | `ro_crate_tools.py` | metadata packaging; adds no evidence |
 | SLSA + Sigstore | **STAGED**¹ | `RELEASE_POLICY.md`, `verify_release.py` | a signature attests origin only, never scientific validity |
-| Read-only RAG | ADOPTED | `stack/rag_index.py` | retrieval only; no generation, no network, no model client |
+| Governed read-only retrieval | ADOPTED | `stack/rag_index.py` | deterministic offline BM25 over reviewed documents; no generation, no network, no model client, no embedding service |
 | ParaView / VTK | ADOPTED | `stack/vtk_export.py` | serializes solved cell values unchanged |
 | OpenUSD | ADOPTED | `stack/usd_export.py` | geometry representation; no prim is a solver input |
 | SALib | ADOPTED | `sensitivity_3d.py` stays authoritative | cross-check only; disagreement is reported, not resolved |
@@ -97,14 +97,20 @@ values ride along on `qta:` attributes. Verified to open in OpenUSD 26.8 with
 all expected prims; `usd-core` is optional and its absence reads
 `UNAVAILABLE`, never `VALID`.
 
-### Read-only RAG — `stack/rag_index.py`
-An offline Okapi BM25 index over the project's own governed documents (42
-files, 1601 chunks). Retrieval returns **verbatim spans with citations**
+### Governed read-only retrieval — `stack/rag_index.py`
+Governed read-only retrieval over reviewed documents: an offline,
+deterministic Okapi BM25 index over the documents the corpus allowlist
+admits (`docs/corpus_allowlist.json`, regenerated in the commit that changes
+a document, so membership is reviewed). It was once called "read-only RAG";
+there is no generative model, no embedding service and no model client in it,
+so the name is retired. Retrieval returns **verbatim spans with citations**
 (`path:line_start-line_end`) plus the SHA-256 of the source file at index
 time, so a retrieved claim can be walked back and a stale index is detectable
-rather than silently wrong. There is no generation step: the "G" in RAG is a
-human reading the cited span. A test asserts the module imports no network or
-model client, and every hit is stamped `RETRIEVED_TEXT_NOT_EVIDENCE`.
+rather than silently wrong. There is no generation step: a person -- or an
+AI proposer, through `qta_agent/proposals.py`'s context assembly, which
+records each hit's path and sha256 -- reads the cited span, and what it reads
+is never authority. A test asserts the module imports no network or model
+client, and every hit is stamped `RETRIEVED_TEXT_NOT_EVIDENCE`.
 
 ### SALib — `stack/sensitivity_salib.py` — **and its first finding**
 `sensitivity_3d.py` (deterministic one-at-a-time +10% on the CI mesh) remains

@@ -1,0 +1,38 @@
+{
+ "title": "The generic Snakemake path and the demonstration it runs",
+ "note": "Section 28: the default target is the generic harness, it runs the end-to-end demonstration, and the demonstration's exit status is its judge's verdict.",
+ "suites": [
+  "tests/test_workflow_split.py",
+  "tests/test_harness_demo.py"
+ ],
+ "mutations": [
+  {
+   "name": "WG1_the_default_target_skips_the_demonstration",
+   "path": "Snakefile",
+   "find": "        f\"{W10}/harness_demo_report.json\",\n        f\"{W10}/governed_model/governed_model_run.json\",\n",
+   "replace": "        f\"{W10}/governed_model/governed_model_run.json\",\n",
+   "rationale": "the generic workflow's default target runs no proposal-to-decision path"
+  },
+  {
+   "name": "WG2_the_demo_workspace_is_undeclared",
+   "path": "Snakefile",
+   "find": "        workspace=directory(f\"{W10}/harness_demo\"),\n",
+   "replace": "",
+   "rationale": "the demonstration writes a workspace Snakemake does not know about, so a rerun mixes two runs' records"
+  },
+  {
+   "name": "WG3_the_demonstration_always_succeeds",
+   "path": "tools/harness_demo.py",
+   "find": "    return 0 if rep[\"accepted\"] else 1\n",
+   "replace": "    return 0\n",
+   "rationale": "a demonstration whose judge refused it passes the Snakemake target"
+  },
+  {
+   "name": "WG4_a_raising_demonstration_succeeds",
+   "path": "tools/harness_demo.py",
+   "find": "        print(f\"DEMONSTRATION FAILED: {type(exc).__name__}: {exc}\")\n        return 1\n",
+   "replace": "        print(f\"DEMONSTRATION FAILED: {type(exc).__name__}: {exc}\")\n        return 0\n",
+   "rationale": "a required runtime that is missing reads as a successful demonstration"
+  }
+ ]
+}

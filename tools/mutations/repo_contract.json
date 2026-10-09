@@ -115,7 +115,7 @@
   {
    "name": "V1_the_unwired_verifier_check_is_never_consulted",
    "path": "tools/workflow_contract.py",
-   "find": "    out += [f\"verifier is never run -- {x}\" for x in unwired_verifiers(body)]",
+   "find": "    out += [f\"verifier is never run -- {x}\"\n            for x in unwired_verifiers(everywhere)]",
    "replace": "    out += []",
    "rationale": "K1's shape again: the check exists, its tests pass, and nothing calls it -- so a workflow step running a verifier can be deleted with everything green"
   },

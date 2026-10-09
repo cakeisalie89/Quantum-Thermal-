@@ -723,11 +723,11 @@ class AgentDirectory:
                     f"{ev.actor!r}. An escalation is answered by whoever "
                     "writes the answer; a record that gets to name somebody "
                     "else lets an agent sign a person's decision.")
-            ident = self._identities.get(answered_by)
-            if ident is None:
+            if answered_by not in self._identities:
                 raise EscalationError(
                     f"seq {ev.seq}: {answered_by!r} answered escalation "
                     f"{eid!r} and is not a registered principal")
+            ident = self._identities[answered_by]
             if not ident.is_active(ev.seq):
                 raise EscalationError(
                     f"seq {ev.seq}: {answered_by!r} was retired after seq "
@@ -1047,7 +1047,9 @@ class AgentDirectory:
                 False, subject, rule, None,
                 f"no value reached quorum {quorum}", claims)
 
-        if rule is ConflictRule.PREFER_ROLE:
+        # isinstance, not just the rule: validated above, restated so the
+        # role is a role here and not "a role or None"
+        if rule is ConflictRule.PREFER_ROLE and isinstance(prefer, AgentRole):
             preferred = [c for c in claims if c.role is prefer]
             pvalues = {c.value_digest for c in preferred}
             if len(pvalues) == 1:

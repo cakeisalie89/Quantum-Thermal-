@@ -103,6 +103,7 @@ import time
 import uuid
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 from . import actions
 from .agents import (
@@ -113,7 +114,7 @@ from .canonical import digest
 from . import capability as _cap_actions
 from .capability import Action, CapabilityLedger, issue
 from .context import ContextBuilder, Tier, record_context
-from .events import EventLog
+from .events import Anchor, EventLog
 from .evidence import EvidenceStore
 from .execution import Executor, Limits, Outcome
 from .memory import MemoryStore
@@ -126,7 +127,8 @@ from .readpath import (
 )
 from .safeio import ReadRoot, SafeIOError, SourceChanged
 from .separate_verify import verify_in_separate_process
-from .policy import Effect, PolicyRequest, PolicyStore, document, rule
+from .policy import (Effect, PolicyDocument, PolicyRequest, PolicyStore,
+                     document, rule)
 from .hostid import (ALIVE, GONE, ProcessIdentity, identify,
                      liveness)
 from .idempotency import (IdempotencyConflict, IdempotencyLedger,
@@ -202,7 +204,7 @@ OWNED = frozenset({ACT_TASK_CREATE, ACT_TASK_TRANSITION,
                    ACT_SEPARATE_VERIFY, ACT_REEXECUTION})
 
 
-def stage10_policy(version: int = 1) -> "object":
+def stage10_policy(version: int = 1) -> PolicyDocument:
     """The rules a governed Stage-10 run is subject to.
 
     Written as an explicit document rather than a permissive default so that
@@ -443,7 +445,7 @@ class GovernedStage10:
         self.tool_modules = dict(_TOOL_MODULE)
         self.executor = Executor(self.registry, workspace=self.root)
         #: Where this caller's verification has reached. See :meth:`_head_seq`.
-        self._head_anchor = None
+        self._head_anchor: Anchor | None = None
 
         # Every subsystem projects the SAME log. That is the arrangement the
         # action registry exists to permit, and it is what makes the audit of
@@ -1412,6 +1414,10 @@ class GovernedStage10:
         """
         cap_id = f"cap-undo-{uuid.uuid4().hex[:8]}"
         undo = self.registry.compensator_for(self._tool_of(task_id))
+        if undo is None:
+            # compensate() refuses this before asking; a grant naming no
+            # tool is refused here too, rather than minted for nothing
+            raise ToolError(f"task {task_id!r} has no compensating tool")
         head = self._head_seq()
         self.capabilities.issue(
             issue(capability_id=cap_id, subject=actor,
@@ -1610,7 +1616,7 @@ class GovernedStage10:
             child = ProcessIdentity.from_record(
                 (ran or {}).get("child_process"))
             state = liveness(child)
-            if state is not ALIVE:
+            if state is not ALIVE or child is None:     # None is never ALIVE
                 acted.append({"task_id": task.task_id, "action": "REPORTED",
                               "child": (ran or {}).get("child_process"),
                               "child_liveness": state,
@@ -1845,8 +1851,9 @@ class GovernedStage10:
             lease_id=lease_id or (lease.lease_id if lease else None),
             executed_by=executed_by, result_digest=result_digest)
         check(req, task)                 # raises if the machine forbids it
-        payload = {"task_id": task.task_id, "src": task.state.value,
-                   "dst": dst.value, "role": role.value, "note": note}
+        payload: dict[str, Any] = {
+            "task_id": task.task_id, "src": task.state.value,
+            "dst": dst.value, "role": role.value, "note": note}
         if lease is not None:
             payload["lease"] = lease.to_record()
         elif lease_id is not None:

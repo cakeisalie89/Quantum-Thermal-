@@ -36,6 +36,7 @@ from __future__ import annotations
 import math
 import os
 import resource
+from typing import Any
 
 from .. import accounting
 from ..config import ModelConfig
@@ -124,7 +125,8 @@ def validate(cfg: ModelConfig, *, batch: int = 2, features: int = 16) \
         dtypes.add(str(leaf.dtype))
     non_trainable = sum(math.prod(x.shape)
                         for x in jax.tree_util.tree_leaves(b_abs))
-    forward, routing = {"traced": False}, {"legal": False}
+    forward: dict[str, Any] = {"traced": False}
+    routing: dict[str, Any] = {"legal": False}
     try:
         out = jax.eval_shape(
             lambda p, b, x: network.apply(p, b, x, cfg), p_abs, b_abs,

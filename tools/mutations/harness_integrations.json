@@ -1,0 +1,114 @@
+{
+ "title": "FEniCSx and FMI integration surfaces that run without their runtimes",
+ "note": "Every mutation here is killed by a test that needs neither FEniCSx nor fmpy (the boundary reader, the series check, the slab model, the environment lock policy, the header check; the FMU build needs only a C compiler), so the agent-substrate shards can run it. The runtime-dependent halves run in the harness-integrations workflow, where the runtime is REQUIRED.",
+ "suites": [
+  "tests/test_harness_integrations.py"
+ ],
+ "mutations": [
+  {
+   "name": "FB1_a_member_may_escape_the_archive",
+   "path": "scientific/fmi_boundary.py",
+   "find": "        if n.startswith(\"/\") or \"\\\\\" in n or \"..\" in n.split(\"/\") or \\\n",
+   "replace": "        if False and (n.startswith(\"/\") or \"\\\\\" in n or \"..\" in n.split(\"/\")) or \\\n",
+   "rationale": "an FMU member named ../x or /abs is extracted wherever it points"
+  },
+  {
+   "name": "FB2_a_link_is_a_member",
+   "path": "scientific/fmi_boundary.py",
+   "find": "        if stat.S_ISLNK(mode):\n",
+   "replace": "        if False:\n",
+   "rationale": "a symlink inside the FMU is followed on extraction"
+  },
+  {
+   "name": "FB3_a_doctype_is_parsed",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if b\"<!DOCTYPE\" in head or b\"<!ENTITY\" in raw.upper():\n",
+   "replace": "    if False:\n",
+   "rationale": "an entity-expanding model description reaches the XML parser"
+  },
+  {
+   "name": "FB4_any_fmi_version_is_admitted",
+   "path": "scientific/fmi_boundary.py",
+   "find": "        if version != \"3.0\":\n",
+   "replace": "        if False:\n",
+   "rationale": "an FMI 2.0 description is read under 3.0 semantics"
+  },
+  {
+   "name": "FB5_an_undefined_unit_is_admitted",
+   "path": "scientific/fmi_boundary.py",
+   "find": "            if v.unit not in units:\n",
+   "replace": "            if False:\n",
+   "rationale": "a variable in a unit the FMU never defines crosses the boundary with no meaning"
+  },
+  {
+   "name": "FB6_an_fmu_may_claim_authority",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if auth != REQUIRED_AUTHORITY:\n",
+   "replace": "    if False:\n",
+   "rationale": "an FMU that says it is AUTHORITATIVE is believed"
+  },
+  {
+   "name": "FB7_an_fmu_may_claim_a_measurement",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if kind not in ALLOWED_KINDS:\n",
+   "replace": "    if False:\n",
+   "rationale": "a simulation crosses the boundary labelled as a raw observation"
+  },
+  {
+   "name": "FB8_no_binary_is_needed",
+   "path": "scientific/fmi_boundary.py",
+   "find": "        if binary not in names:\n",
+   "replace": "        if False:\n",
+   "rationale": "an FMU without the platform binary it names is admitted"
+  },
+  {
+   "name": "SS1_any_ratio_passes",
+   "path": "scientific/checks/slab_series.py",
+   "find": "    status = Status.PASS if ratio <= 1.0 else Status.FAIL\n",
+   "replace": "    status = Status.PASS if ratio <= 1e9 else Status.FAIL\n",
+   "rationale": "the series check passes a solver with the wrong conductivity"
+  },
+  {
+   "name": "SS2_any_model_is_checked",
+   "path": "scientific/checks/slab_series.py",
+   "find": "    if (bundle.model_id, bundle.model_version) != (MODEL_ID, MODEL_VERSION):\n",
+   "replace": "    if False:\n",
+   "rationale": "the slab series is applied to a bundle of another model"
+  },
+  {
+   "name": "SS3_the_tolerance_is_unbounded",
+   "path": "scientific/checks/slab_series.py",
+   "find": "        tol = GCI_SAFETY * resolution(q) + 64 * _EPS * abs(r)\n",
+   "replace": "        tol = 1e9\n",
+   "rationale": "the producer's stated resolution no longer bounds the comparison"
+  },
+  {
+   "name": "ST1_an_odd_resolution_is_run",
+   "path": "scientific/models/slab_transient.py",
+   "find": "            if p[name] % 2:\n",
+   "replace": "            if False:\n",
+   "rationale": "a resolution that cannot be halved is run, and its Richardson estimate compares against a different grid"
+  },
+  {
+   "name": "FE1_any_channel_is_admitted",
+   "path": "tools/fenicsx_env.py",
+   "find": "        if not url.startswith(CHANNEL):\n",
+   "replace": "        if False:\n",
+   "rationale": "a package from outside conda-forge over https enters the FEniCSx environment"
+  },
+  {
+   "name": "FE2_lock_and_record_may_differ",
+   "path": "tools/fenicsx_env.py",
+   "find": "    if set(lock) != set(rec):\n",
+   "replace": "    if False:\n",
+   "rationale": "the lock lists a package the sha256 record does not, so it is installed unverified"
+  },
+  {
+   "name": "BU1_a_modified_header_builds",
+   "path": "tools/fmi_build.py",
+   "find": "        if got != sha:\n",
+   "replace": "        if False:\n",
+   "rationale": "the vendored FMI headers can change and the FMU still builds"
+  }
+ ]
+}

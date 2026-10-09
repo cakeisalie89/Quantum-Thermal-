@@ -65,6 +65,7 @@ one bad record does not hide the twenty after it.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TypeGuard
 
 from . import actions
 from .events import EventLog
@@ -142,7 +143,9 @@ class _Rule:
 #: Any pair absent from this table is forbidden, which is what makes the
 #: forbidden states unreachable rather than merely unwritten.
 _AUTH_EDGES = {
-    ("PROPOSED", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"})),
+    # D-2026-105: picking a claim up for review is not the proposer's.
+    ("PROPOSED", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"}),
+                                        distinct_actor=True),
     ("PROPOSED", "REJECTED"): _Rule(
         frozenset({"VERIFIER"}), frozenset({"rejection_reason"}), True),
     ("UNDER_REVIEW", "VERIFIED"): _Rule(
@@ -164,7 +167,8 @@ _AUTH_EDGES = {
     ("VERIFIED", "REVOKED"): _Rule(
         frozenset({"PROMOTER"}), frozenset({"revocation_reason"})),
     # I3: STALE returns only through re-verification.
-    ("STALE", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"})),
+    ("STALE", "UNDER_REVIEW"): _Rule(frozenset({"VERIFIER"}),
+                                     distinct_actor=True),
     ("STALE", "SUPERSEDED"): _Rule(
         frozenset({"PROMOTER"}), frozenset({"superseded_by"})),
     ("STALE", "REVOKED"): _Rule(
@@ -182,7 +186,7 @@ _AUTH_IDENTITY_EVIDENCE = frozenset({"policy_id"})
 _HEX = frozenset("0123456789abcdef")
 
 
-def _is_digest(value: object) -> bool:
+def _is_digest(value: object) -> TypeGuard[str]:
     """True for a lowercase 64-character sha256 hex digest, and nothing else.
 
     Restated rather than imported for the same reason as everything else
@@ -466,7 +470,10 @@ _SCI_REPORT_FIELDS = (
 #: from any other tool -- or from no tool -- is not a governed verification.
 _SCI_CHECK_TOOLS = frozenset({"model.independent_check"})
 _SCI_RUN_TOOLS = frozenset({"model.thermal.conduction_1d.run",
-                            "model.thermal.conduction_2d_axisymmetric.run"})
+                            "model.thermal.conduction_2d_axisymmetric.run",
+                            "model.thermal.slab_transient.run",
+                            "model.thermal.rc2_network.run",
+                            "model.fmi.thermal_rc2.run"})
 
 
 class _SciUnreadable(Exception):
@@ -1182,6 +1189,12 @@ class SubsystemReconstruction:
     root_issuer: "str | None" = None
     #: escalation_id -> the question, its state and who decided it.
     escalations: dict = field(default_factory=dict)
+    #: proposal_id -> what the ingress received: digest, agent, kind.
+    #:
+    #: A proposal permits nothing, so a forged receipt changes no decision;
+    #: but it is the record of what an AI asked for, and an investigation
+    #: reads it -- so it is read twice, under rules restated here.
+    proposals: dict = field(default_factory=dict)
     #: claim_id -> what one instance asserted about one subject.
     #:
     #: Claims are the input to conflict resolution, so a claim attributable
@@ -1380,6 +1393,8 @@ def reconstruct_subsystems(log: EventLog) -> SubsystemReconstruction:
             _sub_grant(ev, p, out, out.secret_grants, "secret")
         elif a == "context.build":
             _sub_context(ev, p, out)
+        elif a == "proposal.receive":
+            _sub_proposal(ev, p, out)
         prev = (ev.seq, ev.hash)
     return out
 
@@ -2639,6 +2654,88 @@ def _sub_context(ev, p: dict, out) -> None:
         {"digest": digest_, "seq": ev.seq})
 
 
+#: The proposal envelope, restated rather than imported from
+#: qta_agent.proposals: its closed field set, the one authority value it may
+#: carry, how its id is derived, and the keys that would make it a claim
+#: about authority. If the ingress and this reader drift apart, the
+#: divergence is the finding.
+_PROP_FIELDS = frozenset({
+    "schema", "proposal_id", "kind", "agent_id", "source", "context",
+    "request", "rationale_sha256", "parent_proposal_id", "iteration",
+    "created_by", "authority"})
+_PROP_KINDS = frozenset({"MODEL_RUN", "SIMULATION_PLAN", "RETRY",
+                         "DIAGNOSTIC", "CODE_PATCH"})
+_PROP_AUTHORITY = "NON_AUTHORITATIVE"
+_PROP_FORBIDDEN = frozenset({
+    "state", "status", "verdict", "verified", "promoted", "approved",
+    "decision", "transition", "signature", "signed", "evidence",
+    "verification", "authority_state", "out_dir", "output_path",
+    "write_path", "canonical"})
+
+
+def _prop_keys(obj, found: set) -> None:
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(k, str) and k.lower() in _PROP_FORBIDDEN:
+                found.add(k)
+            _prop_keys(v, found)
+    elif isinstance(obj, list):
+        for v in obj:
+            _prop_keys(v, found)
+
+
+def _sub_proposal(ev, p: dict, out) -> None:
+    env = p.get("envelope")
+    if not isinstance(env, dict):
+        _note(out, ev, "proposal.receive carries no envelope")
+        return
+    if set(env) != _PROP_FIELDS:
+        _note(out, ev, f"proposal envelope fields differ: unknown "
+                       f"{sorted(set(env) - _PROP_FIELDS)}, missing "
+                       f"{sorted(_PROP_FIELDS - set(env))}")
+        return
+    if env.get("authority") != _PROP_AUTHORITY:
+        _note(out, ev, f"a proposal claiming authority "
+                       f"{env.get('authority')!r}")
+    if env.get("kind") not in _PROP_KINDS:
+        _note(out, ev, f"proposal kind {env.get('kind')!r} is not one "
+                       "this reader knows")
+    bad: set = set()
+    _prop_keys(env, bad)
+    if bad:
+        _note(out, ev, f"a proposal carrying authority-bearing keys "
+                       f"{sorted(bad)}")
+    body = {k: v for k, v in env.items() if k != "proposal_id"}
+    try:
+        want = "prop-" + _sci_json_digest(body)
+        whole = _sci_json_digest(env)
+    except (TypeError, ValueError):
+        _note(out, ev, "a proposal envelope that is not canonical JSON")
+        return
+    pid = env.get("proposal_id")
+    if pid != want:
+        _note(out, ev, f"proposal id {str(pid)[:20]} is not the digest of "
+                       "its content")
+    if ev.target != pid:
+        _note(out, ev, "a receipt filed under another proposal's id")
+    if p.get("envelope_digest") != whole:
+        _note(out, ev, "a receipt whose stated digest is not its "
+                       "envelope's")
+    if p.get("received_by") != ev.actor:
+        _note(out, ev, f"received_by {p.get('received_by')!r} is not the "
+                       f"writer {ev.actor!r}")
+    if ev.actor == env.get("agent_id"):
+        _note(out, ev, "the proposing agent wrote its own receipt; only "
+                       "the ingress receives")
+    prior = out.proposals.get(pid)
+    if prior is not None and prior["digest"] != whole:
+        _note(out, ev, f"{pid} received again with different content")
+        return
+    out.proposals.setdefault(pid, {"digest": whole,
+                                   "agent_id": env.get("agent_id"),
+                                   "kind": env.get("kind")})
+
+
 def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
     """Divergences between a primary projection and the second reader.
 
@@ -2654,7 +2751,8 @@ def compare_subsystems(primary: dict, recon: SubsystemReconstruction) -> tuple:
               "secret_grants": recon.secret_grants,
               "escalations": recon.escalations,
               "claims": recon.claims,
-              "checkpoints": recon.checkpoints}
+              "checkpoints": recon.checkpoints,
+              "proposals": recon.proposals}
     for name, theirs in tables.items():
         mine = primary.get(name)
         if mine is None:

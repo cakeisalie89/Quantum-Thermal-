@@ -41,6 +41,7 @@ from ``scientific`` or ``scientific_ai``.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from .authority import Role, State
 from .canonical import canonical_bytes, digest
@@ -117,7 +118,7 @@ class LearnedLedger:
             raise LedgerError(f"not a learned-lifecycle document: "
                               f"{schema!r}")
         kind = KINDS[document["schema"]]
-        ups = {}
+        ups: dict[str, Any] = {}
         for rid in depends_on:
             rec = self.store.get(rid)
             if rec.state in (State.REVOKED, State.REJECTED, State.STALE):

@@ -180,7 +180,8 @@ def scan_source(src: str, path: str) -> list:
 def scan(root: Path = ROOT, files=None) -> tuple:
     """``(violations, allowed_hits, files_scanned)`` over the tree."""
     files = production_files(root) if files is None else files
-    violations, allowed = [], []
+    violations: list[tuple] = []
+    allowed: list[tuple] = []
     for rel in files:
         if rel == EVENT_MODULE:
             continue

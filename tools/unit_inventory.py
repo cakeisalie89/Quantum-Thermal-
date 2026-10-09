@@ -162,7 +162,7 @@ def main(argv=None):
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
 
-    kinds = {}
+    kinds: dict[str, int] = {}
     for e in declared.values():
         kinds[e["unit"]] = kinds.get(e["unit"], 0) + 1
     real = sum(v for k, v in kinds.items() if k not in NON_UNITS)

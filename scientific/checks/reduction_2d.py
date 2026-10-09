@@ -26,6 +26,8 @@ run the check reports NOT_RUN rather than comparing unlike problems.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from ..identity import implementation_digest
 from ..models.thermal_1d import MODEL_ID, MODEL_VERSION, configure
 from ..quantity import Quantity, ResolutionClass as RC
@@ -33,6 +35,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
+from . import quantity
 
 CHECK_ID = "thermal_1d.reduction_2d_radial_disabled"
 IMPLEMENTATION_MODULES = ("scientific.checks.reduction_2d",
@@ -58,7 +61,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
     if (bundle.model_id, bundle.model_version) != (MODEL_ID, MODEL_VERSION):
         raise ValueError(f"this check is for {MODEL_ID}@{MODEL_VERSION}, "
                          f"not {bundle.model_id}@{bundle.model_version}")
-    common = dict(
+    common: dict[str, Any] = dict(
         check_id=CHECK_ID, check_type=CheckType.INDEPENDENT_IMPLEMENTATION,
         subject_digest=bundle.digest(),
         subject_model=f"{bundle.model_id}@{bundle.model_version}",
@@ -91,7 +94,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
                          n_z=cfg.solver.n_z_2d, n_eval=N_EVAL,
                          disable_radial=True),
         "reduction_2d: 2D radial-disabled solve")
-    nv1 = out.quantity.value
+    nv1 = quantity(out).value
     nv2 = r2.nv_layer_max_K()
     rel = abs(nv2 - nv1) / max(abs(nv1), 1e-12)
     return VerificationResult(

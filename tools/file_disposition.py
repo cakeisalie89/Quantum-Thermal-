@@ -178,6 +178,37 @@ RULES = [
      "NEW in tranche 4 (directive 22): the independent check of Langmuir "
      "capture -- the flux in its pressure form, the rate law by RK4.",
      "tests/test_surface_adsorption.py"),
+    ("scientific/ranking.py", KAH,
+     "NEW (harness programme): ordering quantities only as far as their "
+     "declared resolution resolves them -- resolution tiers, every "
+     "indistinguishable candidate reported at a selection boundary "
+     "(D-2026-99 class).",
+     "tests/test_ranking_equivalence.py"),
+    ("scientific/equivalence.py", KAH,
+     "NEW (harness programme): per-quantity scientific equivalence under "
+     "declared contracts; tolerances only from the quantities' own "
+     "resolutions; decision stability reported apart.",
+     "tests/test_ranking_equivalence.py"),
+    ("scientific/sensitivity.py", KAH,
+     "NEW (harness programme): OAT and SALib Sobol rankings of one "
+     "response compared at resolution; METHODS_DISAGREE reported, never "
+     "resolved.",
+     "tests/test_sensitivity_cross_check.py"),
+    ("scientific/hdf5_bundle.py", KAH,
+     "NEW (harness programme): the generic deterministic HDF5 "
+     "representation of a ResultBundle; refuses any disagreement between "
+     "its views; representation, never authority.",
+     "tests/test_hdf5_bundle.py"),
+    ("scientific/_governed_fmu.py", KAH,
+     "NEW (harness programme): the governed tool that runs a cited FMU in "
+     "its declared runtime and writes its ResultBundle.",
+     "tests/test_external_models.py"),
+    ("qta_agent/proposals.py", KAH,
+     "NEW (harness programme): the AI proposal ingress -- a closed, "
+     "provider-neutral, content-addressed, NON_AUTHORITATIVE envelope, "
+     "received into the log by the ingress and submitted only through "
+     "governed execution.",
+     "tests/test_proposal_ingress.py"),
     ("scientific/models/*.py", PLG,
      "NEW in Phase 2: ScientificModel adapters over existing solvers, "
      "unchanged -- thermal 1D is the proving case.",
@@ -686,6 +717,110 @@ RULES = [
      "table's PASS vocabulary; in the current harness each must say whose "
      "gates these are -- zero CURRENT_AI_SEMANTIC_LEAK (EB15).",
      "tests/test_claim_hygiene.py"),
+    ("tools/harness_demo.py", KAH,
+     "NEW (harness programme): the generic end-to-end demonstration -- "
+     "proposal, retrieval context, governed run, HDF5, independent checks "
+     "(FEniCSx, the FMU against the closed form), decision, "
+     "reconstruction, RO-Crate -- and its negative twin, the fault FMU, "
+     "which must be REJECTED.",
+     "tests/test_harness_demo.py"),
+    ("tools/ro_crate_conformance.py", KAH,
+     "NEW (harness programme): the committed crate under this "
+     "repository's validator and the RO-Crate community's, side by side; "
+     "a disagreement is reported, never resolved.",
+     "tests/test_ro_crate_conformance.py"),
+    ("tools/rust_kernel_decision.py", KAH,
+     "NEW (harness programme): each selective-Rust kernel ADOPTED or "
+     "REJECTED from measured parity in every dispatch, speed and call "
+     "sites; the committed decision must re-derive on any runner.",
+     "tests/test_external_models.py"),
+    ("tools/harness_status.py", KAH,
+     "NEW (harness programme): derives the harness completion status from "
+     "the registries and the evidence against docs/harness_contract.json; "
+     "COMPLETE, BLOCKED or INCOMPLETE, never written by hand.",
+     "tests/test_harness_status.py"),
+    ("typecheck_active.ini", KAH,
+     "NEW (harness programme): the active type-check configuration, a "
+     "file of its own because pyproject.toml is in the witness's "
+     "environment lock.", "tests/test_typecheck_scope.py"),
+    ("tools/typecheck_scope.py", KAH,
+     "NEW (harness programme): the current-active type-check scope -- "
+     "mypy over the active tree, enforced in CI; the modules frozen by "
+     "NF-1T provenance; legacy typing debt measured and recorded apart.",
+     "tests/test_typecheck_scope.py"),
+    ("tools/attach_hosted_evidence.py", KAH,
+     "NEW (harness programme): writes a row's hosted evidence only from "
+     "runs the API shows green on exactly the commit named, with the "
+     "implementation digest computed from that commit's tree.",
+     "tests/test_harness_status.py"),
+    ("tools/fenicsx_env.py", KAH,
+     "NEW (harness programme): the FEniCSx verification environment, "
+     "created from integrations/fenicsx/environment.lock and checked "
+     "package by package against the sha256 conda-forge publishes.",
+     "tests/test_harness_integrations.py"),
+    ("tools/fenicsx_acceptance.py", KAH,
+     "NEW (harness programme): FEniCSx acceptance -- MMS orders, reduction "
+     "to the 1D slab, energy balance, determinism, three negative controls "
+     "that must be rejected; run hosted by harness-integrations.yml.",
+     "tests/test_harness_integrations.py"),
+    ("tools/fmi_build.py", KAH,
+     "NEW (harness programme): builds the thermal_rc2 FMI 3.0 FMU against "
+     "the vendored headers (sha256-checked) and packs it deterministically; "
+     "--fault builds the negative-control variant.",
+     "tests/test_harness_integrations.py"),
+    ("tools/fmi_acceptance.py", KAH,
+     "NEW (harness programme): FMI 3.0 acceptance -- validation by an "
+     "independent runtime, FMI-P1..P5, tamper refusals, the fault FMU "
+     "rejected; run hosted by harness-integrations.yml.",
+     "tests/test_harness_integrations.py"),
+    ("tools/isolated_runtime.py", KAH,
+     "NEW (harness programme): the fmpy and sigstore runtimes, each in its "
+     "own environment from a hash-pinned lock, never in the project's.",
+     "tests/test_harness_integrations.py"),
+    ("tools/supply_chain.py", KAH,
+     "NEW (harness programme): the release candidate -- deterministic "
+     "source archive, CycloneDX SBOM of every locked environment, in-toto "
+     "provenance, SHA256SUMS -- and its fail-closed verification and "
+     "tamper suite; signed in supply-chain.yml.",
+     "tests/test_supply_chain.py"),
+    ("integrations/fenicsx/runner.py", KAH,
+     "NEW (harness programme): the finite-element computations, run only "
+     "in the isolated dolfinx environment; JSON in, JSON out, imports "
+     "nothing from this repository.",
+     "tests/test_harness_integrations.py"),
+    ("integrations/fenicsx/environment.*", KAH,
+     "NEW (harness programme): the explicit conda-forge lock of the FEniCSx "
+     "environment and the sha256 of every package in it.",
+     "tests/test_harness_integrations.py"),
+    ("integrations/fmi/fmpy_runner.py", KAH,
+     "NEW (harness programme): executes an FMU with fmpy in the isolated "
+     "FMI runtime; JSON in, JSON out, imports nothing from this repository.",
+     "tests/test_harness_integrations.py"),
+    ("integrations/fmi/runtime.lock", KAH,
+     "NEW (harness programme): the FMI runtime (fmpy), every wheel by "
+     "hash.", "tests/test_harness_integrations.py"),
+    ("integrations/fmi/thermal_rc2/*", KAH,
+     "NEW (harness programme): the generic two-node thermal RC network as "
+     "an FMI 3.0 Co-Simulation FMU -- C source and model description, with "
+     "its claim-boundary annotation.",
+     "tests/test_harness_integrations.py"),
+    ("integrations/fmi/third_party/fmi3/*", KAI,
+     "NEW (harness programme): the FMI 3.0 C headers and their BSD-2-Clause "
+     "license, vendored unmodified from modelica/fmi-standard v3.0.2; "
+     "SOURCE.json records each file's sha256 and the build checks it.",
+     "tests/test_harness_integrations.py"),
+    ("integrations/proposals/recorded_fixture.jsonl", KAH,
+     "NEW (harness programme): recorded proposer RESPONSES for CI -- no "
+     "provider, no secret; wrapped in envelopes around the live context "
+     "and trusted for nothing.",
+     "tests/test_proposal_ingress.py"),
+    ("integrations/ro_crate/validator.lock", KAH,
+     "NEW (harness programme): roc-validator and its dependencies, every "
+     "wheel hash-pinned, for the external RO-Crate conformance check.",
+     "tests/test_ro_crate_conformance.py"),
+    ("integrations/supply_chain/sigstore.lock", KAH,
+     "NEW (harness programme): the sigstore runtime, every wheel by hash.",
+     "tests/test_supply_chain.py"),
     ("tools/neural_ledger.py", KAH,
      "NEW (NF-1T): the one learned-model tool that imports qta_agent -- "
      "records the written documents in a fresh authority history and "
@@ -1075,6 +1210,54 @@ RULES = [
     ("tests/test_regenerate_instrumented.py", KAH,
      "NEW (D-2026-101): the regeneration wrapper's measured closure.",
      ""),
+    ("tests/test_harness_integrations.py", KAH,
+     "NEW (harness programme): the slab and RC models, the series, "
+     "FEniCSx and FMU checks with their negative controls, the FMI "
+     "boundary against tampered archives; external runtimes REQUIRED in "
+     "the hosted jobs.", ""),
+    ("tests/test_proposal_ingress.py", KAH,
+     "NEW (harness programme): the proposal boundary from both sides -- "
+     "schema refusals, credentials, stale context, receipt, governed "
+     "submission, every authority refusal, the second reader, "
+     "D-2026-105.", ""),
+    ("tests/test_ranking_equivalence.py", KAH,
+     "NEW (harness programme): resolution tiers (the D-2026-99 shape "
+     "reproduced) and every equivalence status for the reason it names.",
+     ""),
+    ("tests/test_sensitivity_cross_check.py", KAH,
+     "NEW (harness programme): METHODS_DISAGREE produced and reported; "
+     "SALib required under QTA_UQ_REQUIRED=1.", ""),
+    ("tests/test_hdf5_bundle.py", KAH,
+     "NEW (harness programme): exact round trip, byte determinism, every "
+     "tamper refused.", ""),
+    ("tests/test_ro_crate_conformance.py", KAH,
+     "NEW (harness programme): packaging, the negative controls, "
+     "NOT_MEASURED never read as agreement.", ""),
+    ("tests/test_external_models.py", KAH,
+     "NEW (harness programme): FMU invariants, external-model admission, "
+     "the governed FMU tool's digest check, the Rust decision rule.", ""),
+    ("tests/test_checkpoint_recovery.py", KAH,
+     "NEW (harness programme, R41): restart through the checkpoint audit; "
+     "every checkpoint class told apart; NONE_USABLE never success; the "
+     "recovered state the log's.", ""),
+    ("tests/test_performance_telemetry.py", KAH,
+     "NEW (harness programme, R49): deterministic counters gate "
+     "inclusively, timing shapes are telemetry, the retired series kept.",
+     ""),
+    ("tests/test_harness_demo.py", KAH,
+     "NEW (harness programme): the end-to-end demonstration's judge and "
+     "its negative twin.", ""),
+    ("tests/test_typecheck_scope.py", KAH,
+     "NEW (harness programme): every Python file in one type-check scope, "
+     "the override held to the real frozen closure, every ignore local "
+     "and explained.", ""),
+    ("tests/test_harness_status.py", KAH,
+     "NEW (harness programme): the completion status is derived, refuses "
+     "COMPLETE on any unsatisfied requirement, and the evidence tool "
+     "refuses runs that are not green on the exact commit.", ""),
+    ("tests/test_supply_chain.py", KAH,
+     "NEW (harness programme): the release candidate's build, verification "
+     "and tamper refusals, offline.", ""),
     ("tests/test_claim_hygiene.py", KAH,
      "NEW (NF-1T closure): the status vocabulary says what was done -- the "
      "legacy PASS count kept to its own section, simulated distribution "
@@ -1246,6 +1429,16 @@ RULES = [
      "release policy, HDF5 model -- moved unchanged out of the root in "
      "tranche 4 (directive 13); still read by the legacy verifier.",
      "directive 13"),
+    ("docs/harness_contract.json", KAH,
+     "NEW (harness programme): the definition of done -- required stack "
+     "states and their backing rows, every row complete with covering "
+     "hosted evidence, clean audits, the facts that must hold, and what "
+     "lies outside a software-completion claim. States no status.",
+     "tests/test_harness_status.py"),
+    ("docs/harness_status.json", KAH,
+     "NEW (harness programme): the derived completion status; written "
+     "only by tools/harness_status.py derive.",
+     "tests/test_harness_status.py"),
     ("docs/pass_semantics_audit.json", KAH,
      "NEW (NF-1T closure): where the legacy gate table's PASS vocabulary "
      "appears and why, by rule; written only by "
@@ -1316,6 +1509,10 @@ RULES = [
      "Test discipline record; its QTA gate and byte-gate framing is "
      "rewritten with the root identity documents (directive 13).",
      ""),
+    ("HARNESS_STATUS.md", KAH,
+     "NEW (harness programme): the derived completion status, rendered; "
+     "written only by tools/harness_status.py derive.",
+     "tests/test_harness_status.py"),
     ("SCIENTIFIC_AI_STATUS.md", KAH,
      "NEW (NF-1T closure): the current status of the Scientific-AI "
      "harness, generated from the committed evidence by tools/neural.py "
@@ -1433,9 +1630,21 @@ RULES = [
      "Runs qta_full_sim/PCC byte gate; rewritten with the workflow (Phase "
      "6).",
      ""),
-    (".github/workflows/container-verify.yml", KAI,
-     "Container verification.",
+    (".github/workflows/container-verify.yml", KAH,
+     "Container verification: builds the declared image and runs it on "
+     "every push to the branch, the generic harness checks first; records "
+     "the image's config digest and layers.",
      ""),
+    (".github/workflows/harness-integrations.yml", KAH,
+     "NEW (harness programme): FEniCSx and FMI 3.0 acceptance on a hosted "
+     "runner, each in its own locked environment; contents: read only.",
+     "tests/test_harness_integrations.py"),
+    (".github/workflows/supply-chain.yml", KAH,
+     "NEW (harness programme): the release candidate signed keylessly with "
+     "this workflow's OIDC identity, verified against the exact pinned "
+     "identity online and offline, every tampered copy refused. "
+     "CI_VALIDATION_ONLY: no tag, no release.",
+     "tests/test_supply_chain.py"),
     (".github/workflows/identity-discovery.yml", KAI,
      "Identity discovery.",
      ""),

@@ -31,9 +31,9 @@ def test_the_matrix_is_self_consistent():
 
 
 def test_every_requirement_row_is_present():
-    """R21-R60, no gaps. A missing row is a requirement quietly dropped."""
+    """R21-R70, no gaps. A missing row is a requirement quietly dropped."""
     ids = {r["id"] for r in CM.load()["rows"]}
-    expected = {f"R{n}" for n in range(21, 61)}
+    expected = {f"R{n}" for n in range(21, 71)}
     assert ids == expected, f"missing {sorted(expected - ids)}, " \
                             f"unexpected {sorted(ids - expected)}"
 
@@ -91,7 +91,17 @@ def test_the_matrix_does_not_claim_scientific_authority():
 #: The direction of these edits is the point. The number is an output of the
 #: rows, not a target to hold: a finding that shows a row is not complete
 #: moves the row, and this line follows it down as readily as up.
-EXPECTED_COMPLETE = 37
+#:
+#: 37 -> 38 with the harness programme: R60's one software gap (hardware-
+#: era vocabulary in active generic files) is closed and enforced, and the
+#: rest of what it lacked -- training at scale, model research, distributed
+#: hardware, an owner's admission policy -- is research_frontier, each item
+#: naming the harness contract's outside item that puts it there.
+#:
+#: 38 -> 42 with R61, R66, R68 and R70 added complete. R62-R65, R67 and R69
+#: are added DEEPLY_IMPLEMENTED: each needs a hosted execution its
+#: acceptance names, and none is recorded yet.
+EXPECTED_COMPLETE = 42
 
 #: And how many rows there ARE, which is a different number and was not
 #: treated as one. The assertion below used to read
@@ -104,7 +114,13 @@ EXPECTED_COMPLETE = 37
 #: DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS: the ~1T configuration is counted
 #: and meta-validated, never allocated or trained, and no admission policy
 #: for learned models exists. EXPECTED_COMPLETE does not move.
-EXPECTED_ROWS = 40
+#:
+#: 40 -> 50 with the harness completion programme: R61-R70 are the
+#: subsystems docs/harness_contract.json requires -- the generic layer and
+#: its HDF5, FEniCSx, FMI, the container, release provenance, proposal
+#: ingress, selective Rust, equivalence and ranking, the generic workflow,
+#: the active type scope.
+EXPECTED_ROWS = 50
 
 
 def test_the_matrix_is_not_completed_silently():
@@ -587,6 +603,18 @@ def test_a_detail_that_restates_the_limit_is_not_an_argument():
     assert any("restates" in p for p in problems), problems
 
 
+@pytest.mark.parametrize("limit", [None, 7, ["a list"], ""])
+def test_a_limit_that_is_not_a_sentence_is_a_finding_not_a_crash(limit):
+    """D-2026-108: a boundary whose 'limit' was not a string reached the
+    restatement check, which did ``detail in limit`` and raised TypeError --
+    the validator crashed on exactly the malformed input it exists to
+    report. Found by the active-scope type check, not by a test."""
+    problems = _boundary("architectural_by_design", limit)
+    assert any("'limit' must be a substantive sentence" in p
+               for p in problems), problems
+    assert not any("restates" in p for p in problems), problems
+
+
 def test_a_reason_outside_the_vocabulary_is_refused():
     problems = _boundary(
         "out_of_scope",
@@ -728,7 +756,13 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: runs 37823848084 and 37823855560 at b7807bb, every job green, and its
 #: implementation digest at that commit; C5 changes none of R60's files, so
 #: the validator derives COVERS_CURRENT_IMPLEMENTATION again.
-EXPECTED_EVIDENCE_COVERS = 1
+#:
+#: 1 -> 0 with the harness programme's first commit. Bringing the learned
+#: substrate under the active type check changes R60's files (annotations
+#: and narrowing; no computed value), so the runs at b7807bb cover an
+#: earlier implementation and R60 derives PREDATES until a later commit
+#: cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 0
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():
@@ -810,3 +844,40 @@ def test_the_spec_count_the_matrix_claims_is_the_count_that_runs():
         f"R51 claims {claimed.group(1)} committed specs run in CI; "
         f"{len(on_disk)} do. Update the row in the commit that adds or "
         "removes a spec, so the change is reviewed rather than absorbed")
+
+
+# --- the research frontier -------------------------------------------------
+
+_FRONTIER = ("the development model's epistemic uncertainty is not assessed: "
+             "one trained model gives no spread over models")
+
+
+def test_a_frontier_item_naming_a_contract_outside_item_passes():
+    assert not _problems(research_frontier=[
+        {"item": _FRONTIER, "outside": "development-model-science"}])
+
+
+@pytest.mark.parametrize("entry, why", [
+    ({"item": _FRONTIER, "outside": "something-convenient"},
+     "not an item of the harness contract"),
+    ({"item": _FRONTIER}, "not an item of the harness contract"),
+    ({"item": "short", "outside": "development-model-science"},
+     "says, in a sentence"),
+    ("a bare sentence about research", "says, in a sentence"),
+    ({"item": _FRONTIER + "; a fuzz target is not yet written",
+      "outside": "development-model-science"}, "describes work"),
+])
+def test_the_frontier_cannot_park_software_work(entry, why):
+    problems = _problems(research_frontier=[entry])
+    assert any(why in p for p in problems), problems
+
+
+def test_the_frontier_must_be_a_list():
+    assert any("must be a list" in p
+               for p in _problems(research_frontier="everything"))
+
+
+def test_the_outside_items_are_read_from_the_contract():
+    items = CM._outside_items()
+    assert items["flagship-allocation-and-training"] == "PAID_COMPUTE"
+    assert items["learned-model-admission"] == "OWNER_DECISION"

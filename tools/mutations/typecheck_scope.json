@@ -1,0 +1,44 @@
+{
+ "title": "The current-active type-check scope",
+ "note": "The scope partitions every tracked Python file; check() fails on any error or any mypy failure; the summary is read, never assumed.",
+ "suites": [
+  "tests/test_typecheck_scope.py"
+ ],
+ "mutations": [
+  {
+   "name": "TS1_everything_is_active",
+   "path": "tools/typecheck_scope.py",
+   "find": "        key = (\"active\" if _in(f, ACTIVE) else\n",
+   "replace": "        key = (\"active\" if True else\n",
+   "rationale": "the legacy QTA tree would be held to the active scope, or (inverted) silently counted as checked"
+  },
+  {
+   "name": "TS2_a_sibling_prefix_is_inside",
+   "path": "tools/typecheck_scope.py",
+   "find": "    return any(path == s or path.startswith(s + \"/\") for s in scope)\n",
+   "replace": "    return any(path.startswith(s) for s in scope)\n",
+   "rationale": "tools_old/ or scientificx.py would be counted as active"
+  },
+  {
+   "name": "TS3_no_summary_is_clean",
+   "path": "tools/typecheck_scope.py",
+   "find": "    raise RuntimeError(\"mypy printed no summary:\\n\" + output[-2000:])\n",
+   "replace": "    return 0, 0\n",
+   "rationale": "a crashed mypy reads as zero errors"
+  },
+  {
+   "name": "TS4_errors_do_not_fail_the_check",
+   "path": "tools/typecheck_scope.py",
+   "find": "    return 1 if errors or code else 0\n",
+   "replace": "    return 0\n",
+   "rationale": "the CI step passes over a scope with errors"
+  },
+  {
+   "name": "TS5_untyped_bodies_are_skipped",
+   "path": "tools/typecheck_scope.py",
+   "find": "    code, out = _mypy(ACTIVE, \"--check-untyped-defs\")\n",
+   "replace": "    code, out = _mypy(ACTIVE)\n",
+   "rationale": "mypy's default skips the bodies of unannotated functions, so half of the active scope is never read"
+  }
+ ]
+}

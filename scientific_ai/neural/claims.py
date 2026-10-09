@@ -321,9 +321,9 @@ def evaluate(subject: str, evidence, *, family_members=()) -> dict:
     out["SCIENTIFIC_PERFORMANCE_ESTABLISHED"]["reason"] = (
         "established only by an authority acceptance outside this "
         "package; the store refuses one for learned records")
-    for c, v in out.items():
+    for name, v in out.items():
         if not v["holds"] and v["reason"] == "no evidence" \
-                and c == "DISTRIBUTED_HARDWARE_VALIDATED":
+                and name == "DISTRIBUTED_HARDWARE_VALIDATED":
             v["reason"] = "no execution on distributed hardware"
     return out
 

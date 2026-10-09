@@ -167,7 +167,7 @@ def expert_parallel_moe(p, h, token_mask, cfg: ModelConfig, mesh, *,
     jax, jnp = require()
     P = jax.sharding.PartitionSpec
     ep = mesh.shape[axis]
-    m = cfg.moe
+    m = cfg.moe_block
     e = m.num_experts
     if e % ep:
         raise PlanError(f"{e} experts over {ep} devices")

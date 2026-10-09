@@ -73,6 +73,7 @@ own code, so a weakened rule here is not reproduced by the second reader.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from .canonical import digest, is_digest
 
@@ -156,7 +157,7 @@ def verification_problems(bundle: dict, report: dict) -> list:
 
 
 def _read(evidence: dict, fetch) -> dict:
-    docs = {}
+    docs: dict[str, Any] = {}
     for key in ("result_bundle", "verification_report"):
         sha = evidence.get(key)
         if not is_digest(sha):

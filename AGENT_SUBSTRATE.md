@@ -54,6 +54,7 @@ rather than a web:
 | `tools.py` | tool contracts and a default-deny registry |
 | `execution.py` | kernel-bounded execution; a timeout is not a success |
 | `checkpoint.py` | a cached verification result, never a second truth |
+| `proposals.py` | the AI proposal ingress: a proposal is a content-addressed envelope with a closed schema, received NON_AUTHORITATIVE (`proposal.receive`, idempotent by id) and submittable only as a governed model run whose result starts PROPOSED; it reads the log through `read_verified` and refuses what it cannot verify, and it can reach no authority of its own -- a proposer cannot even take its own claim into review (D-2026-105) |
 | `policy.py` | versioned rule documents, deny-overrides, dated decisions |
 | `secrets.py` | references that travel, values that do not, redaction at the surface |
 | `netauth.py` | egress as a bounded grant; default deny, label-wise hosts |

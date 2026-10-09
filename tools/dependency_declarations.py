@@ -40,6 +40,7 @@ import re
 import subprocess
 import sys
 import tomllib
+from typing import Mapping
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -57,6 +58,18 @@ ENVIRONMENTAL = {
     "sigstore": "installed by release.yml's verification step only; "
                 "verify_release.py fails closed with a named error when "
                 "it is absent",
+    "mpi4py": "part of the isolated FEniCSx environment "
+              "(integrations/fenicsx/environment.lock); only "
+              "integrations/fenicsx/runner.py, run there, imports it",
+    "petsc4py": "part of the isolated FEniCSx environment; only "
+                "integrations/fenicsx/runner.py imports it",
+    "basix": "part of the isolated FEniCSx environment; only "
+             "integrations/fenicsx/runner.py imports it",
+    "ufl": "part of the isolated FEniCSx environment; only "
+           "integrations/fenicsx/runner.py imports it",
+    "fmpy": "the FMI runtime lives in its own environment "
+            "(integrations/fmi/runtime.lock, tools/isolated_runtime.py); "
+            "only integrations/fmi/fmpy_runner.py, run there, imports it",
 }
 
 _GUARDS = {"ImportError", "ModuleNotFoundError", "Exception",
@@ -149,7 +162,7 @@ def scan_source(src: str, path: str) -> list:
     return found
 
 
-def distribution_of(name: str, dists: dict) -> str | None:
+def distribution_of(name: str, dists: Mapping) -> str | None:
     if name in dists:
         return norm(dists[name][0])
     return STATIC.get(name)
@@ -198,7 +211,7 @@ def check(root: Path = ROOT, pyproject: dict | None = None,
 
 def _comments(text: str) -> dict:
     """Normalized requirement name -> its inline pyproject comment."""
-    out = {}
+    out: dict[str, str] = {}
     for line in text.splitlines():
         m = re.match(r'\s*"([^"]+)",?\s*#\s*(.+)$', line)
         if m:

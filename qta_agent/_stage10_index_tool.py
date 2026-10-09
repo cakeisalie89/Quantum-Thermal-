@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import Any
 
 
 def main(argv: list) -> int:
@@ -59,7 +60,7 @@ def main(argv: list) -> int:
         print("files must be a non-empty list", file=sys.stderr)
         return 2
 
-    entries = []
+    entries: list[dict[str, Any]] = []
     for rel in files:
         if not isinstance(rel, str):
             print(f"file entry is not a string: {rel!r}", file=sys.stderr)

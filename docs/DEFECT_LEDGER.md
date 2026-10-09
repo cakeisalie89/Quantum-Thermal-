@@ -9351,3 +9351,144 @@ stored witness profile is unchanged and keeps the wording it was written
 with. No large configuration was allocated or trained; no learned output
 was admitted. The broader semantic clean-up of the hardware-era vocabulary
 (tranche E) is not begun.
+
+## D-2026-105 — a proposer could take its own claim into review, and the reviewer then stalled on finding it there
+
+**CLASS** — `AUTHORITY`, harness completion programme. `qta_agent/authority.py`,
+`qta_agent/reconstruct.py`, `qta_agent/governed_model.py`.
+
+**WHAT WAS THERE** (`b7807bb`). Separation of duties held at the verdict
+(UNDER_REVIEW to VERIFIED or REJECTED requires an actor other than the
+proposer) and at promotion, but not at the pickup: PROPOSED to
+UNDER_REVIEW, and STALE to UNDER_REVIEW, needed only the VERIFIER role. An
+agent holding both roles could move its own claim into review. Nothing
+became VERIFIED that way -- the verdict edge still refused it -- but the
+record was then in a state the real reviewer's `decide` did not expect,
+and `decide` failed on a pickup that had already happened instead of going
+on to the verdict. Found by the proposal-ingress tests, when an AI proposer
+was given the governed path end to end.
+
+**REPAIR.** Both edges into UNDER_REVIEW require a distinct actor, in the
+gate (`requires_distinct_actor=True`) and, restated, in the second
+reader's edge table, so a pickup appended straight into the log past the
+store is refused on replay. `decide` resumes a record that is already
+UNDER_REVIEW and goes on to the verdict, so a crash between pickup and
+verdict is recoverable.
+
+**EVIDENCE.** `tests/test_proposal_ingress.py` (the store refuses the
+proposer's pickup; the second reader refuses one forged into the log; an
+interrupted decision resumes); mutations AU1 (the gate) and AU2 (the
+second reader) in `tools/mutations/proposal_ingress.json`, and R43 re-anchored on the
+amended edge table (`tools/mutations/agent_second_reader.json`).
+
+**NOT CLAIMED.** No record in any committed history took this path; the
+replayed stage-10 logs reconstruct unchanged.
+
+## D-2026-106 — the internal RO-Crate validator accepted a crate that conforms to no specification, and the crate lacked a REQUIRED property
+
+**CLASS** — `CONFORMANCE`, harness completion programme. `ro_crate_tools.py`,
+`ro-crate/ro-crate-metadata.json`.
+
+**WHAT WAS THERE** (`b7807bb`). `ro_crate_tools.py validate` checked
+entity identity, the root dataset and file coverage, and reported VALID for
+a crate whose metadata descriptor had no `conformsTo` (RO-Crate 1.1 s.4.1
+REQUIRES it, and it is how a reader knows what the crate claims to be) or
+was not `about` the root. The committed crate also lacked the root
+dataset's `datePublished`, which RO-Crate 1.1 REQUIRES. Found when the
+maintained external validator (roc-validator, pinned and hashed in
+`integrations/ro_crate/validator.lock`) was run with negative controls
+beside the internal one, and the two disagreed.
+
+**REPAIR.** The internal validator checks the descriptor (present, about
+the root, `conformsTo` an RO-Crate 1.x specification) and the root's ISO
+8601 `datePublished`; the crate carries a declared publication date, not a
+clock reading. `tools/ro_crate_conformance.py` runs both validators over
+the real crate and four broken controls and requires them to agree.
+
+**EVIDENCE.** `tests/test_ro_crate_conformance.py`; mutations RC1-RC5.
+
+**NOT CLAIMED.** Conformance to the RO-Crate structure is not a claim that
+any packaged result is correct.
+
+## D-2026-107 — a performance baseline gated a timed ratio that had stopped being timed
+
+**CLASS** — `MEASUREMENT`, harness completion programme.
+`docs/performance_baseline.json`, `tests/test_agent_performance.py`,
+`tools/performance_baseline.py`.
+
+**WHAT WAS THERE** (`b7807bb`). `governed_operation_vs_history` was
+recorded as a TIMED ratio under a 4.0 ceiling (two observations, 1.21 and
+1.10). The guard had since become an exact re-hash count whose property is
+equality, and the suite records 1.0 -- yet the baseline still held the
+timed series and the test still pinned 4.0. A count and a timing were
+being compared as one quantity, and nothing distinguished work that is
+deterministic (a count, gated) from timing that depends on the host
+(telemetry, never a gate on a shared runner).
+
+**REPAIR.** Every measured guard declares a kind: DETERMINISTIC_WORK (an
+inclusive maximum, gated on every run) or ENVIRONMENT_SENSITIVE_TIMING (an
+exclusive gross bound, reported as telemetry with the host). The timed
+series is retired -- kept, with its reason, and refused by `--record` --
+and the guard is published as DETERMINISTIC_WORK with a maximum of 1.0.
+
+**EVIDENCE.** `tests/test_agent_performance.py`,
+`tests/test_performance_telemetry.py`; mutations
+`tools/mutations/performance_telemetry.json`.
+
+**NOT CLAIMED.** Timing on a shared hosted runner says nothing about a
+user's machine; it is reported, not gated.
+
+## D-2026-108 — the completion-matrix validator crashed on the malformed boundary it exists to report
+
+**CLASS** — `VALIDATION`, harness completion programme.
+`tools/completion_matrix.py`.
+
+**WHAT WAS THERE** (`3b82594`). A boundary's `limit` that was not a string
+(None, a number, a list) was reported as not substantive -- and then
+reached the restatement check, which evaluated `detail in limit` and raised
+TypeError. The validator crashed instead of returning the finding. Found
+by the current-active type check (`tools/typecheck_scope.py`), not by a
+test.
+
+**REPAIR.** A non-string limit is reported and then compared as empty
+text; the restatement check runs only on a non-empty limit.
+
+**EVIDENCE.** `tests/test_completion_matrix.py`
+(`test_a_limit_that_is_not_a_sentence_is_a_finding_not_a_crash`, four
+cases); C5 re-anchored on the amended line.
+
+**NOT CLAIMED.** No committed boundary had a non-string limit; the shipped
+matrix validated before and after.
+
+## D-2026-109 — a foreign checkpoint was classed as records removed whenever the other log's records happened to be longer
+
+**CLASS** — `RECOVERY`, harness completion programme (R41).
+`qta_agent/checkpoint.py`.
+
+**WHAT WAS THERE** (`3b82594`, and the classified audit added in this
+programme). `check_against` compared the checkpoint's end offset with the
+log's size before anything else, and an offset past the end raised
+CheckpointAheadOfLog -- "records the checkpoint covered have been removed".
+A checkpoint of a DIFFERENT log whose records are a few bytes longer
+(ids, timestamps) also ends past this log's end, so it was classed
+AHEAD_OF_LOG instead of FOREIGN_LOG. Both classes are unusable, so no
+recovery restored the wrong state; but the audit's account of why was
+wrong, and `tests/test_checkpoint_recovery.py` failed about one run in six.
+Found when the mutation harness's null control went red on it: a test that
+fails without any change cannot tell a mutation from noise.
+
+**REPAIR.** When the log is short in bytes, the log's own last complete
+record decides: if it reaches the checkpoint's seq, the checkpoint's
+offsets belong to another log (CheckpointMismatch, FOREIGN_LOG); otherwise
+records are gone (AHEAD_OF_LOG). A torn final line is not a record. The
+read happens only on that failure path, so the cheap check stays cheap.
+
+**EVIDENCE.** `tests/test_checkpoint_recovery.py`: a foreign checkpoint
+built to be longer in bytes is FOREIGN_LOG on every run; a log truncated
+in place, its head witness untouched, is AHEAD_OF_LOG; the last-record
+reader on empty, clean, torn and malformed tails. Mutations CR9 and CR10
+(`tools/mutations/checkpoint_recovery.json`); 25 consecutive runs of the
+file green after the repair.
+
+**NOT CLAIMED.** Nothing about which checkpoint recovery uses changed:
+both classes were and are unusable.

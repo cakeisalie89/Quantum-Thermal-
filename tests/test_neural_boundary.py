@@ -134,6 +134,53 @@ def test_the_audit_finds_no_neural_leak_and_no_unexplained_file():
     assert rep["unclassified"] == 0
 
 
+def test_the_audit_finds_no_generic_leak_either():
+    """Enforced since the harness programme: it was only reported, and the
+    one active document that carried a machine-mode requirement (the FMI
+    element of stack.json) now states the generic step semantics the FMU
+    is actually tested against."""
+    rep = A.audit()
+    assert rep["active_generic_semantic_leaks"] == 0, [
+        f["path"] for f in rep["findings"]
+        if f["class"] == "ACTIVE_GENERIC_SEMANTIC_LEAK"]
+
+
+def test_every_qta_plugin_finding_says_whether_the_witness_freezes_it():
+    rep = A.audit()
+    plugins = [f for f in rep["findings"]
+               if f["class"] == "QTA_MODEL_PLUGIN_DOMAIN"]
+    assert plugins and all("in_witnessed_generator_closure" in f
+                           for f in plugins)
+    assert any(f["in_witnessed_generator_closure"] for f in plugins)
+
+
+@pytest.mark.parametrize("doc, unscoped", [
+    ('{"legacy_authorities": {"m": "Mode B processing"}}', 0),
+    ('{"legacy": ["methane routing"], "x": "generic"}', 0),
+    ('{"authorities": {"m": "Mode B processing"}}', 1),
+    ('{"open_items": ["a step may not straddle a Mode C change"]}', 1),
+    ('{"Mode_D": 1}', 1),
+    ('not json', None),
+])
+def test_an_active_json_hit_is_legacy_only_under_a_legacy_key(doc,
+                                                               unscoped):
+    assert A.unscoped_json_hits(doc) == unscoped
+
+
+def test_an_active_json_document_with_an_unscoped_hit_is_a_leak(tmp_path):
+    (tmp_path / "FILE_DISPOSITION.csv").write_text(
+        "path,disposition\nreg.json,KEEP_AND_HARDEN\n"
+        "old.json,KEEP_AND_HARDEN\n")
+    (tmp_path / "reg.json").write_text('{"items": ["Mode B only"]}')
+    (tmp_path / "old.json").write_text(
+        '{"legacy_items": ["Mode B only"]}')
+    rep = A.audit(tmp_path, files=["reg.json", "old.json"])
+    by = {f["path"]: f["class"] for f in rep["findings"]}
+    assert by == {"reg.json": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+                  "old.json": "LEGACY_SCOPED_SECTION"}
+    assert rep["active_generic_semantic_leaks"] == 1
+
+
 @pytest.mark.parametrize("planted,cls", [
     ("scientific_ai/neural/new_router.py", "ACTIVE_NEURAL_SEMANTIC_LEAK"),
     ("tools/neural_export.py", "ACTIVE_NEURAL_SEMANTIC_LEAK"),

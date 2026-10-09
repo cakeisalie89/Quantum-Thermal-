@@ -77,6 +77,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from .canonical import digest_bytes
 from .capability import Action, CapabilityDenied, CapabilitySet, Request
@@ -620,11 +621,12 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
     # cancelled run wrote nothing, and comparing against an inventory taken
     # after the fact would call every pre-existing file an undeclared write.
     before_inventory = _inventory(Path(cwd), spec.writable_scope)
-    base = dict(tool_id=spec.tool_id, tool_version=spec.version,
-                tool_digest=spec.digest(), limits=limits.to_record(),
-                determinism=spec.determinism.value,
-                side_effect=spec.side_effect.value,
-                compensation=spec.compensation, started_wall=started)
+    base: dict[str, Any] = dict(
+        tool_id=spec.tool_id, tool_version=spec.version,
+        tool_digest=spec.digest(), limits=limits.to_record(),
+        determinism=spec.determinism.value,
+        side_effect=spec.side_effect.value,
+        compensation=spec.compensation, started_wall=started)
 
     if cancel is not None and cancel.cancelled:
         # Checked before spawning: a cancellation that cannot prevent the work

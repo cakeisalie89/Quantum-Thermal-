@@ -78,7 +78,7 @@ def module_name(path: str) -> str:
 
 def _imported_names(tree: ast.AST, package: str) -> set:
     """Every dotted name an import statement anywhere in ``tree`` names."""
-    names = set()
+    names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names.update(a.name for a in node.names)
@@ -150,7 +150,7 @@ class Boundary:
         # ones only with their directory (see the boundary's file_rule_note).
         self.legacy_basenames = {p for p in self.legacy_files
                                  if "/" not in p}
-        self.exceptions = {}
+        self.exceptions: dict[tuple[str, str], list[dict]] = {}
         for e in self.spec.get("declared_exceptions", ()):
             self.exceptions.setdefault((e["module"], e["rule"]), []).append(e)
         self.tokens = tuple(self.spec["legacy_ontology_tokens"])
@@ -184,7 +184,7 @@ class Boundary:
 
     def closure(self, mod: str) -> dict:
         """``{reached module: the module it was reached from}``."""
-        via = {mod: None}
+        via: dict[str, str | None] = {mod: None}
         stack = [mod]
         while stack:
             cur = stack.pop()

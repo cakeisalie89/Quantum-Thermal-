@@ -42,6 +42,7 @@ from qta_agent.idempotency import IdempotencyLedger  # noqa: E402
 from qta_agent.memory import MemoryStore  # noqa: E402
 from qta_agent.netauth import NetworkAuthority  # noqa: E402
 from qta_agent.policy import PolicyStore  # noqa: E402
+from qta_agent.proposals import received  # noqa: E402
 from qta_agent.reconstruct import reconstruct, reconstruct_tasks  # noqa: E402
 from qta_agent.scheduler import Scheduler  # noqa: E402
 from qta_agent.secrets import SecretStore  # noqa: E402
@@ -423,6 +424,7 @@ BEHAVIOUR = {
     "qta_agent.netauth.NetworkAuthority":
         lambda log: NetworkAuthority(log).load(),
     "qta_agent.secrets.SecretStore": lambda log: SecretStore(log).load(),
+    "qta_agent.proposals.received": lambda log: received(log),
 }
 STRUCTURAL_ONLY = {"qta_agent.governed_stage10.GovernedStage10",
                    "qta_agent.governed_model.GovernedOrigins",

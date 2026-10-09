@@ -215,3 +215,37 @@ def test_a_pulse_run_is_not_compared(run):
                                 parameter_digest=digest(params))
     v = reduction_2d.run_check(pulse, verifier_id="checker")
     assert v.status is Status.NOT_RUN and not v.passed
+
+
+def _hardware_era_terms(obj) -> list:
+    """Every key or string in a record that matches the legacy audit's own
+    hardware-era patterns (machine modes, routing by species)."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import neural_legacy_audit as NLA
+    found = []
+
+    def walk(o, path):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                walk(str(k), path + "/" + str(k))
+                walk(v, path + "/" + str(k))
+        elif isinstance(o, (list, tuple)):
+            for i, v in enumerate(o):
+                walk(v, f"{path}[{i}]")
+        elif isinstance(o, str):
+            found.extend((path, name) for name, p in NLA.PATTERNS.items()
+                         if p.search(o))
+    walk(obj, "")
+    return found
+
+
+def test_the_generic_bundle_carries_no_hardware_era_semantics(run):
+    """The bundle used to record the whole legacy SolverConfig, which
+    carries the QTA apparatus's Mode-D readiness threshold: a generic
+    result was carrying a hardware-era machine state in its provenance.
+    It records the solver settings it uses (SOLVER_FIELDS) and nothing
+    that names a machine mode or routes a species."""
+    bundle, _ = run
+    rec = bundle.to_record()
+    assert set(rec["solver_config"]) == set(T1.SOLVER_FIELDS)
+    assert _hardware_era_terms(rec) == []

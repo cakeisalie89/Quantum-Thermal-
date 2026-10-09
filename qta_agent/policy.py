@@ -639,6 +639,9 @@ class PolicyStore:
                 f"seq {ev.seq}: decision claims digest {str(claimed)[:12]} "
                 f"but its content hashes to {digest(body)[:12]}")
         policy_id = rec.get("policy_id")
+        if not isinstance(policy_id, str):
+            raise PolicyError(f"seq {ev.seq}: decision cites policy "
+                              f"{policy_id!r}, which is not a policy id")
         try:
             doc = self.in_force_at(policy_id, ev.seq)
         except (UnknownPolicy, PolicyError) as exc:

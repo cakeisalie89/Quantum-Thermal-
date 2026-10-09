@@ -183,7 +183,7 @@ def read_scope(root_id: str, *paths: str) -> tuple:
     return tuple(f"{root_id}/{p.lstrip('/')}" for p in paths)
 
 
-def identity_of(path) -> tuple:
+def identity_of(path) -> tuple | None:
     """``(device, inode)`` for a path, or None. Diagnostic, for tests."""
     try:
         st = os.lstat(os.fspath(path))

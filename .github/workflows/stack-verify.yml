@@ -9,7 +9,8 @@
 # instruction was already satisfied and has been removed.
 #
 # SCOPE, so the green badge is not over-read: this job lints and type-checks
-# qta_multiphysics/stack, runs tests/test_stage10_stack.py only, runs the
+# qta_multiphysics/stack, runs tests/test_stage10_stack.py and the generic
+# sensitivity cross-check (SALib required on the full leg), runs the
 # generic workflow -- the Snakefile's default target, 13 jobs, three of them
 # governed -- and then the legacy s10_full on top of it (one more job, the
 # gate-table report), and asserts the canonical tree is untouched with
@@ -27,6 +28,9 @@ on:
     paths:
       - "qta_multiphysics/stack/**"
       - "tests/test_stage10_stack.py"
+      - "scientific/sensitivity.py"
+      - "scientific/ranking.py"
+      - "tests/test_sensitivity_cross_check.py"
       - "rust/**"
       - "STACK.md"
       - "stack.json"
@@ -65,8 +69,12 @@ jobs:
         run: |
           uv run ruff check qta_multiphysics/stack tests/test_stage10_stack.py
           uv run mypy qta_multiphysics/stack
-      - name: Stage-10 test suite
-        run: uv run python -m pytest tests/test_stage10_stack.py -q
+      - name: Stage-10 test suite, and the generic sensitivity cross-check
+        # the full leg REQUIRES SALib: there a skipped global path is a
+        # failure, so METHODS_DISAGREE cannot be passed by not computing it
+        run: |
+          if [ "${{ matrix.extras }}" = "full" ]; then export QTA_UQ_REQUIRED=1; fi
+          uv run python -m pytest tests/test_stage10_stack.py tests/test_sensitivity_cross_check.py -q
       - name: the generic scientific workflow (the default target)
         run: uv run snakemake --cores 1
       - name: LEGACY s10_full -- the gate-table report on top of it

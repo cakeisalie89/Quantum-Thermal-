@@ -71,8 +71,8 @@
     {
       "name": "GC10_any_model_is_admitted",
       "path": "tools/generic_consistency.py",
-      "find": "        registry.lookup(bundle.model_id, bundle.model_version)\n    except",
-      "replace": "        pass\n    except",
+      "find": "            registry.lookup(bundle.model_id, bundle.model_version)\n        except",
+      "replace": "            pass\n        except",
       "rationale": "a model the catalog does not admit passes the identity check"
     },
     {

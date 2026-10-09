@@ -300,7 +300,7 @@ def main(argv=None) -> int:
     doc = load_profile(root)
     record = probe_environment(root, _distributions(doc))
     identity = R.backend_identity(record)
-    if identity is None:
+    if identity is None or record is None:
         print("BACKEND_STATUS=UNRESOLVED")
         for p in R.unresolved_parts(record):
             print(f"  - {p}")

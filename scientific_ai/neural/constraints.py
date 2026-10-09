@@ -62,6 +62,8 @@ def _margin(c: Constraint, inputs: dict, pred: dict) -> float:
         if c.upper is not None:
             m = min(m, c.upper - v)
         return m
+    if c.relation is None:          # refused at construction; restated
+        raise ValueError(f"{c.constraint_id}: {c.kind} has no relation")
     return float(c.relation(inputs, pred))
 
 

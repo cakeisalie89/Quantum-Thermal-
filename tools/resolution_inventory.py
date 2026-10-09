@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What states the resolution of the method that produced each published number?
+"""What states the resolution of the method behind each published number?
 
 DIAGNOSTIC + GATE. Nothing here moves a threshold, authors a gate state or
 writes into the canonical tree. MODEL-ONLY / FORECAST-ONLY. PASS remains 0.
@@ -280,8 +280,8 @@ def reconcile(governed: set, declared: dict) -> list:
         if basis != "CARRIER":
             if not e.get("why"):
                 problems.append(
-                    f"{key}: basis {basis} states no reason; a column exempted "
-                    "from the discipline has to say why it is exempt")
+                    f"{key}: basis {basis} states no reason; a column "
+                    "exempted from the discipline has to say why it is exempt")
             continue
         src, _ = key.split(":", 1)
         carrier = e.get("resolution_from")
@@ -356,7 +356,8 @@ def main(argv=None) -> int:
           f"artefacts: {carriers} carry a resolution class "
           f"({len(reached)} artefacts), {counts['EXACT_BY_CONSTRUCTION']} are "
           f"exact by construction, {counts['COORDINATE']} are coordinates, "
-          f"{counts['FLOOR']} are floors, and {open_gap} have no floor defined")
+          f"{counts['FLOOR']} are floors, and {open_gap} have no floor "
+          "defined")
     print(f"quantity-bound bindings outside wide columns: {n_rows} "
           f"long-format row(s), {n_json} JSON binding(s)")
     if args.verbose:

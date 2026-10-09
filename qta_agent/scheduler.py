@@ -51,11 +51,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import FrozenSet
+from typing import Any, FrozenSet
 
 from .canonical import digest, is_digest
 from .events import EventLogError
-from .policy import Effect, PolicyRequest, document, rule
+from .policy import (Decision, Effect, PolicyDocument, PolicyRequest,
+                     document, rule)
 
 ACT_ENQUEUE = "scheduler.enqueue"
 ACT_JOB_TRANSITION = "scheduler.transition"
@@ -379,7 +380,7 @@ def backoff_for(attempt: int) -> int:
     return min(BACKOFF_MAX_SEQS, BACKOFF_BASE_SEQS * (2 ** (attempt - 1)))
 
 
-def default_policy(policy_id: str = "scheduler.default") -> "object":
+def default_policy(policy_id: str = "scheduler.default") -> PolicyDocument:
     """A minimal, explicit scheduling policy.
 
     Offered as a starting point, not as a default that applies when nobody
@@ -868,7 +869,7 @@ class Scheduler:
         self.apply(ev)
         return ev
 
-    def _gate(self, req, *, actor: str) -> "object":
+    def _gate(self, req, *, actor: str) -> Decision:
         """Evaluate a policy request and RECORD IT IF IT WAS REFUSED.
 
         A control plane that logs only what it permitted cannot answer "what
@@ -1789,9 +1790,9 @@ def reauthorize_job_edge(job: Job, dst: JobState, payload: dict, *,
 
 def _apply_edge(job: Job, edge: JobEdge, payload: dict, *, seq: int) -> Job:
     """Fold an authorized transition into a job. Pure; no I/O."""
-    updates = {"state": edge.dst, "revision": job.revision + 1,
-               "updated_seq": seq,
-               "reason": payload.get("reason") or edge.reason}
+    updates: dict[str, Any] = {
+        "state": edge.dst, "revision": job.revision + 1, "updated_seq": seq,
+        "reason": payload.get("reason") or edge.reason}
     for name in ("lease_id", "lease_holder", "task_id", "last_failure"):
         if name in payload:
             val = payload[name]

@@ -1,0 +1,65 @@
+{
+ "title": "The generic HDF5 representation of a ResultBundle",
+ "note": "H1-H8: each disagreement between the structured view, the record, the stated digest and the artefact bytes is refused; authority is never claimed.",
+ "suites": [
+  "tests/test_hdf5_bundle.py"
+ ],
+ "mutations": [
+  {
+   "name": "H1_value_unchecked",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "            if float(node[()]) != q[\"value\"]:\n",
+   "replace": "            if False:\n",
+   "rationale": "an output value edited in the structured view reads back as the record"
+  },
+  {
+   "name": "H2_attrs_unchecked",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "                if _unattr(node.attrs.get(a)) != _attr(q[a]):\n",
+   "replace": "                if False:\n",
+   "rationale": "a changed unit or resolution attribute passes"
+  },
+  {
+   "name": "H3_digest_unchecked",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "        if bundle.digest() != attrs.get(\"bundle_digest\"):\n",
+   "replace": "        if False:\n",
+   "rationale": "a rewritten record passes as the stated bundle"
+  },
+  {
+   "name": "H4_raw_artifact_unchecked",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "            if digest_bytes(raw) != refs[name].digest:\n",
+   "replace": "            if False:\n",
+   "rationale": "artefact bytes not their digest pass"
+  },
+  {
+   "name": "H5_authority_claim_accepted",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "        if attrs.get(\"authority\") != AUTHORITY:\n",
+   "replace": "        if False:\n",
+   "rationale": "a file claiming authority is read"
+  },
+  {
+   "name": "H6_parameters_unchecked",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "            if _unattr(params[name][()]) != rec[\"parameters\"][name]:\n",
+   "replace": "            if False:\n",
+   "rationale": "an edited parameter passes"
+  },
+  {
+   "name": "H7_invariants_unchecked",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "            if bool(invs[iid].attrs[\"holds\"]) != by_id[iid][\"holds\"]:\n",
+   "replace": "            if False:\n",
+   "rationale": "a flipped invariant passes"
+  },
+  {
+   "name": "H8_write_accepts_wrong_bytes",
+   "path": "scientific/hdf5_bundle.py",
+   "find": "        if digest_bytes(raw) != refs[name].digest or \\\n                len(raw) != refs[name].size_bytes:\n",
+   "replace": "        if False:\n",
+   "rationale": "bytes the bundle does not cite are written as its artefact"
+  }
+ ]
+}

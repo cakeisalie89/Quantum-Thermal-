@@ -63,6 +63,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from typing import Sequence
 
 from .authority import CANONICAL, INITIAL, State, find_edge
 from .canonical import is_digest
@@ -443,7 +444,8 @@ class AuditIndex:
         actors = tuple(sorted({s.actor for s in steps}))
         return Explanation(task_id, outcome, tuple(steps), gaps, actors)
 
-    def _execution_count_gaps(self, task_id: str, steps: tuple) -> tuple:
+    def _execution_count_gaps(self, task_id: str,
+                              steps: Sequence[Step]) -> tuple:
         """Did the work run more than once under one task identity?
 
         This is the question an idempotency claim actually rests on, and it
@@ -463,7 +465,8 @@ class AuditIndex:
             "a key to this task is suppressing duplicates it already let "
             "through",)
 
-    def _execution_phase_gaps(self, task_id: str, steps: tuple) -> tuple:
+    def _execution_phase_gaps(self, task_id: str,
+                              steps: Sequence[Step]) -> tuple:
         """Execution records the lifecycle has no place for.
 
         The governed runner writes one in EXECUTING, between the tool's run
@@ -485,7 +488,7 @@ class AuditIndex:
         return tuple(found)
 
     def _gaps(self, task_id: str, outcome: str, seen: set,
-              steps: tuple, transitions: list) -> tuple:
+              steps: Sequence[Step], transitions: list) -> tuple:
         """Structural holes in a chain. The question enforcement cannot ask."""
         gaps = []
 
@@ -648,7 +651,8 @@ class AuditIndex:
         actors = tuple(sorted({s.actor for s in steps}))
         return Explanation(record_id, outcome, tuple(steps), gaps, actors)
 
-    def _record_gaps(self, record_id: str, outcome: str, steps: tuple, *,
+    def _record_gaps(self, record_id: str, outcome: str,
+                     steps: Sequence[Step], *,
                      created: bool, proposer, depends_on: list) -> tuple:
         """Holes only a reader of the whole history can see."""
         gaps = []

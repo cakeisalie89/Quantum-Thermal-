@@ -36,6 +36,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "reference_backend" / "spec.json"
@@ -192,7 +193,8 @@ def recipe_problems(spec: dict, build: str, run: str) -> list:
         out.append("build.sh does not verify each patch before applying it")
     for name in ("openblas", "numpy", "scipy", "rootfs"):
         up = name.upper()
-        if not re.search(rf'^fetch "\$QTA_REF_{up}_URL" "\$QTA_REF_{up}_SHA256"',
+        if not re.search(rf'^fetch "\$QTA_REF_{up}_URL" '
+                         rf'"\$QTA_REF_{up}_SHA256"',
                          build, re.M):
             out.append(f"build.sh does not fetch {name} against its pin")
     if not re.search(r'"\$QTA_REF_PYTHON_SHA256 [^\n]*\| sha256sum -c', build):
@@ -225,7 +227,7 @@ def build_record(spec: dict) -> dict:
     rootfs = prefix / "rootfs"
     libs = {n: sha256(rootfs / "usr/lib/x86_64-linux-gnu" / n) for n in (
         "libc.so.6", "libm.so.6", "ld-linux-x86-64.so.2")}
-    tools = {}
+    tools: dict[str, str | None] = {}
     for pkg in spec["toolchain"]:
         try:
             tools[pkg] = subprocess.run(
@@ -356,7 +358,7 @@ def physical_host(cpuinfo: str | None = None) -> dict:
             cpuinfo = Path("/proc/cpuinfo").read_text(encoding="utf-8")
         except OSError:
             cpuinfo = ""
-    first = {}
+    first: dict[str, Any] = {}
     for line in cpuinfo.split("\n\n")[0].splitlines():
         k, _, v = line.partition(":")
         first.setdefault(k.strip(), v.strip())

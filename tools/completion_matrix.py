@@ -121,7 +121,7 @@ def implementation_digest(paths, read, listdir) -> str:
     answer in a shallow CI checkout, where there is nothing to diff against.
     """
     h = hashlib.sha256()
-    expanded = []
+    expanded: list[str] = []
     for p in paths:
         members = listdir(p)
         expanded.extend(members if members else [p])
@@ -282,6 +282,18 @@ def _rank(cls: str) -> int:
     return CLASSES.index(cls) if cls in CLASSES else -1
 
 
+def _outside_items() -> dict:
+    """``{id: class}`` of what the harness contract puts outside software
+    completion; empty when there is no contract to read."""
+    try:
+        doc = json.loads((ROOT / "docs" / "harness_contract.json")
+                         .read_text(encoding="utf-8"))
+        return {o["id"]: o["class"]
+                for o in doc["outside_this_software_completion"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
 def validate(doc: dict) -> list:
     problems: list = []
     rows = doc.get("rows")
@@ -412,6 +424,42 @@ def validate(doc: dict) -> list:
                     f"{sorted(hits)}. Re-read the harness before writing a "
                     "coverage gap: an understated row is drift too")
 
+        # THE RESEARCH FRONTIER. What a row's subject still lacks that is
+        # not software work at all -- model research, paid compute,
+        # hardware, an owner's decision -- named against the
+        # outside_this_software_completion list of docs/harness_contract.
+        # json. Not a residual gap (nothing in this repository closes it)
+        # and not a boundary (someone can close it, with what this programme
+        # may not use). Each entry names the contract item that puts it
+        # outside; an id the contract does not list is refused, and so is
+        # prose that describes work, so the list cannot park software work.
+        frontier = row.get("research_frontier", [])
+        if not isinstance(frontier, list):
+            problems.append(f"{rid}: research_frontier must be a list")
+            frontier = []
+        outside = _outside_items()
+        for i, f in enumerate(frontier):
+            where = f"{rid}: research_frontier {i + 1}"
+            item = f.get("item") if isinstance(f, dict) else None
+            if not isinstance(item, str) or len(item.strip()) < 40:
+                problems.append(
+                    f"{where} must be an object whose 'item' says, in a "
+                    "sentence, what is not done")
+                continue
+            oid = f.get("outside")
+            if oid not in outside:
+                problems.append(
+                    f"{where}: outside {oid!r} is not an item of the "
+                    "harness contract's outside_this_software_completion; "
+                    "what no item covers is a residual gap")
+            low = item.lower()
+            for phrase in _WORK_PHRASES:
+                if phrase in low:
+                    problems.append(
+                        f"{where}: says {phrase!r}, which describes work in "
+                        "this repository; that is a residual gap")
+                    break
+
         # A row above PARTIALLY_IMPLEMENTED with no gaps and no COMPLETE
         # claim is claiming perfection without saying so.
         if (cls not in BLOCKED and cls != COMPLETE
@@ -520,6 +568,10 @@ def validate(doc: dict) -> list:
                 problems.append(
                     f"{where}: 'limit' must be a substantive sentence saying "
                     "what is NOT claimed")
+                # Reported, then compared as text: a limit that is not a
+                # string used to crash the restatement check below
+                # (D-2026-108) instead of being the finding it is.
+                limit = limit if isinstance(limit, str) else ""
             reason = b.get("reason")
             if reason not in BOUNDARY_REASONS:
                 problems.append(
@@ -541,7 +593,8 @@ def validate(doc: dict) -> list:
                     "that work is exhausted, and a claim with no argument "
                     "behind it is how unfinished work gets reclassified")
                 detail = detail if isinstance(detail, str) else ""
-            elif detail.strip() in limit or limit.strip() in detail:
+            elif limit and (detail.strip() in limit
+                            or limit.strip() in detail):
                 problems.append(
                     f"{where}: 'detail' restates 'limit'. Saying the same "
                     "thing twice is not evidence that engineering is "
@@ -655,7 +708,7 @@ def main() -> int:
         q = _P(p)
         return (sorted(str(x) for x in q.rglob("*") if x.is_file())
                 if q.is_dir() else [])
-    ev_counts = {}
+    ev_counts: dict[str, int] = {}
     for r in rows:
         st = evidence_state(r, _rd, _ls)
         ev_counts[st] = ev_counts.get(st, 0) + 1

@@ -14,16 +14,16 @@
    "occurrences": 0
   },
   "LEGACY_COMPATIBILITY_GUARD": {
-   "files": 76,
-   "occurrences": 292
+   "files": 83,
+   "occurrences": 302
   },
   "LEGACY_QTA_CANONICAL": {
    "files": 54,
    "occurrences": 199
   },
   "TOOLING_REFERENCE": {
-   "files": 20,
-   "occurrences": 96
+   "files": 21,
+   "occurrences": 97
   },
   "UNCLASSIFIED": {
    "files": 0,
@@ -345,6 +345,17 @@
    "path": "HARDWARE_GOVERNANCE.md",
    "rule_class": "DOCUMENTATION_HISTORY",
    "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "HARNESS_STATUS.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the derived harness completion status"
   },
   {
    "leaks": [],
@@ -786,6 +797,28 @@
    "path": "docs/framework_boundary.json",
    "rule_class": "CURRENT_SCOPE",
    "why": "the active/legacy boundary registry"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "docs/harness_contract.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the harness definition of done"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "docs/harness_status.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the derived harness completion status"
   },
   {
    "leaks": [],
@@ -1410,6 +1443,17 @@
    "leaks": [],
    "occurrences": {
     "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "scientific/sensitivity.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the generic scientific framework"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
      "gate_status": 5,
      "pass_count": 5,
      "pass_equals_zero": 1,
@@ -1686,6 +1730,17 @@
    "leaks": [],
    "occurrences": {
     "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "tests/test_harness_status.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
      "pass_count": 3,
      "results_gate_table": 4
     }
@@ -1794,6 +1849,17 @@
     }
    },
    "path": "tests/test_resolution_inventory.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "tests/test_sensitivity_cross_check.py",
    "rule_class": "LEGACY_COMPATIBILITY_GUARD",
    "why": "tests that preserve or exercise the legacy semantics"
   },
@@ -2005,6 +2071,17 @@
   {
    "leaks": [],
    "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "tools/harness_status.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
     "TOOLING_REFERENCE": {
      "automatic_gate_effect": 3,
      "pass_count": 12,
@@ -2023,6 +2100,17 @@
     }
    },
    "path": "tools/mutations/governed_breadth.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 1
+    }
+   },
+   "path": "tools/mutations/harness_status.json",
    "rule_class": "TOOLING_REFERENCE",
    "why": "mutation specs naming the code they mutate"
   },
@@ -2315,6 +2403,21 @@
    "class": "CURRENT_SCOPE",
    "path": "SCIENTIFIC_AI_STATUS.md",
    "why": "the current status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "HARNESS_STATUS.md",
+   "why": "the derived harness completion status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/harness_status.json",
+   "why": "the derived harness completion status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/harness_contract.json",
+   "why": "the harness definition of done"
   },
   {
    "class": "CURRENT_SCOPE",

@@ -183,7 +183,7 @@
     {
       "name": "W26_socket_guard_not_removed",
       "path": "qta_agent/netauth.py",
-      "find": "    finally:\n        socket.socket.connect = original\n        socket.socket.connect_ex = original_ex",
+      "find": "    finally:\n        _install(original, original_ex)",
       "replace": "    finally:\n        pass",
       "rationale": "the guard stays installed after the block ends, so every later connection in the process is judged by a grant that is no longer in scope"
     },

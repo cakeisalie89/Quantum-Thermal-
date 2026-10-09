@@ -134,8 +134,8 @@
     },
     {
       "id": "rag-read-only",
-      "name": "Read-only retrieval over governed documents",
-      "doc_key": "Read-only RAG",
+      "name": "Governed read-only retrieval over reviewed documents",
+      "doc_key": "Governed read-only retrieval",
       "status": "ADOPTED",
       "since_stage": "stage10",
       "authority": "qta_multiphysics/stack/rag_index.py",
@@ -244,7 +244,7 @@
       "verification": "snakemake --cores 1 verification/stage10/fmi/fmi_readiness.json",
       "open_items": [
         "FMI-P1 serialisable solver state (fmi3GetFMUState / fmi3SetFMUState)",
-        "FMI-P2 mode-boundary step semantics (a step may not straddle a Mode B/C/D transition)",
+        "FMI-P2 step semantics (a step from the wrong time, a non-positive step, a parameter set after initialisation, a non-finite input and a wrong instantiation token are refused by the FMU)",
         "FMI-P3 step-size independence evidence",
         "FMI-P4 claim-boundary survival across FMU import",
         "FMI-P5 unit round-trip verification"

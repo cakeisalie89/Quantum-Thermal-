@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+from typing import Any
 
 import numpy as np
 
@@ -244,15 +245,15 @@ def run(cfg: ModelConfig, tc: train.TrainConfig, schema, samples, dman,
     p_final = res["params"]
     final_raw = ckpt.save(cfg, p_final, b0, metadata={
         "run_id": main_id, "step": str(tc.steps)})
-    repro = {"claimed": ["CONFIGURATION_REPRODUCIBLE",
-                         "DATASET_REPRODUCIBLE", "SEEDED_EXECUTION"],
-             "scope": "this backend (the hardware_identity and "
-                      "framework_versions recorded here), one process, "
-                      "CPU",
-             "evidence": {}, "not_claimed": [
-                 "any agreement across hosts, CPUs, devices, frameworks or "
-                 "framework versions",
-                 "multi-device or GPU determinism"]}
+    repro: dict[str, Any] = {
+        "claimed": ["CONFIGURATION_REPRODUCIBLE", "DATASET_REPRODUCIBLE",
+                    "SEEDED_EXECUTION"],
+        "scope": "this backend (the hardware_identity and "
+                 "framework_versions recorded here), one process, CPU",
+        "evidence": {}, "not_claimed": [
+            "any agreement across hosts, CPUs, devices, frameworks or "
+            "framework versions",
+            "multi-device or GPU determinism"]}
     docs = {}
     if resume_experiment:
         a_id = f"{run_prefix}-{tag}-resume-a"

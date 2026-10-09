@@ -1893,7 +1893,7 @@
       "production_caller": ".github/workflows/agent-substrate.yml",
       "persistent_state": "none",
       "authority_owner": "tools/mutation_matrix.py",
-      "evidence": "79 committed specs run in CI -- since the Phase-1 closure in eight deterministic shards (tools/mutation_shards.py; every spec in exactly one, every cycle, the matrix generated and checked) under an aggregate job that is green only when every shard succeeded (the count was 34 and went stale as specs were added; it is now checked against the workflow rather than asserted -- D-2026-47), covering qta_agent, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over qta_agent/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24. The fortieth is output_resolution.json: what a serialised number is allowed to mean, where a marking decided by magnitude instead of by why a value is zero, a floor of zero, and a claims table that names a rule without matching it are each restored and killed. The forty-first is unit_inventory.json: the dimension of every published number, where a suffix rule had been publishing a temperature gradient as metres and two fluxes as seconds. The forty-fifth and forty-sixth are agent_snapshot_coherence.json -- every reducer folds exactly the bytes it verified, 20/20 -- and enforcement_asserts.json -- enforcement that python -O cannot delete, 3/3 (D-2026-70, D-2026-73). The fifty-second and fifty-third are authority_result_rules.json -- the content rule for a scientific result, enforced by the authority store on the edge itself, 13/13 -- and governed_model_reuse.json -- a verified result reused only on evidence re-derived intact, every exclusion restored and killed, 20/20. The fifty-fourth and fifty-fifth are scientific_thermal_2d.json -- the second model's invariants, declared boundary and window, the 3D check speaking only to the problem it solves, and per-model tool routing -- and cryopanel_operating_point.json -- the cryopanel model's operating point as a declared input, with the ontology import put back and seen by the C1 test (retired to tools/mutations/legacy/ with the component model in tranche 4). The fifty-sixth is performance_counters.json: a regression planted in the ready queue -- a per-job rescan, a history re-read, a hidden scan of the job map -- killed by a counter where only a clock used to look (R49). The fifty-seventh is scientific_authority_replay.json: a scientific result's admission re-decided on replay, on snapshot restore and by the independent reader in its own code -- a forged admission applied on replay, evidence captured after a verdict, an invalidated check, an unknown policy, lost evidence read as admitted, and the second reader's content table emptied are each restored and killed, 25/25; authority_result_rules.json grew to 17/17 with it (D-2026-83). The fifty-eighth is second_reader_audit_actions.json: ledger follow-up A's seven audit actions, each rule of their second readers removed and killed, and secret.provision taken back out of the action registry (D-2026-85). Tranche 4 also took one OUT: hardware_governance.json retired with its subject to tools/mutations/legacy/, which no shard runs (directive 21); and added framework_boundary.json -- the ACTIVE/LEGACY boundary's own rules, each removed against a planted violation. The fifty-ninth is claims_boundary.json: the framework claims boundary's checker, where a dropped, inverted, duplicated or unstated boundary, code that does not define its symbol and a test that does not exist are each restored and killed, 16/16 (directive 14). The cryopanel extraction swapped one for one: surface_adsorption.json -- the Langmuir capture law extracted from the component model, its invariants and its independent check, each restored and killed as a generic scientific or trust error, 25/25 (directive 22). The sixtieth is generic_consistency.json: the framework's successor to the legacy verifier, each of its checks -- the chain, the store re-hashed, cited digests resolving, refused and undecidable transitions, the live store compared with the independent reader, the schemas, the subject, the admitted model and check, the exit status -- removed against a real governed history damaged that way (directive 17). scientific_interfaces.json grew to 27 with the generic observation boundary's time, sequence, exact record and digest (directive 26). The sixty-first and sixty-second are task_execution_phase.json -- an execution record accepted only in EXECUTING from the lease holder, by the task projection, the independent reader and the auditor, each refusal removed and killed, 10/10 (D-2026-86) -- and scientific_invalidation.json -- a scientific result resting on an invalidated or withdrawn governed origin made STALE and its dependents after it, a second origin keeping it, an interrupted invalidation settled, 14/14 (D-2026-87). The sixty-third is replay_origin_view.json -- one view of governed execution per replay, counted: each place that shares it made to share nothing, a question split across two views, the view held and unused, a nested scope discarding the outer one, the independent reader replaying tasks per admission, and the counter itself disabled, 11/11; performance_counters.json grew to 5 with a lookup that lists its bucket and one that searches the store (D-2026-88). The sixty-fourth is actor_authentication.json -- each refusal of the actor-authentication seam removed (a missing or unknown key, a key of another principal, an unchecked signature, no domain separation, test keys in production, chosen key ids, an unconfigured registry that authenticates nothing, the store and the independent reader ignoring the verdict, a checkpoint standing in for it, the malleable s + Q) and killed, 19/19 (D-2026-89). The sixty-fifth is run_identity_backend.json -- the numeric backend in the run identity: each part of it (SIMD set, core, thread and dispatch variables, native build, an unreadable CPU's host) dropped, every flag counted, the native digest blind to content, the caller's environment described instead of the tool's -- each killed, 9/9 (D-2026-90). The sixty-sixth is stress_campaign_coverage.json -- the six-process campaign's own instruments: its start line made a rendezvous on both sides (a worker that does not wait or waits in name only, a parent that releases early or on the first arrival, a line that never fills or a dead worker reported as anything else), its coverage judged on edges out of DISPATCHED rather than on labels, repetition or another machine's records, and its safety judgement run before any verdict of vacuity -- each killed, 15/15 (D-2026-91). The sixty-seventh is authenticated_history.json -- the signature-provider seam (the reference implementation taken for vetted, a label believed over behaviour, the malleable signature or a raising verifier let through, production without the vetted check) and the history's security profile (a REQUIRED history read without an authenticator, a refused event not ending the read, a declaration past genesis or unknown, the anchored read ungated, a downgrade accepted, the independent reader not restating it) -- each killed, 23/23 (D-2026-92). The sixty-eighth is signed_append_lifecycle.json -- the signed append across a crash (the attestation written after the record, a pending prepare taken for a finding or for an authentication, stale prepares left unaborted, a torn tail not repaired, an abort of a committed event ignored, an unsigned append to a REQUIRED history let through), the pinned registry (the pin not checked, production without it) and a key's life by position (expiry, not-yet-valid, revocation forward-only, a declared compromise reaching back, a replacement of another principal) -- each killed, 27/27 (D-2026-93). The sixty-ninth is backend_probe.json -- the backend a run actually used (the probe reading whichever BLAS the process loaded first, SciPy's BLAS or libm left out, a kernel or library assumed rather than asked, anything unresolved let through as resolved, a BLAS it cannot identify assumed, the probe importing NumPy at import time, installed bytes not hashed or a modified build not noticed, backend status left out of the identity, an unresolved backend reused, the governed identity not probed or its bundle describing another environment) -- each killed, 26/26 (D-2026-94). The seventieth is quantity_resolution.json -- every quantity that crossed zero between backends states what its method resolves, bound to the quantity itself: the energy ledger's floor as the energy its balance leaves unexplained plus the rounding bound of its sums, each mode's sample densities by their own solve, a relative change against the tightest tolerance of the solves compared, and every binding reconciled against the committed artefacts -- each killed, 16/16 (D-2026-98). The seventy-first is reproduction_policy.json -- which question a byte comparison answers: an unresolved backend never counted as merely different, a witnessed backend's drift never excused, the strict question never answered off the reference, the witness profile applicable only to the corpus, generator closure, exemptions and lock it binds, every part of the arithmetic path -- the installed native bytes included -- in the backend identity, and the checker strict by default and refusing early -- each killed, 29/29 (D-2026-101). The seventy-second is reference_backend.json -- the STAGED canonical reference backend: the recipe itself mutated (DYNAMIC_ARCH on, a host target, NumPy runtime dispatch or a native baseline, threads raised, FMA contraction, a passthrough CPU, an unresolved floating-point policy, build.sh ignoring the spec or trusting what it fetches or patches, run.sh on the host CPU, the host userspace or the caller's environment), a runtime that differs from the declaration certified, the host's cpuinfo, the virtual CPU, the rootfs or the native build dropped from or wrongly added to the reference identity, and the two-host verdict passing one CPU class twice, a missing file, a differing identity or another generator -- each killed, 75/75 (D-2026-102). The seventy-third to seventy-eighth are the learned-model substrate's (NF-1T): neural_accounting.json -- exact parameter accounting by category, the budget solver and the estimates; neural_tokens.json -- feature tokens, unit dimensions, governed datasets, OOD classes and constraints; neural_routing.json -- the router and the mixture-of-experts layer; neural_authority.json -- meta validation, both allocation guards, the claims, checkpoints, digest lineage and the learned-record refusal live, on replay and in the second reader; neural_training.json -- training and exact resume; neural_parallel.json -- the parallel plans and the expert-parallel layer -- each killed, 88/88 (D-2026-103). The seventy-ninth, claim_hygiene.json (the NF-1T closure), holds the PASS-semantics audit's label, window, no-effect, scope, word-boundary, unclassified and untracked rules, the current-status builder's separation from the legacy QTA gate table and its distributed, reproduction and allocation wording, and the claims' software-path-only reason -- 20/20 killed, each also by a test other than the committed-report check; neural_authority.json gains NU23-NU25 -- a trained subject described as unallocated, and PROMOTED left open to a learned record -- 25/25 (D-2026-104).",
+      "evidence": "93 committed specs run in CI -- since the Phase-1 closure in eight deterministic shards (tools/mutation_shards.py; every spec in exactly one, every cycle, the matrix generated and checked) under an aggregate job that is green only when every shard succeeded (the count was 34 and went stale as specs were added; it is now checked against the workflow rather than asserted -- D-2026-47), covering qta_agent, the Stage-10 write guard, the completion-matrix validator, the fuzz harness, the mutation harness itself -- and now the scientific tree's evidence gate (cited on R57, which owns that module), where 8 of 11 checks turned out to be deletable with nothing noticing. A GENERATED operator set adds mutations nobody wrote: a 16-mutation sample over qta_agent/capability.py left 7 alive, 4 covered by another spec whose suite the sample did not run and 3 genuine holes, all three now permanent coverage as D22-D24. The fortieth is output_resolution.json: what a serialised number is allowed to mean, where a marking decided by magnitude instead of by why a value is zero, a floor of zero, and a claims table that names a rule without matching it are each restored and killed. The forty-first is unit_inventory.json: the dimension of every published number, where a suffix rule had been publishing a temperature gradient as metres and two fluxes as seconds. The forty-fifth and forty-sixth are agent_snapshot_coherence.json -- every reducer folds exactly the bytes it verified, 20/20 -- and enforcement_asserts.json -- enforcement that python -O cannot delete, 3/3 (D-2026-70, D-2026-73). The fifty-second and fifty-third are authority_result_rules.json -- the content rule for a scientific result, enforced by the authority store on the edge itself, 13/13 -- and governed_model_reuse.json -- a verified result reused only on evidence re-derived intact, every exclusion restored and killed, 20/20. The fifty-fourth and fifty-fifth are scientific_thermal_2d.json -- the second model's invariants, declared boundary and window, the 3D check speaking only to the problem it solves, and per-model tool routing -- and cryopanel_operating_point.json -- the cryopanel model's operating point as a declared input, with the ontology import put back and seen by the C1 test (retired to tools/mutations/legacy/ with the component model in tranche 4). The fifty-sixth is performance_counters.json: a regression planted in the ready queue -- a per-job rescan, a history re-read, a hidden scan of the job map -- killed by a counter where only a clock used to look (R49). The fifty-seventh is scientific_authority_replay.json: a scientific result's admission re-decided on replay, on snapshot restore and by the independent reader in its own code -- a forged admission applied on replay, evidence captured after a verdict, an invalidated check, an unknown policy, lost evidence read as admitted, and the second reader's content table emptied are each restored and killed, 25/25; authority_result_rules.json grew to 17/17 with it (D-2026-83). The fifty-eighth is second_reader_audit_actions.json: ledger follow-up A's seven audit actions, each rule of their second readers removed and killed, and secret.provision taken back out of the action registry (D-2026-85). Tranche 4 also took one OUT: hardware_governance.json retired with its subject to tools/mutations/legacy/, which no shard runs (directive 21); and added framework_boundary.json -- the ACTIVE/LEGACY boundary's own rules, each removed against a planted violation. The fifty-ninth is claims_boundary.json: the framework claims boundary's checker, where a dropped, inverted, duplicated or unstated boundary, code that does not define its symbol and a test that does not exist are each restored and killed, 16/16 (directive 14). The cryopanel extraction swapped one for one: surface_adsorption.json -- the Langmuir capture law extracted from the component model, its invariants and its independent check, each restored and killed as a generic scientific or trust error, 25/25 (directive 22). The sixtieth is generic_consistency.json: the framework's successor to the legacy verifier, each of its checks -- the chain, the store re-hashed, cited digests resolving, refused and undecidable transitions, the live store compared with the independent reader, the schemas, the subject, the admitted model and check, the exit status -- removed against a real governed history damaged that way (directive 17). scientific_interfaces.json grew to 27 with the generic observation boundary's time, sequence, exact record and digest (directive 26). The sixty-first and sixty-second are task_execution_phase.json -- an execution record accepted only in EXECUTING from the lease holder, by the task projection, the independent reader and the auditor, each refusal removed and killed, 10/10 (D-2026-86) -- and scientific_invalidation.json -- a scientific result resting on an invalidated or withdrawn governed origin made STALE and its dependents after it, a second origin keeping it, an interrupted invalidation settled, 14/14 (D-2026-87). The sixty-third is replay_origin_view.json -- one view of governed execution per replay, counted: each place that shares it made to share nothing, a question split across two views, the view held and unused, a nested scope discarding the outer one, the independent reader replaying tasks per admission, and the counter itself disabled, 11/11; performance_counters.json grew to 5 with a lookup that lists its bucket and one that searches the store (D-2026-88). The sixty-fourth is actor_authentication.json -- each refusal of the actor-authentication seam removed (a missing or unknown key, a key of another principal, an unchecked signature, no domain separation, test keys in production, chosen key ids, an unconfigured registry that authenticates nothing, the store and the independent reader ignoring the verdict, a checkpoint standing in for it, the malleable s + Q) and killed, 19/19 (D-2026-89). The sixty-fifth is run_identity_backend.json -- the numeric backend in the run identity: each part of it (SIMD set, core, thread and dispatch variables, native build, an unreadable CPU's host) dropped, every flag counted, the native digest blind to content, the caller's environment described instead of the tool's -- each killed, 9/9 (D-2026-90). The sixty-sixth is stress_campaign_coverage.json -- the six-process campaign's own instruments: its start line made a rendezvous on both sides (a worker that does not wait or waits in name only, a parent that releases early or on the first arrival, a line that never fills or a dead worker reported as anything else), its coverage judged on edges out of DISPATCHED rather than on labels, repetition or another machine's records, and its safety judgement run before any verdict of vacuity -- each killed, 15/15 (D-2026-91). The sixty-seventh is authenticated_history.json -- the signature-provider seam (the reference implementation taken for vetted, a label believed over behaviour, the malleable signature or a raising verifier let through, production without the vetted check) and the history's security profile (a REQUIRED history read without an authenticator, a refused event not ending the read, a declaration past genesis or unknown, the anchored read ungated, a downgrade accepted, the independent reader not restating it) -- each killed, 23/23 (D-2026-92). The sixty-eighth is signed_append_lifecycle.json -- the signed append across a crash (the attestation written after the record, a pending prepare taken for a finding or for an authentication, stale prepares left unaborted, a torn tail not repaired, an abort of a committed event ignored, an unsigned append to a REQUIRED history let through), the pinned registry (the pin not checked, production without it) and a key's life by position (expiry, not-yet-valid, revocation forward-only, a declared compromise reaching back, a replacement of another principal) -- each killed, 27/27 (D-2026-93). The sixty-ninth is backend_probe.json -- the backend a run actually used (the probe reading whichever BLAS the process loaded first, SciPy's BLAS or libm left out, a kernel or library assumed rather than asked, anything unresolved let through as resolved, a BLAS it cannot identify assumed, the probe importing NumPy at import time, installed bytes not hashed or a modified build not noticed, backend status left out of the identity, an unresolved backend reused, the governed identity not probed or its bundle describing another environment) -- each killed, 26/26 (D-2026-94). The seventieth is quantity_resolution.json -- every quantity that crossed zero between backends states what its method resolves, bound to the quantity itself: the energy ledger's floor as the energy its balance leaves unexplained plus the rounding bound of its sums, each mode's sample densities by their own solve, a relative change against the tightest tolerance of the solves compared, and every binding reconciled against the committed artefacts -- each killed, 16/16 (D-2026-98). The seventy-first is reproduction_policy.json -- which question a byte comparison answers: an unresolved backend never counted as merely different, a witnessed backend's drift never excused, the strict question never answered off the reference, the witness profile applicable only to the corpus, generator closure, exemptions and lock it binds, every part of the arithmetic path -- the installed native bytes included -- in the backend identity, and the checker strict by default and refusing early -- each killed, 29/29 (D-2026-101). The seventy-second is reference_backend.json -- the STAGED canonical reference backend: the recipe itself mutated (DYNAMIC_ARCH on, a host target, NumPy runtime dispatch or a native baseline, threads raised, FMA contraction, a passthrough CPU, an unresolved floating-point policy, build.sh ignoring the spec or trusting what it fetches or patches, run.sh on the host CPU, the host userspace or the caller's environment), a runtime that differs from the declaration certified, the host's cpuinfo, the virtual CPU, the rootfs or the native build dropped from or wrongly added to the reference identity, and the two-host verdict passing one CPU class twice, a missing file, a differing identity or another generator -- each killed, 75/75 (D-2026-102). The seventy-third to seventy-eighth are the learned-model substrate's (NF-1T): neural_accounting.json -- exact parameter accounting by category, the budget solver and the estimates; neural_tokens.json -- feature tokens, unit dimensions, governed datasets, OOD classes and constraints; neural_routing.json -- the router and the mixture-of-experts layer; neural_authority.json -- meta validation, both allocation guards, the claims, checkpoints, digest lineage and the learned-record refusal live, on replay and in the second reader; neural_training.json -- training and exact resume; neural_parallel.json -- the parallel plans and the expert-parallel layer -- each killed, 88/88 (D-2026-103). The seventy-ninth, claim_hygiene.json (the NF-1T closure), holds the PASS-semantics audit's label, window, no-effect, scope, word-boundary, unclassified and untracked rules, the current-status builder's separation from the legacy QTA gate table and its distributed, reproduction and allocation wording, and the claims' software-path-only reason -- 20/20 killed, each also by a test other than the committed-report check; neural_authority.json gains NU23-NU25 -- a trained subject described as unallocated, and PROMOTED left open to a learned record -- 25/25 (D-2026-104). The eightieth to ninety-third come with the harness completion programme: harness_status (the derived completion status, 21 mutations), proposal_ingress (25), ranking_equivalence (17), rust_selection (9), hdf5_bundle (8), ro_crate_conformance (5), external_models (5), checkpoint_recovery (10), performance_telemetry (5), harness_integrations (15: the FEniCSx and FMI surfaces that run without their runtimes), supply_chain (11: every verify layer broken alone), harness_demo (9: the demonstration's judge), typecheck_scope (5) and workflow_generic (4: the generic Snakemake path).",
       "provenance": "none",
       "failure_semantics": "a survivor, an anchor that matches anything but once, a source not restored byte-identical, a test that damaged a tracked file, or a mutation killed ONLY by the suite timeout each fail the run. A timeout is not counted as coverage: it says nothing about which check was lost and costs the whole timeout every run",
       "recovery": "a recovery sidecar plus SIGTERM/SIGINT handlers restore sources; --recover restores from an interrupted run",
@@ -2539,7 +2539,7 @@
     {
       "id": "R60",
       "requirement": "A governed, configuration-driven scientific learned-model substrate scaling to a ~1T-parameter high-activation mixture of experts (NF-1T)",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "scientific_ai/neural/config.py",
         "scientific_ai/neural/units.py",
@@ -2579,7 +2579,7 @@
       "production_caller": "tools/neural.py",
       "persistent_state": "docs/neural/ (manifests, meta validations, claims, the legacy audit) and docs/neural/dev/ (the governed dataset, the training/resume/checkpoint manifests, the final checkpoint, the evaluation); the lifecycle as learned_* records in the authority log",
       "authority_owner": "qta_agent/learned_rules.py (no learned record becomes VERIFIED or PROMOTED); scientific_ai/neural/claims.py (what may be said, from evidence)",
-      "evidence": "One architecture family -- scientific feature tokens (identity, value channels, SI dimension, context, validity), set semantics, pre-norm attention, top-k routed SwiGLU experts with observable routing and counted capacity drops, heteroscedastic heads. Exact parameter accounting by category, written apart from the network and compared with its tensors; a budget solver that resolves the flagship to 996,509,217,800 trainable parameters and 200,832,889,864 active per token (hidden 8192, 64 MoE layers of 64 experts, top_k 12, expert width 9728), meta-validated by jax.eval_shape with no array created and a real allocation refused by two independent guards; the scale ladder 50M..300B solved and meta-validated; a development member (431,784 parameters) trained end to end on a governed dataset of the admitted surface.langmuir_capture model, with fresh-run and exact-resume bitwise reproducibility on one backend, a safe checkpoint reloaded to identical outputs, evaluation per split and target with calibration, OOD degradation, constraint violations and router health; the lifecycle recorded through existing record actions with digest-checked links; expert parallelism, sharded gradients, activation checkpointing, accumulation and sharded checkpoints equal to their single-device originals on eight simulated devices; zero hardware-era machine semantics in the substrate (audited). The NF-1T closure separates the status vocabulary from what it could be mistaken for: the legacy QTA hardware forecast's PASS_count of 0 is reported only in a LEGACY_QTA_ONLY section of a status generated from the evidence (SCIENTIFIC_AI_STATUS.md), and an audit of every occurrence of the gate-table vocabulary finds zero current-harness statements that do not say whose it is (EB15); a trained subject's plain language says it was meta-validated and then allocated and trained, never that its weights were not allocated; simulated distributed execution reads SOFTWARE-PATH VALIDATION ONLY with tensor and pipeline parallelism PLAN_ONLY (EB16); a stored witness's byte identity is scoped to its witnessed backend and decision stability is never written as byte identity (EB17). Claim status and the claims document were re-derived from the unchanged evidence by tools/neural.py rederive: no dataset, checkpoint, weight or measurement moved.",
+      "evidence": "One architecture family -- scientific feature tokens (identity, value channels, SI dimension, context, validity), set semantics, pre-norm attention, top-k routed SwiGLU experts with observable routing and counted capacity drops, heteroscedastic heads. Exact parameter accounting by category, written apart from the network and compared with its tensors; a budget solver that resolves the flagship to 996,509,217,800 trainable parameters and 200,832,889,864 active per token (hidden 8192, 64 MoE layers of 64 experts, top_k 12, expert width 9728), meta-validated by jax.eval_shape with no array created and a real allocation refused by two independent guards; the scale ladder 50M..300B solved and meta-validated; a development member (431,784 parameters) trained end to end on a governed dataset of the admitted surface.langmuir_capture model, with fresh-run and exact-resume bitwise reproducibility on one backend, a safe checkpoint reloaded to identical outputs, evaluation per split and target with calibration, OOD degradation, constraint violations and router health; the lifecycle recorded through existing record actions with digest-checked links; expert parallelism, sharded gradients, activation checkpointing, accumulation and sharded checkpoints equal to their single-device originals on eight simulated devices; zero hardware-era machine semantics in the substrate (audited). The NF-1T closure separates the status vocabulary from what it could be mistaken for: the legacy QTA hardware forecast's PASS_count of 0 is reported only in a LEGACY_QTA_ONLY section of a status generated from the evidence (SCIENTIFIC_AI_STATUS.md), and an audit of every occurrence of the gate-table vocabulary finds zero current-harness statements that do not say whose it is (EB15); a trained subject's plain language says it was meta-validated and then allocated and trained, never that its weights were not allocated; simulated distributed execution reads SOFTWARE-PATH VALIDATION ONLY with tensor and pipeline parallelism PLAN_ONLY (EB16); a stored witness's byte identity is scoped to its witnessed backend and decision stability is never written as byte identity (EB17). Claim status and the claims document were re-derived from the unchanged evidence by tools/neural.py rederive: no dataset, checkpoint, weight or measurement moved. The substrate is inside the current-active type-check scope (tools/typecheck_scope.py check, run in CI): 0 errors, from 63 in 16 modules. The fixes are annotations and narrowing -- among them a ModelConfig.moe_block accessor that refuses a configuration with no MoE block where a None used to surface one attribute later -- and none changes a computed value: tools/neural.py verify recomputes the frozen development evidence unchanged. The hardware-era vocabulary in active generic files, which this row used to carry as an open gap, is closed and enforced: the legacy semantic audit (tools/neural_legacy_audit.py --check, in CI) now requires zero ACTIVE_GENERIC_SEMANTIC_LEAK as well as zero neural ones. Of the twelve files it reported, the one active document that carried a machine-mode requirement (stack.json's FMI element) now states the generic step semantics the FMU is tested against; the authorities registry's two are under its legacy_authorities key; the other ten are the QTA reference model plugins and their parameter set, whose domain is the apparatus -- nine of them in the witnessed canonical generator's closure, whose bytes may not change -- and the generic models wrapping two of them now carry none of the vocabulary on their contract surface (their provenance had recorded the legacy solver configuration's Mode-D threshold; it records the solver settings it uses, tested). What remains is research, paid compute, hardware or an owner's decision, each named against the harness contract in research_frontier, not software work.",
       "provenance": "every sample carries its input/target digests, bundle digest, parameter, implementation, environment and backend identity; every manifest is bound by digest to the configuration, dataset, run and checkpoint it names",
       "failure_semantics": "non-finite loss or router stops training (never COMPLETED); malformed, non-finite, out-of-domain or wrong-dimension inputs are refused; a checkpoint whose bytes, configuration or tensors differ is refused; a broken lineage link is refused before anything is written; a learned VERIFIED/PROMOTED edge is refused live, on replay and by the second reader",
       "recovery": "EXACT_RESUME from a checkpoint with optimizer state and data position reproduces the uninterrupted run bit for bit on the same backend",
@@ -2629,17 +2629,7 @@
         "implementation_sha256": "dfc6c8724eae03e945a49874e2b7ddf767c84e89fae4c7c4cebc079592f6765e",
         "note": "agent-substrate push run (attempt 2: shard 4 of attempt 1 lost its runner mid-step; the failed job alone was re-run once) and pull_request run at the NF-1T closure commit, every job green: lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, dispatch-sensitivity, second interpreter, cross-environment, and all 79 mutation specs in 8 shards with their aggregate"
       },
-      "residual_gaps": [
-        "the ~1T configuration has not been allocated or trained, and neither has any rung of the ladder above the development member: that needs paid accelerator compute this tranche does not authorise",
-        "epistemic uncertainty is NOT ASSESSED: one trained model gives no spread over models (deep ensembles or an equivalent would)",
-        "FP8 is an estimation mode only; no reduced-precision mode has been validated against a higher-precision reference",
-        "no admission policy for learned models exists, so no learned output can be accepted for any use; writing one is the programme owner's decision",
-        "expert-parallel communication volume, memory and throughput are estimated, not measured",
-        "the active generic modules that still name hardware-era machine semantics are reported by the audit, not cleaned: that is the semantic tranche E, not authorised",
-        "the substrate is outside the repository's staged mypy enforcement (Stage-7 and Stage-10 modules only, as for scientific/ and qta_agent/): mypy (--ignore-missing-imports) reports 63 errors in 16 of its 33 modules -- the same 63 in the same 16 at eb716ad, so the closure's status.py and pass_semantics_audit.py add none; section 17 printed 61 in 30, a miscount (section 18) -- the optional MoE section of a configuration used without narrowing, dictionary value types inferred from a first entry, untyped containers -- and a triage of all of them found none that is a runtime defect; bringing it under enforcement is open",
-        "the development model's predictions violate declared invariants of its own source model on part of the in-distribution test split (capture_only 32 of 476, inventory_within_capacity 86, within_incidence 26): reported in the evaluation and never clipped, and nothing in training enforces them",
-        "the development model's impingement-flux intervals undercover (65.5 % inside the nominal 90 % interval on the test split, predicted spread uncorrelated with error), and out of distribution 90 % coverage falls to 17 % for fluence and flux"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "distributed execution is validated on eight simulated CPU devices of one process; DISTRIBUTED_HARDWARE_VALIDATED needs multi-accelerator hardware",
@@ -2660,6 +2650,630 @@
           "limit": "a learned record cannot become VERIFIED or PROMOTED",
           "reason": "architectural_by_design",
           "detail": "a learned prediction is LEARNED_PREDICTION, NON_AUTHORITATIVE, REQUIRES_EXTERNAL_VERIFICATION until an admission policy is written"
+        }
+      ],
+      "blocker": null,
+      "research_frontier": [
+        {
+          "item": "the ~1T configuration has not been allocated or trained, and neither has any rung of the ladder above the development member: that needs paid accelerator compute this tranche does not authorise",
+          "outside": "flagship-allocation-and-training"
+        },
+        {
+          "item": "epistemic uncertainty is NOT ASSESSED: one trained model gives no spread over models (deep ensembles or an equivalent would)",
+          "outside": "development-model-science"
+        },
+        {
+          "item": "FP8 is an estimation mode only; no reduced-precision mode has been validated against a higher-precision reference",
+          "outside": "flagship-allocation-and-training"
+        },
+        {
+          "item": "no admission policy for learned models exists, so no learned output can be accepted for any use; writing one is the programme owner's decision",
+          "outside": "learned-model-admission"
+        },
+        {
+          "item": "expert-parallel communication volume, memory and throughput are estimated, not measured",
+          "outside": "distributed-accelerators"
+        },
+        {
+          "item": "the development model's predictions violate declared invariants of its own source model on part of the in-distribution test split (capture_only 32 of 476, inventory_within_capacity 86, within_incidence 26): reported in the evaluation and never clipped, and nothing in training enforces them",
+          "outside": "development-model-science"
+        },
+        {
+          "item": "the development model's impingement-flux intervals undercover (65.5 % inside the nominal 90 % interval on the test split, predicted spread uncorrelated with error), and out of distribution 90 % coverage falls to 17 % for fluence and flux",
+          "outside": "development-model-science"
+        }
+      ]
+    },
+    {
+      "id": "R61",
+      "requirement": "A generic scientific layer -- ScientificModel, ResultBundle, VerificationResult, a catalog admitting models and checks by code -- with a first-class deterministic HDF5 representation of its results",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "implementation": [
+        "scientific/model.py",
+        "scientific/result.py",
+        "scientific/verification.py",
+        "scientific/catalog.py",
+        "scientific/hdf5_bundle.py",
+        "scientific/models/slab_transient.py",
+        "scientific/models/thermal_1d.py",
+        "scientific/models/thermal_2d.py",
+        "qta_agent/governed_model.py",
+        "tools/generic_consistency.py"
+      ],
+      "callers": [
+        "tools/harness_demo.py",
+        "Snakefile",
+        ".github/workflows/agent-substrate.yml"
+      ],
+      "production_caller": "tools/harness_demo.py",
+      "persistent_state": "result bundles and verification reports are content-addressed evidence blobs; the HDF5 file is written beside them as a representation, its digest recorded in the demonstration's report",
+      "authority_owner": "the authority store (qta_agent/governed_model.py through qta_agent/authority.py); the HDF5 file and the bundle carry none",
+      "evidence": "Every model the harness runs is a ScientificModel: declared inputs with units and domains, outputs with a stated resolution, invariants computed on every run, an implementation digest over its in-package source closure. A run returns a ResultBundle whose digest covers parameters, outputs, invariants, convergence and run identity; a check returns a VerificationResult naming its independence and what it establishes. scientific/hdf5_bundle.py writes a bundle as HDF5 with a schema version, deterministic group and dataset naming, no timestamps, units and dimensions as attributes, artifacts as datasets, the bundle digest and verification links; reading it back gives a bundle with the same digest, and malformed files (wrong schema, a missing or altered dataset, a unit that does not round-trip) are refused. The file is representation: HDF5_AUTHORITY says so and the reader never returns a state. The generic thermal models record only the solver settings they use, so no hardware-era machine state reaches a generic result (tested against the legacy audit's own patterns).",
+      "provenance": "the bundle digest, implementation digest, parameter digest and environment digest of every result; the HDF5 file records the bundle digest it represents",
+      "failure_semantics": "a model refuses out-of-domain, non-finite or mistyped inputs before running; a failed integration is an output with status FAILED, never a number; the HDF5 reader refuses rather than repairs",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_hdf5_bundle.py",
+        "tests/test_scientific_interfaces.py",
+        "tests/test_scientific_thermal_1d.py",
+        "tests/test_scientific_thermal_2d.py",
+        "tests/test_generic_consistency.py",
+        "tests/test_governed_model.py",
+        "tests/test_harness_integrations.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/hdf5_bundle.json",
+        "tools/mutations/scientific_interfaces.json",
+        "tools/mutations/generic_consistency.json",
+        "tools/mutations/harness_integrations.json"
+      ],
+      "fuzzing": "none",
+      "differential": "the slab model's result against the exact series (scientific/checks/slab_series.py) and against FEniCSx (R62)",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "an HDF5 file of a result is a representation and never evidence that the result was admitted",
+          "reason": "architectural_by_design",
+          "detail": "admission is a record in the authority log, decided by a distinct reviewer on an independent check; a file that could carry it would be a second, unverifiable source of authority, which is what the store exists to prevent"
+        },
+        {
+          "limit": "byte identity of the HDF5 file is claimed for one h5py and libhdf5 build; across library versions only the values, units and digests read back are claimed equal",
+          "reason": "environment_single_host",
+          "detail": "the HDF5 library chooses its own internal layout and metadata encoding by version; what the reader returns is compared, and that comparison is what holds across builds -- the bytes are observed on one installation here"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R62",
+      "requirement": "FEniCSx as a real independent numerical verifier, executed from a hashed environment, admitted by the policy as an INDEPENDENT_IMPLEMENTATION check",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "scientific/checks/fenicsx_slab.py",
+        "integrations/fenicsx/runner.py",
+        "integrations/fenicsx/environment.lock",
+        "integrations/fenicsx/environment.sha256.json",
+        "tools/fenicsx_env.py",
+        "tools/fenicsx_acceptance.py",
+        "scientific/checks/slab_series.py",
+        "scientific/models/slab_transient.py"
+      ],
+      "callers": [
+        ".github/workflows/harness-integrations.yml",
+        "tools/harness_demo.py"
+      ],
+      "production_caller": "tools/fenicsx_acceptance.py",
+      "persistent_state": "the acceptance report and the environment record are workflow artifacts; a check's VerificationResult is an evidence blob cited by the decision",
+      "authority_owner": "the admission policy (qta_agent/governed_model.py): only an INDEPENDENT_IMPLEMENTATION check can admit; the series check is an ANALYTIC_REFERENCE and cannot",
+      "evidence": "The FEniCSx environment is created from an explicit conda-forge lock in which every package carries an md5 and a recorded sha256, checked before use; the runner is a separate program, identified by its bytes, run in that environment, answering a request it must echo by digest. The slab problem is solved with dolfinx P1/P2 elements and backward Euler on meshes refined twice: the acceptance campaign measures convergence at the a-priori orders, reduction to the 1D slab, energy balance, run-to-run determinism and rejection of three deliberately wrong inputs. As a check it compares the harness's own finite-difference solver against FEniCSx at the stated resolution and REJECTS a producer with a 10 % conductivity error; in the governed path it is the check that admits the slab result to VERIFIED, while the series check alone leaves it REJECTED. Executed locally end to end (governed slab VERIFIED); the hosted fenicsx and end-to-end jobs run it with the runtime REQUIRED, so a skip is a failure.",
+      "provenance": "the runner's sha256, the environment record's per-package sha256, dolfinx's version in every result's provenance, the request digest echoed",
+      "failure_semantics": "no runtime: the check reports NOT_RUN with the reason, never PASS; a runner that answers another request or omits provenance is refused; a package whose bytes differ from the record stops environment creation",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_harness_integrations.py",
+        "tests/test_harness_demo.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/harness_integrations.json"
+      ],
+      "fuzzing": "none",
+      "differential": "FEniCSx against the harness's finite-difference slab solver, and both against the exact series",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [
+        "no hosted run of the fenicsx and end-to-end jobs is recorded yet at a commit carrying this implementation; until one is, FEniCSx's participation is shown on one local host"
+      ],
+      "boundaries": [
+        {
+          "limit": "one FEniCSx benchmark verifies one problem class, the transient slab, and no other scientific model",
+          "reason": "epistemic",
+          "detail": "an independent check establishes agreement for the problem it solves; extending it to another model is a second check written for that model, and agreement on the slab says nothing about a model the finite elements never saw"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R63",
+      "requirement": "FMI 3.0: a real FMU built, loaded by an independent runtime, stepped, its state saved and restored, its units and claim boundary kept, and its result fed through the same evidence boundary as any external model",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "scientific/fmi_boundary.py",
+        "scientific/models/thermal_rc2.py",
+        "scientific/checks/fmu_rc2.py",
+        "scientific/_governed_fmu.py",
+        "integrations/fmi/fmpy_runner.py",
+        "integrations/fmi/thermal_rc2/thermal_rc2.c",
+        "integrations/fmi/thermal_rc2/modelDescription.xml",
+        "integrations/fmi/runtime.lock",
+        "tools/fmi_build.py",
+        "tools/fmi_acceptance.py"
+      ],
+      "callers": [
+        ".github/workflows/harness-integrations.yml",
+        "tools/harness_demo.py"
+      ],
+      "production_caller": "tools/fmi_acceptance.py",
+      "persistent_state": "the FMU, its build record and the acceptance report are workflow artifacts; the FMU's result bundle is an evidence blob of a governed run",
+      "authority_owner": "the boundary reader (scientific/fmi_boundary.py) decides what crosses; the admission policy decides what is admitted -- the FMU carries no authority and the boundary refuses one that claims any",
+      "evidence": "integrations/fmi/thermal_rc2 is a generic two-node thermal RC network in C (classical RK4), built against vendored FMI 3.0 headers whose sha256 are recorded and checked, deterministically on one host. fmpy, from a hash-pinned lock in its own runtime, validates, instantiates, configures, steps, gets and sets FMU state in memory and as serialized bytes, restores and replays to identical outputs, and terminates; a corrupted serialization is refused. P2: a step from the wrong time, a non-positive step, a parameter set after initialisation, a non-finite input and a wrong instantiation token are each refused by the FMU. P3: the observed order on the finest pair is RK4's. P4: the claim boundary (SIMULATION_RESULT, NON_AUTHORITATIVE) is an annotation the boundary reader requires; tampered copies are refused. P5: every variable's unit equals the model's declared table, read by the harness and by fmpy. The result enters the governed path as a ResultBundle checked against the closed form; the fault FMU (a conductance 10 % off inside, declared right) keeps its own invariants and is REJECTED by the independent check -- the demonstration's negative twin. Executed locally; the hosted fmi and end-to-end jobs run it with the runtime REQUIRED.",
+      "provenance": "the FMU, binary and model-description sha256 from the build record, the vendored headers' sha256, fmpy's version, the run identity in the bundle",
+      "failure_semantics": "every boundary refusal is a FmuRefused naming the reason; a bundle from an FMU whose digest is not the build's is refused; an FMU result is NON_AUTHORITATIVE until a distinct reviewer admits it on an independent check",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_harness_integrations.py",
+        "tests/test_external_models.py",
+        "tests/test_harness_demo.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/harness_integrations.json",
+        "tools/mutations/external_models.json"
+      ],
+      "fuzzing": "none",
+      "differential": "the FMU's outputs against the closed form of the RC network, in the harness and in fmpy",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [
+        "no hosted run of the fmi and end-to-end jobs is recorded yet at a commit carrying this implementation; until one is, the FMU round trip is shown on one local host"
+      ],
+      "boundaries": [
+        {
+          "limit": "the FMU's build is byte-identical between two builds on one host; across compilers, versions or platforms only its behaviour is compared, never its bytes",
+          "reason": "environment_single_host",
+          "detail": "a C compiler's output depends on its version and target; the build record names the compiler and flags, and the acceptance campaign judges the FMU by what it computes against the closed form, which is what transfers"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R64",
+      "requirement": "A reproducible container: the declared image built and run on a hosted runner, executing the generic harness and its end-to-end demonstration, compared with a native run under the declared policies",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "Dockerfile",
+        "container_verify.sh",
+        ".github/workflows/container-verify.yml"
+      ],
+      "callers": [
+        ".github/workflows/container-verify.yml"
+      ],
+      "production_caller": null,
+      "persistent_state": "container-evidence: the runtime, the image identity (config digest and layers), the declared FROM/USER/CMD, the in-image demonstration report, the native report and their comparison, uploaded per run",
+      "authority_owner": "none: the container is an environment; its runs move no gate, threshold or authority state",
+      "evidence": "The Dockerfile pins its base by digest, freezes the uv environment (now with the neural extra), sets locale, timezone, hash seed and thread policy, and runs as the non-root user qta with no host source mounted. container_verify.sh announces every step: the current harness first (the learned-model evidence re-derived abstractly, the PASS-semantics audit, the framework boundary, the claims boundary, the completion matrix, a generic model checked against an independent reference with a deliberately wrong producer REJECTED), then the generic end-to-end demonstration in the image, then the legacy QTA pipeline and the full test suite. The workflow builds the image on every push to the branch, confirms the digest pin against the served manifest, the user, the absence of a host virtualenv, records the image identity, and runs the same demonstration natively to compare the two under the equivalence policy.",
+      "provenance": "the base image's digest, confirmed against the registry's served manifest; the built image's config digest and layers; the source SHA",
+      "failure_semantics": "a digest mismatch, a root user, a host virtualenv, a failed step or a demonstration comparison that is not BYTE_IDENTICAL or EQUIVALENT_AT_DECLARED_RESOLUTION with the same authority outcome fails the job",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "contents: read only; no id-token, no write, no secret: the job can neither sign nor push",
+      "tests": [
+        "tests/test_container_diagnostic_fidelity.py",
+        "tests/test_container_manifest_coverage.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/cross_environment.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [
+        "no hosted container-verify run is recorded yet at a commit carrying the harness steps and the in-image demonstration; until one is, the container's execution of the current harness is not shown"
+      ],
+      "boundaries": [
+        {
+          "limit": "the container fixes the software environment, not the host CPU; numerical bytes may differ between hosted runners and are compared under the equivalence policy rather than required equal",
+          "reason": "environment_single_host",
+          "detail": "NumPy and OpenBLAS choose kernels by the CPU they find (R59); the image cannot choose the runner's CPU, so what it guarantees is the declared environment, and what transfers between hosts is judged at the declared resolution"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R65",
+      "requirement": "Release provenance: RO-Crate conformance checked by the community validator, and the release candidate built, described (SBOM, provenance), signed with a hosted OIDC identity and verified, every tampered copy refused",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "ro_crate_tools.py",
+        "tools/ro_crate_conformance.py",
+        "integrations/ro_crate/validator.lock",
+        "tools/supply_chain.py",
+        "docs/supply_chain_ci_policy.json",
+        "integrations/supply_chain/sigstore.lock",
+        ".github/workflows/supply-chain.yml"
+      ],
+      "callers": [
+        ".github/workflows/supply-chain.yml",
+        ".github/workflows/harness-integrations.yml"
+      ],
+      "production_caller": null,
+      "persistent_state": "the candidate directory (source.zip, sbom.cdx.json, provenance.intoto.json, index.json, SHA256SUMS and its sigstore bundle) and the verification and tamper reports, uploaded per run",
+      "authority_owner": "none: a signature attests origin and integrity of bytes, never scientific validity; the policy file is labelled CI_VALIDATION_ONLY and is not a release trust root",
+      "evidence": "ro_crate_tools.py writes and validates the repository's RO-Crate 1.1; tools/ro_crate_conformance.py runs the community's roc-validator (profile ro-crate-1.1, from a hash-pinned lock) beside it on the real crate and on four broken ones, and a disagreement fails (that comparison found D-2026-106). tools/supply_chain.py builds the candidate deterministically for the checked-out commit: source.zip with fixed member order, timestamps and modes; a CycloneDX 1.5 SBOM of every locked environment; an in-toto statement in the SLSA provenance v1 layout with NO SLSA level claimed; an index binding the commit, the manifest's and the crate's digests. verify checks the signature on SHA256SUMS against the EXACT signer identity and issuer of the policy (online, or offline from the bundle's own transparency-log proof), then every layer beneath it -- each with a forgery consistent everywhere else, so no deleted check hides behind the one above it. tamper changes one thing per copy and requires every copy refused.",
+      "provenance": "the source commit, every artifact's sha256, the signer identity and OIDC issuer, the Rekor inclusion proof in the bundle",
+      "failure_semantics": "fails closed at the first refusal: a missing signature is refused as absent, a missing runtime as unverifiable, a wildcard or non-GitHub policy as not exact",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "the signing job alone holds id-token: write; verification uses the exact identity in the policy, never a pattern",
+      "tests": [
+        "tests/test_supply_chain.py",
+        "tests/test_ro_crate_conformance.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/supply_chain.json",
+        "tools/mutations/ro_crate_conformance.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [
+        "no hosted supply-chain run (a signature from the workflow's GitHub OIDC identity, verified online and offline, and the tamper suite on the signed copy) and no hosted run of the RO-Crate community validator are recorded yet at a commit carrying this implementation"
+      ],
+      "boundaries": [
+        {
+          "limit": "a valid signature here says these bytes came from this repository's workflow at this ref; it does not say any result in them is correct",
+          "reason": "epistemic",
+          "detail": "signing binds origin and integrity; scientific validity is established, where it is, by independent checks and an admission decision recorded in the authority log, and nothing a signature covers can stand in for that"
+        },
+        {
+          "limit": "no SLSA build level is claimed: the provenance follows the SLSA v1 layout and is produced by the workflow it describes, not by an isolated builder",
+          "reason": "requires_external_identity_authority",
+          "detail": "a SLSA level requires a builder whose isolation and provenance generation are attested by a trusted platform service; this repository's own workflow writing its own provenance can describe the build, not vouch for its isolation"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R66",
+      "requirement": "AI proposal ingress: an AI's proposal received as NON_AUTHORITATIVE data, content-addressed, and able to reach authority only through a governed run, an independent check and a distinct reviewer",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "implementation": [
+        "qta_agent/proposals.py",
+        "integrations/proposals/recorded_fixture.jsonl",
+        "qta_agent/actions.py",
+        "qta_agent/authority.py",
+        "qta_agent/reconstruct.py"
+      ],
+      "callers": [
+        "tools/harness_demo.py"
+      ],
+      "production_caller": "tools/harness_demo.py",
+      "persistent_state": "proposal.receive records in the authority log (the envelope's digest and the receiving actor), the envelopes as evidence blobs",
+      "authority_owner": "qta_agent/authority.py (the gate: no edge from a proposal to VERIFIED, separation of duties on every edge into UNDER_REVIEW and out of it -- D-2026-105); qta_agent/reconstruct.py restates the rules for the second reader",
+      "evidence": "A proposal is a ProposalEnvelope with a closed schema: unknown keys, forbidden keys (any that name authority, state or verification) and anything that looks like a credential are refused, and its id is the sha256 of its canonical form. Adapters -- a recorded fixture, and an external client held to the same envelope -- produce envelopes from a governed retrieval context whose citations name each source file's sha256. The ingress records proposal.receive (idempotent by proposal id), lists pending proposals, and submits one as a governed model run whose result is PROPOSED; it can do nothing else. A proposer cannot take its own claim into review (D-2026-105), and the second reader refuses such a pickup appended past the store. In the demonstration three proposals are received; the slab run and the good FMU become VERIFIED only through independent checks and a distinct reviewer, and the twin is REJECTED.",
+      "provenance": "every envelope's id is its digest; each proposal names its adapter, its context digest and, for iterations, its parent",
+      "failure_semantics": "every refusal is a ProposalRefused naming the field; a forged receipt is refused on replay; a resubmission returns the existing record",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "proposal.receive is idempotent by proposal id; a submission is idempotent by the same key",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "credential-shaped strings and authority-shaped keys are refused at the envelope",
+      "tests": [
+        "tests/test_proposal_ingress.py",
+        "tests/test_harness_demo.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/proposal_ingress.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "a proposal can never be authority, whoever or whatever made it",
+          "reason": "architectural_by_design",
+          "detail": "the store has no edge from a received proposal to any admitted state; the only path is a governed run checked by an independent verifier and decided by a reviewer distinct from the proposer, and opening another path would make the proposer's confidence a substitute for evidence"
+        },
+        {
+          "limit": "no live language model is called: the recorded fixture and the external-client adapter produce envelopes, and a provider named in one is recorded as a claim, not verified",
+          "reason": "external_system_unreachable",
+          "detail": "a live model needs a paid credential this programme may not use; the external adapter is held to the same envelope, so what a live model returned would be refused or received exactly as the fixture's responses are"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R67",
+      "requirement": "Selective Rust resolved: each kernel explicitly adopted or rejected by a measured decision rule, selected only by name, never silently by the host",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "qta_multiphysics/stack/rust_kernel.py",
+        "tools/rust_kernel_decision.py",
+        "docs/rust_kernel_decisions.json",
+        "rust/qta_kernels/src",
+        "rust/qta_kernels/Cargo.lock"
+      ],
+      "callers": [
+        ".github/workflows/harness-integrations.yml",
+        ".github/workflows/stack-verify.yml"
+      ],
+      "production_caller": null,
+      "persistent_state": "docs/rust_kernel_decisions.json: per kernel, the parity in three NumPy dispatch configurations, the speedup at 1e6, the production call sites, and the decision; the hosted job's measurement is uploaded",
+      "authority_owner": "the decision rule in tools/rust_kernel_decision.py; the registry records it and rust_kernel.py enforces it",
+      "evidence": "A kernel is ADOPTED only if it is bit-identical to its NumPy reference in every dispatch configuration (native, without AVX-512, x86-64-v2 baseline), has at least one production call site, and is at least 2x faster at 1e6 elements. face_conductance: bit-identical everywhere, 3.31x, zero call sites -- REJECTED; power_law: 2 ulp under native AVX-512, 0.61x -- REJECTED. RUST_BACKEND_NOT_ACTIVE: dispatch(name) uses NumPy unless a backend is selected explicitly, and an explicit Rust selection is refused unless the committed decision is ADOPTED and its certificate (NumPy version, SIMD dispatch, extension sha256) applies to this process -- refused, never rerouted. The crate is built twice with a pinned toolchain and the shared objects compared byte for byte.",
+      "provenance": "the extension's sha256, NumPy's version and SIMD dispatch in the certificate; the toolchain version",
+      "failure_semantics": "an unknown or refused backend raises BackendRefused; a missing registry refuses every Rust selection",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_stage10_stack.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/rust_selection.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [
+        "no hosted rust-kernels run is recorded yet at a commit carrying the decision rule: the committed decisions have been measured on one local host and must re-derive on a hosted runner"
+      ],
+      "boundaries": [
+        {
+          "limit": "a kernel's parity is established in the dispatch configurations measured, on the CPUs measured; a CPU whose NumPy dispatch differs again is outside what the certificate covers",
+          "reason": "environment_single_host",
+          "detail": "bit-identity is a property of the instruction paths both implementations take on a given CPU; the certificate records which ones were measured, and a process outside them is refused the Rust path rather than trusted on it"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R68",
+      "requirement": "Scientific equivalence and ranking at declared resolution: an explicit equivalence policy, resolution-aware ranking that reports ties instead of inventing an order, and a global sensitivity cross-check whose disagreement is reported",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "implementation": [
+        "scientific/equivalence.py",
+        "docs/equivalence_contracts.json",
+        "scientific/ranking.py",
+        "scientific/sensitivity.py"
+      ],
+      "callers": [
+        "tools/harness_demo.py",
+        ".github/workflows/stack-verify.yml"
+      ],
+      "production_caller": "tools/harness_demo.py",
+      "persistent_state": "docs/equivalence_contracts.json: per model, which outputs and invariants are compared, at what resolution, by what rule -- and which are excluded and why",
+      "authority_owner": "the contracts file decides what equivalence means; scientific/equivalence.py only applies it",
+      "evidence": "compare(a, b) returns BYTE_IDENTICAL, EQUIVALENT_AT_DECLARED_RESOLUTION (every compared output within the sum of the two stated resolutions, with provenance), NOT_EQUIVALENT or NOT_ESTABLISHED (no contract, or no invariant to compare) -- and reports decision stability separately, because two runs can decide alike without being equivalent. Contracts may not carry numbers of their own: a tolerance comes from the results' declared resolutions. Ranking groups values whose intervals overlap into tiers (connected components), reports every member of a tier as indistinguishable, and says AMBIGUOUS_AT_RESOLUTION when a top-k cut falls inside a tier -- the D-2026-99 shape, reproduced and refused. The sensitivity cross-check ranks parameters by one-at-a-time and by SALib Sobol indices and reports IDENTICAL, CONSISTENT or METHODS_DISAGREE, compared with Kendall tau over tiers.",
+      "provenance": "every comparison names the two bundle digests, the contract and the resolutions used",
+      "failure_semantics": "an unknown model is NOT_ESTABLISHED, never assumed equivalent; a contract with a number in it is refused; SALib missing is GLOBAL_UNAVAILABLE, and under QTA_UQ_REQUIRED=1 a failure",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_ranking_equivalence.py",
+        "tests/test_sensitivity_cross_check.py"
+      ],
+      "property_tests": [
+        "tests/test_ranking_equivalence.py"
+      ],
+      "mutation_tests": [
+        "tools/mutations/ranking_equivalence.json"
+      ],
+      "fuzzing": "none",
+      "differential": "OAT against Sobol on the same model",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "equivalence is established only at the resolution each model declares; a model with no declared invariant contract is NOT_ESTABLISHED and is never assumed equivalent",
+          "reason": "epistemic",
+          "detail": "two floating-point computations on different backends agree only to within what each result states about its own accuracy; claiming more would be inventing a tolerance after seeing the difference, which is the move this policy exists to forbid"
+        },
+        {
+          "limit": "two sensitivity methods agreeing on a ranking is evidence of a robust ordering, not proof of the model's sensitivity structure",
+          "reason": "epistemic",
+          "detail": "both methods sample the same model; their agreement rules out an artefact of one sampling scheme and nothing beyond it, which is why disagreement is reported rather than resolved"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R69",
+      "requirement": "The generic Snakemake path: the default target runs the current harness, including an end-to-end demonstration from a recorded AI proposal to an authority decision, with a negative twin that must be refused",
+      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "implementation": [
+        "Snakefile",
+        "tools/harness_demo.py"
+      ],
+      "callers": [
+        ".github/workflows/harness-integrations.yml",
+        ".github/workflows/container-verify.yml"
+      ],
+      "production_caller": null,
+      "persistent_state": "verification/stage10/harness_demo_report.json and the demonstration's workspace (its log, evidence, checkpoints, HDF5 and RO-Crate), regenerated per run",
+      "authority_owner": "the authority store decides; Snakemake orders the steps and the demonstration's judge decides its own exit status",
+      "evidence": "The default target (scientific_generic) reaches no legacy rule and runs harness_demo, which drives: a recorded AI proposal, governed read-only retrieval with cited sources, the ingress, a capability-authorized governed model run, a deterministic ResultBundle, its HDF5 representation, independent checks, the reviewer's decision, a restart from a checkpoint (CHECKPOINT_ASSISTED, agreeing with full replay), the second reader's reconstruction with the generic consistency check, and an RO-Crate of the record. With FEniCSx and FMI runtimes the slab result is admitted by FEniCSx and the FMU leg runs with its negative twin -- the fault FMU, whose own invariants hold, REJECTED by the independent check. The judge refuses a demonstration in which any of that does not hold, and the rule fails unless the judge accepts. Without the runtimes the generic leg runs, and its honest outcome is REJECTED (the series check cannot admit).",
+      "provenance": "the report records each leg's bundle digest, check, decision and reviewer; the crate records every file's sha256",
+      "failure_semantics": "the tool exits non-zero unless the judge accepts; a required runtime that is missing is a failure",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_workflow_split.py",
+        "tests/test_harness_demo.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/workflow_generic.json",
+        "tools/mutations/harness_demo.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [
+        "no hosted run of the end-to-end job (both runtimes, through the Snakemake rule) is recorded yet at a commit carrying it; until one is, the full demonstration with FEniCSx admitting and the twin refused is shown on one local host"
+      ],
+      "boundaries": [
+        {
+          "limit": "the demonstration exercises one generic model per runtime; it shows that each path works end to end, not that every model a user may add will",
+          "reason": "epistemic",
+          "detail": "an end-to-end run establishes that the path's stages connect and that its refusals fire; a different model brings its own inputs, invariants and checks, which its own tests have to establish"
+        }
+      ],
+      "blocker": null
+    },
+    {
+      "id": "R70",
+      "requirement": "Static discipline over the current active code: an explicit mypy scope enforced in CI with untyped bodies checked, ruff clean over the same scope, strict validation at external and hand-edited boundaries, legacy typing debt recorded apart",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+      "implementation": [
+        "tools/typecheck_scope.py",
+        "typecheck_active.ini",
+        "docs/typing_scope.json"
+      ],
+      "callers": [
+        ".github/workflows/agent-substrate.yml"
+      ],
+      "production_caller": null,
+      "persistent_state": "docs/typing_scope.json: the active scope, the three frozen modules with their reason, and the legacy debt measured (errors per file)",
+      "authority_owner": "typecheck_active.ini (its own file: pyproject.toml is in the byte-reproduction witness's environment lock and may not change); tools/typecheck_scope.py check is the CI step",
+      "evidence": "ACTIVE (qta_agent, scientific, scientific_ai, the stack adapters, the FMI/FEniCSx runtimes, every tool, ro_crate_tools.py) passes mypy with the repository's configuration and --check-untyped-defs: 0 errors, from 264. No global ignore: packages without type information are named one by one; the seven local ignores each name their code and give a reason (a test enforces both), the socket-patching ones in one function whose behaviour the netauth tests prove. Three modules -- the source closure of surface.langmuir_capture, whose digest the NF-1T dataset pins -- have typing-only codes disabled for them alone, and a test holds that list to the real closure and to the dataset's digest. The type pass found D-2026-108, a crash in the completion-matrix validator. Ruff is clean over the same scope. External and hand-edited inputs are validated strictly by closed schemas written for them -- the proposal envelope, the FMU description, the completion matrix, the harness contract, policy files, the supply-chain policy, the equivalence contracts -- each refusing unknown or malformed fields, with tests; Pydantic is used where it was already chosen (the Stage-7 boundary models, the stack registry, the RO-Crate writer), not added for uniformity.",
+      "provenance": "the scope and the frozen list are committed and checked by tests",
+      "failure_semantics": "any error or a mypy that prints no summary fails the step",
+      "recovery": "n/a",
+      "retry": "n/a",
+      "idempotency": "n/a",
+      "cancellation": "n/a",
+      "concurrency": "n/a",
+      "security_boundary": "n/a",
+      "tests": [
+        "tests/test_typecheck_scope.py"
+      ],
+      "property_tests": [],
+      "mutation_tests": [
+        "tools/mutations/typecheck_scope.json"
+      ],
+      "fuzzing": "none",
+      "differential": "none",
+      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_evidence": {
+        "runs": [],
+        "commit": null,
+        "implementation_sha256": null,
+        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+      },
+      "residual_gaps": [],
+      "boundaries": [
+        {
+          "limit": "three modules frozen by the NF-1T dataset's provenance keep typing-only diagnostics disabled by error code",
+          "reason": "architectural_by_design",
+          "detail": "they are the source closure whose digest identifies the model the development dataset was generated from; adding an annotation changes that digest and orphans the dataset's provenance, so the only change that keeps the evidence valid is not editing them -- each diagnostic was triaged and none is a runtime defect"
+        },
+        {
+          "limit": "the hardware-era QTA tree is outside the enforced scope; its typing debt is measured and recorded, not enforced",
+          "reason": "architectural_by_design",
+          "detail": "nine of its modules are the witnessed canonical generator's closure, whose bytes may not change, and the rest are retired or transitional; holding them to the active scope would mean editing the historical generator, which the programme forbids, so the debt is kept visible instead (docs/typing_scope.json)"
         }
       ],
       "blocker": null

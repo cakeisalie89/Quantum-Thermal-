@@ -1,0 +1,51 @@
+{
+  "schema": "typing-scope/1",
+  "active": [
+    "qta_agent",
+    "scientific",
+    "scientific_ai",
+    "qta_multiphysics/stack",
+    "integrations",
+    "tools",
+    "ro_crate_tools.py"
+  ],
+  "tests": [
+    "tests",
+    "conftest.py"
+  ],
+  "frozen": {
+    "scientific.backend_probe": "in the source closure of surface.langmuir_capture, whose digest the NF-1T development dataset pins",
+    "scientific.identity": "in the source closure of surface.langmuir_capture, whose digest the NF-1T development dataset pins",
+    "scientific.models.surface_adsorption": "the surface.langmuir_capture model itself; its closure digest is pinned by the NF-1T development dataset"
+  },
+  "legacy": {
+    "measured_files": 113,
+    "errors": 141,
+    "files_with_errors": 21,
+    "by_file": {
+      "analysis/collect_container_3d.py": 2,
+      "build_stage6_registries.py": 1,
+      "package_consistency_check.py": 70,
+      "qta_full_sim.py": 1,
+      "qta_multiphysics/campaign_uncertainty_3d.py": 1,
+      "qta_multiphysics/coupled_mode_solver.py": 1,
+      "qta_multiphysics/coupling_ledger_3d.py": 1,
+      "qta_multiphysics/deep_expdesign/config.py": 18,
+      "qta_multiphysics/deep_expdesign/likelihood_model.py": 1,
+      "qta_multiphysics/deep_expdesign/ood.py": 1,
+      "qta_multiphysics/deep_expdesign/parameter_space.py": 1,
+      "qta_multiphysics/deep_expdesign/posterior_model.py": 1,
+      "qta_multiphysics/deep_expdesign/validation.py": 14,
+      "qta_multiphysics/design/validation.py": 1,
+      "qta_multiphysics/expdesign/model.py": 1,
+      "qta_multiphysics/hardware_governance_3d.py": 7,
+      "qta_multiphysics/nv_spin/model.py": 1,
+      "qta_multiphysics/nv_spin/spin_config.py": 3,
+      "qta_multiphysics/runner_3d.py": 7,
+      "qta_multiphysics/state_machine_3d.py": 2,
+      "verify_release.py": 6
+    },
+    "command": "python tools/typecheck_scope.py legacy --write",
+    "note": "typing debt of the hardware-era QTA tree and its release tooling: recorded, not enforced, never counted as the active scope's"
+  }
+}

@@ -38,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import json
 import struct
+from typing import Any
 
 import numpy as np
 
@@ -278,7 +279,7 @@ def save_sharded(cfg: ModelConfig, params, buffers, n: int, *,
         raise CheckpointError(f"shard count {n!r}")
     tensors = {**flatten("params", params), **flatten("buffers", buffers)}
     names = sorted(tensors, key=lambda k: (-tensors[k].size, k))
-    groups = [dict() for _ in range(n)]
+    groups: list[dict[str, Any]] = [dict() for _ in range(n)]
     for i, name in enumerate(names):
         groups[i % n][name] = tensors[name]
     meta = {"config_digest": cfg.digest(), "format": FORMAT,
@@ -297,7 +298,7 @@ def load_sharded(cfg: ModelConfig, shards: list, *, shard_digests: list,
                               "checkpoint digest")
     if len(shards) != len(shard_digests):
         raise CheckpointError("shard count differs from the manifest")
-    merged = {}
+    merged: dict[str, Any] = {}
     for raw, want in zip(shards, shard_digests):
         if hashlib.sha256(raw).hexdigest() != want:
             raise CheckpointError("a shard's bytes are not the ones "

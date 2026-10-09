@@ -278,7 +278,8 @@ def unturned_knobs(text: str | None = None) -> tuple:
     src = (ROOT / "tests" / "test_agent_long_horizon.py")
     if not src.exists():
         return (f"{src.name} is gone; the long-horizon claim has no subject",)
-    m = re.search(r'CYCLES\s*=\s*int\(os\.environ\.get\(\s*"QTA_HORIZON_CYCLES",\s*"(\d+)"\s*\)\)',
+    m = re.search(r'CYCLES\s*=\s*int\(os\.environ\.get\(\s*'
+                  r'"QTA_HORIZON_CYCLES",\s*"(\d+)"\s*\)\)',
                   src.read_text(encoding="utf-8"))
     if not m:
         return ("cannot find the QTA_HORIZON_CYCLES default in "
@@ -303,6 +304,11 @@ def unturned_knobs(text: str | None = None) -> tuple:
 #: each with the reason. Anything else carrying a mutation specification has to
 #: be run against the real tree somewhere.
 VERIFIER_EXEMPT = {
+    "tools/attach_hosted_evidence.py":
+        "a WRITER, not a verifier: it records a row's hosted evidence from "
+        "runs the GitHub API shows green on one commit, run by hand in an "
+        "evidence commit; the completion matrix validator, which is run, "
+        "derives what that evidence covers",
     "tools/mutation_matrix.py":
         "it IS the harness; its invocation is `mutation_matrix.py <spec>` and "
         "unrun_mutation_specs() already requires every specification to be "
@@ -317,6 +323,15 @@ VERIFIER_EXEMPT = {
         "on argv; it runs on the real tree every time the package check does "
         "and has no verdict of its own",
 }
+
+
+def _everywhere() -> str:
+    """Every committed workflow: a verifier whose runtime only one job
+    installs (the RO-Crate validator, the Rust toolchain, FEniCSx, FMI) is
+    run there, and that counts."""
+    return "\n".join([_text()] + [
+        wf.read_text(encoding="utf-8")
+        for wf in sorted(WORKFLOWS.glob("*.yml")) if wf != AGENT_WF])
 
 
 def unwired_verifiers(text: str | None = None) -> tuple:
@@ -356,7 +371,8 @@ def unwired_verifiers(text: str | None = None) -> tuple:
     for path in candidates:
         src = (ROOT / path)
         if not src.exists():
-            return (f"{path} is mutated by a specification and does not exist",)
+            return (f"{path} is mutated by a specification and does not "
+                    "exist",)
         body = src.read_text(encoding="utf-8")
         if "def main" in body and '__main__' in body:
             runnable.add(path)
@@ -378,7 +394,7 @@ def unwired_verifiers(text: str | None = None) -> tuple:
     # substring test counts that as the verifier having reported on the tree.
     # So match the shape of execution.
     executed = set()
-    cmds = _run_commands(text if text is not None else _text())
+    cmds = _run_commands(text if text is not None else _everywhere())
     for cmd in cmds:
         for m in re.finditer(r"(?:^|\s)(?:uv run )?python3?\s+(\S+)", cmd):
             executed.add(m.group(1))
@@ -404,7 +420,15 @@ def problems() -> tuple:
     out += [f"action is not pinned to a commit -- {x}"
             for x in uses_unpinned_actions(body)]
     out += [f"knob is never turned -- {x}" for x in unturned_knobs(body)]
-    out += [f"verifier is never run -- {x}" for x in unwired_verifiers(body)]
+    # A verifier executed by ANY hosted workflow has its verdict taken on the
+    # tree; the harness-integrations jobs run the ones that need a runtime
+    # this matrix job does not install (the RO-Crate validator, the Rust
+    # toolchain).
+    everywhere = "\n".join([body] + [
+        wf.read_text(encoding="utf-8")
+        for wf in sorted(WORKFLOWS.glob("*.yml")) if wf != AGENT_WF])
+    out += [f"verifier is never run -- {x}"
+            for x in unwired_verifiers(everywhere)]
     out += [f"mutation shards -- {x}" for x in MS.check_workflow(body)]
     return tuple(out)
 

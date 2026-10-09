@@ -1527,13 +1527,21 @@ def socket_guard(authority: NetworkAuthority, *, actor: str, task_id: str,
     def guarded_connect_ex(self, address):
         return original_ex(self, _check(self, address))
 
-    socket.socket.connect = guarded_connect
-    socket.socket.connect_ex = guarded_connect_ex
+    _install(guarded_connect, guarded_connect_ex)
     try:
         yield
     finally:
-        socket.socket.connect = original
-        socket.socket.connect_ex = original_ex
+        _install(original, original_ex)
+
+
+def _install(connect, connect_ex) -> None:
+    # Replacing the class's methods IS the mechanism, so mypy's
+    # method-assign is ignored on these two lines and nowhere else; that
+    # the guard is installed, judges every connection, and is removed on
+    # exit is what tests/test_agent_netauth.py proves (W26 attacks the
+    # removal).
+    socket.socket.connect = connect  # type: ignore[method-assign]
+    socket.socket.connect_ex = connect_ex  # type: ignore[method-assign]
 
 
 def _address_parts(address) -> tuple:
@@ -1628,13 +1636,14 @@ def _resolve_candidates(host: str, port: int, sock) -> tuple:
     for family, socktype, proto, _canon, sockaddr in infos:
         if family not in (socket.AF_INET, socket.AF_INET6):
             continue                              # pragma: no cover
+        host_addr = str(sockaddr[0])              # IPv4/IPv6: a str
         try:
-            cls = classify_address(sockaddr[0])
+            cls = classify_address(host_addr)
         except ValueError:                        # pragma: no cover - from OS
             continue
         out.append(ResolvedCandidate(family=family, socktype=socktype,
                                      proto=proto, sockaddr=sockaddr,
-                                     address=sockaddr[0],
+                                     address=host_addr,
                                      address_class=cls.value))
     return tuple(out)
 

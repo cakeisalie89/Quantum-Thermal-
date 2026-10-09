@@ -41,6 +41,8 @@ no representable digit.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import math
 
 from ..identity import implementation_digest
@@ -49,6 +51,7 @@ from ..result import OutputStatus, ResultBundle
 from ..verification import (
     CheckType, Establishes, Independence, Status, VerificationResult,
 )
+from . import quantity
 
 CHECK_ID = "surface_adsorption.rk4_pressure_form"
 #: The model this check was written for -- stated, not imported, so that the
@@ -117,7 +120,7 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
     if (bundle.model_id, bundle.model_version) != (MODEL_ID, MODEL_VERSION):
         raise ValueError(f"this check is for {MODEL_ID}@{MODEL_VERSION}, "
                          f"not {bundle.model_id}@{bundle.model_version}")
-    common = dict(
+    common: dict[str, Any] = dict(
         check_id=CHECK_ID, check_type=CheckType.INDEPENDENT_IMPLEMENTATION,
         subject_digest=bundle.digest(),
         subject_model=f"{bundle.model_id}@{bundle.model_version}",
@@ -150,9 +153,9 @@ def run_check(bundle: ResultBundle, *, verifier_id: str) -> VerificationResult:
                               prm["mass_amu"])
     C = captured(N0, flux, prm["sticking"], cap,
                  prm["window_s"] * prm["n_windows"])
-    C_producer = inv_out.quantity.value - N0
-    floor = (inv_out.quantity.resolution or 0.0) / REL_MAX
-    rel = max(_rel(flux, flux_out.quantity.value),
+    C_producer = quantity(inv_out).value - N0
+    floor = (quantity(inv_out).resolution or 0.0) / REL_MAX
+    rel = max(_rel(flux, quantity(flux_out).value),
               abs(C - C_producer) / max(abs(C), floor)
               if C != C_producer else 0.0)
     return VerificationResult(

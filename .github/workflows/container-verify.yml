@@ -1,28 +1,35 @@
-# Container runtime verification -- manually dispatched, non-authoritative.
+# Container runtime verification -- built and run on every push to this
+# branch, non-authoritative.
 #
-# WHY THIS EXISTS. The declared container has been reviewed statically but never
-# executed. Locally that is not fixable: the Docker daemon runs (client and
-# server 29.3.1) and the Docker Hub manifest endpoint is reachable, but the
-# layer blobs live on production.cloudfront.docker.com, which the sandbox egress
-# proxy denies with a 403 on CONNECT. Substituting a different base image would
-# test a different artifact than the Dockerfile declares, so it was not done.
+# WHY IT RUNS HOSTED. Locally the Docker daemon runs and the Docker Hub
+# manifest endpoint is reachable, but the layer blobs live on
+# production.cloudfront.docker.com, which the sandbox egress proxy denies with
+# a 403 on CONNECT; substituting a different base image would test a different
+# artifact than the Dockerfile declares. A GitHub-hosted runner can pull them.
+# This workflow builds the declared image there -- same Dockerfile, same
+# digest-pinned base, same entrypoint, same non-root user -- and runs it.
 #
-# A GitHub-hosted runner is a different network, and ubuntu-latest images ship a
-# Docker daemon. This workflow tries the declared build there. It changes
-# nothing about the container: same Dockerfile, same digest-pinned base, same
-# entrypoint, same non-root user.
+# HISTORY, measured (container_verification.md): nine dispatched runs from
+# 2026-08-23 to 2026-09-08 built the image and ran it as the non-root user
+# every time after the first; their failures were, in order, a root-owned
+# /qta, governed files hidden by .dockerignore, and then canonical byte
+# divergence on runners without the witnessed backend -- which the in-image
+# check now asks under --policy ci, the portable question.
 #
 # NON-AUTHORITATIVE. Nothing here can move a gate, a threshold or an authority
 # state. It grants `contents: read` and nothing else -- no id-token, no write of
-# any kind -- so it cannot sign, push or comment. Its only product is evidence
-# that the declared container does or does not build and run.
-#
-# STATUS UNTIL IT RUNS: the availability of a usable Docker daemon on the hosted
-# runner is documented by GitHub but NOT verified here. This workflow is the
-# means of verifying it, not a claim that it works.
+# any kind -- so it cannot sign, push or comment. Its products are evidence:
+# whether the declared image builds, runs, and passes its in-image
+# verification, and the identity (config digest, layers) of the image that did.
 name: qta-container-verify
 on:
-  workflow_dispatch:        # manual only
+  # Every push to this branch builds and runs the declared image: a
+  # dispatch-only trigger cannot fire until the workflow reaches the default
+  # branch, and evidence about the container must be about the commit it ran
+  # on, not one dispatched by hand weeks earlier.
+  push:
+    branches: ["claude/scientific-python-stack-7rsq3m"]
+  workflow_dispatch:
 permissions: {}             # default-deny
 jobs:
   container-verify:
@@ -84,7 +91,31 @@ jobs:
       # This is the step that would raise the evidence state from RUNTIME_BUILT
       # to RUNTIME_SCIENTIFICALLY_REPRODUCED.
       - name: run the governed in-container verification
-        run: docker run --rm qta:hosted-verify
+        # the evidence directory is mounted so the in-image demonstration's
+        # report can be compared with a native run below; the image's user
+        # (qta) writes it, so the directory is made writable first
+        run: |
+          mkdir -p container-evidence
+          chmod 0777 container-evidence
+          docker run --rm -e QTA_EVIDENCE_DIR=/evidence \
+            -v "$PWD/container-evidence:/evidence" qta:hosted-verify
+
+      # Section 49: the same demonstration natively, compared with the
+      # container's under the equivalence policy. Byte equality is not
+      # required where the numerical backend legitimately differs; the
+      # comparison classifies the slab result (BYTE_IDENTICAL,
+      # EQUIVALENT_AT_DECLARED_RESOLUTION, NOT_EQUIVALENT or NOT_ESTABLISHED)
+      # and requires both runs to reach the same authority outcome.
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - name: the same demonstration natively, compared with the container's
+        run: |
+          set -euo pipefail
+          uv sync --frozen --all-groups
+          uv run python tools/harness_demo.py run --out container-evidence/harness_demo_native.json
+          uv run python tools/harness_demo.py compare \
+            container-evidence/harness_demo_container.json \
+            container-evidence/harness_demo_native.json \
+            --out container-evidence/harness_demo_comparison.json
 
       - name: preserve evidence
         if: always()
@@ -92,6 +123,12 @@ jobs:
           mkdir -p container-evidence
           { docker version; echo; docker images qta:hosted-verify; } \
             > container-evidence/runtime.txt 2>&1 || true
+          # the image's identity: its config digest and every layer, so the
+          # evidence names the exact image that ran, not a tag
+          docker image inspect --format \
+            '{"image_id": "{{.Id}}", "layers": {{json .RootFS.Layers}}, "source_sha": "'"$GITHUB_SHA"'"}' \
+            qta:hosted-verify > container-evidence/image_identity.json 2>&1 || true
+          cat container-evidence/image_identity.json || true
           grep -E '^FROM |^USER |^CMD ' Dockerfile > container-evidence/declared.txt || true
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4

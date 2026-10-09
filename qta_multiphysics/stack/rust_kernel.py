@@ -16,16 +16,26 @@ detail. So this module makes adoption conditional and mechanical:
   accelerator that must earn its place on every process start.
 * Adoption is **per kernel**, not per crate: one kernel failing parity does
   not disqualify the others, and one passing does not vouch for the rest.
-* The Rust path is **off unless explicitly requested** (``QTA_RUST_KERNELS=1``)
-  *and* parity passes. CI, the container, and the release workflow all run the
-  NumPy path.
+* The Rust path is **off unless explicitly requested** -- ``dispatch(name,
+  backend="rust")`` or ``QTA_RUST_KERNELS=1`` -- AND the kernel's committed
+  decision (``docs/rust_kernel_decisions.json``, written by
+  ``tools/rust_kernel_decision.py`` from measurement) is ADOPTED AND that
+  decision's certificate applies to this process: the same NumPy version and
+  dispatch, the same extension bytes. A request that fails any of these
+  RAISES ``BackendRefused``; it never falls back silently, and an on-host
+  parity check never selects a backend. The host does not decide which
+  implementation is authoritative (D-2026-58; directive s.21).
 
-Nothing here is imported by the solvers today: this is the mechanism, proven
-on two representative kernels, that any future acceleration must pass through.
+Decided: both kernels are REJECTED (no production call site; the power law
+is also not bit-identical under AVX-512 and slower than NumPy), so the Rust
+backend is NOT ACTIVE and NumPy is in force everywhere. That is a completed
+decision, not an open one.
 """
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
@@ -39,6 +49,12 @@ CRATE_PATH = "rust/qta_kernels"
 BUILD_COMMAND = ("maturin build --release --manifest-path "
                  f"{CRATE_PATH}/Cargo.toml -i python3.12")
 PARITY_RULE = "bit_for_bit_identical_to_numpy_reference"
+DECISIONS = Path(__file__).resolve().parents[2] / "docs" / \
+    "rust_kernel_decisions.json"
+
+
+class BackendRefused(RuntimeError):
+    """An explicit request for a backend that may not serve it."""
 
 
 def numpy_dispatch() -> str:
@@ -138,14 +154,14 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
     spec = KERNELS[name]
     if not rust_available():
         return {"kernel": name, "availability": "UNAVAILABLE",
-                "adopted": False, "backend_in_force": "numpy",
+                "parity": "NOT_MEASURED",
                 "numpy_dispatch": numpy_dispatch(),
                 "reason": "qta_kernels extension not importable",
                 "build_command": BUILD_COMMAND}
     fn = _rust_fn(name)
     if fn is None:
         return {"kernel": name, "availability": "AVAILABLE",
-                "adopted": False, "backend_in_force": "numpy",
+                "parity": "NOT_MEASURED",
                 "numpy_dispatch": numpy_dispatch(),
                 "reason": f"extension exports no '{name}'"}
     args, kwargs = _test_vectors(name, seed, n)
@@ -153,8 +169,8 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
     ref = np.asarray(reference(*args, **kwargs), dtype=np.float64)
     got = np.asarray(fn(*args, **kwargs), dtype=np.float64)
     if got.shape != ref.shape:
-        return {"kernel": name, "availability": "AVAILABLE", "adopted": False,
-                "backend_in_force": "numpy",
+        return {"kernel": name, "availability": "AVAILABLE",
+                "parity": "NOT_BIT_IDENTICAL",
                 "numpy_dispatch": numpy_dispatch(),
                 "reason": f"shape {got.shape} != reference {ref.shape}"}
     identical = bool(np.array_equal(got.view(np.int64), ref.view(np.int64)))
@@ -163,7 +179,8 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
     with np.errstate(divide="ignore", invalid="ignore"):
         rel = np.abs(got - ref) / np.where(ref != 0, np.abs(ref), 1.0)
     return {"kernel": name, "availability": "AVAILABLE",
-            "adopted": identical, "parity_rule": PARITY_RULE,
+            "parity": "BIT_IDENTICAL" if identical else "NOT_BIT_IDENTICAL",
+            "parity_rule": PARITY_RULE,
             # The verdict is about this kernel AGAINST THIS NUMPY. Recorded
             # beside it so that a report read on another host is read as a
             # different measurement rather than a contradiction.
@@ -173,18 +190,22 @@ def kernel_parity(name: str, seed: int = PARITY_SEED, n: int = PARITY_N
             "max_ulp_difference": ulp,
             "max_relative_difference": float(np.max(rel)) if ref.size else 0.0,
             "n_test_values": int(ref.size), "seed": int(seed),
-            "backend_in_force": "rust" if identical else "numpy",
-            "verdict": "ADOPTED" if identical else "REJECTED_NOT_BIT_IDENTICAL"}
+            "note": "a measurement on this host; adoption is decided by "
+                    "docs/rust_kernel_decisions.json, never by this verdict"}
 
 
-_PARITY_CACHE: dict = {}
-
-
-def parity_ok(name: str) -> bool:
-    """Cached per-process parity verdict for one kernel."""
-    if name not in _PARITY_CACHE:
-        _PARITY_CACHE[name] = bool(kernel_parity(name).get("adopted", False))
-    return _PARITY_CACHE[name]
+def decisions() -> dict:
+    """The committed per-kernel decisions. Missing or unreadable is a
+    refusal of every Rust request, never an adoption."""
+    try:
+        doc = json.loads(DECISIONS.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise BackendRefused(f"no readable decision registry "
+                             f"({DECISIONS.name}): {exc}") from exc
+    if doc.get("schema") != "rust-kernel-decisions/1" or \
+            not isinstance(doc.get("kernels"), dict):
+        raise BackendRefused("the decision registry has an unknown shape")
+    return doc
 
 
 def rust_enabled() -> bool:
@@ -192,29 +213,83 @@ def rust_enabled() -> bool:
     return os.environ.get(ENABLE_ENV_VAR, "").strip() in ("1", "true", "TRUE")
 
 
-def dispatch(name: str) -> Callable:
-    """Return the kernel to call: Rust only if requested *and* bit-identical.
+def _extension_sha256() -> str | None:
+    try:
+        import hashlib
 
-    Default in every environment the project actually ships (CI, container,
-    release workflow) is the NumPy reference.
+        import qta_kernels
+        so = qta_kernels.qta_kernels.__file__
+        with open(so, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except Exception:
+        return None
+
+
+def certificate_applies(doc: dict) -> tuple[bool, str]:
+    """Whether the decision's measurement describes THIS process."""
+    m = doc.get("measured_on") or {}
+    if m.get("numpy_version") != np.__version__:
+        return False, (f"certified against NumPy {m.get('numpy_version')}, "
+                       f"this process has {np.__version__}")
+    here = np.show_config(mode="dicts")["SIMD Extensions"]
+    if m.get("simd") != here:
+        return False, (f"certified under dispatch {m.get('simd')}, this "
+                       f"process has {here}")
+    if m.get("extension_sha256") != _extension_sha256():
+        return False, "the loaded extension is not the certified build"
+    return True, "certificate applies"
+
+
+def dispatch(name: str, backend: str | None = None) -> Callable:
+    """The kernel to call, by EXPLICIT selection; the host never chooses.
+
+    ``backend`` defaults to what the process requested (``numpy`` unless
+    ``QTA_RUST_KERNELS=1``). ``numpy`` returns the reference. ``rust``
+    returns the extension only for a kernel whose committed decision is
+    ADOPTED and whose certificate applies here; otherwise it raises
+    ``BackendRefused`` -- an explicit request is never silently served by
+    something else.
     """
     if name not in KERNELS:
         raise KeyError(f"unknown kernel '{name}'")
-    if rust_enabled() and rust_available() and parity_ok(name):
-        fn = _rust_fn(name)
-        if fn is not None:
-            return fn
-    numpy_reference: Callable = KERNELS[name]["numpy"]
-    return numpy_reference
+    if backend is None:
+        backend = "rust" if rust_enabled() else "numpy"
+    if backend == "numpy":
+        numpy_reference: Callable = KERNELS[name]["numpy"]
+        return numpy_reference
+    if backend != "rust":
+        raise ValueError(f"backend must be 'numpy' or 'rust', not "
+                         f"{backend!r}")
+    doc = decisions()
+    dec = doc["kernels"].get(name) or {}
+    if not str(dec.get("decision", "")).endswith("_ADOPTED"):
+        raise BackendRefused(
+            f"{name}: {dec.get('decision', 'UNDECIDED')} "
+            f"({'; '.join(dec.get('failed_criteria', [])) or 'no record'})"
+            " -- the NumPy reference is in force; request backend='numpy'")
+    ok, why = certificate_applies(doc)
+    if not ok:
+        raise BackendRefused(f"{name}: ADOPTED, but {why}")
+    fn = _rust_fn(name)
+    if fn is None:
+        raise BackendRefused(f"{name}: ADOPTED, but the extension is not "
+                             "importable here")
+    return fn
 
 
-def backend_in_force(name: str) -> str:
-    return "rust" if dispatch(name) is not KERNELS[name]["numpy"] else "numpy"
+def backend_in_force(name: str, backend: str | None = None) -> str:
+    """``numpy``, ``rust``, or ``REFUSED`` for the requested backend."""
+    try:
+        fn = dispatch(name, backend)
+    except BackendRefused:
+        return "REFUSED"
+    return "rust" if fn is not KERNELS[name]["numpy"] else "numpy"
 
 
 def status_report(out_dir: StrPath | None = None) -> dict:
     """Per-kernel adoption status for the Stage-10 workflow."""
     kernels: list[dict] = [kernel_parity(name) for name in sorted(KERNELS)]
+    doc = decisions()
     report = {
         "label": LABEL,
         "automatic_gate_effect": AUTOMATIC_GATE_EFFECT,
@@ -227,23 +302,27 @@ def status_report(out_dir: StrPath | None = None) -> dict:
         "extension_importable": rust_available(),
         "enabled_this_process": rust_enabled(),
         "default_backend": "numpy",
+        "selection": "explicit; a committed decision, never an on-host "
+                     "parity verdict, admits a kernel",
+        "backend": doc["backend"],
+        "decisions": {k: v["decision"] for k, v in
+                      sorted(doc["kernels"].items())},
         "kernels": kernels,
-        "adopted_kernels": sorted(k["kernel"] for k in kernels
-                                  if k.get("adopted")),
+        "adopted_kernels": sorted(k for k, v in doc["kernels"].items()
+                                  if v["decision"].endswith("_ADOPTED")),
         "numpy_dispatch": numpy_dispatch(),
         "dispatch_conditionality": (
-            "Every verdict below was measured against THIS host's NumPy. "
-            "conductivity_power_law is REJECTED at 2 ulp where AVX-512 is "
-            "available and ADOPTED, bit-identical, where it is not -- so "
-            "which backend dispatch() selects is a property of the host, not "
-            "of the kernel. Nothing consumes these kernels today, so nothing "
-            "scientific turns on it; the record says so rather than leaving "
-            "a reader to discover it. D-2026-58."),
+            "The parity measurements below were taken against THIS host's "
+            "NumPy: conductivity_power_law differs by 2 ulp where AVX-512 "
+            "is available and is bit-identical where it is not. They decide "
+            "nothing -- the committed decision registry does, and it "
+            "rejects that kernel. D-2026-58."),
         "authority": "the NumPy reference in this module; a Rust kernel is "
-                     "an accelerator that must re-prove bit parity on every "
-                     "process start, never a second source of truth",
-        "note": "no solver imports these kernels yet; this is the admission "
-                "mechanism any future acceleration must pass through",
+                     "an accelerator admitted only by a committed decision "
+                     "whose certificate applies to the process, never a "
+                     "second source of truth",
+        "note": "no solver imports these kernels; both are REJECTED and "
+                "the Rust backend is not active",
     }
     if out_dir is not None:
         out = guard_output_dir(out_dir)
