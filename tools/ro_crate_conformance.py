@@ -15,10 +15,11 @@ two verdicts side by side:
   file does not exist is not invented; the validators see the hole;
 * AGREE when both accept, or both refuse; DISAGREE otherwise -- reported,
   exit 1, never resolved in favour of the convenient answer;
-* negative controls: the same packaging of four broken crates (no root
+* negative controls: the same packaging of five broken crates (no root
   dataset, no ``conformsTo``, no ``datePublished``, a dangling data
-  entity) must be refused by BOTH validators, or the one that accepts is
-  not checking what it is run for.
+  entity, a data entity typed neither File nor Dataset) must be refused by
+  BOTH validators, or the one that accepts is not checking what it is run
+  for.
 
 The external validator expands JSON-LD against the RO-Crate context at
 w3id.org, so it needs the network; where that is unreachable the tool says
@@ -53,10 +54,17 @@ def package(meta: dict, dest: Path, root: Path = ROOT) -> list:
     (dest / "ro-crate-metadata.json").write_text(
         json.dumps(meta, indent=1, sort_keys=True), encoding="utf-8")
     missing = []
+    # every data entity: what the root says it has, and anything typed File
+    # -- not only the File-typed ones, or a data entity typed otherwise is a
+    # hole in the package that neither validator was shown (D-2026-111)
+    root_: dict = next((e for e in meta.get("@graph", [])
+                  if e.get("@id") == "./"), {})
+    parts = {p.get("@id") for p in root_.get("hasPart", [])
+             if isinstance(p, dict)}
     for ent in meta.get("@graph", []):
         types = ent.get("@type")
         types = types if isinstance(types, list) else [types]
-        if "File" not in types:
+        if "File" not in types and ent.get("@id") not in parts:
             continue
         rel = ent["@id"]
         if rel.startswith(("#", "http://", "https://")) or ".." in rel:
@@ -131,6 +139,11 @@ def _broken(meta: dict) -> dict:
             e["hasPart"] = list(e.get("hasPart", [])) + [
                 {"@id": "does/not/exist.csv"}]
     out["dangling_data_entity"] = m
+    m = copy.deepcopy(meta)
+    for e in m["@graph"]:
+        if e.get("@id") == "Snakefile":
+            e["@type"] = "SoftwareSourceCode"
+    out["data_entity_not_a_file"] = m
     return out
 
 
@@ -180,6 +193,12 @@ def main(argv=None) -> int:
     for name, v in rep["cases"].items():
         print(f"{name}: internal {v['internal']}, external "
               f"{v['external']['status']} -> {v['agreement']}")
+        if v["agreement"] == "DISAGREE":
+            # the reasons, in the log, where a hosted failure is read
+            for line in v["internal_problems"][:10]:
+                print(f"    internal: {line}")
+            for issue in v["external"].get("issues", [])[:20]:
+                print(f"    external: {issue}")
     if not rep["measured"]:
         print("EXTERNAL VALIDATION NOT MEASURED")
         return 1

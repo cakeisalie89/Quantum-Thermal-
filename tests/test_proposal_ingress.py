@@ -286,6 +286,74 @@ def test_receipt_is_durable_idempotent_and_written_by_the_ingress(tmp_path):
     assert PR.received(log)[first.envelope.proposal_id]["agent_id"] == AGENT
 
 
+def _whole_log_passes(fn):
+    """Run ``fn``; return how many times the whole log was read. Every
+    verified read goes through EventLog.read, and the anchored catch-up
+    does not (see tests/test_agent_performance.py::_count_full_passes)."""
+    seen = {"passes": 0}
+    real = EventLog.read
+
+    def counting(self, *, strict: bool = True):
+        seen["passes"] += 1
+        return real(self, strict=strict)
+
+    EventLog.read = counting
+    try:
+        fn()
+    finally:
+        EventLog.read = real
+    return seen["passes"]
+
+
+def _distinct(i):
+    return PR.envelope(_responses()[0], context=_context([{
+        "path": "STACK.md", "line_start": i + 1, "line_end": i + 2,
+        "source_sha256": digest("STACK.md"), "text": f"span {i}",
+        "evidence_status": PR.EVIDENCE_STATUS}]), agent_id=AGENT,
+        adapter=PR.RecordedFixtureAdapter(FIXTURE_TEXT))
+
+
+def test_a_running_ingress_reads_the_history_once_not_once_per_receipt(
+        tmp_path):
+    """D-2026-119: each receipt re-read and re-verified the whole log to ask
+    whether its proposal was there already -- quadratic over a long history.
+    One ingress, many receipts: the history is read once, when the ingress
+    first looks, and O(new) after that, whatever else is appended between."""
+    log = EventLog(tmp_path / "log.jsonl")
+    ing = PR.ProposalIngress(log)
+    other = PR.ProposalIngress(EventLog(log.path))
+
+    def rounds(start, n):
+        def go():
+            for i in range(start, start + n):
+                ing.receive(_distinct(i))
+                other.receive(_distinct(100 + i))   # another writer, between
+        return go
+
+    # Warm: each ingress's first look, and each log handle's first check of
+    # its head, read the history. A bounded number, not one per receipt.
+    assert 0 < _whole_log_passes(rounds(0, 2)) <= 5
+    assert _whole_log_passes(rounds(2, 22)) == 0
+    assert len(PR.received(log)) == 48
+    def never(_pid):
+        return False
+    mine = {e.proposal_id for e in ing.pending(never)}
+    assert len(mine) == 48
+    assert mine == {e.proposal_id for e in other.pending(never)}
+
+
+def test_the_pass_probe_sees_an_ingress_that_reads_everything(tmp_path):
+    """Anti-vacuity for the count above: a fresh ingress per receipt -- the
+    old cost, one whole read each -- is what the probe reports."""
+    log = EventLog(tmp_path / "log.jsonl")
+
+    def fresh_each_time():
+        for i in range(5):
+            PR.ProposalIngress(log).receive(_distinct(i))
+
+    assert _whole_log_passes(fresh_each_time) >= 5
+
+
 def test_an_unreadable_history_is_refused_not_projected_empty(tmp_path):
     """A first draft of received() discarded read_verified's report, so a log
     with a broken chain gave an empty projection -- every proposal silently

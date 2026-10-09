@@ -903,12 +903,26 @@ class SecretStore:
             self._granted_by[g.grant_id] = actor
             return g
         # Stamped from the log, like the capability and egress ledgers:
-        # where a grant begins is not the caller's to choose.
-        g = replace(g, issued_seq=self.log.verify().head_seq + 1)
-        # The grant BODY, which names ids and purposes and no value.
-        ev = self.log.append(
-            actor=actor, action=ACT_SECRET_GRANT, target=g.task_id,
-            payload={"grant": g.body(), "grant_digest": g.digest()})
+        # where a grant begins is not the caller's to choose -- and stamped
+        # under the writer lock, at the position the record is written, or
+        # another writer landing between the read and the append leaves a
+        # grant replay refuses as backdated (D-2026-117).
+        stamped: dict = {}
+
+        def decide(head_seq: int) -> dict:
+            # rebuilt by replay's own constructor, so a stamp that moved the
+            # start past the expiry is refused with nothing written rather
+            # than appended as a grant every replay refuses
+            s = grant_from_record(replace(g, issued_seq=head_seq + 1).body())
+            stamped["grant"] = s
+            # The grant BODY, which names ids and purposes and no value.
+            return {"actor": actor, "action": ACT_SECRET_GRANT,
+                    "target": s.task_id,
+                    "payload": {"grant": s.body(),
+                                "grant_digest": s.digest()}}
+
+        ev = self.log.append_decided(decide)
+        g = stamped["grant"]
         # FOLDED THROUGH THE REDUCER, not assigned beside it. The write path
         # and the replay now reach the projection by the same route, so a
         # rule added to one cannot be missing from the other -- which is the

@@ -1,6 +1,6 @@
 {
  "title": "AI proposal ingress: non-authority, content addressing, governed submission, second reader; D-2026-105",
- "note": "PI1-PI16 the envelope and the ingress; SR1-SR7 the second reader's restated envelope rules; AU1-AU2 the distinct-actor pickup in the gate and in the reader; GM1 the resumable decision.",
+ "note": "PI1-PI16 the envelope and the ingress; PI17-PI18 the anchored receipt view (D-2026-119); SR1-SR7 the second reader's restated envelope rules; AU1-AU2 the distinct-actor pickup in the gate and in the reader; GM1 the resumable decision.",
  "suites": [
   "tests/test_proposal_ingress.py"
  ],
@@ -50,8 +50,8 @@
   {
    "name": "PI7_duplicate_appended",
    "path": "qta_agent/proposals.py",
-   "find": "        if have is not None:\n            return Receipt(env, have[\"seq\"], True)\n",
-   "replace": "        if False:\n            return Receipt(env, have[\"seq\"], True)\n",
+   "find": "            if have is not None:\n                raise _AlreadyReceived(have)\n",
+   "replace": "            if False:\n                raise _AlreadyReceived(have)\n",
    "rationale": "a resent proposal is received twice"
   },
   {
@@ -109,6 +109,20 @@
    "find": "    extra, missing = set(obj) - set(keys), set(keys) - set(obj)\n    if extra or missing:\n",
    "replace": "    extra, missing = set(obj) - set(keys), set(keys) - set(obj)\n    if missing:\n",
    "rationale": "an envelope may carry fields the schema does not name"
+  },
+  {
+   "name": "PI17_every_receipt_rereads_history",
+   "path": "qta_agent/proposals.py",
+   "find": "        if self._anchor is not None:\n            try:\n                events, self._anchor = self.log.advance(self._anchor)\n",
+   "replace": "        if False:\n            try:\n                events, self._anchor = self.log.advance(self._anchor)\n",
+   "rationale": "D-2026-119 reopened: every receipt re-reads and re-verifies the whole log, quadratic over a long history"
+  },
+  {
+   "name": "PI18_catch_up_skips_a_receipt",
+   "path": "qta_agent/proposals.py",
+   "find": "                _fold_receipts([ev for ev in events\n                                if ev.seq > self._folded_through],\n",
+   "replace": "                _fold_receipts([ev for ev in events\n                                if ev.seq > self._folded_through + 1],\n",
+   "rationale": "the anchored view drops the first receipt another writer appended since this ingress last looked"
   },
   {
    "name": "SR1_reader_authority_any",

@@ -26,7 +26,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "47115024eda7ef415ff6c07d8a1f5ea5c6602911b29e7f84c5f486f425d58159",
+  "docs/completion_matrix.json": "4a884b1e09e397fe1ededaf0dafa12977d86c73f88b8ab09c6872da191e75989",
   "docs/harness_contract.json": "3b7285fd6aea3e8b5c00a62fa5fe31032d7c49aa451f31d90437590d53366397",
   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
   "docs/neural/current_status.json": "b4f920e04b966e3aff67f66911279896d7f309ebf2d1cae84e520bff6c849675",

@@ -489,7 +489,8 @@ def _inventory(cwd: Path, scopes) -> dict:
     return out
 
 
-def _undeclared_writes(before: dict, after: dict, declared_paths) -> tuple:
+def _undeclared_writes(before: dict, after: dict, declared_paths,
+                       ignore=()) -> tuple:
     """Files that appeared or changed and were never named by the contract.
 
     WHAT THIS IS FOR, AND WHAT IT IS NOT
@@ -511,16 +512,32 @@ def _undeclared_writes(before: dict, after: dict, declared_paths) -> tuple:
     has changed the workspace just as much as one that adds a file, and an
     inventory that only looked for additions would miss the more destructive
     half.
+
+    ``ignore`` names the SUPERVISOR's own durable stores where they sit
+    inside a tool's scope -- the authority log and its sidecars, the
+    evidence store (paths relative to the working directory; a directory
+    covers what is under it). Supervisors write them, under the writer lock,
+    and no tool does; a write to them is judged by the hash chain, the head
+    witness and the separate-process verification, which a sweep of sizes
+    and mtimes could not improve on. Inventoried, every append a CONCURRENT
+    supervisor made while a tool ran was charged to that tool, and the run
+    refused for writes it never made (D-2026-118).
     """
     named = set(declared_paths)
+    roots = tuple(str(x).rstrip("/") for x in ignore)
+
+    def unattributable(rel: str) -> bool:
+        return rel in named or any(rel == r or rel.startswith(r + "/")
+                                   for r in roots)
+
     found = []
     for rel, stamp in sorted(after.items()):
-        if rel in named:
+        if unattributable(rel):
             continue
         if before.get(rel) != stamp:
             found.append(f"{rel}: {'changed' if rel in before else 'created'}")
     for rel in sorted(before):
-        if rel not in after and rel not in named:
+        if rel not in after and not unattributable(rel):
             found.append(f"{rel}: deleted")
     return tuple(found)
 
@@ -592,7 +609,8 @@ def _collect_outputs(cwd: Path, declared: tuple) -> tuple:
 def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
                 env: dict | None = None,
                 cancel: CancellationToken | None = None,
-                collect: tuple = ()) -> ExecutionResult:
+                collect: tuple = (),
+                ignore_writes: tuple = ()) -> ExecutionResult:
     """Run ``argv`` under kernel-enforced limits and classify how it ended.
 
     WHAT THE KERNEL ENFORCES HERE, AND WHAT IT DOES NOT. The limits are
@@ -775,7 +793,7 @@ def run_bounded(argv, *, spec: ToolSpec, cwd: Path, limits: Limits,
             Path(cwd), tuple(collect))
         undeclared = _undeclared_writes(
             before_inventory, _inventory(Path(cwd), spec.writable_scope),
-            [rel for _n, rel, _r in collect])
+            [rel for _n, rel, _r in collect], ignore_writes)
         if outcome is Outcome.COMPLETED:
             unmet = [n for n, _rel, req in collect if req and n in missing]
             if unmet:
@@ -831,7 +849,8 @@ class Executor:
             inputs: dict, argv, cwd: Path | None = None,
             limits: Limits | None = None, env: dict | None = None,
             cancel: CancellationToken | None = None,
-            write_paths: tuple = ()) -> ExecutionResult:
+            write_paths: tuple = (),
+            ignore_writes: tuple = ()) -> ExecutionResult:
         """Run a registered tool under an explicit grant.
 
         The order is the point. Registration is checked before the capability,
@@ -892,4 +911,4 @@ class Executor:
         eff = limits or Limits(wall_seconds=spec.timeout_s)
         return run_bounded(argv, spec=spec, cwd=Path(cwd or self.workspace),
                            limits=eff, env=env, cancel=cancel,
-                           collect=collect)
+                           collect=collect, ignore_writes=ignore_writes)

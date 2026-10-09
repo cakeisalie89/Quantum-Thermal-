@@ -704,30 +704,51 @@ class AuthorityStore:
         head = self.log.verify().head_seq
         if self._loaded_through < head:
             self.load()
-        payload = canonical_bytes(self.snapshot())
-        dg = target.put(payload, media_type="application/json")
-        cp = cp_mod.create(self.log, state_digest=dg)
+        made: dict = {}
 
-        # THE CLAIM GOES IN THE LOG, WHERE THE HASH CHAIN COVERS IT.
-        #
-        # Order matters and is not arbitrary. The checkpoint is created
-        # FIRST, against the head the snapshot describes, so cp.seq names
-        # that position rather than the position of this record. The record
-        # then lands at cp.seq + 1, which puts it in the tail load_from
-        # replays -- the one stretch a checkpointed load does read.
-        #
-        # If the process dies between the append and the write below, the log
-        # carries an anchor for a checkpoint nobody has. That is a fact about
-        # a snapshot that exists in the blob store and is harmless; the
-        # reverse order would leave a checkpoint nothing anchors, which is
-        # the state this whole record exists to make unloadable.
-        self.log.append(
-            actor=actor, action=ACT_CHECKPOINT_STATE,
-            target=f"seq:{cp.seq}",
-            payload={"through_seq": cp.seq, "state_digest": dg,
-                     "head_hash": cp.head_hash})
-        checkpoints.write(cp)
-        return cp
+        def under_lock(head_seq: int) -> dict:
+            # THE SNAPSHOT, THE CHECKPOINT AND THE CLAIM AT ONE HEAD
+            # (D-2026-116).
+            #
+            # They were three steps with nothing holding the log still
+            # between them, so a process checkpointing beside another
+            # snapshotted the state at one seq and anchored the checkpoint at
+            # a later one -- the other's claim had landed in between. Four
+            # processes did it on the first run, and the restart then refused
+            # the checkpoint by raising. Under the writer lock nothing lands:
+            # the projection is caught up to this head, snapshotted, and the
+            # checkpoint created at the same head.
+            self._fold_new()
+            payload = canonical_bytes(self.snapshot())
+            dg = target.put(payload, media_type="application/json")
+            cp = cp_mod.create(self.log, state_digest=dg)
+            if cp.seq != self._loaded_through:
+                raise StoreError(
+                    f"the snapshot covers seq {self._loaded_through} and the "
+                    f"checkpoint would anchor at {cp.seq}; refusing to pin a "
+                    "state to a position it does not describe")
+            made["cp"] = cp
+            # THE CLAIM GOES IN THE LOG, WHERE THE HASH CHAIN COVERS IT.
+            #
+            # The checkpoint is created FIRST, against the head the snapshot
+            # describes, so cp.seq names that position rather than the
+            # position of this record, which lands at cp.seq + 1 -- in the
+            # tail load_from replays.
+            #
+            # If the process dies between the append and the write below, the
+            # log carries an anchor for a checkpoint nobody has. That is a
+            # fact about a snapshot that exists in the blob store and is
+            # harmless; the reverse order would leave a checkpoint nothing
+            # anchors, which is the state this whole record exists to make
+            # unloadable.
+            return {"actor": actor, "action": ACT_CHECKPOINT_STATE,
+                    "target": f"seq:{cp.seq}",
+                    "payload": {"through_seq": cp.seq, "state_digest": dg,
+                                "head_hash": cp.head_hash}}
+
+        self.log.append_decided(under_lock)
+        checkpoints.write(made["cp"])
+        return made["cp"]
 
     @classmethod
     def recover(cls, log, checkpoints, *, blobs, evidence=None,
@@ -764,8 +785,21 @@ class AuthorityStore:
                   "problems": list(audit.problems),
                   "not_describing": list(audit.not_describing)}
         if audit.verdict in ("USABLE", "UNPARSEABLE"):
-            store = cls.load_from(log, checkpoints, blobs=blobs,
-                                  evidence=evidence, origins=origins)
+            try:
+                store = cls.load_from(log, checkpoints, blobs=blobs,
+                                      evidence=evidence, origins=origins)
+            except StoreError as exc:
+                # A checkpoint the audit could not fault -- it parses and
+                # names this log's bytes -- that load_from refuses anyway: its
+                # snapshot does not describe the position it anchors, or does
+                # not resolve. A restart must not depend on it and must not
+                # fail on it either: a full replay, reported as the unhealthy
+                # recovery it is (D-2026-116).
+                store = cls(log, evidence=evidence, origins=origins).load()
+                report.update(mode="FULL_REPLAY", checkpoint_seq=None,
+                              prefix_verified=store.loaded_prefix_verified,
+                              refusal=str(exc), healthy=False)
+                return store, report
             refusal = store.checkpoint_refusal
             report.update(
                 mode="FULL_REPLAY_FOREIGN_REDUCER" if refusal

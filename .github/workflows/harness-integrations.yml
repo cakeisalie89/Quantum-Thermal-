@@ -186,7 +186,7 @@ jobs:
           set -euo pipefail
           export QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python"
           export QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python"
-          uv run snakemake --cores 1 --forcerun harness_demo harness_demo
+          uv run snakemake harness_demo --cores 1 --forcerun harness_demo
           cp verification/stage10/harness_demo_report.json .
       - name: the demonstration's tests, both runtimes REQUIRED
         run: |

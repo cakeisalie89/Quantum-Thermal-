@@ -223,7 +223,7 @@ def main(argv=None) -> int:
     except F.FmiUnavailable as exc:
         print(f"FMI ACCEPTANCE NOT RUN: {exc}")
         return 1
-    rep = campaign(args.work, exe)
+    rep = campaign(args.work.resolve(), exe)
     args.out.write_text(json.dumps(rep, indent=1, sort_keys=True) + "\n",
                         encoding="utf-8")
     v = rep["verdict"]

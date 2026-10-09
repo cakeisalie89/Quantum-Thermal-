@@ -13,6 +13,23 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import ro_crate_conformance as RCC  # noqa: E402
 
+import pytest  # noqa: E402
+
+COMMITTED_REPORT = ROOT / "stage8_reports" / "ro_crate_validation_report.json"
+
+
+@pytest.fixture(autouse=True)
+def _the_committed_report_is_left_as_found():
+    """Under a mutant that lets judging write its report (RC5), every test
+    here that judges from the repository root would overwrite the committed
+    one, and the mutation harness rightly refuses a run that leaves a
+    tracked file changed. Restored afterwards, not ignored: the test that
+    looks for the write still sees it while it runs."""
+    before = COMMITTED_REPORT.read_bytes()
+    yield
+    if COMMITTED_REPORT.read_bytes() != before:
+        COMMITTED_REPORT.write_bytes(before)
+
 
 def _meta():
     return json.loads((ROOT / "ro-crate" / "ro-crate-metadata.json")
@@ -56,7 +73,8 @@ def test_without_the_external_validator_nothing_is_called_agreement():
     assert rep["cases"]["committed_crate"]["internal"] == "ACCEPTED"
     assert set(rep["cases"]) == {"committed_crate", "no_root_dataset",
                                  "no_conformsTo", "no_datePublished",
-                                 "dangling_data_entity"}
+                                 "dangling_data_entity",
+                                 "data_entity_not_a_file"}
 
 
 def test_a_disagreement_is_reported_not_resolved(monkeypatch):
@@ -70,3 +88,40 @@ def test_a_disagreement_is_reported_not_resolved(monkeypatch):
     rep = RCC.run("fake")
     assert rep["cases"]["no_conformsTo"]["agreement"] == "DISAGREE"
     assert rep["accepted"] is False
+
+
+def test_every_data_entity_is_a_file_or_a_dataset():
+    """RO-Crate 1.1: a data entity is a File or a Dataset, whatever else it
+    also is. The scripts were SoftwareSourceCode alone, the internal
+    validator passed them, and the community validator on hosted CI did
+    not (D-2026-111)."""
+    meta = _meta()
+    by = {e["@id"]: e for e in meta["@graph"]}
+    for part in by["./"]["hasPart"]:
+        types = by[part["@id"]]["@type"]
+        types = types if isinstance(types, list) else [types]
+        assert {"File", "Dataset"} & set(types), part["@id"]
+    refused = RCC.internal(RCC._broken(meta)["data_entity_not_a_file"])
+    assert any("requires File or Dataset" in p for p in refused), refused
+
+
+def test_a_data_entity_of_another_type_is_still_packaged(tmp_path):
+    """The package is the crate as a recipient receives it: every data
+    entity the root has, whatever its type -- a hole the validators are not
+    shown is one neither can see."""
+    broken = RCC._broken(_meta())["data_entity_not_a_file"]
+    assert RCC.package(broken, tmp_path / "crate") == []
+    assert (tmp_path / "crate" / "Snakefile").is_file()
+
+
+def test_a_disagreement_prints_both_validators_reasons(monkeypatch,
+                                                       tmp_path, capsys):
+    issue = {"severity": "REQUIRED", "message": "the reason", "check": "x"}
+    monkeypatch.setattr(RCC, "external", lambda v, c: {
+        "status": "REFUSED", "issues": [issue]})
+    assert RCC.main(["--validator", "fake",
+                     "--out", str(tmp_path / "r.json")]) == 1
+    out = capsys.readouterr().out
+    assert "committed_crate: internal ACCEPTED, external REFUSED -> " \
+        "DISAGREE" in out
+    assert "external: " in out and "the reason" in out

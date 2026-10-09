@@ -107,8 +107,8 @@
     {
       "name": "G15_the_re_verification_grant_never_expires",
       "path": "qta_agent/governed_stage10.py",
-      "find": "                  issued_seq=head + 1, expires_after_seq=head + 4,\n                  issued_wall_time=time.time()),\n            actor=\"scheduler\")\n        return cap_id\n\n    def _argv",
-      "replace": "                  issued_seq=head + 1, expires_after_seq=head + 4000000,\n                  issued_wall_time=time.time()),\n            actor=\"scheduler\")\n        return cap_id\n\n    def _argv",
+      "find": "                  issued_seq=head + 1, issued_wall_time=time.time()),\n            actor=\"scheduler\", lifetime_seqs=4)\n        return cap_id\n\n    def _supervisor_paths",
+      "replace": "                  issued_seq=head + 1, issued_wall_time=time.time()),\n            actor=\"scheduler\", lifetime_seqs=4000000)\n        return cap_id\n\n    def _supervisor_paths",
       "rationale": "authority to re-run a tool in order to check it becomes standing authority to run it, for the rest of the log"
     },
     {

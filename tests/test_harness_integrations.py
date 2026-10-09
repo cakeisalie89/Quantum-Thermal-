@@ -399,3 +399,14 @@ def test_a_sha_mismatch_with_the_build_record_is_refused(fmu_build):
     with pytest.raises(FB.FmuRefused, match="build recorded"):
         F.fmu_bundle(fault["fmu"], {"t_end_s": 10.0}, step_s=5.0,
                      build_record=rec, exe=sys.executable)
+
+
+def test_the_fmi_runner_refuses_a_relative_fmu_path():
+    """The runner works in a scratch directory of its own, so a relative
+    path names nothing there. Refused by name before any runtime is asked
+    (D-2026-112: the hosted acceptance job passed --work fmi_work and the
+    runtime answered FileNotFoundError from inside fmpy)."""
+    from scientific.checks import fmu_rc2 as F
+    with pytest.raises(ValueError, match="relative"):
+        F.run_runner({"kind": "describe", "fmu": "fmi_work/thermal_rc2.fmu"},
+                     exe="/nonexistent/python")

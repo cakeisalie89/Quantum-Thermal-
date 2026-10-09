@@ -37,13 +37,13 @@ META = CRATE_DIR / "ro-crate-metadata.json"
 SPEC = "https://w3id.org/ro/crate/1.1"
 
 FILES = [
-    ("../qta_full_sim.py", "SoftwareSourceCode",
+    ("../qta_full_sim.py", ["File", "SoftwareSourceCode"],
      "canonical simulation runner (authoritative release path)"),
-    ("../qta_sim_stages.py", "SoftwareSourceCode",
+    ("../qta_sim_stages.py", ["File", "SoftwareSourceCode"],
      "checkpointed staged driver (Stage 7.5; identical calls)"),
-    ("../qta_multiphysics/runner_3d.py", "SoftwareSourceCode",
+    ("../qta_multiphysics/runner_3d.py", ["File", "SoftwareSourceCode"],
      "3-D reduced-CI layer runner"),
-    ("../Snakefile", "SoftwareSourceCode",
+    ("../Snakefile", ["File", "SoftwareSourceCode"],
      "Snakemake workflow wrapping authoritative commands"),
     ("../pyproject.toml", "File", "project/tooling authority"),
     ("../uv.lock", "File", "locked dependency resolution (71+ pkgs)"),
@@ -67,12 +67,12 @@ FILES = [
      "43/43 matrix dispositions"),
     ("../campaign_registry.json", "File",
      "campaign registry (Campaign-1 PROPOSED_NOT_PERFORMED)"),
-    ("../package_consistency_check.py", "SoftwareSourceCode",
+    ("../package_consistency_check.py", ["File", "SoftwareSourceCode"],
      "package checker (default full-regeneration release gate + "
      "fail-closed --verify-existing)"),
-    ("../manuscript_consistency_check.py", "SoftwareSourceCode",
+    ("../manuscript_consistency_check.py", ["File", "SoftwareSourceCode"],
      "manuscript checker"),
-    ("../stage6_preservation_check.py", "SoftwareSourceCode",
+    ("../stage6_preservation_check.py", ["File", "SoftwareSourceCode"],
      "Stage-6 preservation checker"),
     ("../stage8_reports/hdf5_equivalence_report.json", "File",
      "HDF5<->source exact-equivalence report"),
@@ -260,6 +260,15 @@ def validate(meta_path: Path = META,
         if rid not in by:
             problems.append(f"unresolved hasPart {rid}")
             continue
+        # RO-Crate 1.1 s.4.1: a data entity is a File or a Dataset, whatever
+        # else it also is. The scripts were typed SoftwareSourceCode alone
+        # and this validator passed them; the community validator, run on
+        # hosted CI, did not (D-2026-111).
+        types = by[rid].get("@type")
+        types = types if isinstance(types, list) else [types]
+        if not {"File", "Dataset"} & set(types):
+            problems.append(f"data entity {rid} is typed {types}; RO-Crate "
+                            "1.1 requires File or Dataset among its types")
         p = Path(rid)
         if not p.exists():
             problems.append(f"referenced file missing: {rid}")

@@ -1236,6 +1236,19 @@ RULES = [
     ("tests/test_external_models.py", KAH,
      "NEW (harness programme): FMU invariants, external-model admission, "
      "the governed FMU tool's digest check, the Rust decision rule.", ""),
+    ("tests/test_proposal_crash_recovery.py", KAH,
+     "NEW (harness programme, section 44, D-2026-110): the proposal-to-"
+     "decision log cut after every append and resubmitted -- finishes "
+     "once, verified, nothing duplicated or lost; the takeover, lapse, "
+     "policy, checkpoint and forged-completion cases.", ""),
+    ("tests/test_proposal_concurrency.py", KAH,
+     "NEW (harness programme, section 45, D-2026-115..118): the proposal "
+     "path under four real processes -- receipts, claims on a stranded "
+     "proposal, first submissions, checkpoints, interleaved grants.", ""),
+    ("tests/test_decided_appends.py", KAH,
+     "NEW (harness programme, section 45): each race window opened "
+     "deterministically, so a mutation reopening one is killed every "
+     "time.", ""),
     ("tests/test_checkpoint_recovery.py", KAH,
      "NEW (harness programme, R41): restart through the checkpoint audit; "
      "every checkpoint class told apart; NONE_USABLE never success; the "

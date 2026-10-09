@@ -24,6 +24,7 @@ one.
 from __future__ import annotations
 
 import collections
+import hashlib
 import os
 import signal
 import subprocess
@@ -34,9 +35,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+for _p in (str(ROOT), str(ROOT / "tools")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
+from qta_agent import proposals as PR  # noqa: E402
 from qta_agent.agents import (  # noqa: E402
     AgentDirectory, AgentRole, PrincipalKind, identity,
 )
@@ -106,7 +109,36 @@ GOVERNED_OPS = (
     "job.invalidate", "record.create", "record.transition",
     "memory.remember", "memory.invalidate_source", "policy.publish",
     "checkpoint", "restart", "crash.recover",
+    "proposal.receive", "proposal.submit", "check.run", "record.decide",
 )
+
+#: An AI proposal is received EVERY cycle -- each from its own retrieval
+#: context, so each is a distinct proposal -- and one in this many is taken
+#: all the way: submitted as a governed model run, executed, independently
+#: checked, decided by a reviewer. Bounded on purpose: the governed path runs
+#: real tools in their own processes, and the claim is that it holds up in a
+#: long history, not that a long history is made of it.
+#:
+#: The receipts go on the campaign's log; the governed runs on the governed
+#: path's own control-plane log beside it (``governed.jsonl``). A scheduler
+#: re-authorizes every enqueue in the log it projects under its ONE policy,
+#: so two scheduler domains -- this campaign's ``scheduler.default`` and the
+#: governed path's ``stage10.governed`` -- cannot project one log: the
+#: second refuses to load, it does not mis-project (see
+#: test_two_scheduler_domains_do_not_share_a_log). That is the boundary of
+#: this campaign, stated rather than worked around.
+PROPOSAL_EVERY = 65
+
+#: Where the governed runs write their outputs, under the tool workspace.
+HZ = "verification/stage10/_pytest_horizon"
+
+
+def _reviewed_source_now(path: str):
+    """The digest of a cited source as it is now, so a receipt is refused
+    for a context gone stale -- the ingress's check, left switched on."""
+    q = ROOT / path
+    return hashlib.sha256(q.read_bytes()).hexdigest() if q.is_file() \
+        else None
 
 
 class Horizon:
@@ -145,7 +177,15 @@ class Horizon:
         self.store = AuthorityStore(self.log, evidence=self.evidence).load()
         self.memory = MemoryStore(self.log, evidence=self.evidence).load()
         self.agents = AgentDirectory(self.log).load()
+        # ONE ingress for the life of the process, as a running system has:
+        # it reads the history once here and O(new) after that (D-2026-119).
+        self.ingress = PR.ProposalIngress(self.log,
+                                          source_digest=_reviewed_source_now)
         return self
+
+    def governed_log(self) -> EventLog:
+        """The governed model path's control-plane log. See PROPOSAL_EVERY."""
+        return EventLog(self.root / "governed.jsonl")
 
     def step_past(self, seqs: int, tag: str) -> None:
         """Advance the log so sequence-numbered expiries can elapse."""
@@ -168,6 +208,24 @@ def horizon(tmp_path_factory):
         h.agents.register(identity(agent_id=iid, instance_id=iid,
                                    kind=PrincipalKind.AGENT, roles={role}),
                           by="system")
+    import shutil
+
+    import harness_demo as HD
+    from qta_agent.governed_model import GovernedModelRuns
+    from qta_multiphysics.stack.rag_index import retrieve
+    h.agents.register(identity(agent_id=HD.AGENT, instance_id=HD.AGENT,
+                               kind=PrincipalKind.AGENT,
+                               roles={AgentRole.PROPOSER}), by="system")
+    shutil.rmtree(ROOT / HZ, ignore_errors=True)
+    fixture = ROOT / "integrations" / "proposals" / "recorded_fixture.jsonl"
+    adapter = PR.RecordedFixtureAdapter(fixture.read_text(encoding="utf-8"),
+                                        source=fixture.name)
+    # the proposing agent, known to the governed path's directory too
+    GovernedModelRuns(root=ROOT, log=h.governed_log(),
+                      evidence=h.evidence).gov.agents.register(
+        identity(agent_id=HD.AGENT, instance_id=HD.AGENT,
+                 kind=PrincipalKind.AGENT, roles={AgentRole.PROPOSER}),
+        by="system")
     h.reload()
 
     expectations = {
@@ -175,6 +233,7 @@ def horizon(tmp_path_factory):
         "blocked": set(), "invalidated": set(), "promoted": set(),
         "rejected_promotions": 0, "retried": set(),
         "crash_recovered": set(),
+        "received": set(), "decided": {},
     }
     midflight: dict = {}
 
@@ -271,6 +330,30 @@ def horizon(tmp_path_factory):
                                evidence={"policy_id": "scheduler.default@1"})
             h.op("record.transition", 2)
             expectations["promoted"].add(rid)
+
+        # AN AI PROPOSAL, received -- and now and then taken all the way.
+        ctx = PR.assemble_context(f"{HD.QUERY} (cycle {cycle})",
+                                  retrieve=retrieve, k=3)
+        receipt = h.ingress.receive(PR.envelope(
+            next(iter(adapter.responses(ctx))), context=ctx,
+            agent_id=HD.AGENT, adapter=adapter))
+        h.op("proposal.receive")
+        pid = receipt.envelope.proposal_id
+        expectations["received"].add(pid)
+        if cycle % PROPOSAL_EVERY == PROPOSAL_EVERY - 1:
+            # a fresh supervisor each time: a restart, as far as it knows
+            gov = GovernedModelRuns(root=ROOT, log=h.governed_log(),
+                                    evidence=h.evidence)
+            run = h.ingress.submit(pid, gov,
+                                   out_dir=f"{HZ}/slab-{cycle:04d}")
+            h.op("proposal.submit")
+            chk = gov.check(run, check_id="thermal.slab_series",
+                            out_dir=f"{HZ}/series-{cycle:04d}")
+            h.op("check.run")
+            rec = gov.decide(run, chk)
+            h.op("record.decide")
+            expectations["decided"][pid] = (run.record_id, rec.state.value,
+                                            chk.report_sha256)
 
         # Memory, with a source that is sometimes later withdrawn.
         h.memory.remember(memory_id=f"mem-{cycle:04d}",
@@ -869,3 +952,68 @@ def test_the_campaign_ran_at_the_scale_it_reports(horizon):
         "writes roughly twenty, so the workload did not run at the scale "
         "this run claims")
     assert horizon.total_ops >= CYCLES * 4
+
+
+# ---- proposals and governed execution over the long history --------------
+def test_every_received_proposal_is_projected_and_none_became_authority(
+        horizon):
+    """One receipt per cycle, every one projected back from the log, and
+    nothing in the authority store attributed to the ingress: a proposal
+    is data until a governed run, a check and a reviewer make it more."""
+    got = PR.received(horizon.log)
+    assert set(got) == horizon.expectations["received"]
+    assert len(got) == horizon.cycles
+    store = AuthorityStore(horizon.log, evidence=horizon.evidence).load()
+    assert not [r for r in store.all_records().values()
+                if r.proposer == PR.INGRESS_ID]
+
+
+def test_every_submitted_proposal_was_decided_once_on_a_check_that_exists(
+        horizon):
+    import harness_demo as HD
+    decided = horizon.expectations["decided"]
+    assert len(decided) >= horizon.cycles // PROPOSAL_EVERY >= 1
+    log = horizon.governed_log()
+    report, events = log.read_verified()
+    report.raise_if_bad()
+    store = AuthorityStore(log, evidence=horizon.evidence).load()
+    for _pid, (rid, state, report) in sorted(decided.items()):
+        verdicts = [e for e in events if e.action == "record.transition"
+                    and e.target == rid
+                    and e.payload.get("dst") in ("VERIFIED", "REJECTED")]
+        assert len(verdicts) == 1, rid
+        rec = store.get(rid)
+        # the series check is not an admitted independent check
+        assert rec.state.value == state == "REJECTED", rid
+        assert rec.evidence["verification_report"] == report
+        assert horizon.evidence.get(report)
+        # and it was submitted under the proposal's id, by the proposal's
+        # agent, not by whoever happened to be running the ingress
+        (bind,) = [e for e in events if e.action == "idempotency.bind"
+                   and e.payload.get("key") == _pid]
+        assert bind.actor == HD.AGENT
+
+
+def test_two_scheduler_domains_do_not_share_a_log(horizon, tmp_path):
+    """The boundary PROPOSAL_EVERY states, measured: a governed supervisor
+    on the campaign's log refuses to load -- it re-authorizes the campaign's
+    enqueues under its own policy, which was never published there -- and
+    writes nothing."""
+    import shutil
+
+    from qta_agent.governed_stage10 import GovernedStage10
+    from qta_agent.policy import UnknownPolicy
+    copy = tmp_path / "log.jsonl"
+    shutil.copyfile(horizon.log.path, copy)
+    before = copy.read_bytes()
+    with pytest.raises(UnknownPolicy, match="stage10.governed"):
+        GovernedStage10(root=ROOT, log=EventLog(copy),
+                        evidence=horizon.evidence)
+    assert copy.read_bytes() == before
+
+
+def test_the_second_reader_reconstructs_every_proposal(horizon):
+    from qta_agent.reconstruct import reconstruct_subsystems
+    sub = reconstruct_subsystems(horizon.log)
+    assert len(sub.proposals) == horizon.cycles
+    assert sub.anomalies == []

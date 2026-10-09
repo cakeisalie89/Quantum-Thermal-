@@ -157,11 +157,14 @@
   },
   {
    "@id": "Snakefile",
-   "@type": "SoftwareSourceCode",
-   "contentSize": "41151",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
+   "contentSize": "41550",
    "description": "Snakemake workflow wrapping authoritative commands",
    "name": "Snakefile",
-   "sha256": "03bdb039dcfe2b59c18020ab1917cffab18ba9092c67709a484a7458841a3924"
+   "sha256": "08484fb05b730219d67c5d3d54ca5f4fc6e878354ec2794463bbbce03a9ac10a"
   },
   {
    "@id": "campaign_registry.json",
@@ -198,7 +201,7 @@
   {
    "@id": "final_manifest.json",
    "@type": "File",
-   "contentSize": "268651",
+   "contentSize": "270176",
    "description": "deterministic manifest",
    "name": "final_manifest.json",
    "sha256": "not-embedded: circular dependency -- the manifest covers this crate; the crate's own hash lives in the manifest"
@@ -229,7 +232,10 @@
   },
   {
    "@id": "manuscript_consistency_check.py",
-   "@type": "SoftwareSourceCode",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
    "contentSize": "9469",
    "description": "manuscript checker",
    "name": "manuscript_consistency_check.py",
@@ -237,7 +243,10 @@
   },
   {
    "@id": "package_consistency_check.py",
-   "@type": "SoftwareSourceCode",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
    "contentSize": "145977",
    "description": "package checker (default full-regeneration release gate + fail-closed --verify-existing)",
    "name": "package_consistency_check.py",
@@ -253,7 +262,10 @@
   },
   {
    "@id": "qta_full_sim.py",
-   "@type": "SoftwareSourceCode",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
    "contentSize": "175222",
    "description": "canonical simulation runner (authoritative release path)",
    "name": "qta_full_sim.py",
@@ -261,7 +273,10 @@
   },
   {
    "@id": "qta_multiphysics/runner_3d.py",
-   "@type": "SoftwareSourceCode",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
    "contentSize": "16818",
    "description": "3-D reduced-CI layer runner",
    "name": "runner_3d.py",
@@ -277,7 +292,10 @@
   },
   {
    "@id": "qta_sim_stages.py",
-   "@type": "SoftwareSourceCode",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
    "contentSize": "8008",
    "description": "checkpointed staged driver (Stage 7.5; identical calls)",
    "name": "qta_sim_stages.py",
@@ -303,7 +321,10 @@
   },
   {
    "@id": "stage6_preservation_check.py",
-   "@type": "SoftwareSourceCode",
+   "@type": [
+    "File",
+    "SoftwareSourceCode"
+   ],
    "contentSize": "8212",
    "description": "Stage-6 preservation checker",
    "name": "stage6_preservation_check.py",

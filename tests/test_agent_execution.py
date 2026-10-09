@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import os
 import signal
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -972,14 +971,23 @@ def test_a_killed_idle_tool_leaves_no_surviving_process_group(env):
     # So the check is that nothing in the group is still RUNNABLE. That is
     # the containment claim; "no entry remains" is a claim about a different
     # system's bookkeeping.
-    ps = subprocess.run(["ps", "-o", "pid,pgid,stat", "-e"],
-                        capture_output=True, text=True).stdout
-    live = []
-    for line in ps.splitlines()[1:]:
-        parts = line.split()
-        if len(parts) >= 3 and parts[1] == str(r.pgid):
-            if not parts[2].startswith("Z"):
-                live.append(line.strip())
+    #
+    # Read from /proc, not from `ps`: the container image ships no procps,
+    # and a missing binary is not a statement about the group. The scan must
+    # at least see this process, so an unreadable /proc cannot pass for an
+    # empty group.
+    seen, live = set(), []
+    for stat in Path("/proc").glob("[0-9]*/stat"):
+        try:
+            raw = stat.read_text()
+        except OSError:
+            continue                    # exited while the scan was running
+        pid = int(raw.split(" ", 1)[0])
+        state, _ppid, pgrp = raw[raw.rindex(")") + 2:].split()[:3]
+        seen.add(pid)
+        if int(pgrp) == r.pgid and state != "Z":
+            live.append((pid, state))
+    assert os.getpid() in seen, "the process table was not readable"
     assert not live, f"still-running descendants in the group: {live}"
 
 

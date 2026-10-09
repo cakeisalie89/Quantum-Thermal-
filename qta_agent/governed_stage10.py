@@ -103,6 +103,7 @@ import time
 import uuid
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from . import actions
@@ -113,7 +114,7 @@ from .agents import (
 from .canonical import digest
 from . import capability as _cap_actions
 from .capability import Action, CapabilityLedger, issue
-from .context import ContextBuilder, Tier, record_context
+from .context import ACT_CONTEXT_BUILD, ContextBuilder, Tier, record_context
 from .events import Anchor, EventLog
 from .evidence import EvidenceStore
 from .execution import Executor, Limits, Outcome
@@ -133,7 +134,7 @@ from .hostid import (ALIVE, GONE, ProcessIdentity, identify,
                      liveness)
 from .idempotency import (IdempotencyConflict, IdempotencyLedger,
                           request_identity)
-from .scheduler import (FailureClass, RETRYABLE as SCHED_RETRYABLE,
+from .scheduler import (FailureClass, JobState, RETRYABLE as SCHED_RETRYABLE,
                         Scheduler)
 from .tasks import (
     Lease, Task, TaskProjection, TaskRole, TaskState, TaskTransition,
@@ -423,6 +424,10 @@ class GovernedRun:
     #: Set when this call did NOT do the work: the task the key was already
     #: bound to, whose state and result are what is being reported.
     duplicate_of: str = ""
+    #: Set when this call FINISHED a task an earlier submission under the
+    #: same key began and a crash stopped: the state it was taken up from.
+    #: See :meth:`GovernedStage10._resume`.
+    resumed_from: str = ""
 
     @property
     def is_duplicate(self) -> bool:
@@ -572,14 +577,19 @@ class GovernedStage10:
         # (D-2026-41). It is also half the file reads.
         return self._project(self._verified_events())
 
-    def _project(self, events: list) -> TaskProjection:
+    def _project(self, events: list, *,
+                 start: TaskProjection | None = None) -> TaskProjection:
         """Fold ``events`` -- which the caller has just read VERIFIED, in one
         pass -- into task state. Private: :meth:`projection` is the entry
         point, and a caller holding its own verified read (the origin view of
         :mod:`qta_agent.governed_model`) folds that same read rather than
-        reading the log a second time."""
-        tasks: dict = {}
-        seq = -1
+        reading the log a second time.
+
+        ``start`` is a projection those events follow on from: :meth:`_move`
+        folds the one record it has just written onto the projection it
+        decided against, by the same rules as the replay."""
+        tasks: dict = dict(start.tasks) if start is not None else {}
+        seq = start.at_seq if start is not None else -1
         for ev in events:
             seq = ev.seq
             p = ev.payload
@@ -786,9 +796,13 @@ class GovernedStage10:
 
         ``idempotency_key`` makes the submission resumable. The same
         submitter resending the same request under the same key gets the
-        FIRST task back and nothing is executed a second time -- which is
-        what a caller needs after a lost response or a supervisor that died
-        with the request in flight. The key is scoped to this submitter and
+        FIRST task back -- finished where a crash stopped it, when
+        finishing repeats nothing (:meth:`_resume`) -- which is what a
+        caller needs after a lost response or a supervisor that died with
+        the request in flight. Work that completed is never run again; an
+        attempt that died after running and before completing is run once
+        more, under a new lease or the live one, and never for a tool
+        declaring EXTERNAL effects. The key is scoped to this submitter and
         this tool, so it is not a string another actor can guess into.
 
         This is duplicate suppression and durable request identity. It is
@@ -839,6 +853,9 @@ class GovernedStage10:
         # reaches another actor's binding -- not "refused", not reachable.
         request_digest = request_identity(tool_id=tool_id, inputs=inputs)
         if idempotency_key:
+            # what has been bound since this runner last read: another
+            # process's binding is as binding as this one's (D-2026-117)
+            self.idempotency.catch_up()
             prior = self.idempotency.lookup(
                 owner=submitter, tool_id=tool_id, key=idempotency_key)
             if prior is not None:
@@ -848,7 +865,11 @@ class GovernedStage10:
                         f"bound to task {prior.task_id!r} for a different "
                         "request. A corrected request is a different "
                         "request and needs a different key.")
-                return self._report_duplicate(prior, spec)
+                return self._resume(
+                    prior, spec, tool_id=tool_id, inputs=inputs,
+                    submitter=submitter, worker=worker, verifier=verifier,
+                    lease_seqs=lease_seqs, depends_on=tuple(depends_on),
+                    requires_evidence=tuple(requires_evidence))
 
         task_id = f"task-{uuid.uuid4().hex[:12]}"
         job_id = f"job-{task_id[5:]}"
@@ -883,25 +904,66 @@ class GovernedStage10:
         # corrected version in under the same key would mean the key stopped
         # identifying anything.
         if idempotency_key:
-            self.idempotency.bind(
+            bound = self.idempotency.bind(
                 owner=submitter, tool_id=tool_id, key=idempotency_key,
                 request_digest=request_digest, task_id=task_id,
                 job_id=job_id)
+            if bound.task_id != task_id:
+                # ANOTHER SUBMISSION OF THIS REQUEST BOUND THE KEY FIRST,
+                # between the lookup above and this bind (D-2026-117). The
+                # key names that task, so this one is an orphan: cancelled
+                # before anything is queued, and the bound task is what this
+                # call answers with -- reported, or taken up where it stands.
+                self._move(task, TaskState.CANCELLED, submitter,
+                           TaskRole.SUBMITTER,
+                           note=f"idempotency key {idempotency_key!r} was "
+                                f"bound to {bound.task_id} first")
+                return self._resume(
+                    bound, spec, tool_id=tool_id, inputs=inputs,
+                    submitter=submitter, worker=worker, verifier=verifier,
+                    lease_seqs=lease_seqs, depends_on=tuple(depends_on),
+                    requires_evidence=tuple(requires_evidence))
 
-        # Validation is a real gate: the contract is checked before anything
-        # is scheduled, and a rejection is recorded rather than raised away.
-        try:
-            spec.validate_inputs(inputs)
-        except Exception as exc:
-            task = self._move(task, TaskState.REJECTED, submitter,
-                              TaskRole.SUBMITTER, note=str(exc))
-            return GovernedRun(task_id, task.state, "REJECTED", "", {},
-                               self._head_seq(), str(exc),
-                               policy_identity=decision.identity,
-                               policy_digest=decision.policy_digest)
+        queued = self._admit(task, spec=spec, inputs=inputs,
+                             decision=decision, job_id=job_id,
+                             submitter=submitter,
+                             depends_on=tuple(depends_on),
+                             requires_evidence=tuple(requires_evidence))
+        if isinstance(queued, GovernedRun):
+            return queued
+        return self._attempt(queued, tool_id=tool_id, inputs=inputs,
+                             spec=spec, decision=decision, job_id=job_id,
+                             worker=worker, verifier=verifier,
+                             lease_seqs=lease_seqs)
 
-        task = self._move(task, TaskState.VALIDATED, submitter,
-                          TaskRole.SUBMITTER)
+    def _admit(self, task, *, spec, inputs: dict, decision, job_id: str,
+               submitter: str, depends_on: tuple,
+               requires_evidence: tuple):
+        """CREATED -> VALIDATED -> QUEUED: the QUEUED task, or the run a
+        rejected request ends as.
+
+        Taken up wherever a submission stopped (see :meth:`_resume`): a task
+        already VALIDATED is not validated again, and a job already enqueued
+        is not enqueued twice -- the queue refuses a second job under one id,
+        and a resumed submission has the id its binding recorded.
+        """
+        task_id = task.task_id
+        if task.state is TaskState.CREATED:
+            # Validation is a real gate: the contract is checked before
+            # anything is scheduled, and a rejection is recorded rather than
+            # raised away.
+            try:
+                spec.validate_inputs(inputs)
+            except Exception as exc:
+                task = self._move(task, TaskState.REJECTED, submitter,
+                                  TaskRole.SUBMITTER, note=str(exc))
+                return GovernedRun(task_id, task.state, "REJECTED", "", {},
+                                   self._head_seq(), str(exc),
+                                   policy_identity=decision.identity,
+                                   policy_digest=decision.policy_digest)
+
+            task = self._move(task, TaskState.VALIDATED, submitter,
+                              TaskRole.SUBMITTER)
 
         # Queued through the REAL scheduler: readiness, the lease and the
         # outcome report are the ones the scheduler enforces, not a parallel
@@ -914,20 +976,37 @@ class GovernedStage10:
         # Passing them here means readiness is decided by reconcile() against
         # the log, so a step whose parent failed is BLOCKED by the scheduler
         # rather than skipped by a loop that happened to notice.
-        self.scheduler.enqueue(job_id=job_id, work_digest=inputs_digest,
-                               submitter=submitter, task_id=task_id,
-                               depends_on=tuple(depends_on),
-                               requires_evidence=tuple(requires_evidence),
-                               resources={"slots": 1})
+        if job_id not in self.scheduler.catch_up().all_jobs():
+            self.scheduler.enqueue(job_id=job_id, work_digest=digest(inputs),
+                                   submitter=submitter, task_id=task_id,
+                                   depends_on=tuple(depends_on),
+                                   requires_evidence=tuple(requires_evidence),
+                                   resources={"slots": 1})
         self.scheduler.reconcile(resolve=self.evidence.contains)
-        task = self._move(task, TaskState.QUEUED, "scheduler",
+        return self._move(task, TaskState.QUEUED, "scheduler",
                           TaskRole.SCHEDULER)
 
-        lease_id = f"lease-{uuid.uuid4().hex[:8]}"
-        job = self.scheduler.dispatch(
-            job_id=job_id, worker=worker, lease_id=lease_id,
-            lease_seqs=lease_seqs, task_id=task_id,
-            resolve=self.evidence.contains)
+    def _attempt(self, task, *, tool_id: str, inputs: dict, spec, decision,
+                 job_id: str, worker: str, verifier: str, lease_seqs: int,
+                 takeover=None) -> GovernedRun:
+        """One attempt at a QUEUED task: lease, execute, capture, complete,
+        and on to the verdict.
+
+        ``takeover`` is a job already DISPATCHED to this worker identity
+        under a lease that is still live, whose task nobody holds (see
+        :meth:`_resume`): the attempt it dispatched is resumed under that
+        lease rather than a second dispatch spending another attempt.
+        """
+        task_id = task.task_id
+        if takeover is None:
+            lease_id = f"lease-{uuid.uuid4().hex[:8]}"
+            job = self.scheduler.dispatch(
+                job_id=job_id, worker=worker, lease_id=lease_id,
+                lease_seqs=lease_seqs, task_id=task_id,
+                resolve=self.evidence.contains)
+        else:
+            job = takeover
+            lease_id = job.lease_id
         lease = Lease(lease_id=lease_id, holder=worker,
                       granted_seq=job.updated_seq,
                       expires_after_seq=job.lease_expires_after_seq,
@@ -1005,7 +1084,7 @@ class GovernedStage10:
                 capability_id=cap_id, capabilities=caps, inputs=inputs,
                 argv=argv, cwd=self.root,
                 limits=Limits(wall_seconds=spec.timeout_s),
-                env=env)
+                env=env, ignore_writes=self._supervisor_paths())
 
         result_digest = digest(result.to_record())
         self.log.append(actor=worker, action=ACT_EXECUTION, target=task_id,
@@ -1117,7 +1196,28 @@ class GovernedStage10:
         task = self._move(task, TaskState.COMPLETED, worker, TaskRole.WORKER,
                           lease_id=lease.lease_id, executed_by=worker,
                           result_digest=result_digest)
+        return self._settle(
+            task, tool_id=tool_id, inputs=inputs, decision=decision,
+            job_id=job_id, worker=worker, verifier=verifier,
+            artifacts=artifacts, result_digest=result_digest,
+            outcome=result.outcome.value,
+            declared={result.output_paths.get(name, name): dg
+                      for name, dg in result.output_digests.items()},
+            read_cap_id=read_cap_id,
+            context_digest=context.manifest.digest())
 
+    def _settle(self, task, *, tool_id: str, inputs: dict, decision,
+                job_id: str, worker: str, verifier: str, artifacts: dict,
+                result_digest: str, outcome: str, declared: dict,
+                read_cap_id: str, context_digest: str) -> GovernedRun:
+        """The verdict on a COMPLETED task, by the verifier, and what follows
+        from it: the scheduler's outcome, the policy's receipt, the note.
+
+        ``declared`` is where each declared output resolved to and the digest
+        the executor took of it, which is what a re-execution is compared
+        against.
+        """
+        task_id = task.task_id
         # Independent verification: a different actor, re-deriving the digests
         # from the files rather than trusting the ones just recorded.
         ok, why = self._verify_artifacts(
@@ -1145,9 +1245,7 @@ class GovernedStage10:
         if ok:
             ok, again = self._reexecute_and_compare(
                 tool_id=tool_id, inputs=inputs, verifier=verifier,
-                task_id=task_id,
-                declared={result.output_paths.get(name, name): dg
-                          for name, dg in result.output_digests.items()})
+                task_id=task_id, declared=declared)
             why = why + "; " + again if ok else again
 
         if ok:
@@ -1205,15 +1303,175 @@ class GovernedStage10:
                   f"verified by {verifier}. This is a note about provenance; "
                   "it says nothing about scientific validity."))
 
-        return GovernedRun(task_id, task.state, result.outcome.value,
+        return GovernedRun(task_id, task.state, outcome,
                            result_digest, artifacts,
                            self._head_seq(), why,
                            job_id=job_id, job_state=job.state.value,
                            policy_identity=decision.identity,
                            policy_digest=decision.policy_digest,
-                           context_digest=context.manifest.digest(),
+                           context_digest=context_digest,
                            memory_id=memory_id,
                            obligations=receipt)
+
+    # ---- resumption ----------------------------------------------------
+    def _resume(self, prior, spec, *, tool_id: str, inputs: dict,
+                submitter: str, worker: str, verifier: str, lease_seqs: int,
+                depends_on: tuple, requires_evidence: tuple) -> GovernedRun:
+        """A resubmission FINISHES the task its key is bound to when a crash
+        stopped it where finishing repeats nothing; otherwise it reports the
+        task, as before.
+
+        THE GAP THIS CLOSES (D-2026-110), as the proposal path found it. A
+        binding made the request durable and a resubmission found it -- and
+        then reported the bound task's state, whatever it was, and stopped.
+        :meth:`recover` returns stranded work to the queue and nothing took
+        it from there: :meth:`run` only ever drove a task it had just
+        created. A task a dead supervisor left QUEUED -- or CREATED,
+        VALIDATED, or COMPLETED with no verdict -- stayed there, and every
+        resubmission said so. A proposal accepted before such a crash was
+        durable and could never reach a decision.
+
+        WHAT IS TAKEN UP, AND FROM WHERE
+
+          CREATED, VALIDATED      admitted and queued, as a new submission is
+          QUEUED, job READY       a NEW attempt under a new lease, counted
+                                  against the job's retry budget
+          QUEUED, job DISPATCHED  to this worker identity, under a lease
+                                  still live: the attempt that dispatch began,
+                                  resumed under it. The task is QUEUED, so
+                                  nobody holds it -- recover() proved its
+                                  last holder gone, or it was never taken --
+                                  and the edge into LEASED admits one taker:
+                                  a live dispatcher that loses the race fails
+                                  at its own move, having executed nothing
+          COMPLETED               the verdict. The verifier runs as it would
+                                  have: a different actor, re-deriving from
+                                  the files and re-executing. Nothing is
+                                  completed on anyone's behalf; the
+                                  executor's records stand as written, and
+                                  the verdict is given from them
+
+        WHAT IS NOT, and is reported unchanged: anything terminal; anything
+        LEASED or EXECUTING (its holder is alive, or recover() would have
+        moved it); a tool declaring EXTERNAL effects, where a re-run repeats
+        them (UNCERTAIN and escalated, as before); a job waiting, backing
+        off, blocked or failed; a COMPLETED task whose job lease has lapsed
+        or is another worker's, whose outcome the scheduler would refuse;
+        and a COMPLETED task whose execution record and capture disagree,
+        which the attempt itself would never have completed.
+
+        The policy is asked again and its decision recorded: a resumed
+        attempt runs under the rules in force when it runs.
+        """
+        task = self.projection().tasks.get(prior.task_id)
+        if task is None or spec.side_effect is SideEffect.EXTERNAL:
+            return self._report_duplicate(prior, spec)
+        # The queue brought into agreement with the facts first, as a
+        # restarted process does: a lapsed job lease is READY again (or,
+        # its retry budget spent, FAILED) before anything is decided from it.
+        self.scheduler.reconcile(resolve=self.evidence.contains)
+        job = (self.scheduler.catch_up().all_jobs().get(prior.job_id)
+               if prior.job_id else None)
+        held = (job is not None and job.state is JobState.DISPATCHED
+                and job.lease_holder == worker
+                and job.lease_is_live(self.scheduler.at_seq()))
+        state = task.state
+        recorded = None
+        if state is TaskState.COMPLETED and held:
+            recorded = self._recorded_attempt(task.task_id)
+        if not (state in (TaskState.CREATED, TaskState.VALIDATED)
+                or (state is TaskState.QUEUED and job is not None
+                    and (job.state is JobState.READY or held))
+                or recorded is not None):
+            return self._report_duplicate(prior, spec)
+
+        decision = self.policy.decide_and_record(
+            POLICY_ID,
+            PolicyRequest(action="stage10.execute", subject=submitter,
+                          role="SUBMITTER", resource=tool_id,
+                          task_id=task.task_id),
+            actor=submitter, target=task.task_id)
+        decision.raise_if_denied()
+        if recorded is not None and job is not None:
+            done = self._settle_recorded(
+                task, recorded, tool_id=tool_id, inputs=inputs,
+                decision=decision, job=job, worker=worker,
+                verifier=verifier)
+        else:
+            if state is not TaskState.QUEUED:
+                queued = self._admit(
+                    task, spec=spec, inputs=inputs, decision=decision,
+                    job_id=prior.job_id, submitter=submitter,
+                    depends_on=depends_on,
+                    requires_evidence=requires_evidence)
+                if isinstance(queued, GovernedRun):
+                    return replace(queued, idempotency_key=prior.key,
+                                   resumed_from=state.value)
+                task = queued
+            done = self._attempt(
+                task, tool_id=tool_id, inputs=inputs, spec=spec,
+                decision=decision, job_id=prior.job_id, worker=worker,
+                verifier=verifier, lease_seqs=lease_seqs,
+                takeover=job if held else None)
+        return replace(done, idempotency_key=prior.key,
+                       resumed_from=state.value)
+
+    def _recorded_attempt(self, task_id: str):
+        """What a COMPLETED task's attempt recorded, for its verdict: the
+        execution record, the capture, and the context it ran with -- or
+        None when they do not agree, which the attempt would not have
+        completed."""
+        ran = self._execution_record(task_id)
+        if not ran:
+            return None
+        artifacts = self._artifacts_of(task_id)
+        outputs = SimpleNamespace(
+            output_digests=dict(ran.get("output_digests") or {}),
+            output_paths=dict(ran.get("output_paths") or {}),
+            undeclared_writes=tuple(ran.get("undeclared_writes") or ()))
+        if not artifacts or self._check_declared_outputs(outputs, artifacts):
+            return None
+        context = ""
+        for ev in self._verified_events():
+            if ev.action == ACT_CONTEXT_BUILD and \
+                    (ev.payload.get("manifest") or {}).get("task_id") == \
+                    task_id:
+                context = ev.payload.get("manifest_digest", "")
+        return SimpleNamespace(ran=ran, outputs=outputs, artifacts=artifacts,
+                               context_digest=context)
+
+    def _settle_recorded(self, task, recorded, *, tool_id: str,
+                         inputs: dict, decision, job, worker: str,
+                         verifier: str) -> GovernedRun:
+        """The verdict on a task a crash left COMPLETED, given from what its
+        attempt recorded. The first obligation is discharged from the same
+        agreement the attempt checked, re-derived from the two durable
+        records; the verifier reads under a grant of its own, bounded by the
+        job's live lease as the attempt's grant was."""
+        outputs = recorded.outputs
+        decision = decision.discharge(
+            "verify_declared_outputs",
+            evidence_digest=digest({"declared": sorted(outputs.output_digests),
+                                    "captured": recorded.artifacts}))
+        read_cap_id = f"cap-read-{uuid.uuid4().hex[:8]}"
+        self.capabilities.issue(
+            issue(capability_id=read_cap_id, subject=verifier,
+                  action=Action.READ_PATHS, task_id=task.task_id,
+                  scope=read_scope(READ_ROOT_ID, WORKSPACE_PREFIX),
+                  issued_seq=self._head_seq() + 1,
+                  expires_after_seq=job.lease_expires_after_seq,
+                  issued_wall_time=time.time()),
+            actor="scheduler")
+        return self._settle(
+            task, tool_id=tool_id, inputs=inputs, decision=decision,
+            job_id=job.job_id, worker=worker, verifier=verifier,
+            artifacts=recorded.artifacts,
+            result_digest=task.result_digest or "",
+            outcome=str(recorded.ran.get("outcome", "")),
+            declared={outputs.output_paths.get(name, name): dg
+                      for name, dg in outputs.output_digests.items()},
+            read_cap_id=read_cap_id,
+            context_digest=recorded.context_digest)
 
     # ---- multi-step production work ------------------------------------
     def run_graph(self, steps, *, submitter: str = SUBMITTER_ID) -> tuple:
@@ -1381,7 +1639,8 @@ class GovernedStage10:
                     self._head_seq()),
                 capability_id=cap_id,
                 limits=Limits(wall_seconds=undo.timeout_s),
-                env=self._tool_environment())
+                env=self._tool_environment(),
+                ignore_writes=self._supervisor_paths())
         self.log.append(
             actor=actor, action=ACT_COMPENSATION, target=task_id,
             payload={"task_id": task_id,
@@ -1424,12 +1683,13 @@ class GovernedStage10:
                   action=Action.EXECUTE_TOOL, task_id=task_id,
                   tool_id=undo.tool_id, scope=(WORKSPACE_PREFIX,),
                   issued_seq=head + 1,
-                  # Bounded to this one action. A compensation grant that
-                  # outlived the compensation would be standing authority to
-                  # touch an external system.
-                  expires_after_seq=head + 4,
                   issued_wall_time=time.time()),
-            actor="scheduler")
+            actor="scheduler",
+            # Bounded to this one action. A compensation grant that outlived
+            # the compensation would be standing authority to touch an
+            # external system. Counted from where the grant is stamped, so
+            # other writers landing first cannot leave it dead on arrival.
+            lifetime_seqs=4)
         return cap_id
 
     def _reverification_capability(self, task_id: str, verifier: str,
@@ -1447,10 +1707,25 @@ class GovernedStage10:
             issue(capability_id=cap_id, subject=verifier,
                   action=Action.EXECUTE_TOOL, task_id=task_id,
                   tool_id=tool_id, scope=(WORKSPACE_PREFIX,),
-                  issued_seq=head + 1, expires_after_seq=head + 4,
-                  issued_wall_time=time.time()),
-            actor="scheduler")
+                  issued_seq=head + 1, issued_wall_time=time.time()),
+            actor="scheduler", lifetime_seqs=4)
         return cap_id
+
+    def _supervisor_paths(self) -> tuple:
+        """This runner's own durable stores, where they sit under its root:
+        the authority log with its head witness and lock, and the evidence
+        store. Supervisors write them under the writer lock and no tool
+        does, so a change to them during a tool's run is not the tool's
+        (see :func:`qta_agent.execution._undeclared_writes`, D-2026-118)."""
+        out = []
+        root = self.root.resolve()
+        for path in (self.log.path, self.log.head_path, self.log.lock_path,
+                     self.evidence.root):
+            try:
+                out.append(str(Path(path).resolve().relative_to(root)))
+            except ValueError:
+                continue                 # outside the tree: never swept
+        return tuple(out)
 
     def _argv(self, tool_id: str, inputs: dict) -> list:
         """This runner's entry point for ``tool_id``. See :func:`tool_argv`."""
@@ -1564,8 +1839,14 @@ class GovernedStage10:
                 if ran else
                 "No execution record exists, so nothing observed the tool "
                 "run at all.")
-            moved = self._move(task, TaskState.QUEUED, actor,
-                               TaskRole.SYSTEM, note=why)
+            try:
+                moved = self._move(task, TaskState.QUEUED, actor,
+                                   TaskRole.SYSTEM, note=why)
+            except TaskTransitionError:
+                # Another supervisor recovered it between this scan and this
+                # write. Not an error, and not this call's to repeat: the
+                # task is where recovery puts it, and the record is theirs.
+                continue
             actions.append({
                 "task_id": task.task_id, "from": task.state.value,
                 "to": moved.state.value, "had_execution_record": bool(ran),
@@ -1844,27 +2125,58 @@ class GovernedStage10:
               lease: Lease | None = None, lease_id: str | None = None,
               executed_by: str | None = None,
               result_digest: str | None = None, note: str = "") -> Task:
-        at = self._head_seq() + 1
-        req = TaskTransition(
-            task_id=task.task_id, src=task.state, dst=dst, actor=actor,
-            role=role, at_seq=at,
-            lease_id=lease_id or (lease.lease_id if lease else None),
-            executed_by=executed_by, result_digest=result_digest)
-        check(req, task)                 # raises if the machine forbids it
-        payload: dict[str, Any] = {
-            "task_id": task.task_id, "src": task.state.value,
-            "dst": dst.value, "role": role.value, "note": note}
-        if lease is not None:
-            payload["lease"] = lease.to_record()
-        elif lease_id is not None:
-            payload["lease_id"] = lease_id
-        if executed_by:
-            payload["executed_by"] = executed_by
-        if result_digest:
-            payload["result_digest"] = result_digest
-        self.log.append(actor=actor, action=ACT_TASK_TRANSITION,
-                        target=task.task_id, payload=payload)
-        return self.projection().get(task.task_id)
+        decided_against: dict = {}
+
+        def decide(head_seq: int) -> dict:
+            # RE-READ AND RE-DECIDE UNDER THE WRITER LOCK (D-2026-115).
+            #
+            # Read, check and append used to be three steps with the lock
+            # around the last one only. Two processes moving one task -- two
+            # supervisors recovering it on start, two resubmissions taking
+            # up one stranded dispatch -- each read it in the same state,
+            # each passed the check, and each appended a move out of that
+            # state: a well-formed chain whose second record moves the task
+            # from a state the replay has already left, so nobody could
+            # rebuild it again. The scheduler and the store learned this
+            # first; the task machine had not. The move is decided against
+            # the head it is written onto, and a task that moved since this
+            # caller read it is refused here with nothing written.
+            proj = self.projection()
+            decided_against["projection"] = proj
+            cur = proj.tasks.get(task.task_id)
+            if cur is None or cur.state is not task.state or \
+                    cur.revision != task.revision:
+                raise TaskTransitionError(
+                    f"{task.task_id} moved under this writer: it is "
+                    f"{cur.state.value if cur else 'absent'}, not the "
+                    f"{task.state.value} this move was decided from; "
+                    "another process got there first")
+            req = TaskTransition(
+                task_id=cur.task_id, src=cur.state, dst=dst, actor=actor,
+                role=role, at_seq=head_seq + 1,
+                lease_id=lease_id or (lease.lease_id if lease else None),
+                executed_by=executed_by, result_digest=result_digest)
+            check(req, cur)              # raises if the machine forbids it
+            payload: dict[str, Any] = {
+                "task_id": cur.task_id, "src": cur.state.value,
+                "dst": dst.value, "role": role.value, "note": note}
+            if lease is not None:
+                payload["lease"] = lease.to_record()
+            elif lease_id is not None:
+                payload["lease_id"] = lease_id
+            if executed_by:
+                payload["executed_by"] = executed_by
+            if result_digest:
+                payload["result_digest"] = result_digest
+            return {"actor": actor, "action": ACT_TASK_TRANSITION,
+                    "target": cur.task_id, "payload": payload}
+
+        ev = self.log.append_decided(decide)
+        # The task as this record leaves it: the one record folded onto the
+        # projection it was decided against, by the replay's own rules --
+        # one pass over the log per move, as before, not two.
+        return self._project(
+            [ev], start=decided_against["projection"]).get(task.task_id)
 
     def invalidate(self, task_id: str, *, reason: str,
                    actor: str = "system") -> Task:
@@ -2011,7 +2323,8 @@ class GovernedStage10:
                     capability_id=verify_cap, capabilities=fresh,
                     inputs=again, argv=argv, cwd=self.root,
                     limits=Limits(wall_seconds=spec.timeout_s),
-                    env=self._tool_environment())
+                    env=self._tool_environment(),
+                    ignore_writes=self._supervisor_paths())
             if result.outcome is not Outcome.COMPLETED:
                 return False, (f"re-execution of {tool_id} did not complete "
                                f"({result.outcome.value}): {result.reason}")

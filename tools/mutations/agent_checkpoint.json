@@ -222,15 +222,15 @@
     {
       "name": "C32_the_claim_is_never_written_to_the_log",
       "path": "qta_agent/store.py",
-      "find": "        self.log.append(\n            actor=actor, action=ACT_CHECKPOINT_STATE,",
-      "replace": "        if False: self.log.append(\n            actor=actor, action=ACT_CHECKPOINT_STATE,",
+      "find": "        self.log.append_decided(under_lock)\n        checkpoints.write(made[\"cp\"])",
+      "replace": "        under_lock(self.log.verify().head_seq)\n        checkpoints.write(made[\"cp\"])",
       "rationale": "checkpoints go back to being files nothing in the log attests, so every later load has to take one on trust"
     },
     {
       "name": "C33_the_anchor_names_the_position_after_the_one_it_covers",
       "path": "qta_agent/store.py",
-      "find": "            payload={\"through_seq\": cp.seq, \"state_digest\": dg,",
-      "replace": "            payload={\"through_seq\": cp.seq + 1, \"state_digest\": dg,",
+      "find": "                    \"payload\": {\"through_seq\": cp.seq, \"state_digest\": dg,",
+      "replace": "                    \"payload\": {\"through_seq\": cp.seq + 1, \"state_digest\": dg,",
       "rationale": "the record claims to cover the record that announces it, and load_from's match on the position stops finding its anchor"
     },
     {

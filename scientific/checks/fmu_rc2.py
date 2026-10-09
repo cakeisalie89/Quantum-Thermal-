@@ -87,6 +87,14 @@ def interpreter() -> str:
 
 
 def run_runner(request: dict, *, exe: str | None = None) -> dict:
+    fmu = request.get("fmu")
+    if fmu is not None and not Path(fmu).is_absolute():
+        # The runner works in a scratch directory of its own, so a relative
+        # path names nothing there -- refused here, by name, rather than as
+        # a FileNotFoundError from inside the other runtime (D-2026-112).
+        raise ValueError(f"the FMU path {fmu!r} is relative; the FMI "
+                         "runner runs in its own scratch directory and "
+                         "needs an absolute path")
     exe = exe or interpreter()
     with tempfile.TemporaryDirectory(prefix="fmi-") as tmp:
         req = Path(tmp) / "request.json"

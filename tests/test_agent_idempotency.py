@@ -653,6 +653,32 @@ def test_an_unsettled_external_resubmission_is_uncertain_not_duplicate(
     assert _count(gov, "task.execution") == 1, "the external effect repeated"
 
 
+def test_a_stranded_external_task_is_uncertain_and_never_resumed(
+        gov, monkeypatch):
+    """Resumption (D-2026-110) takes up a stranded task by running it, so it
+    is for tools whose re-run repeats nothing. A tool declaring EXTERNAL
+    effects is never taken up: its stranded task -- here one whose
+    supervisor died before dispatch, QUEUED with nothing executed -- is
+    reported UNCERTAIN and escalated as before, and nothing runs. That is
+    conservative on purpose: whether an attempt reached the far side is
+    exactly what the record cannot always say."""
+    _external_gov(gov, timeout_s=60.0)
+
+    def died(*a, **kw):
+        raise SystemExit("the supervisor died before dispatch")
+
+    monkeypatch.setattr(gov.scheduler, "dispatch", died)
+    with pytest.raises(SystemExit):
+        gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                idempotency_key="ext-stranded")
+    monkeypatch.undo()
+    again = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="ext-stranded")
+    assert again.outcome == "UNCERTAIN" and again.is_duplicate, again
+    assert again.state is TaskState.QUEUED and not again.resumed_from
+    assert _count(gov, "task.execution") == 0, "a stranded EXTERNAL task ran"
+
+
 def test_a_settled_external_resubmission_is_an_ordinary_duplicate(gov):
     """VERIFIED is reachable only through COMPLETED, so the run did finish.
 
@@ -814,3 +840,21 @@ def test_the_run_still_reports_when_the_escalation_cannot_be_raised(
     assert again.outcome == "UNCERTAIN"
     assert again.escalation_id == ""
     assert "NOT KNOWN" in again.reason
+
+
+def test_a_second_runner_sees_a_binding_made_after_it_was_built(gov):
+    """Two runners over one log, both built before either submits -- two
+    supervisors, or one restarted beside a live one. The second used to
+    answer every lookup from the ledger it loaded at construction, find the
+    key free, create its own task and bind the key again: a rebinding replay
+    refuses on every load (D-2026-117). It must find the first's binding."""
+    other = GovernedStage10(root=ROOT, log=EventLog(gov.log.path),
+                            evidence=gov.evidence)
+    first = gov.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                    idempotency_key="two-runners")
+    again = other.run(tool_id="stage10.emit_artifact", inputs=_inputs(gov),
+                      idempotency_key="two-runners")
+    assert again.is_duplicate and again.task_id == first.task_id
+    assert _count(gov, "idempotency.bind") == 1
+    assert _count(gov, "task.create") == 1
+    IdempotencyLedger(EventLog(gov.log.path)).load()     # still replayable

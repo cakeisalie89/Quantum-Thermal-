@@ -66,6 +66,7 @@ from typing import FrozenSet
 
 from .actions import require_known
 from .canonical import digest, is_digest
+from .events import EventLogError
 
 #: The one durable action this module owns.
 ACT_BIND = "idempotency.bind"
@@ -191,6 +192,14 @@ def binding_from_record(payload: object, *, actor: str, seq: int) -> Binding:
                    bound_seq=bound_seq)
 
 
+class _AlreadyBound(Exception):
+    """Raised inside a decided append: the key is already bound."""
+
+    def __init__(self, binding):
+        super().__init__(binding.task_id)
+        self.binding = binding
+
+
 class IdempotencyLedger:
     """Bindings in force, PROJECTED from the log rather than asserted.
 
@@ -204,6 +213,10 @@ class IdempotencyLedger:
         self.log = log
         self._bindings: dict = {}
         self._at_seq = -1
+        #: The last record folded, of any kind, and an anchor there: what
+        #: :meth:`catch_up` reads on from.
+        self._folded_through = -1
+        self._anchor = None
 
     # ---- projection ----------------------------------------------------
     def load(self) -> "IdempotencyLedger":
@@ -213,6 +226,32 @@ class IdempotencyLedger:
         self._at_seq = -1
         for ev in events:
             self.apply(ev)
+        self._folded_through = events[-1].seq if events else -1
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
+        return self
+
+    def catch_up(self) -> "IdempotencyLedger":
+        """Fold what has been appended since this projection last read, in
+        O(new).
+
+        The ledger was loaded once, by the runner's constructor, and every
+        lookup after that answered from it: a binding another process made
+        since was invisible, so a second runner created its own task for the
+        same request and bound the same key again -- a rebinding replay
+        refuses on every load (D-2026-117). Anchored, as the scheduler and
+        the store are, so a lookup costs what has been appended since.
+        """
+        if self._anchor is None:
+            return self.load()
+        try:
+            events, self._anchor = self.log.advance(self._anchor)
+        except EventLogError:
+            return self.load()
+        for ev in events:
+            if ev.seq > self._folded_through:
+                self.apply(ev)
+                self._folded_through = ev.seq
         return self
 
     def apply(self, ev) -> bool:
@@ -296,8 +335,27 @@ class IdempotencyLedger:
                 "request_identity() so it comes from canonical bytes")
         if not isinstance(task_id, str) or not task_id:
             raise IdempotencyError("task_id must be a non-empty str")
-        existing = self.lookup(owner=owner, tool_id=tool_id, key=key)
-        if existing is not None:
+        payload = {"key": key, "owner": owner, "tool_id": tool_id,
+                   "request_digest": request_digest, "task_id": task_id,
+                   "job_id": job_id}
+
+        def decide(head_seq: int) -> dict:
+            # DECIDED UNDER THE WRITER LOCK (D-2026-117), against every
+            # binding in the log at the head this one is written onto. Looked
+            # up from a projection loaded earlier and appended after, two
+            # submissions of one request -- two processes, or two runners --
+            # each found the key free and each bound it.
+            self.catch_up()
+            found = self.lookup(owner=owner, tool_id=tool_id, key=key)
+            if found is not None:
+                raise _AlreadyBound(found)
+            return {"actor": owner, "action": ACT_BIND, "target": task_id,
+                    "payload": payload}
+
+        try:
+            ev = self.log.append_decided(decide)
+        except _AlreadyBound as bound:
+            existing = bound.binding
             if existing.request_digest != request_digest:
                 raise IdempotencyConflict(
                     f"idempotency key {key!r} is already bound to task "
@@ -307,11 +365,7 @@ class IdempotencyLedger:
                     "reusing this one would make every later resubmission of "
                     "the original resolve to the new work.")
             return existing
-        payload = {"key": key, "owner": owner, "tool_id": tool_id,
-                   "request_digest": request_digest, "task_id": task_id,
-                   "job_id": job_id}
-        ev = self.log.append(actor=owner, action=ACT_BIND, target=task_id,
-                             payload=payload)
         self.apply(ev)
+        self._folded_through = max(self._folded_through, ev.seq)
         return self._bindings[scope_identity(owner=owner, tool_id=tool_id,
                                              key=key)]

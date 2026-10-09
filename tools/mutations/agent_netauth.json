@@ -274,8 +274,8 @@
     {
       "name": "E39_the_authority_takes_the_start_from_its_caller",
       "path": "qta_agent/netauth.py",
-      "find": "            g = replace(g, issued_seq=self.log.verify().head_seq + 1)",
-      "replace": "            pass",
+      "find": "                    replace(g, issued_seq=head_seq + 1).body())\n",
+      "replace": "                    g.body())\n",
       "rationale": "the caller chooses where its own egress grant begins"
     },
     {

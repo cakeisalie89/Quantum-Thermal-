@@ -9492,3 +9492,328 @@ file green after the repair.
 
 **NOT CLAIMED.** Nothing about which checkpoint recovery uses changed:
 both classes were and are unusable.
+
+## D-2026-110 — a durable proposal stranded by a crash could never reach a decision
+
+**CLASS** — `RECOVERY`, harness completion programme (section 44).
+`qta_agent/governed_stage10.py`, `qta_agent/governed_model.py`.
+
+**WHAT WAS THERE** (`051acf7`). A submission bound to an idempotency key
+(the proposal ingress passes the proposal's id) was durable, and a
+resubmission found the bound task -- and reported its state and stopped,
+whatever that state was. `recover()` returned stranded work to the queue and
+nothing took it from there: `run()` only drove a task it had just created.
+A task a dead supervisor left QUEUED, CREATED, VALIDATED, or COMPLETED with
+no verdict stayed there, and every resubmission said so. Separately,
+`decide()` raised I2 when resumed after its verdict was already appended,
+so a crash between the verdict and its caller hearing failed the resumed
+path on its own decision. Nothing was ever duplicated or skipped; the
+proposal was durable and stuck. Found by cutting the real
+proposal-to-decision log after every append and resubmitting
+(`tests/test_proposal_crash_recovery.py`): 13 of 20 cuts could not finish.
+
+**REPAIR.** A resubmission takes up the bound task when finishing it repeats
+nothing (`GovernedStage10._resume`): CREATED and VALIDATED are admitted and
+queued; QUEUED with a READY job is a new attempt under a new lease, counted
+against the retry budget; QUEUED with the job still dispatched to THIS
+worker identity under a live lease resumes that attempt -- the task edge
+into LEASED admits one taker; COMPLETED is verified by the verifier from the
+attempt's own records, after re-checking that the execution record and the
+capture agree. The queue is reconciled first and the policy is asked again.
+Anything terminal, anything LEASED or EXECUTING, any tool declaring
+EXTERNAL effects, and any job waiting, backing off, blocked or failed is
+reported as before. `decide()` returns a decision already in the log when
+it was made on the same check's report, and refuses one made on another.
+`GovernedRun.resumed_from` says which state a call took up.
+
+**EVIDENCE.** `tests/test_proposal_crash_recovery.py`: 20 cuts, each
+rebuilt from the log alone with the lease holder's process gone, each
+finishing at the uncrashed verdict with one receipt, one executed model
+task, one record, one pickup, one verdict and no second-reader anomaly;
+another worker identity refused a live lease; a completion whose records
+disagree never verified; a policy published after the crash governing the
+resumed attempt; a lapsed lease taken up as a second attempt; a crash while
+checkpointing the projection recovered by full replay or a whole
+checkpoint; a decision never returned for another check's report.
+`tests/test_agent_idempotency.py`: a stranded EXTERNAL task is UNCERTAIN and
+never runs. Mutations PCR1-PCR12 (`tools/mutations/proposal_crash_recovery.json`).
+
+**NOT CLAIMED.** Exactly-once execution against anything outside this
+system: an EXTERNAL tool is still never resumed. A task stranded between
+the scheduler's dispatch and its own lease by a supervisor of ANOTHER worker
+identity waits for that lease to lapse.
+
+## D-2026-111 — the RO-Crate's scripts were data entities typed neither File nor Dataset
+
+**CLASS** — `CONFORMANCE`, harness completion programme (R65).
+`ro_crate_tools.py`, `tools/ro_crate_conformance.py`.
+
+**WHAT WAS THERE** (`051acf7`). Seven data entities in the root's `hasPart`
+-- the runners, the Snakefile and the three checkers -- were typed
+`SoftwareSourceCode` alone. RO-Crate 1.1 requires every data entity to be a
+File or a Dataset, whatever else it also is. The internal validator did not
+check types and accepted the crate; the conformance packager copied only
+File-typed entities, so those seven files were not even in the package the
+community validator was shown. The hosted `ro-crate` job (run 37884676618)
+refused the committed crate: internal ACCEPTED, external REFUSED, DISAGREE.
+The tool did not print the external validator's reasons, so they are not in
+the log; the cause was identified by reading the profile's REQUIRED shapes
+against the crate.
+
+**REPAIR.** The seven are typed `["File", "SoftwareSourceCode"]`; the
+internal validator refuses a data entity with neither type; the packager
+copies every data entity the root has, whatever its type; a fifth negative
+control (`data_entity_not_a_file`) must be refused by both validators; and
+a disagreement now prints both validators' reasons into the log.
+
+**EVIDENCE.** `tests/test_ro_crate_conformance.py`. The external
+validator's verdict on the repaired crate is the next hosted `ro-crate`
+run's to give; it cannot be measured here (w3id.org is not reachable).
+
+## D-2026-112 — FMI acceptance with a relative work directory asked the runtime for a file it could not see
+
+**CLASS** — `INTEGRATION`, harness completion programme (R63).
+`scientific/checks/fmu_rc2.py`, `tools/fmi_acceptance.py`.
+
+**WHAT WAS THERE** (`051acf7`). The hosted `fmi` job ran
+`fmi_acceptance.py --work fmi_work`; the FMU's path stayed relative and the
+runner, which works in a scratch directory of its own, answered
+FileNotFoundError from inside fmpy. Every local run had passed an absolute
+path. The governed path was not affected: it resolves the FMU inside the
+workspace first.
+
+**REPAIR.** `run_runner` refuses a relative FMU path by name before any
+runtime is asked; the acceptance tool resolves its work directory.
+
+**EVIDENCE.** `tests/test_harness_integrations.py`; the acceptance campaign
+run locally with `--work fmi_work`: 7/7 criteria, 9/9 controls rejected.
+
+## D-2026-113 — the H1 push's own integration defects, found by its hosted runs
+
+**CLASS** — `CI`, harness completion programme.
+`Snakefile`, `.github/workflows/harness-integrations.yml`,
+`.github/workflows/agent-substrate.yml`, `tests/test_ro_crate_conformance.py`.
+
+**WHAT WAS THERE** (`051acf7`), four defects no local run reached:
+
+* the `s10_rust_parity` rule asserted the per-kernel `backend_in_force`
+  key the Rust resolution had removed from the status report (KeyError in
+  stack-verify core and full, and in end-to-end) -- the default target was
+  never run end to end before the push;
+* the end-to-end job ran `snakemake --cores 1 --forcerun harness_demo
+  harness_demo`: `--forcerun` took both words, so the demonstration's job
+  ran the whole default target instead of its rule;
+* the bare Python 3.13 job installs no h5py, and the fuzz campaign builds
+  its targets together, the HDF5 bundle reader among them;
+* under mutant RC5 every conformance test judging from the repository root
+  overwrote the committed validation report, and the mutation harness
+  refused the shard for a tracked file left changed (shard 6 and the
+  aggregate).
+
+**REPAIR.** The rule asserts the committed decisions; the target precedes
+the options; h5py is installed in the bare job with its reason stated; the
+conformance tests restore the committed report after each test.
+
+**EVIDENCE.** The rule run locally; the dry run schedules only
+`harness_demo`; the agent suites in a bare 3.13 environment with h5py; the
+conformance spec rerun locally. The hosted runs of the next push are the
+measurement.
+
+## D-2026-114 — three tests assumed the host they ran on
+
+**CLASS** — `TEST`, harness completion programme (R64).
+`tests/test_agent_execution.py`, `tests/test_agent_collusion.py`,
+`tests/test_reference_backend.py`.
+
+**WHAT WAS THERE** (`051acf7`, the first container-verify run on push). One
+test read the process table through `ps`, which the image does not ship;
+one asserted that `ROOT.parent.parent/etc/passwd` does not exist, which is
+the system's own file wherever the checkout sits two levels below `/`, as
+it does in the container; one required the backend probe's interpreter
+record to carry exactly `name` and `sha256`, and the probe correctly adds
+`libpython` when the interpreter runs from a shared one, as the container's
+does. None was a defect in what the tests guard.
+
+**REPAIR.** The process table is read from `/proc`, and the scan must see
+the test's own process; the escaping write is judged by comparing the
+target before and after; `libpython` is optional at the interpreter record
+and shaped when present.
+
+**EVIDENCE.** The three tests locally; container-verify on the next push.
+
+## D-2026-115 — task moves and proposal receipts were read, checked and appended with the lock around the append alone
+
+**CLASS** — `CONCURRENCY`, harness completion programme (section 45).
+`qta_agent/governed_stage10.py`, `qta_agent/proposals.py`.
+
+**WHAT WAS THERE** (`051acf7`). `GovernedStage10._move` read the task, checked
+the transition and appended, holding the writer lock for the append only;
+`ProposalIngress.receive` looked the proposal up and appended the same way.
+The scheduler and the authority store had learned this shape
+(`append_decided`); the task machine and the ingress had not. Two processes
+moving one task -- two supervisors recovering it on start, two resubmissions
+taking up one stranded dispatch -- each appended a move out of the same
+state, and the second record moves the task from a state the replay has
+already left: a well-formed chain nobody can rebuild. Four ingress
+processes receiving one proposal appended two receipts (measured on the
+pre-fix tree: `[False, False, True, True]`).
+
+**REPAIR.** Both decide under the writer lock against the head they are
+written onto (`EventLog.append_decided`); a task that moved since its caller
+read it is refused with nothing written, and `recover()` treats losing that
+race as somebody else's recovery. The task a move returns is its one record
+folded onto the projection it was decided against, by the replay's own
+rules, so a governed run makes no more whole-log passes than before
+(`MAX_FULL_LOG_PASSES_PER_GOVERNED_RUN` unchanged).
+
+**EVIDENCE.** `tests/test_proposal_concurrency.py`: four processes receive
+one proposal (one receipt); four resubmit one stranded proposal (the model
+runs once; one record, one pickup, one verdict; every other caller refused
+by name); four submit one received proposal for the first time (one bound
+task runs, the orphans are cancelled before anything is queued). Mutation
+PI7 re-anchored to the decided check; V9 to the tolerant recovery.
+
+## D-2026-116 — a checkpoint's snapshot and its anchor were taken at two different heads
+
+**CLASS** — `CONCURRENCY` / `RECOVERY`, harness completion programme (R41,
+section 45). `qta_agent/store.py`.
+
+**WHAT WAS THERE** (`051acf7`). `AuthorityStore.checkpoint` snapshotted the
+projection, then created the checkpoint at the CURRENT head, then appended
+the claim -- three steps with nothing holding the log still. A process
+checkpointing beside another snapshotted seq 57 and anchored at 58 or 60,
+the other's claim having landed between. The restart then raised
+StoreError from `load_from` instead of recovering: a checkpoint the audit
+classed USABLE crashed the recovery it was meant to speed up (measured on
+the pre-fix tree).
+
+**REPAIR.** Snapshot, checkpoint and claim are decided under the writer
+lock at one head; and `recover()` treats a checkpoint `load_from` refuses
+as unusable -- a full replay, reported unhealthy with the refusal -- rather
+than failing to start.
+
+**EVIDENCE.** `tests/test_proposal_concurrency.py`: four processes
+checkpoint at once; every checkpoint whole, the restart CHECKPOINT_ASSISTED
+and equal to a full replay. Mutations C32 and C33 re-anchored.
+
+## D-2026-117 — grants, roots and bindings decided from a head or a ledger read before the append
+
+**CLASS** — `CONCURRENCY`, harness completion programme (section 45).
+`qta_agent/capability.py`, `qta_agent/netauth.py`, `qta_agent/secrets.py`,
+`qta_agent/idempotency.py`, `qta_agent/governed_stage10.py`,
+`qta_agent/governed_model.py`.
+
+**WHAT WAS THERE** (`051acf7`), one shape in five places:
+
+* capability, egress and secret grants were stamped `issued_seq = head + 1`
+  from a head read before the append. Any writer landing between put the
+  grant after the start it claimed, and replay refuses a backdated grant on
+  EVERY load -- one benign race left a log no governed runner could open.
+  Found when the concurrent resubmission test's winner died at its read
+  grant; measured 3 runs out of 3 on the pre-fix tree with four processes
+  interleaving grants (capability and egress both);
+* `anoint` could write a second root the same way;
+* the idempotency ledger was loaded once per runner and every lookup and
+  bind answered from it: a second runner -- or a second process -- found a
+  key another had bound since, free, created its own task, bound the key
+  again (a rebinding replay refuses), and ran the work twice (measured on
+  the pre-fix tree);
+* the independent check of a model run had no key at all, so a crash during
+  it left an orphan and concurrent requests ran several checks into one
+  directory.
+
+**REPAIR.** Grants are stamped under the writer lock at the position they
+are written; the root is decided there against the log; the ledger catches
+up in O(new) before a lookup and decides a binding under the lock, and a
+submission that loses the bind cancels its own orphan before anything is
+queued and answers with the bound task; a check is keyed by the record, the
+check and its directory.
+
+**EVIDENCE.** `tests/test_proposal_concurrency.py` (four processes, 96
+interleaved grants, every one starting where it sits);
+`tests/test_agent_idempotency.py` (a runner built before another's binding
+finds it). Mutations X23, L4, E39 and S27 re-anchored to the decided stamps;
+I11 and I13 to the decided bind.
+
+**THE EXPIRY HALF, found reviewing this repair before it was committed.**
+Stamping the start under the lock left the expiry where the caller
+computed it, from the earlier head. The governed runner's compensation and
+re-verification grants expire four positions after that head, so five
+records from another writer moved the stamped start past the end: a grant
+that was never valid, appended, and refused by every replay -- the same
+unopenable log by another route (measured: the record was appended, the
+writer's own fold raised, and every later load refused the log). Every stamped grant is now rebuilt by replay's own
+constructor inside the locked decision, so one replay would refuse is
+refused with nothing written; and the two one-action grants carry a
+lifetime counted from their stamp (`lifetime_seqs=4`) instead of an
+absolute expiry, so contention cannot leave them dead on arrival. A grant
+tied to a lease keeps its absolute expiry -- outliving the lease is what
+the bound exists to prevent -- and is refused, unwritten, if the lease has
+ended by the time it is stamped. Tests:
+`test_a_grant_the_stamp_moves_past_its_expiry_is_refused_unwritten`
+(capability, egress, secret) and
+`test_a_one_action_grant_lives_from_where_it_is_stamped`; mutations
+DA9-DA12. G15 re-anchored to the lifetime.
+
+## D-2026-118 — the undeclared-write sweep charged concurrent supervisors' appends to the running tool
+
+**CLASS** — `CONCURRENCY`, harness completion programme (section 45).
+`qta_agent/execution.py`, `qta_agent/governed_stage10.py`.
+
+**WHAT WAS THERE** (`051acf7`). The sweep inventories a tool's writable
+scope before and after the run and reports every change it did not declare.
+The authority log, its witness and the evidence store sit inside that scope
+on the governed path, so another supervisor appending while a tool ran was
+reported as the tool's undeclared write, and the run refused FAILED --
+fail-closed, never a false verdict, but no concurrent supervisor could
+complete work. The sweep's own docstring already said a concurrent
+process's change is not evidence against the tool; it had only excluded
+changes outside the scope.
+
+**REPAIR.** The runner's own durable stores are passed to the executor by
+exact path and are not attributed to the tool. A write to them is judged by
+the hash chain, the head witness and the separate-process verification.
+
+**EVIDENCE.** The concurrent resubmission and first-submission tests, whose
+winners now finish.
+
+**NOT CLAIMED.** Anything about a tool writing the authority log on
+purpose beyond what the chain, the witness and the separate verification
+detect: the sweep never was, and is not now, the defence for that.
+
+## D-2026-119 — every proposal receipt re-read and re-verified the whole log
+
+**CLASS** — `PERFORMANCE` (quadratic in history), harness completion
+programme (section 46). `qta_agent/proposals.py`.
+
+**WHAT WAS THERE** (`051acf7`). `ProposalIngress.receive` asked whether its
+proposal was already in the log by calling `received(self.log)`: a whole
+verified read of the history, per receipt. `pending()` and `submit()` did
+the same. Each call is linear in the log, so an ingress running beside the
+rest of the system for a long history is quadratic -- the class of defect
+that checkpointing and the event log's append each had before
+(`tests/test_agent_long_horizon.py`'s module docstring). No short test
+could see it. It was found by reading this path while adding proposals to
+the long-horizon campaign, not by the campaign failing. Measured on the
+pre-fix tree: one ingress beside another writer made 44 whole-log reads
+for 44 receipts, after warm-up. On the repaired tree it makes 0.
+
+**REPAIR.** The ingress keeps an anchored receipt view, as the scheduler,
+the store and the idempotency ledger already do. It catches up in O(new)
+since it last looked, and falls back to one whole verified read when it
+has no anchor or the anchor no longer describes the bytes at its offset.
+`received(log)` and the catch-up fold through the same function. The
+receipt is still decided under the writer lock against the head it is
+written onto (D-2026-115).
+
+**EVIDENCE.** `tests/test_proposal_ingress.py`:
+`test_a_running_ingress_reads_the_history_once_not_once_per_receipt` (0
+whole-log reads across 44 receipts interleaved with another writer, every
+receipt visible to both) and its anti-vacuity twin (a fresh ingress per
+receipt is counted at one or more each). Mutations PI17 (the anchor is
+ignored) and PI18 (the catch-up drops a receipt another writer appended).
+The long-horizon campaign now keeps ONE ingress for the life of each
+process and receives a proposal on every cycle.
+
+**NOT CLAIMED.** That a fresh ingress per receipt is cheap. It is not, and
+the campaign does not build one per receipt.

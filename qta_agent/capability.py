@@ -540,6 +540,10 @@ def digest_is_consistent(cap: Capability, claimed: str) -> bool:
     return is_digest(claimed) and cap.digest() == claimed
 
 
+class _RootExists(Exception):
+    """Raised inside a decided append: a root is already in the log."""
+
+
 class CapabilityLedger:
     """The grants in force, PROJECTED from the log rather than asserted.
 
@@ -807,15 +811,46 @@ class CapabilityLedger:
                     f"{actor!r} cannot become root issuer: {self._root!r} "
                     "already is, and minting authority is not shared")
             return self._root
-        ev = self.log.append(actor=actor, action=ACT_ROOT, target=actor,
-                             payload={"issuer": actor})
+
+        def decide(head_seq: int) -> dict:
+            # Decided under the writer lock (D-2026-117): two processes that
+            # each found no root would each write one, and a log naming two
+            # roots is refused on every replay.
+            report, events = self.log.read_verified()
+            report.raise_if_bad()
+            if any(ev.action == ACT_ROOT for ev in events):
+                raise _RootExists()
+            return {"actor": actor, "action": ACT_ROOT, "target": actor,
+                    "payload": {"issuer": actor}}
+
+        try:
+            ev = self.log.append_decided(decide)
+        except _RootExists:
+            # Somebody else established it first: what it is now is the
+            # log's answer, read the way any replay reads it.
+            self.load()
+            return self.anoint(actor=actor)
         self.apply(ev)
         return actor
 
-    def issue(self, cap: Capability, *, actor: str) -> Capability:
-        """Record a grant. It does not exist until this returns."""
+    def issue(self, cap: Capability, *, actor: str,
+              lifetime_seqs: int | None = None) -> Capability:
+        """Record a grant. It does not exist until this returns.
+
+        ``lifetime_seqs`` bounds the grant by the number of log positions it
+        is in force for, counted from where it is STAMPED rather than from a
+        head the caller read earlier: ``lifetime_seqs=4`` is in force at its
+        own position and the three after it. A grant meant for one action
+        then cannot be dead on arrival because other writers landed between
+        the caller's read and the append.
+        """
         if not isinstance(cap, Capability):
             raise CapabilityError(f"expected a Capability, got {cap!r}")
+        if lifetime_seqs is not None and (
+                not isinstance(lifetime_seqs, int)
+                or isinstance(lifetime_seqs, bool) or lifetime_seqs < 1):
+            raise CapabilityError(
+                f"lifetime_seqs must be a positive int, got {lifetime_seqs!r}")
         if cap.capability_id in self._issued:
             raise CapabilityError(
                 f"capability {cap.capability_id!r} already exists; reusing an "
@@ -829,10 +864,39 @@ class CapabilityLedger:
             self.anoint(actor=actor)
         # Stamped, not accepted: the position a grant starts at is the log's
         # to decide, and a caller that could choose it could backdate one.
-        cap = replace(cap, issued_seq=self.log.verify().head_seq + 1)
-        ev = self.log.append(actor=actor, action=ACT_ISSUE,
-                             target=cap.task_id,
-                             payload={"task_id": cap.task_id, **cap.body()})
+        #
+        # AND STAMPED UNDER THE WRITER LOCK, at the position the record is
+        # written (D-2026-117). The head was read, then the record appended,
+        # with the lock around the append alone: any other writer landing in
+        # between put the grant one or more records after the start it
+        # claimed, which replay refuses as a backdated grant -- on every
+        # load, for ever, so one benign race left a log no governed runner
+        # could open again. Two processes sharing a log did it on the first
+        # concurrent resubmission.
+        #
+        # And REBUILT BY REPLAY'S OWN CONSTRUCTOR before it is written. The
+        # stamp can move the start past an expiry the caller computed from
+        # an earlier head; such a grant was never valid, replay refuses it on
+        # every load, and appending it would leave a log nobody can open.
+        # Refused here, under the lock, nothing is written.
+        def decide(head_seq: int) -> dict:
+            c = replace(cap, issued_seq=head_seq + 1)
+            if lifetime_seqs is not None:
+                c = replace(c, expires_after_seq=c.issued_seq
+                            + lifetime_seqs - 1)
+            payload = {"task_id": c.task_id, **c.body()}
+            try:
+                capability_from_record(payload)
+            except CapabilityError as exc:
+                raise CapabilityError(
+                    f"{c.capability_id!r} cannot be granted at seq "
+                    f"{c.issued_seq}: {exc}. The log moved "
+                    f"{c.issued_seq - cap.issued_seq} position(s) past the "
+                    "start the caller computed") from exc
+            return {"actor": actor, "action": ACT_ISSUE, "target": c.task_id,
+                    "payload": payload}
+
+        ev = self.log.append_decided(decide)
         self.apply(ev)
         return self._issued[cap.capability_id]
 

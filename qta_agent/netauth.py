@@ -1032,12 +1032,27 @@ class NetworkAuthority:
                 "would make two different grants indistinguishable in the log")
         if self.log is not None:
             # Stamped, not accepted: a caller that could choose the start
-            # could grant egress over traffic that already happened.
-            g = replace(g, issued_seq=self.log.verify().head_seq + 1)
-            ev = self.log.append(
-                actor=actor, action=ACT_NET_GRANT, target=g.task_id,
-                payload={"grant": g.body(), "grant_digest": g.digest(),
-                         "grant_id": g.grant_id})
+            # could grant egress over traffic that already happened. Stamped
+            # under the writer lock, at the position the record is written:
+            # read first and appended after, another writer landing between
+            # left a grant replay refuses as backdated (D-2026-117).
+            stamped: dict = {}
+
+            def decide(head_seq: int) -> dict:
+                # rebuilt by replay's own constructor, so a stamp that moved
+                # the start past the expiry is refused with nothing written
+                # rather than appended as a grant every replay refuses
+                s = grant_from_record(
+                    replace(g, issued_seq=head_seq + 1).body())
+                stamped["grant"] = s
+                return {"actor": actor, "action": ACT_NET_GRANT,
+                        "target": s.task_id,
+                        "payload": {"grant": s.body(),
+                                    "grant_digest": s.digest(),
+                                    "grant_id": s.grant_id}}
+
+            ev = self.log.append_decided(decide)
+            g = stamped["grant"]
             self.apply(ev)
         else:
             self._grants[g.grant_id] = g

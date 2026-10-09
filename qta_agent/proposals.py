@@ -52,6 +52,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from .canonical import canonical_bytes, digest
+from .events import EventLogError
 
 SCHEMA = "proposal-envelope/1"
 ACT_PROPOSAL_RECEIVE = "proposal.receive"
@@ -441,6 +442,13 @@ def received(log) -> dict:
     # in every other reader -- never an empty projection.
     report, events = log.read_verified()
     report.raise_if_bad()
+    return _fold_receipts(events, out)
+
+
+def _fold_receipts(events, out: dict) -> dict:
+    """Fold the proposal.receive records among ``events`` into ``out``. The
+    one reading of a receipt: :func:`received` over a whole verified read,
+    and an ingress catching up over what it has not yet seen."""
     for ev in events:
         if ev.action != ACT_PROPOSAL_RECEIVE:
             continue
@@ -467,6 +475,15 @@ class Receipt:
     duplicate: bool
 
 
+class _AlreadyReceived(Exception):
+    """Raised inside a decided append: the receipt is already in the log,
+    so nothing is written and the existing one is the answer."""
+
+    def __init__(self, have: dict):
+        super().__init__(have.get("seq"))
+        self.have = have
+
+
 class ProposalIngress:
     """Receives proposals into the log and submits them to governance."""
 
@@ -477,6 +494,41 @@ class ProposalIngress:
         #: path -> the SHA-256 of the reviewed source now, or None. Used to
         #: refuse a proposal citing a span whose source has changed.
         self.source_digest = source_digest
+        self._received: dict = {}
+        self._folded_through = -1
+        self._anchor: Any = None
+
+    def _catch_up(self) -> dict:
+        """The receipts, folded in O(new) since this ingress last read.
+
+        Every receipt used to re-read and re-verify the whole log to ask
+        whether its proposal was already there: quadratic over a long
+        history, the class the long-horizon campaign exists to catch, found
+        reading this path when proposals were added to that campaign
+        (D-2026-119). Anchored as the scheduler, the store and the
+        idempotency ledger are; a whole verified read when there is no
+        anchor or the anchor no longer describes the bytes at its offset.
+        """
+        if self._anchor is not None:
+            try:
+                events, self._anchor = self.log.advance(self._anchor)
+            except EventLogError:
+                self._anchor = None
+            else:
+                _fold_receipts([ev for ev in events
+                                if ev.seq > self._folded_through],
+                               self._received)
+                if events:
+                    self._folded_through = max(self._folded_through,
+                                               events[-1].seq)
+                return self._received
+        report, events = self.log.read_verified()
+        report.raise_if_bad()
+        self._received = _fold_receipts(events, {})
+        self._folded_through = events[-1].seq if events else -1
+        self._anchor = (self.log.anchor_at(self._folded_through)
+                        if self._folded_through >= 0 else None)
+        return self._received
 
     def receive(self, raw) -> Receipt:
         env = ProposalEnvelope.parse(raw)
@@ -491,22 +543,33 @@ class ProposalIngress:
                         f"cites {c['path']}:{c['line_start']}-"
                         f"{c['line_end']} at {c['source_sha256'][:12]}, "
                         f"which is now {str(now)[:12]}: a stale context")
-        have = received(self.log).get(env.proposal_id)
-        if have is not None:
-            return Receipt(env, have["seq"], True)
-        ev = self.log.append(
-            actor=self.actor, action=ACT_PROPOSAL_RECEIVE,
-            target=env.proposal_id,
-            payload={"envelope": env.record,
-                     "envelope_digest": env.digest(),
-                     "received_by": self.actor,
-                     "authority": AUTHORITY})
+        def decide(head_seq: int) -> dict:
+            # Decided under the writer lock, against the head the receipt is
+            # written onto: two ingress processes receiving one proposal at
+            # once append ONE receipt between them. Checked before the lock
+            # and appended after it, both did (D-2026-115).
+            have = self._catch_up().get(env.proposal_id)
+            if have is not None:
+                raise _AlreadyReceived(have)
+            return {"actor": self.actor, "action": ACT_PROPOSAL_RECEIVE,
+                    "target": env.proposal_id,
+                    "payload": {"envelope": env.record,
+                                "envelope_digest": env.digest(),
+                                "received_by": self.actor,
+                                "authority": AUTHORITY}}
+
+        try:
+            ev = self.log.append_decided(decide)
+        except _AlreadyReceived as already:
+            return Receipt(env, already.have["seq"], True)
+        _fold_receipts([ev], self._received)
+        self._folded_through = max(self._folded_through, ev.seq)
         return Receipt(env, ev.seq, False)
 
     def pending(self, submitted: Callable[[str], bool]) -> list:
         """Received MODEL_RUN proposals not yet submitted: what recovery
         resubmits, under the same idempotency key."""
-        return [r["envelope"] for pid, r in sorted(received(self.log).items())
+        return [r["envelope"] for pid, r in sorted(self._catch_up().items())
                 if r["kind"] == "MODEL_RUN" and not submitted(pid)]
 
     def submit(self, proposal_id: str, runs, *, out_dir: str,
@@ -515,11 +578,12 @@ class ProposalIngress:
 
         The proposal's agent is the submitter; the output location is the
         ingress's choice; the proposal id is the idempotency key, so a
-        resubmission after a crash returns the first task. A proposal for
+        resubmission after a crash returns the first task, finished where it
+        stopped (D-2026-110). A proposal for
         the FMU is run against the FMU the CALLER names in ``fmu`` (path,
         digests, build record, runtime): a proposal names a model, never a
         binary or a path."""
-        rec = received(self.log).get(proposal_id)
+        rec = self._catch_up().get(proposal_id)
         if rec is None:
             raise ProposalRefused(f"{proposal_id} was never received; only "
                                   "a recorded proposal is submitted")

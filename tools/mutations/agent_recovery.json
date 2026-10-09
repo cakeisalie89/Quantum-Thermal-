@@ -66,8 +66,8 @@
     {
       "name": "V9_recovery_completes_the_task_from_its_own_record",
       "path": "qta_agent/governed_stage10.py",
-      "find": "            moved = self._move(task, TaskState.QUEUED, actor,\n                               TaskRole.SYSTEM, note=why)",
-      "replace": "            moved = self._move(\n                task,\n                TaskState.COMPLETED if ran else TaskState.QUEUED,\n                actor, TaskRole.SYSTEM, note=why)",
+      "find": "                moved = self._move(task, TaskState.QUEUED, actor,\n                                   TaskRole.SYSTEM, note=why)",
+      "replace": "                moved = self._move(\n                    task,\n                    TaskState.COMPLETED if ran else TaskState.QUEUED,\n                    actor, TaskRole.SYSTEM, note=why)",
       "rationale": "a recovery process finishes another party's work under a lease nobody holds, which is the ownership bypass the lease exists to prevent"
     },
     {

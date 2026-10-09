@@ -99,8 +99,8 @@
     {
       "name": "X14_deletions_are_not_undeclared_writes",
       "path": "qta_agent/execution.py",
-      "find": "    for rel in sorted(before):\n        if rel not in after and rel not in named:",
-      "replace": "    for rel in sorted(before):\n        if False:",
+      "find": "    for rel in sorted(before):\n        if rel not in after and not unattributable(rel):\n",
+      "replace": "    for rel in sorted(before):\n        if False:\n",
       "rationale": "a tool that REMOVES a file it did not declare has changed the workspace just as much, and this is the more destructive half"
     },
     {

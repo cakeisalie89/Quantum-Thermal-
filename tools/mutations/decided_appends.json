@@ -1,0 +1,94 @@
+{
+ "title": "Decided appends: the race windows of section 45 (D-2026-115..118)",
+ "note": "DA1-DA8: each repair that moved a decision under the writer lock or stopped attributing a concurrent supervisor's write, reopened one at a time. DA9-DA12: a stamped grant rebuilt by replay's own constructor before it is written, and a one-action grant's lifetime counted from its stamp. tests/test_decided_appends.py opens each window deterministically, so a kill does not depend on a race being lost.",
+ "suites": [
+  "tests/test_decided_appends.py",
+  "tests/test_agent_idempotency.py"
+ ],
+ "mutations": [
+  {
+   "name": "DA1_a_move_is_decided_against_what_its_caller_read",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "            proj = self.projection()\n            decided_against[\"projection\"] = proj\n            cur = proj.tasks.get(task.task_id)\n",
+   "replace": "            proj = self.projection()\n            decided_against[\"projection\"] = proj\n            cur = task\n",
+   "rationale": "a task another process moved since this caller read it is moved again from the state the caller saw: a record the replay cannot apply"
+  },
+  {
+   "name": "DA2_a_lost_bind_runs_its_own_task_anyway",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "            if bound.task_id != task_id:\n",
+   "replace": "            if False:\n",
+   "rationale": "a submission that lost the bind to another process runs the request a second time under the other's key"
+  },
+  {
+   "name": "DA3_the_lookup_answers_from_the_ledger_of_construction",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "            self.idempotency.catch_up()\n            prior = self.idempotency.lookup(\n",
+   "replace": "            prior = self.idempotency.lookup(\n",
+   "rationale": "a binding another runner made after this one was built is invisible, so the request is submitted a second time"
+  },
+  {
+   "name": "DA4_the_bind_is_decided_from_a_stale_ledger",
+   "path": "qta_agent/idempotency.py",
+   "find": "            self.catch_up()\n            found = self.lookup(owner=owner, tool_id=tool_id, key=key)\n",
+   "replace": "            found = self.lookup(owner=owner, tool_id=tool_id, key=key)\n",
+   "rationale": "a key bound in the window before this bind is bound again, which replay refuses on every load"
+  },
+  {
+   "name": "DA5_the_checkpoint_snapshots_a_position_behind_its_anchor",
+   "path": "qta_agent/store.py",
+   "find": "            self._fold_new()\n            payload = canonical_bytes(self.snapshot())\n",
+   "replace": "            payload = canonical_bytes(self.snapshot())\n",
+   "rationale": "a record that landed just before the lock is missing from the snapshot of the position the checkpoint anchors"
+  },
+  {
+   "name": "DA6_a_misdescribing_checkpoint_stops_the_restart",
+   "path": "qta_agent/store.py",
+   "find": "            except StoreError as exc:\n                # A checkpoint the audit could not fault",
+   "replace": "            except ZeroDivisionError as exc:\n                # A checkpoint the audit could not fault",
+   "rationale": "a checkpoint whose snapshot does not describe its anchor makes the restart raise instead of replaying"
+  },
+  {
+   "name": "DA7_the_runner_does_not_name_its_own_stores",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                env=env, ignore_writes=self._supervisor_paths())",
+   "replace": "                env=env, ignore_writes=())",
+   "rationale": "a concurrent supervisor's append to the shared log fails whichever tool was running"
+  },
+  {
+   "name": "DA8_the_sweep_charges_every_change_to_the_tool",
+   "path": "qta_agent/execution.py",
+   "find": "        return rel in named or any(rel == r or rel.startswith(r + \"/\")\n                                   for r in roots)",
+   "replace": "        return rel in named",
+   "rationale": "the supervisor stores named to the sweep are inventoried anyway, and their changes charged to the tool"
+  },
+  {
+   "name": "DA9_capability_written_without_replays_check",
+   "path": "qta_agent/capability.py",
+   "find": "            try:\n                capability_from_record(payload)\n            except CapabilityError as exc:\n",
+   "replace": "            try:\n                pass\n            except CapabilityError as exc:\n",
+   "rationale": "a grant the stamp moved past its own expiry is appended, and every replay of the log refuses it"
+  },
+  {
+   "name": "DA10_egress_grant_written_without_replays_check",
+   "path": "qta_agent/netauth.py",
+   "find": "                s = grant_from_record(\n                    replace(g, issued_seq=head_seq + 1).body())\n",
+   "replace": "                s = replace(g, issued_seq=head_seq + 1)\n",
+   "rationale": "an egress grant stamped past its own expiry is appended, and every replay of the log refuses it"
+  },
+  {
+   "name": "DA11_secret_grant_written_without_replays_check",
+   "path": "qta_agent/secrets.py",
+   "find": "            s = grant_from_record(replace(g, issued_seq=head_seq + 1).body())\n",
+   "replace": "            s = replace(g, issued_seq=head_seq + 1)\n",
+   "rationale": "a secret grant stamped past its own expiry is appended, and every replay of the log refuses it"
+  },
+  {
+   "name": "DA12_lifetime_ignored",
+   "path": "qta_agent/capability.py",
+   "find": "            if lifetime_seqs is not None:\n                c = replace(c, expires_after_seq=c.issued_seq\n",
+   "replace": "            if False:\n                c = replace(c, expires_after_seq=c.issued_seq\n",
+   "rationale": "a one-action grant asked to live four positions from its stamp is minted with no expiry at all"
+  }
+ ]
+}

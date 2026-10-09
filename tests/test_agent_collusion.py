@@ -162,6 +162,12 @@ def test_the_write_allowlist_still_binds_the_ring(world):
     VERIFIED; counting only exceptions would score a refused run as a
     success for the ring, which is the opposite of what it means.
     """
+    # What the escape would write is compared before and after, not tested
+    # for existence: where the checkout sits two levels below / (the
+    # container's), that path IS the system's own /etc/passwd, which exists
+    # whatever the ring does.
+    target = ROOT.parent.parent / "etc" / "passwd"
+    before = target.read_bytes() if target.is_file() else None
     try:
         outcome = world.run(
             tool_id="stage10.emit_artifact",
@@ -170,9 +176,11 @@ def test_the_write_allowlist_still_binds_the_ring(world):
             submitter="ring-submitter", worker="ring-worker",
             verifier="ring-verifier")
     except Exception:                          # noqa: BLE001 - a refusal
-        return
-    assert outcome.state is not TaskState.VERIFIED, outcome
-    assert not (ROOT.parent.parent / "etc" / "passwd").exists()
+        outcome = None
+    if outcome is not None:
+        assert outcome.state is not TaskState.VERIFIED, outcome
+    after = target.read_bytes() if target.is_file() else None
+    assert after == before, "the escaping write reached its target"
 
 
 def test_the_ring_still_cannot_reach_the_network(world):

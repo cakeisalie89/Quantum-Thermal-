@@ -295,8 +295,17 @@ def test_the_fixture_has_the_real_probe_s_shape():
     real = run_environment(distributions=("numpy", "scipy"))
     fake = _conformant()
 
+    # The probe names the shared libpython ONLY when the interpreter runs
+    # from one (the container's does; a static build does not), so the key
+    # is optional where it lives and nowhere else -- and shaped when there.
+    optional = {".runtime.interpreter": {"libpython"}}
+
     def keys(a, b, where=""):
-        assert set(a) == set(b), (where, sorted(set(a) ^ set(b)))
+        extra = optional.get(where, set())
+        assert set(a) - extra == set(b) - extra, (
+            where, sorted(set(a) ^ set(b)))
+        for k in extra & set(a):
+            assert set(a[k]) == {"name", "sha256"}, (where, k, a[k])
         for k in ("runtime", "numpy", "simd", "dispatch", "blas",
                   "system_libraries", "interpreter", "backend"):
             if k in a and isinstance(a[k], dict) and isinstance(b[k], dict):

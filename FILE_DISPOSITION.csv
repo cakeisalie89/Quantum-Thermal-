@@ -606,6 +606,7 @@ tests/test_container_manifest_coverage.py,KEEP_AS_IS,-,Container carries every g
 tests/test_coupled_3d.py,REWRITE_GENERIC,2-7 (see rationale),Coupled-3D tests follow the coupled solver rewrite.,
 tests/test_cross_env_semantics.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Reproducibility vs portability instrument.,
 tests/test_csv_schema_governance.py,EXTRACT_GENERIC,3,Stable declared headers.,
+tests/test_decided_appends.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (harness programme, section 45): each race window opened deterministically, so a mutation reopening one is killed every time.",
 tests/test_deep_authority.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Deep layer trust boundary (retained invariant).,
 tests/test_deep_expdesign.py,REWRITE_GENERIC,2-7 (see rationale),Deep layer foundation tests.,
 tests/test_deep_expdesign_stage2.py,REWRITE_GENERIC,2-7 (see rationale),Deep layer training/posterior tests.,
@@ -665,6 +666,8 @@ tests/test_optimized_mode_invariants.py,KEEP_AND_HARDEN,1 (this tranche) / ongoi
 tests/test_output_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Outputs state their method resolution.,
 tests/test_parameter_semantics.py,KEEP_AS_MODEL_PLUGIN,4,Dimensional/sign semantics of parameters (mode letters to drop).,
 tests/test_performance_telemetry.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (harness programme, R49): deterministic counters gate inclusively, timing shapes are telemetry, the retired series kept.",
+tests/test_proposal_concurrency.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (harness programme, section 45, D-2026-115..118): the proposal path under four real processes -- receipts, claims on a stranded proposal, first submissions, checkpoints, interleaved grants.",
+tests/test_proposal_crash_recovery.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (harness programme, section 44, D-2026-110): the proposal-to-decision log cut after every append and resubmitted -- finishes once, verified, nothing duplicated or lost; the takeover, lapse, policy, checkpoint and forged-completion cases.",
 tests/test_proposal_ingress.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (harness programme): the proposal boundary from both sides -- schema refusals, credentials, stale context, receipt, governed submission, every authority refusal, the second reader, D-2026-105.",
 tests/test_quantity_resolution.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-98): every quantity that crossed zero between backends states its resolution, and each class is bound to its quantity.",
 tests/test_radiation_contract.py,KEEP_AS_MODEL_PLUGIN,4,Radiation producer/consumer contract.,
@@ -781,6 +784,7 @@ tools/mutations/claims_boundary.json,KEEP_AS_IS,-,"Mutation spec over a retained
 tools/mutations/completion_matrix.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/corpus_allowlist.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/cross_environment.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/decided_appends.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/dependency_declarations.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW in the Phase-1 closure: operators over the declaration rules and the inventory derivation.,
 tools/mutations/enforcement_asserts.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW in Phase 1.3: interlock-as-assert, guard scope and count-pin operators.",
 tools/mutations/external_models.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
@@ -808,6 +812,7 @@ tools/mutations/neural_training.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
 tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/performance_telemetry.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/proposal_crash_recovery.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/proposal_ingress.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/quantity_resolution.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/ranking_equivalence.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

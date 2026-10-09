@@ -290,7 +290,7 @@
     {
       "name": "L4_ledger_issue_does_not_append",
       "path": "qta_agent/capability.py",
-      "find": "        ev = self.log.append(actor=actor, action=ACT_ISSUE,\n                             target=cap.task_id,\n                             payload={\"task_id\": cap.task_id, **cap.body()})\n        self.apply(ev)\n        return self._issued[cap.capability_id]",
+      "find": "        ev = self.log.append_decided(decide)\n        self.apply(ev)\n        return self._issued[cap.capability_id]",
       "replace": "        self._issued[cap.capability_id] = cap\n        return cap",
       "rationale": "THE DEFECT THE LEDGER CLOSES: a grant held only in memory authorizes work, and the log never recorded it"
     },
@@ -318,8 +318,8 @@
     {
       "name": "X23_the_ledger_takes_the_start_from_its_caller",
       "path": "qta_agent/capability.py",
-      "find": "        cap = replace(cap, issued_seq=self.log.verify().head_seq + 1)",
-      "replace": "        pass",
+      "find": "            c = replace(cap, issued_seq=head_seq + 1)",
+      "replace": "            c = cap",
       "rationale": "the write path stops stamping, so the position a grant begins at becomes the caller's to choose"
     },
     {

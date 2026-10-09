@@ -558,7 +558,8 @@ class GovernedModelRuns:
 
         ``idempotency_key`` binds the submission durably (the proposal
         ingress passes the proposal's id): a resubmission returns the first
-        task rather than computing twice."""
+        task, finished where a crash stopped it, rather than starting a
+        second (D-2026-110)."""
         if model_id not in MODEL_TOOLS:
             raise ModelRunRefused(f"no governed tool runs {model_id!r}")
         if reuse:
@@ -761,9 +762,16 @@ class GovernedModelRuns:
                   "verifier_id": worker}
         if runtime_python:
             inputs["runtime_python"] = runtime_python
+        # Keyed by what it checks, so a check is one task however many times
+        # it is asked for: a crash during it leaves a task the next request
+        # takes up (D-2026-110), and concurrent requests for it run it once
+        # (D-2026-115) -- not one orphaned check task per attempt, and not
+        # several checks writing one directory at once.
         gr = self.gov.run(tool_id=TOOL_CHECK, inputs=inputs,
                           submitter=SUBMITTER_ID, worker=worker,
-                          verifier=VERIFIER_ID)
+                          verifier=VERIFIER_ID,
+                          idempotency_key=(f"check:{run.record_id}:"
+                                           f"{check_id}:{out_dir}"))
         if gr.state is not TaskState.VERIFIED:
             raise ModelRunRefused(f"the check task was {gr.state.value}: "
                                   f"{gr.reason}")
@@ -784,6 +792,21 @@ class GovernedModelRuns:
                 f"{reviewer} proposed or executed this work; it cannot "
                 "decide on it")
         self.gov.agents.require(reviewer, AgentRole.VERIFIER)
+        # Resumable past the verdict too (D-2026-110). A crash after the
+        # verdict's append and before its caller heard leaves the decision in
+        # the log, and re-running the path must find it there: it IS the
+        # answer, returned rather than made twice. Made on another check's
+        # report it is not this decision, and a new decision on new evidence
+        # is a new record's.
+        current = self.authority.get(run.record_id)
+        if current.state in (State.VERIFIED, State.REJECTED):
+            if current.evidence.get("verification_report") != \
+                    check.report_sha256:
+                raise ModelRunRefused(
+                    f"{run.record_id} was decided {current.state.value} on "
+                    "another check report; a decision on new evidence "
+                    "belongs to a new record")
+            return current
         bundle = self._record_of(run.bundle_sha256)
         problems = []
         if digest(bundle) != run.bundle_digest:

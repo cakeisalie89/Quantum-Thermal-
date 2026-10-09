@@ -80,8 +80,8 @@
     {
       "name": "I11_production_never_binds",
       "path": "qta_agent/governed_stage10.py",
-      "find": "        if idempotency_key:\n            self.idempotency.bind(",
-      "replace": "        if False:\n            self.idempotency.bind(",
+      "find": "        if idempotency_key:\n            bound = self.idempotency.bind(",
+      "replace": "        if False:\n            bound = self.idempotency.bind(",
       "rationale": "nothing durable records the submission, so a resubmission after a lost response starts the work a second time"
     },
     {
@@ -94,8 +94,8 @@
     {
       "name": "I13_the_binding_lands_after_the_work_is_dispatched",
       "path": "qta_agent/governed_stage10.py",
-      "find": "        if idempotency_key:\n            self.idempotency.bind(\n                owner=submitter, tool_id=tool_id, key=idempotency_key,\n                request_digest=request_digest, task_id=task_id,\n                job_id=job_id)\n\n        # Validation is a real gate",
-      "replace": "        # Validation is a real gate",
+      "find": "        if idempotency_key:\n            bound = self.idempotency.bind(\n                owner=submitter, tool_id=tool_id, key=idempotency_key,\n                request_digest=request_digest, task_id=task_id,\n                job_id=job_id)\n            if bound.task_id != task_id:\n                # ANOTHER SUBMISSION OF THIS REQUEST BOUND THE KEY FIRST,\n                # between the lookup above and this bind (D-2026-117). The\n                # key names that task, so this one is an orphan: cancelled\n                # before anything is queued, and the bound task is what this\n                # call answers with -- reported, or taken up where it stands.\n                self._move(task, TaskState.CANCELLED, submitter,\n                           TaskRole.SUBMITTER,\n                           note=f\"idempotency key {idempotency_key!r} was \"\n                                f\"bound to {bound.task_id} first\")\n                return self._resume(\n                    bound, spec, tool_id=tool_id, inputs=inputs,\n                    submitter=submitter, worker=worker, verifier=verifier,\n                    lease_seqs=lease_seqs, depends_on=tuple(depends_on),\n                    requires_evidence=tuple(requires_evidence))\n\n        queued = self._admit(",
+      "replace": "        queued = self._admit(",
       "rationale": "the window between submitting and binding is exactly the window a crash makes a duplicate; binding after dispatch does not cover it"
     },
     {
