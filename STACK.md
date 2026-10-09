@@ -18,6 +18,7 @@ is a claim that can be checked:
 | **ADOPTED** | In use, exercised by CI or the workflow, behaviour verified in this repository. |
 | **STAGED** | Interface and acceptance criteria are written and executable, but the tool is not installed, not exercised, and produces nothing authoritative. |
 | **DEFERRED** | Deliberately not built. The contract is recorded so later work is implementation, not redesign. |
+| **RESOLVED** | Decided by a measured rule: each candidate explicitly adopted or rejected, the decision committed and re-derived on a hosted runner; nothing is in force beyond what the decision says. |
 
 Five invariants hold for every element outside the numerical core, and are
 enforced in code rather than asked for in prose:
@@ -51,28 +52,34 @@ tree was untouched.
 | Python scientific core (NumPy/SciPy/QuTiP) | ADOPTED | `qta_multiphysics/`, `qta_full_sim.py` | the numerical authority; everything else is additive to it |
 | Snakemake | ADOPTED | `Snakefile` | wraps authoritative commands; rewrites no solver |
 | uv | ADOPTED | `uv.lock` + `pyproject.toml` | Stage-10 packages are *extras*, so `uv sync --all-groups` stays lean |
-| Reproducible container | **STAGED**¹ | `Dockerfile`, `container_verify.sh` | definition complete and statically verified; **never built or run**, so it certifies nothing |
+| Reproducible container | ADOPTED | `Dockerfile`, `container_verify.sh`, `container-verify.yml` | built and run on a hosted runner, the harness and its demonstration compared with a native run under the equivalence policy; certifies the runs it hosts, never a result |
 | pytest + Hypothesis | ADOPTED | `tests/` | software verification only |
 | Ruff + mypy + Pydantic | ADOPTED | `pyproject.toml`, `stage7_boundary_models.py`, `stack/registry.py` | trusted-boundary validation; no competing vocabulary |
 | HDF5 | ADOPTED | `hdf5_schema.json`, `build_hdf5.py` | representation only; equivalence checked, not assumed |
 | RO-Crate | ADOPTED | `ro_crate_tools.py` | metadata packaging; adds no evidence |
-| SLSA + Sigstore | **STAGED**¹ | `RELEASE_POLICY.md`, `verify_release.py` | a signature attests origin only, never scientific validity |
+| SLSA + Sigstore | ADOPTED¹ | `tools/supply_chain.py`, `supply-chain.yml` | a CI artifact signed with the workflow's OIDC identity and verified against the exact identity; a signature attests origin only, never scientific validity; **no SLSA level claimed, no release published** |
 | Governed read-only retrieval | ADOPTED | `stack/rag_index.py` | deterministic offline BM25 over reviewed documents; no generation, no network, no model client, no embedding service |
 | ParaView / VTK | ADOPTED | `stack/vtk_export.py` | serializes solved cell values unchanged |
 | OpenUSD | ADOPTED | `stack/usd_export.py` | geometry representation; no prim is a solver input |
 | SALib | ADOPTED | `sensitivity_3d.py` stays authoritative | cross-check only; disagreement is reported, not resolved |
 | OpenMDAO | ADOPTED | `qta_full_sim.py` stays the operating-point authority | exploration only; every result is `NOT_A_RECOMMENDATION` |
-| FEniCSx | **STAGED** | finite-volume backends | no FEM result is comparable until the acceptance criteria pass |
-| Selective Rust | **ADMISSION RULE ONLY**² | the NumPy references | bit-for-bit parity or no adoption; **no scientific path consumes Rust** |
-| FMI 3.0 | **DEFERRED** | none — no FMU exists | interface contract only; no binary, no compliance claim |
+| FEniCSx | ADOPTED¹ | the governed producers; FEniCSx is an independent check | executed from a hash-pinned environment as an INDEPENDENT_IMPLEMENTATION check of the transient slab; a verifier, never a producer |
+| Selective Rust | **RESOLVED**² | the NumPy references | both kernels **REJECTED** by the measured rule; **no scientific path consumes Rust** |
+| FMI 3.0 | ADOPTED¹ | an FMU result is NON_AUTHORITATIVE until checked and reviewed | one generic FMU built, loaded by fmpy, stepped, its state saved, restored and replayed; the legacy solvers are not exported |
+| Authority substrate | ADOPTED | `qta_agent` | decides admission and computes no result; no scientific module imports it |
+| Generic scientific layer | ADOPTED | `scientific` | models produce, checks verify, the store admits; imports no hardware ontology |
+| AI proposal ingress | ADOPTED | `qta_agent/authority.py` | a proposal is non-authoritative data, reaching a decision only through a governed run, an independent check and a distinct reviewer |
 
 ¹ has open items — see §4.
 
-² The bit-parity admission rule is adopted, exercised and verified. The
-Rust *backend* is not in force: no solver, gate or canonical output imports
-`qta_kernels`, the default backend is NumPy, the extension is off unless
-`QTA_RUST_KERNELS=1`, and the crate is in neither the container nor
-`uv.lock`. There is no active Rust scientific backend in this repository.
+² Decided by measurement (`docs/rust_kernel_decisions.json`, re-derived by
+the hosted rust-kernels job): `face_conductance` is REJECTED for having no
+production call site, `conductivity_power_law` for host-conditional parity,
+no call site and a 0.61x workload speed. The bit-parity admission rule stays
+in force for any later candidate. The Rust *backend* is not in force: no
+solver, gate or canonical output imports `qta_kernels`, the default backend
+is NumPy, an explicit Rust selection is refused unless a committed decision
+is ADOPTED, and the crate is in neither the container nor `uv.lock`.
 
 ## 3. What Stage 10 added, and what it found
 
@@ -151,9 +158,21 @@ a reviewer needs in order to disagree with the assumptions. Every record is
 `NOT_A_RECOMMENDATION` and never touches
 `best_forecast_operating_point.json`.
 
-### FEniCSx — `stack/fem_fenicsx.py` — STAGED
-dolfinx is not wheel-installable and is in no project environment, so the
-adapter is staged. What exists now is the part that must exist *before*
+### FEniCSx — `scientific/checks/fenicsx_slab.py` — ADOPTED as an independent verifier
+The harness runs FEniCSx from a hash-pinned conda-forge environment
+(`integrations/fenicsx/`, created by `tools/fenicsx_env.py`) as an
+INDEPENDENT_IMPLEMENTATION check of the transient slab: P1/P2 elements,
+backward Euler, two refinements, admitted by the check contract and a distinct
+reviewer, never as a producer. The acceptance campaign
+(`tools/fenicsx_acceptance.py`) and the end-to-end demonstration run on a
+hosted runner with the runtime REQUIRED. MPI is offered only self and
+shared-memory transports, because UCX's network probe aborted MPI_Init on some
+hosted runners (D-2026-124). One problem class, the slab, is covered.
+
+What follows is the Stage-10 adapter for the legacy finite-volume backends,
+`stack/fem_fenicsx.py`, which stays STAGED for that scope: dolfinx is not
+wheel-installable and is in no project environment of the legacy pipeline, so
+that adapter is staged. What exists now is the part that must exist *before*
 adoption is discussable: four written acceptance criteria (manufactured-solution
 convergence, reduction to `thermal_1d`, energy conservation, determinism) and a
 solver-agnostic harness that runs today. CI proves the harness both reads zero
@@ -205,15 +224,26 @@ trusted boundary in the same sense `stage7_boundary_models.py` uses the term,
 so it gets the same treatment: a strict Pydantic model, extras forbidden,
 statuses drawn from a closed vocabulary. Two rules are worth naming. The label
 and `automatic_gate_effect` must be present and exact, so an edit cannot
-quietly drop the claim boundary. And a STAGED or DEFERRED element must list at
-least one open item — "not adopted, nothing outstanding" is a contradiction,
-and rejecting it is what keeps this ladder honest as it changes. The Stage-10
+quietly drop the claim boundary. And a STAGED, DEFERRED or
+ADOPTED_ADMISSION_MECHANISM_ONLY element must list at least one open item —
+"not adopted, nothing outstanding" is a contradiction, and rejecting it is
+what keeps this ladder honest as it changes. ADOPTED and RESOLVED are
+settled and need not. The Stage-10
 modules themselves are held to the Stage-7 typing standard
 (`disallow_untyped_defs`, `disallow_incomplete_defs`, `warn_unreachable`);
 the legacy numerical tree keeps its documented typing debt.
 
-### FMI — `stack/fmi_contract.py` — DEFERRED
-The stack says "FMI later"; in a governed project that should mean the
+### FMI — `scientific/fmi_boundary.py` — ADOPTED for one generic FMU
+`integrations/fmi/thermal_rc2` is a generic two-node thermal RC network in C,
+built against hash-checked FMI 3.0 headers. fmpy, from a hash-pinned lock in
+its own runtime, validates, instantiates, configures, steps, saves and
+restores its state in memory and as bytes, replays to identical outputs and
+terminates; P2–P5 hold for it, and its fault twin is REJECTED by the
+independent check. The result is NON_AUTHORITATIVE until checked and
+reviewed. This runs on a hosted runner (the fmi and end-to-end jobs).
+
+What follows is `stack/fmi_contract.py`, the interface contract for exporting
+the *legacy* solvers as FMUs, which stays DEFERRED: the stack says "FMI later"; in a governed project that should mean the
 interface is specified now and the blockers are named now. This module emits
 an FMI 3.0 **interface contract** — variables, causalities, units,
 co-simulation semantics — written as `modelDescription.contract.xml`, never as
@@ -230,12 +260,11 @@ that boundary enforces). Neither is a packaging detail.
 
 | Element | Open item |
 |---|---|
-| Container | base-image digest is **RESOLVED_AND_PINNED**; the open item is runtime, not the digest: `RUNTIME_BUILT=NO`, local build `ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS` (403 on CONNECT to `production.cloudfront.docker.com`; base image not substituted). `container-verify.yml` can close it on a hosted runner but is `workflow_dispatch`-only and needs to reach the default branch first (`container_verification.md`) |
-| SLSA / Sigstore | `stack-verify.yml` has run on a hosted runner (Actions run 32575190696, both legs green); `release.yml` has not, and no signed release exists; all actions are pinned by commit SHA per policy #3; **no SLSA level claimed** |
+| SLSA / Sigstore | no release is published and no tag created — publication needs the owner's separate authorization; **no SLSA build level claimed** |
 | SALib | global vs. local ranking disagreement on the top parameter (§3) — open for human review |
-| Selective Rust | `conductivity_power_law` rejected on a 2-ulp `powf` difference **on a host with AVX-512**; bit-identical and adopted without it, so the verdict — and the backend `dispatch()` would select — is host-conditional (D-2026-58). NumPy stays in force here, and no solver imports either kernel |
-| FEniCSx | dolfinx unavailable; acceptance criteria 2–4 cannot run until a build exists |
-| FMI | FMI-P1 state serialisation, FMI-P2 mode-boundary steps, FMI-P3 step-size independence, FMI-P4 claim-boundary survival, FMI-P5 unit round-trip |
+| Selective Rust | `conductivity_power_law`'s parity is host-conditional — 2 ulp under AVX-512, bit-identical without it (D-2026-58) — but its decision is not: REJECTED in every dispatch (no call site, 0.61x). No solver imports either kernel |
+| FEniCSx | one problem class (the transient slab); the 2D axisymmetric and 3D thermal models and the legacy backends have no FEniCSx check, and the legacy adapter stays STAGED |
+| FMI | the legacy solvers are not exported: `fmi_contract.py`'s FMI-P1 to FMI-P5 stay open for them (the RC2 FMU meets them for itself) |
 
 ## 5. What would change a status
 

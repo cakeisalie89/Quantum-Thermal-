@@ -8,24 +8,24 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 | element | status | backing rows | satisfied |
 |---|---|---|---|
-| authority-substrate | UNCLASSIFIED | R40 (COMPLETE, PREDATES), R42 (COMPLETE, PREDATES) | NO |
-| containers | STAGED | R64 (DEEPLY_I, NEVER) | NO |
-| fenicsx | STAGED | R62 (DEEPLY_I, NEVER) | NO |
-| fmi | DEFERRED | R63 (DEEPLY_I, NEVER) | NO |
-| generic-scientific-layer | UNCLASSIFIED | R61 (COMPLETE, NEVER) | NO |
+| authority-substrate | ADOPTED | R40 (COMPLETE, PREDATES), R42 (COMPLETE, PREDATES) | NO |
+| containers | ADOPTED | R64 (DEEPLY_I, NEVER) | NO |
+| fenicsx | ADOPTED | R62 (DEEPLY_I, NEVER) | NO |
+| fmi | ADOPTED | R63 (DEEPLY_I, NEVER) | NO |
+| generic-scientific-layer | ADOPTED | R61 (COMPLETE, NEVER) | NO |
 | hdf5 | ADOPTED | R61 (COMPLETE, NEVER) | NO |
 | openmdao | ADOPTED | R56 (COMPLETE, PREDATES) | NO |
 | openusd | ADOPTED | R56 (COMPLETE, PREDATES) | NO |
 | paraview-vtk | ADOPTED | R56 (COMPLETE, PREDATES) | NO |
-| proposal-ingress | UNCLASSIFIED | R66 (COMPLETE, NEVER) | NO |
+| proposal-ingress | ADOPTED | R66 (COMPLETE, NEVER) | NO |
 | pytest-hypothesis | ADOPTED | R50 (COMPLETE, NEVER), R51 (COMPLETE, PREDATES) | NO |
 | python-scientific-core | ADOPTED | R56 (COMPLETE, PREDATES) | NO |
 | rag-read-only | ADOPTED | R35 (COMPLETE, PREDATES) | NO |
 | ro-crate | ADOPTED | R65 (DEEPLY_I, NEVER) | NO |
 | ruff-mypy-pydantic | ADOPTED | R70 (COMPLETE, NEVER) | NO |
-| rust-selective | ADOPTED_ADMISSION_MECHANISM_ONLY | R67 (DEEPLY_I, NEVER) | NO |
+| rust-selective | RESOLVED | R67 (DEEPLY_I, NEVER) | NO |
 | salib | ADOPTED | R56 (COMPLETE, PREDATES) | NO |
-| slsa-sigstore | STAGED | R65 (DEEPLY_I, NEVER) | NO |
+| slsa-sigstore | ADOPTED | R65 (DEEPLY_I, NEVER) | NO |
 | snakemake | ADOPTED | R55 (COMPLETE, PREDATES), R69 (DEEPLY_I, NEVER) | NO |
 | uv | ADOPTED | R56 (COMPLETE, PREDATES) | NO |
 
@@ -49,24 +49,24 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 
 ## Unsatisfied (70)
 
-* stack authority-substrate: UNCLASSIFIED
-* stack containers: STAGED
-* stack fenicsx: STAGED
-* stack fmi: DEFERRED
-* stack generic-scientific-layer: UNCLASSIFIED
+* stack authority-substrate: ADOPTED
+* stack containers: ADOPTED
+* stack fenicsx: ADOPTED
+* stack fmi: ADOPTED
+* stack generic-scientific-layer: ADOPTED
 * stack hdf5: ADOPTED
 * stack openmdao: ADOPTED
 * stack openusd: ADOPTED
 * stack paraview-vtk: ADOPTED
-* stack proposal-ingress: UNCLASSIFIED
+* stack proposal-ingress: ADOPTED
 * stack pytest-hypothesis: ADOPTED
 * stack python-scientific-core: ADOPTED
 * stack rag-read-only: ADOPTED
 * stack ro-crate: ADOPTED
 * stack ruff-mypy-pydantic: ADOPTED
-* stack rust-selective: ADOPTED_ADMISSION_MECHANISM_ONLY
+* stack rust-selective: RESOLVED
 * stack salib: ADOPTED
-* stack slsa-sigstore: STAGED
+* stack slsa-sigstore: ADOPTED
 * stack snakemake: ADOPTED
 * stack uv: ADOPTED
 * row R21: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps

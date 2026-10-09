@@ -732,12 +732,28 @@ def test_registry_rejects_edits_that_would_weaken_it():
     with pytest.raises(ValidationError):
         REG.StackRegistry.model_validate(doc)
     # a non-adopted element with nothing outstanding
+    for status in ("STAGED", "DEFERRED", "ADOPTED_ADMISSION_MECHANISM_ONLY"):
+        doc = json.loads((ROOT / "stack.json").read_text())
+        for element in doc["elements"]:
+            if element["id"] == "fmi":
+                element["status"], element["open_items"] = status, []
+        with pytest.raises(ValidationError):
+            REG.StackRegistry.model_validate(doc)
+    # a status the document's own adoption_levels does not define
     doc = json.loads((ROOT / "stack.json").read_text())
-    for element in doc["elements"]:
-        if element["id"] == "fmi":
-            element["open_items"] = []
+    del doc["adoption_levels"]["RESOLVED"]
     with pytest.raises(ValidationError):
         REG.StackRegistry.model_validate(doc)
+
+
+def test_settled_rungs_need_not_list_open_items():
+    """ADOPTED and RESOLVED are settled; a RESOLVED element with nothing
+    outstanding validates, as an ADOPTED one does."""
+    doc = json.loads((ROOT / "stack.json").read_text())
+    for element in doc["elements"]:
+        if element["id"] == "rust-selective":
+            element["open_items"] = []
+    REG.StackRegistry.model_validate(doc)
 
 
 def test_every_declared_stack_element_is_documented():
@@ -748,18 +764,35 @@ def test_every_declared_stack_element_is_documented():
 
 
 def test_registry_statuses_match_what_the_code_reports():
-    assert REGISTRY.by_id("fenicsx").status == FEM.ADOPTION_STATUS == "STAGED"
-    assert REGISTRY.by_id("fmi").status == FMI.ADOPTION_STATUS == "DEFERRED"
+    """The FEniCSx and FMI elements are the harness's integrations, run on a
+    hosted runner; the Stage-10 adapters for the LEGACY solvers keep their
+    own, narrower status, and say so."""
+    assert REGISTRY.by_id("fenicsx").status == "ADOPTED"
+    assert REGISTRY.by_id("fenicsx").owner_module == \
+        "scientific.checks.fenicsx_slab"
+    assert FEM.ADOPTION_STATUS == "STAGED"           # the legacy adapter
+    assert REGISTRY.by_id("fmi").status == "ADOPTED"
+    assert REGISTRY.by_id("fmi").owner_module == "scientific.fmi_boundary"
+    assert FMI.ADOPTION_STATUS == "DEFERRED"         # the legacy export
+    for eid in ("fenicsx", "fmi"):
+        assert "legacy" in REGISTRY.by_id(eid).boundary, eid
     unadopted = {e.id for e in REGISTRY.elements if e.status != "ADOPTED"}
-    # rust-selective is ADOPTED_ADMISSION_MECHANISM_ONLY: the bit-parity rule
-    # is in force and verified, but no scientific path consumes the kernels.
-    # containers is STAGED: ADOPTED requires "in use, exercised by CI or the
-    # workflow, and its behaviour is verified in this repository", and the
-    # image has never been built or run, so none of the three clauses holds.
-    assert unadopted == {"slsa-sigstore", "fenicsx", "fmi", "rust-selective",
-                         "containers"}
-    assert REGISTRY.by_id("rust-selective").status == \
-        "ADOPTED_ADMISSION_MECHANISM_ONLY"
+    # rust-selective is RESOLVED: each kernel decided by the measured rule,
+    # both REJECTED, the decision re-derived by the hosted rust-kernels job.
+    assert unadopted == {"rust-selective"}
+    assert REGISTRY.by_id("rust-selective").status == "RESOLVED"
+
+
+def test_every_element_adopted_on_hosted_evidence_cites_its_run():
+    """ADOPTED means "in use, exercised by CI or the workflow, and its
+    behaviour is verified in this repository". The four elements adopted on
+    the strength of hosted runs name those runs, so the claim can be checked
+    rather than taken."""
+    import re
+    for eid in ("containers", "fenicsx", "fmi", "slsa-sigstore",
+                "rust-selective"):
+        boundary = REGISTRY.by_id(eid).boundary
+        assert re.search(r"run \d{8,}", boundary), eid
 
 
 def test_stage10_owner_modules_are_importable():
@@ -870,61 +903,50 @@ def test_no_scientific_module_imports_the_rust_kernels():
         f"unexpected qta_kernels importers: {importers}"
 
 
-def test_container_is_not_presented_as_runtime_verified():
-    """Same failure mode as Selective Rust, caught the same way.
-
-    "Reproducible container | ADOPTED" read as an image that CI builds and
-    runs, while no build has ever completed. ADOPTED is defined as "in use,
-    exercised by CI or the workflow, and its behaviour is verified in this
-    repository" -- the container satisfies none of those three clauses, so the
-    row was false by the repository's own vocabulary.
-    """
+def test_container_is_adopted_on_a_hosted_run_and_claims_no_more():
+    """The row once said ADOPTED with no build ever completed; then STAGED,
+    truthfully. It is ADOPTED now because a hosted runner built and ran the
+    image -- and the row says what that establishes and what it does not:
+    the runs it hosts, never a scientific result, and no byte identity."""
     import json as _json
     stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
     c = next(e for e in stack["elements"] if e["id"] == "containers")
-    assert c["status"] == "STAGED", \
-        "ADOPTED reads as an image CI builds and runs; none has been built"
-    assert "never been built or run" in c["boundary"]
-    assert "certifies nothing" in c["boundary"]
+    assert c["status"] == "ADOPTED"
+    assert "never a scientific result" in c["boundary"]
+    assert "never required equal" in c["boundary"]
     md = (ROOT / "STACK.md").read_text(encoding="utf-8")
-    assert "| Reproducible container | **STAGED**" in md
+    assert "| Reproducible container | ADOPTED |" in md
 
 
-def test_container_open_items_state_the_real_blocker():
-    """The blocker is egress on layer blobs, not a missing daemon, and not an
-    unresolved digest. Both earlier claims were false and must not return."""
-    import json as _json
-    stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
-    c = next(e for e in stack["elements"] if e["id"] == "containers")
-    items = " ".join(c["open_items"])
-    assert "ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS" in items
-    assert "RUNTIME_BUILT=NO" in items
-    # The digest IS resolved and pinned; claiming otherwise is the stale bug.
-    assert "digest still UNRESOLVED" not in items
-    md = (ROOT / "STACK.md").read_text(encoding="utf-8")
-    assert "base-image digest still `UNRESOLVED`" not in md
-    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    assert "@sha256:" in dockerfile, "the digest pin must actually be there"
-
-
-def test_container_doc_does_not_claim_a_missing_daemon():
-    """dockerd and containerd run here; only the blob egress is blocked."""
+def test_container_doc_keeps_the_local_facts_and_states_the_hosted_ones():
+    """dockerd and containerd run here; only the blob egress is blocked, and
+    that stays recorded beside the hosted build that got past it. The digest
+    IS resolved and pinned; claiming otherwise is the stale bug."""
     doc = (ROOT / "container_verification.md").read_text(encoding="utf-8")
     assert "LOCAL_RUNTIME` | `AVAILABLE" in doc
     assert "ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS" in doc
     assert "production.cloudfront.docker.com" in doc
-    assert "RUNTIME_SCIENTIFICALLY_REPRODUCED` | `NO" in doc
-    # workflow_dispatch reachability must be stated, not assumed away.
+    assert "RUNTIME_BUILT` | `YES_HOSTED" in doc
+    assert "Reproduction is not correctness" in doc
+    assert "Byte identity between image and\n  native is not claimed" in doc
+    # workflow_dispatch reachability is stated, not assumed away
     assert "default branch" in doc
+    assert "base-image digest still `UNRESOLVED`" not in (
+        ROOT / "STACK.md").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "@sha256:" in dockerfile, "the digest pin must actually be there"
 
 
-def test_fenicsx_is_not_presented_as_certifying_anything():
+def test_fenicsx_is_a_verifier_never_a_producer():
+    """Adopted as an INDEPENDENT check, and the row may not drift into
+    reading as a second producer or a benchmark of anything but the slab."""
     import json as _json
     stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
     fx = next(e for e in stack["elements"] if e["id"] == "fenicsx")
-    assert fx["status"] == "STAGED"
-    assert "certifies nothing" in fx["boundary"] or \
-        "not an independent benchmark" in fx["boundary"]
+    assert fx["status"] == "ADOPTED"
+    assert "a verifier, never a producer" in fx["boundary"]
+    assert "One problem class" in fx["boundary"]
+    assert fx["open_items"], "the uncovered models are outstanding"
 
 
 def _governed_text_files():

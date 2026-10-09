@@ -20,9 +20,10 @@ otherwise break silently:
 * Element ids and ``doc_key`` anchors must be unique, and every element needs
   an authority, a boundary, and a verification command — a row with no way to
   check it is not an adoption record.
-* A STAGED or DEFERRED element must list at least one open item. "Not adopted,
-  nothing outstanding" is a contradiction, and catching it here is what keeps
-  the ladder honest as it changes.
+* A STAGED, DEFERRED or ADOPTED_ADMISSION_MECHANISM_ONLY element must list at
+  least one open item. "Not adopted, nothing outstanding" is a contradiction,
+  and catching it here is what keeps the ladder honest as it changes. ADOPTED
+  and RESOLVED are settled and need not.
 
 This module creates no competing authority: ``STACK.md`` and ``stack.json``
 mirror the code, and the code remains the authority.
@@ -46,8 +47,15 @@ REGISTRY_SCHEMA_VERSION = "1.0.0"
 #: backend -- while rust_kernel.py's own status record says no solver imports
 #: the kernels. The governing rule and the tool it governs now have distinct
 #: adoption states.
+#:
+#: RESOLVED is the rung for a choice settled by a measured rule rather than
+#: a tool put into use: selective Rust, whose candidates were each decided
+#: -- both rejected -- and whose decision a hosted job re-derives. It is
+#: settled, so like ADOPTED it need not list open items.
 AdoptionStatus = Literal["ADOPTED", "ADOPTED_ADMISSION_MECHANISM_ONLY",
-                         "STAGED", "DEFERRED"]
+                         "STAGED", "DEFERRED", "RESOLVED"]
+#: The rungs that are settled: anything else must say what is outstanding.
+SETTLED = frozenset({"ADOPTED", "RESOLVED"})
 
 
 class _Strict(BaseModel):
@@ -72,7 +80,7 @@ class StackElement(_Strict):
     @model_validator(mode="after")
     def _unadopted_elements_must_say_what_is_outstanding(self
                                                          ) -> "StackElement":
-        if self.status != "ADOPTED" and not self.open_items:
+        if self.status not in SETTLED and not self.open_items:
             raise ValueError(
                 f"{self.id}: status {self.status} with no open items — an "
                 "element that is not adopted must record what is outstanding")

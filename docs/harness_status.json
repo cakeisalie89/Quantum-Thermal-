@@ -30,7 +30,7 @@
   "docs/harness_contract.json": "3b7285fd6aea3e8b5c00a62fa5fe31032d7c49aa451f31d90437590d53366397",
   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
   "docs/neural/current_status.json": "b4f920e04b966e3aff67f66911279896d7f309ebf2d1cae84e520bff6c849675",
-  "stack.json": "a533f6cc1822e2092326ddcc689258317c9ccf98da09ead03484e7b8c27afd9d"
+  "stack.json": "70deaabfb7ed9eb78c524690ef9379257a6cd2cf3ee621615098a08327df5f0d"
  },
  "facts": {
   "flagship_not_allocated_or_trained": {
@@ -157,7 +157,7 @@
     }
    },
    "satisfied": false,
-   "status": "UNCLASSIFIED"
+   "status": "ADOPTED"
   },
   "containers": {
    "accept": [
@@ -172,7 +172,7 @@
     }
    },
    "satisfied": false,
-   "status": "STAGED"
+   "status": "ADOPTED"
   },
   "fenicsx": {
    "accept": [
@@ -187,7 +187,7 @@
     }
    },
    "satisfied": false,
-   "status": "STAGED"
+   "status": "ADOPTED"
   },
   "fmi": {
    "accept": [
@@ -202,7 +202,7 @@
     }
    },
    "satisfied": false,
-   "status": "DEFERRED"
+   "status": "ADOPTED"
   },
   "generic-scientific-layer": {
    "accept": [
@@ -217,7 +217,7 @@
     }
    },
    "satisfied": false,
-   "status": "UNCLASSIFIED"
+   "status": "ADOPTED"
   },
   "hdf5": {
    "accept": [
@@ -292,7 +292,7 @@
     }
    },
    "satisfied": false,
-   "status": "UNCLASSIFIED"
+   "status": "ADOPTED"
   },
   "pytest-hypothesis": {
    "accept": [
@@ -388,7 +388,7 @@
     }
    },
    "satisfied": false,
-   "status": "ADOPTED_ADMISSION_MECHANISM_ONLY"
+   "status": "RESOLVED"
   },
   "salib": {
    "accept": [
@@ -418,7 +418,7 @@
     }
    },
    "satisfied": false,
-   "status": "STAGED"
+   "status": "ADOPTED"
   },
   "snakemake": {
    "accept": [
@@ -462,31 +462,31 @@
    "external": false,
    "id": "authority-substrate",
    "kind": "stack",
-   "status": "UNCLASSIFIED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
    "id": "containers",
    "kind": "stack",
-   "status": "STAGED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
    "id": "fenicsx",
    "kind": "stack",
-   "status": "STAGED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
    "id": "fmi",
    "kind": "stack",
-   "status": "DEFERRED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
    "id": "generic-scientific-layer",
    "kind": "stack",
-   "status": "UNCLASSIFIED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
@@ -516,7 +516,7 @@
    "external": false,
    "id": "proposal-ingress",
    "kind": "stack",
-   "status": "UNCLASSIFIED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
@@ -552,7 +552,7 @@
    "external": false,
    "id": "rust-selective",
    "kind": "stack",
-   "status": "ADOPTED_ADMISSION_MECHANISM_ONLY"
+   "status": "RESOLVED"
   },
   {
    "external": false,
@@ -564,7 +564,7 @@
    "external": false,
    "id": "slsa-sigstore",
    "kind": "stack",
-   "status": "STAGED"
+   "status": "ADOPTED"
   },
   {
    "external": false,
