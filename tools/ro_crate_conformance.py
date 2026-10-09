@@ -116,6 +116,22 @@ def external(validator: str, crate: Path) -> dict:
                 "rocrate_validator_version")}
 
 
+#: Controls whose defect the community validator's REQUIRED profile does not
+#: check, as MEASURED -- not assumed. On those the internal validator is
+#: stricter, and the verdict says so rather than calling it agreement. One
+#: direction only: a control the internal validator accepts fails whatever
+#: the external says, and the committed crate must be accepted by both
+#: (D-2026-125).
+INTERNAL_STRICTER = {
+    "data_entity_not_a_file":
+        "RO-Crate 1.1 requires a file data entity's @type to be File or to "
+        "include it; roc-validator 0.12.2's ro-crate-1.1 REQUIRED profile "
+        "accepted a hasPart target typed SoftwareSourceCode alone (hosted "
+        "run 37963760144, the first in which nothing else in that control "
+        "was refused)",
+}
+
+
 def _broken(meta: dict) -> dict:
     out = {}
     m = copy.deepcopy(meta)
@@ -166,10 +182,12 @@ def run(validator: str | None) -> dict:
             ok_int = not probs
             if ext["status"] == "EXTERNAL_UNAVAILABLE":
                 agreement = "NOT_MEASURED"
+            elif ok_int == (ext["status"] == "ACCEPTED"):
+                agreement = "AGREE"
+            elif name in INTERNAL_STRICTER and not ok_int:
+                agreement = "INTERNAL_STRICTER"
             else:
-                agreement = ("AGREE" if ok_int == (ext["status"] ==
-                                                   "ACCEPTED")
-                             else "DISAGREE")
+                agreement = "DISAGREE"
             rep["cases"][name] = {
                 "internal": "ACCEPTED" if ok_int else "REFUSED",
                 "internal_problems": probs[:50], "external": ext,
@@ -177,9 +195,11 @@ def run(validator: str | None) -> dict:
     c = rep["cases"]
     expected = {"committed_crate": "ACCEPTED"}
     rep["accepted"] = all(
-        v["agreement"] == "AGREE"
+        v["agreement"] in ("AGREE", "INTERNAL_STRICTER")
         and v["internal"] == expected.get(k, "REFUSED")
         for k, v in c.items())
+    rep["internal_stricter"] = {k: INTERNAL_STRICTER[k] for k, v in c.items()
+                                if v["agreement"] == "INTERNAL_STRICTER"}
     rep["measured"] = all(v["agreement"] != "NOT_MEASURED"
                           for v in c.values())
     return rep
@@ -202,6 +222,8 @@ def main(argv=None) -> int:
                 print(f"    internal: {line}")
             for issue in v["external"].get("issues", [])[:20]:
                 print(f"    external: {issue}")
+        elif v["agreement"] == "INTERNAL_STRICTER":
+            print(f"    internal stricter: {INTERNAL_STRICTER[name]}")
     if not rep["measured"]:
         print("EXTERNAL VALIDATION NOT MEASURED")
         return 1

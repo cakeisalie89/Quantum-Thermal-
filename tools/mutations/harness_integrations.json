@@ -109,6 +109,20 @@
    "find": "        if got != sha:\n",
    "replace": "        if False:\n",
    "rationale": "the vendored FMI headers can change and the FMU still builds"
+  },
+  {
+   "name": "FE3_the_check_offers_mpi_the_network",
+   "path": "scientific/checks/fenicsx_slab.py",
+   "find": "                    \"PYTHONHASHSEED\": \"0\", **MPI_ENV})\n",
+   "replace": "                    \"PYTHONHASHSEED\": \"0\"})\n",
+   "rationale": "a one-process FEniCSx check lets MPI probe the host's network devices, which aborted MPI_Init on some hosted runners (D-2026-124)"
+  },
+  {
+   "name": "FE4_the_probe_offers_mpi_the_network",
+   "path": "tools/fenicsx_env.py",
+   "find": "        capture_output=True, text=True, env=dict(os.environ, **MPI_ENV))\n",
+   "replace": "        capture_output=True, text=True)\n",
+   "rationale": "the environment builder's import probe lets MPI probe the host's network devices (D-2026-124)"
   }
  ]
 }

@@ -9941,3 +9941,68 @@ the temp file). DA8 is re-anchored.
 supervisor inside a tool's scope, is still inventoried and charged to the
 tool, which fails closed. The way to avoid that is to keep stores out of
 tool scopes or to name them in `supervisor_stores`.
+
+## D-2026-124 — the FEniCSx runs let MPI probe the host's network, and on some hosted runners MPI_Init aborted
+
+**CLASS** — `ENVIRONMENT` (a dependence on the runner's hardware that the
+check never needed), harness completion programme (R62, R69).
+`scientific/checks/fenicsx_slab.py`, `tools/fenicsx_env.py`.
+
+**WHAT WAS THERE** (`d432d9d`, and every commit since the FEniCSx check
+landed). The pinned conda-forge MPICH initialises through UCX, and UCX
+probes whatever transports the host offers, network devices included. The
+check and the environment builder's import probe are each ONE process and
+need no network, but they offered MPI everything. On some hosted runners,
+MPI_Init aborted before any of the check ran:
+`MPIDI_UCX_init_worker(86): ucx function returned with failed status ...
+Input/output error`. The end-to-end job failed this way on all four of its
+runs at `9cc4a10` and `d432d9d`, and the fenicsx job on one of four. The
+reason was invisible on `9cc4a10` (D-2026-121) and visible on `d432d9d`.
+
+**REPAIR.** Both run with `UCX_TLS=self,sm`: the process itself and shared
+memory, which is all one process uses. The check states the constant, the
+builder restates it (it imports nothing from the repository), and a test
+holds the two equal. Measured here: dolfinx and petsc4py import with the
+restriction, the acceptance passes (8/8 criteria, 3/3 controls rejected),
+and the demonstration's tests pass with both runtimes REQUIRED. An
+unusable transport forced through the same variable aborts MPI_Init here
+too, so the variable does select the transport.
+
+**EVIDENCE.** `tests/test_harness_integrations.py`: the two constants
+equal; the check's subprocess gets them; the import probe gets them (a
+stand-in interpreter reports its environment), and a probe that aborts
+is refused with its own words. Mutations FE3 and FE4.
+
+**NOT CLAIMED.** Which device on which runner made UCX fail. The failing
+host is not reachable from here. What is shown is that the runs no longer
+depend on it.
+
+## D-2026-125 — D-2026-111 said the community validator refuses a data entity typed neither File nor Dataset; measured, it does not
+
+**CLASS** — `WRONG_CLAIM`, harness completion programme (R65).
+`tools/ro_crate_conformance.py`, `docs/DEFECT_LEDGER.md` (D-2026-111).
+
+**WHAT WAS THERE** (`d432d9d`). D-2026-111 added the negative control
+`data_entity_not_a_file` and said it "must be refused by both validators".
+That was inferred by reading the profile, because the tool did not yet
+print the external validator's reasons. The REQUIRED refusal actually
+raised at the time was the undefined `sha256` keys (D-2026-122). Once
+those were defined, hosted run 37963760144 measured the control on its own:
+the community validator (roc-validator 0.12.2, ro-crate-1.1 profile,
+REQUIRED level) ACCEPTED a data entity typed `SoftwareSourceCode` alone.
+The internal validator refused it, as RO-Crate 1.1's File data entity rule
+requires, so the job failed DISAGREE.
+
+**REPAIR.** The internal rule stays. The conformance tool records this one
+control as `INTERNAL_STRICTER`, measured and named with its reason in the
+report and the log, not as agreement. It applies in one direction only. If
+the internal validator accepted the control, the job fails whatever the
+external says. Every other control must still agree, and the committed
+crate must be accepted by both validators, which hosted run 37963760144
+showed it now is.
+
+**EVIDENCE.** `tests/test_ro_crate_conformance.py`:
+`test_internal_stricter_is_measured_one_way_and_named` (the one control
+passes as stricter; the same verdict on any other control fails; an
+internal acceptance of it fails). Mutation RC7 (every disagreement called
+stricter).

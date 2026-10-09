@@ -59,6 +59,14 @@ IMPLEMENTATION_MODULES = ("scientific.checks.fenicsx_slab",)
 RUNNER = Path(__file__).resolve().parents[2] / "integrations" / "fenicsx" \
     / "runner.py"
 ENV_VAR = "QTA_FENICSX_PYTHON"
+#: The MPI transports a single-process run uses: the process itself and
+#: shared memory. The pinned MPICH initialises through UCX, and UCX probes
+#: whatever network devices the host has; on some hosted runners that probe
+#: failed and MPI_Init aborted ("MPIDI_UCX_init_worker ... Input/output
+#: error") before a line of the check ran (D-2026-124). One process needs no
+#: network, so none is offered. tools/fenicsx_env.py restates this for its
+#: import probe, and a test holds the two equal.
+MPI_ENV = {"UCX_TLS": "self,sm"}
 SAMPLE_FRACTIONS = (0.0, 0.25, 0.5, 0.75, 1.0)
 SAMPLE_NAMES = ("T_at_0", "T_at_quarter", "T_at_half", "T_at_three_quarter",
                 "T_at_L")
@@ -113,7 +121,7 @@ def run_runner(request: dict, *, exe: str | None = None) -> dict:
         env = {k: v for k, v in os.environ.items()
                if k in ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR")}
         env.update({"OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1",
-                    "PYTHONHASHSEED": "0"})
+                    "PYTHONHASHSEED": "0", **MPI_ENV})
         proc = subprocess.run([exe, "-I", str(RUNNER), str(req), str(out)],
                               capture_output=True, text=True,
                               timeout=TIMEOUT_S, env=env, cwd=tmp)

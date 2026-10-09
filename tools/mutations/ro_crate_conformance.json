@@ -22,8 +22,8 @@
   {
    "name": "RC3_agreement_assumed",
    "path": "tools/ro_crate_conformance.py",
-   "find": "                agreement = (\"AGREE\" if ok_int == (ext[\"status\"] ==\n                                                   \"ACCEPTED\")\n                             else \"DISAGREE\")\n",
-   "replace": "                agreement = \"AGREE\"\n",
+   "find": "            else:\n                agreement = \"DISAGREE\"\n",
+   "replace": "            else:\n                agreement = \"AGREE\"\n",
    "rationale": "a disagreement between the validators is reported as agreement"
   },
   {
@@ -46,6 +46,13 @@
    "find": "    if undefined:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
    "replace": "    if False:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
    "rationale": "a key no JSON-LD context defines passes the internal validator, which the specification's compacted form forbids and the community validator refuses (D-2026-122)"
+  },
+  {
+   "name": "RC7_any_disagreement_called_internal_stricter",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "            elif name in INTERNAL_STRICTER and not ok_int:\n",
+   "replace": "            elif not ok_int:\n",
+   "rationale": "every control the community validator accepts and the internal one refuses passes as 'stricter', so a control both must refuse stops being compared at all"
   }
  ]
 }

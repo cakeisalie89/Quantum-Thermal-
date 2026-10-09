@@ -158,6 +158,28 @@ def bootstrap_micromamba(root: Path) -> Path:
     return exe
 
 
+#: scientific.checks.fenicsx_slab.MPI_ENV, restated so this tool imports
+#: nothing from the repository: one process, so self and shared memory
+#: only -- the UCX network probe aborted MPI_Init on some hosted runners
+#: (D-2026-124). tests/test_harness_integrations.py holds the two equal.
+MPI_ENV = {"UCX_TLS": "self,sm"}
+
+
+def probe_imports(py: Path) -> str:
+    """Import dolfinx and petsc4py in the new environment, as one process
+    with :data:`MPI_ENV`; their versions, or a refusal in their words."""
+    ran = subprocess.run(
+        [str(py), "-I", "-c",
+         "import dolfinx, petsc4py; from petsc4py import PETSc; "
+         "print(dolfinx.__version__, PETSc.Sys.getVersion())"],
+        capture_output=True, text=True, env=dict(os.environ, **MPI_ENV))
+    if ran.returncode != 0:
+        # the probe's own words, not only its exit status
+        raise EnvError(f"the environment does not import dolfinx/petsc4py "
+                       f"(exit {ran.returncode}): {ran.stderr.strip()[-800:]}")
+    return ran.stdout.strip()
+
+
 def create(prefix: Path, root: Path) -> dict:
     n = check_lock(LOCK.read_text(encoding="utf-8"),
                    SHA_RECORD.read_text(encoding="utf-8"))
@@ -167,16 +189,7 @@ def create(prefix: Path, root: Path) -> dict:
                     "--file", str(LOCK)], check=True, env=env)
     verified = verify_cache(root, SHA_RECORD.read_text(encoding="utf-8"))
     py = prefix / "bin" / "python"
-    ran = subprocess.run(
-        [str(py), "-I", "-c",
-         "import dolfinx, petsc4py; from petsc4py import PETSc; "
-         "print(dolfinx.__version__, PETSc.Sys.getVersion())"],
-        capture_output=True, text=True)
-    if ran.returncode != 0:
-        # the probe's own words, not only its exit status
-        raise EnvError(f"the environment does not import dolfinx/petsc4py "
-                       f"(exit {ran.returncode}): {ran.stderr.strip()[-800:]}")
-    probe = ran.stdout.strip()
+    probe = probe_imports(py)
     return {"packages_locked": n, "packages_sha256_verified": verified,
             "python": str(py), "probe": probe,
             "lock_sha256": _sha256(LOCK),

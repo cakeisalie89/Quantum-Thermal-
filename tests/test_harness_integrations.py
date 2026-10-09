@@ -410,3 +410,44 @@ def test_the_fmi_runner_refuses_a_relative_fmu_path():
     with pytest.raises(ValueError, match="relative"):
         F.run_runner({"kind": "describe", "fmu": "fmi_work/thermal_rc2.fmu"},
                      exe="/nonexistent/python")
+
+
+# ---- MPI transports for one process (D-2026-124) --------------------------
+def test_the_probe_and_the_runner_offer_mpi_the_same_transports():
+    """One process needs no network: self and shared memory only, in the
+    environment builder's import probe and in every check run alike. The
+    builder restates the constant so it imports nothing from the repo."""
+    import fenicsx_env as FE
+
+    from scientific.checks import fenicsx_slab as FS
+    assert FE.MPI_ENV == FS.MPI_ENV == {"UCX_TLS": "self,sm"}
+
+
+def test_the_runner_runs_with_the_single_process_transports(monkeypatch):
+    from scientific.checks import fenicsx_slab as FS
+    seen: dict = {}
+
+    def capture(argv, **kw):
+        seen.update(kw["env"])
+        raise RuntimeError("captured")
+
+    monkeypatch.setattr(FS.subprocess, "run", capture)
+    with pytest.raises(RuntimeError, match="captured"):
+        FS.run_runner({"kind": "probe"}, exe=sys.executable)
+    assert seen["UCX_TLS"] == "self,sm"
+
+
+def test_the_import_probe_runs_with_the_single_process_transports(tmp_path):
+    """The probe that aborted on hosted runners -- MPI_Init failing in UCX's
+    network probe -- runs with the same restriction. A stand-in interpreter
+    reports the environment it was given."""
+    import fenicsx_env as FE
+    fake = tmp_path / "python"
+    fake.write_text('#!/bin/sh\necho "transports=$UCX_TLS"\n')
+    fake.chmod(0o755)
+    assert FE.probe_imports(fake) == "transports=self,sm"
+    bad = tmp_path / "bad"
+    bad.write_text('#!/bin/sh\necho "MPI_Init_thread failed" >&2\nexit 143\n')
+    bad.chmod(0o755)
+    with pytest.raises(FE.EnvError, match="exit 143.*MPI_Init_thread"):
+        FE.probe_imports(bad)

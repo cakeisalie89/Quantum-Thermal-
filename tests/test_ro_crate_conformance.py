@@ -93,6 +93,39 @@ def test_a_disagreement_is_reported_not_resolved(monkeypatch):
     assert rep["accepted"] is False
 
 
+def test_internal_stricter_is_measured_one_way_and_named(monkeypatch):
+    """The community validator's REQUIRED profile accepts a data entity
+    typed SoftwareSourceCode alone; RO-Crate 1.1 does not, and neither does
+    the internal validator. Measured on hosted CI, that one control is
+    INTERNAL_STRICTER and named in the report -- not agreement, and not a
+    licence: the internal validator must still refuse it, every other
+    control must still agree, and the committed crate must pass both
+    (D-2026-125)."""
+    def external(v, crate):
+        accepted = crate.name in ("committed_crate", "data_entity_not_a_file")
+        return {"status": "ACCEPTED" if accepted else "REFUSED", "issues": []}
+    monkeypatch.setattr(RCC, "external", external)
+    rep = RCC.run("fake")
+    case = rep["cases"]["data_entity_not_a_file"]
+    assert case["agreement"] == "INTERNAL_STRICTER"
+    assert rep["accepted"] is True
+    assert set(rep["internal_stricter"]) == {"data_entity_not_a_file"}
+    # not for any other control
+    def lenient(v, crate):
+        accepted = crate.name in ("committed_crate", "no_conformsTo")
+        return {"status": "ACCEPTED" if accepted else "REFUSED", "issues": []}
+    monkeypatch.setattr(RCC, "external", lenient)
+    rep = RCC.run("fake")
+    assert rep["cases"]["no_conformsTo"]["agreement"] == "DISAGREE"
+    assert rep["accepted"] is False
+    # and never the other way round: the internal validator must refuse it
+    monkeypatch.setattr(RCC, "external", external)
+    monkeypatch.setattr(RCC, "internal", lambda m: [])
+    rep = RCC.run("fake")
+    assert rep["cases"]["data_entity_not_a_file"]["agreement"] == "AGREE"
+    assert rep["accepted"] is False
+
+
 def test_every_data_entity_is_a_file_or_a_dataset():
     """RO-Crate 1.1: a data entity is a File or a Dataset, whatever else it
     also is. The scripts were SoftwareSourceCode alone, the internal
