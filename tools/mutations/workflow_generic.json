@@ -16,8 +16,8 @@
   {
    "name": "WG2_the_demo_workspace_is_undeclared",
    "path": "Snakefile",
-   "find": "        workspace=directory(f\"{W10}/harness_demo\"),\n",
-   "replace": "",
+   "find": "        report=f\"{W10}/harness_demo_report.json\",\n        workspace=directory(f\"{W10}/harness_demo\"),\n",
+   "replace": "        report=f\"{W10}/harness_demo_report.json\",\n",
    "rationale": "the demonstration writes a workspace Snakemake does not know about, so a rerun mixes two runs' records"
   },
   {
