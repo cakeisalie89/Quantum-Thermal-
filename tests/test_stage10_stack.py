@@ -763,6 +763,91 @@ def test_every_declared_stack_element_is_documented():
         assert row in STACK_MD, f"{element.id} missing from STACK.md"
 
 
+# ---- documents against the registry (directive s.38; D-2026-130) --------
+#
+# Each check is a function over TEXT, so it is tested twice: on the shipped
+# document, which must pass, and on the stale text the hostile review found,
+# which must fail. A mutation of the document itself cannot measure these:
+# any edit to a governed document is refused first by the corpus allowlist
+# (test_index_is_deterministic_and_hits_carry_provenance), which would be a
+# kill for the wrong reason.
+
+def _ladder_mismatches(stack_md: str) -> list:
+    import re
+    lines = stack_md.splitlines()
+    out = []
+    for element in REGISTRY.elements:
+        row = next((ln for ln in lines
+                    if ln.startswith(f"| {element.doc_key} |")), None)
+        if row is None:
+            out.append((element.id, "no row"))
+            continue
+        stated = re.sub(r"[*\u00b9\u00b2\u00b3]", "",
+                        row.split("|")[2]).strip()
+        if stated != element.status:
+            out.append((element.id, stated, element.status))
+    return out
+
+
+def _rejected_kernels() -> list:
+    decisions = json.loads((ROOT / "docs" / "rust_kernel_decisions.json")
+                           .read_text(encoding="utf-8"))
+    return [k for k, v in decisions["kernels"].items()
+            if v["decision"].endswith("_REJECTED")]
+
+
+def _rows_calling_a_rejected_kernel_adopted(text: str) -> list:
+    rejected = _rejected_kernels()
+    return [ln for ln in text.splitlines()
+            if ln.startswith("|") and any(k in ln for k in rejected)
+            and "ADOPTED" in ln]
+
+
+def _stated_status(text: str, name: str):
+    import re
+    m = re.search(re.escape(name) + r"[^()]*\((ADOPTED|RESOLVED|STAGED|"
+                  r"DEFERRED|REJECTED)", text)
+    return m.group(1) if m else None
+
+
+def test_the_ladder_table_states_each_elements_registered_status():
+    """STACK.md's ladder is what people read; stack.json is what the tests
+    read. Row by row they must say the same thing."""
+    assert _ladder_mismatches(STACK_MD) == []
+    stale = STACK_MD.replace("| FEniCSx | ADOPTED\u00b9 |",
+                             "| FEniCSx | STAGED\u00b9 |")
+    assert stale != STACK_MD
+    assert _ladder_mismatches(stale) == [("fenicsx", "STAGED", "ADOPTED")]
+
+
+def test_no_table_row_calls_a_rejected_rust_kernel_adopted():
+    """The committed decisions reject both kernels, and STACK.md still
+    carried the first parity table with face_conductance ADOPTED and "rust
+    (when enabled)" in force (D-2026-130). The control is that row."""
+    assert _rejected_kernels()
+    for doc in ("STACK.md", "README.md", "HARNESS_STATUS.md"):
+        text = (ROOT / doc).read_text(encoding="utf-8")
+        assert _rows_calling_a_rejected_kernel_adopted(text) == [], doc
+    stale_row = ("| `face_conductance` \u2014 `A / (dL/kL + dR/kR)` | 0 | "
+                 "**ADOPTED** | rust (when enabled) |")
+    assert _rows_calling_a_rejected_kernel_adopted(stale_row) == [stale_row]
+
+
+@pytest.mark.parametrize("eid, name", [
+    ("fenicsx", "FEniCSx"), ("fmi", "FMI 3.0"), ("rust-selective", "Rust")])
+def test_the_readme_states_each_integrations_registered_status(eid, name):
+    """README's retained-capability paragraph gives FEniCSx, FMI and Rust a
+    status in parentheses; each must be the registry's. The control is a
+    sentence giving the element another status, which the reader must
+    return as stated rather than as the registry's."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert _stated_status(readme, name) == REGISTRY.by_id(eid).status
+    other = "DEFERRED" if REGISTRY.by_id(eid).status != "DEFERRED" \
+        else "ADOPTED"
+    assert _stated_status(f"the {name} element ({other}, said here)",
+                          name) == other
+
+
 def test_registry_statuses_match_what_the_code_reports():
     """The FEniCSx and FMI elements are the harness's integrations, run on a
     hosted runner; the Stage-10 adapters for the LEGACY solvers keep their

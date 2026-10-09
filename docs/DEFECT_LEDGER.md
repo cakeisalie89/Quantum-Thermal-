@@ -10226,3 +10226,52 @@ in its traceback replaced by `<repository>`).
 1103025227 now reports no findings, and a fresh 4000-case campaign is
 clean. Mutation FB17 (the encoding check disabled; ISO-8859-1 is then
 admitted).
+
+## D-2026-130 — current-state documents claimed what the registry and the evidence did not, and no test compared them
+
+**CLASS** — `WRONG_CLAIM`, harness completion programme (§62 hostile
+review: "a document is stale"; directive s.38). `SIGNING_BOOTSTRAP.md`,
+`STACK.md`, `tests/test_stage10_stack.py`.
+
+**WHAT WAS THERE** (`0dc60e1`).
+
+* `SIGNING_BOOTSTRAP.md` said "no signature has been produced or verified".
+  The supply-chain workflow has signed a CI-validation candidate keyless
+  and verified it online and offline since run 37966478453 at `5ab44a7`.
+  Release signing is still PENDING, and the sentence did not say it was
+  about releases.
+* `STACK.md` §3 still carried the first parity table, giving
+  `face_conductance` **ADOPTED** with "rust (when enabled)" as the backend
+  in force. `docs/rust_kernel_decisions.json` and the §2 ladder both
+  REJECT it.
+* The D-2026-58 table said `dispatch()` "selects rust" on an X86_V3-only
+  host. Since directive s.21, dispatch never selects from an on-host check.
+
+Nothing tested any of this. `test_every_declared_stack_element_is_documented`
+checked that a ladder row EXISTS for each element, not what status the row
+gives.
+
+**REPAIR** (the documents in `efaf08a`, the tests in the commit after it).
+
+* The sentences are rewritten.
+* The Rust tables now state parity verdicts beside the decision.
+* Three tests compare documents with machine state:
+  * each ladder row's status is the registry's;
+  * no table row in STACK.md, README.md or HARNESS_STATUS.md names a
+    REJECTED kernel as ADOPTED;
+  * README's parenthesised FEniCSx, FMI and Rust statuses are the
+    registry's.
+
+**EVIDENCE.** `tests/test_stage10_stack.py`:
+
+* `test_the_ladder_table_states_each_elements_registered_status`;
+* `test_no_table_row_calls_a_rejected_rust_kernel_adopted`, whose control
+  is the stale row itself, flagged;
+* `test_the_readme_states_each_integrations_registered_status`.
+
+Each check is a function over text, run on the shipped document and on a
+stale control. The mutation harness cannot measure these. A probe mutating
+STACK.md and README.md was killed 3/3, but every kill came from
+`test_index_is_deterministic_and_hits_carry_provenance`, the corpus
+allowlist refusing a changed governed document. That is a kill for the
+wrong reason, so these tests carry their own controls instead.
