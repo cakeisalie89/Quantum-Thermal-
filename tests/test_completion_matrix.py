@@ -779,7 +779,12 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: harness-integrations, supply-chain, container-verify and stack-verify
 #: runs at that commit. d59c3c6 and this commit change no row's
 #: implementation files, so the digests at 5ab44a7 are the digests now.
-EXPECTED_EVIDENCE_COVERS = 50
+#:
+#: 50 -> 47 with the commit that makes the demonstration report its scope.
+#: tools/harness_demo.py is in R51's, R58's and R69's implementation, so the
+#: runs at 5ab44a7 cover an earlier demonstration and those three rows
+#: derive PREDATES until a later commit cites runs at this one.
+EXPECTED_EVIDENCE_COVERS = 47
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

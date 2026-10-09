@@ -67,6 +67,13 @@
    "find": "    if report[\"crate\"][\"problems\"]:\n",
    "replace": "    if False:\n",
    "rationale": "an RO-Crate with missing members is packaged as the demonstration's record"
+  },
+  {
+   "name": "HD10_a_smaller_scope_reports_itself_as_the_full_one",
+   "path": "tools/harness_demo.py",
+   "find": "                    \"scope\": {\"fenicsx_check\": bool(fenicsx),\n",
+   "replace": "                    \"scope\": {\"fenicsx_check\": True,\n",
+   "rationale": "a run without FEniCSx reports the admission check as run, so an ACCEPTED demonstration of refusal reads as one of admission"
   }
  ]
 }

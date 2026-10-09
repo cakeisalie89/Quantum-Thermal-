@@ -278,6 +278,14 @@ def run(*, fenicsx: str | None, fmi: str | None, required: set) -> dict:
     log, ev, g = _world(base)
     ctx = PR.assemble_context(QUERY, retrieve=retrieve, k=3)
     report: dict = {"schema": SCHEMA, "workspace": WS,
+                    # What this run could demonstrate. Without FEniCSx the
+                    # slab is decided on the series check alone (REJECTED);
+                    # without FMI the FMU legs do not run. An ACCEPTED run of
+                    # the smaller scope is a demonstration of refusal, not
+                    # of admission, and the report says which it is.
+                    "scope": {"fenicsx_check": bool(fenicsx),
+                              "fmu_legs": bool(fmi),
+                              "required": sorted(required)},
                     "environment": run_environment().get("backend_status"),
                     "context": {"digest": ctx["digest"],
                                 "citations": PR.citations(ctx)},
@@ -385,8 +393,13 @@ def main(argv=None) -> int:
         print(f"{name}: {leg['decision']['state']} "
               f"({leg['decision']['report_check']} "
               f"{leg['decision']['report_status']})")
+    sc = rep["scope"]
+    scope = ("FEniCSx check " + ("run" if sc["fenicsx_check"] else
+                                 "NOT run -- the slab decided without it")
+             + "; FMU legs " + ("run" if sc["fmu_legs"] else "NOT run"))
     print("demonstration: " + ("ACCEPTED" if rep["accepted"] else
-                               f"NOT ACCEPTED {rep['why']}"))
+                               f"NOT ACCEPTED {rep['why']}")
+          + f" (scope: {scope})")
     return 0 if rep["accepted"] else 1
 
 

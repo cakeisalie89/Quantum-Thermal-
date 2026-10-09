@@ -130,9 +130,38 @@ container, or the release workflow depends on any of them, and
   (design-space exploration).
 
 **FEniCSx** is intentionally not an extra: `dolfinx` is not installable as a
-plain wheel and must come from the environment (conda-forge, spack, or the
-dolfinx container). `qta_multiphysics/stack/fem_fenicsx.py` detects it at
-runtime and stays STAGED until an environment provides it.
+plain wheel. The harness's independent verifier runs it from its own
+environment, created from a hash-pinned conda-forge lock (every package's
+sha256 is checked before use):
+
+    uv run python tools/fenicsx_env.py create --prefix <dir>/fenicsx --root <dir>/mamba
+    export QTA_FENICSX_PYTHON=<dir>/fenicsx/bin/python
+
+**The FMI runtime** (fmpy) likewise lives in its own environment, from its
+hash-pinned lock, and the FMU is built from vendored FMI 3.0 headers:
+
+    uv run python tools/isolated_runtime.py create fmi --prefix <dir>/fmi-runtime
+    export QTA_FMI_PYTHON=<dir>/fmi-runtime/bin/python
+    uv run python tools/fmi_build.py --out <dir>/fmu_build
+
+With both set, the generic end-to-end demonstration runs through its
+Snakemake rule, which passes the two runtimes to the tool
+(`uv run snakemake harness_demo --cores 1`); run directly, the tool takes
+them as arguments and can be told they are REQUIRED:
+
+    uv run python tools/harness_demo.py run --out report.json \
+        --fenicsx-python "$QTA_FENICSX_PYTHON" --fmi-python "$QTA_FMI_PYTHON" \
+        --require fenicsx,fmi
+
+The acceptance campaigns run through `tools/fenicsx_acceptance.py` and
+`tools/fmi_acceptance.py`. Without the runtimes the demonstration runs a
+smaller scope and says so in its report: the slab is decided without the
+FEniCSx check (REJECTED, since the series check alone does not admit it) and
+the FMU legs do not run. That is a demonstration of the refusal path, not of
+admission; `--require` turns a missing runtime into a failure. The
+Stage-10 adapter for the legacy finite-volume backends,
+`qta_multiphysics/stack/fem_fenicsx.py`, detects `dolfinx` at runtime and
+stays STAGED for that scope.
 
 **The Rust kernels are built on demand** and are not part of any environment:
 

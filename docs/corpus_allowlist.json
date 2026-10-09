@@ -2,7 +2,7 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "6d77c387fc831253aa2dfbc1c0c4f780d4fb03c47fe50784299d7281af935853",
+  "entries_digest": "c764de1203ed5ee9e0d8503a79de331b19b30d6e01196b29ce04f4cdaa0e7b1f",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "70edbbe8c2dffe38e4a26a916774b0f4c0d1a3e6cb98449da45e48c3167f491e"
+      "sha256": "0af5f357008cb92e9a548baed185c70067bf87b8229da49219876a54e5caefa4"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -98,7 +98,7 @@
     },
     {
       "path": "INSTALL.md",
-      "sha256": "423d54a7ca73e316e531b605af55f90144fc2135cc8f2ebd0cc80907cc3649ef"
+      "sha256": "eb7a1035aa93486f6f639ee05c1e20e45d50085e970dc63bfd049bfac6c3f3b3"
     },
     {
       "path": "MACHINE_FSM.md",
@@ -138,7 +138,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "187218abc0ed1307b8fc853e95488a985df76e3cb050b2666dac8934fae588da"
+      "sha256": "5d8cb20bd1c6138a2e425c121c775f0ad64eaa76fe51f40ec96a2715dfa12990"
     },
     {
       "path": "RELEASE_POLICY.md",

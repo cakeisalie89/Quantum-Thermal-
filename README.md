@@ -87,11 +87,16 @@ legacy verifier `package_consistency_check.py`.
 Physics models (thermal, gas and species transport, surface coverage,
 radiation, optical, microwave, vibration), Monte Carlo and uncertainty
 propagation, sensitivity analysis (SALib), design optimisation (OpenMDAO),
-Bayesian experimental design, a staged FEniCSx path, VTK and OpenUSD export,
-selective Rust kernels, a deferred FMI contract, HDF5 representation, and
-read-only retrieval over the governed documents (`STACK.md`). None of them is
-authority by itself: their outputs become results only through the governed
-path above.
+Bayesian experimental design, VTK and OpenUSD export, HDF5 representation,
+and read-only retrieval over the governed documents. The harness adds an
+independent FEniCSx verifier (ADOPTED, executed on hosted runners, for one
+problem class: the transient slab), an FMI 3.0 runtime and boundary (ADOPTED
+for one generic FMU built, loaded, stepped and restored through fmpy; the
+legacy solvers are not exported), and selective Rust kernels (RESOLVED: both
+REJECTED by a measured rule; no Rust backend is active). `STACK.md` and
+`stack.json` record each element's state and the evidence for it. None of
+them is authority by itself: their outputs become results only through the
+governed path above.
 
 ## Running it
 

@@ -50,6 +50,10 @@ def test_the_generic_leg_runs_end_to_end(generic):
     assert r41["agrees_with_full_replay"] and r41["prefix_verified"] is False
     assert all(c["path"] and c["source_sha256"]
                for c in generic["context"]["citations"])
+    # the smaller scope says it is the smaller scope
+    assert generic["scope"] == {"fenicsx_check": False, "fmu_legs": False,
+                                "required": []}
+    assert "fmu" not in generic["legs"]
 
 
 def test_a_demonstration_compared_with_itself_is_byte_identical(generic,
@@ -134,6 +138,8 @@ def test_the_full_demonstration_and_its_negative_twin():
     fem, fmi = _runtimes()
     rep = HD.run(fenicsx=fem, fmi=fmi, required={"fenicsx", "fmi"})
     assert rep["accepted"], rep["why"]
+    assert rep["scope"] == {"fenicsx_check": True, "fmu_legs": True,
+                            "required": ["fenicsx", "fmi"]}
     assert rep["legs"]["slab"]["decision"]["state"] == "VERIFIED"
     assert rep["legs"]["slab"]["decision"]["report_check"] == \
         "thermal.slab_fenicsx"
@@ -149,11 +155,26 @@ def test_the_demonstration_exits_by_its_judge(monkeypatch, tmp_path,
     """Snakemake's harness_demo rule is only as strict as this exit status:
     a demonstration the judge does not accept must fail the target."""
     rep = {"accepted": accepted, "why": [] if accepted else ["twin"],
-           "legs": {}}
+           "legs": {}, "scope": {"fenicsx_check": False, "fmu_legs": False,
+                                 "required": []}}
     monkeypatch.setattr(HD, "run", lambda **kw: rep)
     assert HD.main(["run", "--out", str(tmp_path / "r.json")]) == want
     assert json.loads((tmp_path / "r.json").read_text())["accepted"] is \
         accepted
+
+
+def test_the_verdict_line_names_the_scope_it_was_reached_in(monkeypatch,
+                                                           tmp_path, capsys):
+    """An ACCEPTED run without the runtimes demonstrates refusal, not
+    admission; the line a reader sees says which it was."""
+    small = {"accepted": True, "why": [], "legs": {},
+             "scope": {"fenicsx_check": False, "fmu_legs": False,
+                       "required": []}}
+    monkeypatch.setattr(HD, "run", lambda **kw: small)
+    assert HD.main(["run", "--out", str(tmp_path / "r.json")]) == 0
+    line = capsys.readouterr().out.strip().splitlines()[-1]
+    assert line.startswith("demonstration: ACCEPTED")
+    assert "FEniCSx check NOT run" in line and "FMU legs NOT run" in line
 
 
 def test_a_demonstration_that_raises_fails(monkeypatch, tmp_path):

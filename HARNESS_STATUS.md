@@ -2,7 +2,7 @@
 
 Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (evidence recomputed from implementation digests), the audits re-run, and the learned-model status, against the definition of done in `docs/harness_contract.json`. Not written by hand; `verify` fails if this file differs from what the inputs give.
 
-**Outcome: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT**
+**Outcome: INCOMPLETE**
 
 ## Required stack
 
@@ -18,7 +18,7 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | openusd | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | paraview-vtk | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | proposal-ingress | ADOPTED | R66 (COMPLETE, COVERS) | yes |
-| pytest-hypothesis | ADOPTED | R50 (COMPLETE, COVERS), R51 (COMPLETE, COVERS) | yes |
+| pytest-hypothesis | ADOPTED | R50 (COMPLETE, COVERS), R51 (COMPLETE, PREDATES) | NO |
 | python-scientific-core | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | rag-read-only | ADOPTED | R35 (COMPLETE, COVERS) | yes |
 | ro-crate | ADOPTED | R65 (COMPLETE, COVERS) | yes |
@@ -26,12 +26,12 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 | rust-selective | RESOLVED | R67 (COMPLETE, COVERS) | yes |
 | salib | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 | slsa-sigstore | ADOPTED | R65 (COMPLETE, COVERS) | yes |
-| snakemake | ADOPTED | R55 (COMPLETE, COVERS), R69 (COMPLETE, COVERS) | yes |
+| snakemake | ADOPTED | R55 (COMPLETE, COVERS), R69 (COMPLETE, PREDATES) | NO |
 | uv | ADOPTED | R56 (COMPLETE, COVERS) | yes |
 
 ## Completion matrix
 
-50 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 50. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 50.
+50 rows. By classification: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT 50. By hosted evidence: COVERS_CURRENT_IMPLEMENTATION 47, PREDATES_CURRENT_IMPLEMENTATION 3.
 
 ## Audits
 
@@ -47,9 +47,13 @@ Derived by `tools/harness_status.py` from `stack.json`, the completion matrix (e
 * learned_outputs_refused: holds
 * flagship_not_allocated_or_trained: holds
 
-## Unsatisfied (0)
+## Unsatisfied (5)
 
-* none
+* stack pytest-hypothesis: ADOPTED
+* stack snakemake: ADOPTED
+* row R51: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R58: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
+* row R69: COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps
 
 ## Outside this software-completion claim
 
