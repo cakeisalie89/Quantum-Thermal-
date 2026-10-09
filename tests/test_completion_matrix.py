@@ -784,7 +784,14 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: tools/harness_demo.py is in R51's, R58's and R69's implementation, so the
 #: runs at 5ab44a7 cover an earlier demonstration and those three rows
 #: derive PREDATES until a later commit cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 47
+#:
+#: 47 -> 43 with the hostile review's repairs (D-2026-126 to D-2026-129),
+#: in the same commit as them: tools/independent_verify.py is in R38's
+#: implementation, tools/fuzz_substrate.py in R50's, scientific/
+#: fmi_boundary.py in R63's and tools/supply_chain.py in R65's, so those
+#: four derive PREDATES beside R51, R58 and R69 until a later commit cites
+#: runs at this one.
+EXPECTED_EVIDENCE_COVERS = 43
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

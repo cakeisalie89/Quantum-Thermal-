@@ -11,8 +11,20 @@ OUTSIDE the release.** Cryptographic validity alone is not authorization.
 bundle and the policy inside the signed archive are *candidates*, checked
 against the external root; neither is the root.
 
-Signing status is **PENDING**. No pin is filled, no tag is cut, and no signature
-has been produced or verified.
+Release signing status is **PENDING**. No pin is filled, no tag is cut, and no
+release has been signed; publishing one needs the owner's separate
+authorization.
+
+That is a statement about RELEASES. The signing mechanism itself has been
+exercised on a CI artifact: `.github/workflows/supply-chain.yml` builds a
+release candidate from the commit (`tools/supply_chain.py`), signs its
+`SHA256SUMS` keyless with that workflow's own GitHub OIDC identity, verifies
+the signature online and offline against the exact identity and issuer in
+`docs/supply_chain_ci_policy.json`, and requires every tampered copy to be
+refused -- first green in run 37966478453 at `5ab44a7`. That policy is
+labelled `CI_VALIDATION_ONLY` and is not a release trust root, and the
+signature attests origin and integrity of those bytes, never that any number
+in them is correct.
 
 ## What was wrong, and is now fixed
 

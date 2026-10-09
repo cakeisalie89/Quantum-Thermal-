@@ -2,11 +2,11 @@
   "schema_version": 1,
   "label": "corpus membership for read-only retrieval",
   "note": "A document is retrievable because it appears here, not because it exists. Regenerate with tools/corpus_allowlist.py --write in the same commit that adds or edits the document, so the change is reviewed rather than absorbed. Content-addressed, not signed: this repository has no key authority, so the list attests what the corpus IS and cannot attest who approved it.",
-  "entries_digest": "c764de1203ed5ee9e0d8503a79de331b19b30d6e01196b29ce04f4cdaa0e7b1f",
+  "entries_digest": "824fab735d53a973c1a560a292727c7e7d40458c18186bcfca6f1f203d6c96cd",
   "entries": [
     {
       "path": "AGENT_SUBSTRATE.md",
-      "sha256": "bc8c2df643bdef8a901a16c140b0624d7edf7afe14e24fa2e1dda3f6ff2d538b"
+      "sha256": "60638a69e95b2dbc7039077432278af8a6962efe36dbb0f0a0d59fd3350a2f27"
     },
     {
       "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
@@ -90,7 +90,7 @@
     },
     {
       "path": "HARNESS_STATUS.md",
-      "sha256": "0af5f357008cb92e9a548baed185c70067bf87b8229da49219876a54e5caefa4"
+      "sha256": "23684f5fc42d1e4f50a7abc8cff9fe69a3ebd036875dafcb67d1b4e6757f484c"
     },
     {
       "path": "HDF5_DATA_MODEL.md",
@@ -162,7 +162,7 @@
     },
     {
       "path": "SIGNING_BOOTSTRAP.md",
-      "sha256": "1b2eabe0968a36f6226e8febe165bcdc07318cbc9bab67e130a67e03b99ed5d1"
+      "sha256": "9cf9398f4103e17d4612321a85d9b8d1c0b7e72cb0d5b11244a9514fca2b87dc"
     },
     {
       "path": "SOURCE_AUDIT_STATUS.md",
@@ -170,7 +170,7 @@
     },
     {
       "path": "STACK.md",
-      "sha256": "edda68767aef8d65f3bd4282316e014aa3b6ca9b987b80ea0f18611acd31c0fa"
+      "sha256": "60798289e84c489cab97682b1784a5ab009d91db056aa4276dcff007989016cb"
     },
     {
       "path": "SUPPLY_CHAIN_THREAT_MODEL.md",
@@ -198,7 +198,7 @@
     },
     {
       "path": "docs/DEFECT_LEDGER.md",
-      "sha256": "b790b1eb4519191eaea31cb8d4eb848eb4cb54ff515da7879051a703b6d40987"
+      "sha256": "4f840f5e0d0d8f068915e9abf01e09352f289fc332523f09a5bf7010034e80bc"
     },
     {
       "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",

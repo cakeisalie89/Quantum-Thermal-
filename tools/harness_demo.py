@@ -350,10 +350,14 @@ def compare(a_path: Path, b_path: Path) -> dict:
     ba = ResultBundle.from_record(a["legs"]["slab"]["bundle_record"])
     bb = ResultBundle.from_record(b["legs"]["slab"]["bundle_record"])
     rep = EQ.compare(ba, bb)
+    # Which demonstration each run WAS. Two runs of the smaller scope agree
+    # about a refusal; that is not a reproduction of an admission, and the
+    # comparison says which one it is rather than leaving it to prose.
     return {"status": rep["status"], "decision": rep["decision"],
             "environments": rep["environments"],
             "outcomes": [a["legs"]["slab"]["decision"]["state"],
                          b["legs"]["slab"]["decision"]["state"]],
+            "scopes": [a.get("scope"), b.get("scope")],
             "report": rep}
 
 
@@ -376,10 +380,11 @@ def main(argv=None) -> int:
             Path(args.out).write_text(json.dumps(res, indent=1,
                                                  sort_keys=True) + "\n")
         print(f"slab result: {res['status']} ({res['decision']}); "
-              f"outcomes {res['outcomes']}")
+              f"outcomes {res['outcomes']}; scopes {res['scopes']}")
         return 0 if res["status"] in ("BYTE_IDENTICAL",
                                       "EQUIVALENT_AT_DECLARED_RESOLUTION") \
-            and len(set(res["outcomes"])) == 1 else 1
+            and len(set(res["outcomes"])) == 1 \
+            and res["scopes"][0] == res["scopes"][1] else 1
     required = {x for x in args.require.split(",") if x}
     try:
         rep = run(fenicsx=args.fenicsx_python, fmi=args.fmi_python,

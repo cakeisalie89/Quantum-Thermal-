@@ -123,6 +123,9 @@ def test_the_reconstruction_shares_no_reducer_with_the_projection():
             imported.add(node.module.lstrip("."))
             imported.update(f"{node.module.lstrip('.')}.{a.name}"
                             for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            # `from . import tasks`: the module is the alias (D-2026-126).
+            imported.update(a.name for a in node.names)
         elif isinstance(node, ast.Import):
             imported.update(a.name for a in node.names)
 
@@ -479,6 +482,9 @@ def test_the_second_reader_imports_neither_authorization_gate():
     for node in _ast.walk(_recon_source_tree()):
         if isinstance(node, _ast.ImportFrom) and node.module:
             imported.add(node.module.lstrip("."))
+        elif isinstance(node, _ast.ImportFrom):
+            # `from . import tasks`: the module is the alias (D-2026-126).
+            imported.update(a.name for a in node.names)
         elif isinstance(node, _ast.Import):
             imported.update(a.name for a in node.names)
 

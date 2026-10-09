@@ -652,7 +652,9 @@ def _fmu_description(data: bytes):
     """A model description inside an otherwise well-formed FMU, read at the
     boundary. Whatever is accepted is FMI 3.0, NON_AUTHORITATIVE, a
     simulation result, and every float variable with a causality has a
-    defined unit."""
+    defined unit whose own BaseUnit is the coherent SI unit of that name --
+    read here from the bytes, not from what the boundary returned
+    (D-2026-128)."""
     import tempfile as _tf
     import zipfile as _zf
     from scientific import fmi_boundary as FB
@@ -665,11 +667,30 @@ def _fmu_description(data: bytes):
         desc = FB.describe(fmu)
     if desc.fmi_version != "3.0":
         raise AssertionError(f"ACCEPTED: fmiVersion {desc.fmi_version!r}")
+    import xml.etree.ElementTree as _ET
+    si = {"s": {"s": 1}, "K": {"K": 1}, "J": {"kg": 1, "m": 2, "s": -2},
+          "W": {"kg": 1, "m": 2, "s": -3},
+          "J/K": {"kg": 1, "m": 2, "s": -2, "K": -1},
+          "W/K": {"kg": 1, "m": 2, "s": -3, "K": -1}}
+    meant: dict = {}
+    for u in _ET.fromstring(data).findall("UnitDefinitions/Unit"):
+        bu = u.find("BaseUnit")
+        meant.setdefault(u.get("name"), []).append(
+            None if bu is None else (
+                {k: int(bu.get(k, "0")) for k in ("kg", "m", "s", "A", "K",
+                                                  "mol", "cd", "rad")
+                 if int(bu.get(k, "0"))},
+                float(bu.get("factor", "1")), float(bu.get("offset", "0"))))
     for v in desc.variables:
-        if v.type == "Float64" and v.causality in ("parameter", "input",
-                                                    "output") \
-                and v.unit not in desc.units:
-            raise AssertionError(f"ACCEPTED: {v.name} in an undefined unit")
+        if v.type in ("Float64", "Float32") and v.causality in (
+                "parameter", "input", "output"):
+            if v.unit not in desc.units:
+                raise AssertionError(f"ACCEPTED: {v.name} in an undefined "
+                                     "unit")
+            if meant.get(v.unit) != [(si.get(v.unit), 1.0, 0.0)]:
+                raise AssertionError(
+                    f"ACCEPTED: {v.name} in {v.unit!r} defined as "
+                    f"{meant.get(v.unit)}")
     return desc
 
 

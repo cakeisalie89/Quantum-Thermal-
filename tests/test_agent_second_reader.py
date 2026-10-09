@@ -1131,8 +1131,13 @@ def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
     tree = ast.parse(Path(R.__file__).read_text(encoding="utf-8"))
     imported = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            imported.add(node.module.lstrip("."))
+        if isinstance(node, ast.ImportFrom):
+            # `from . import tasks` names the module in the alias: its
+            # node.module is None. D-2026-126: this loop skipped that form.
+            if node.module:
+                imported.add(node.module.lstrip("."))
+            else:
+                imported.update(a.name for a in node.names)
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 imported.add(alias.name)
@@ -1152,6 +1157,42 @@ def test_the_second_reader_imports_none_of_the_layers_it_reads(gov):
     assert not leaked, (
         f"the second reader imports {leaked}; it would then agree with those "
         "layers by construction, including where they are wrong")
+
+
+def test_the_second_reader_imports_only_the_log_and_the_action_names():
+    """An allow-list, because the list above names layers one by one.
+
+    It names ten. The package has some thirty-five modules, and the ones
+    added since -- result_rules, learned_rules, proposals, invalidation,
+    principals, checkpoint -- are first readers too: a reconstruction that
+    imported any of them would agree with it by construction, and the
+    deny-list would not notice (D-2026-126). The reader needs the log and
+    the action vocabulary; everything else it restates.
+    """
+    import ast
+    import qta_agent.reconstruct as R
+
+    tree = ast.parse(Path(R.__file__).read_text(encoding="utf-8"))
+    resolved = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            resolved.update(a.name for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0:
+            resolved.add(node.module or "")
+        elif isinstance(node, ast.ImportFrom) and node.level == 1:
+            resolved.update(
+                [f"qta_agent.{node.module}"] if node.module
+                else [f"qta_agent.{a.name}" for a in node.names])
+        elif isinstance(node, ast.ImportFrom):
+            resolved.add("." * node.level + (node.module or ""))
+
+    allowed = {"__future__", "dataclasses", "typing", "hashlib", "json",
+               "qta_agent.actions", "qta_agent.events"}
+    assert resolved >= {"qta_agent.actions", "qta_agent.events"}, resolved
+    extra = sorted(resolved - allowed)
+    assert not extra, (
+        f"the second reader imports {extra}; a reader that shares code with "
+        "what it checks agrees with it where it is wrong")
 
 
 # ---------------------------------------------------------------------------

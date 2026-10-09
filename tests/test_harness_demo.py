@@ -62,6 +62,22 @@ def test_a_demonstration_compared_with_itself_is_byte_identical(generic,
     a.write_text(json.dumps(generic))
     res = HD.compare(a, a)
     assert res["status"] == "BYTE_IDENTICAL"
+    assert res["scopes"] == [generic["scope"]] * 2
+
+
+def test_runs_of_different_scope_are_not_called_a_reproduction(
+        generic, tmp_path, capsys):
+    """The comparison names the scope each run had, and two demonstrations
+    of different scope do not pass as one reproduced: the same slab bytes
+    with and without the FEniCSx check are not the same demonstration."""
+    a = tmp_path / "a.json"
+    a.write_text(json.dumps(generic))
+    b = tmp_path / "b.json"
+    b.write_text(json.dumps({**generic, "scope": {**generic["scope"],
+                                                  "fenicsx_check": True}}))
+    assert HD.main(["compare", str(a), str(a)]) == 0
+    assert HD.main(["compare", str(a), str(b)]) == 1
+    assert "fenicsx_check" in capsys.readouterr().out
 
 
 def _full():

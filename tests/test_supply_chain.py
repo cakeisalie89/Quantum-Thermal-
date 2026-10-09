@@ -108,25 +108,157 @@ def test_a_consistently_re_summed_forgery_is_caught_beneath_the_sums(
         SC.verify(c, SC.load_policy(POLICY), mode="digests")
 
 
-def test_a_source_member_not_in_the_commit_is_refused(rc, tmp_path):
+def _repack(rc, tmp_path, edit, *, manifest_follows=True,
+            hash_follows=True, index_count=None):
+    """A copy of ``rc`` whose source.zip is rebuilt from ``edit(members)``
+    -- a dict of name -> bytes -- with every digest above it recomputed, so
+    the forgery is consistent everywhere except where it is meant not to be.
+
+    ``manifest_follows`` rewrites the archived final_manifest.json to
+    describe the edited members (the forgery a builder that lost a file
+    and re-described what it had would make); ``hash_follows`` rewrites
+    manifest_hash.txt beside it.
+    """
     c = tmp_path / "rc"
     shutil.copytree(rc, c)
     src = c / "source.zip"
-    with zipfile.ZipFile(src, "a") as zf:
-        zf.writestr("planted.py", b"print('x')\n")
-    idx = json.loads((c / "index.json").read_text())
+    with zipfile.ZipFile(src) as zf:
+        members = {i.filename: zf.read(i) for i in zf.infolist()}
+    members = edit(dict(members))
+    if manifest_follows:
+        doc = json.loads(members["final_manifest.json"])
+        doc["files"] = [{"filename": n, "size_bytes": len(b),
+                         "sha256": SC._sha(b)}
+                        for n, b in sorted(members.items())
+                        if n not in SC.MANIFEST_DETACHED]
+        members["final_manifest.json"] = json.dumps(doc).encode()
+    if hash_follows:
+        members["manifest_hash.txt"] = (
+            f"sha256: {SC._sha(members['final_manifest.json'])}\n".encode())
+    with zipfile.ZipFile(src, "w", zipfile.ZIP_DEFLATED) as zf:
+        for n, b in sorted(members.items()):
+            zf.writestr(zipfile.ZipInfo(n, date_time=SC.ZIP_TIME), b)
     prov = json.loads((c / "provenance.intoto.json").read_text())
     for s in prov["subject"]:
         if s["name"] == "source.zip":
             s["digest"]["sha256"] = SC._sha(src.read_bytes())
     (c / "provenance.intoto.json").write_text(json.dumps(prov))
+    idx = json.loads((c / "index.json").read_text())
+    idx["files_in_source_zip"] = (len(members) if index_count is None
+                                  else index_count)
+    idx["final_manifest_sha256"] = SC._sha(members["final_manifest.json"])
     for n in ("source.zip", "provenance.intoto.json"):
         idx["artifacts"][n] = SC._sha((c / n).read_bytes())
     (c / "index.json").write_text(json.dumps(idx))
     (c / SC.SIGNED).write_text("".join(
         f"{SC._sha((c / n).read_bytes())}  {n}\n" for n in SC.ARTIFACTS))
+    return c
+
+
+def _with(name, data):
+    def edit(m):
+        m[name] = data
+        return m
+    return edit
+
+
+def _without(name):
+    def edit(m):
+        del m[name]
+        return m
+    return edit
+
+
+def test_a_source_member_not_in_the_commit_is_refused(rc, tmp_path):
+    c = _repack(rc, tmp_path, _with("planted.py", b"print('x')\n"))
     with pytest.raises(SC.Refused, match="planted.py"):
         SC.verify(c, SC.load_policy(POLICY), mode="digests")
+
+
+def test_an_archive_that_lost_a_tracked_file_is_refused(rc, tmp_path):
+    """D-2026-127. Each member was compared with the commit, and nothing
+    compared the commit with the members: an archive missing
+    qta_agent/authority.py, whose manifest had been rewritten to match,
+    verified as "MATCHES <commit>"."""
+    c = _repack(rc, tmp_path, _without("qta_agent/authority.py"))
+    with pytest.raises(SC.Refused, match="missing.*qta_agent/authority.py"):
+        SC.verify(c, SC.load_policy(POLICY), mode="digests")
+
+
+def test_a_member_whose_bytes_are_not_the_commits_is_refused(rc, tmp_path):
+    """The member set is the commit's and the archived manifest describes the
+    archive, so neither of those layers can refuse: only the comparison of
+    each member with the commit's blob sees that authority.py was replaced.
+    Without this case, removing that comparison killed nothing once the
+    set comparison caught every planted file first."""
+    c = _repack(rc, tmp_path, _with("qta_agent/authority.py",
+                                    b"# replaced\n"))
+    with pytest.raises(SC.Refused, match="is not the commit's"):
+        SC.verify(c, SC.load_policy(POLICY), mode="digests")
+
+
+# ---- the archive against the manifest it carries (D-2026-127) -----------
+#
+# repo=None: no checkout, so the commit cannot refuse anything and only the
+# manifest layer can. The signature binds the archive; these say that the
+# archive is what its own manifest says the release is.
+
+@pytest.mark.parametrize("name, edit, kw, why", [
+    ("lost", _without("qta_agent/authority.py"),
+     {"manifest_follows": False}, "which source.zip does not contain"),
+    ("changed", _with("qta_agent/authority.py", b"# replaced\n"),
+     {"manifest_follows": False}, "not the ones its manifest lists"),
+    ("unlisted", _with("planted.py", b"print('x')\n"),
+     {"manifest_follows": False}, "which its manifest does not list"),
+    ("hash", lambda m: m, {"hash_follows": False},
+     "manifest_hash.txt in source.zip"),
+    ("count", lambda m: m, {"index_count": 1}, "the index says 1"),
+    # an archive of nothing but the two detached files, whose manifest lists
+    # nothing: every per-file comparison passes by examining zero files
+    ("empty", lambda m: {n: m[n] for n in SC.MANIFEST_DETACHED},
+     {}, "lists no files"),
+])
+def test_the_archive_is_what_its_own_manifest_says(rc, tmp_path, name, edit,
+                                                   kw, why):
+    c = _repack(rc, tmp_path, edit, **kw)
+    with pytest.raises(SC.Refused, match=why):
+        SC.verify(c, SC.load_policy(POLICY), mode="digests", repo=None)
+
+
+def test_the_unforged_archive_describes_itself_without_a_checkout(rc):
+    rep = SC.verify(rc, SC.load_policy(POLICY), mode="digests", repo=None)
+    assert rep["source_tree"] == "NOT_CHECKED (no checkout)"
+    assert rep["manifest"].startswith("DESCRIBES THE ARCHIVE")
+
+
+def test_a_member_named_twice_is_refused(rc, tmp_path):
+    """Both copies can match the commit's blob; which one is the release is
+    then decided by the extractor, not by the bytes that were signed."""
+    c = tmp_path / "rc"
+    shutil.copytree(rc, c)
+    src = c / "source.zip"
+    with zipfile.ZipFile(src) as zf:
+        data = zf.read("README.md")
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")      # zipfile warns: Duplicate name
+        with zipfile.ZipFile(src, "a") as zf:
+            zf.writestr(zipfile.ZipInfo("README.md", date_time=SC.ZIP_TIME),
+                        data)
+    prov = json.loads((c / "provenance.intoto.json").read_text())
+    for s in prov["subject"]:
+        if s["name"] == "source.zip":
+            s["digest"]["sha256"] = SC._sha(src.read_bytes())
+    (c / "provenance.intoto.json").write_text(json.dumps(prov))
+    idx = json.loads((c / "index.json").read_text())
+    idx["files_in_source_zip"] += 1
+    for n in ("source.zip", "provenance.intoto.json"):
+        idx["artifacts"][n] = SC._sha((c / n).read_bytes())
+    (c / "index.json").write_text(json.dumps(idx))
+    (c / SC.SIGNED).write_text("".join(
+        f"{SC._sha((c / n).read_bytes())}  {n}\n" for n in SC.ARTIFACTS))
+    with pytest.raises(SC.Refused, match="more than once"):
+        SC.verify(c, SC.load_policy(POLICY), mode="digests", repo=None)
 
 
 @pytest.mark.parametrize("field, value, why", [

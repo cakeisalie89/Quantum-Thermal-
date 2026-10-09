@@ -10006,3 +10006,223 @@ showed it now is.
 passes as stricter; the same verdict on any other control fails; an
 internal acceptance of it fails). Mutation RC7 (every disagreement called
 stricter).
+
+## D-2026-126 — the second reader's import guards could not see `from . import X`, and every list they checked was a deny-list
+
+**CLASS** — `VERIFIER_INDEPENDENCE_DEFECT`, harness completion programme (§62 hostile
+review: "a second reader imports the first"). `tests/test_agent_second_reader.py`,
+`tests/test_agent_differential.py`, `tools/independent_verify.py`.
+
+**WHAT WAS THERE** (`0dc60e1`). `qta_agent/reconstruct.py` is the second
+reader, and it stays independent only if it imports none of the layers it
+checks. Three AST tests guarded that. All three recorded `node.module` for
+an `ImportFrom` and skipped the node when `node.module` was None. In
+`from . import authority`, `node.module` is None and the module is in the
+alias, so that spelling of the import passed all three. The call guard
+looks for functions named `check`, so it would not have noticed
+`authority.State` or `capability.CapabilityLedger(log).load()` either. The
+names the guards checked against were a deny-list of ten layers. The
+package now has some thirty-five modules, and first readers added since
+(result_rules, learned_rules, proposals, invalidation, principals,
+checkpoint) were on no list.
+
+The runtime guard in `tools/independent_verify.py` had the same shape. It
+refused the names in `FORBIDDEN` and admitted every other module.
+`FORBIDDEN` never named `qta_agent.authority` or `qta_agent.tasks`, the two
+gates the reader was decoupled from in D-2026-27. So the process built to
+be the one place the shortcut is unavailable would have loaded either one
+without a word.
+
+Measured before the repair, against the guards at 1d14ae0:
+`from . import authority` at module scope SURVIVED all three tests (R104).
+`from .result_rules import record_problems` also SURVIVED (R106).
+`from . import capability` inside `reconstruct_subsystems` was killed
+(R105), but only by the runtime guard, because capability is in
+`FORBIDDEN`. An unnamed module in that position would not have been.
+
+**REPAIR.** No production behaviour changes. Today `reconstruct.py`
+imports only `actions` and `events`, and the verifier process loads only
+`qta_agent`, `actions`, `canonical`, `events` and `reconstruct`.
+
+* The three AST guards now record the alias of `from . import X`.
+* A new test holds `reconstruct.py` to an allow-list: the standard modules
+  it uses, plus `qta_agent.actions` and `qta_agent.events`.
+* `tools/independent_verify.py` refuses every `qta_agent` module outside
+  `PERMITTED`, the five modules above, measured.
+* `FORBIDDEN` stays as the named primaries, now including authority, tasks
+  and the newer first readers.
+* Each named primary, and two modules nobody named, is probed in its own
+  process and must be refused.
+* The set the verifier loads on a real run under its own guard must equal
+  `PERMITTED`.
+
+**EVIDENCE.** `tests/test_agent_second_reader.py`:
+`test_the_second_reader_imports_only_the_log_and_the_action_names`.
+`tests/test_agent_separate_verify.py`:
+`test_every_named_primary_is_refused_including_the_two_gates`,
+`test_a_module_nobody_named_is_refused_too`,
+`test_the_permitted_modules_are_what_the_verifier_actually_loads`.
+
+Mutations:
+
+* R104 to R106 (`agent_second_reader`): the bare spelling, at module scope
+  and in a function body, and a first reader the deny-list never named.
+* S2 (`agent_separate_verify`): re-targeted to the deny-list the guard
+  used to be.
+* S12 and S13: `PERMITTED` admits the authority gate, or a module the
+  verifier never loads.
+
+## D-2026-127 — the release candidate's verify said MATCHES over an archive that had lost files, and never compared the archive with its own manifest
+
+**CLASS** — `MISSING_ENFORCEMENT`, harness completion programme (§62
+hostile review: "a signature checks bytes other than those in the
+manifest"). `tools/supply_chain.py`, R65.
+
+**WHAT WAS THERE** (`0dc60e1`). The signature binds `SHA256SUMS`, which
+binds `source.zip`. `verify` compared each archive member with the commit's
+blob of the same path and then reported `source_tree: MATCHES <commit>`. It
+never compared the commit's tree with the members. The module docstring
+says the archive holds "every tracked file at that commit", but nothing
+checked that.
+
+The manifest inside the archive (`final_manifest.json`, every tracked file
+with its size and sha256, and `manifest_hash.txt` beside it) was compared
+only by digest with `index.json`. Nothing compared it with the archive it
+was packed in. So a signed archive could lack files its own manifest lists,
+carry files it does not list, or carry a manifest describing other bytes,
+and still verify. `index.files_in_source_zip` was written and never read.
+
+Measured at 1d14ae0. A build whose archive dropped `qta_agent/authority.py`
+and was otherwise consistent verified as:
+
+```
+{"accepted": true, ..., "source_tree": "MATCHES 1d14ae0ae07bd1e820128b26fd4d9c2a9575b4ca"}
+```
+
+That candidate would have been signed with the archive's own manifest
+still listing the missing file.
+
+**REPAIR.**
+
+* `archive_against_manifest` runs with or without a checkout. It refuses an
+  archive that:
+  * names a member twice;
+  * has a member count that differs from the index's;
+  * has a detached hash that is not the hash of the manifest beside it;
+  * has a manifest listing no files, which every per-file comparison
+    would pass by examining nothing;
+  * lacks a listed file;
+  * contains an unlisted one (the two detached files aside);
+  * has a member whose bytes or size are not the manifest's.
+* With a checkout, the archive's member set must equal the commit's
+  non-link files, in both directions. Then every member is compared with
+  its blob as before.
+* `source_zip` returns the names it packed rather than the names it
+  listed, so the index count is a count of members.
+* The report gains `manifest: DESCRIBES THE ARCHIVE (n files)`.
+
+**EVIDENCE.** `tests/test_supply_chain.py`, using a repack helper that
+recomputes every digest above the archive, so each forgery is consistent
+everywhere except the layer under test:
+
+* `test_an_archive_that_lost_a_tracked_file_is_refused` (manifest
+  rewritten to match, so only the commit layer can refuse);
+* `test_the_archive_is_what_its_own_manifest_says` (lost, changed,
+  unlisted, detached hash, count, empty; with no checkout, so only the
+  manifest layer can refuse);
+* `test_a_member_named_twice_is_refused`;
+* `test_a_member_whose_bytes_are_not_the_commits_is_refused`. The
+  first mutation run of the new layering showed SC7 (the per-member blob
+  comparison removed) SURVIVING, because the set comparison now refused
+  every planted file first. This case keeps the member set and the
+  manifest consistent, so only the blob comparison can refuse it;
+* `test_the_unforged_archive_describes_itself_without_a_checkout`.
+
+Mutations SC12 to SC20 (`supply_chain`): one per check, and the whole layer
+removed.
+
+## D-2026-128 — the FMI boundary admitted a unit by its name; what the FMU defined it to mean was never read
+
+**CLASS** — `TRUE_DEFECT`, harness completion programme (§62 hostile
+review: "an FMU import drops units"). `scientific/fmi_boundary.py`,
+`tools/fuzz_substrate.py`, R63.
+
+**WHAT WAS THERE** (`0dc60e1`). FMI 3.0 defines a unit in the model
+description: `<Unit name="K"><BaseUnit K="1"/></Unit>`. The `BaseUnit`
+gives SI exponents, a factor and an offset, so a value in the unit maps to
+SI. The boundary read each unit's NAME and checked three things:
+
+* every Float64 parameter, input and output has a unit;
+* the name appears in `UnitDefinitions`;
+* the name equals the contract's (FMI-P5).
+
+The definition itself was never read. Measured at 0dc60e1 on the real
+thermal_rc2 FMU, each of these was ADMITTED with an empty contract
+difference:
+
+* `K` redefined with `offset="273.15"` (Celsius values labelled kelvin);
+* `W` redefined with the exponents of energy;
+* `K` declared with no `BaseUnit` at all.
+
+Float32, the other float type in FMI 3.0, carried no unit rule at all. The
+fuzz oracle restated the same name-only rule, so it could not tell either.
+
+**REPAIR.**
+
+* The boundary reads each `UnitDefinitions/Unit` into (exponents, factor,
+  offset), and refuses a name defined twice or a non-numeric attribute.
+* For every Float64 and Float32 parameter, input and output, it requires
+  that:
+  * the unit has a `BaseUnit`;
+  * the harness holds a definition of that name (`SI_DEFINITIONS`: s, K,
+    J, W, J/K, W/K, the units the contract uses; extending it is a
+    reviewed act);
+  * the FMU's definition is exactly that one, with factor 1 and offset 0.
+* The fuzz oracle now parses `UnitDefinitions` from the bytes itself and
+  holds every accepted float variable to the same rule.
+
+**EVIDENCE.** `tests/test_harness_integrations.py::test_the_boundary_refuses_a_tampered_fmu`
+gains seven cases: a Celsius-offset K, an energy-dimensioned W, a
+milli-scaled K, a K with no definition, a unit the harness does not hold
+(mK), a unit defined twice, and a Float32 output with no unit.
+`tests/test_agent_fuzz.py` covers the stronger oracle.
+
+Mutations FB9 to FB16 (`harness_integrations`): the comparison skipped,
+undefined or unknown units admitted, offset, factor or dimension not
+compared, duplicate definitions allowed, and Float32 exempted.
+
+## D-2026-129 — an XML declaration naming an unknown or multi-byte encoding crashed the FMI boundary instead of being refused
+
+**CLASS** — `TRUE_DEFECT`, harness completion programme (R63). Found by the
+hosted fuzz campaign. `scientific/fmi_boundary.py`.
+
+**WHAT WAS THERE** (since the boundary was written). `_parse_xml` refused
+a DOCTYPE or entity and converted `ET.ParseError` into `FmuRefused`. The
+XML declaration's encoding went straight to the parser. An unknown codec
+(`encoding="UTF-x"`) or a non-text one (`rot13`, `hex`) raises
+`LookupError`. A multi-byte encoding (`utf-32`, `EUC-JP`) raises
+`ValueError`, and `idna` or `punycode` raise `UnicodeError`. None of these
+is a refusal, so `describe` crashed on them.
+
+The agent-substrate job of pull_request run 37977178632 (at `d59c3c6`, job
+113978304206) found it. Its fuzz campaign, seed 1103025227 with 2000 cases,
+reported `CRASHED fmu_description: LookupError: unknown encoding: UTF-x`.
+Every earlier campaign drew other seeds. The same seed reproduces it
+locally, exactly. Separately, `ISO-8859-1`, which expat supports natively,
+PARSED, though FMI 3.0 model descriptions are UTF-8.
+
+**REPAIR.** The declaration's encoding is read before parsing. Anything
+but UTF-8 is refused with the reason ("FMI 3.0 requires UTF-8"). Invalid
+UTF-8 bytes stay expat's refusal. `ValueError` and `LookupError` from the
+parser are converted to refusals as a backstop for a declaration the check
+did not read. That backstop is defence in depth: with the check in place
+no input is known to reach it, so no mutation measures it alone.
+
+**EVIDENCE.** `tests/fuzz_corpus/fmu_description-crashed-09459953.json`
+(the hosted finding's input, replayed on every run, with the checkout path
+in its traceback replaced by `<repository>`).
+`tests/test_harness_integrations.py::test_the_boundary_refuses_a_tampered_fmu`:
+`unknown_encoding`, `multibyte_encoding`, `latin1_encoding`. Seed
+1103025227 now reports no findings, and a fresh 4000-case campaign is
+clean. Mutation FB17 (the encoding check disabled; ISO-8859-1 is then
+admitted).

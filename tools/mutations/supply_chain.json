@@ -1,6 +1,6 @@
 {
  "title": "The harness release candidate: every verify layer, broken alone",
- "note": "Killed in digests mode (no signature runtime needed): each layer beneath SHA256SUMS has a forgery consistent everywhere else (tests/test_supply_chain.py), so a deleted check cannot hide behind the one above it. Signature verification itself runs in the supply-chain workflow, with GitHub OIDC.",
+ "note": "Killed in digests mode (no signature runtime needed): each layer beneath SHA256SUMS has a forgery consistent everywhere else (tests/test_supply_chain.py), so a deleted check cannot hide behind the one above it. Signature verification itself runs in the supply-chain workflow, with GitHub OIDC. SC12-SC19 attack the archive checks added for D-2026-127: each member was compared with the commit but not the commit with the members, and nothing compared the signed archive with the manifest it carries.",
  "suites": [
   "tests/test_supply_chain.py"
  ],
@@ -81,6 +81,69 @@
    "find": "    if p[\"oidc_issuer\"] != \"https://token.actions.githubusercontent.com\":\n",
    "replace": "    if False:\n",
    "rationale": "a signature from an identity provider other than GitHub Actions' verifies"
+  },
+  {
+   "name": "SC12_the_archive_need_not_hold_the_whole_commit",
+   "path": "tools/supply_chain.py",
+   "find": "            if packed != tracked:",
+   "replace": "            if not packed <= tracked:",
+   "rationale": "D-2026-127: only members outside the commit are refused; an archive that lost files verifies as MATCHES"
+  },
+  {
+   "name": "SC13_the_manifest_may_list_files_the_archive_lacks",
+   "path": "tools/supply_chain.py",
+   "find": "        if absent:",
+   "replace": "        if False:",
+   "rationale": "D-2026-127: a signed archive missing files its own manifest lists is accepted"
+  },
+  {
+   "name": "SC14_members_the_manifest_does_not_list_are_accepted",
+   "path": "tools/supply_chain.py",
+   "find": "        if unlisted:",
+   "replace": "        if False:",
+   "rationale": "D-2026-127: the archive carries files outside the release its manifest describes"
+  },
+  {
+   "name": "SC15_the_archive_bytes_are_not_compared_with_the_manifest",
+   "path": "tools/supply_chain.py",
+   "find": "            if _sha(data) != e[\"sha256\"] or len(data) != e[\"size_bytes\"]:",
+   "replace": "            if False:",
+   "rationale": "D-2026-127: the manifest describes other bytes than the ones that were signed"
+  },
+  {
+   "name": "SC16_the_detached_manifest_hash_is_not_checked",
+   "path": "tools/supply_chain.py",
+   "find": "        if detached != f\"sha256: {_sha(zf.read('final_manifest.json'))}\":",
+   "replace": "        if False:",
+   "rationale": "D-2026-127: manifest_hash.txt may name another manifest than the one beside it"
+  },
+  {
+   "name": "SC17_a_member_may_be_named_twice",
+   "path": "tools/supply_chain.py",
+   "find": "        if len(names) != len(set(names)):",
+   "replace": "        if False:",
+   "rationale": "D-2026-127: two copies of one path, and the extractor picks which is the release"
+  },
+  {
+   "name": "SC18_the_member_count_is_not_compared",
+   "path": "tools/supply_chain.py",
+   "find": "        if len(names) != index.get(\"files_in_source_zip\"):",
+   "replace": "        if False:",
+   "rationale": "D-2026-127: the index's file count is printed and never checked"
+  },
+  {
+   "name": "SC19_verify_never_reads_the_archived_manifest",
+   "path": "tools/supply_chain.py",
+   "find": "    manifest = archive_against_manifest(d / \"source.zip\", index)",
+   "replace": "    manifest = \"NOT_CHECKED\"",
+   "rationale": "D-2026-127: the whole layer removed; the signature binds an archive nobody compared with what it says it is"
+  },
+  {
+   "name": "SC20_an_empty_manifest_describes_any_archive",
+   "path": "tools/supply_chain.py",
+   "find": "        if not entries:\n            raise Refused(",
+   "replace": "        if False:\n            raise Refused(",
+   "rationale": "D-2026-127: without a checkout, an archive holding only the detached files verifies -- every per-file comparison passes over zero files"
   }
  ]
 }

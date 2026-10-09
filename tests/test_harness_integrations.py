@@ -324,6 +324,47 @@ def _copy(src, dst, md=None, extra=(), drop_binary=False, link=None):
                                          b'fmiVersion="2.0"')), "3.0"),
     ("undefined_unit", dict(md=lambda d: d.replace(
         b'unit="K" min="0"/>', b'unit="degC" min="0"/>')), "not defined"),
+    # D-2026-128: a unit is admitted by its definition, not by its name.
+    ("celsius_named_kelvin", dict(md=lambda d: d.replace(
+        b'<Unit name="K"><BaseUnit K="1"/></Unit>',
+        b'<Unit name="K"><BaseUnit K="1" offset="273.15"/></Unit>')),
+     "offset 273.15"),
+    ("energy_named_watt", dict(md=lambda d: d.replace(
+        b'<Unit name="W"><BaseUnit kg="1" m="2" s="-3"/></Unit>',
+        b'<Unit name="W"><BaseUnit kg="1" m="2" s="-2"/></Unit>')),
+     "the harness's 'W'"),
+    ("scaled_kelvin", dict(md=lambda d: d.replace(
+        b'<Unit name="K"><BaseUnit K="1"/></Unit>',
+        b'<Unit name="K"><BaseUnit K="1" factor="0.001"/></Unit>')),
+     "factor 0.001"),
+    ("unit_without_definition", dict(md=lambda d: d.replace(
+        b'<Unit name="K"><BaseUnit K="1"/></Unit>', b'<Unit name="K"/>')),
+     "no BaseUnit"),
+    ("unit_the_harness_does_not_hold", dict(md=lambda d: d.replace(
+        b'<Unit name="s"><BaseUnit s="1"/></Unit>',
+        b'<Unit name="s"><BaseUnit s="1"/></Unit>'
+        b'<Unit name="mK"><BaseUnit K="1" factor="0.001"/></Unit>').replace(
+        b'unit="K" min="0"/>', b'unit="mK" min="0"/>')),
+     "no definition of unit 'mK'"),
+    ("unit_defined_twice", dict(md=lambda d: d.replace(
+        b'<Unit name="s"><BaseUnit s="1"/></Unit>',
+        b'<Unit name="s"><BaseUnit s="1"/></Unit>'
+        b'<Unit name="K"><BaseUnit K="1" offset="273.15"/></Unit>')),
+     "defined twice"),
+    # D-2026-129: an unknown codec raised LookupError and a multi-byte one
+    # ValueError -- crashes, not refusals; ISO-8859-1 parsed, though FMI 3.0
+    # model descriptions are UTF-8.
+    ("unknown_encoding", dict(md=lambda d: d.replace(
+        b'encoding="UTF-8"', b'encoding="UTF-x"', 1)), "requires UTF-8"),
+    ("multibyte_encoding", dict(md=lambda d: d.replace(
+        b'encoding="UTF-8"', b'encoding="EUC-JP"', 1)), "requires UTF-8"),
+    ("latin1_encoding", dict(md=lambda d: d.replace(
+        b'encoding="UTF-8"', b'encoding="ISO-8859-1"', 1)), "requires UTF-8"),
+    ("float32_output_with_no_unit", dict(md=lambda d: d.replace(
+        b'<Float64 name="E_stored" valueReference="13" causality="output" '
+        b'variability="continuous" declaredType="Energy"',
+        b'<Float32 name="E_stored" valueReference="13" causality="output" '
+        b'variability="continuous"')), "a output with no unit"),
     ("doctype", dict(md=lambda d: d.replace(
         b"<fmiModelDescription", b"<!DOCTYPE a>\n<fmiModelDescription", 1)),
      "DOCTYPE"),

@@ -189,34 +189,46 @@ adopted **only if bit-for-bit identical** to the NumPy reference on a fixed
 the Rust path off unless `QTA_RUST_KERNELS=1`. The crate is built on demand
 (`maturin build --release`), is not in the container, and is not in `uv.lock`.
 
-Both candidate kernels were built and checked; the rule did its job:
+Both candidate kernels were built and checked against that parity rule
+first. The table is the PARITY verdict only, as first measured on this
+machine; it is not the decision:
 
-| Kernel | Max ulp difference | Verdict | Backend in force |
-|---|---|---|---|
-| `face_conductance` — `A / (dL/kL + dR/kR)` | 0 | **ADOPTED** | rust (when enabled) |
-| `conductivity_power_law` — `k0 * (T/T_ref)**n` | 2 | **REJECTED** | numpy |
+| Kernel | Max ulp difference | Parity verdict |
+|---|---|---|
+| `face_conductance` — `A / (dL/kL + dR/kR)` | 0 | passes |
+| `conductivity_power_law` — `k0 * (T/T_ref)**n` | 2 | fails |
 
 Pure division and addition reproduce exactly; `powf` against NumPy's `**`
 does not (max relative difference 3.8e-16 — numerically negligible, and still
 not adoption). "Close enough" is the standard this project cannot use.
 
+**The decision, `docs/rust_kernel_decisions.json`, rejects both**, and the
+section 2 table records it (RESOLVED). Parity is necessary and not
+sufficient: `face_conductance` passes parity in every dispatch and is still
+REJECTED, because no scientific path consumes it, so no workload gains from
+it. `conductivity_power_law` also fails parity under AVX-512 dispatch and is
+slower than NumPy. No Rust backend is active: a request for one, by
+`QTA_RUST_KERNELS=1` or `dispatch(..., backend="rust")`, raises
+`BackendRefused`, because the dispatch also requires an ADOPTED decision whose
+certificate matches the process, and neither decision is ADOPTED.
+
 **Both verdicts are conditional on the host's SIMD dispatch, and the table
 above is this machine's.** The reference side of a bit-parity comparison is
 NumPy, and NumPy's `**` loop moves with the CPU. Measured:
 
-| NumPy SIMD in force | `conductivity_power_law` | max ulp | Backend `dispatch()` selects |
-|---|---|---|---|
-| `X86_V3+X86_V4` (AVX-512) | **REJECTED** | 2 | numpy |
-| `X86_V3` only | **ADOPTED** | 0 | rust |
+| NumPy SIMD in force | `conductivity_power_law` parity | max ulp |
+|---|---|---|
+| `X86_V3+X86_V4` (AVX-512) | fails | 2 |
+| `X86_V3` only | passes | 0 |
 
-So which code computes thermal conductivity would be decided by the host,
-not by the kernel — R59's divergence one level up, in a choice of
-implementation rather than a printed digit. Nothing turns on it today
-(`rust_kernel.py`'s own record states, and a sweep confirms, that no solver
-imports these kernels), and the rule itself is unchanged and correct. What
-changed is that `rust_kernel_status.json` now carries the dispatch every
-verdict was measured under, so a report read on another machine is read as a
-second measurement rather than as a contradiction. D-2026-58.
+Had an on-host parity check chosen the backend, which code computes thermal
+conductivity would have been decided by the host, not by the kernel — R59's
+divergence one level up, in a choice of implementation rather than a printed
+digit. D-2026-58 recorded the dispatch every verdict was measured under, and
+directive s.21 removed the choice from the host altogether: `dispatch()`
+never selects a backend from an on-host check, only from a committed ADOPTED
+decision whose certificate matches the process. Neither decision is ADOPTED,
+so NumPy runs on both hosts above.
 
 ### The registry itself — `stack/registry.py`
 `stack.json` is hand-editable and is read by the tests, which makes it a
@@ -239,7 +251,10 @@ built against hash-checked FMI 3.0 headers. fmpy, from a hash-pinned lock in
 its own runtime, validates, instantiates, configures, steps, saves and
 restores its state in memory and as bytes, replays to identical outputs and
 terminates; P2–P5 hold for it, and its fault twin is REJECTED by the
-independent check. The result is NON_AUTHORITATIVE until checked and
+independent check. A unit crosses the boundary by its definition, not its
+name: the description's own `<BaseUnit>` must be the harness's SI
+definition of that name, so a "K" carrying a Celsius offset is refused
+(D-2026-128). The result is NON_AUTHORITATIVE until checked and
 reviewed. This runs on a hosted runner (the fmi and end-to-end jobs).
 
 What follows is `stack/fmi_contract.py`, the interface contract for exporting

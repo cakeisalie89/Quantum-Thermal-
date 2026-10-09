@@ -62,7 +62,7 @@ rather than a web:
 | `learned_lifecycle.py` | a learned model's documents -- architecture, meta validation, dataset, training run, checkpoint, evaluation, distributed report -- as records through the existing `record.create` / `record.depend` actions, each digest link checked before anything is written; an upstream that is REVOKED, REJECTED or STALE is refused (NF-1T) |
 | `invalidation.py` | transitive consequence of a change |
 | `reconstruct.py` | a *second* implementation, for differential verification |
-| `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that refuses the reducers it checks |
+| `separate_verify.py` | runs that second reading in another PROCESS, under an import guard that admits only the five modules the reader needs (the package, `events`, `canonical`, `actions`, `reconstruct`) and refuses every other `qta_agent` module -- an allow-list since D-2026-126, when the deny-list it replaced was found never to have named `authority` or `tasks` |
 | `tasks.py` | durable work: state that survives the process that started it |
 | `scheduler.py` | the durable queue: readiness, leases, retry, cancellation |
 | `memory.py` | what the agent remembers, kept structurally apart from evidence |

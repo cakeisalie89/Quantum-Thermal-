@@ -29,8 +29,10 @@ refused when any of it is tampered with.
 offline from the bundle's own transparency-log inclusion proof; every
 artifact's digest against ``SHA256SUMS``; the provenance's subjects against
 the same digests; the index's commit against the provenance's resolved
-dependency; the SBOM against ``uv.lock``; and, when a git checkout is at
-hand, ``source.zip`` against the tree of the commit it names.
+dependency; the SBOM against ``uv.lock``; ``source.zip`` against the
+manifest it carries (every listed file present with its size and sha256,
+nothing unlisted, the detached hash); and, when a git checkout is at hand,
+``source.zip`` against the tree of the commit it names, in both directions.
 
 ``tamper`` copies a built-and-signed directory once per case, changes one
 thing -- a payload byte, the manifest digest, an SBOM component, the
@@ -104,10 +106,12 @@ def source_zip(dest: Path, commit: str, cwd: Path = ROOT) -> list:
     for line in _git("ls-tree", "-r", commit, cwd=cwd).splitlines():
         meta, _, path = line.partition("\t")
         modes[path] = meta.split()[0]
+    packed = []
     with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
         for n in names:
             if modes.get(n) == "120000":
                 continue            # links are not packaged
+            packed.append(n)
             data = subprocess.run(["git", "cat-file", "blob",
                                    f"{commit}:{n}"], cwd=cwd, check=True,
                                   capture_output=True).stdout
@@ -116,7 +120,18 @@ def source_zip(dest: Path, commit: str, cwd: Path = ROOT) -> list:
                                   else 0o644) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, data)
-    return names
+    return packed
+
+
+def commit_files(commit: str, cwd: Path = ROOT) -> set:
+    """The files ``source_zip`` packs for ``commit``: every blob in its tree
+    except symbolic links."""
+    out = set()
+    for line in _git("ls-tree", "-r", "-z", commit, cwd=cwd).split("\0"):
+        meta, _, path = line.partition("\t")
+        if path and meta.split()[0] != "120000":
+            out.add(path)
+    return out
 
 
 def sbom(root: Path = ROOT) -> dict:
@@ -330,10 +345,21 @@ def verify(d: Path, policy: dict, *, mode: str,
     probs = sbom_problems(json.loads((d / "sbom.cdx.json").read_text()), root)
     if probs:
         raise Refused(f"SBOM: {probs}")
+    manifest = archive_against_manifest(d / "source.zip", index)
     tree = "NOT_CHECKED (no checkout)"
     if repo is not None:
         commit = index["source_commit"]
         with zipfile.ZipFile(d / "source.zip") as zf:
+            # BOTH DIRECTIONS. Each member is compared with the commit's blob
+            # below; that alone accepts an archive that LOST files, and said
+            # "MATCHES" over it (D-2026-127).
+            packed = {i.filename for i in zf.infolist()}
+            tracked = commit_files(commit, cwd=repo)
+            if packed != tracked:
+                raise Refused(
+                    f"source.zip is not the commit's tree: missing "
+                    f"{sorted(tracked - packed)[:5]}, not in the commit "
+                    f"{sorted(packed - tracked)[:5]}")
             for info in zf.infolist():
                 want = subprocess.run(["git", "cat-file", "blob",
                                        f"{commit}:{info.filename}"],
@@ -351,7 +377,60 @@ def verify(d: Path, policy: dict, *, mode: str,
         tree = f"MATCHES {commit}"
     return {"signature": sig, "artifacts": "MATCH SHA256SUMS",
             "provenance": "SUBJECTS MATCH", "sbom": "MATCHES THE LOCKS",
-            "source_tree": tree, "accepted": True}
+            "manifest": manifest, "source_tree": tree, "accepted": True}
+
+
+#: Tracked files the manifest does not list, by its own policy: it cannot
+#: hash itself, and manifest_hash.txt is that hash, written after it.
+MANIFEST_DETACHED = frozenset({"final_manifest.json", "manifest_hash.txt"})
+
+
+def archive_against_manifest(src: Path, index: dict) -> str:
+    """The signed archive, compared with the manifest it carries.
+
+    The signature binds source.zip's bytes. The manifest inside it says what
+    the release IS: every file, its size, its sha256. Unless the two are
+    compared, a signed archive can carry a manifest that describes other
+    bytes, or lack files the manifest lists, and still verify (D-2026-127).
+    Needs no checkout: it is the archive against itself.
+    """
+    with zipfile.ZipFile(src) as zf:
+        infos = zf.infolist()
+        names = [i.filename for i in infos]
+        if len(names) != len(set(names)):
+            raise Refused("source.zip names a member more than once; which "
+                          "copy is the release is not decided by the bytes")
+        if len(names) != index.get("files_in_source_zip"):
+            raise Refused(f"source.zip has {len(names)} members; the index "
+                          f"says {index.get('files_in_source_zip')}")
+        try:
+            doc = json.loads(zf.read("final_manifest.json"))
+            hash_txt = zf.read("manifest_hash.txt").decode("utf-8")
+        except (KeyError, ValueError) as exc:
+            raise Refused(f"source.zip carries no readable manifest: "
+                          f"{exc}") from exc
+        detached = hash_txt.splitlines()[0] if hash_txt else ""
+        if detached != f"sha256: {_sha(zf.read('final_manifest.json'))}":
+            raise Refused("manifest_hash.txt in source.zip is not the hash of "
+                          "the final_manifest.json beside it")
+        entries = {e["filename"]: e for e in doc["files"]}
+        if not entries:
+            raise Refused("the archived manifest lists no files; a manifest "
+                          "of nothing agrees with any archive")
+        absent = sorted(set(entries) - set(names))
+        unlisted = sorted(set(names) - set(entries) - MANIFEST_DETACHED)
+        if absent:
+            raise Refused(f"the manifest lists {absent[:5]}, which source.zip "
+                          f"does not contain")
+        if unlisted:
+            raise Refused(f"source.zip contains {unlisted[:5]}, which its "
+                          f"manifest does not list")
+        for name, e in entries.items():
+            data = zf.read(name)
+            if _sha(data) != e["sha256"] or len(data) != e["size_bytes"]:
+                raise Refused(f"{name}: the archive's bytes are not the ones "
+                              f"its manifest lists")
+    return f"DESCRIBES THE ARCHIVE ({len(entries)} files)"
 
 
 # ---- tamper suite --------------------------------------------------------

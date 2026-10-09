@@ -534,6 +534,7 @@ tests/fuzz_corpus/attestations-crashed-86793407.json,KEEP_AS_IS,-,Fuzz crash cor
 tests/fuzz_corpus/attestations-crashed-91599894.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/egress_grant-crashed-65392841.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/egress_grant-crashed-96370079.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
+tests/fuzz_corpus/fmu_description-crashed-09459953.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/key_registry-crashed-40256896.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/key_registry-crashed-47792088.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py
 tests/fuzz_corpus/key_registry-crashed-70115345.json,KEEP_AS_IS,-,Fuzz crash corpus (directive s20: retain).,replayed by tests/test_agent_fuzz.py

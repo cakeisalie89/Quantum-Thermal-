@@ -26,7 +26,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "ab3ee0ed25f1b02454afc68c3ccc68786f2c275da7db7a35e043a0e2dc7610ae",
+  "docs/completion_matrix.json": "f2d635144febb0c84c39291228fc745a056160afe0f037bdec2dd6a14b53e568",
   "docs/harness_contract.json": "3b7285fd6aea3e8b5c00a62fa5fe31032d7c49aa451f31d90437590d53366397",
   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
   "docs/neural/current_status.json": "b4f920e04b966e3aff67f66911279896d7f309ebf2d1cae84e520bff6c849675",
@@ -56,8 +56,8 @@
    "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 50
   },
   "by_evidence": {
-   "COVERS_CURRENT_IMPLEMENTATION": 47,
-   "PREDATES_CURRENT_IMPLEMENTATION": 3
+   "COVERS_CURRENT_IMPLEMENTATION": 43,
+   "PREDATES_CURRENT_IMPLEMENTATION": 7
   },
   "rows": 50
  },
@@ -194,12 +194,12 @@
    "rows": {
     "R63": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "generic-scientific-layer": {
@@ -299,7 +299,7 @@
    "rows": {
     "R50": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
@@ -350,12 +350,12 @@
    "rows": {
     "R65": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "ruff-mypy-pydantic": {
@@ -410,12 +410,12 @@
    "rows": {
     "R65": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": true,
+   "satisfied": false,
    "status": "ADOPTED"
   },
   "snakemake": {
@@ -458,7 +458,25 @@
  "unsatisfied": [
   {
    "external": false,
+   "id": "fmi",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
    "id": "pytest-hypothesis",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "ro-crate",
+   "kind": "stack",
+   "status": "ADOPTED"
+  },
+  {
+   "external": false,
+   "id": "slsa-sigstore",
    "kind": "stack",
    "status": "ADOPTED"
   },
@@ -470,6 +488,18 @@
   },
   {
    "external": false,
+   "id": "R38",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R50",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
    "id": "R51",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
@@ -477,6 +507,18 @@
   {
    "external": false,
    "id": "R58",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R63",
+   "kind": "row",
+   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
+  },
+  {
+   "external": false,
+   "id": "R65",
    "kind": "row",
    "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
   },

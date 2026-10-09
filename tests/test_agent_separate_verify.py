@@ -108,8 +108,88 @@ def test_the_verifier_refuses_to_import_the_reducers_it_checks():
     # And the list is not empty, which a guard over nothing would be.
     assert len(FORBIDDEN) >= 8
     for name in ("qta_agent.scheduler", "qta_agent.governed_stage10",
-                 "qta_agent.capability", "qta_agent.policy"):
+                 "qta_agent.capability", "qta_agent.policy",
+                 "qta_agent.authority", "qta_agent.tasks"):
         assert name in FORBIDDEN
+
+
+def _admitted_by_the_guard(names):
+    """The subset of ``names`` the verifier's guard lets a process import.
+
+    One process per name: an import refused part-way leaves the package
+    half-loaded, and the next probe in the same process would be measuring
+    that rather than the guard.
+    """
+    admitted = []
+    for name in names:
+        probe = (
+            "import sys; sys.path.insert(0, %r);\n"
+            "from tools.independent_verify import _Refuse;\n"
+            "sys.meta_path.insert(0, _Refuse());\n"
+            "import importlib; importlib.import_module(%r)\n"
+            % (str(ROOT), name))
+        proc = subprocess.run([sys.executable, "-c", probe],
+                              capture_output=True, text=True, cwd=str(ROOT))
+        if proc.returncode == 0:
+            admitted.append(name)
+        else:
+            assert "refuses to import" in proc.stderr, (name, proc.stderr)
+    return admitted
+
+
+def test_every_named_primary_is_refused_including_the_two_gates():
+    """D-2026-126: the guard refused FORBIDDEN and admitted everything else.
+
+    FORBIDDEN never named qta_agent.authority or qta_agent.tasks -- the two
+    gates reconstruct.py was decoupled from -- so this process, built to be
+    the one place the shortcut is unavailable, would have loaded either
+    without a word. Each name is probed in its own process: the claim is
+    that the import FAILS, not that the name is in a set.
+    """
+    from tools.independent_verify import FORBIDDEN
+
+    assert _admitted_by_the_guard(sorted(FORBIDDEN)) == []
+
+
+def test_a_module_nobody_named_is_refused_too():
+    """The point of an allow-list: nobody has to have thought of it.
+
+    hostid and safeio are not reducers and appear on no list; the verifier
+    still does not need them, so it does not get them.
+    """
+    from tools.independent_verify import FORBIDDEN, PERMITTED
+
+    unnamed = ["qta_agent.hostid", "qta_agent.safeio"]
+    assert not set(unnamed) & (FORBIDDEN | PERMITTED)
+    assert _admitted_by_the_guard(unnamed) == []
+
+
+def test_the_permitted_modules_are_what_the_verifier_actually_loads(log):
+    """PERMITTED is a measurement, and is held to it.
+
+    A permitted module the verifier does not load is room for a future
+    import nobody reviewed; a loaded module that is not permitted cannot
+    happen, because the guard would have refused it. So the set the
+    verifier loads on a real run, under its own guard, must equal PERMITTED.
+    """
+    from tools.independent_verify import FORBIDDEN, PERMITTED
+
+    assert not FORBIDDEN & PERMITTED
+    probe = (
+        "import sys, json; sys.path.insert(0, %r);\n"
+        "sys.argv = ['independent_verify', %r, '--root', %r];\n"
+        "import tools.independent_verify as V;\n"
+        "rc = V.main();\n"
+        "print(json.dumps(sorted(m for m in sys.modules\n"
+        "                        if m.split('.')[0] == 'qta_agent')),\n"
+        "      file=sys.stderr);\n"
+        "raise SystemExit(rc)\n"
+        % (str(ROOT), str(log.path), str(ROOT)))
+    proc = subprocess.run([sys.executable, "-c", probe],
+                          capture_output=True, text=True, cwd=str(ROOT))
+    assert proc.returncode == EXIT_CLEAN, proc.stdout + proc.stderr
+    loaded = json.loads(proc.stderr.strip().splitlines()[-1])
+    assert set(loaded) == PERMITTED, loaded
 
 
 def test_the_verifier_source_does_not_import_a_primary_reducer():

@@ -44,10 +44,29 @@ import json
 import sys
 from pathlib import Path
 
-#: Modules this verifier must never load. Each is a PRIMARY reducer: the
-#: thing being checked. Importing one would make the second reading a second
-#: call to the first implementation, which agrees with itself for free.
+#: The only modules of this repository the verifier loads, measured: the
+#: package, the log, the canonical digest the log chains with, the action
+#: vocabulary, and the reader. The guard refuses every other qta_agent
+#: module. It used to refuse the names in FORBIDDEN and admit the rest, and
+#: FORBIDDEN never named authority or tasks -- the two gates the reader was
+#: decoupled from -- nor any first reader added after it was written
+#: (D-2026-126). A list of what is permitted does not go stale that way.
+PERMITTED = frozenset({
+    "qta_agent",
+    "qta_agent.actions",
+    "qta_agent.canonical",
+    "qta_agent.events",
+    "qta_agent.reconstruct",
+})
+
+#: The PRIMARY reducers, named: the things being checked. Every one is
+#: outside PERMITTED, so the guard refuses it; the list is kept so the tests
+#: can show that, one by one, rather than trusting the set arithmetic.
+#: Importing one would make the second reading a second call to the first
+#: implementation, which agrees with itself for free.
 FORBIDDEN = frozenset({
+    "qta_agent.authority",
+    "qta_agent.tasks",
     "qta_agent.store",
     "qta_agent.scheduler",
     "qta_agent.policy",
@@ -60,17 +79,25 @@ FORBIDDEN = frozenset({
     "qta_agent.governed_stage10",
     "qta_agent.idempotency",
     "qta_agent.audit",
+    "qta_agent.checkpoint",
+    "qta_agent.invalidation",
+    "qta_agent.principals",
+    "qta_agent.proposals",
+    "qta_agent.result_rules",
+    "qta_agent.learned_rules",
+    "qta_agent.learned_lifecycle",
 })
 
 
 class _Refuse(importlib.abc.MetaPathFinder):
-    """Raise on any attempt to import a primary reducer.
+    """Raise on any import of this repository's code outside PERMITTED.
 
     Never returns a spec: this finder exists only to refuse.
     """
 
     def find_spec(self, fullname, path=None, target=None):
-        if fullname in FORBIDDEN:
+        if (fullname.partition(".")[0] == "qta_agent"
+                and fullname not in PERMITTED):
             raise ImportError(
                 f"independent_verify refuses to import {fullname!r}. This "
                 "process exists to read the log WITHOUT the implementation "

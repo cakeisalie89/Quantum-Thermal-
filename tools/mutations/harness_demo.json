@@ -74,6 +74,13 @@
    "find": "                    \"scope\": {\"fenicsx_check\": bool(fenicsx),\n",
    "replace": "                    \"scope\": {\"fenicsx_check\": True,\n",
    "rationale": "a run without FEniCSx reports the admission check as run, so an ACCEPTED demonstration of refusal reads as one of admission"
+  },
+  {
+   "name": "HD11_runs_of_different_scope_pass_as_one_reproduction",
+   "path": "tools/harness_demo.py",
+   "find": "            and len(set(res[\"outcomes\"])) == 1 \\\n            and res[\"scopes\"][0] == res[\"scopes\"][1] else 1",
+   "replace": "            and len(set(res[\"outcomes\"])) == 1 else 1",
+   "rationale": "a run with the FEniCSx check and one without compare as a reproduction whenever their slab bytes agree; the container evidence then says nothing about which demonstration was reproduced"
   }
  ]
 }

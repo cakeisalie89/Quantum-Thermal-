@@ -1,6 +1,6 @@
 {
  "title": "FEniCSx and FMI integration surfaces that run without their runtimes",
- "note": "Every mutation here is killed by a test that needs neither FEniCSx nor fmpy (the boundary reader, the series check, the slab model, the environment lock policy, the header check; the FMU build needs only a C compiler), so the agent-substrate shards can run it. The runtime-dependent halves run in the harness-integrations workflow, where the runtime is REQUIRED.",
+ "note": "Every mutation here is killed by a test that needs neither FEniCSx nor fmpy (the boundary reader, the series check, the slab model, the environment lock policy, the header check; the FMU build needs only a C compiler), so the agent-substrate shards can run it. The runtime-dependent halves run in the harness-integrations workflow, where the runtime is REQUIRED. FB9-FB16 attack the unit definitions read for D-2026-128: the boundary admitted a unit by its name, so a K with a Celsius offset, a W with the dimension of energy, or a K with no definition at all crossed as the harness's own. FB17 attacks the encoding check added for D-2026-129, which the hosted fuzz campaign found: an unknown codec in the XML declaration raised LookupError out of the boundary.",
  "suites": [
   "tests/test_harness_integrations.py"
  ],
@@ -123,6 +123,69 @@
    "find": "        capture_output=True, text=True, env=dict(os.environ, **MPI_ENV))\n",
    "replace": "        capture_output=True, text=True)\n",
    "rationale": "the environment builder's import probe lets MPI probe the host's network devices (D-2026-124)"
+  },
+  {
+   "name": "FB9_a_unit_is_admitted_by_its_name",
+   "path": "scientific/fmi_boundary.py",
+   "find": "            _admit_unit(v.name, v.unit, definitions[v.unit])",
+   "replace": "            pass",
+   "rationale": "D-2026-128: the definition is read and never compared; a 'K' with a Celsius offset crosses as kelvin"
+  },
+  {
+   "name": "FB10_a_unit_with_no_definition_is_admitted",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if definition is None:\n        raise FmuRefused(",
+   "replace": "    if definition is None:\n        return\n        raise FmuRefused(",
+   "rationale": "D-2026-128: a unit declared with no BaseUnit is a label, admitted as if it meant something"
+  },
+  {
+   "name": "FB11_a_unit_the_harness_does_not_hold_is_admitted",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if name not in SI_DEFINITIONS:\n        raise FmuRefused(",
+   "replace": "    if name not in SI_DEFINITIONS:\n        return\n        raise FmuRefused(",
+   "rationale": "D-2026-128: an FMU's unit the harness has no meaning for is taken on the FMU's word"
+  },
+  {
+   "name": "FB12_the_offset_is_not_compared",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if (exps, factor, offset) != (SI_DEFINITIONS[name], 1.0, 0.0):",
+   "replace": "    if (exps, factor) != (SI_DEFINITIONS[name], 1.0):",
+   "rationale": "D-2026-128: degrees Celsius named K"
+  },
+  {
+   "name": "FB13_the_factor_is_not_compared",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if (exps, factor, offset) != (SI_DEFINITIONS[name], 1.0, 0.0):",
+   "replace": "    if (exps, offset) != (SI_DEFINITIONS[name], 0.0):",
+   "rationale": "D-2026-128: millikelvin named K, every value a thousand times off"
+  },
+  {
+   "name": "FB14_the_dimension_is_not_compared",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if (exps, factor, offset) != (SI_DEFINITIONS[name], 1.0, 0.0):",
+   "replace": "    if (factor, offset) != (1.0, 0.0):",
+   "rationale": "D-2026-128: energy named W"
+  },
+  {
+   "name": "FB15_a_unit_may_be_defined_twice",
+   "path": "scientific/fmi_boundary.py",
+   "find": "        if name in out:\n            raise FmuRefused(f\"unit {name!r} is defined twice\")",
+   "replace": "        if False:\n            raise FmuRefused(f\"unit {name!r} is defined twice\")",
+   "rationale": "D-2026-128: which of two definitions a name carries is decided by document order"
+  },
+  {
+   "name": "FB16_a_float32_output_needs_no_unit",
+   "path": "scientific/fmi_boundary.py",
+   "find": "_FLOATS = (\"Float64\", \"Float32\")",
+   "replace": "_FLOATS = (\"Float64\",)",
+   "rationale": "D-2026-128: the unit rule covers one float type of FMI 3.0's two"
+  },
+  {
+   "name": "FB17_a_model_description_in_another_encoding_is_parsed",
+   "path": "scientific/fmi_boundary.py",
+   "find": "    if m and m.group(1).lower() not in (b\"utf-8\", b\"utf8\"):",
+   "replace": "    if False:",
+   "rationale": "D-2026-129: ISO-8859-1 parses as an FMI 3.0 description, and a codec the parser cannot look up reaches it at all"
   }
  ]
 }
