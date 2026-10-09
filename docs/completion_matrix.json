@@ -43,7 +43,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942) and 34010167285 (41ea81f) -- all green, the last two read from the API at job level rather than inferred",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -65,12 +65,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "472ec351f3b4a37417b8275f25ecd83788b86e4f04c0c13df479df3429dd0556",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "ad3f2b39f3c64aabe0e473524c0c77395649102fb0bf56d6183d7026bfaff2d9",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -116,7 +116,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py covers netauth grant and target parsing",
       "differential": "service contracts and per-task budgets are rebuilt by an independent reader that refuses a replaced contract and counts only PERMITTED calls against a budget",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -133,12 +133,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "8a637ac15c4dbb8f259e7bb310b02c3fac540eb73a9943ae4320af6447d4256e",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "064217d844394718b0daae641bce60ff118d4a0106e5080b5097b1d729fad326",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -177,7 +177,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -194,12 +194,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "88ba6a04b76ff355f53cdcaa93c4179f1bc7865d10befaf2acc3885adc9e115e",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "ea32b943564655d435c0e7939b16cbbfd4a3ced9e994dea0fc9e8c840a77826b",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -241,7 +241,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -253,12 +253,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "e7f828d07dddaa42eaf1c0d36f4dbb77a0eee8b1204a3c939e89882b532c248d",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "e999d2c8d25e11cf979e39b7b4975dd23841ce77a08f2f12d2913cd5fd75ca6a",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -295,7 +295,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -312,12 +312,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "17200ab72d22ef887c52b1e7dfc8cfde0be8f3e7d2b4b8b220dd2485c3cee3fd",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "69acac3f3fd10b195e5b2786167a0b48ba001c1d89c54cb7b0fbd07e128e9b2c",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -359,7 +359,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py fuzzes job_from_record, so a malformed durable job record is refused rather than projected",
       "differential": "job state, attempts and lease ownership are rebuilt by an independent reader that refuses a job born in an outcome state, born holding a lease, or revived from terminal",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -375,10 +375,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "03a75e573985a3dfbe5d014e0bf2bcc4615e6c10a2de7e599316e60bd8fee7cb",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -425,7 +428,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -441,10 +444,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "d91a1fc62d797fffc12a0ed98a841e2c9bd1453583bafbf9e75be80b054e5247",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -482,7 +488,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -498,10 +504,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "22df97b2612e22cb0d4fce743ad357099c78fbc0cab3a3a8c8487096a02c6b37",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -540,7 +549,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py targets 'policy' (document records) and 'policy_decision' (a recorded verdict folded against a live store, so the re-derivation path is what is fuzzed)",
       "differential": "policy versions and recorded decisions are rebuilt by an independent reader that refuses a downgrade republish",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -556,10 +565,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "9f654ae27c9a27576dc2db4e6b726bab4f0be79c9bab6a5519b89b6b01ea00ee",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -602,7 +614,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py targets 'capability' (grant shape) and 'capability_chain' (a grant record folded against a live root issuer, so the authority question the shape cannot ask is what is fuzzed)",
       "differential": "capabilities are rebuilt by an independent reader that refuses a grant predating its own record, a reissued id, a mint by a non-root actor and a delegation that widens anything",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -624,12 +636,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "3c4dcc36184a9948ba39772d8a6327841c66ce11d77dac496a7eb2ab0ec81cc2",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "d2e085070bcf5a14e84c109853c2476ebad8ec383d1d42f21f6a0bf32411e22a",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -672,7 +684,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py targets read_path and read_beneath: the path parser and an actual confined read against a real root",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -699,12 +711,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "8c8bbee4bd792e6130f22933b2cee943906892991889061febbcac9b16991288",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "4fe38201809b2cf2f57af05219561d7d557cbd9f641d118905f44a7785c1a03a",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -742,7 +754,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py targets 'url' (parse_target), 'host_match' (label-wise host matching) and 'egress_grant' (grant records)",
       "differential": "network grants are rebuilt by an independent reader that refuses a rebound grant id",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -758,10 +770,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "6943f9a0e4c1140ad261179a5528c4094e593f078b8529155c178410ef1f13f8",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -802,7 +817,7 @@
       ],
       "fuzzing": "none",
       "differential": "secret grants are rebuilt by an independent reader that refuses a rebound grant id",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -833,10 +848,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "108b33ddd14e4a59b77df2df8dfdd5faa0efbced9e1bb53759a2b333f43e6cac",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -872,7 +890,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -888,10 +906,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "5a394a2653f63a788948ec551f02c713da8d511f244479cb2768bcc17f8f3ccb",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -932,7 +953,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py target 'rag_index' fuzzes the serialized index document parser",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -949,12 +970,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "646211052e79fe318b86edaa1d171eb701e89e9273113c69b8cb71cee4c90c40",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "546d679faf1d4c38104e711c56e9278868f90836c6a335143423c2adc9bb9a53",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -991,7 +1012,7 @@
       ],
       "fuzzing": "none",
       "differential": "memory entries are rebuilt by an independent reader that refuses a forged author and an un-retraction",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1007,10 +1028,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "8bc6085c0926ee2681090935f598dfeb2b16cca67d310b1af7dc71beec027227",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1046,7 +1070,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1062,10 +1086,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "1495babffc26c1a740e9ab16541dfafc57109e6181b60481052b186deebf8796",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1106,7 +1133,7 @@
       ],
       "fuzzing": "none",
       "differential": "the same log is read by the in-process second reader AND by a process that cannot import the reducers; disagreement REJECTS the governed run",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1123,12 +1150,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "52297bfe58cede2fdf5fece820a1165bdf158386d8cbbb646b01ff3b8664ed85",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "ee38150e795c85564816ff7cafcc98ebad570271eb42474523963a9a2aa0009b",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1173,7 +1200,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1190,12 +1217,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "0665a0d5441ce272efce8475b3796645ce8e77a912b7f0366ca9787feab57cb6",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "b6193d7bc2ac334e15f4112ee17511d1cfa403915f862258379dd742b2bbc6aa",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1234,7 +1261,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1256,28 +1283,28 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "85434d61c2ec17405a1d5de7a4222514bbcfa25784129686fadc7ebdd7c25efc",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "009408b669a3a87a5f6715dfc278c8fb17c6e455b53009cf04e224063599f405",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
       "id": "R41",
       "requirement": "Checkpointing",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/checkpoint.py"
       ],
       "callers": [
         "qta_agent/store.py"
       ],
-      "production_caller": null,
+      "production_caller": "tools/harness_demo.py",
       "persistent_state": "one file per checkpoint, named by seq, written atomically and never overwritten; retention deletes old ones only while keeping recovery possible",
       "authority_owner": "checkpoint.create / CheckpointStore",
-      "evidence": "snapshot pinned by content digest",
+      "evidence": "snapshot pinned by content digest; in production a restart decides by the audit: AuthorityStore.recover reads checkpoints.audit(log) and loads CHECKPOINT_ASSISTED, or replays in full and says why (D-2026-116), and the demonstration (tools/harness_demo.py) checkpoints, restarts a GovernedModelRuns from that store and compares the restart with a full replay",
       "provenance": "full_verification flag travels with the checkpoint",
       "failure_semantics": "fail-closed. A corrupt checkpoint is walked past rather than fatal, and reported by audit(). prune refuses keep < 1, and refuses to prune at all when nothing in the store describes the log -- deleting on that basis would act on a conclusion the store cannot support, since the LOG may be the thing that is wrong. Before D-2026-34 that refusal could be defeated by a foreign log that was merely long enough, and eight of ten checkpoints were deleted in a reproduction of exactly the case the refusal exists for",
       "recovery": "latest_usable walks backwards to the newest checkpoint that both parses and describes the log, where DESCRIBES means checkpoint.describes(): the record at the checkpoint's offset is read and must BE the record the checkpoint names. This row said the same sentence while the code tested it with check_against, which compares the log's SIZE and head witness and so accepts a checkpoint of any different log of similar length (D-2026-34). prune is defined against latest_usable rather than against recency: keeping the newest N by number can delete the only checkpoint recovery could start from while carefully preserving several that describe a log nobody has A checkpoint that parses and describes the log but whose snapshot load_from refuses is not fatal: recovery replays from genesis and reports FULL_REPLAY, unhealthy, with the refusal (D-2026-116)",
@@ -1297,10 +1324,8 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green) -- BOTH PREDATE the D-2026-34 repair and its two new mutations (E26, E27). The spec is 34 mutations, killed locally; per-commit hosted state is tracked in docs/DEFECT_LEDGER.md, not here",
-      "residual_gaps": [
-        "audit() answered a parse question and was named like a health question. Closed in code in the tranche-3 Phase-4 commit: audit(log=...) reports what parses, which checkpoints describe THIS log (the D-2026-34 predicate), and a verdict -- USABLE, NONE_USABLE (distinct and not ok), UNPARSEABLE, EMPTY -- that agrees with latest_usable; a store of foreign-log checkpoints audits not-ok against the real log. What keeps the row here: no hosted run of that commit is recorded yet, and no production code gates on the audit."
-      ],
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "the self-hash detects CORRUPTION, not tampering: anyone who can rewrite the file can recompute the hash",
@@ -1311,12 +1336,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "5017c33999ba5e98d0bc002d3d23839fd7fdd5005a88b5641a67450c20372bf0",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "67d12cda49bf09593046c8edae19752caf974e4d4e34ee41b4d879ead6e96468",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1357,7 +1382,7 @@
       ],
       "fuzzing": "none",
       "differential": "compare_subsystems() diffs the live projections against the second reader on the production path; 12 forged-history cases assert the two readers DISAGREE where they must",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1374,12 +1399,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "a86bb44914c405c67fa5ba4d756511b957379ee6b46351dc8d3d88bd8840d129",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "f78c3f8f727f686bae952561b052932710f7f1b639e2831ad1d28ac136cc692a",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1419,7 +1444,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1431,12 +1456,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "7b089a6d08e8d2ef60537fb973e4e73e6beb56b917806bdf9c6bb834682b74a0",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "966790aa56ac017a1469ee6812d1607a91142d846c52750c9445022bafe016bf",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1475,7 +1500,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1492,11 +1517,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33937802263"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "UNRECORDED",
-        "implementation_sha256": null,
-        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "d16e1e977fac2e490bc3cf58617a088aa3623a563eb6cb6e9d1a6112c9440d12",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1539,7 +1565,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml run 33937802263 (green, including the governed run)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1551,11 +1577,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33937802263"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "UNRECORDED",
-        "implementation_sha256": null,
-        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "d16e1e977fac2e490bc3cf58617a088aa3623a563eb6cb6e9d1a6112c9440d12",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1594,7 +1621,7 @@
       ],
       "fuzzing": "none",
       "differential": "primary projection compared field-for-field against the independent reconstruction after a crash",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1615,10 +1642,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "f1c6db6b3803b1ae56cdb41517b2ad28982918dbc0f278021ce54b1ec036012d",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1666,7 +1696,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1687,10 +1717,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "2d67a0960a2e28a528d2fd4478a69ae24bfff4390232689eef442bfd9922d9ca",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1732,7 +1765,7 @@
       ],
       "fuzzing": "none",
       "differential": "primary projection compared field-for-field against the independent reconstruction over the whole history",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1758,16 +1791,19 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "81b3d52d39ad1e9179a00ed7a038e98e7709e59697c6eeb87ad0fcbeda0657b1",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
       "id": "R49",
       "requirement": "Performance regression guards on critical paths",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_agent/events.py",
         "qta_agent/checkpoint.py",
@@ -1808,10 +1844,8 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
-      "residual_gaps": [
-        "One guard still asserts on wall time, by design now rather than by default: test_evidence_lookup_does_not_degrade_as_the_store_fills times the filesystem's half of the fan-out property -- one name lookup inside a directory -- which no unit in this code performs. The code's half is counted (D-2026-88), and the timed half is measured as two stores alternated over five rounds, each keeping its best, rather than one store before and after filling. Nothing records how close it has come to its ceiling on a hosted runner: no CI job publishes performance numbers, and this row has no hosted run at all."
-      ],
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "the file-descriptor and child-process leak checks read /proc and shell out to ps, so they assert nothing on a platform without them; the timing guards run everywhere, the leak guards do not.",
@@ -1827,14 +1861,24 @@
           "limit": "a shape is fitted through three measurements, which supports no statistical claim. It distinguishes linear from quadratic and would not distinguish n log n from n.",
           "reason": "epistemic",
           "detail": "three points have a slope and not a confidence interval, and more points would cost run time without changing what the guard is FOR -- the defects it exists to catch have been, three times now, whole orders of growth rather than logarithmic factors. The fit's discriminating power is not assumed: test_the_exponent_fit_can_actually_see_a_quadratic hands it a quadratic operation and a linear one and requires it to separate them."
+        },
+        {
+          "limit": "one guard times the filesystem rather than counting the code: test_evidence_lookup_does_not_degrade_as_the_store_fills measures one name lookup inside a directory, which no unit in this code performs, as two stores alternated over five rounds each keeping its best",
+          "reason": "environment_single_host",
+          "detail": "the code's half of the fan-out property is counted exactly (D-2026-88); what is timed is the host filesystem's directory lookup, whose cost belongs to the filesystem and differs between hosts. Its value against its ceiling is published on a hosted runner by the performance-telemetry job (harness-integrations run 37966478567 at 5ab44a7), so its margin there is a recorded number rather than an unknown."
         }
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "aa88161447d9d53cbf4381b3ef08c90a808094785506e3064a1e61a4ab14caeb",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green, including performance-telemetry, which publishes every performance guard's value against its ceiling on the hosted runner"
       }
     },
     {
@@ -1869,7 +1913,7 @@
       ],
       "fuzzing": "tools/fuzz_substrate.py: 23 targets, 2000 cases in CI under line-coverage measurement with a floor, plus a SEQUENCE target that drives the real scheduler and authority state machines through fuzzed programmes of up to 48 operations",
       "differential": "none",
-      "hosted_ci": "none: no hosted run has covered this row. It was added after the last run that did, and the gap has not been closed since",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1890,10 +1934,13 @@
       ],
       "blocker": null,
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row. The prose field said 'pending: added after run 33939090740', which names a run in the act of saying none applies -- and the rule 'a hosted claim must cite a run id' accepted it for that reason (D-2026-44)."
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "461a690d164601568cf9e94ab5a40e3d69e37897a63a88e19ef58378ee5aa500",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -1936,7 +1983,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -1958,12 +2005,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "791e42b514c22f086a4f6dbe6d505cc1af3dd600312c0e2159694cfeacf71ec9",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "fe5fcbb50319e1273eee38b493e875155c1087d0e6ae594c1baef803fa01a0c9",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2013,7 +2060,7 @@
       ],
       "fuzzing": "none",
       "differential": "the model checker's graph is compared against the declared edge tables: if the two ever disagree the checker has drifted into being a model OF the system rather than a reading of it, which is the usual way a machine-checked claim ends up about a program nobody runs",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2035,12 +2082,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "34189e98a8daa95708838ac125a73c410704dded2dbbd100c84aa72e6ae56292",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "fa4ea86d4107440a1123259bea06ccbe783cccc5b9fa3869c7d78195352f012b",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2082,7 +2129,7 @@
       ],
       "fuzzing": "none",
       "differential": "two independent readers over the same log for tasks, authority records, idempotency bindings and every remaining authority subsystem, compared on the production path and on twelve forged histories",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2099,12 +2146,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "a86bb44914c405c67fa5ba4d756511b957379ee6b46351dc8d3d88bd8840d129",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "f78c3f8f727f686bae952561b052932710f7f1b639e2831ad1d28ac136cc692a",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2150,7 +2197,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2172,12 +2219,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "a970952a7148b4ee234c0f56465b2b5aad3553212b5a2ad6ca4edd70c2604070",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "532b267826de95d7e053b54c3e32c8a88d868e12ce02b1851c8b0b3eb8775f9c",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2224,7 +2271,7 @@
       ],
       "fuzzing": "none",
       "differential": "reconstruct.py projects bindings independently, keyed by the (owner, tool, key) TUPLE rather than the ledger's own scope digest, so the two readers cannot agree by construction about the one thing worth checking separately; compare_bindings reports any disagreement. Separately, the tool itself is a second reader of its own result: re-execution compares the bytes a fresh run produces against the digests the first run cited",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694, 34009496581 (aa57942), 34010167285 (41ea81f) and 34015444218 (3d4c9da) -- all green, the recent ones read from the API at job level; the governed_breadth matrix and the second workflow are added to this workflow in the commit this row describes and the run for it is cited when it lands",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2251,12 +2298,14 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "9ba0dfcf1bb29531f4ce14a68d567f50bd2f5b1a85c400ad5e5fde2928efe091",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "26734f3e719b9eb6c38555a9dab801ceb5ddd4ca41d4add6e1793077bf400259",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green, including end-to-end: the generic demonstration through the Snakemake rule with FEniCSx and FMI REQUIRED, the slab admitted and the fault FMU refused"
       }
     },
     {
@@ -2293,7 +2342,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; qta-stack-verify run 37966486912 (pull_request) at 5ab44a7, green",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2310,12 +2359,13 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915",
+          "37966486912"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "44a00aebddd9658d7f78a7d4967284fceeb828bbc5b2371c57b9e764fcc36128",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "a16bcabf55841ae250e8fe608bab28e18a5cd2a118ff32686949631425d963f2",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; qta-stack-verify pull_request run at 5ab44a7, green"
       }
     },
     {
@@ -2362,7 +2412,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml runs 33905260267, 33909571694 (both green)",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2384,12 +2434,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "33905260267",
-          "33909571694"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "a3515e7",
-        "implementation_sha256": "986edb79535eaa5859548addc1404dea430bd58ab6f579930241de292c4fa700",
-        "note": "the digest is of this row's implementation files AS THEY WERE at that commit; absence is part of it, so a file that did not exist then cannot hash as though it did."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "6169d810f11fae9f925c59fa3ce8585276548e3894369449756145ad6acba1f3",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2427,7 +2477,7 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate.yml: run 34015444218 (3d4c9da) green, and the failure history is kept rather than pruned -- runs 33995744418, 33997735547, 33997922862, 33998171857, 33998895626 and 34000716613 all failed, on the agent_tasks matrix and on derived-artifact freshness. Runs 34009496581 (aa57942), 34010167285 (41ea81f), 34011780850 (eab6dac) and 34012217103 (b8db05a) green",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2449,21 +2499,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "34015444218",
-          "33995744418",
-          "33997735547",
-          "33997922862",
-          "33998171857",
-          "33998895626",
-          "34000716613",
-          "34009496581",
-          "34010167285",
-          "34011780850",
-          "34012217103"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "UNRECORDED",
-        "implementation_sha256": null,
-        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "3e6b1912c5d58030ffc06f91536505e17de1c4094fe79b4ee457c482d74e2008",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2520,7 +2561,7 @@
       ],
       "fuzzing": "none",
       "differential": "the same pipeline run in two environments and compared byte for byte, and -- decisively -- the same pipeline run in ONE environment with only the dispatch pinned, which is the only comparison that can attribute a byte difference to dispatch rather than to everything else that also differs between two hosts. The attribution is confirmed by the REPRODUCTION of the other host's exact result, not by the two counts being close",
-      "hosted_ci": "agent-substrate run 34296217403 (head 7ccfd02) is green, and it is green in a way that says more than green. Two of its jobs ran on different machines from the ubuntu-latest pool. Job 102293316307 reproduced every committed byte and package_consistency_check.py returned PASS. Job 102293316177, at the same commit, could not even SELECT the SkylakeX kernel -- 'UNSUPPORTED ON THIS HOST: exit -4', an illegal instruction, because that machine has no AVX-512 -- and reported 40 of 63 with Haswell. The pool is heterogeneous, so this workflow's byte-gate result depends on which machine it draws. container-verify 34234780850 is the same finding from the container side; earlier runs 34216535309 and 34234781324 drew non-AVX-512 hosts and were red on exactly this",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "residual_gaps": [],
       "boundaries": [
         {
@@ -2542,16 +2583,12 @@
       "blocker": null,
       "hosted_evidence": {
         "runs": [
-          "34296217403",
-          "102293316307",
-          "102293316177",
-          "34234780850",
-          "34216535309",
-          "34234781324"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "UNRECORDED",
-        "implementation_sha256": null,
-        "note": "this row cites runs whose commit was never written down, so what they covered cannot be recomputed. Recorded as unresolvable rather than assumed current."
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "3d548f5e62ca4b8067d469d93d9095d93c91db18f7b977c0887baae25d69c75c",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       }
     },
     {
@@ -2637,15 +2674,15 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "agent-substrate runs 37823848084 (push) and 37823855560 (pull_request) at b7807bb, the NF-1T closure commit, green on every job (14 of 14 each: lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, dispatch-sensitivity, second interpreter, cross-environment, 8 mutation shards and their aggregate); the push run's shard 4 lost its runner mid-step in attempt 1 and that job alone was re-run once (attempt 2) -- the pull_request run's shard 4 was green on the same commit at the first attempt. Earlier: 37574169210 and 37574174428 at 0a0d43e, and the code commit 8ee1e5b's runs, which cover earlier implementations",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "hosted_evidence": {
         "runs": [
-          "37823848084",
-          "37823855560"
+          "37966478595",
+          "37966486915"
         ],
-        "commit": "b7807bb5ac415174ebbd8112db7cf4781678667e",
-        "implementation_sha256": "dfc6c8724eae03e945a49874e2b7ddf767c84e89fae4c7c4cebc079592f6765e",
-        "note": "agent-substrate push run (attempt 2: shard 4 of attempt 1 lost its runner mid-step; the failed job alone was re-run once) and pull_request run at the NF-1T closure commit, every job green: lint, the legacy-semantics and PASS-semantics audits, `tools/neural.py verify`, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, dispatch-sensitivity, second interpreter, cross-environment, and all 79 mutation specs in 8 shards with their aggregate"
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "aeed6d87647ce96cf13557331ddaad85d01c01c2e3e698b7fdc74b0ede014f3d",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2753,12 +2790,15 @@
       ],
       "fuzzing": "none",
       "differential": "the slab model's result against the exact series (scientific/checks/slab_series.py) and against FEniCSx (R62)",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "90464418193d8ded0e7e6d24fea3b1870593739d439cb731c2790fcfd6d8cefa",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -2778,7 +2818,7 @@
     {
       "id": "R62",
       "requirement": "FEniCSx as a real independent numerical verifier, executed from a hashed environment, admitted by the policy as an INDEPENDENT_IMPLEMENTATION check",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "scientific/checks/fenicsx_slab.py",
         "integrations/fenicsx/runner.py",
@@ -2815,16 +2855,19 @@
       ],
       "fuzzing": "none",
       "differential": "FEniCSx against the harness's finite-difference slab solver, and both against the exact series",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "a8c93cbe6c8f1684a5f0efb4a6c6844d629708ebd6b90fb53dae961019d731bd",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green: fenicsx (environment from the lock, acceptance A-F with controls, the integration tests with FEniCSx REQUIRED), fmi (build, acceptance, tests with fmpy REQUIRED), rust-kernels (two byte-identical builds, every committed decision re-derived, tests with the extension REQUIRED), end-to-end (the demonstration with both runtimes REQUIRED: a proposal received, governed runs checked and decided, the twin refused)"
       },
-      "residual_gaps": [
-        "no hosted run of the fenicsx and end-to-end jobs is recorded yet at a commit carrying this implementation; until one is, FEniCSx's participation is shown on one local host"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "one FEniCSx benchmark verifies one problem class, the transient slab, and no other scientific model",
@@ -2837,7 +2880,7 @@
     {
       "id": "R63",
       "requirement": "FMI 3.0: a real FMU built, loaded by an independent runtime, stepped, its state saved and restored, its units and claim boundary kept, and its result fed through the same evidence boundary as any external model",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "scientific/fmi_boundary.py",
         "scientific/models/thermal_rc2.py",
@@ -2878,16 +2921,19 @@
       ],
       "fuzzing": "none",
       "differential": "the FMU's outputs against the closed form of the RC network, in the harness and in fmpy",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "cf0685a2b30c36965ae3ead30046804b22c10a88ab0e9aa1bdd48f12ca0fa044",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green: fenicsx (environment from the lock, acceptance A-F with controls, the integration tests with FEniCSx REQUIRED), fmi (build, acceptance, tests with fmpy REQUIRED), rust-kernels (two byte-identical builds, every committed decision re-derived, tests with the extension REQUIRED), end-to-end (the demonstration with both runtimes REQUIRED: a proposal received, governed runs checked and decided, the twin refused)"
       },
-      "residual_gaps": [
-        "no hosted run of the fmi and end-to-end jobs is recorded yet at a commit carrying this implementation; until one is, the FMU round trip is shown on one local host"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "the FMU's build is byte-identical between two builds on one host; across compilers, versions or platforms only its behaviour is compared, never its bytes",
@@ -2900,7 +2946,7 @@
     {
       "id": "R64",
       "requirement": "A reproducible container: the declared image built and run on a hosted runner, executing the generic harness and its end-to-end demonstration, compared with a native run under the declared policies",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "Dockerfile",
         "container_verify.sh",
@@ -2931,16 +2977,18 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; qta-container-verify run 37966478474 (push) at 5ab44a7, green: the image built from that commit and run, the demonstration compared with a native run",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478474"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "0ec9247d331cb2180efc9a69fd68cb52d29d917b9e5e24c920d9ce868788fd50",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; qta-container-verify push run 37966478474 at 5ab44a7, green: digest-pinned base confirmed, the declared image built (image id sha256:9851705c...5bb242) and run as the non-root user with no host virtualenv, container_verify.sh in the image, and the demonstration compared with a native run: slab EQUIVALENT_AT_DECLARED_RESOLUTION, decision stable"
       },
-      "residual_gaps": [
-        "no hosted container-verify run is recorded yet at a commit carrying the harness steps and the in-image demonstration; until one is, the container's execution of the current harness is not shown"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "the container fixes the software environment, not the host CPU; numerical bytes may differ between hosted runners and are compared under the equivalence policy rather than required equal",
@@ -2953,7 +3001,7 @@
     {
       "id": "R65",
       "requirement": "Release provenance: RO-Crate conformance checked by the community validator, and the release candidate built, described (SBOM, provenance), signed with a hosted OIDC identity and verified, every tampered copy refused",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "ro_crate_tools.py",
         "tools/ro_crate_conformance.py",
@@ -2990,16 +3038,20 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry); supply-chain run 37966478453 (push) at 5ab44a7, green: signed with the workflow's OIDC identity and verified online, offline and by digest, with the tamper suite",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013",
+          "37966478453"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "6429b8865a4aca652c21437076c40c05f194442cae3b345ad9e4bc07573b04d1",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7 (ro-crate: the committed crate ACCEPTED by both validators, every negative control refused by the internal one and agreeing except the one measured INTERNAL_STRICTER); supply-chain push run 37966478453 at 5ab44a7, green: the candidate built, signed with the workflow's OIDC identity, verified online, offline and by digest, and the tamper suite on a signed copy"
       },
-      "residual_gaps": [
-        "no hosted supply-chain run (a signature from the workflow's GitHub OIDC identity, verified online and offline, and the tamper suite on the signed copy) and no hosted run of the RO-Crate community validator are recorded yet at a commit carrying this implementation"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "a valid signature here says these bytes came from this repository's workflow at this ref; it does not say any result in them is correct",
@@ -3059,12 +3111,17 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "4cc026625f4062dbc579126a8d15c199786c7c6bb6f040192a3e7194b49813d3",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green: fenicsx (environment from the lock, acceptance A-F with controls, the integration tests with FEniCSx REQUIRED), fmi (build, acceptance, tests with fmpy REQUIRED), rust-kernels (two byte-identical builds, every committed decision re-derived, tests with the extension REQUIRED), end-to-end (the demonstration with both runtimes REQUIRED: a proposal received, governed runs checked and decided, the twin refused)"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3084,7 +3141,7 @@
     {
       "id": "R67",
       "requirement": "Selective Rust resolved: each kernel explicitly adopted or rejected by a measured decision rule, selected only by name, never silently by the host",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "qta_multiphysics/stack/rust_kernel.py",
         "tools/rust_kernel_decision.py",
@@ -3117,16 +3174,19 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "a7e0af9d325a0f0b4a53fc4faffe5d51fcdad416ba29700048a5b6737e505c22",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green: fenicsx (environment from the lock, acceptance A-F with controls, the integration tests with FEniCSx REQUIRED), fmi (build, acceptance, tests with fmpy REQUIRED), rust-kernels (two byte-identical builds, every committed decision re-derived, tests with the extension REQUIRED), end-to-end (the demonstration with both runtimes REQUIRED: a proposal received, governed runs checked and decided, the twin refused)"
       },
-      "residual_gaps": [
-        "no hosted rust-kernels run is recorded yet at a commit carrying the decision rule: the committed decisions have been measured on one local host and must re-derive on a hosted runner"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "a kernel's parity is established in the dispatch configurations measured, on the CPUs measured; a CPU whose NumPy dispatch differs again is outside what the certificate covers",
@@ -3174,12 +3234,15 @@
       ],
       "fuzzing": "none",
       "differential": "OAT against Sobol on the same model",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "3e8a5d85ed985a98a868bfcbbc87ed3e783ed511cbe4326872fd6363d59b3c13",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [
@@ -3199,7 +3262,7 @@
     {
       "id": "R69",
       "requirement": "The generic Snakemake path: the default target runs the current harness, including an end-to-end demonstration from a recorded AI proposal to an authority decision, with a negative twin that must be refused",
-      "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
+      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
       "implementation": [
         "Snakefile",
         "tools/harness_demo.py"
@@ -3231,16 +3294,19 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations runs 37966478567 (push) and 37966487013 (pull_request) at 5ab44a7, green on every job (fenicsx, fmi, rust-kernels, end-to-end, ro-crate, performance-telemetry)",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915",
+          "37966478567",
+          "37966487013"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "841a9e55614f988b03630c7b7245e5cd91023946725ea67fdc6801dcb092403c",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate; harness-integrations push and pull_request runs at 5ab44a7, every job green, including end-to-end: the generic demonstration through the Snakemake rule with FEniCSx and FMI REQUIRED, the slab admitted and the fault FMU refused"
       },
-      "residual_gaps": [
-        "no hosted run of the end-to-end job (both runtimes, through the Snakemake rule) is recorded yet at a commit carrying it; until one is, the full demonstration with FEniCSx admitting and the twin refused is shown on one local host"
-      ],
+      "residual_gaps": [],
       "boundaries": [
         {
           "limit": "the demonstration exercises one generic model per runtime; it shows that each path works end to end, not that every model a user may add will",
@@ -3283,12 +3349,15 @@
       ],
       "fuzzing": "none",
       "differential": "none",
-      "hosted_ci": "none yet: the row is new in the harness completion programme; its hosted runs are recorded by a later commit",
+      "hosted_ci": "qta-agent-substrate runs 37966478595 (push) and 37966486915 (pull_request) at 5ab44a7, green on every job: lint, the active type check, the semantic audits, the learned-model re-derivation, the agent suites, the long horizon at 1200 cycles, fuzzing, the full suite, dispatch-sensitivity, the second interpreter, cross-environment-3d, and all 95 mutation specs in 8 shards with their aggregate",
       "hosted_evidence": {
-        "runs": [],
-        "commit": null,
-        "implementation_sha256": null,
-        "note": "no hosted run has covered this row yet: it was added by the harness completion programme, and its runs are cited by the commit after the one they ran on"
+        "runs": [
+          "37966478595",
+          "37966486915"
+        ],
+        "commit": "5ab44a7bf8428a51cb89be8bebbb7c07520267fd",
+        "implementation_sha256": "bce851a4f67c7197068be3cbf14f6a255d67bda12fd345e59aea58ce8e7ef1c0",
+        "note": "qta-agent-substrate push and pull_request runs at 5ab44a7, every job green: lint, the active type check, the legacy-semantics and PASS-semantics audits, tools/neural.py verify, the full suite with the neural extra and QTA_NEURAL_REQUIRED=1, the long horizon at 1200 cycles, fuzzing, dispatch-sensitivity, the second interpreter, the cross-environment comparison, and all 95 mutation specs in 8 shards with their aggregate"
       },
       "residual_gaps": [],
       "boundaries": [

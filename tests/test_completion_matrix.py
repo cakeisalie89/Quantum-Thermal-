@@ -101,7 +101,17 @@ def test_the_matrix_does_not_claim_scientific_authority():
 #: 38 -> 42 with R61, R66, R68 and R70 added complete. R62-R65, R67 and R69
 #: are added DEEPLY_IMPLEMENTED: each needs a hosted execution its
 #: acceptance names, and none is recorded yet.
-EXPECTED_COMPLETE = 42
+#:
+#: 42 -> 50 with the hosted evidence at 5ab44a7. R62-R65, R67 and R69 had
+#: one gap each, a hosted execution not yet recorded; the runs at 5ab44a7
+#: record it (fenicsx, fmi, the container, supply-chain, ro-crate,
+#: rust-kernels, end-to-end), every job green. R41's gap was a hosted run
+#: plus a production caller that gates on the audit; AuthorityStore.recover
+#: is that caller, driven by the demonstration, and the runs cover it. R49's
+#: last item was that no CI job published the guards' numbers;
+#: performance-telemetry does, and the one guard timed by design is a
+#: stated boundary.
+EXPECTED_COMPLETE = 50
 
 #: And how many rows there ARE, which is a different number and was not
 #: treated as one. The assertion below used to read
@@ -762,7 +772,14 @@ def test_the_fuzz_staleness_guard_leaves_an_honest_claim_alone():
 #: and narrowing; no computed value), so the runs at b7807bb cover an
 #: earlier implementation and R60 derives PREDATES until a later commit
 #: cites runs at this one.
-EXPECTED_EVIDENCE_COVERS = 0
+#:
+#: 0 -> 50 with the commit after d59c3c6. Every row cites the
+#: qta-agent-substrate runs at 5ab44a7 (push and pull_request, every job
+#: green, all 95 mutation specs); the integration rows also cite the
+#: harness-integrations, supply-chain, container-verify and stack-verify
+#: runs at that commit. d59c3c6 and this commit change no row's
+#: implementation files, so the digests at 5ab44a7 are the digests now.
+EXPECTED_EVIDENCE_COVERS = 50
 
 
 def test_the_shipped_matrix_reports_its_evidence_axis_honestly():

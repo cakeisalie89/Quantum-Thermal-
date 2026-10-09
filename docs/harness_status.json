@@ -26,7 +26,7 @@
   }
  },
  "derived_from": {
-  "docs/completion_matrix.json": "6d7c88bb0649feee002aedda3feb9f42c18d712c17a5ad1e9b9f863e632654dc",
+  "docs/completion_matrix.json": "ee376f993ba31f5d0c9157cef88148622824effbbb511f40a51374b90cd89a10",
   "docs/harness_contract.json": "3b7285fd6aea3e8b5c00a62fa5fe31032d7c49aa451f31d90437590d53366397",
   "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
   "docs/neural/current_status.json": "b4f920e04b966e3aff67f66911279896d7f309ebf2d1cae84e520bff6c849675",
@@ -53,17 +53,14 @@
  },
  "matrix": {
   "by_classification": {
-   "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 42,
-   "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS": 8
+   "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 50
   },
   "by_evidence": {
-   "COMMIT_NOT_RECORDED": 4,
-   "NEVER_RUN": 24,
-   "PREDATES_CURRENT_IMPLEMENTATION": 22
+   "COVERS_CURRENT_IMPLEMENTATION": 50
   },
   "rows": 50
  },
- "outcome": "INCOMPLETE",
+ "outcome": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
  "outside_this_software_completion": [
   {
    "class": "EXPERIMENTAL_SCIENCE",
@@ -145,18 +142,18 @@
    "rows": {
     "R40": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
     "R42": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "containers": {
@@ -165,13 +162,13 @@
    ],
    "rows": {
     "R64": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "fenicsx": {
@@ -180,13 +177,13 @@
    ],
    "rows": {
     "R62": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "fmi": {
@@ -195,13 +192,13 @@
    ],
    "rows": {
     "R63": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "generic-scientific-layer": {
@@ -211,12 +208,12 @@
    "rows": {
     "R61": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "NEVER_RUN",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "hdf5": {
@@ -226,12 +223,12 @@
    "rows": {
     "R61": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "NEVER_RUN",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "openmdao": {
@@ -241,12 +238,12 @@
    "rows": {
     "R56": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "openusd": {
@@ -256,12 +253,12 @@
    "rows": {
     "R56": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "paraview-vtk": {
@@ -271,12 +268,12 @@
    "rows": {
     "R56": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "proposal-ingress": {
@@ -286,12 +283,12 @@
    "rows": {
     "R66": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "NEVER_RUN",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "pytest-hypothesis": {
@@ -301,18 +298,18 @@
    "rows": {
     "R50": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "NEVER_RUN",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
     "R51": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "python-scientific-core": {
@@ -322,12 +319,12 @@
    "rows": {
     "R56": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "rag-read-only": {
@@ -337,12 +334,12 @@
    "rows": {
     "R35": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "ro-crate": {
@@ -351,13 +348,13 @@
    ],
    "rows": {
     "R65": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "ruff-mypy-pydantic": {
@@ -367,12 +364,12 @@
    "rows": {
     "R70": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "NEVER_RUN",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "rust-selective": {
@@ -381,13 +378,13 @@
    ],
    "rows": {
     "R67": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "RESOLVED"
   },
   "salib": {
@@ -397,12 +394,12 @@
    "rows": {
     "R56": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "slsa-sigstore": {
@@ -411,13 +408,13 @@
    ],
    "rows": {
     "R65": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "snakemake": {
@@ -427,18 +424,18 @@
    "rows": {
     "R55": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     },
     "R69": {
-     "classification": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS",
-     "evidence": "NEVER_RUN",
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
-     "residual_gaps": 1
+     "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   },
   "uv": {
@@ -448,435 +445,14 @@
    "rows": {
     "R56": {
      "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
-     "evidence": "PREDATES_CURRENT_IMPLEMENTATION",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
      "research_frontier": [],
      "residual_gaps": 0
     }
    },
-   "satisfied": false,
+   "satisfied": true,
    "status": "ADOPTED"
   }
  },
- "unsatisfied": [
-  {
-   "external": false,
-   "id": "authority-substrate",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "containers",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "fenicsx",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "fmi",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "generic-scientific-layer",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "hdf5",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "openmdao",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "openusd",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "paraview-vtk",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "proposal-ingress",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "pytest-hypothesis",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "python-scientific-core",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "rag-read-only",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "ro-crate",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "ruff-mypy-pydantic",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "rust-selective",
-   "kind": "stack",
-   "status": "RESOLVED"
-  },
-  {
-   "external": false,
-   "id": "salib",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "slsa-sigstore",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "snakemake",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "uv",
-   "kind": "stack",
-   "status": "ADOPTED"
-  },
-  {
-   "external": false,
-   "id": "R21",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R22",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R23",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R24",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R25",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R26",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R27",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R28",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R29",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R30",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R31",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R32",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R33",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R34",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R35",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R36",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R37",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R38",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R39",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R40",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R41",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / PREDATES_CURRENT_IMPLEMENTATION / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R42",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R43",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R44",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / COMMIT_NOT_RECORDED / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R45",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / COMMIT_NOT_RECORDED / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R46",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R47",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R48",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R49",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R50",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R51",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R52",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R53",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R54",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R55",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R56",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R57",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R58",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / COMMIT_NOT_RECORDED / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R59",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / COMMIT_NOT_RECORDED / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R60",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / PREDATES_CURRENT_IMPLEMENTATION / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R61",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R62",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R63",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R64",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R65",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R66",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R67",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R68",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  },
-  {
-   "external": false,
-   "id": "R69",
-   "kind": "row",
-   "status": "DEEPLY_IMPLEMENTED_WITH_RESIDUAL_GAPS / NEVER_RUN / 1 gaps"
-  },
-  {
-   "external": false,
-   "id": "R70",
-   "kind": "row",
-   "status": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT / NEVER_RUN / 0 gaps"
-  }
- ]
+ "unsatisfied": []
 }
