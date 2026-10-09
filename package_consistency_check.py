@@ -2,6 +2,15 @@
 """
 package_consistency_check.py — independent verifier for the QTA package.
 
+LEGACY_QTA_VERIFIER (directive 17). It checks the hardware-era QTA payload --
+qta_full_sim.py's canonical outputs, the 83-gate table, the BOM, the mode
+semantics, the QTA claims and release expectations -- and it stays, run by
+the legacy CI steps and the legacy workflow (workflow/legacy_qta.smk), for as
+long as that payload ships. It is not being generalised line by line: the
+framework's own consistency -- event history, evidence, independent
+reconstruction, scientific artifacts, model identity -- is
+tools/generic_consistency.py's, which asks none of this file's questions.
+
 Reruns qta_full_sim.py in a clean outputs directory, then compares every
 canonical artifact against a single CANONICAL_EXPECTED truth table.
 
@@ -27,6 +36,7 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
                          newline, closefd, opener)
 
 PKG = Path(__file__).resolve().parent
+VERIFIER_CLASS = "LEGACY_QTA_VERIFIER"
 
 # ===================== CANONICAL_EXPECTED ====================================
 CANONICAL_EXPECTED = {
@@ -55,6 +65,117 @@ CANONICAL_EXPECTED = {
     ],
     "all_can_PASS_now": "NO",
     "all_measured_in_this_system": "false",
+    # THE CANONICAL OUTPUT SET, BY NAME.
+    #
+    # This was the integer 89, and it was consulted in --verify-existing
+    # only. Both halves of that were wrong.
+    #
+    # A count is not a set: 89 files with five of them renamed satisfies
+    # `_n == 89` exactly as well as the right 89 do. And the mode that
+    # never consulted it is the authoritative one -- the release path
+    # regenerates and then compares whatever appeared, while Step 2b
+    # iterates the PRODUCED files and skips any whose root copy is
+    # absent. An output the pipeline stops emitting therefore leaves the
+    # comparison silently, and the gate reports that the root copies
+    # match. Measured, not argued: a run that produced 84 of these
+    # printed RESULT: PASS, having never compared
+    # coupled_mode_state_summary.json -- the file carrying
+    # Mode_D_residual_CH4_density_m3, which is the contamination claim.
+    #
+    # The set is the default profile's: `python qta_full_sim.py` with no
+    # arguments, which is what this checker runs. 88 governed outputs
+    # plus the by-design-exempt deep_surrogate_readiness.json.
+    "canonical_outputs": [
+        "adaptive_experiment_policy.json",
+        "assumptions_3d.json",
+        "bayesian_design_summary.json",
+        "best_forecast_operating_point.json",
+        "campaign_state_3d.json",
+        "campaign_uncertainty_3d.json",
+        "campaign_uncertainty_quantiles.csv",
+        "convergence_report_3d.json",
+        "coupled_mode_recovery_metrics.csv",
+        "coupled_mode_state_summary.json",
+        "coupling_ledger_3d.json",
+        "cryo_stack_3d_budget.csv",
+        "cryopanel_loading_3d.csv",
+        "deep_surrogate_readiness.json",
+        "design_component_registry.json",
+        "design_decision_ledger.json",
+        "design_interface_graph.json",
+        "design_validation_report.csv",
+        "distributed_thermal_2d_slices.csv",
+        "distributed_thermal_metrics.csv",
+        "distributed_thermal_profile.csv",
+        "energy_ledger_cumulative_3d.csv",
+        "engineering_fixes.csv",
+        "expected_information_gain.csv",
+        "experiment_falsification_map.csv",
+        "experimental_design_candidates.csv",
+        "failed_gate_samples.csv",
+        "falsification_report_3d.json",
+        "fidelity_comparison.csv",
+        "gas_transport_2d_map.csv",
+        "gas_transport_metrics.csv",
+        "gas_transport_profile.csv",
+        "integrated_layers_summary.json",
+        "interlock_table.csv",
+        "laser_3d_deposition_summary.json",
+        "lumped_vs_nonlumped_comparison.csv",
+        "machine_fsm_campaign_trace.csv",
+        "machine_fsm_diagram.mmd",
+        "machine_fsm_interlocks.csv",
+        "machine_fsm_lifecycle_trace.csv",
+        "machine_fsm_states.csv",
+        "machine_fsm_summary.json",
+        "machine_fsm_transitions.csv",
+        "measurement_comparison_3d.json",
+        "measurement_comparison_rows.csv",
+        "mesh_3d_summary.json",
+        "mesh_convergence_summary.csv",
+        "microwave_heating_3d_budget.csv",
+        "microwave_heating_metrics.csv",
+        "microwave_heating_profile.csv",
+        "mode_recovery_3d_timeline.csv",
+        "monte_carlo_summary.csv",
+        "multiphysics_summary.json",
+        "multiphysics_verification_summary.csv",
+        "numerical_stability_summary.csv",
+        "nv_coherence_curves.csv",
+        "nv_eligibility_3d.json",
+        "nv_odmr_spectrum.csv",
+        "nv_sequence_contrast.csv",
+        "nv_spin_dynamics_summary.json",
+        "nv_spin_gate_records.csv",
+        "nv_spin_parameter_provenance.json",
+        "optical_absorption_2d_slices.csv",
+        "optical_absorption_metrics.csv",
+        "optical_absorption_profile.csv",
+        "parameter_registry.csv",
+        "provenance_3d.json",
+        "radiation_leakage_metrics.csv",
+        "radiation_leakage_paths.csv",
+        "radiation_paths_3d_budget.csv",
+        "results_gate_table.csv",
+        "sensitivity_ranking_3d.csv",
+        "species_accounting_3d.csv",
+        "species_transport_3d_summary.json",
+        "surface_coverage_2d_map.csv",
+        "surface_coverage_3d_summary.csv",
+        "surface_coverage_metrics.csv",
+        "surface_coverage_profile.csv",
+        "tau_c_sweep.csv",
+        "thermal_3d_energy_accounting.csv",
+        "thermal_3d_hotspots.csv",
+        "thermal_3d_probe_timeseries.csv",
+        "thermal_3d_readiness.json",
+        "thermal_3d_reduction_check.json",
+        "thermal_3d_verification_report.json",
+        "validation_experiment_ranking.csv",
+        "vibration_paths_3d_budget.csv",
+        "vibration_transfer_metrics.csv",
+        "vibration_transfer_profile.csv"
+    ],
 }
 
 # Stale strings — these are the EXACT phrases the independent auditor flagged.
@@ -139,6 +260,33 @@ if "--sim-log" in sys.argv:
     _i = sys.argv.index("--sim-log")
     _SIM_LOG = sys.argv[_i + 1] if _i + 1 < len(sys.argv) else None
 
+
+def _arg(name):
+    """The value after ``name`` in argv, '' when the flag has none, None
+    when the flag is absent."""
+    if name not in sys.argv:
+        return None
+    _j = sys.argv.index(name)
+    return sys.argv[_j + 1] if _j + 1 < len(sys.argv) else ""
+
+
+# ---- which question the byte comparison answers (directive 7) --------------
+# strict-reproduction: the release question. Only exact bytes pass, and only
+#   on a numerical backend the witness profile saw reproduce this corpus;
+#   any other backend is refused BEFORE regenerating, as
+#   CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED -- never as "stale" outputs.
+# ci: the portable question. Exact bytes pass. A RESOLVED backend the
+#   profile never witnessed may differ in digits and passes only if every
+#   structural and decision-bearing fact agrees (tools/cross_env_semantics
+#   .py); on a witnessed backend any byte difference fails with no
+#   fallback; an unresolved backend fails.
+# The default is the strict one: a caller who asks nothing gets the release
+# question, never the permissive one.
+POLICY = _arg("--policy") or "strict-reproduction"
+SUMMARY_JSON = _arg("--summary-json")
+GENERATION_RECORD = _arg("--generation-record")
+_REGEN_RECORD = None          # the regenerating process's own record
+
 #: Classification of the existing generated output set. "USABLE" means the
 #: set is present and iterable; every other value names a specific refusal and
 #: suppresses the steps that would otherwise raise on it. Full-regeneration
@@ -165,25 +313,9 @@ if VERIFY_EXISTING:
         fail("existing outputs/ directory present",
              f"{_OUTPUTS_STATE}: {gen_outputs_dir} exists but is not a "
              "directory")
-    else:
-        _n = len([x for x in gen_outputs_dir.iterdir() if x.is_file()])
-        # the canonical complete-set size is exactly 89 files (88 governed
-        # + the by-design-exempt deep_surrogate_readiness.json); anything
-        # smaller is truncated, anything larger is foreign -- both refused
-        # (missing files would otherwise escape Step 2b, which iterates
-        # only files that exist).
-        if _n != 89:
-            _OUTPUTS_STATE = ("INCOMPLETE_EXISTING_OUTPUTS" if _n < 89
-                              else "FOREIGN_EXISTING_OUTPUTS")
-            _names = sorted(x.name for x in gen_outputs_dir.iterdir()
-                            if x.is_file())
-            fail("existing output set complete (exactly 89 files)",
-                 f"{_OUTPUTS_STATE}: {_n} files present; partial/truncated "
-                 "or foreign sets are never accepted. "
-                 f"first 5 present: {_names[:5]}")
-        else:
-            ok("existing output set complete (exactly 89 files; "
-               "byte-identity further enforced file-by-file in Steps 2+)")
+    # The completeness check used to live here, as `_n != 89`, and ran in
+    # this mode only. It is now canonical_set_problems() below, by name, for
+    # both modes.
     if _SIM_LOG and Path(_SIM_LOG).exists():
         sim_stdout = Path(_SIM_LOG).read_text(encoding="utf-8",
                                               errors="replace")
@@ -194,12 +326,66 @@ if VERIFY_EXISTING:
 elif not sim_path.exists():
     fail("qta_full_sim.py present", f"missing {sim_path}")
 else:
+    if POLICY not in ("ci", "strict-reproduction"):
+        print(f"REFUSED: --policy {POLICY!r} is not 'ci' or "
+              "'strict-reproduction'")
+        sys.exit(2)
+    print(f"  POLICY: {POLICY}")
+    if POLICY == "strict-reproduction":
+        # FAIL EARLY. Strict reproduction runs only on a backend the witness
+        # profile saw reproduce this corpus; asking the question anywhere
+        # else would spend the regeneration and then misname a different
+        # machine's digits as stale outputs.
+        try:
+            sys.path.insert(0, str(PKG / "tools"))
+            import reproduction_witness as _rw
+            _early = _rw.reference_environment(PKG)
+        except Exception as e:                      # noqa: BLE001
+            _early = {"ok": False, "reasons": [
+                f"the reproduction machinery could not run: "
+                f"{type(e).__name__}: {e}"]}
+        if not _early["ok"]:
+            print("REPRODUCTION_VERDICT policy=strict-reproduction "
+                  "PACKAGE_STATUS=REFUSED BACKEND_STATUS="
+                  f"{_early.get('backend_status', 'UNRESOLVED')} "
+                  "REPRODUCTION_STATUS="
+                  "CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED "
+                  "CROSS_ENV_STATUS=NOT_CHECKED "
+                  "SCIENTIFIC_EQUIVALENCE_STATUS=NOT_APPLICABLE "
+                  "files_byte_compared=0 files_differing=0")
+            for _r in _early["reasons"]:
+                print(f"  - {_r}")
+            print("RESULT: FAIL -- this machine cannot execute the canonical "
+                  "reproduction environment; nothing was regenerated, and "
+                  "no output is called stale. Run --policy ci for the "
+                  "portable question.")
+            if SUMMARY_JSON:
+                Path(SUMMARY_JSON).write_text(json.dumps(
+                    {"policy": POLICY, "PACKAGE_STATUS": "REFUSED",
+                     "REPRODUCTION_STATUS":
+                         "CANONICAL_REPRODUCTION_ENVIRONMENT_REQUIRED",
+                     "reasons": _early["reasons"]}, indent=1))
+            sys.exit(1)
+        print(f"  reference environment: witnessed backend "
+              f"{_early['backend_digest'][:16]}")
     shutil.rmtree(gen_outputs_dir, ignore_errors=True)
     sim_stdout = ""
     sim_elapsed = None
     _t0 = time.monotonic()
+    # The regeneration runs INSIDE an instrumented process that records its
+    # input closure and probes its backend afterwards, in that same process
+    # -- so the identity the verdict reads is the computation's own
+    # (tools/regenerate_instrumented.py). Without the wrapper the record is
+    # absent and the backend UNRESOLVED: the verdict refuses, never guesses.
+    import tempfile as _tempfile
+    _rec_dir = _tempfile.mkdtemp(prefix="qta-regen-")
+    _rec_path = Path(_rec_dir) / "record.json"
+    _wrapper = PKG / "tools" / "regenerate_instrumented.py"
+    _cmd = ([sys.executable, str(_wrapper), "--entry", str(sim_path),
+             "--record", str(_rec_path)] if _wrapper.is_file()
+            else [sys.executable, str(sim_path)])
     try:
-        proc = subprocess.run([sys.executable, str(sim_path)],
+        proc = subprocess.run(_cmd,
                               capture_output=True, text=True,
                               encoding="utf-8", errors="replace",
                               cwd=str(PKG), timeout=SIM_TIMEOUT_S)
@@ -237,6 +423,103 @@ else:
             ok("qta_full_sim.py executes (exit 0)",
                f"{sim_elapsed:.1f} s of a {SIM_TIMEOUT_S} s budget "
                f"({SIM_TIMEOUT_S - sim_elapsed:.1f} s margin)")
+            try:
+                _REGEN_RECORD = json.loads(_rec_path.read_text(
+                    encoding="utf-8"))
+            except (OSError, ValueError):
+                _REGEN_RECORD = None
+    shutil.rmtree(_rec_dir, ignore_errors=True)
+
+#: The one output whose ROOT copy is a different artifact from the
+#: regenerated one by design: the root copy is the deep layer's
+#: authoritative record, while the direct expdesign engine emits a
+#: NOT_IMPLEMENTED stub into its own run directory. Declared here rather
+#: than at Step 2b because the set reconciliation below reports how many
+#: of the declared outputs it leaves to the byte comparison.
+_REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
+
+# ---- The canonical output SET, by name, in BOTH modes ----------------------
+# Step 2b below compares, for every file in the generated directory, the root
+# copy of the same name -- and skips the ones whose root copy is absent. That
+# is the right rule for what it does, and it means the comparison's scope is
+# whatever the pipeline happened to produce. Nothing established that the
+# pipeline produced everything it is supposed to.
+#
+# So a regeneration that silently stops emitting an output is not a drift and
+# not an error: the file leaves the comparison, no step mentions it, and
+# "root canonical outputs byte-match the canonical regeneration" is reported
+# of a set that no longer contains it.
+#
+# This was known. `--verify-existing` refused any set that was not exactly 89
+# files, and the comment there said why in as many words: "missing files would
+# otherwise escape Step 2b, which iterates only files that exist". The rule was
+# written for the mode that is explicitly NOT the release gate, and the mode
+# that is -- full regeneration -- never consulted it.
+def canonical_set_problems(gen_dir, declared, root_dir):
+    """``(produced, missing, foreign, unrooted)`` for an output directory.
+
+    By NAME, never by count. `_n == 89` is satisfied by the right 89 files and
+    equally by 89 files with five of them renamed, which is the same defect
+    class as reading a unit off a column's spelling: the property is set
+    membership and the count is a proxy for it.
+
+    ``unrooted`` is the third case and it is not cosmetic. A declared output
+    with no committed root copy is one Step 2b will skip, so it would be
+    published from the tree without ever having been compared to anything.
+    """
+    produced = {x.name for x in gen_dir.iterdir() if x.is_file()}
+    return (produced,
+            sorted(declared - produced),
+            sorted(produced - declared),
+            sorted(n for n in sorted(declared & produced)
+                   if not (root_dir / n).exists()))
+
+
+_DECLARED_OUTPUTS = frozenset(CANONICAL_EXPECTED["canonical_outputs"])
+#: Which mode produced the set under test. The classification tokens carry it
+#: so an operator reading a log knows whether a regeneration came up short or
+#: a supplied tree did.
+_MODE_TAG = "EXISTING" if VERIFY_EXISTING else "REGENERATED"
+
+if not _DECLARED_OUTPUTS:
+    # The declaration is the scope of every comparison below it. An empty one
+    # would make all three reconciliations agree, which is the vacuous PASS
+    # this whole block exists to refuse -- so it is refused first, here.
+    fail("the canonical output set is declared",
+         "EMPTY_CANONICAL_DECLARATION: CANONICAL_EXPECTED['canonical_outputs']"
+         " is empty; a set comparison against nothing reports agreement")
+elif len(CANONICAL_EXPECTED["canonical_outputs"]) != len(_DECLARED_OUTPUTS):
+    _dupes = sorted({n for n in CANONICAL_EXPECTED["canonical_outputs"]
+                     if CANONICAL_EXPECTED["canonical_outputs"].count(n) > 1})
+    fail("the canonical output set is declared without duplicates",
+         f"DUPLICATE_CANONICAL_DECLARATION: {_dupes}; a duplicated name makes "
+         "the declared count larger than the declared set")
+elif _OUTPUTS_STATE != "USABLE" or not gen_outputs_dir.is_dir():
+    fail("the produced output set is exactly the canonical set",
+         f"NOT CHECKED - {_OUTPUTS_STATE}; there is no output set to "
+         "reconcile against the declaration")
+else:
+    _produced, _missing, _foreign, _unrooted = canonical_set_problems(
+        gen_outputs_dir, _DECLARED_OUTPUTS, PKG)
+    if _missing:
+        fail("the produced output set is exactly the canonical set",
+             f"INCOMPLETE_{_MODE_TAG}_OUTPUTS: {len(_missing)} declared "
+             f"canonical output(s) were not produced, so Step 2b never "
+             f"compared them: {_missing}")
+    if _foreign:
+        fail("the produced output set is exactly the canonical set",
+             f"FOREIGN_{_MODE_TAG}_OUTPUTS: {len(_foreign)} file(s) present "
+             f"that the declaration does not name: {_foreign}")
+    if _unrooted:
+        fail("every declared canonical output has a committed root copy",
+             f"UNROOTED_CANONICAL_OUTPUT: {len(_unrooted)} declared output(s) "
+             f"have no root copy, so Step 2b skips them: {_unrooted}")
+    if not (_missing or _foreign or _unrooted):
+        ok(f"the produced output set is exactly the "
+           f"{len(_DECLARED_OUTPUTS)} declared canonical outputs",
+           f"{len(_DECLARED_OUTPUTS - _REGEN_EXEMPT)} of them are "
+           f"compared byte-for-byte in Step 2b; "
+           f"{len(_REGEN_EXEMPT)} exempt by design")
 
 # ===================== STEP 2: gate table checks =============================
 print()
@@ -256,8 +539,14 @@ else:
     gen_sha = hashlib.sha256(open(gen_gate,"rb").read()).hexdigest()
     pkg_sha = hashlib.sha256(open(pkg_gate,"rb").read()).hexdigest()
     if gen_sha != pkg_sha:
-        fail("generated vs packaged results_gate_table.csv byte-identical",
-             f"SHAs differ ({gen_sha[:16]} vs {pkg_sha[:16]})")
+        # Not decided here. The gate table is one of the declared canonical
+        # outputs, and whether a byte difference in it is a regression, a
+        # different machine's digits, or a changed decision is the question
+        # Step 2b's reproduction verdict answers for every output alike --
+        # a changed status is a DECISION there and refused.
+        print(f"  [NOTE] results_gate_table.csv differs from the packaged "
+              f"copy ({gen_sha[:16]} vs {pkg_sha[:16]}); judged by the "
+              "reproduction verdict in Step 2b")
     else:
         ok("generated vs packaged results_gate_table.csv byte-identical")
 
@@ -346,7 +635,6 @@ def regen_root_byte_drift(gen_dir, root_dir, exceptions=frozenset()):
             drift.append(p.name)
     return drift, unreadable
 
-_REGEN_EXEMPT = frozenset({"deep_surrogate_readiness.json"})
 if _OUTPUTS_STATE != "USABLE":
     # No vacuous PASS: with no usable generated set there is nothing to
     # compare against, and silence here would read as agreement.
@@ -358,13 +646,84 @@ else:
         gen_outputs_dir, PKG, _REGEN_EXEMPT)
     if _unreadable:
         fail("every regenerated output is readable",
-             f"UNREADABLE_EXISTING_OUTPUT: {_unreadable[:8]}")
-    if _drift:
-        fail("root canonical outputs byte-match the canonical regeneration",
-             f"stale root copies: {_drift[:8]}")
-    elif not _unreadable:
-        ok("root canonical outputs byte-match the canonical regeneration "
-           "(exempt by design: deep_surrogate_readiness.json)")
+             f"UNREADABLE_EXISTING_OUTPUT: {len(_unreadable)} unreadable"
+             + (f" (first 8 shown): {_unreadable[:8]}"
+                if len(_unreadable) > 8 else f": {_unreadable}"))
+    # WHICH QUESTION A BYTE DIFFERENCE ANSWERS. This used to fail every
+    # difference as "N stale root copies" -- the right words for a
+    # regression on the machine that reproduces the corpus, and the wrong
+    # ones for a correct regeneration on a CPU that dispatches different
+    # kernels (R59). The verdict now names which it is, from the identity
+    # of the process that actually regenerated (scientific/reproduction.py).
+    # THE COUNT FIRST, then a sample: a truncated list that looks like a
+    # total is how an 8-file slice was once read as an 8-file divergence.
+    _n_compared = len(_DECLARED_OUTPUTS - _REGEN_EXEMPT)
+    _verdict = None
+    try:
+        sys.path.insert(0, str(PKG / "tools"))
+        from scientific import reproduction as _repro
+        import cross_env_semantics as _xenv
+        import reproduction_witness as _rw
+        _record = _REGEN_RECORD
+        if VERIFY_EXISTING:
+            _record = _rw.generation_record_for(GENERATION_RECORD,
+                                                gen_outputs_dir)
+        _profile, _problems, _inapplicable = _rw.profile_for_tree(
+            PKG, _DECLARED_OUTPUTS, _REGEN_EXEMPT,
+            closure=(_record or {}).get("closure"))
+
+        def _cross_env():
+            _rep = _xenv.compare(
+                gen_outputs_dir, PKG, declared=_DECLARED_OUTPUTS,
+                exempt=_REGEN_EXEMPT,
+                inventory=_xenv.load_inventory(
+                    PKG / "docs" / "resolution_inventory.json"))
+            _xenv.check_scope(_rep)
+            _xenv.print_report(_rep)
+            return _rep
+
+        _verdict = _repro.decide(
+            "ci" if POLICY == "ci" else "strict-reproduction",
+            byte_identical=not (_drift or _unreadable),
+            files_compared=_n_compared,
+            drift=_drift + _unreadable,
+            record=(_record or {}).get("environment"), profile=_profile,
+            profile_problems=_problems, inapplicable=_inapplicable,
+            cross_env=_cross_env)
+    except Exception as e:                          # noqa: BLE001
+        fail("the reproduction verdict could be reached",
+             f"REPRODUCTION_MACHINERY_FAILED: {type(e).__name__}: {e}")
+    if _verdict is not None:
+        print("  " + _repro.verdict_line(_verdict))
+        for _r in _verdict["reasons"]:
+            print(f"    - {_r}")
+        for _w, _d in (_verdict.get("backend_differences") or {}).items():
+            print(f"    - differs from witness {_w} in: {_d}")
+        if SUMMARY_JSON:
+            Path(SUMMARY_JSON).write_text(json.dumps(
+                _verdict, indent=1, sort_keys=True, default=str))
+        _rs = _verdict["REPRODUCTION_STATUS"]
+        if _verdict["PACKAGE_STATUS"] != "CONSISTENT":
+            if _rs == "BYTE_DRIFT_COMPARABLE_BACKEND":
+                _what = (f"{len(_drift)} stale or regressed root copies on "
+                         "a witnessed backend")
+            else:
+                _what = f"{len(_drift)} file(s) differ; {_rs}"
+            fail("root canonical outputs are consistent with the "
+                 "regeneration under the reproduction policy",
+                 f"{_what}"
+                 + (f" (first 8 shown): {_drift[:8]}" if len(_drift) > 8
+                    else f": {_drift}"))
+        elif _rs == "BYTE_IDENTICAL" and not _unreadable:
+            ok("root canonical outputs byte-match the canonical regeneration "
+               "(exempt by design: deep_surrogate_readiness.json)",
+               f"BYTE_IDENTICAL, {_n_compared} compared")
+        else:
+            ok("root canonical outputs are consistent under a DIFFERENT "
+               "resolved backend -- NOT byte-reproduced here",
+               f"{_rs}; {_verdict['CROSS_ENV_STATUS']}; "
+               f"{len(_drift)} of {_n_compared} differ in digits only; "
+               "scientific equivalence NOT_ESTABLISHED")
 
 # ===================== STEP 3: sim stdout stale audit ========================
 print()
@@ -394,11 +753,28 @@ if not tcs_path.exists():
     fail("tau_c_sweep.csv present", "missing")
 else:
     tcs = list(csv.DictReader(open(tcs_path)))
-    if "tau_c_canonical_threshold_us" not in tcs[0]:
+    if not tcs:
+        # A present-but-empty canonical output is a state the gate has to
+        # classify, not one it may die on. `tcs[0]` raised IndexError here
+        # and the run ended with a traceback at Step 4, losing every later
+        # diagnostic -- the same shape as the missing-outputs defect this
+        # file's tests were written for, one step further in.
+        fail("tau_c_sweep.csv has rows",
+             "EMPTY_CANONICAL_OUTPUT: tau_c_sweep.csv parsed to zero rows; "
+             "a truncated or header-only canonical output is refused, never "
+             "read past")
+    elif "tau_c_canonical_threshold_us" not in tcs[0]:
         fail("tau_c_sweep has canonical_threshold_us column", "")
     else:
         ok("tau_c_sweep has tau_c_canonical_threshold_us column")
 
+    _need = {"tau_c_s", "Gate"}
+    if tcs and not _need <= set(tcs[0]):
+        fail("tau_c_sweep.csv carries the columns the 27.728us checks read",
+             f"MALFORMED_CANONICAL_OUTPUT: missing "
+             f"{sorted(_need - set(tcs[0]))}; the two gate checks below "
+             "would raise rather than refuse")
+        tcs = []
     pass_27 = [r for r in tcs if abs(float(r["tau_c_s"]) - 27.728e-6) < 1e-9
                and r["Gate"] == "PASS"]
     if pass_27:
@@ -418,7 +794,9 @@ print()
 print("Step 5: README.md — gate counts and canonical claims")
 print("-"*70)
 
-readme_path = PKG / "README.md"
+#: LEGACY_QTA_VERIFIER: the QTA README moved to docs/legacy/qta/ in tranche 4; the
+#: canonical counts it states are checked there, where they are still true.
+readme_path = PKG / "docs/legacy/qta/README.md"
 if not readme_path.exists():
     fail("README.md present", "missing")
 else:
@@ -1092,6 +1470,8 @@ print("-"*70)
 LIVE_DOCS = [
     "README.md",
     "CLAIMS_BOUNDARY.md",
+    "docs/legacy/qta/README.md",
+    "docs/legacy/qta/CLAIMS_BOUNDARY.md",
     "source_audit_status.txt",
     "final_manifest.json",
     "qta_full_sim.py",
@@ -1159,9 +1539,9 @@ STALE_PATTERNS_8E = [
     (r"RTB\s+validates\b", "RTB validates"),
     (r"JT\s+validates\b", "JT validates"),
     (r"RTB[/ ]?JT\s+validates\b", "RTB/JT validates"),
-    (r"RTB\s+unlocks\s+PASS", "RTB unlocks PASS"),
-    (r"JT\s+unlocks\s+PASS", "JT unlocks PASS"),
-    (r"RTB[/ ]?JT\s+unlocks\s+PASS", "RTB/JT unlocks PASS"),
+    (r"RTB\s+unlocks\s+(?:any\s+)?PASS", "RTB unlocks PASS"),
+    (r"JT\s+unlocks\s+(?:any\s+)?PASS", "JT unlocks PASS"),
+    (r"RTB[/ ]?JT\s+unlocks\s+(?:any\s+)?PASS", "RTB/JT unlocks PASS"),
     # Stale legacy 62-gate-count strings guarded against (canonical gate count is 83)
     (r"\b62\s+explicit\s+decision\s+gates", "62 explicit decision gates"),
     (r"\b62\s+unique\s+gate_id\s+rows", "62 unique gate_id rows"),
@@ -1243,6 +1623,106 @@ if stale_violations_8e:
 else:
     ok(f"no stale canonical references in live docs (audited {len(LIVE_DOCS)} files for {len(STALE_PATTERNS_8E)} patterns)")
 
+# ===================== CLAIMS BOUNDARY: the forbidden claims ==================
+#
+# CLAIMS_BOUNDARY.md lists, under "**Forbidden:**", the sentences this package
+# is not permitted to say. Measured, 19 of its 24 entries would have passed
+# this file verbatim -- the whole shielding list among them, including "Mode B
+# processing and Mode D sensing occur simultaneously", which is the statement
+# the entire mode-exclusive architecture exists to deny. The five that were
+# caught were caught by patterns written for a different purpose: stale RTB/JT
+# module counts.
+#
+# So the claims file was the strongest statement of position in the package
+# and about a fifth of it was enforced, with nothing measuring which fifth.
+#
+# WHAT THIS DOES AND DOES NOT ESTABLISH. It answers one bounded question: if
+# this exact forbidden sentence appeared in a live document, would the package
+# refuse? It does not catch a paraphrase, and no string rule can. That limit
+# is the reason every entry here names the bullet it enforces and is required
+# to MATCH it: tools/claims_enforcement.py reconciles the two lists in both
+# directions and re-derives the match rather than trusting the name, so the
+# coverage number is measured and a new forbidden claim arrives uncovered
+# rather than silently unenforced.
+FORBIDDEN_CLAIM_PATTERNS = [
+    # (regex, the CLAIMS_BOUNDARY.md bullet it enforces, verbatim)
+    (r"(?:has|have)\s+validated\s+(?:the\s+)?radiation\s+shielding",
+     "QTA has validated radiation shielding."),
+    (r"shielding\s+proves\s+10\s*mK",
+     "QTA shielding proves 10 mK Mode D operation."),
+    (r"[Cc]ryo-?baffles?\s+prove\b",
+     "Cryo-baffles prove contamination is solved."),
+    (r"Mode\s*B[^.\n]{0,60}Mode\s*D[^.\n]{0,60}simultaneous",
+     "Mode B processing and Mode D sensing occur simultaneously."),
+    (r"Monte\s+Carlo\s+validates\b",
+     "Monte Carlo validates the shielding stack."),
+    (r"shielding\s+is\s+sufficient\s+without\s+measurement",
+     "RF/IR shielding is sufficient without measurement."),
+    (r"shutter\s+stack\s+has\s+been\s+experimentally\s+proven",
+     "The radiation shutter stack has been experimentally proven."),
+    (r"cryopanels\s+solve\b",
+     "The cryopanels solve Mode B \u2192 Mode D contamination without measurement."),
+    (r"magnetic\s+shield\s+is\s+compatible\s+with\s+NV\s+sensing",
+     "The magnetic shield is compatible with NV sensing without bias-field validation."),
+    (r"(?:has|have)\s+selected\s+(?:RTB[/ ]?JT|RTB|JT)\b",
+     "QTA has selected RTB/JT cooling."),
+    (r"(?:has|have)\s+installed\s+(?:RTB[/ ]?JT|RTB|JT)\b",
+     "QTA has installed RTB/JT cooling."),
+    (r"RTB[/ ]?JT\s+cooling\s+is\s+validated",
+     "QTA RTB/JT cooling is validated."),
+    (r"RTB[/ ]?JT\s+replaces\s+the\s+dilution",
+     "RTB/JT replaces the dilution refrigerator."),
+    (r"purge\s+removes\s+all\s+methane",
+     "The Mode-C purge removes all methane."),
+    (r"[Rr]esidual\s+methane[^.\n]{0,40}\bis\s+zero\b",
+     "Residual methane at Mode D entry is zero."),
+    (r"reduces\s+residual\s+species\s+to\s+zero",
+     "The cryobaffle stack reduces residual species to zero."),
+]
+
+#: A line that denies the claim is not the claim. Modelled on the README
+#: check, which has always had this and which is why the same list is not
+#: needed in 8E: 8E looks for stale VALUES, and a stale value is stale
+#: whatever the sentence around it says.
+CLAIM_NEGATIONS = (
+    "no ", "not ", "never", "forbidden", "does not", "cannot", "must not",
+    "without measurement", "unvalidated", "unverified", "would be",
+    "is not", "are not", "remains", "remain ", "explicit non-claim",
+)
+
+claim_violations = []
+for fn in ("README.md", "CLAIMS_BOUNDARY.md", "docs/legacy/qta/README.md",
+           "docs/legacy/qta/CLAIMS_BOUNDARY.md", "source_audit_status.txt",
+           "qta_full_sim.py", "qta_manuscript_v4.tex"):
+    fp = PKG / fn
+    if not fp.exists():
+        continue
+    content = fp.read_text(encoding="utf-8", errors="replace")
+    for rx, bullet in FORBIDDEN_CLAIM_PATTERNS:
+        for m_ in re.finditer(rx, content):
+            if _is_superseded_block(content, m_.start()):
+                continue
+            line_n = content[:m_.start()].count("\n") + 1
+            line = content.split("\n")[line_n - 1]
+            if any(neg in line.lower() for neg in CLAIM_NEGATIONS):
+                continue
+            claim_violations.append((fn, line_n, bullet, m_.group(0)[:60]))
+
+print()
+print("Step 8D2: CLAIMS_BOUNDARY forbidden claims (live docs)")
+print("-"*70)
+if claim_violations:
+    fail("live docs make no claim CLAIMS_BOUNDARY.md forbids",
+         f"{len(claim_violations)} hits; first: " + "; ".join(
+             f"{fn}:L{ln} '{b}' (match: {t!r})"
+             for fn, ln, b, t in claim_violations[:5]))
+else:
+    ok(f"live docs make no claim CLAIMS_BOUNDARY.md forbids "
+       f"({len(FORBIDDEN_CLAIM_PATTERNS)} patterns over 7 documents; "
+       "exact sentences only -- a paraphrase is not caught and no string "
+       "rule catches one)")
+
+
 
 # ===================== STEP 8F: canonical mode-map + tag-class + count audits ====
 print()
@@ -1273,7 +1753,8 @@ OBSOLETE_MODE_MAP_PATTERNS = [
 # Files audited (live canonical docs)
 LIVE_DOCS_8F = [
     # User-facing canonical docs
-    "README.md", "CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
+    "README.md", "CLAIMS_BOUNDARY.md", "docs/legacy/qta/README.md",
+    "docs/legacy/qta/CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
     # Data files
     "source_audit_status.txt", "final_manifest.json",
     "BOM.csv", "interface_map.csv", "assumed_parameters.json", "risk_register.csv",
@@ -1500,9 +1981,51 @@ if bom_path.exists():
                              cell_blob, re.IGNORECASE):
                 bom_problems.append(f"{iid}/L{line_no}: row contains 'validated/verified' claim without negation/required_validation context")
 
-    # Rule 9: BOM row count freshness in README / final_manifest / output_sync_report
+    # Rule 9: the status vocabulary is the claim, so it is enumerated
+    #
+    # CLAIMS_BOUNDARY.md makes the package's strongest hardware statement --
+    # "Every hardware item in BOM.csv is either DESIGN_SPECIFIED,
+    # NOT_INSTALLED, INSTALLED_UNVERIFIED, or MANUFACTURER_SPEC. No item is
+    # in-system VERIFIED." -- and nothing here enforced it.
+    #
+    # What existed were proxies. Rules 4 and 5 forbid MEASURED and INSTALLED
+    # for B081..B131 only, so the other seventy rows were unconstrained. Rule
+    # 6 covers cryostat hardware by keyword. Rule 8 scans the row for the
+    # word "verified", and `\bverified\b` does not match INSTALLED_VERIFIED,
+    # because an underscore is a word character and there is no boundary
+    # before the V. A status of INSTALLED_VERIFIED, or IN_SYSTEM_VERIFIED, on
+    # any row outside that id range passed every rule in this file.
+    #
+    # An allowlist is the property itself: the set of things a status is
+    # permitted to say. It also removes the need to reason about substrings,
+    # which is what made INSTALLED_UNVERIFIED and INSTALLED_VERIFIED hard to
+    # separate by pattern. Widening it is a change to the claims boundary and
+    # should read like one.
+    ALLOWED_BOM_STATUS = {
+        "DESIGN_SPECIFIED",
+        "NOT_INSTALLED",
+        "INSTALLED_UNVERIFIED",
+        "MANUFACTURER_SPEC",
+        "MANUFACTURER_SPEC_TARGET",
+    }
+    for i, r in enumerate(bom_rows):
+        st = (r.get("status") or "").strip()
+        if st not in ALLOWED_BOM_STATUS:
+            bom_problems.append(
+                f"{(r.get('item_id') or '').strip()}/L{i + 2}: status "
+                f"{st!r} is not one of {sorted(ALLOWED_BOM_STATUS)}; "
+                "CLAIMS_BOUNDARY.md states that no item is in-system "
+                "VERIFIED")
+    if not bom_rows:
+        # A zero-row BOM would satisfy every rule above by having nothing to
+        # violate, and this file would print a clean audit of nothing.
+        bom_problems.append(
+            "BOM.csv has no rows; an empty table passes every rule here "
+            "without establishing anything")
+
+    # Rule 10: BOM row count freshness in README / final_manifest / output_sync_report
     actual_bom_rows = len(bom_rows)
-    for doc_name in ("README.md",):
+    for doc_name in ("docs/legacy/qta/README.md",):
         dp = PKG / doc_name
         if not dp.exists():
             continue
@@ -1558,7 +2081,8 @@ def _normalise_mode_spacing(text):
     return text
 
 SEMANTIC_LIVE_DOCS = [
-    "README.md", "CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
+    "README.md", "CLAIMS_BOUNDARY.md", "docs/legacy/qta/README.md",
+    "docs/legacy/qta/CLAIMS_BOUNDARY.md", "FIRST_VALIDATION_EXPERIMENTS.md",
     "qta_manuscript_v4.tex", "BOM.csv", "interface_map.csv", "risk_register.csv",
     "validation_matrix.csv", "results_gate_table.csv", "assumed_parameters.json",
     "measured_parameters.json", "source_gap_register.csv", "source_map.csv",
@@ -1614,7 +2138,7 @@ else:
 # CLAIMS_BOUNDARY.md must not conflate the citation-audit row count (65) with the
 # manuscript bibitem count (23). The manuscript \bibitem count is the ground truth.
 tex_path = PKG / "qta_manuscript_v4.tex"
-cb_path = PKG / "CLAIMS_BOUNDARY.md"
+cb_path = PKG / "docs/legacy/qta/CLAIMS_BOUNDARY.md"
 if tex_path.exists() and cb_path.exists():
     tex_txt = tex_path.read_text(encoding="utf-8", errors="replace")
     bibitem_count = len(re.findall(r"\\bibitem", tex_txt))
@@ -1672,12 +2196,31 @@ if mc_path.exists():
              f"missing: {missing}")
     else:
         ok("monte_carlo_summary has all required canonical metric rows")
-    if mc.get("total_gates") and int(mc["total_gates"]) != CANONICAL_EXPECTED["total_gates"]:
+    # The number in the message is the number that was compared.
+    #
+    # This read `ok("... matches canonical (63)")` while comparing against
+    # CANONICAL_EXPECTED["total_gates"], which is 83. Nothing in this package
+    # has ever had 63 gates. A reader reconciling the checker's output against
+    # monte_carlo_summary.csv would have found a contradiction that does not
+    # exist -- the same failure as reporting a slice width as a total.
+    #
+    # And `if mc.get(k) and ...` took the OK branch whenever the field was
+    # missing or empty, so an absent total_gates reported as matching one it
+    # had never seen. A field that is not there has not been checked.
+    _expect_gates = CANONICAL_EXPECTED["total_gates"]
+    if not mc.get("total_gates"):
         fail("MC summary total_gates matches canonical",
-             f"got {mc['total_gates']}, expected {CANONICAL_EXPECTED['total_gates']}")
+             f"NOT CHECKED -- total_gates is {mc.get('total_gates')!r}; a "
+             f"missing field cannot match {_expect_gates}")
+    elif int(mc["total_gates"]) != _expect_gates:
+        fail("MC summary total_gates matches canonical",
+             f"got {mc['total_gates']}, expected {_expect_gates}")
     else:
-        ok("MC summary total_gates matches canonical (63)")
-    if mc.get("PASS_count") and int(mc["PASS_count"]) != 0:
+        ok(f"MC summary total_gates matches canonical ({_expect_gates})")
+    if not mc.get("PASS_count"):
+        fail("MC summary PASS_count=0",
+             f"NOT CHECKED -- PASS_count is {mc.get('PASS_count')!r}")
+    elif int(mc["PASS_count"]) != 0:
         fail("MC summary PASS_count=0", f"got {mc['PASS_count']}")
     else:
         ok("MC summary PASS_count=0")
@@ -2130,6 +2673,116 @@ try:
         ok("multiphysics: all 20 gates present; statuses in {CONDITIONAL,BLOCKED,UNKNOWN,DERIVED_CHECK}")
 except Exception as e:
     fail("multiphysics: gate-table check", str(e))
+
+# (e2) every serialised value states whether the solve could resolve it
+#
+# A file that prints 0.000000000e+00 makes a claim to ten significant figures
+# whether or not it means to. Three different statements used to arrive at
+# this column looking identical: a species that is absent by design, a species
+# whose density is below the integrator's own absolute tolerance, and a
+# resolved number that happens to be small. The first is exact, the second is
+# not a number at all, and only the file can tell a reader which it is holding
+# -- the tolerance is not in it.
+#
+# Checked by RE-DERIVING the classification from the value and the declared
+# floor, not by looking for the column and trusting what it says. A marking
+# nothing cross-checks is a label, and this package has spent a long time
+# finding labels that were read as measurements.
+RESOLUTION_MARKED = {
+    # file -> (value column, marking column, declared-floor source)
+    "gas_transport_profile.csv": ("n_{sp}_modeC_1m3", "resolution_{sp}_modeC",
+                                  ("gas_transport_metrics.csv",
+                                   "resolution_floor_1m3")),
+    "surface_coverage_profile.csv": ("theta_{sp}_modeC", "resolution_{sp}_modeC",
+                                     ("surface_coverage_metrics.csv",
+                                      "resolution_floor_theta")),
+}
+_res_problems, _res_pairs = [], 0
+for _fname, (_vfmt, _mfmt, (_mfile, _fcol)) in RESOLUTION_MARKED.items():
+    try:
+        _floors = {r["species"]: float(r[_fcol])
+                   for r in _read_csv_rows(_mfile)}
+        if not _floors:
+            _res_problems.append(f"{_mfile}: declares no resolution floor")
+            continue
+        _rows = _read_csv_rows(_fname)
+        _hdr = _read_csv_header(_fname)
+        for _sp, _floor in _floors.items():
+            _vc, _mc = _vfmt.format(sp=_sp), _mfmt.format(sp=_sp)
+            if _vc not in _hdr:
+                continue
+            if _mc not in _hdr:
+                _res_problems.append(f"{_fname}: {_vc} is stated with no {_mc}")
+                continue
+            if not (_floor > 0.0):
+                _res_problems.append(
+                    f"{_mfile}: {_sp} floor is {_floor!r}; with no positive "
+                    "floor every value would mark as resolved")
+                continue
+            for _i, _r in enumerate(_rows, 1):
+                _v, _m = float(_r[_vc]), _r[_mc]
+                _res_pairs += 1
+                if _m not in ("RESOLVED", "BELOW_RESOLUTION", "EXACT_ZERO",
+                              "OUT_OF_RANGE"):
+                    _res_problems.append(f"{_fname}:{_i} {_mc}={_m!r}")
+                elif _m == "RESOLVED" and abs(_v) < _floor:
+                    # The one that matters: a value inside the unresolved band
+                    # presented as a resolved number.
+                    _res_problems.append(
+                        f"{_fname}:{_i} {_vc}={_v:.6e} is below the declared "
+                        f"floor {_floor:.6e} but marked RESOLVED")
+                elif _m == "EXACT_ZERO" and _v != 0.0:
+                    _res_problems.append(
+                        f"{_fname}:{_i} {_vc}={_v:.6e} marked EXACT_ZERO")
+    except Exception as e:
+        _res_problems.append(f"{_fname}: {type(e).__name__}: {e}")
+# The same re-derivation for every CARRIER whose floor is a column of its
+# own row -- the energy ledger's phase and cumulative floors (D-2026-98). The
+# binding is read from docs/resolution_inventory.json, the declaration
+# tools/resolution_inventory.py reconciles, rather than restated here.
+try:
+    _rinv = json.loads((PKG / "docs" / "resolution_inventory.json")
+                       .read_text(encoding="utf-8"))
+    for _key, _e in sorted(_rinv.get("columns", {}).items()):
+        if _e.get("basis") != "CARRIER" or not _e.get("floor_from"):
+            continue
+        _fname, _vc = _key.split(":", 1)
+        _mc, _fc = _e["resolution_from"], _e["floor_from"]
+        for _i, _r in enumerate(_read_csv_rows(_fname), 1):
+            _v, _m, _f = float(_r[_vc]), _r[_mc], float(_r[_fc])
+            _res_pairs += 1
+            if not (_f > 0.0):
+                _res_problems.append(f"{_fname}:{_i} {_fc}={_f!r} is not a "
+                                     "positive floor")
+            elif _m not in ("RESOLVED", "BELOW_RESOLUTION", "EXACT_ZERO",
+                            "OUT_OF_RANGE"):
+                _res_problems.append(f"{_fname}:{_i} {_mc}={_m!r}")
+            elif _m == "RESOLVED" and abs(_v) < _f:
+                _res_problems.append(
+                    f"{_fname}:{_i} {_vc}={_v:.6e} is below its floor "
+                    f"{_f:.6e} but marked RESOLVED")
+            elif _m == "BELOW_RESOLUTION" and abs(_v) > _f:
+                _res_problems.append(
+                    f"{_fname}:{_i} {_vc}={_v:.6e} is above its floor "
+                    f"{_f:.6e} but marked BELOW_RESOLUTION")
+            elif _m == "EXACT_ZERO" and _v != 0.0:
+                _res_problems.append(
+                    f"{_fname}:{_i} {_vc}={_v:.6e} marked EXACT_ZERO")
+except Exception as e:
+    _res_problems.append(f"row-floor carriers: {type(e).__name__}: {e}")
+if _res_problems:
+    fail("multiphysics: serialised values state what the solve resolves",
+         f"{len(_res_problems)} problems (first 5): {_res_problems[:5]}")
+elif _res_pairs == 0:
+    # Not a pass. Zero comparisons means the columns were not found, and
+    # silence there reads exactly like agreement.
+    fail("multiphysics: serialised values state what the solve resolves",
+         "NOT CHECKED -- no value/marking pair was compared; the check found "
+         "nothing to verify, which is not the same as finding nothing wrong")
+else:
+    ok(f"multiphysics: every serialised profile value states what the solve "
+       f"resolves ({_res_pairs} value/marking pairs re-derived against the "
+       f"declared floors)")
 
 # (f) no source_audit.csv reference inside multiphysics outputs
 sa_refs = []

@@ -10,11 +10,152 @@
 # regression fails the container instead of passing quietly.
 set -euo pipefail
 
-python -c "import numpy,scipy,qutip; print(numpy.__version__,scipy.__version__,qutip.__version__)"
+# EVERY STEP ANNOUNCES ITSELF, because "it passed" was an inference.
+#
+# R59 recorded that steps 1-3 succeeded in hosted run 33113363458, derived
+# from `set -e` ordering and the fact that step 4 was reached. That is sound
+# reasoning and it is not a reading of their output: the job-logs API served
+# only the pytest tail, so the earlier steps' results were never actually
+# seen. A marker per step turns the inference into a record, and the markers
+# are greppable so a later reader can confirm each one individually.
+QTA_STEPS_OK=""
+QTA_STEP_CURRENT=""
+step() { QTA_STEP_CURRENT="$1"; echo "::QTA-STEP-BEGIN:: $1"; }
+done_() {
+  echo "::QTA-STEP-OK:: $1"
+  QTA_STEPS_OK="${QTA_STEPS_OK}${QTA_STEPS_OK:+,}$1"
+  QTA_STEP_CURRENT=""
+}
 
+# A SUMMARY AT THE END, because the beginning of the log is not reachable.
+#
+# The per-step markers turned the inference into a record, and the record was
+# still unreadable: the job-logs API serves the TAIL, and by the time this
+# script has run qta_full_sim.py and a pytest suite the early markers are
+# fifteen hundred lines above it. R59 recorded "steps 1-3 passed" as an
+# inference from `set -e` ordering; a marker nobody can scroll to is the same
+# inference wearing a record's clothes.
+#
+# An EXIT trap, so it prints on failure too -- which is the case where
+# knowing how far it got actually matters.
+_qta_summary() {
+  local rc=$?
+  echo "::QTA-STEPS-COMPLETED:: ${QTA_STEPS_OK:-none}"
+  if [ -n "$QTA_STEP_CURRENT" ]; then
+    echo "::QTA-STEP-FAILED:: ${QTA_STEP_CURRENT}"
+  fi
+  echo "::QTA-EXIT:: ${rc}"
+  return $rc
+}
+trap _qta_summary EXIT
+
+step "environment"
+python -c "import json,sys,platform,numpy,scipy
+try:
+    import qutip; q = qutip.__version__
+except Exception as e:
+    q = 'UNAVAILABLE: %s' % type(e).__name__
+try:
+    cfg = numpy.show_config(mode='dicts'); dep = cfg.get('Build Dependencies', {})
+    blas = dep.get('blas', {}).get('name'); lapack = dep.get('lapack', {}).get('name')
+    simd = cfg.get('SIMD Extensions', {})
+except Exception:
+    blas = lapack = None; simd = {}
+print('::QTA-ENV:: ' + json.dumps({
+    'python': sys.version.split()[0], 'platform': platform.platform(),
+    'machine': platform.machine(), 'numpy': numpy.__version__,
+    'scipy': scipy.__version__, 'qutip': q,
+    'blas': blas, 'lapack': lapack, 'simd': simd,
+    'threads': {k: __import__('os').environ.get(k)
+                for k in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS',
+                          'MKL_NUM_THREADS','PYTHONHASHSEED')},
+}, sort_keys=True))"
+done_ "environment"
+
+# git is REQUIRED, not optional. 48 governance tests enumerate the corpus
+# with it, and without it they fail three frames deep in subprocess with a
+# FileNotFoundError that says nothing about the property under test.
+step "git-available"
+git --version
+git -C /qta rev-parse --is-inside-work-tree
+echo "::QTA-TRACKED-FILES:: $(git -C /qta ls-files | wc -l)"
+done_ "git-available"
+
+# The CURRENT harness first: its evidence, audits and generic verification,
+# none of which reads the legacy QTA corpus. The learned-model evidence is
+# re-derived (abstractly: the ~1T flagship is never allocated -- verify
+# refuses a real allocation), the PASS semantics and the active/legacy
+# boundary are re-checked, and a generic model is run and independently
+# verified -- with a deliberately wrong producer that must be rejected.
+step "harness-generic"
+QTA_NEURAL_REQUIRED=1 python tools/neural.py verify
+python tools/pass_semantics_audit.py --check
+python tools/framework_boundary.py --check
+python tools/claims_enforcement.py
+python tools/completion_matrix.py
+python - <<'PY'
+import scientific.models.slab_transient as ST
+from scientific.checks import slab_series as SS
+p = {"L_m": 0.05, "k_W_m_K": 15.0, "rho_c_J_m3_K": 3.6e6, "q_W_m3": 2.0e5,
+     "h_W_m2_K": 50.0, "T_inf_K": 300.0, "T0_K": 300.0, "t_end_s": 600.0}
+ok = SS.run_check(ST.SlabTransientModel().run(p), verifier_id="container")
+orig = ST._solve
+ST._solve = lambda q, n, m: orig({**q, "k_W_m_K": q["k_W_m_K"] * 1.1}, n, m)
+bad = SS.run_check(ST.SlabTransientModel().run(p), verifier_id="container")
+ST._solve = orig
+print("::QTA-GENERIC:: slab vs series", ok.status.value,
+      "| wrong producer", bad.status.value)
+assert ok.status.value == "PASS" and bad.status.value == "FAIL"
+PY
+done_ "harness-generic"
+
+# The generic end-to-end demonstration, in the image (section 49): proposal,
+# governed retrieval, the ingress, a governed model run, HDF5, the series
+# check, the reviewer's decision, a restart from a checkpoint, reconstruction
+# and an RO-Crate. Without the FEniCSx and FMI runtimes (not in this image)
+# its generic leg runs, whose honest outcome is REJECTED: the series check is
+# not an admitted independent check. The report goes to QTA_EVIDENCE_DIR when
+# the host mounts one, so the workflow can compare it with a native run.
+step "harness-demo"
+EVID="${QTA_EVIDENCE_DIR:-/tmp}"
+python tools/harness_demo.py run --out "$EVID/harness_demo_container.json"
+echo "::QTA-DEMO:: report sha256 $(sha256sum "$EVID/harness_demo_container.json" | cut -c1-64)"
+done_ "harness-demo"
+
+step "qta_full_sim"
 python qta_full_sim.py
-python package_consistency_check.py
+done_ "qta_full_sim"
+
+# The 3D cross-environment comparison, IN THE JOB LOG rather than only in an
+# artifact, and BEFORE the checkers that can fail. The artifact route is
+# authenticated and works; its signed storage host is denied by some egress
+# policies, so the evidence that matters is emitted where the logs API can
+# serve it.
+#
+# Ordered ahead of package_consistency_check.py because of what happened
+# when it was not: the package check failed on a byte divergence, `set -e`
+# ended the run, and the diagnostic that exists to EXPLAIN a byte divergence
+# never executed. The one case where the measurement matters most was the
+# one case it was skipped in.
+#
+# It is a diagnostic: it reports a divergence and never fails on one. Putting
+# it first therefore cannot mask a failure, only inform one.
+step "cross-environment-3d"
+python analysis/collect_container_3d.py /tmp/qta-3d-diag --emit-summary
+done_ "cross-environment-3d"
+
+# --policy ci, explicitly. A pinned userspace does not pin the CPU the
+# container is scheduled on: this container is not a witnessed backend by
+# virtue of being a container, so it asks the portable question -- byte-
+# identical, or decision-stable under a different resolved backend -- and
+# never the release one (directive 7).
+step "package_consistency"
+python package_consistency_check.py --policy ci
+done_ "package_consistency"
+
+step "manuscript_consistency"
 python manuscript_consistency_check.py
+done_ "manuscript_consistency"
 
 # Fail closed if collection collapses: a suite that collects nothing must not
 # be reported as a passing suite.
@@ -25,11 +166,22 @@ if [ "${collected:-0}" -lt 300 ]; then
   exit 1
 fi
 echo "pytest collected ${collected} tests"
-python -m pytest tests/ -q
+QTA_NEURAL_REQUIRED=1 python -m pytest tests/ -q
 
+step "stage6_preservation"
 python stage6_preservation_check.py
+done_ "stage6_preservation"
+
+step "manifest_freshness"
 python generate_manifest.py --check
+done_ "manifest_freshness"
+
+step "hdf5_equivalence"
 python validate_hdf5_equivalence.py
+done_ "hdf5_equivalence"
+
+step "ro_crate"
 python ro_crate_tools.py validate
+done_ "ro_crate"
 
 echo "CONTAINER VERIFICATION COMPLETE (software checks; scientific gate PASS remains zero)"

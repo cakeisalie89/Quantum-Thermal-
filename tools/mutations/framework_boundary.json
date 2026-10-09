@@ -1,0 +1,93 @@
+{
+  "title": "ACTIVE FRAMEWORK vs LEGACY QTA: the boundary's own rules",
+  "note": "tools/framework_boundary.py measures the directive-10 boundary; each rule it applies is removed here and a planted violation in tests/test_framework_boundary.py must notice.",
+  "suites": [
+    "tests/test_framework_boundary.py"
+  ],
+  "mutations": [
+    {
+      "name": "FB1_lazy_imports_are_not_dependencies",
+      "path": "tools/framework_boundary.py",
+      "find": "    names: set[str] = set()\n    for node in ast.walk(tree):\n        if isinstance(node, ast.Import):\n",
+      "replace": "    names: set[str] = set()\n    for node in getattr(tree, \"body\", ()):\n        if isinstance(node, ast.Import):\n",
+      "rationale": "an import inside a function is not a dependency, so the run_all edge would pass"
+    },
+    {
+      "name": "FB2_importing_a_submodule_runs_no_package",
+      "path": "tools/framework_boundary.py",
+      "find": "        out |= self._parents(mod)\n        out.discard(mod)\n",
+      "replace": "        out.discard(mod)\n",
+      "rationale": "a package initialiser that reaches legacy taints nothing"
+    },
+    {
+      "name": "FB3_the_closure_is_not_transitive",
+      "path": "tools/framework_boundary.py",
+      "find": "                    via[nxt] = cur\n                    stack.append(nxt)\n",
+      "replace": "                    via[nxt] = cur\n",
+      "rationale": "a legacy module two imports away is never reached"
+    },
+    {
+      "name": "FB4_nothing_is_legacy",
+      "path": "tools/framework_boundary.py",
+      "find": "                               if self.side[p] == \"LEGACY\"}\n",
+      "replace": "                               if self.side[p] == \"NOTHING\"}\n",
+      "rationale": "the legacy side is empty and every import passes"
+    },
+    {
+      "name": "FB5_legacy_files_may_be_named",
+      "path": "tools/framework_boundary.py",
+      "find": "                    or Path(name).name in self.legacy_basenames:\n                found.append(lit)\n",
+      "replace": "                    or Path(name).name in self.legacy_basenames:\n                pass\n",
+      "rationale": "an active module names the BOM and nothing notices"
+    },
+    {
+      "name": "FB6_every_legacy_file_is_matched_by_name",
+      "path": "tools/framework_boundary.py",
+      "find": "        self.legacy_basenames = {p for p in self.legacy_files\n                                 if \"/\" not in p}\n",
+      "replace": "        self.legacy_basenames = {Path(p).name for p in self.legacy_files}\n",
+      "rationale": "a generic SHA256SUMS is mistaken for the legacy release's"
+    },
+    {
+      "name": "FB7_ontology_tokens_are_not_read",
+      "path": "tools/framework_boundary.py",
+      "find": "                      if any(t in n for t in self.tokens))\n",
+      "replace": "                      if False)\n",
+      "rationale": "a renamed legacy FSM module is imported and nothing notices"
+    },
+    {
+      "name": "FB8_an_exception_covers_everything",
+      "path": "tools/framework_boundary.py",
+      "find": "        return any(\"names\" not in e or name in e[\"names\"]\n",
+      "replace": "        return True or any(\"names\" not in e or name in e[\"names\"]\n",
+      "rationale": "an exception for one legacy file excuses every file"
+    },
+    {
+      "name": "FB9_stale_exceptions_are_kept",
+      "path": "tools/framework_boundary.py",
+      "find": "        out += [f\"STALE: {s}\" for s in self.stale_exceptions()]\n",
+      "replace": "        pass\n",
+      "rationale": "an exception that excuses nothing any more is never removed"
+    },
+    {
+      "name": "FB10_unclassified_files_pass",
+      "path": "tools/framework_boundary.py",
+      "find": "            out.append(f\"UNCLASSIFIED: {p} has no disposition the boundary \"\n",
+      "replace": "            continue\n            out.append(f\"UNCLASSIFIED: {p} has no disposition the boundary \"\n",
+      "rationale": "a production file on neither side is never placed"
+    },
+    {
+      "name": "FB11_tests_are_in_scope",
+      "path": "tools/framework_boundary.py",
+      "find": "        self.in_scope = {p for p in self.text if not p.startswith(out)}\n",
+      "replace": "        self.in_scope = set(self.text)\n",
+      "rationale": "tests that import legacy on purpose make the boundary fail for the wrong reason"
+    },
+    {
+      "name": "FB12_the_check_always_passes",
+      "path": "tools/framework_boundary.py",
+      "find": "    return 1 if problems else 0\n",
+      "replace": "    return 0\n",
+      "rationale": "the CI step exits 0 with violations printed"
+    }
+  ]
+}

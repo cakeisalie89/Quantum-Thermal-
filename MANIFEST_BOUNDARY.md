@@ -1,6 +1,7 @@
 # Manifest Coverage Boundary — provenance is not authority
 
-MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
+Part of the governed scientific-agent framework. Hashing a file records its
+bytes; it does not make the file an authority.
 
 This document exists because a manifest regeneration produced a surprising
 diff, and a future reader should not have to reverse-engineer the boundary
@@ -85,8 +86,8 @@ Provenance metadata only. Verified, not assumed:
   so release contents, `SHA256SUMS`, and provenance subjects are unchanged.
 - `ro_crate_tools.py` enumerates a fixed file tuple; crate validation is
   unaffected (30 entities, 24 referenced files, 0 problems).
-- No solver, gate, threshold, or canonical output is touched. The gate table
-  remains 83 gates, PASS = 0.
+- No solver, gate, threshold, or canonical output is touched. The legacy
+  QTA gate table remains 83 gates, PASS = 0.
 
 ## 4. Decision
 

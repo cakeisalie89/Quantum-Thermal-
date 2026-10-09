@@ -1,0 +1,18 @@
+{
+  "registry": "QTA hardware-review reviewer roster",
+  "schema_version": "1.0",
+  "authority": "qta_multiphysics/hardware_governance_3d.py :: load_reviewer_roster, resolve_reviewer",
+  "label": "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM",
+  "what_this_is": "The set of identities this package is willing to treat as hardware reviewers. A review record naming an identity that does not resolve here is refused, and a record it would have admitted stays out of every gate-evidence dossier.",
+  "what_this_is_NOT": "This is a DECLARATION, NOT AN AUTHENTICATION. Nothing in this package can establish that an entry below corresponds to a person, that a review attributed to one was written by them, or that the writer had read the record. Whoever can write this file holds hardware-review authority; the roster makes that fact addressable and auditable, it does not remove it.",
+  "why_it_is_empty": "No hardware data exists, no hardware review has been performed, and no reviewer has been registered out of band. An empty roster is therefore the true state and not a placeholder: today no review record can be valid and no gate-evidence dossier can have entries. PASS remains zero; automatic_gate_effect remains NONE.",
+  "registration_rule": "A reviewer entry is usable only if its registered_by is the declared out-of-band bootstrap constant, or another roster entry of kind HUMAN that is itself usable. Self-registration is refused, and so is a registration cycle. This mirrors qta_agent/agents.py, where an agent instance may not mint a HUMAN principal.",
+  "entry_schema": {
+    "reviewer_id": "exact string named by review_record.reviewer_id; matching is case-sensitive and exact",
+    "kind": "HUMAN | TOOL | SERVICE -- only HUMAN may author a review",
+    "registered_by": "OUT_OF_BAND_BOOTSTRAP, or the reviewer_id of a usable HUMAN entry",
+    "registered_on": "ISO-8601",
+    "retired_on": "ISO-8601 or null; a retired reviewer may not author a review"
+  },
+  "reviewers": []
+}

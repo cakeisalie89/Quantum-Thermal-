@@ -1,0 +1,458 @@
+{
+ "audits": {
+  "claims_boundary": {
+   "ok": true,
+   "problems": 0
+  },
+  "framework_boundary": {
+   "ok": true,
+   "problems": 0
+  },
+  "neural_legacy_semantics": {
+   "active_generic_semantic_leaks": 0,
+   "active_neural_semantic_leaks": 0,
+   "ok": true,
+   "unclassified": 0
+  },
+  "pass_semantics": {
+   "committed_report_current": true,
+   "current_ai_semantic_leaks": 0,
+   "ok": true,
+   "unclassified": 0
+  },
+  "workflow_contract": {
+   "ok": true,
+   "problems": 0
+  }
+ },
+ "derived_from": {
+  "docs/completion_matrix.json": "2365843eb2415ca25dd304399eec31e62b43fc8d3c2c3790398b6a00fd7e8e3d",
+  "docs/harness_contract.json": "3b7285fd6aea3e8b5c00a62fa5fe31032d7c49aa451f31d90437590d53366397",
+  "docs/neural/claims.json": "12e49e3de4f8d21cebafda55613b0f8d5e6575b471c2922800e77bbf8899743b",
+  "docs/neural/current_status.json": "b4f920e04b966e3aff67f66911279896d7f309ebf2d1cae84e520bff6c849675",
+  "stack.json": "70deaabfb7ed9eb78c524690ef9379257a6cd2cf3ee621615098a08327df5f0d"
+ },
+ "facts": {
+  "flagship_not_allocated_or_trained": {
+   "large_model_trained": false,
+   "ok": true,
+   "real_weights_allocated": false
+  },
+  "learned_outputs_refused": {
+   "ok": true,
+   "refused_states": [
+    "PROMOTED",
+    "VERIFIED"
+   ]
+  },
+  "legacy_qta_pass_count_is_legacy_only": {
+   "classification": "LEGACY_QTA_ONLY",
+   "legacy_pass_count": 0,
+   "ok": true
+  }
+ },
+ "matrix": {
+  "by_classification": {
+   "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": 50
+  },
+  "by_evidence": {
+   "COVERS_CURRENT_IMPLEMENTATION": 50
+  },
+  "rows": 50
+ },
+ "outcome": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+ "outside_this_software_completion": [
+  {
+   "class": "EXPERIMENTAL_SCIENCE",
+   "id": "physical-experiment",
+   "statement": "no physical experiment has been performed; nothing here is experimentally validated"
+  },
+  {
+   "class": "HARDWARE",
+   "id": "hardware-validation",
+   "statement": "no physical hardware validation; the legacy QTA apparatus does not exist"
+  },
+  {
+   "class": "PAID_COMPUTE",
+   "id": "flagship-allocation-and-training",
+   "statement": "the ~1T flagship is parameterised and meta-validated, never allocated or trained"
+  },
+  {
+   "class": "MODEL_RESEARCH",
+   "id": "development-model-science",
+   "statement": "the development model's scientific performance is unestablished and its epistemic uncertainty not assessed"
+  },
+  {
+   "class": "HARDWARE",
+   "id": "distributed-accelerators",
+   "statement": "no distributed accelerator hardware validation; tensor and pipeline parallelism are plans"
+  },
+  {
+   "class": "EPISTEMIC",
+   "id": "arbitrary-host-byte-identity",
+   "statement": "byte identity of floating-point results on an arbitrary host is not guaranteed and not claimed"
+  },
+  {
+   "class": "OWNER_DECISION",
+   "id": "historical-qta-equivalence",
+   "statement": "scientific equivalence of the historical QTA corpus across backends may remain NOT_ESTABLISHED; migrating it needs the owner"
+  },
+  {
+   "class": "OWNER_DECISION",
+   "id": "learned-model-admission",
+   "statement": "no admission policy for learned models exists; learned outputs stay NON_AUTHORITATIVE"
+  },
+  {
+   "class": "EPISTEMIC",
+   "id": "signature-is-not-truth",
+   "statement": "a valid signature attests origin and integrity, never scientific validity"
+  },
+  {
+   "class": "EPISTEMIC",
+   "id": "one-benchmark-is-not-all-models",
+   "statement": "one FEniCSx benchmark does not verify every scientific model"
+  }
+ ],
+ "research_frontier": {
+  "arbitrary-host-byte-identity": [],
+  "development-model-science": [
+   "R60"
+  ],
+  "distributed-accelerators": [
+   "R60"
+  ],
+  "flagship-allocation-and-training": [
+   "R60"
+  ],
+  "hardware-validation": [],
+  "historical-qta-equivalence": [],
+  "learned-model-admission": [
+   "R60"
+  ],
+  "one-benchmark-is-not-all-models": [],
+  "physical-experiment": [],
+  "signature-is-not-truth": []
+ },
+ "schema": "harness-status/1",
+ "stack": {
+  "authority-substrate": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R40": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    },
+    "R42": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "containers": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R64": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "fenicsx": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R62": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "fmi": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R63": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "generic-scientific-layer": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R61": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "hdf5": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R61": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "openmdao": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "openusd": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "paraview-vtk": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "proposal-ingress": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R66": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "pytest-hypothesis": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R50": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    },
+    "R51": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "python-scientific-core": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "rag-read-only": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R35": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "ro-crate": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R65": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "ruff-mypy-pydantic": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R70": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "rust-selective": {
+   "accept": [
+    "RESOLVED"
+   ],
+   "rows": {
+    "R67": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "RESOLVED"
+  },
+  "salib": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "slsa-sigstore": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R65": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "snakemake": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R55": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    },
+    "R69": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  },
+  "uv": {
+   "accept": [
+    "ADOPTED"
+   ],
+   "rows": {
+    "R56": {
+     "classification": "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT",
+     "evidence": "COVERS_CURRENT_IMPLEMENTATION",
+     "research_frontier": [],
+     "residual_gaps": 0
+    }
+   },
+   "satisfied": true,
+   "status": "ADOPTED"
+  }
+ },
+ "unsatisfied": []
+}

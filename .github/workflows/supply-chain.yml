@@ -1,0 +1,91 @@
+# Supply-chain path, executed: release candidate, SBOM, provenance, keyless
+# signature, verification, tamper refusal (Scientific-AI harness).
+#
+# WHAT IT ANSWERS. Does the harness's release candidate -- the commit's tree
+# packed deterministically, a CycloneDX SBOM of every locked environment, an
+# in-toto provenance statement, an index, all bound by SHA256SUMS -- get a
+# real Sigstore keyless signature from THIS workflow's GitHub OIDC identity,
+# does that signature verify against the EXACT identity and issuer pinned in
+# docs/supply_chain_ci_policy.json (online, and offline from the bundle's own
+# transparency-log inclusion proof), and is every tampered copy refused?
+#
+# CI_VALIDATION_ONLY. This signs a CI artifact to exercise the mechanism. It
+# creates no tag and no GitHub Release, and the policy it verifies against is
+# not a release trust root (that stays QTA_stage9_release_verification/
+# release_trust_policy.json, PENDING an owner's authorization). A valid
+# signature attests origin and integrity only, never scientific validity.
+# NO SLSA level is claimed.
+#
+# LEAST PRIVILEGE. contents: read for the checkout; id-token: write so the
+# job can obtain the ephemeral OIDC token Sigstore exchanges for a
+# short-lived certificate. The token is never written anywhere.
+name: supply-chain
+on:
+  push:
+    branches: ["claude/scientific-python-stack-7rsq3m"]
+  workflow_dispatch:
+permissions: {}            # default-deny
+jobs:
+  sign-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: the sigstore runtime, every wheel by hash
+        run: |
+          set -euo pipefail
+          uv run python tools/isolated_runtime.py create sigstore \
+            --prefix "$RUNNER_TEMP/sigstore" | tee sigstore_runtime.json
+      - name: build the release candidate from the commit (not the working tree)
+        run: uv run python tools/supply_chain.py build --out rc
+      - name: digests, provenance, SBOM and tree, before any signature
+        run: uv run python tools/supply_chain.py verify --dir rc --mode digests
+      - name: keyless signature with this job's OIDC identity
+        run: |
+          "$RUNNER_TEMP/sigstore/bin/python" -I -m sigstore sign \
+            --bundle rc/SHA256SUMS.sigstore.json rc/SHA256SUMS
+      - name: verify online against the exact pinned identity and issuer
+        run: |
+          QTA_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py verify --dir rc --mode online \
+            --report verify_online.json
+      - name: verify offline from the bundle's inclusion proof
+        run: |
+          QTA_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py verify --dir rc --mode offline \
+            --report verify_offline.json
+      - name: tamper suite (every copy must be refused)
+        run: |
+          QTA_SIGSTORE_PYTHON="$RUNNER_TEMP/sigstore/bin/python" \
+            uv run python tools/supply_chain.py tamper --dir rc --mode online \
+            --report tamper.json
+      - name: record the transparency-log entry
+        run: |
+          python3 - <<'PY'
+          import json
+          b = json.load(open("rc/SHA256SUMS.sigstore.json"))
+          e = b["verificationMaterial"]["tlogEntries"][0]
+          rec = {"logIndex": e.get("logIndex"),
+                 "integratedTime": e.get("integratedTime"),
+                 "logId": e.get("logId"), "kindVersion": e.get("kindVersion")}
+          json.dump(rec, open("rekor_entry.json", "w"), indent=1, sort_keys=True)
+          print(json.dumps(rec, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: supply-chain-release-candidate
+          path: |
+            rc
+            verify_online.json
+            verify_offline.json
+            tamper.json
+            rekor_entry.json
+            sigstore_runtime.json
+          if-no-files-found: warn

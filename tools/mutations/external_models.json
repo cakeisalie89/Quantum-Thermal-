@@ -1,0 +1,44 @@
+{
+ "title": "External models: the FMU bundle's invariants and the catalog's admission of an external model",
+ "note": "FX1-FX5: the FMU's energy balance at its own resolutions, its claim boundary, finiteness, and the catalog's archive-identity and authority rules.",
+ "suites": [
+  "tests/test_external_models.py"
+ ],
+ "mutations": [
+  {
+   "name": "FX1_energy_balance_always",
+   "path": "scientific/checks/fmu_rc2.py",
+   "find": "            \"energy_balance\", bool(gap <= bound), Quantity(gap, \"J\"),\n",
+   "replace": "            \"energy_balance\", True, Quantity(gap, \"J\"),\n",
+   "rationale": "an FMU result that does not conserve heat holds its invariant"
+  },
+  {
+   "name": "FX2_claim_boundary_always",
+   "path": "scientific/checks/fmu_rc2.py",
+   "find": "    held = (claim.get(\"authority\") == FB.REQUIRED_AUTHORITY\n            and claim.get(\"observation_kind\") == \"SIMULATION_RESULT\")\n",
+   "replace": "    held = True\n",
+   "rationale": "an FMU claiming authority or measurement holds its claim-boundary invariant"
+  },
+  {
+   "name": "FX3_bound_not_from_resolutions",
+   "path": "scientific/checks/fmu_rc2.py",
+   "find": "        bound = GCI_SAFETY * (e_in.resolution + e_out.resolution\n                              + e_st.resolution) + 64 * _EPS * max(\n",
+   "replace": "        bound = 1e3 * (e_in.resolution + e_out.resolution\n                              + e_st.resolution) + 64 * _EPS * max(\n",
+   "rationale": "the balance tolerance is widened past the declared resolutions"
+  },
+  {
+   "name": "FX4_archive_identity_unchecked",
+   "path": "scientific/catalog.py",
+   "find": "    if fmi.get(\"archive_sha256\") != bundle.implementation_digest:\n",
+   "replace": "    if False:\n",
+   "rationale": "an external bundle naming another archive is admitted"
+  },
+  {
+   "name": "FX5_external_authority_unchecked",
+   "path": "scientific/catalog.py",
+   "find": "    if (fmi.get(\"claim_boundary\") or {}).get(\"authority\") != \\\n            spec[\"authority\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "an external model claiming authority is admitted"
+  }
+ ]
+}

@@ -1,0 +1,86 @@
+{
+  "title": "One view of governed execution per replay, counted",
+  "note": "GovernedOrigins.shared and its callers: the store's load, catch-up (both paths) and snapshot restore, a single origin question, reuse and the invalidation cascade; and the independent reader's one task replay per reconstruction. The suite counts origin questions against views built on a genuine history of five admissions, with the probe shown to see one view per question when sharing is switched off.",
+  "suites": [
+    "tests/test_replay_origin_view.py"
+  ],
+  "mutations": [
+    {
+      "name": "RV1_the_load_shares_nothing",
+      "path": "qta_agent/store.py",
+      "find": "        with self._one_origin_view():\n            for ev in events:\n                self._apply(ev)\n",
+      "replace": "        with nullcontext():\n            for ev in events:\n                self._apply(ev)\n",
+      "rationale": "a load builds one view per admission again: O(n*k)"
+    },
+    {
+      "name": "RV2_the_restore_shares_nothing",
+      "path": "qta_agent/store.py",
+      "find": "        with self._one_origin_view():\n            for rid, rec in list(rebuilt.items()):\n",
+      "replace": "        with nullcontext():\n            for rid, rec in list(rebuilt.items()):\n",
+      "rationale": "a snapshot restore re-decides each admission from its own view"
+    },
+    {
+      "name": "RV3_the_full_catch_up_shares_nothing",
+      "path": "qta_agent/store.py",
+      "find": "        with self._one_origin_view():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
+      "replace": "        with nullcontext():\n            for ev in events:\n                if ev.seq > self._loaded_through:\n",
+      "rationale": "a catch-up without an anchor builds one view per admission it folds"
+    },
+    {
+      "name": "RV4_the_anchored_catch_up_shares_nothing",
+      "path": "qta_agent/store.py",
+      "find": "                with self._one_origin_view():\n                    for ev in events:\n",
+      "replace": "                with nullcontext():\n                    for ev in events:\n",
+      "rationale": "the live path, folding from its anchor, builds one view per admission it folds"
+    },
+    {
+      "name": "RV5_a_question_builds_two_views",
+      "path": "qta_agent/governed_model.py",
+      "find": "        with self.shared():\n            checks = self._producers(",
+      "replace": "        if True:\n            checks = self._producers(",
+      "rationale": "the report's producers and the bundle's are each read from a view of their own"
+    },
+    {
+      "name": "RV6_a_shared_view_is_rebuilt",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if self._shared:\n            return self._shared[0]\n",
+      "replace": "        if False:\n            return self._shared[0]\n",
+      "rationale": "the view is held and never used"
+    },
+    {
+      "name": "RV7_a_nested_scope_discards_the_outer_view",
+      "path": "qta_agent/governed_model.py",
+      "find": "        if self._shared is not None:\n            yield self\n            return\n        self._shared = []\n",
+      "replace": "        self._shared = []\n",
+      "rationale": "each question's own scope resets the load's, so the load shares nothing"
+    },
+    {
+      "name": "RV8_reuse_shares_nothing",
+      "path": "qta_agent/governed_model.py",
+      "find": "        with self.origins.shared():\n            return self._reusable(identity_digest)\n",
+      "replace": "        if True:\n            return self._reusable(identity_digest)\n",
+      "rationale": "a reuse search builds one view per candidate"
+    },
+    {
+      "name": "RV9_the_cascade_shares_nothing",
+      "path": "qta_agent/governed_model.py",
+      "find": "        with self.origins.shared():\n            return self._follow_shared(",
+      "replace": "        if True:\n            return self._follow_shared(",
+      "rationale": "an invalidation builds one view per result it asks after"
+    },
+    {
+      "name": "RV10_the_reader_replays_tasks_per_admission",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if not held:\n            held.append(reconstruct_tasks(log).tasks)\n",
+      "replace": "        if True:\n            held.insert(0, reconstruct_tasks(log).tasks)\n",
+      "rationale": "the independent reader replays every task once per admission it decides"
+    },
+    {
+      "name": "RV11_the_counter_counts_nothing",
+      "path": "qta_agent/governed_model.py",
+      "find": "        self.views_built += 1\n",
+      "replace": "        pass\n",
+      "rationale": "the guard's own unit disabled: every count reads zero and proves nothing"
+    }
+  ]
+}

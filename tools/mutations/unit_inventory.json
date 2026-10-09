@@ -1,0 +1,66 @@
+{
+ "title": "Every published number carries a dimension somebody reviewed",
+ "note": "D-2026-57. The suffix rule these mutations restore was not hypothetical: it published gradient_K_per_m as metres and two fluxes as seconds, and lost the dimension of 91 of 162 numeric columns. A surviving mutation here means the test is asserting the shape of the inventory rather than what it decides. UI8 SURVIVED on the first run: every other test of the equivalence report reads the COMMITTED report, which a source change cannot move, so the refusal in validate_hdf5_equivalence.py had no test at all. The harness says a mis-scoped spec and a missing test look identical from there; this was the missing test, and it is now driven against a constructed one-column fixture with controls for each of the six legitimate dimensions.",
+ "suites": [
+  "tests/test_unit_inventory.py",
+  "tests/test_stage8_data_provenance.py"
+ ],
+ "mutations": [
+  {
+   "name": "UI1_an_undeclared_column_is_published_anyway",
+   "path": "build_hdf5_mapping.py",
+   "find": "    if entry is None:\n        raise UndeclaredUnit(",
+   "replace": "    if entry is None and False:\n        raise UndeclaredUnit(",
+   "rationale": "a new numeric column would be published carrying whatever the writer defaulted to, which is how 91 columns came to say 'unresolved' in the first place"
+  },
+  {
+   "name": "UI2_a_quantity_may_be_declared_a_pure_number",
+   "path": "tools/unit_inventory.py",
+   "find": "            if tok:\n                problems.append(",
+   "replace": "            if tok and False:\n                problems.append(",
+   "rationale": "the direction of error that matters: a temperature or a density published as a dimensionless score, with its own name still saying otherwise"
+  },
+  {
+   "name": "UI3_per_row_may_name_a_column_that_does_not_exist",
+   "path": "tools/unit_inventory.py",
+   "find": "            elif carrier not in hdr:\n                problems.append(",
+   "replace": "            elif carrier not in hdr and False:\n                problems.append(",
+   "rationale": "'the unit is in the row' becomes an assertion nothing checks, which is the whole reason PER_ROW is allowed to exist"
+  },
+  {
+   "name": "UI4_an_undeclared_column_is_not_reported",
+   "path": "tools/unit_inventory.py",
+   "find": "    for k in sorted(keys - set(declared)):",
+   "replace": "    for k in sorted(set() - set(declared)):",
+   "rationale": "coverage becomes whatever the inventory happens to contain rather than what the schema contains"
+  },
+  {
+   "name": "UI5_the_inventory_may_describe_a_schema_that_moved_on",
+   "path": "tools/unit_inventory.py",
+   "find": "    for k in sorted(set(declared) - keys):",
+   "replace": "    for k in sorted(set() - keys):",
+   "rationale": "entries for columns that no longer exist are entries nobody is maintaining"
+  },
+  {
+   "name": "UI6_unresolved_is_accepted_again",
+   "path": "tools/unit_inventory.py",
+   "find": "        if not u or u in (\"unresolved\", \"UNREVIEWED\"):",
+   "replace": "        if not u:",
+   "rationale": "the word this whole change exists to remove, back in the vocabulary and gating nothing"
+  },
+  {
+   "name": "UI7_a_reconciliation_over_nothing_passes",
+   "path": "tools/unit_inventory.py",
+   "find": "    if not columns:\n        raise ScopeError(",
+   "replace": "    if columns is None:\n        raise ScopeError(",
+   "rationale": "zero columns, zero problems, a clean verdict about nothing"
+  },
+  {
+   "name": "UI8_the_archive_publishes_a_missing_dimension_without_complaint",
+   "path": "validate_hdf5_equivalence.py",
+   "find": "                        if not u or u == \"unresolved\":",
+   "replace": "                        if not u and False:",
+   "rationale": "restores the original defect exactly: a count in a report instead of a gate, which is how 91 of 162 stayed unnoticed"
+  }
+ ]
+}

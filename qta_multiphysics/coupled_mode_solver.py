@@ -27,30 +27,13 @@ from .radiation_paths import radiation_paths
 from .vibration_transfer import vibration_transfer
 
 
-#: A solve that did not converge carries no scientific authority. Any consumer
-#: below -- Mode-C readiness, Mode-D start, eligibility forecasts, derived
-#: metrics -- must deny authority rather than read the numbers anyway.
-SOLVER_OK = "ok"
-
-
-class SolverFailure(RuntimeError):
-    """A numerical solve did not converge; downstream authority is denied."""
-
-
-def require_converged(result, what: str):
-    """Fail closed on a non-converged solve.
-
-    solver_status used to be reported alongside the metrics as a passive
-    string while ready_terms was computed from the same result regardless, so
-    a failed BDF integration could still produce FORECAST_READY_IF_MEASURED.
-    Readiness is now unreachable without convergence.
-    """
-    status = getattr(result, "solver_status", None)
-    if status != SOLVER_OK:
-        raise SolverFailure(
-            f"{what}: solver_status={status!r} (expected {SOLVER_OK!r}); "
-            "readiness, eligibility and derived metrics are denied")
-    return result
+# The convergence contract now lives in the numerics layer, so that every
+# solver path inherits it rather than only the one it was written beside.
+# Re-exported here because this module is where callers and tests have always
+# imported it from, and moving a rule should not break the readers of it.
+from .numerics import (                                  # noqa: E402,F401
+    SOLVER_OK, SolverFailure, require_converged, decide_below,
+)
 
 
 def run_coupled(cfg: MultiphysicsConfig):
@@ -70,8 +53,12 @@ def run_coupled(cfg: MultiphysicsConfig):
     gasB_sample = {s.name: gasB.sample_region_density(s.name) for s in species}
     B_contam_flux = max(gasB_sample.get("CH4", 0.0), gasB_sample.get("H2", 0.0))
 
-    covB, _, _ = surface_coverage_1d(gasB_sample, T_surface_K=max(B_surf_T, 1.0),
+    # The whole coverage solve is kept, not just its numbers: its floor and
+    # the reason a species is zero live on it (surface_coverage.CoverageSolve).
+    solve_covB = surface_coverage_1d(gasB_sample,
+                                     T_surface_K=max(B_surf_T, 1.0),
                                      t_end=1.0, mode="B")
+    covB, _, _ = solve_covB
     thetaB = {k: float(v[-1]) for k, v in covB.items()}
 
     # ---- Mode C: recovery (source OFF, init from Mode B) ----
@@ -97,8 +84,10 @@ def run_coupled(cfg: MultiphysicsConfig):
     gasC = solve_gas_transport_1d(mode="C", t_end=2.0, n_init=n_init)
     gasC_sample = {s.name: gasC.sample_region_density(s.name) for s in species}
 
-    covC, tcov, _ = surface_coverage_1d({}, T_surface_K=cfg.fridge.T_fridge_K,
-                                        t_end=2.0, mode="C", theta0=thetaB, purge_1_s=5.0)
+    solve_covC = surface_coverage_1d({}, T_surface_K=cfg.fridge.T_fridge_K,
+                                     t_end=2.0, mode="C", theta0=thetaB,
+                                     purge_1_s=5.0)
+    covC, tcov, _ = solve_covC
     thetaC = {k: float(v[-1]) for k, v in covC.items()}
     # surface decay time: first time total coverage falls below 1e-6
     tot = np.sum([covC[k] for k in covC], axis=0)
@@ -121,7 +110,20 @@ def run_coupled(cfg: MultiphysicsConfig):
     ready_terms = {
         "nv_temperature_ok": D_T_NV <= th,
         "drift_ok": C_drift <= 0.5 * th,
-        "gas_residual_ok": (D_res_CH4 < 1e12 and D_res_H2 < 1e12),
+        # Not a bare `<`. The methane residual here is 0.0 only because the
+        # Mode-C solve put it below its own absolute tolerance and the clip
+        # rounded the sign away; the threshold is nine orders of magnitude
+        # above that floor, so the comparison still holds whatever the digits
+        # were -- and decide_below is what establishes that rather than
+        # assuming it. Tighten 1e12 towards 1e3 and this raises instead of
+        # quietly deciding a readiness term on integrator noise.
+        "gas_residual_ok": (
+            decide_below(D_res_CH4, 1e12, gasC.resolution_floor_1m3,
+                         value_class=gasC.resolution_of_region_mean("CH4"),
+                         what="Mode-D residual CH4")
+            and decide_below(D_res_H2, 1e12, gasC.resolution_floor_1m3,
+                             value_class=gasC.resolution_of_region_mean("H2"),
+                             what="Mode-D residual H2")),
         "coverage_ok": D_res_theta < 1e-3,
         "vibration_ok": vib_m["Mode_D_vibration_ready_if_measured"],
     }
@@ -139,19 +141,46 @@ def run_coupled(cfg: MultiphysicsConfig):
         "Mode_B_peak_contamination_flux_proxy_m3": B_contam_flux,
         "Mode_C_recool_time_s": C_recool,
         "Mode_C_cleanup_residual_CH4_m3": gasC_sample.get("CH4", 0.0),
+        "Mode_C_cleanup_residual_CH4_resolution":
+            gasC.resolution_of_region_mean("CH4"),
         "Mode_C_surface_decay_time_s": C_surf_decay,
         "Mode_D_T_NV_layer_K": D_T_NV,
         "Mode_D_residual_CH4_density_m3": D_res_CH4,
+        # The residual densities above are the contamination numbers a
+        # reviewer would quote. They travel with what the solve resolves, so
+        # that a zero cannot be read as "no methane" when it means "less
+        # methane than this method can see".
+        "Mode_D_residual_CH4_resolution":
+            gasC.resolution_of_region_mean("CH4"),
         "Mode_D_residual_H2_density_m3": D_res_H2,
+        "Mode_D_residual_H2_resolution":
+            gasC.resolution_of_region_mean("H2"),
+        "gas_resolution_floor_1m3": gasC.resolution_floor_1m3,
         "Mode_D_residual_surface_theta": D_res_theta,
         "Mode_D_readiness_status": readiness,
         "limiting_recovery_process": limiting,
         "thermal_solver_status_B": tB.solver_status,
         "thermal_solver_status_C": tC.solver_status,
     }
+    # Every per-species number in the state travels with what its solve
+    # resolves, species by species, in a parallel object beside it. The
+    # sample densities used to be published bare: Mode C's methane read 0.0
+    # on one host and 4.0e-09 on another -- both inside the integrator's
+    # 1e3 m^-3 floor, both the same physics -- and only the metrics copy of
+    # the same number said BELOW_RESOLUTION. The file declared a resolution
+    # somewhere, so a comparator that asked the FILE rather than the
+    # QUANTITY called that crossing declared (D-2026-98).
     state = {
         "thetaB": thetaB, "thetaC": thetaC,
+        "thetaB_resolution": {k: solve_covB.resolution_final(k)
+                              for k in thetaB},
+        "thetaC_resolution": {k: solve_covC.resolution_final(k)
+                              for k in thetaC},
         "gasB_sample": gasB_sample, "gasC_sample": gasC_sample,
+        "gasB_sample_resolution": {k: gasB.resolution_of_region_mean(k)
+                                   for k in gasB_sample},
+        "gasC_sample_resolution": {k: gasC.resolution_of_region_mean(k)
+                                   for k in gasC_sample},
         "ready_terms": ready_terms,
         "microwave": mw_m, "radiation": rad_m, "vibration": vib_m,
     }

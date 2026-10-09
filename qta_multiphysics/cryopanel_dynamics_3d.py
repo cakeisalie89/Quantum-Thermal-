@@ -1,5 +1,16 @@
 """Dynamic cryopanel inventory model for the campaign-continuity layer.
 
+LEGACY QTA (tranche 4, directive 22). The component model is retired: its
+equations -- ideal-gas density, impingement flux, the exact Langmuir capture
+step -- were extracted to ``scientific.models.surface_adsorption``, a generic
+model with its own invariants and an independent check, and this module now
+calls them for all of its arithmetic. What remains here is the apparatus's:
+which gas reaches which panel in which machine phase, the panels' names, the
+sticking coefficients of its memory table, its phase windows. It stays only
+because the legacy campaign layer runs it, and it retires with that layer.
+The canonical campaign outputs are regenerated through the extracted
+functions byte for byte (``tests/test_surface_adsorption.py``).
+
 MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
 
 Evolves per-panel adsorbed inventory (per unit panel area) for the in-scope
@@ -31,14 +42,23 @@ Parameter provenance (explicit; nothing presented as measured):
                             unmeasured in the CSV); sites = 1.0e19 /m^2, the
                             canonical monolayer site density of the surface-
                             coverage layer (surface_coverage.evolve_coverage)
-- Fluxes: canonical kinetic-flux law at canonical conditions only --
-  Mode-B C-13 exposure at P_work = 1e-4 Pa; continuous H2 residual at the
-  post-bakeout target 1e-12 Pa; Mode-D He dose at 1e-6 Pa. Gas temperature
-  for panel-incident flux: 300 K (canonical top-stage temperature; ASSUMED
-  thermalization of chamber gas).
-- Phase windows: the canonical solver windows (SolverConfig pulse/recovery
-  windows; the canonical 1.0 s dose window) -- the forecast is of the
-  campaign AS MODELED, not of an arbitrary process duration.
+- Fluxes: the canonical kinetic-flux law at the OPERATING POINT THE CALLER
+  DECLARES (:class:`OperatingPoint`: the Mode-B C-13 working pressure, the
+  Mode-D He dose pressure and the dose window), plus the continuous H2
+  residual at the post-bakeout target 1e-12 Pa. The campaign runs it at the
+  canonical point (1e-4 Pa, 1e-6 Pa, 1.0 s), which
+  ``species_accounting_3d.cryopanel_operating_point`` supplies. Gas
+  temperature for panel-incident flux: 300 K (canonical top-stage
+  temperature; ASSUMED thermalization of chamber gas).
+- Phase windows: the solver windows (SolverConfig pulse/recovery windows)
+  and the declared dose window -- the forecast is of the campaign AS
+  MODELED, not of an arbitrary process duration.
+
+The operating point is an INPUT, not an import. This module used to import
+the three constants from ``species_accounting_3d``, which imports the
+retired mode ontology, so importing a cryopanel model loaded the machine
+(the one residual of cut C1). No default is given here: a default would be a
+second copy of the canonical values, and the single-source rule forbids one.
 
 Uncertainty/limitations (recorded, not hidden): sticking coefficients and
 the monolayer capacity are ASSUMED/PLACEHOLDER and EXPERIMENTALLY_UNMEASURED;
@@ -48,15 +68,14 @@ saturation-time forecasts inherit that status; per-panel area is not needed
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from .surface_coverage import kinetic_flux
-from .species_accounting_3d import (P_HE_DOSE_PA, P_C13_WORK_PA,
-                                    DOSE_WINDOW_S)
+from scientific.models.surface_adsorption import (
+    impingement_flux, langmuir_capture, number_density,
+)
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
 
-K_B = 1.380649e-23
 SITES_PER_M2 = 1.0e19          # canonical monolayer basis (surface_coverage)
 N_ML_CAP = 1.0                 # PLACEHOLDER worst-case capacity [monolayers]
 T_GAS_K = 300.0                # ASSUMED chamber-gas thermalization temperature
@@ -72,18 +91,40 @@ STICKING = {
                 "sorb NOT INSTALLED (E03)"),
 }
 
+@dataclass(frozen=True)
+class OperatingPoint:
+    """The exposure conditions the panels see, declared by the caller.
+
+    Each field must be finite and positive: a zero pressure would silently
+    turn a capture phase into a no-op, and a zero window would make every
+    Mode-D row a statement about nothing.
+    """
+    p_c13_work_Pa: float
+    p_he_dose_Pa: float
+    dose_window_s: float
+
+    def __post_init__(self):
+        for name in ("p_c13_work_Pa", "p_he_dose_Pa", "dose_window_s"):
+            v = getattr(self, name)
+            if isinstance(v, bool) or not isinstance(v, (int, float)) \
+                    or not math.isfinite(v) or v <= 0.0:
+                raise ValueError(f"OperatingPoint.{name} must be a finite "
+                                 f"positive number, not {v!r}")
+
+
 #: which species has a nonzero incident flux in which phase (mode/species
 #: policy: methane exposure only in B; He dose only in D; H2 residual always)
-def phase_fluxes_per_m2_s(phase: str) -> dict:
-    f = {"H2": kinetic_flux(P_H2_RESIDUAL_PA / (K_B * T_GAS_K), T_GAS_K,
-                            MASS_AMU["H2"]),
+def phase_fluxes_per_m2_s(phase: str, op: OperatingPoint) -> dict:
+    f = {"H2": impingement_flux(number_density(P_H2_RESIDUAL_PA, T_GAS_K),
+                                T_GAS_K, MASS_AMU["H2"]),
          "C13_CH4": 0.0, "He": 0.0}
     if phase == "MODE_B":
-        f["C13_CH4"] = kinetic_flux(P_C13_WORK_PA / (K_B * T_GAS_K), T_GAS_K,
-                                    MASS_AMU["C13_CH4"])
+        f["C13_CH4"] = impingement_flux(
+            number_density(op.p_c13_work_Pa, T_GAS_K), T_GAS_K,
+            MASS_AMU["C13_CH4"])
     if phase == "MODE_D":
-        f["He"] = kinetic_flux(P_HE_DOSE_PA / (K_B * T_GAS_K), T_GAS_K,
-                               MASS_AMU["He"])
+        f["He"] = impingement_flux(number_density(op.p_he_dose_Pa, T_GAS_K),
+                                   T_GAS_K, MASS_AMU["He"])
     return f
 
 
@@ -109,17 +150,10 @@ class PanelInventory:
 
     def capture_window(self, flux_per_m2_s: float, dt_s: float) -> None:
         """Advance by one constant-flux window (exact Langmuir solution)."""
-        if dt_s < 0:
-            raise ValueError("dt_s must be >= 0")
+        N = langmuir_capture(self.N_per_m2, flux_per_m2_s, self.sticking,
+                             self.N_cap, dt_s)
         self.admitted_per_m2 += flux_per_m2_s * dt_s
-        s = self.sticking
-        if s <= 0.0 or flux_per_m2_s <= 0.0 or dt_s == 0.0:
-            return
-        Nc = self.N_cap
-        self.N_per_m2 = Nc - (Nc - self.N_per_m2) * math.exp(
-            -s * flux_per_m2_s * dt_s / Nc)
-        # numerical guard (exact solution is bounded by construction)
-        self.N_per_m2 = min(self.N_per_m2, Nc)
+        self.N_per_m2 = N
 
     def row(self, cycle: int, phase: str) -> dict:
         return {"cycle": str(cycle), "phase": phase,
@@ -143,15 +177,16 @@ def new_panel_set() -> list:
             PanelInventory("PANEL-He(no-capture)", "He")]
 
 
-def advance_phase(panels: list, phase: str, dt_s: float) -> None:
-    """Advance every panel through one canonical phase window."""
-    fx = phase_fluxes_per_m2_s(phase)
+def advance_phase(panels: list, phase: str, dt_s: float,
+                  op: OperatingPoint) -> None:
+    """Advance every panel through one phase window at ``op``."""
+    fx = phase_fluxes_per_m2_s(phase, op)
     for p in panels:
         p.capture_window(fx[p.species], dt_s)
 
 
-def phase_windows_s(cfg) -> dict:
-    """Canonical per-cycle exposure windows (the campaign AS MODELED)."""
+def phase_windows_s(cfg, op: OperatingPoint) -> dict:
+    """Per-cycle exposure windows (the campaign AS MODELED)."""
     return {"MODE_B": float(cfg.solver.pulse_window_s),
             "MODE_C": float(cfg.solver.recovery_window_s),
-            "MODE_D": float(DOSE_WINDOW_S)}
+            "MODE_D": float(op.dose_window_s)}

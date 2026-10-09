@@ -1,0 +1,73 @@
+{
+ "title": "Selective Rust: explicit backend selection, committed decisions, the decision rule",
+ "note": "RS1-RS4 rust_kernel.dispatch: a rejected kernel, an inapplicable certificate, the process request and an unknown backend; RD1-RD5 the decision rule and its drift check.",
+ "suites": [
+  "tests/test_stage10_stack.py",
+  "tests/test_external_models.py"
+ ],
+ "mutations": [
+  {
+   "name": "RS1_rejected_kernel_served",
+   "path": "qta_multiphysics/stack/rust_kernel.py",
+   "find": "    if not str(dec.get(\"decision\", \"\")).endswith(\"_ADOPTED\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "a REJECTED kernel is served when asked for"
+  },
+  {
+   "name": "RS2_certificate_ignored",
+   "path": "qta_multiphysics/stack/rust_kernel.py",
+   "find": "    if not ok:\n        raise BackendRefused(f\"{name}: ADOPTED, but {why}\")\n",
+   "replace": "    if False:\n        raise BackendRefused(f\"{name}: ADOPTED, but {why}\")\n",
+   "rationale": "an adoption certified elsewhere applies on any host"
+  },
+  {
+   "name": "RS3_request_ignored",
+   "path": "qta_multiphysics/stack/rust_kernel.py",
+   "find": "        backend = \"rust\" if rust_enabled() else \"numpy\"\n",
+   "replace": "        backend = \"numpy\"\n",
+   "rationale": "an explicit process request is silently answered with NumPy"
+  },
+  {
+   "name": "RS4_unknown_backend_numpy",
+   "path": "qta_multiphysics/stack/rust_kernel.py",
+   "find": "    if backend != \"rust\":\n        raise ValueError(",
+   "replace": "    if backend != \"rust\":\n        return KERNELS[name][\"numpy\"]\n        raise ValueError(",
+   "rationale": "a misspelt backend silently selects NumPy"
+  },
+  {
+   "name": "RD1_parity_one_dispatch",
+   "path": "tools/rust_kernel_decision.py",
+   "find": "        if not all(parity.values()):\n",
+   "replace": "        if not parity[\"native\"]:\n",
+   "rationale": "parity on the build host alone admits a kernel"
+  },
+  {
+   "name": "RD2_no_workload_adopted",
+   "path": "tools/rust_kernel_decision.py",
+   "find": "        if not consumers:\n",
+   "replace": "        if False:\n",
+   "rationale": "a kernel nothing calls is adopted"
+  },
+  {
+   "name": "RD3_speedup_ignored",
+   "path": "tools/rust_kernel_decision.py",
+   "find": "        if speedup < ADOPT_SPEEDUP_MIN:\n",
+   "replace": "        if False:\n",
+   "rationale": "a slower kernel is adopted"
+  },
+  {
+   "name": "RD4_call_site_drift_ignored",
+   "path": "tools/rust_kernel_decision.py",
+   "find": "    if now != doc[\"call_sites\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "a new consumer does not invalidate the decision"
+  },
+  {
+   "name": "RD5_measurement_drift_ignored",
+   "path": "tools/rust_kernel_decision.py",
+   "find": "            if rec.get(\"decision\") != d[\"decision\"]:\n",
+   "replace": "            if False:\n",
+   "rationale": "a runner deciding otherwise passes the check"
+  }
+ ]
+}

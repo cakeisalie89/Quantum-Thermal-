@@ -12,6 +12,9 @@
     "hotspot_CI_K": 13.73015219488708,
     "hotspot_refined_K": 13.807579799706557,
     "hotspot_rel_change": 0.005607615957513691,
+    "rel_change_resolution_floor": 1e-06,
+    "probe_rel_change_resolution": "RESOLVED",
+    "hotspot_rel_change_resolution": "RESOLVED",
     "tolerance": 0.1,
     "probe_tolerance": 0.1,
     "hotspot_tolerance": 0.1,
@@ -31,6 +34,8 @@
     "probe_base_K": 13.73015219488708,
     "probe_tightened_K": 13.73015219488708,
     "rel_change": 0.0,
+    "rel_change_resolution_floor": 1e-07,
+    "rel_change_resolution": "BELOW_RESOLUTION",
     "tolerance": 0.001,
     "status": "DERIVED_CHECK",
     "stability_note": "implicit BDF; no CFL-limited explicit stepping"

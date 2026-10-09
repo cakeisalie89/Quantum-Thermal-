@@ -8,7 +8,8 @@
     "ADOPTED": "in use, exercised by CI or the workflow, and its behaviour is verified in this repository",
     "STAGED": "interface and acceptance criteria are written and executable, but the tool is not installed, not exercised, and produces nothing authoritative",
     "DEFERRED": "deliberately not built; the contract is recorded so later work is implementation rather than redesign",
-    "ADOPTED_ADMISSION_MECHANISM_ONLY": "the governing rule or gate is in use and verified, but the tool it governs is not consumed by any scientific path"
+    "ADOPTED_ADMISSION_MECHANISM_ONLY": "the governing rule or gate is in use and verified, but the tool it governs is not consumed by any scientific path",
+    "RESOLVED": "decided by a measured rule: each candidate explicitly adopted or rejected, the decision committed and re-derived on a hosted runner; nothing is in force beyond what the decision says"
   },
   "invariants": [
     "additive: no Stage-10 module is imported by the solvers, the gate logic, or qta_full_sim.py",
@@ -58,16 +59,13 @@
       "id": "containers",
       "name": "Reproducible container",
       "doc_key": "Reproducible container",
-      "status": "STAGED",
+      "status": "ADOPTED",
       "since_stage": "stage7",
-      "authority": "Dockerfile + container_verify.sh",
+      "authority": "Dockerfile + container_verify.sh + .github/workflows/container-verify.yml",
       "owner_module": "Dockerfile",
-      "boundary": "STAGED: the container DEFINITION is complete and statically verified (digest-pinned base, lockfile-frozen install, non-root user, deterministic locale/TZ/PYTHONHASHSEED/single-threaded BLAS), but the image has never been built or run, so it certifies nothing and reproduces no result. Adoption requires behaviour verified in this repository; that evidence does not exist yet. The Rust extension is not built into it.",
-      "verification": "bash container_verify.sh (inside the image)",
-      "open_items": [
-        "the image has never been built or run: LOCAL_BUILD is ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS (dockerd and containerd run, Engine 29.3.1, docker info succeeds, Docker Hub manifests resolve, but layer blobs on production.cloudfront.docker.com are denied 403 on CONNECT; the base image was not substituted)",
-        "RUNTIME_BUILT=NO and RUNTIME_SCIENTIFICALLY_REPRODUCED=NO; container-verify.yml exists to close this on a hosted runner but is workflow_dispatch-only and cannot be dispatched until it reaches the default branch"
-      ]
+      "boundary": "the image fixes the software environment, not the host CPU: numerical bytes may differ between runners and are compared under the equivalence policy, never required equal. Built and run on a hosted runner on every push to the branch (qta-container-verify run 37966478474 at 5ab44a7, green): digest-pinned base confirmed against the served manifest, non-root user, no host virtualenv, the current harness and the generic end-to-end demonstration run in the image and compared with the same demonstration run natively. It certifies the runs it hosts, never a scientific result. The Rust extension is not built into it. Local builds in the development sandbox remain blocked by blob egress; the evidence is hosted.",
+      "verification": "bash container_verify.sh (inside the image); .github/workflows/container-verify.yml builds, runs and compares it on a hosted runner",
+      "open_items": []
     },
     {
       "id": "pytest-hypothesis",
@@ -121,21 +119,21 @@
       "id": "slsa-sigstore",
       "name": "SLSA provenance + Sigstore signing",
       "doc_key": "SLSA + Sigstore",
-      "status": "STAGED",
+      "status": "ADOPTED",
       "since_stage": "stage9",
-      "authority": "RELEASE_POLICY.md + .github/workflows/release.yml + verify_release.py",
-      "owner_module": "verify_release.py",
-      "boundary": "a signature attests origin and integrity only, never scientific validity; no SLSA level is claimed until a qualifying hosted build runs and verifies",
-      "verification": "python verify_release.py --zip <release zip> --bundle <bundle>",
+      "authority": "tools/supply_chain.py + docs/supply_chain_ci_policy.json + .github/workflows/supply-chain.yml",
+      "owner_module": "tools/supply_chain.py",
+      "boundary": "a signature attests origin and integrity only, never scientific validity. What is adopted: the release candidate built deterministically for the commit (source archive, CycloneDX SBOM, SLSA-v1-layout provenance, index), signed with the workflow's GitHub OIDC identity, verified online and offline against the EXACT pinned identity and issuer, and a tamper suite run on a signed copy (supply-chain run 37966478453 at 5ab44a7, green). No SLSA build level is claimed: the provenance is produced by the workflow it describes, not by an isolated builder.",
+      "verification": "python tools/supply_chain.py verify --dir rc --mode online|offline|digests  # the hosted supply-chain job",
       "open_items": [
-        "the release workflow has never run on a hosted runner",
-        "stack-verify.yml has now run on a hosted runner (Actions run 32575190696, both legs green); release.yml still has not, and no SLSA level is claimed"
+        "no release is published and no tag is created: publication needs the owner's separate authorization",
+        "no SLSA build level is claimed"
       ]
     },
     {
       "id": "rag-read-only",
-      "name": "Read-only retrieval over governed documents",
-      "doc_key": "Read-only RAG",
+      "name": "Governed read-only retrieval over reviewed documents",
+      "doc_key": "Governed read-only retrieval",
       "status": "ADOPTED",
       "since_stage": "stage10",
       "authority": "qta_multiphysics/stack/rag_index.py",
@@ -201,54 +199,88 @@
     },
     {
       "id": "fenicsx",
-      "name": "FEniCSx (dolfinx) FEM backend",
+      "name": "FEniCSx (dolfinx) independent verifier",
       "doc_key": "FEniCSx",
-      "status": "STAGED",
-      "since_stage": "stage10",
-      "authority": "the finite-volume backends (thermal_1d / thermal_2d_axisymmetric / thermal_3d_transient) remain authoritative",
-      "owner_module": "qta_multiphysics.stack.fem_fenicsx",
-      "optional_dependency": "dolfinx \u2014 environment-provided (conda-forge, spack, or the dolfinx container); deliberately not a wheel dependency",
-      "boundary": "STAGED: dolfinx is not installed in any project environment and is not executed in canonical CI, so it certifies nothing. It is not an independent benchmark of any current result.",
-      "verification": "snakemake --cores 1 verification/stage10/fem/fenicsx_acceptance.json",
+      "status": "ADOPTED",
+      "since_stage": "harness",
+      "authority": "the governed producers in scientific/models remain the producers; FEniCSx is an INDEPENDENT_IMPLEMENTATION check whose verdict reaches authority only through the check contract and a distinct reviewer",
+      "owner_module": "scientific.checks.fenicsx_slab",
+      "optional_dependency": "dolfinx -- from the hash-pinned conda-forge lock integrations/fenicsx/environment.lock, created by tools/fenicsx_env.py; deliberately not a wheel dependency",
+      "boundary": "a verifier, never a producer: it admits or refuses a slab result and nothing it computes is admitted as a result. One problem class, the transient slab. Run single-process with MPI offered only self and shared-memory transports (D-2026-124). Executed on a hosted runner with the runtime REQUIRED (harness-integrations run 37966478567 at 5ab44a7: fenicsx and end-to-end jobs green). qta_multiphysics/stack/fem_fenicsx.py, the Stage-10 adapter for the legacy finite-volume backends, stays STAGED for that scope.",
+      "verification": "python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json  # with QTA_FENICSX_PYTHON set; the hosted fenicsx and end-to-end jobs",
       "open_items": [
-        "dolfinx not installable as a wheel and not present in any project environment",
-        "acceptance criteria 2-4 (reduction to thermal_1d, energy residual, determinism) cannot run until a build exists"
+        "one problem class only: no FEniCSx check exists for the 2D axisymmetric or the 3D thermal models, or for the legacy finite-volume backends"
       ]
     },
     {
       "id": "rust-selective",
       "name": "Selective Rust kernels (PyO3)",
       "doc_key": "Selective Rust",
-      "status": "ADOPTED_ADMISSION_MECHANISM_ONLY",
+      "status": "RESOLVED",
       "since_stage": "stage10",
       "authority": "the NumPy references in qta_multiphysics/stack/rust_kernel.py; a Rust kernel is an accelerator, never a second source of truth",
       "owner_module": "qta_multiphysics.stack.rust_kernel",
       "optional_dependency": "qta_kernels \u2014 built on demand from rust/qta_kernels, never installed by default",
-      "boundary": "the bit-parity ADMISSION RULE is adopted, exercised and verified; the Rust BACKEND is not in force anywhere. No solver, gate or canonical output imports qta_kernels: default_backend is numpy, the extension is off unless QTA_RUST_KERNELS=1, and the crate is neither built into the container nor present in uv.lock. There is no active Rust scientific backend in this repository.",
+      "boundary": "decided by measurement (docs/rust_kernel_decisions.json, re-derived by the hosted rust-kernels job, harness-integrations run 37966478567 at 5ab44a7): both kernels REJECTED -- face_conductance has no production call site; conductivity_power_law has parity that depends on the host's SIMD dispatch, no call site and a 0.61x workload speed. RUST_BACKEND_NOT_ACTIVE: NumPy is in force, and an explicit Rust selection is refused unless a committed decision is ADOPTED and its certificate applies to the process -- refused, never rerouted. The bit-parity admission mechanism stays in force for any later candidate. There is no active Rust scientific backend in this repository.",
       "verification": "snakemake --cores 1 verification/stage10/rust/rust_kernel_status.json",
       "open_items": [
-        "conductivity_power_law is REJECTED: Rust powf and NumPy ** differ by up to 2 ulp, so the NumPy path stays in force",
-        "no scientific path consumes the Rust kernels; adoption refers to the admission mechanism, not to an accelerated backend in use"
+        "conductivity_power_law is REJECTED against a NumPy built with AVX-512 (2 ulp) and BIT-IDENTICAL against one without it: parity is conditional on the host's SIMD dispatch, which rust_kernel_status.json records beside every verdict. The decision does not depend on this host's verdict: it is REJECTED in every dispatch (no call site, 0.61x). D-2026-58",
+        "no scientific path consumes either kernel; a future candidate is decided by the same rule"
       ]
     },
     {
       "id": "fmi",
-      "name": "FMI 3.0 co-simulation export",
+      "name": "FMI 3.0 co-simulation (FMU runtime and boundary)",
       "doc_key": "FMI 3.0",
-      "status": "DEFERRED",
-      "since_stage": "stage10",
-      "authority": "none \u2014 no FMU exists",
-      "owner_module": "qta_multiphysics.stack.fmi_contract",
-      "optional_dependency": null,
-      "boundary": "an interface contract only; no binary is built, no FMI compliance is claimed, and the artifact is deliberately not named modelDescription.xml",
-      "verification": "snakemake --cores 1 verification/stage10/fmi/fmi_readiness.json",
+      "status": "ADOPTED",
+      "since_stage": "harness",
+      "authority": "an FMU result is a SIMULATION_RESULT, NON_AUTHORITATIVE, admitted only through the independent check scientific/checks/fmu_rc2.py and a distinct reviewer",
+      "owner_module": "scientific.fmi_boundary",
+      "optional_dependency": "fmpy -- from the hash-pinned integrations/fmi/runtime.lock, in its own runtime (tools/isolated_runtime.py)",
+      "boundary": "one generic FMU (integrations/fmi/thermal_rc2, a two-node thermal RC network) is built from C against hash-checked FMI 3.0 headers, loaded by fmpy, stepped, its state serialized, restored and replayed; P2-P5 hold for it; its fault twin is REJECTED by the independent check. Executed on a hosted runner (harness-integrations run 37966478567 at 5ab44a7: fmi and end-to-end jobs green). Its bytes are claimed identical between two builds on one host only. qta_multiphysics/stack/fmi_contract.py keeps its DEFERRED interface contract for exporting the legacy solvers, which is not done.",
+      "verification": "python tools/fmi_acceptance.py  # with QTA_FMI_PYTHON set; the hosted fmi and end-to-end jobs",
       "open_items": [
-        "FMI-P1 serialisable solver state (fmi3GetFMUState / fmi3SetFMUState)",
-        "FMI-P2 mode-boundary step semantics (a step may not straddle a Mode B/C/D transition)",
-        "FMI-P3 step-size independence evidence",
-        "FMI-P4 claim-boundary survival across FMU import",
-        "FMI-P5 unit round-trip verification"
+        "no FMU of the legacy finite-volume solvers is exported: fmi_contract.py's prerequisites for that export (FMI-P1 to FMI-P5) stay open for those solvers"
       ]
+    },
+    {
+      "id": "authority-substrate",
+      "name": "Governed authority substrate",
+      "doc_key": "Authority substrate",
+      "status": "ADOPTED",
+      "since_stage": "harness",
+      "authority": "qta_agent: the authenticated event log and the authority store's gate decide admission; qta_agent/reconstruct.py is the independent second reader",
+      "owner_module": "qta_agent",
+      "optional_dependency": null,
+      "boundary": "decides admission of results and computes none: no scientific module imports it (tests/test_agent_substrate_isolation.py), and nothing learned or proposed reaches VERIFIED except through a governed run, an independent check and a distinct reviewer",
+      "verification": "python -m pytest tests/test_agent_*.py  # and the qta-agent-substrate workflow's mutation shards",
+      "open_items": []
+    },
+    {
+      "id": "generic-scientific-layer",
+      "name": "Generic scientific layer",
+      "doc_key": "Generic scientific layer",
+      "status": "ADOPTED",
+      "since_stage": "harness",
+      "authority": "scientific: models produce ResultBundles, checks return VerificationResults, the authority store admits",
+      "owner_module": "scientific",
+      "optional_dependency": null,
+      "boundary": "imports no hardware ontology and no legacy QTA module (tests/test_scientific_import_isolation.py); an HDF5 bundle is a representation, never evidence of admission",
+      "verification": "python -m pytest tests/test_scientific_*.py",
+      "open_items": []
+    },
+    {
+      "id": "proposal-ingress",
+      "name": "AI proposal ingress",
+      "doc_key": "AI proposal ingress",
+      "status": "ADOPTED",
+      "since_stage": "harness",
+      "authority": "qta_agent/authority.py: a proposal is NON_AUTHORITATIVE data; only a governed run, an independent check and a distinct reviewer reach a decision",
+      "owner_module": "qta_agent.proposals",
+      "optional_dependency": null,
+      "boundary": "recorded-fixture and external-client adapters behind one envelope; no provider SDK and no network in the trusted core; a proposal is never authority, whoever or whatever made it",
+      "verification": "python -m pytest tests/test_proposal_ingress.py tests/test_harness_demo.py",
+      "open_items": []
     }
   ]
 }

@@ -1,0 +1,58 @@
+{
+ "title": "RO-Crate: the descriptor and datePublished rules, and the two-validator agreement",
+ "note": "RC1-RC2 the internal validator's RO-Crate 1.1 REQUIRED items (D-2026-106); RC3-RC5 the agreement, not-measured and side-effect rules of the conformance tool.",
+ "suites": [
+  "tests/test_ro_crate_conformance.py"
+ ],
+ "mutations": [
+  {
+   "name": "RC1_conformsTo_unchecked",
+   "path": "ro_crate_tools.py",
+   "find": "        if not any(isinstance(c, dict) and str(c.get(\"@id\", \"\")).startswith(\n                \"https://w3id.org/ro/crate/1.\") for c in conforms):\n",
+   "replace": "        if False:\n",
+   "rationale": "a descriptor naming no specification is valid"
+  },
+  {
+   "name": "RC2_datePublished_unchecked",
+   "path": "ro_crate_tools.py",
+   "find": "    if not re.fullmatch(r\"\\d{4}-\\d{2}-\\d{2}\",\n                        str(root_.get(\"datePublished\", \"\"))):\n",
+   "replace": "    if False:\n",
+   "rationale": "a root without datePublished is valid"
+  },
+  {
+   "name": "RC3_agreement_assumed",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "            else:\n                agreement = \"DISAGREE\"\n",
+   "replace": "            else:\n                agreement = \"AGREE\"\n",
+   "rationale": "a disagreement between the validators is reported as agreement"
+  },
+  {
+   "name": "RC4_unmeasured_called_agreement",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "                agreement = \"NOT_MEASURED\"\n",
+   "replace": "                agreement = \"AGREE\"\n",
+   "rationale": "an external validation that did not run is reported as agreement"
+  },
+  {
+   "name": "RC5_judging_overwrites_report",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "                rc = RC.validate(p, report_path=Path(tmp) / \"report.json\")\n",
+   "replace": "                rc = RC.validate(p)\n",
+   "rationale": "judging a broken crate overwrites the committed validation report"
+  },
+  {
+   "name": "RC6_undefined_keys_accepted",
+   "path": "ro_crate_tools.py",
+   "find": "    if undefined:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
+   "replace": "    if False:\n        problems.append(f\"keys no context defines: {sorted(undefined)}; the \"\n",
+   "rationale": "a key no JSON-LD context defines passes the internal validator, which the specification's compacted form forbids and the community validator refuses (D-2026-122)"
+  },
+  {
+   "name": "RC7_any_disagreement_called_internal_stricter",
+   "path": "tools/ro_crate_conformance.py",
+   "find": "            elif name in INTERNAL_STRICTER and not ok_int:\n",
+   "replace": "            elif not ok_int:\n",
+   "rationale": "every control the community validator accepts and the internal one refuses passes as 'stricter', so a control both must refuse stops being compared at all"
+  }
+ ]
+}

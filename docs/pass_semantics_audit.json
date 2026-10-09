@@ -1,0 +1,2621 @@
+{
+ "binary_not_scanned": 20,
+ "by_class": {
+  "CURRENT_AI_SEMANTIC_LEAK": {
+   "files": 0,
+   "occurrences": 0
+  },
+  "DOCUMENTATION_HISTORY": {
+   "files": 29,
+   "occurrences": 113
+  },
+  "FALSE_POSITIVE": {
+   "files": 0,
+   "occurrences": 0
+  },
+  "LEGACY_COMPATIBILITY_GUARD": {
+   "files": 83,
+   "occurrences": 302
+  },
+  "LEGACY_QTA_CANONICAL": {
+   "files": 54,
+   "occurrences": 199
+  },
+  "TOOLING_REFERENCE": {
+   "files": 21,
+   "occurrences": 97
+  },
+  "UNCLASSIFIED": {
+   "files": 0,
+   "occurrences": 0
+  }
+ },
+ "current_ai_semantic_leaks": 0,
+ "findings": [
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "gate_status": 1,
+     "pass_count": 3,
+     "pass_equals_zero": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": ".github/workflows/agent-substrate.yml",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the current harness's CI"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": ".github/workflows/claude.yml",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "legacy workflows and the steps that keep the legacy gates fixed"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_equals_zero": 1
+    }
+   },
+   "path": ".github/workflows/release.yml",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "legacy workflows and the steps that keep the legacy gates fixed"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 4,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": ".github/workflows/stack-verify.yml",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "legacy workflows and the steps that keep the legacy gates fixed"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 2,
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "AGENT_SUBSTRATE.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent substrate's specification"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "gate_status": 1,
+     "pass_count": 5,
+     "pass_equals_zero": 3
+    }
+   },
+   "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "AUTHORITIES.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the authority registry, narrated"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "CLAIMS_BOUNDARY.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the current claims boundary"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_count": 2,
+     "pass_equals_zero": 2,
+     "results_gate_table": 4,
+     "zero_pass": 1
+    }
+   },
+   "path": "DEPENDENCY_CUTOVER.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_equals_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EVIDENCE_CLOSURE.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N0.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N1.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N2.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N3.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N4.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-P1.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-S1.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-T1.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-T2.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-V1.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-V2.md",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 3,
+     "pass_equals_zero": 1,
+     "results_gate_table": 5
+    }
+   },
+   "path": "FILE_DISPOSITION.csv",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "generated: each file's disposition quotes what it holds"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "gate_status": 1
+    }
+   },
+   "path": "FIRST_VALIDATION_EXPERIMENTS.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_equals_zero": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "GATE_TABLE_README.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "GLOSSARY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 1,
+     "gate_status": 1
+    }
+   },
+   "path": "HARDWARE_GOVERNANCE.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "HARNESS_STATUS.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the derived harness completion status"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "MANIFEST_BOUNDARY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "results_gate_table": 1,
+     "zero_pass": 3
+    }
+   },
+   "path": "MANUSCRIPT_CHANGELOG.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_count": 1,
+     "results_gate_table": 1,
+     "zero_pass": 1
+    }
+   },
+   "path": "MANUSCRIPT_CONSISTENCY_REPORT.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "NEURAL_SUBSTRATE.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the substrate's specification"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "PHYSICS_INVENTORY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 1,
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "QTA_stage9_release_verification/RELEASE_POLICY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "the legacy release record"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "QTA_stage9_release_verification/SHA256SUMS",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "release checksums by file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "QTA_stage9_release_verification/provenance.intoto.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "release index and provenance, by file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "QTA_stage9_release_verification/release_index.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "release index and provenance, by file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "README.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the repository's front page"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_equals_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "RELEASE_POLICY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_count": 2,
+     "results_gate_table": 1
+    }
+   },
+   "path": "RELEASE_TRUST_ENFORCEMENT.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "RO_CRATE_PROFILE.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "SCIENTIFIC_AI_STATUS.md",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the current status"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 3
+    }
+   },
+   "path": "STACK.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "SUPPLY_CHAIN_THREAT_MODEL.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 10,
+     "pass_count": 4,
+     "pass_remains_zero": 3
+    }
+   },
+   "path": "Snakefile",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the workflow, legacy targets included"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "THERMAL_3D_L3.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "results_gate_table": 5,
+     "zero_pass": 1
+    }
+   },
+   "path": "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "retired delivery artefacts"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 6,
+     "pass_permanently_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "authorities.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the authority registry"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_count": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "build_hdf5.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "builders of the legacy registries and release"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_count": 2,
+     "pass_remains_zero": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "build_release_artifacts.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "builders of the legacy registries and release"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "build_stage6_playbooks.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "builders of the legacy registries and release"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 4,
+     "results_gate_table": 2
+    }
+   },
+   "path": "build_stage6_registries.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "builders of the legacy registries and release"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 2
+    }
+   },
+   "path": "campaign_registry.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "conftest.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the suite-wide test configuration"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "container_verify.sh",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a script verifying the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "design_validation_report.csv",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast tables"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "docs/CORPUS_RECOVERY_TRIAGE.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 4,
+     "gate_status": 1,
+     "hardware_gate": 3,
+     "pass_count": 4,
+     "pass_equals_zero": 6,
+     "pass_remains_zero": 2,
+     "results_gate_table": 8
+    }
+   },
+   "path": "docs/DEFECT_LEDGER.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "docs/R59_CROSS_ENVIRONMENT_ANALYSIS.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 2,
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "docs/SESSION_REPORT.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "automatic_gate_effect": 1,
+     "pass_count": 1
+    }
+   },
+   "path": "docs/blas_kernel_sensitivity.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "the kernel-sensitivity measurement, by canonical file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_remains_zero": 1,
+     "results_gate_table": 3
+    }
+   },
+   "path": "docs/byte_reproduction_profile.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "the witness profile: canonical outputs by name"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "docs/claims_boundary.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the claims boundary registry"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 2,
+     "pass_count": 3
+    }
+   },
+   "path": "docs/completion_matrix.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the completion matrix"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "gate_status": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "docs/framework_boundary.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the active/legacy boundary registry"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "docs/harness_contract.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the harness definition of done"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "docs/harness_status.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the derived harness completion status"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 4,
+     "pass_equals_zero": 2,
+     "results_gate_table": 1
+    }
+   },
+   "path": "docs/legacy/qta/AUTHORITIES.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_count": 2,
+     "pass_equals_zero": 1,
+     "pass_remains_zero": 2,
+     "zero_pass": 1
+    }
+   },
+   "path": "docs/legacy/qta/CLAIMS_BOUNDARY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "pass_count": 1
+    }
+   },
+   "path": "docs/legacy/qta/HDF5_DATA_MODEL.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 1,
+     "gate_status": 1,
+     "pass_count": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "docs/legacy/qta/README.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 1,
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "docs/legacy/qta/RELEASE_POLICY.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "records and analyses"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "docs/neural/current_status.json",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the substrate's evidence and status"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "docs/neural/legacy_semantic_audit.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "the hardware-era mode audit's report, naming legacy files"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "docs/neural/nf1t_inventory.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "the NF-1T starting inventory: canonical outputs by name and digest"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "docs/reference_backend_host_a.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "the reference backend's host record, by canonical file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "docs/resolution_inventory.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "what each canonical quantity resolves, by file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "gate_status": 1
+    }
+   },
+   "path": "experiment_falsification_map.csv",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast tables"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 12,
+     "results_gate_table": 11
+    }
+   },
+   "path": "experiment_registry.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "final_manifest.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "per-file manifest"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 8
+    }
+   },
+   "path": "generate_manifest.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "hardware_reviewers.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 2
+    }
+   },
+   "path": "hdf5_output_mapping.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 2
+    }
+   },
+   "path": "hdf5_schema.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 4
+    }
+   },
+   "path": "manuscript_consistency_check.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "matrix_update_examples/invalid_automatic_application.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "matrix_update_examples/invalid_missing_evidence.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "matrix_update_examples/invalid_missing_review.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "matrix_update_examples/invalid_unknown_experiment.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "matrix_update_examples/valid_example.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "gate_status": 1
+    }
+   },
+   "path": "monte_carlo_gate_failure_rates.csv",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast tables"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_count": 1
+    }
+   },
+   "path": "monte_carlo_summary.csv",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast tables"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 6,
+     "gate_status": 3,
+     "pass_count": 8,
+     "pass_equals_zero": 3,
+     "results_gate_table": 20,
+     "zero_pass": 6
+    }
+   },
+   "path": "package_consistency_check.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "qta_agent/__init__.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent authority substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "qta_agent/_stage10_index_tool.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent authority substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "qta_agent/governed_stage10.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the agent authority substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "gate_status": 18,
+     "pass_count": 1,
+     "results_gate_table": 2,
+     "zero_pass": 1
+    }
+   },
+   "path": "qta_full_sim.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's generator"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "gate_status": 3,
+     "pass_count": 1,
+     "zero_pass": 1
+    }
+   },
+   "path": "qta_manuscript_v4.tex",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy manuscript"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "qta_multiphysics/design/registry.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 2
+    }
+   },
+   "path": "qta_multiphysics/design/validation.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 8,
+     "gate_status": 1,
+     "pass_remains_zero": 2
+    }
+   },
+   "path": "qta_multiphysics/hardware_governance_3d.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_equals_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "qta_multiphysics/integrated_layers.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "qta_multiphysics/numerics.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "qta_multiphysics/runner_3d.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 3
+    }
+   },
+   "path": "qta_multiphysics/stack/__init__.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 4
+    }
+   },
+   "path": "qta_multiphysics/stack/fem_fenicsx.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 4
+    }
+   },
+   "path": "qta_multiphysics/stack/fmi_contract.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 6
+    }
+   },
+   "path": "qta_multiphysics/stack/mdao_openmdao.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 5
+    }
+   },
+   "path": "qta_multiphysics/stack/rag_index.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 5
+    }
+   },
+   "path": "qta_multiphysics/stack/registry.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 2
+    }
+   },
+   "path": "qta_multiphysics/stack/rust_kernel.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 7
+    }
+   },
+   "path": "qta_multiphysics/stack/sensitivity_salib.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 5
+    }
+   },
+   "path": "qta_multiphysics/stack/usd_export.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 4
+    }
+   },
+   "path": "qta_multiphysics/stack/vtk_export.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "qta_multiphysics/stack/workspace.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "gate_status": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "qta_multiphysics/stage7_boundary_models.py",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "DOCUMENTATION_HISTORY": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "raw_data_standard.md",
+   "rule_class": "DOCUMENTATION_HISTORY",
+   "why": "prose"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "automatic_gate_effect": 1,
+     "pass_count": 2,
+     "pass_remains_zero": 1,
+     "results_gate_table": 4
+    }
+   },
+   "path": "ro-crate/ro-crate-metadata.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "RO-Crate metadata of the corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "pass_count": 3,
+     "pass_remains_zero": 2,
+     "results_gate_table": 2
+    }
+   },
+   "path": "ro_crate_tools.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "scientific/reproduction.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the generic scientific framework"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "scientific/sensitivity.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the generic scientific framework"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "gate_status": 5,
+     "pass_count": 5,
+     "pass_equals_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "scientific_ai/neural/status.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the learned-model substrate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 2
+    }
+   },
+   "path": "stack.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "pass_equals_zero": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "stage6_preservation_check.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "stage8_reports/hdf5_equivalence_report.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "the legacy HDF5 equivalence report, by file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 2,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_agent_authority_boundaries.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "tests/test_agent_collusion.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "tests/test_agent_governed_breadth.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 2
+    }
+   },
+   "path": "tests/test_agent_hostile_campaign.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 5,
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "tests/test_agent_substrate_isolation.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_authority_invariants.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "gate_status": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "tests/test_authority_promotion_barrier.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_bootstrap_workflow_contract.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_candidate_structure.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "automatic_gate_effect": 2,
+     "pass_count": 7,
+     "pass_equals_zero": 1,
+     "pass_remains_zero": 4,
+     "results_gate_table": 3
+    }
+   },
+   "path": "tests/test_claim_hygiene.py",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "plants leaks and labelled guards to prove this audit tells them apart"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "tests/test_claims_boundary.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "pass_count": 2
+    }
+   },
+   "path": "tests/test_claude_workflow_prompt.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tests/test_completion_matrix.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "pass_count": 1
+    }
+   },
+   "path": "tests/test_container_diagnostic_fidelity.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_file_disposition.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_framework_boundary.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_generic_consistency.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_h2_pressure_authority.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 3,
+     "results_gate_table": 2
+    }
+   },
+   "path": "tests/test_hardware_governance.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "tests/test_harness_status.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 3,
+     "results_gate_table": 4
+    }
+   },
+   "path": "tests/test_hostile_input_no_traceback.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_hostile_trust_policy.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_independent_gate_recomputation.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "pass_remains_zero": 2,
+     "results_gate_table": 3
+    }
+   },
+   "path": "tests/test_manifest_policy.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 2
+    }
+   },
+   "path": "tests/test_measurement_ingest.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_online_success_path.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_equals_zero": 1
+    }
+   },
+   "path": "tests/test_optimized_mode_invariants.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_record_parsers.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "tests/test_release_trust_enforcement.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tests/test_resolution_inventory.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "tests/test_sensitivity_cross_check.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "tests/test_signing_finalizer.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 2
+    }
+   },
+   "path": "tests/test_single_source_of_truth.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 10,
+     "pass_count": 2,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_stage10_stack.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 7,
+     "pass_remains_zero": 2,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_stage6_roadmap.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 10
+    }
+   },
+   "path": "tests/test_stage7_5_resilience.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "gate_status": 2,
+     "pass_count": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_stage7_boundary.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 4,
+     "pass_remains_zero": 3,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_stage8_data_provenance.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_stage9_release.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tests/test_test_isolation.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tests/test_workflow_split.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "automatic_gate_effect": 2
+    }
+   },
+   "path": "thermal_3d_readiness.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1
+    }
+   },
+   "path": "tools/audit_log.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the authority log auditor"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "automatic_gate_effect": 1,
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tools/blas_kernel_sensitivity.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "tools/claims_enforcement.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the claims checker"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tools/cross_env_semantics.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 3,
+     "pass_equals_zero": 1,
+     "results_gate_table": 5
+    }
+   },
+   "path": "tools/file_disposition.py",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "classifies every file, legacy ones by what they hold"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "tools/generic_consistency.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the generic verifier"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2
+    }
+   },
+   "path": "tools/harness_status.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "automatic_gate_effect": 3,
+     "pass_count": 12,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tools/mutations/claim_hygiene.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "results_gate_table": 2
+    }
+   },
+   "path": "tools/mutations/governed_breadth.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "pass_count": 1
+    }
+   },
+   "path": "tools/mutations/harness_status.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "automatic_gate_effect": 4
+    }
+   },
+   "path": "tools/mutations/legacy/hardware_governance.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "results_gate_table": 1
+    }
+   },
+   "path": "tools/mutations/stage10_authority.json",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tools/neural.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the substrate's evidence tool"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "TOOLING_REFERENCE": {
+     "automatic_gate_effect": 3,
+     "gate_status": 1,
+     "hardware_gate": 1,
+     "pass_count": 2,
+     "pass_equals_zero": 2,
+     "pass_remains_zero": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tools/pass_semantics_audit.py",
+   "rule_class": "TOOLING_REFERENCE",
+   "why": "this audit: its patterns name what it looks for"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tools/resolution_inventory.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "tools/test_isolation.py",
+   "rule_class": "CURRENT_SCOPE",
+   "why": "the suite's isolation check"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1
+    }
+   },
+   "path": "tools/workflow_contract.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 2,
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "validate_hdf5_equivalence.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_remains_zero": 1
+    }
+   },
+   "path": "validation_matrix_update_request.schema.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 8,
+     "results_gate_table": 2
+    }
+   },
+   "path": "verify_release.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "pass_count": 4,
+     "pass_remains_zero": 1,
+     "results_gate_table": 2
+    }
+   },
+   "path": "workflow/legacy_qta.smk",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "the legacy workflow rules"
+  }
+ ],
+ "legacy_label": [
+  "(?i)legacy|histor|hardware[- ]era|hardware[- ]forecast",
+  "\\bQTA\\b|LEGACY_QTA"
+ ],
+ "patterns": {
+  "automatic_gate_effect": "(?i)automatic_gate_effect",
+  "gate_status": "(?i)\\bgate[ _]status",
+  "hardware_gate": "(?i)\\bhardware[ _]gates?\\b",
+  "pass_count": "(?i)(?<![A-Za-z])PASS[ _]count",
+  "pass_equals_zero": "(?i)\\bPASS(?:_count)?\\s*==?\\s*0\\b",
+  "pass_permanently_zero": "(?i)\\bPASS\\s+permanently\\s+(?:0|zero)\\b",
+  "pass_remains_zero": "(?i)\\bPASS(?:[ _]count)?\\s+(?:remains|remain|stays|stay|is)\\s+(?:permanently\\s+)?(?:0|zero)\\b",
+  "results_gate_table": "(?i)results_gate_table",
+  "zero_pass": "(?i)\\b0\\s+PASS\\b"
+ },
+ "rules": [
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/pass_semantics_audit.json",
+   "why": "this audit's report (counts and pattern names)"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "tools/pass_semantics_audit.py",
+   "why": "this audit: its patterns name what it looks for"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "tests/test_claim_hygiene.py",
+   "why": "plants leaks and labelled guards to prove this audit tells them apart"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/neural/legacy_semantic_audit.json",
+   "why": "the hardware-era mode audit's report, naming legacy files"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/neural/nf1t_inventory.json",
+   "why": "the NF-1T starting inventory: canonical outputs by name and digest"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "tools/neural_legacy_audit.py",
+   "why": "the hardware-era mode audit"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "FILE_DISPOSITION.csv",
+   "why": "generated: each file's disposition quotes what it holds"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "tools/file_disposition.py",
+   "why": "classifies every file, legacy ones by what they hold"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "final_manifest.json",
+   "why": "per-file manifest"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "ro-crate/*",
+   "why": "RO-Crate metadata of the corpus"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/corpus_allowlist.json",
+   "why": "the governed-document allowlist"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/byte_reproduction_profile.json",
+   "why": "the witness profile: canonical outputs by name"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/resolution_inventory.json",
+   "why": "what each canonical quantity resolves, by file"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/reference_backend_host_a.json",
+   "why": "the reference backend's host record, by canonical file"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "docs/blas_kernel_sensitivity.json",
+   "why": "the kernel-sensitivity measurement, by canonical file"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "stage8_reports/*",
+   "why": "the legacy HDF5 equivalence report, by file"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "QTA_stage9_release_verification/SHA256SUMS",
+   "why": "release checksums by file"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "QTA_stage9_release_verification/*.json",
+   "why": "release index and provenance, by file"
+  },
+  {
+   "class": "TOOLING_REFERENCE",
+   "path": "tools/mutations/*",
+   "why": "mutation specs naming the code they mutate"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "scientific_ai/*",
+   "why": "the learned-model substrate"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "scientific/*",
+   "why": "the generic scientific framework"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "qta_agent/*",
+   "why": "the agent authority substrate"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/neural.py",
+   "why": "the substrate's evidence tool"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/neural_ledger.py",
+   "why": "the substrate's ledger tool"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tests/neural_support.py",
+   "why": "the substrate's test support"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tests/test_neural_*.py",
+   "why": "the substrate's tests"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/neural/*",
+   "why": "the substrate's evidence and status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "SCIENTIFIC_AI_STATUS.md",
+   "why": "the current status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "HARNESS_STATUS.md",
+   "why": "the derived harness completion status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/harness_status.json",
+   "why": "the derived harness completion status"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/harness_contract.json",
+   "why": "the harness definition of done"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "NEURAL_SUBSTRATE.md",
+   "why": "the substrate's specification"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "AGENT_SUBSTRATE.md",
+   "why": "the agent substrate's specification"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "README.md",
+   "why": "the repository's front page"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "CLAIMS_BOUNDARY.md",
+   "why": "the current claims boundary"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/claims_boundary.json",
+   "why": "the claims boundary registry"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/completion_matrix.json",
+   "why": "the completion matrix"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "docs/framework_boundary.json",
+   "why": "the active/legacy boundary registry"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "AUTHORITIES.md",
+   "why": "the authority registry, narrated"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "authorities.json",
+   "why": "the authority registry"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "conftest.py",
+   "why": "the suite-wide test configuration"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/generic_consistency.py",
+   "why": "the generic verifier"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/audit_log.py",
+   "why": "the authority log auditor"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/test_isolation.py",
+   "why": "the suite's isolation check"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/completion_matrix.py",
+   "why": "the matrix validator"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/claims_enforcement.py",
+   "why": "the claims checker"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/framework_boundary.py",
+   "why": "the active/legacy boundary"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/independent_verify.py",
+   "why": "the independent verifier"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": "tools/model_check.py",
+   "why": "the model checker"
+  },
+  {
+   "class": "CURRENT_SCOPE",
+   "path": ".github/workflows/agent-substrate.yml",
+   "why": "the current harness's CI"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "qta_full_sim.py",
+   "why": "the legacy forecast's generator"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "qta_multiphysics/*",
+   "why": "the legacy forecast's models and gate assembly"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "Snakefile",
+   "why": "the workflow, legacy targets included"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "workflow/*",
+   "why": "the legacy workflow rules"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "build_*.py",
+   "why": "builders of the legacy registries and release"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "EXPERIMENT_PLAYBOOKS/*",
+   "why": "the legacy experiment playbooks"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "*.tex",
+   "why": "the legacy manuscript"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "*.csv",
+   "why": "legacy forecast tables"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "*.json",
+   "why": "legacy forecast registries, schemas and outputs"
+  },
+  {
+   "class": "LEGACY_QTA_CANONICAL",
+   "path": "matrix_update_examples/*",
+   "why": "examples of the legacy validation-matrix update contract"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY_GUARD",
+   "path": "tests/*",
+   "why": "tests that preserve or exercise the legacy semantics"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY_GUARD",
+   "path": ".github/workflows/*",
+   "why": "legacy workflows and the steps that keep the legacy gates fixed"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY_GUARD",
+   "path": "tools/*.py",
+   "why": "a tool that reads or checks the legacy corpus"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY_GUARD",
+   "path": "*.py",
+   "why": "a root-level checker of the legacy package"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY_GUARD",
+   "path": "*.sh",
+   "why": "a script verifying the legacy package"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "attic/*",
+   "why": "retired delivery artefacts"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "docs/*",
+   "why": "records and analyses"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "QTA_stage9_release_verification/*",
+   "why": "the legacy release record"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "*.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "*.txt",
+   "why": "text records"
+  }
+ ],
+ "schema": "pass-semantics-audit/1",
+ "unclassified": 0,
+ "window_lines": 2
+}

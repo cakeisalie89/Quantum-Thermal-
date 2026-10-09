@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .config import default_config
 from .mesh_3d import Grid3DConfig, StructuredGrid3D
+from .numerics import require_converged
 from .thermal_3d_transient import solve_thermal_3d
 from .energy_accounting_3d import energy_accounting_rows
 from .mode_sequence_3d import run_mode_sequence_3d
@@ -45,6 +46,39 @@ CI_MESH = Grid3DConfig(nx=10, ny=10, nz=12)
 #: closure ~1.5e-5); larger meshes are user-configurable via Grid3DConfig but
 #: 3D sparse-LU cost scales steeply with cell count.
 HEAVY_MESH = Grid3DConfig(nx=16, ny=16, nz=20)
+
+
+def write_heavy_pass(cfg, hdir, mesh=None):
+    """The opt-in higher-resolution 3D pass, as its own callable.
+
+    IT LIVES HERE RATHER THAN INLINE so that the convergence guard below is
+    reachable by a test. Inline, the only way to exercise it was to run the
+    entire 3D pipeline first -- so the one call site in this module that
+    never asked whether its solve converged was also the one no test could
+    reach, which is not a coincidence.
+
+    Every other consumer of a 3D solve in this package goes through the mode
+    sequence, and that refuses on failure. This one solves directly, and
+    wrote a probe timeseries, a hotspot table and an energy accounting from
+    whatever came back.
+    """
+    mesh = mesh or HEAVY_MESH
+    hdir = Path(hdir)
+    hdir.mkdir(parents=True, exist_ok=True)
+    rh = require_converged(solve_thermal_3d(cfg, mesh, n_eval=13),
+                           "runner_3d: heavy opt-in pass")
+    write_rows_csv(hdir / "thermal_3d_probe_timeseries_heavy.csv",
+                   rh.probe_timeseries_rows())
+    write_rows_csv(hdir / "thermal_3d_hotspots_heavy.csv", rh.hotspot_rows())
+    write_rows_csv(hdir / "thermal_3d_energy_accounting_heavy.csv",
+                   energy_accounting_rows(rh))
+    write_json(hdir / "heavy_3d_note.json", {
+        "resolution_tier": "HEAVY_OPT_IN",
+        "mesh": {"nx": mesh.nx, "ny": mesh.ny, "nz": mesh.nz},
+        "note": "optional higher-resolution pass; gitignored; never required "
+                "by CI, the default run, the package consistency check, or "
+                "manifest verification", "label": LABEL})
+    return hdir
 
 
 def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
@@ -284,20 +318,7 @@ def run_3d_all(outdir, heavy: bool = False, verbose: bool = True) -> dict:
     write_json(out("thermal_3d_readiness.json"), readiness)
 
     if heavy:
-        hdir = outdir / "heavy_3d"
-        hdir.mkdir(parents=True, exist_ok=True)
-        rh = solve_thermal_3d(cfg, HEAVY_MESH, n_eval=13)
-        write_rows_csv(hdir / "thermal_3d_probe_timeseries_heavy.csv",
-                       rh.probe_timeseries_rows())
-        write_rows_csv(hdir / "thermal_3d_hotspots_heavy.csv", rh.hotspot_rows())
-        write_rows_csv(hdir / "thermal_3d_energy_accounting_heavy.csv",
-                       energy_accounting_rows(rh))
-        write_json(hdir / "heavy_3d_note.json", {
-            "resolution_tier": "HEAVY_OPT_IN",
-            "mesh": {"nx": HEAVY_MESH.nx, "ny": HEAVY_MESH.ny, "nz": HEAVY_MESH.nz},
-            "note": "optional higher-resolution pass; gitignored; never required "
-                    "by CI, the default run, the package consistency check, or "
-                    "manifest verification", "label": LABEL})
+        hdir = write_heavy_pass(cfg, outdir / "heavy_3d")
         if verbose:
             print(f"[3D heavy pass complete -> {hdir} (opt-in; gitignored)]")
 

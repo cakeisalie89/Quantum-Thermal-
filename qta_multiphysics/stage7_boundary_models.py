@@ -189,6 +189,16 @@ class MatrixUpdateRequestModel(_Strict):
 
     @model_validator(mode="after")
     def _rules(self) -> "MatrixUpdateRequestModel":
+        # THIS IS A SHAPE CHECK, NOT THE AUTHORITY, and the difference is
+        # worth naming because the two used to be the same line of code.
+        # Comparing self.requester against self.review_ids compares
+        # SPELLINGS: respell the requester and one subject becomes two.
+        # hardware_governance_3d.validate_matrix_update_request resolves both
+        # through the reviewer roster and decides on identity, and it is what
+        # validated_by_governance() below asks. Constructing this model is
+        # therefore never enough to conclude a request is acceptable --
+        # test_stage7_boundary.py holds a case this rule admits and
+        # governance still refuses (D-2026-42).
         if self.requester in self.review_ids:
             raise ValueError("requester may not be a reviewer")
         if self.item not in _matrix_keys():
@@ -199,10 +209,17 @@ class MatrixUpdateRequestModel(_Strict):
             raise ValueError(f"unknown experiment_ids {unknown}")
         return self
 
-    def validated_by_governance(self) -> tuple:
+    def validated_by_governance(self, roster: dict | None = None) -> tuple:
+        """Ask the authority. Constructing this model did not.
+
+        ``roster`` exists so a caller can name the reviewer roster to decide
+        under; omitted, the declared one on disk is used, which in this
+        repository registers nobody and therefore refuses everything.
+        """
         from qta_multiphysics.hardware_governance_3d import (
             validate_matrix_update_request)
-        return validate_matrix_update_request(self.model_dump())
+        return validate_matrix_update_request(self.model_dump(),
+                                              roster=roster)
 
 
 class PathConfig(_Strict):

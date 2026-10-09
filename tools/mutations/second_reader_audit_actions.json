@@ -1,0 +1,198 @@
+{
+  "title": "The audit trail, read a second time: seven durable actions that permit nothing",
+  "note": "Ledger follow-up A. agent.message, file.read, network.result, secret.access, secret.provision, task.reexecution and task.separate_verification record what happened and change nothing any reducer permits; each now has a second reader in qta_agent/reconstruct.py, and each rule of it is removed here. AR mutates the readers; AR_REG takes secret.provision back out of the action registry (D-2026-85).",
+  "suites": [
+    "tests/test_second_reader_audit_actions.py"
+  ],
+  "mutations": [
+    {
+      "name": "AR1_a_message_may_name_its_own_sender",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if rec[\"sender_instance\"] != ev.actor:\n        _note(out, ev, f\"message {mid!r} says it was sent by \"\n",
+      "replace": "    if False:\n        _note(out, ev, f\"message {mid!r} says it was sent by \"\n",
+      "rationale": "a message attributed to somebody who did not append it reads clean"
+    },
+    {
+      "name": "AR2_a_redelivery_may_say_something_else",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        changed = [k for k in _MSG_NAMED if prior.get(k) != rec.get(k)]\n",
+      "replace": "        changed = []\n",
+      "rationale": "a record reusing a message id to change what was said reads as a redelivery"
+    },
+    {
+      "name": "AR3_a_body_may_be_inline",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not _is_digest(rec[\"body_digest\"]):\n",
+      "replace": "    if False:\n",
+      "rationale": "a message carrying its body inline reads clean"
+    },
+    {
+      "name": "AR4_a_reply_may_answer_nothing",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if reply is not None and reply not in out.messages:\n",
+      "replace": "    if False:\n",
+      "rationale": "a reply to a message never sent reads clean"
+    },
+    {
+      "name": "AR5_a_read_may_cite_any_capability",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    cap = out.capabilities.get(cid)\n    if cap is None:\n        _note(out, ev, f\"an allowed read cites capability {cid!r}, which \"\n                       \"this log never issued\")\n        return\n",
+      "replace": "    cap = out.capabilities.get(cid) or {\"issued_seq\": 0}\n",
+      "rationale": "an allowed read citing a capability nobody issued reads clean"
+    },
+    {
+      "name": "AR6_a_lapsed_grant_still_authorizes",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if isinstance(end, int) and end != -1 and at_seq > end:\n",
+      "replace": "    if False:\n",
+      "rationale": "a read or secret use after its grant expired reads clean"
+    },
+    {
+      "name": "AR7_a_revoked_grant_still_authorizes",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if revoked is not None and revoked <= at_seq:\n",
+      "replace": "    if False:\n",
+      "rationale": "a secret used after its grant was revoked reads clean"
+    },
+    {
+      "name": "AR8_the_reader_need_not_hold_the_capability",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if (cap.get(\"subject\") != ev.actor or cap.get(\"action\") != \"READ_PATHS\"\n",
+      "replace": "    if (False or cap.get(\"action\") != \"READ_PATHS\"\n",
+      "rationale": "a read under a capability granted to somebody else reads clean"
+    },
+    {
+      "name": "AR9_scope_is_not_asked",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            or not _sub_covers(cap.get(\"scope\"), scoped)):\n",
+      "replace": "            or False):\n",
+      "rationale": "a read outside the capability's scope reads clean"
+    },
+    {
+      "name": "AR10_a_refused_read_may_carry_bytes",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if result is not None:\n            _note(out, ev, \"a refused read carries a result: bytes were read \"\n",
+      "replace": "        if False:\n            _note(out, ev, \"a refused read carries a result: bytes were read \"\n",
+      "rationale": "a refused read that records what it read anyway reads clean"
+    },
+    {
+      "name": "AR11_a_read_is_whoever_appended_it",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if req.get(\"actor\") != ev.actor:\n        _note(out, ev, f\"a read by {req.get('actor')!r} was appended by \"\n",
+      "replace": "    if False:\n        _note(out, ev, f\"a read by {req.get('actor')!r} was appended by \"\n",
+      "rationale": "a read attributed to somebody who did not record it reads clean"
+    },
+    {
+      "name": "AR12_a_result_needs_no_request",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if out.egress_open.get(key, 0) < 1:\n",
+      "replace": "    if False:\n",
+      "rationale": "a response to egress nobody authorized reads clean"
+    },
+    {
+      "name": "AR13_a_refused_request_opens_egress",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not p.get(\"allowed\") or not isinstance(req, dict):\n        return\n    key = (ev.actor,",
+      "replace": "    if not isinstance(req, dict):\n        return\n    key = (ev.actor,",
+      "rationale": "a refused request is answered as though it had been allowed"
+    },
+    {
+      "name": "AR14_one_request_answers_forever",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    out.egress_open[key] -= 1\n",
+      "replace": "    pass\n",
+      "rationale": "one allowed request answers any number of results"
+    },
+    {
+      "name": "AR15_a_secret_use_needs_no_grant",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    g = out.secret_grants.get(gid)\n    if g is None:\n        _note(out, ev, f\"secret {p.get('secret_id')!r} was used under grant \"\n                       f\"{gid!r}, which this log never issued\")\n        return\n",
+      "replace": "    g = out.secret_grants.get(gid) or {\"issued_seq\": 0, \"digest\": p.get(\"grant_digest\"), \"body\": {\"secret_id\": p.get(\"secret_id\"), \"subject\": ev.actor, \"task_id\": ev.target, \"tool_id\": p.get(\"tool_id\"), \"purposes\": [\"*\"]}}\n",
+      "rationale": "a secret used under a grant this log never issued reads clean"
+    },
+    {
+      "name": "AR16_a_use_may_cite_other_terms",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if p.get(\"grant_digest\") != g.get(\"digest\"):\n",
+      "replace": "    if False:\n",
+      "rationale": "a use citing terms the grant does not have reads clean"
+    },
+    {
+      "name": "AR17_any_subject_may_use_the_grant",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        (\"subject\", body.get(\"subject\") == ev.actor),\n",
+      "replace": "        (\"subject\", True),\n",
+      "rationale": "a grant is used as a bearer token"
+    },
+    {
+      "name": "AR18_any_purpose_will_do",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        (\"purpose\", \"*\" in purposes or p.get(\"purpose\") in purposes),\n",
+      "replace": "        (\"purpose\", True),\n",
+      "rationale": "a credential issued for one purpose is used for another"
+    },
+    {
+      "name": "AR19_a_provisioning_record_may_carry_the_value",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    extra = sorted(set(p) - _PROVISION_FIELDS)\n",
+      "replace": "    extra = []\n",
+      "rationale": "a provisioning record carrying the secret itself reads clean"
+    },
+    {
+      "name": "AR20_an_empty_secret_is_provisioned",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(n, int) or isinstance(n, bool) or n < 1:\n",
+      "replace": "    if not isinstance(n, int):\n",
+      "rationale": "an empty (or boolean) provisioning reads as a value"
+    },
+    {
+      "name": "AR21_a_check_may_follow_the_verdict",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"state\"] != _TASK_COMPLETED:\n        return (f\"{action} recorded while the task is {cur['state']}; a \"\n",
+      "replace": "    if False:\n        return (f\"{action} recorded while the task is {cur['state']}; a \"\n",
+      "rationale": "a check recorded after the verdict reads as what the verdict rested on"
+    },
+    {
+      "name": "AR22_the_executor_may_check_itself",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if cur[\"executed_by\"] is None or ev.actor == cur[\"executed_by\"]:\n",
+      "replace": "    if cur[\"executed_by\"] is None:\n",
+      "rationale": "the task's executor records the check of its own work"
+    },
+    {
+      "name": "AR23_a_reexecution_of_another_tool",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if p.get(\"tool_id\") != cur[\"tool_id\"]:\n",
+      "replace": "        if False:\n",
+      "rationale": "a re-execution of some other tool stands for this one"
+    },
+    {
+      "name": "AR24_ok_need_not_agree_with_findings",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if ok == bool(findings):\n",
+      "replace": "    if False:\n",
+      "rationale": "a separate verification saying ok while listing findings reads clean"
+    },
+    {
+      "name": "AR25_the_verification_may_read_any_prefix",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            or completed is None or not completed <= head < ev.seq:\n",
+      "replace": "            or completed is None:\n",
+      "rationale": "a verification of a prefix that ends before the completion counts"
+    },
+    {
+      "name": "AR26_the_new_readers_are_not_dispatched",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        elif a == \"file.read\":\n            _sub_file_read(ev, p, out)\n",
+      "replace": "        elif a == \"file.read.never\":\n            _sub_file_read(ev, p, out)\n",
+      "rationale": "the second reader stops reading governed reads while the inventory says it does"
+    },
+    {
+      "name": "AR_REG_secret_provision_is_unregistered",
+      "path": "qta_agent/actions.py",
+      "find": "    \"secret.provision\": \"secrets\",\n",
+      "replace": "    # \"secret.provision\" unregistered\n",
+      "rationale": "D-2026-85: provisioning a secret makes every reducer refuse the log"
+    }
+  ]
+}

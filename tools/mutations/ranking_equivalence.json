@@ -1,0 +1,129 @@
+{
+ "title": "Resolution-aware ranking (D-2026-99 class), per-quantity equivalence, the sensitivity cross-check's refusals",
+ "note": "RE1-RE7 tiers, selection and comparison; EQ1-EQ8 equivalence statuses and contract refusals; SE1-SE2 the cross-check's resolution refusal and no-substitution rule (the SALib paths run under stack-verify's full leg).",
+ "suites": [
+  "tests/test_ranking_equivalence.py",
+  "tests/test_sensitivity_cross_check.py"
+ ],
+ "mutations": [
+  {
+   "name": "RE1_touching_bounds_distinct",
+   "path": "scientific/ranking.py",
+   "find": "        if groups and lo <= groups[-1][1]:\n",
+   "replace": "        if groups and lo < groups[-1][1]:\n",
+   "rationale": "intervals that touch are ordered, though their exact values may be equal"
+  },
+  {
+   "name": "RE2_neighbours_not_components",
+   "path": "scientific/ranking.py",
+   "find": "            g[1] = max(g[1], hi)\n",
+   "replace": "            g[1] = hi\n",
+   "rationale": "a wide interval no longer holds later overlapping values in its tier"
+  },
+  {
+   "name": "RE3_selection_splits_a_tier",
+   "path": "scientific/ranking.py",
+   "find": "        if len(t.keys) <= room:\n",
+   "replace": "        if True:\n",
+   "rationale": "a top-k selection takes part of a tier, decided by nothing the method resolves"
+  },
+  {
+   "name": "RE4_ambiguity_called_resolved",
+   "path": "scientific/ranking.py",
+   "find": "        return Selection(k, tuple(selected), t.keys, room, AMBIGUOUS)\n",
+   "replace": "        return Selection(k, tuple(selected), t.keys, room, RESOLVED)\n",
+   "rationale": "a selection below resolution is reported as decided"
+  },
+  {
+   "name": "RE5_unresolved_value_ranked",
+   "path": "scientific/ranking.py",
+   "find": "        if q.resolution is None:\n            raise RankingRefused(\n",
+   "replace": "        if q.resolution is None:\n            return cls(key, float(q.value), 0.0, 'assumed exact')\n            raise RankingRefused(\n",
+   "rationale": "a value with no declared resolution is ranked as if exact (roundoff decides)"
+  },
+  {
+   "name": "RE6_disagreement_unreported",
+   "path": "scientific/ranking.py",
+   "find": "    if disc:\n        status = DISAGREE\n",
+   "replace": "    if False:\n        status = DISAGREE\n",
+   "rationale": "methods ordering a pair oppositely are reported as consistent"
+  },
+  {
+   "name": "RE7_different_keys_compared",
+   "path": "scientific/ranking.py",
+   "find": "    if set(ra) != set(rb):\n",
+   "replace": "    if False:\n",
+   "rationale": "rankings of different parameter sets are compared"
+  },
+  {
+   "name": "EQ1_bound_too_tight",
+   "path": "scientific/equivalence.py",
+   "find": "    bound = ra + rb\n",
+   "replace": "    bound = max(ra, rb)\n",
+   "rationale": "two honest results within their own bounds are called different"
+  },
+  {
+   "name": "EQ2_unstated_resolution_equal",
+   "path": "scientific/equivalence.py",
+   "find": "    if ra is None or rb is None:\n        return QuantityVerdict(name, rule, NOT_ESTABLISHED,\n",
+   "replace": "    if ra is None or rb is None:\n        return QuantityVerdict(name, rule, EQUIVALENT,\n",
+   "rationale": "a quantity with no resolution is called equivalent"
+  },
+  {
+   "name": "EQ3_unit_change_ignored",
+   "path": "scientific/equivalence.py",
+   "find": "    if qa.unit != qb.unit:\n",
+   "replace": "    if False:\n",
+   "rationale": "a unit change passes as a numeric difference"
+  },
+  {
+   "name": "EQ4_contract_numbers_allowed",
+   "path": "scientific/equivalence.py",
+   "find": "    _no_numbers(doc.get(\"models\"), \"models\")\n",
+   "replace": "    pass  # a contract may carry numbers\n",
+   "rationale": "a tolerance written into a contract is accepted"
+  },
+  {
+   "name": "EQ5_invariants_ignored",
+   "path": "scientific/equivalence.py",
+   "find": "                      + [x[\"status\"] for x in inv])\n",
+   "replace": "                      + [])\n",
+   "rationale": "an invariant failing on one side does not affect the status"
+  },
+  {
+   "name": "EQ6_no_invariants_equivalent",
+   "path": "scientific/equivalence.py",
+   "find": "    if not ids and status == EQUIVALENT:\n",
+   "replace": "    if False:\n",
+   "rationale": "two results with no invariant evaluated are called equivalent"
+  },
+  {
+   "name": "EQ7_unclassified_output_equivalent",
+   "path": "scientific/equivalence.py",
+   "find": "            verdicts.append(QuantityVerdict(name, \"UNCLASSIFIED\",\n                                            NOT_ESTABLISHED,\n",
+   "replace": "            verdicts.append(QuantityVerdict(name, \"UNCLASSIFIED\",\n                                            EQUIVALENT,\n",
+   "rationale": "an output the contract does not classify counts as equivalent"
+  },
+  {
+   "name": "EQ8_parameters_unchecked",
+   "path": "scientific/equivalence.py",
+   "find": "    if a.parameter_digest != b.parameter_digest:\n",
+   "replace": "    if False:\n",
+   "rationale": "results on different inputs are compared as reproductions"
+  },
+  {
+   "name": "SE1_unresolved_response_ranked",
+   "path": "scientific/sensitivity.py",
+   "find": "        except RK.RankingRefused as exc:\n            raise SensitivityRefused(f\"OAT on {k}: {exc}\") from exc\n",
+   "replace": "        except RK.RankingRefused:\n            r0 = r1 = RK.Ranked('y', 0.0, 0.0, 'assumed')\n",
+   "rationale": "an OAT ranking over a response with no resolution is produced"
+  },
+  {
+   "name": "SE2_substitute_when_unavailable",
+   "path": "scientific/sensitivity.py",
+   "find": "        report.update(status=\"GLOBAL_UNAVAILABLE\", comparison=None)\n        return report\n",
+   "replace": "        report.update(status=RK.IDENTICAL, comparison=None)\n        return report\n",
+   "rationale": "without SALib the comparison is reported as agreeing"
+  }
+ ]
+}

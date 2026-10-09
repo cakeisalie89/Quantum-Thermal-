@@ -1,0 +1,44 @@
+{
+ "title": "R49: deterministic counters gate inclusively, timing shapes are telemetry",
+ "note": "PT1-PT5: the ceiling semantics by kind, the telemetry classification, the retired series.",
+ "suites": [
+  "tests/test_performance_telemetry.py"
+ ],
+ "mutations": [
+  {
+   "name": "PT1_deterministic_exclusive",
+   "path": "tools/performance_baseline.py",
+   "find": "        return m[\"value\"] > m[\"ceiling\"]\n",
+   "replace": "        return m[\"value\"] >= m[\"ceiling\"]\n",
+   "rationale": "a counter AT its invariant (0 directory entries listed) is flagged, so invariants of zero cannot be stated"
+  },
+  {
+   "name": "PT2_deterministic_unbounded",
+   "path": "tools/performance_baseline.py",
+   "find": "    if m.get(\"kind\") == \"DETERMINISTIC_WORK\":\n        return m[\"value\"] > m[\"ceiling\"]\n",
+   "replace": "    if m.get(\"kind\") == \"DETERMINISTIC_WORK\":\n        return False\n",
+   "rationale": "a counter past its invariant passes"
+  },
+  {
+   "name": "PT3_timing_inclusive",
+   "path": "tools/performance_baseline.py",
+   "find": "    return m[\"value\"] >= m[\"ceiling\"]\n",
+   "replace": "    return m[\"value\"] > m[\"ceiling\"]\n",
+   "rationale": "a timing shape exactly at its gross bound passes"
+  },
+  {
+   "name": "PT4_unclassed_hidden",
+   "path": "tools/performance_baseline.py",
+   "find": "    unknown = [m[\"guard\"] for m in seen if m.get(\"kind\") not in KINDS]\n",
+   "replace": "    unknown = []\n",
+   "rationale": "an unclassed measurement is published as if it were classed"
+  },
+  {
+   "name": "PT5_report_skips_unrecorded",
+   "path": "tools/performance_baseline.py",
+   "find": "        if over(m):\n            problems.append(\n",
+   "replace": "        if False:\n            problems.append(\n",
+   "rationale": "a guard with no timing history is never checked against its ceiling"
+  }
+ ]
+}

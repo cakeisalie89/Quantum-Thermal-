@@ -1,0 +1,199 @@
+{
+ "canonical_outputs": {
+  "declared": 89,
+  "exempt": [
+   "deep_surrogate_readiness.json"
+  ],
+  "set_sha256": "c90b36d65334a6c5a84e10a125e272ac7dd155a45a3a1386c8a82c8d4a5ac236",
+  "sha256": {
+   "adaptive_experiment_policy.json": "8d94103c7cd0bfe4b0f1de6f6a288da8b8fcdb7ac3ea179f37f05e52f27aecdc",
+   "assumptions_3d.json": "a3d713cda87df3083c5c30800b6bb41f1bc365b651787c29e13ea8dbdeb7485d",
+   "bayesian_design_summary.json": "48f68080347e60a69e201849cf58ae37fa43a3aadf09982cacda7eb597e6848c",
+   "best_forecast_operating_point.json": "72ed482fba8ffcd7eec39579be23dc7c1c803a603ba0fafbcf05aa0bf0a07097",
+   "campaign_state_3d.json": "2f521cb1a9b8d90c6530f75a3da9b3a6731c91738d880150949c3bfd3171174e",
+   "campaign_uncertainty_3d.json": "9cb6b8f6fe19c723e30ca34fda73c725a15491cbdfe728c985ce5f6303aac556",
+   "campaign_uncertainty_quantiles.csv": "ef1a438f6b3b6fce680d6fbab32bbc26b7aa6bef6cf6b24ee5f4e66282607b0f",
+   "convergence_report_3d.json": "335c62bec5d43ab32b9be26401bbde70e415e79f61a8eb6fff9b436ef4d2100e",
+   "coupled_mode_recovery_metrics.csv": "3ce2e78443eb2d2495e9c5f8f2a1cd62064fd4cacc3e86096ed3c0c3aa3920a0",
+   "coupled_mode_state_summary.json": "09902c0b3c42c26bcf156b472ada4ae09e04c26aaeb3c243f84bdad59657031e",
+   "coupling_ledger_3d.json": "a7179ecbffa69645722851f4161cbff75653addc23cfb8d8bfe66dbbb254d5a0",
+   "cryo_stack_3d_budget.csv": "60e1cb4b1524c01391ff4c6eafa2e76fb8970ad14104f004642cdfe0c48ec873",
+   "cryopanel_loading_3d.csv": "4c0eed949368be03c3a776a1cbc19f2447d47c162dea17163090bea0990646d1",
+   "deep_surrogate_readiness.json": "8fc81d59a312628dcffedd6e03a52df61e59c530fe954aa0977e654739f49c9e",
+   "design_component_registry.json": "f034036ede1c16addba0adbff0f19bad1920ee1e8cde0800a7d30e3f9ac1f16d",
+   "design_decision_ledger.json": "6d214ab1df2cfe92489eeb905aed5d063c48fce8dd42c10429a1c079c987b805",
+   "design_interface_graph.json": "d80f54f72d9f0a120e2013d83f6ec37c1348ae6e605f3c86a6656115033babe6",
+   "design_validation_report.csv": "9059aa09f24eb2916e7996f3054466b99112284675861fe6081e464cb67f2836",
+   "distributed_thermal_2d_slices.csv": "e0c76fb72e4c5851c4a978480ff9f7871c90675855ada3ad184472f52e24c2a2",
+   "distributed_thermal_metrics.csv": "195507c6356cb52eb8446af2cf302083bd6a33287d62a11df31d5e324c8a81a7",
+   "distributed_thermal_profile.csv": "a24c3ca9aa6c0449d582616d7db8a8ec8ef94e8f18257c2e668c36129a5e2d0e",
+   "energy_ledger_cumulative_3d.csv": "df9e42cca3d10c6ca175280556df680db6bb1aa7906141d892aeac87f9b0d386",
+   "engineering_fixes.csv": "4a0ab24b8633548c61b4ef040550d4152accd9cb2dfd4da0bfcb42922ce33c66",
+   "expected_information_gain.csv": "53d008c70ed6e5be5199c1d7c06e4fac4de05e5bcf5cca67b0bbe71b1a657a3a",
+   "experiment_falsification_map.csv": "3949b60dfbb571eb33cd4b1713c2098575748d195f2143148c509d7c8d27b1e2",
+   "experimental_design_candidates.csv": "b01b6c8fb229850a92ff3cf6fd4adea8b2decf954b01e986948d0fb45fb9b860",
+   "failed_gate_samples.csv": "aaac8128a4b4979db7b6506262e4059878e47af27c8a3247d7466bbf0185dfbb",
+   "falsification_report_3d.json": "47d9a84a7d1d248daac76f890fcd5daa78d2796854721027596c3c690e5ad52b",
+   "fidelity_comparison.csv": "b48df288402ab5dfee50f1a75851617edce36d3658c08bd5fb471d5b3524eb78",
+   "gas_transport_2d_map.csv": "09f17a344099658913fd9f0f88029638369cd82d16fa8b5b95759afc57a8784b",
+   "gas_transport_metrics.csv": "98b04f707aaf0c079aa8ed10872f0a52dc07d0275e645bb8c66707005e6b82ea",
+   "gas_transport_profile.csv": "f71c52c05a0b88915f67ca08514ee219f381dcb5c681b62d25b5fe1f3b443811",
+   "integrated_layers_summary.json": "dd590da9763467a11427e8348e8363946ea905e868193c70cd439975cae104d2",
+   "interlock_table.csv": "ba3547a587898e280e272fd7ca1b8962007040b493eaca6f5852fb07b0f578ef",
+   "laser_3d_deposition_summary.json": "43402e734b832c2ef631c45f051efbf42888ccab8390cff3f7c5b417a4de2b5f",
+   "lumped_vs_nonlumped_comparison.csv": "609fe0f22dc4c531664b9475ce4c3ede151de272acfc054df055cc861a967f61",
+   "machine_fsm_campaign_trace.csv": "5d37b236f43b17ccd7a82a8455a7e2476e5e086c7e1fb78cbdc550b818f7792f",
+   "machine_fsm_diagram.mmd": "6cfc41f7ceb67ae3c23dd27c6f0a51c7143f55a3b7470a46e13c6e857e87cdc1",
+   "machine_fsm_interlocks.csv": "59a2d991ad998ce93a8842fcd46a7132b04062cdd21cbc194d09f3a42cfcf44c",
+   "machine_fsm_lifecycle_trace.csv": "1ee7095ba6984a9f5f1a917dda2319de323475a4103fc5477fc3c84b99acf68b",
+   "machine_fsm_states.csv": "1aa571a853e5b224253c8e1f8bcda8193d4f45aa6dbf94286a9fe46c7c43922d",
+   "machine_fsm_summary.json": "5c6b55c8c14e914d3a95ac1070429d88bae951af0805db1d17ef9646c56545db",
+   "machine_fsm_transitions.csv": "f69b14182631665e81d2e68f6bd38f2f9dd7d4ccc566fd21569fc15eeba812ea",
+   "measurement_comparison_3d.json": "2d65a4bf9544d697e893694cfa62d8f8f9e72c07f629128bb83b2af8045195a3",
+   "measurement_comparison_rows.csv": "54455753c01f575d8201fd4d159740057e618cb44e375cf120b59fca6db7e722",
+   "mesh_3d_summary.json": "e183c4e40d371d63c5ab1f14f76ad27263c0abd9900ff391eb61f4fdd705beda",
+   "mesh_convergence_summary.csv": "6b238c47822916030f7848c4b4e78e1c1680403418cc30351e61fa7a589ff604",
+   "microwave_heating_3d_budget.csv": "2ca1a22982a7861bf5d6a0a026032e0fc14aa3f5b5b4544e0ca3133755686286",
+   "microwave_heating_metrics.csv": "47c9c1ec191d7fc1d276f3c339c01b632c3f0119ad0fd7302bb4d62fc6784f8f",
+   "microwave_heating_profile.csv": "bc2118e74e2b9ff0561bb9871b9c4acc2551dd365225a6d9bf103bff8bc4d05f",
+   "mode_recovery_3d_timeline.csv": "b8b98b4ee6a0bddf2b25d432bcf6bba65f8c9772d1ab8b7afc424f5d99e4d62d",
+   "monte_carlo_summary.csv": "7e6f3cc58d460ea1fbc86df6a29c94a17f1ab40a63383c5adbf72a66f71e3f47",
+   "multiphysics_summary.json": "35de07082d4e3d989d793b7881b398d8a7e95fa4f4cec5a4d8a9d1f8ad6bb1f0",
+   "multiphysics_verification_summary.csv": "58e36f952705ce86f119aa8a6f6a27ac93e001ccb3a52ff063c227c265629fc9",
+   "numerical_stability_summary.csv": "62ad2dcc68b58f50acd151fb9b9ee817625c14da254ed4beb6a3bf93961c0946",
+   "nv_coherence_curves.csv": "1dfa6dc7acaa74277dff6ec268b5281c5c6d7a71a348a5d68a8763cee8df4b18",
+   "nv_eligibility_3d.json": "d8f5123d6eaa2a2c59063734b1a6c2cd6072fa8f7cb1267a742bd55e03b4e4b4",
+   "nv_odmr_spectrum.csv": "c146841d39f61f583b2cfed46ad84e4f8dc75f49f0c872b8fa90c5d52a1b4936",
+   "nv_sequence_contrast.csv": "60fb709e1dbeddca81b36501d2a0df17f90ffeb795dae96cf7937c8dbc217bf5",
+   "nv_spin_dynamics_summary.json": "12a1da12ce31b16cf226f2c0c94f7411d4276bff2821b7d16180647917084c3e",
+   "nv_spin_gate_records.csv": "77e2fcc92886f4d0ae2505349fea5bce9b555059424abd54a0567f4bc0693550",
+   "nv_spin_parameter_provenance.json": "613008913dc50f1599f01d6fd7b576b2f5530ccdeec920c7932a82986166414e",
+   "optical_absorption_2d_slices.csv": "a1dd5d0cb2c9ad41f9f37be68a94c74ed57c30fe3f147b4c295019b428c4ac79",
+   "optical_absorption_metrics.csv": "1fd3a367faa6bae014590705a3dfb337b21c511ad90b5925961448203b38ce82",
+   "optical_absorption_profile.csv": "68b0c54c1d18ecc217ad7b9244462d9d5afb4000b1a404300ab1614da74485d5",
+   "parameter_registry.csv": "1162fedcace6555d391960a7348be2f2db5ee33a68f7a77eed0f8a6e32ea1d23",
+   "provenance_3d.json": "ea8e9b4fad9dbdda5a94942f0e52b6fcf67c2c503871cc22b98259b380029e8a",
+   "radiation_leakage_metrics.csv": "0453be60f3d6da94149c1579fd1f8add3619a7bf5e1ab0e7da5242357767aaec",
+   "radiation_leakage_paths.csv": "7e744f5e56e3832aaf3c4bf3c22585bd58566a2e1141ebd2be81cdf8f26c79df",
+   "radiation_paths_3d_budget.csv": "5fa5ea7949d74517ebd18c6692501ac7f9998e47825292750be187a6c63927b1",
+   "results_gate_table.csv": "d61067875068f399487d4f2eebdc597080e31e7a3be6d39dd7760ee1917fda2f",
+   "sensitivity_ranking_3d.csv": "4fec6823d19178dbe1e942fab5ecda972dbccd55d94df5e835193968f2db59a7",
+   "species_accounting_3d.csv": "a4145e11f3eaaecf95c48dc3b712d05868ee9babbd23316cf358e0d93171eed5",
+   "species_transport_3d_summary.json": "f97391992a1e8b6a808e26b5e32b201cac24f3d3f1a171c78aec030defa263a1",
+   "surface_coverage_2d_map.csv": "9c076f4f01600f934b9435b6cf2959ab9ef711739c522a1485942f0cb72004cd",
+   "surface_coverage_3d_summary.csv": "93e329faf8141e8ac8c1c11b7cdb80e6ae8fa9acd877b80617e2b19a269aa272",
+   "surface_coverage_metrics.csv": "a10fd9f3ed12389bec6dfd9a82a3ac7472af2180e266bf867f1953e35a51109b",
+   "surface_coverage_profile.csv": "f3dc3a72b8ca29c8a13715e03bd21f5de0208cd5bbea9370347510820dc26ac3",
+   "tau_c_sweep.csv": "3ba8c6a8b948535a313f82079ccb597a70d15763352fbfe60ece53cbf739cd4b",
+   "thermal_3d_energy_accounting.csv": "e65eba881cb34911821bf7979b2922fd7b161bd44dfcf30fc3c2cfcad3ba4596",
+   "thermal_3d_hotspots.csv": "cf0022bbc7a23d9fe5d64c89996bce89459ec0a72bbd524851c94fc24d30c74d",
+   "thermal_3d_probe_timeseries.csv": "eac828bb7ff32b3423edb2e542714751a702c69e43c345e44a66a22a7922e6c2",
+   "thermal_3d_readiness.json": "76db15a1c51be9bd2720b000b7ef43155a6665e86a76a41b5d3d216b79d4e5ed",
+   "thermal_3d_reduction_check.json": "c27dd1400e1d1cdf5df9327e2c85714d197dce3e70cc3d0e0da9382931813fea",
+   "thermal_3d_verification_report.json": "1d8f4461d7b88bb35228334d242d7b3d5a0999578fb04d358f9e08e630ba1121",
+   "validation_experiment_ranking.csv": "9fefa33e8b3a2b27dc61c6e6a9bfc58547eef1caf60e025e6f13fb6498a7e999",
+   "vibration_paths_3d_budget.csv": "c737e3204d8bd5797866e7492308393fcd95bc194611546c6cc524da3f21de72",
+   "vibration_transfer_metrics.csv": "d1d279c164d9e6a08dc357d373e32fd30266b88c574a1decf3072340cd063c55",
+   "vibration_transfer_profile.csv": "d30c1aa883a2b85c5544eaf36b52a491aaad5600d7fb032c8e2c457a2cedb21c"
+  }
+ },
+ "checkpointing": "qta_agent.checkpoint checkpoints projections of the authority log; no model checkpoint format",
+ "datasets": {
+  "available_governed_sources": [
+   "thermal.conduction_1d",
+   "thermal.conduction_2d_axisymmetric",
+   "surface.langmuir_capture"
+  ],
+  "generic": "none",
+  "legacy": "deep_dataset_* canonical outputs of the legacy layer"
+ },
+ "decisions": {
+  "data_source": "surface.langmuir_capture through scientific.model.run_model",
+  "framework": "JAX 0.11.2 as the optional extra 'neural': download.pytorch.org refused by the network policy; the PyPI x86-64 torch wheel is the CUDA build",
+  "lifecycle": "existing record actions with learned_* kinds; a store-level refusal of VERIFIED/PROMOTED",
+  "package": "scientific_ai/neural, importing only scientific; JAX in one guarded module"
+ },
+ "distributed_compute": "none",
+ "event_integration": {
+  "actions": 39,
+  "authority_states": [
+   "PROPOSED",
+   "UNDER_REVIEW",
+   "VERIFIED",
+   "PROMOTED",
+   "STALE",
+   "SUPERSEDED",
+   "REVOKED",
+   "REJECTED"
+  ],
+  "learned_record_rule": "none: a record of any kind could take the generic edges",
+  "log": "qta_agent.events.EventLog (hash-chained, append-only)",
+  "second_reader_coverage": "39 of 39"
+ },
+ "feature_representations": {
+  "learned_feature_encoding": "none outside the legacy layer",
+  "units": "unit strings on every Quantity and in docs/unit_inventory.json (164 reviewed columns, vocabulary DIMENSIONLESS/COUNT/ORDINAL/PER_ROW); no unit-to-dimension parser"
+ },
+ "hardware_abstractions": "none generic; the hardware registry and governance files are LEGACY",
+ "host": {
+  "backend_identity": "97b7772c0dbfe43fb69790d00d515240a5bb0e4d2a6de95788b99d047ff9d138",
+  "cores": 4,
+  "cpu": "GenuineIntel family 6 model 207 (AVX-512, AMX)",
+  "is_the_witnessed_backend": true,
+  "memory_gib": 15
+ },
+ "legacy_semantic_leakage_relevant": {
+  ".github/": "6 hits in 3 files (comments)",
+  "qta_agent/": 0,
+  "scientific/": 0,
+  "tools/": "33 hits in 12 files (classifier and history references)"
+ },
+ "neural_and_ml_code": {
+  "frameworks_installed": {
+   "jax": false,
+   "safetensors": false,
+   "sklearn": false,
+   "torch": false
+  },
+  "generic_neural_code": "none",
+  "learned_code": [
+   {
+    "disposition": "legacy QTA; design_space.py carries the hardware-era machine modes",
+    "path": "qta_multiphysics/deep_expdesign/",
+    "reused": false,
+    "what": "legacy deep experimental-design layer: NumPy mixture-density posterior, learned EIG surrogate, OOD and calibration checks against a direct reference",
+    "why_not": "bound to the apparatus's design space; the new substrate must not import it"
+   }
+  ]
+ },
+ "numerical_backends": {
+  "canonical": "witnessed native backend (numpy 2.4.4 / scipy 1.17.1, OpenBLAS SkylakeX)",
+  "reference": "STAGED qemu Nehalem-v1 reference backend (R59-E)"
+ },
+ "provenance_infrastructure": [
+  "scientific.identity (canonical digests, implementation digests)",
+  "scientific.run_identity (environment and backend identity)",
+  "scientific.result.ResultBundle",
+  "qta_agent.evidence.EvidenceStore (content-addressed)"
+ ],
+ "recorded": "2026-10-06, before any NF-1T change",
+ "repository": {
+  "branch": "claude/scientific-python-stack-7rsq3m",
+  "head": "f303a73d991c2eef75a4ac8b66c88ad64fe717a6",
+  "hosted_ci_at_head": "agent-substrate push 36521596741 and pull_request 36521600871 success; stack-verify 36521600842 success",
+  "pull_request": 17,
+  "remote_head_equal": true,
+  "scratch_worktrees": "five detached worktrees under the session scratchpad, at older commits, unused",
+  "tracked_tree_clean": true
+ },
+ "schema": "nf1t-starting-inventory/1",
+ "training_infrastructure": "none generic",
+ "unresolved_programme_items": [
+  "R59-C scientific equivalence OPEN",
+  "R59-D strict hosted reproduction EXTERNALLY_BLOCKED",
+  "D-2026-99 OPEN",
+  "corpus migration to the reference backend awaits owner authorization",
+  "tranche E not begun",
+  "vetted signature provider, production keys, registry pin, release signing EXTERNALLY_BLOCKED"
+ ]
+}

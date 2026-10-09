@@ -10,12 +10,15 @@ import sys
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import csv                                                       # noqa: E402
 
 from qta_multiphysics.hardware_governance_3d import (            # noqa: E402
     validate_matrix_update_request, load_experiment_registry,
     build_evidence_dossier, AUTOMATIC_GATE_EFFECT)
+from hw_reviewer_fixtures import (                               # noqa: E402
+    human as _human, roster as _roster)
 
 REG = json.load(open("experiment_registry.json"))
 GCOV = json.load(open("experiment_gate_coverage.json"))
@@ -28,6 +31,14 @@ G25 = {r["gate_id"] for r in GATES if r["status"] in ("BLOCKED", "UNKNOWN")}
 MATRIX_ITEMS = {r["item"] for r in
                 csv.DictReader(open("validation_matrix.csv"))}
 REQ_VALID = json.load(open("matrix_update_examples/valid_example.json"))
+
+# Registering the exemplar's own requester and reviewer. Without this the
+# exemplar is refused because nobody is registered, which is true and is
+# asserted below, but would make every OTHER refusal in this file
+# indistinguishable from it (D-2026-42).
+REQ_ROSTER = _roster(_human(REQ_VALID["requester"]),
+                     *[_human(r, registered_by=REQ_VALID["requester"])
+                       for r in REQ_VALID["review_ids"]])
 
 REP_ENUM = {"UNRESOLVED_MISSING_INSTRUMENT_NOISE",
             "UNRESOLVED_MISSING_REPEATABILITY",
@@ -160,7 +171,7 @@ def test_campaign_registry():
 
 
 def test_update_request_examples():
-    ok, why = validate_matrix_update_request(REQ_VALID)
+    ok, why = validate_matrix_update_request(REQ_VALID, roster=REQ_ROSTER)
     assert ok, why
     for name, frag in (
             ("invalid_automatic_application", "automatic_application"),
@@ -168,16 +179,80 @@ def test_update_request_examples():
             ("invalid_missing_evidence", "evidence"),
             ("invalid_unknown_experiment", "unknown experiment_id")):
         d = json.load(open(f"matrix_update_examples/{name}.json"))
-        ok2, why2 = validate_matrix_update_request(d)
+        ok2, why2 = validate_matrix_update_request(d, roster=REQ_ROSTER)
         assert not ok2 and any(frag in w for w in why2), (name, why2)
     bad = copy.deepcopy(REQ_VALID)
     bad["requester"] = bad["review_ids"][0]
-    ok3, why3 = validate_matrix_update_request(bad)
+    ok3, why3 = validate_matrix_update_request(bad, roster=REQ_ROSTER)
     assert not ok3 and any("requester may not" in w for w in why3)
     bad2 = copy.deepcopy(REQ_VALID)
     bad2["item"] = "no_such_matrix_item"
-    ok4, _ = validate_matrix_update_request(bad2)
+    ok4, _ = validate_matrix_update_request(bad2, roster=REQ_ROSTER)
     assert not ok4
+
+
+def test_the_exemplar_is_schema_valid_and_authority_invalid_as_shipped():
+    """What `valid_example.json` is, stated exactly.
+
+    It used to validate outright, which read as "a matrix update request
+    this repository would accept". It would not: no reviewer is registered,
+    so no request can be authorized here at all -- the same state
+    qta_agent.agents describes for escalations, where the mechanism exists
+    and its input does not.
+
+    The assertion is therefore two-sided, and both sides matter. Every
+    refusal must be a reviewer-authority refusal (so the exemplar really is
+    structurally and referentially complete, which is what it is FOR), and
+    there must be at least one (so "valid example" is not read as
+    "acceptable request").
+    """
+    ok, why = validate_matrix_update_request(REQ_VALID)
+    assert not ok, "the shipped roster registers nobody; nothing is valid"
+    assert why
+    for w in why:
+        assert w.startswith(("requester: ", "review_id: ")), (
+            "the exemplar failed a rule that is not about reviewer "
+            f"authority, so it is not the complete example it claims: {w}")
+
+
+def test_a_respelled_requester_is_not_a_second_person():
+    """The separation used to be `doc["requester"] in doc["review_ids"]`.
+
+    That compares SPELLINGS. Changing the case of the requester made one
+    subject into two and the separation passed -- reproduced before the fix
+    (D-2026-42). Identities that must resolve cannot be respelled into
+    existence: the respelling now fails to resolve and names the entry it
+    nearly matched, instead of quietly becoming somebody else.
+    """
+    rid = REQ_VALID["review_ids"][0]
+    respelled = copy.deepcopy(REQ_VALID)
+    respelled["requester"] = rid.lower()
+    respelled["review_ids"] = [rid]
+    assert rid.lower() != rid, "this fixture needs a case-bearing id"
+    ok, why = validate_matrix_update_request(respelled, roster=REQ_ROSTER)
+    assert not ok, "a respelled requester was accepted as a second person"
+    assert any("DIFFERENT identity" in w for w in why), why
+
+
+def test_an_unregistered_requester_cannot_request():
+    stranger = copy.deepcopy(REQ_VALID)
+    stranger["requester"] = "SOMEBODY-NOT-IN-THE-ROSTER"
+    ok, why = validate_matrix_update_request(stranger, roster=REQ_ROSTER)
+    assert not ok
+    assert any("requester: " in w and "not registered" in w for w in why), why
+
+
+def test_an_unregistered_reviewer_cannot_be_cited():
+    """The failure found: review_ids were never resolved against anything.
+
+    A request could name reviews that do not exist, and did -- validating
+    with two invented reviewer ids.
+    """
+    invented = copy.deepcopy(REQ_VALID)
+    invented["review_ids"] = ["REV-DOES-NOT-EXIST-0001"]
+    ok, why = validate_matrix_update_request(invented, roster=REQ_ROSTER)
+    assert not ok
+    assert any("review_id: " in w and "not registered" in w for w in why), why
 
 
 def test_dossier_binding_fields_and_fail_closed():

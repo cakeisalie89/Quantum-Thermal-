@@ -36,11 +36,66 @@ def test_config_id_binds_sources_env():
     assert c == Q._config_id()          # deterministic
 
 
-def test_snapshot_excludes_packaging_metadata():
+def test_snapshot_excludes_packaging_metadata(tmp_path, monkeypatch):
+    """Against a CONTROLLED tree, not whatever is lying around.
+
+    This asserted `any(k.startswith("outputs/"))` against the real
+    repository. `outputs/` is gitignored, so the assertion held on any
+    machine that had run the pipeline and failed on a fresh checkout -- it
+    was measuring the machine rather than the function. It went unnoticed
+    because the full suite ran on CI behind a check that could not pass, so
+    it never ran there at all.
+    """
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "outputs" / "thermal_3d_hotspots.csv").write_text("a\n")
+    # Exempt by policy: nondeterministic by design, so binding it would
+    # invalidate valid checkpoints.
+    (tmp_path / "outputs" / "deep_surrogate_readiness.json").write_text("b\n")
+    (tmp_path / "results_gate_table.csv").write_text("c\n")
+    (tmp_path / "final_manifest.json").write_text("d\n")
+    (tmp_path / "README.md").write_text("not a canonical family\n")
+    monkeypatch.setattr(Q, "ROOT", tmp_path)
+    monkeypatch.setattr(Q, "OUT", tmp_path / "outputs")
+
     snap = Q._snapshot()
-    assert "final_manifest.json" not in snap
-    assert any(k.startswith("outputs/") for k in snap)
+
+    assert "outputs/thermal_3d_hotspots.csv" in snap
     assert "results_gate_table.csv" in snap
+    assert "final_manifest.json" not in snap, (
+        "packaging metadata is bound, so regenerating the manifest would "
+        "invalidate valid science checkpoints")
+    assert "outputs/deep_surrogate_readiness.json" not in snap
+    assert "README.md" not in snap
+
+
+def test_snapshot_survives_a_tree_with_no_outputs_directory(tmp_path,
+                                                            monkeypatch):
+    """A fresh checkout has no outputs/ -- it is gitignored.
+
+    The snapshot must still cover the root canonical families rather than
+    raising or coming back empty, because an empty snapshot would make every
+    checkpoint marker validate against nothing.
+    """
+    (tmp_path / "results_gate_table.csv").write_text("c\n")
+    monkeypatch.setattr(Q, "ROOT", tmp_path)
+    monkeypatch.setattr(Q, "OUT", tmp_path / "outputs")
+    assert not (tmp_path / "outputs").exists()
+
+    snap = Q._snapshot()
+    assert snap == {"results_gate_table.csv": Q._sha_file(
+        tmp_path / "results_gate_table.csv")}
+
+
+def test_snapshot_of_the_real_tree_binds_the_gate_table():
+    """One assertion against the repository, chosen to hold anywhere.
+
+    `results_gate_table.csv` is committed, so this is true on a fresh
+    checkout and on a machine that has run the pipeline. Nothing here
+    depends on a gitignored directory.
+    """
+    snap = Q._snapshot()
+    assert "results_gate_table.csv" in snap
+    assert "final_manifest.json" not in snap
 
 
 def _synthetic_marker(tmpdir, stage, config, outputs):
@@ -104,7 +159,18 @@ def test_verify_existing_requires_sim_log():
     assert "NOT the release gate" in r.stdout
 
 
-def test_verify_existing_requires_exactly_89(tmp_path):
+def test_verify_existing_requires_the_whole_canonical_set(tmp_path):
+    """A partial output set is refused, and the refusal names what is absent.
+
+    This asserted ``"exactly 89 files"``, the wording of a rule that compared
+    a COUNT. Five files named ``f0.json`` satisfied the test's premise while
+    being none of the canonical outputs, so it would have passed equally
+    against a directory with the right number of entirely wrong files.
+
+    It also lived in a different suite from the one the rule's own mutation
+    spec names, which is how a spec list comes to look complete while a
+    sibling test pins the behaviour being replaced.
+    """
     scratch = tmp_path / "v"
     scratch.mkdir()
     for f in ("package_consistency_check.py", "qta_full_sim.py"):
@@ -120,7 +186,10 @@ def test_verify_existing_requires_exactly_89(tmp_path):
                        cwd=scratch, capture_output=True, text=True,
                        timeout=120)
     assert r.returncode == 1
-    assert "exactly 89 files" in r.stdout
+    assert "INCOMPLETE_EXISTING_OUTPUTS" in r.stdout
+    assert "FOREIGN_EXISTING_OUTPUTS" in r.stdout, \
+        "five files that are not canonical outputs are foreign, not merely few"
+    assert "f0.json" in r.stdout
 
 
 def test_default_regeneration_branch_preserved():

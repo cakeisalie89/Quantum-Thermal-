@@ -11,12 +11,212 @@ import numpy as np
 import scipy.sparse as sp
 
 
+#: A solve that did not converge carries no scientific authority. Any consumer
+#: -- Mode-C readiness, Mode-D start, eligibility forecasts, reduction checks,
+#: derived metrics -- must deny authority rather than read the numbers anyway.
+SOLVER_OK = "ok"
+
+
+class SolverFailure(RuntimeError):
+    """A numerical solve did not converge; downstream authority is denied."""
+
+
+def require_converged(result, what: str):
+    """Fail closed on a non-converged solve.
+
+    solver_status used to be reported alongside the metrics as a passive
+    string while ready_terms was computed from the same result regardless, so
+    a failed BDF integration could still produce FORECAST_READY_IF_MEASURED.
+    Readiness is now unreachable without convergence.
+
+    WHY THIS LIVES HERE AND NOT BESIDE THE 1D COUPLED SOLVER, WHERE IT WAS
+    WRITTEN. Because it was written where the defect was found and applied
+    only there. For a long time it had exactly two call sites, both in
+    ``run_coupled``, while ``run_mode_sequence_3d`` -- whose own docstring
+    says it runs the canonical mode order "exactly mirroring the 1D/2D
+    coupled_mode_solver" -- mirrored everything about it except this. A rule
+    that lives inside one of the things it governs is a rule the next sibling
+    does not inherit, so it lives in the numerics layer that every solver
+    already depends on.
+    """
+    status = getattr(result, "solver_status", None)
+    if status != SOLVER_OK:
+        raise SolverFailure(
+            f"{what}: solver_status={status!r} (expected {SOLVER_OK!r}); "
+            "readiness, eligibility and derived metrics are denied")
+    return result
+
+
+def require_integrated(sol_obj, what: str):
+    """Fail closed on a raw ``solve_ivp`` result that did not finish.
+
+    The counterpart of :func:`require_converged` for call sites that hold a
+    scipy ``OdeResult`` rather than one of this repository's result objects.
+    Both say the same thing in the vocabulary of the layer they sit in.
+
+    WHY IT IS NEEDED SEPARATELY. A failed integration does not return
+    garbage; it returns a SHORTER trajectory. ``so.y`` holds the points
+    reached, every one of them finite, so ``assert_finite`` passes and the
+    values look ordinary. Callers that pair ``so.y`` with the ``t_eval`` they
+    asked for then carry two arrays of different lengths, and the one that
+    describes time is the one that is still full length.
+    """
+    if not getattr(sol_obj, "success", False):
+        raise SolverFailure(
+            f"{what}: the integration did not finish "
+            f"(status={getattr(sol_obj, 'status', None)!r}, "
+            f"{getattr(sol_obj, 'message', '')!r}); a truncated trajectory is "
+            "shorter, not wrong-looking, so nothing downstream would notice")
+    return sol_obj
+
+
 def assert_finite(arr, name="array"):
     a = np.asarray(arr, dtype=float)
     if not np.all(np.isfinite(a)):
         bad = int(np.sum(~np.isfinite(a)))
         raise FloatingPointError(f"{name} contains {bad} non-finite values")
     return a
+
+
+#: How a serialised number relates to the resolution of the method that
+#: produced it. A file that states a value to ten significant figures makes a
+#: claim about resolution whether or not it means to, so the claim is written
+#: down next to the number rather than left to the reader to reconstruct from
+#: the solver's tolerances -- which are not in the file.
+EXACT_ZERO = "EXACT_ZERO"
+RESOLVED = "RESOLVED"
+BELOW_RESOLUTION = "BELOW_RESOLUTION"
+OUT_OF_RANGE = "OUT_OF_RANGE"
+
+RESOLUTION_CLASSES = frozenset(
+    {EXACT_ZERO, RESOLVED, BELOW_RESOLUTION, OUT_OF_RANGE})
+
+
+class UndeclaredResolution(ValueError):
+    """A value was classified against a floor that says nothing.
+
+    A floor of zero -- or of None, or a negative number -- would make every
+    value RESOLVED, including noise, which is the answer this whole mechanism
+    exists to stop the package from giving. Refusing is the point: a missing
+    declaration is not a passing one.
+    """
+
+
+def resolution_class(raw, floor, *, trivially_zero=False, low=None, high=None):
+    """Classify ONE raw solver value against the resolution of its method.
+
+    ``raw`` is the value the method actually produced, BEFORE any clip into
+    the physical range. That matters: a density of -18.9 clipped to 0.0 and a
+    density of +0.016 left alone are the same measurement -- both are inside
+    an integrator whose absolute tolerance is 1e3 -- and only the raw value
+    says so. Classifying the clipped number would call one of them an exact
+    zero and the other a small positive density, which is how the same code on
+    two runners comes to state two different things about the same physics.
+
+    ``trivially_zero`` is NOT "the value is small". It is the caller's
+    statement that the model gives zero exactly here -- no source term and no
+    initial content, so the solution is identically zero in floating point and
+    the tolerance never enters. Deciding this by magnitude instead would mark
+    a species that is genuinely absent as merely unresolved, which is the
+    proxy error this package keeps finding in its own instruments: the
+    property is WHY the number is zero, not how small it is.
+
+    ``low``/``high``, when given, are the physical range the caller clips to.
+    A value outside that range by more than the floor is not noise and must
+    not be filed as noise; the serialised number is then the range bound and
+    the solver's answer is somewhere else entirely.
+    """
+    f = float(floor) if floor is not None else 0.0
+    if not np.isfinite(f) or f <= 0.0:
+        raise UndeclaredResolution(
+            f"resolution floor is {floor!r}; with no positive floor every "
+            "value classifies as RESOLVED, noise included")
+    if trivially_zero:
+        return EXACT_ZERO
+    v = float(raw)
+    if not np.isfinite(v):
+        raise UndeclaredResolution(
+            f"cannot classify a non-finite value ({v!r}) against a floor")
+    if low is not None and v < float(low) - f:
+        return OUT_OF_RANGE
+    if high is not None and v > float(high) + f:
+        return OUT_OF_RANGE
+    if abs(v) >= f:
+        return RESOLVED
+    return BELOW_RESOLUTION
+
+
+def render_with_resolution(value, cls, floor, fmt=".2e"):
+    """Render a quantity as what the method establishes about it.
+
+    Returns the OPERATOR with the value, because the operator is part of the
+    statement: a value the solve cannot resolve is published as the BOUND,
+    ``CH4<1.00e+03``, and not as the digit, ``CH4=0.00e+00``. The digit was noise
+    and said nothing; the bound is the actual result and is the same on every
+    host, so a cell rendered this way stops diverging between environments
+    instead of merely being marked as allowed to.
+
+    This is not rounding. Rounding writes 0.0 and says nothing about why --
+    which D-2026-53 rejected as concealment. An explicit inequality naming
+    the floor states the finding.
+
+    Found by the DECLARED/BARE split in tools/cross_env_semantics.py, which
+    named results_gate_table.csv as a file publishing an unresolved zero with
+    nothing beside it. That is the GATE TABLE: the residual methane at Mode D
+    entry, in the column a reviewer reads as the gate's value.
+    """
+    if cls == BELOW_RESOLUTION:
+        return f"<{float(floor):{fmt}}"
+    if cls == OUT_OF_RANGE:
+        # Never rendered as an ordinary number: the serialised value is the
+        # range bound and the solver's answer was somewhere else.
+        return f"={float(value):{fmt}}[OUT_OF_RANGE]"
+    return f"={float(value):{fmt}}"
+
+
+class UndecidableComparison(RuntimeError):
+    """A threshold was compared against a value the method cannot resolve.
+
+    Raised rather than answered, because both answers would be inventions.
+    """
+
+
+def decide_below(value, threshold, floor, *, value_class=None, what=""):
+    """``value < threshold``, or a refusal when the solve cannot say.
+
+    A comparison against an unresolved value is still a real decision when the
+    threshold is outside the unresolved band: if all the method establishes is
+    ``|n| < 1e3`` and the threshold is ``1e12``, then ``n < 1e12`` holds
+    whatever the digits were. That is the case in this package today, and it
+    is the reason the Mode-D residual term is sound despite resting on a
+    methane density that is pure integrator noise.
+
+    It stops being sound the moment someone tightens the threshold, and
+    nothing in a bare ``D_res_CH4 < 1e12`` would notice. Hence the guard: the
+    band is a property of the solve, the threshold is a property of the
+    requirement, and the comparison is only a decision while they do not
+    overlap.
+    """
+    f = float(floor) if floor is not None else 0.0
+    if not np.isfinite(f) or f <= 0.0:
+        raise UndeclaredResolution(
+            f"{what}: no positive resolution floor, so nothing establishes "
+            "that this comparison is decidable")
+    t = float(threshold)
+    if value_class == BELOW_RESOLUTION and -f < t < f:
+        raise UndecidableComparison(
+            f"{what}: threshold {t!r} lies inside the unresolved band "
+            f"(+/-{f!r}) of a value this solve cannot resolve; the "
+            "comparison has no answer that the numerics supports")
+    return float(value) < t
+
+
+def resolution_classes(raws, floor, *, trivially_zero=False, low=None,
+                       high=None):
+    """:func:`resolution_class` over an array. Returns a list of labels."""
+    return [resolution_class(v, floor, trivially_zero=trivially_zero,
+                             low=low, high=high)
+            for v in np.asarray(raws, dtype=float).ravel()]
 
 
 def explicit_diffusion_cfl_dt(alpha_max, dx):

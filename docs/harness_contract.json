@@ -1,0 +1,56 @@
+{
+ "schema": "harness-completion-contract/1",
+ "label": "THE DEFINITION OF DONE for the Scientific-AI harness. It says what must hold and which registry or evidence decides it; it states no status. The status is derived by tools/harness_status.py from stack.json, docs/completion_matrix.json, the audits and the learned-model status, and is never written by hand.",
+ "outcomes": {
+  "COMPLETE_TO_CURRENT_TECHNICALLY_DEFENSIBLE_LIMIT": "every requirement below holds, every required stack element is in an accepted state, every required matrix row is complete with hosted evidence covering its current implementation, and every audit is clean",
+  "BLOCKED": "everything that is not satisfied is EXTERNALLY_BLOCKED (a demonstrated external blocker, recorded with the attempt) and nothing actionable remains",
+  "INCOMPLETE": "anything else: a STAGED, DEFERRED or unclassified required element, a required row below complete, evidence that predates its implementation or was never run, an audit with a finding"
+ },
+ "required_stack": {
+  "python-scientific-core": {"accept": ["ADOPTED"], "rows": ["R56"]},
+  "generic-scientific-layer": {"accept": ["ADOPTED"], "rows": ["R61"]},
+  "snakemake": {"accept": ["ADOPTED"], "rows": ["R55", "R69"]},
+  "uv": {"accept": ["ADOPTED"], "rows": ["R56"]},
+  "containers": {"accept": ["ADOPTED"], "rows": ["R64"]},
+  "pytest-hypothesis": {"accept": ["ADOPTED"], "rows": ["R50", "R51"]},
+  "ruff-mypy-pydantic": {"accept": ["ADOPTED"], "rows": ["R70"]},
+  "hdf5": {"accept": ["ADOPTED"], "rows": ["R61"]},
+  "ro-crate": {"accept": ["ADOPTED"], "rows": ["R65"]},
+  "slsa-sigstore": {"accept": ["ADOPTED"], "rows": ["R65"]},
+  "rag-read-only": {"accept": ["ADOPTED"], "rows": ["R35"]},
+  "proposal-ingress": {"accept": ["ADOPTED"], "rows": ["R66"]},
+  "paraview-vtk": {"accept": ["ADOPTED"], "rows": ["R56"]},
+  "openusd": {"accept": ["ADOPTED"], "rows": ["R56"]},
+  "salib": {"accept": ["ADOPTED"], "rows": ["R56"]},
+  "openmdao": {"accept": ["ADOPTED"], "rows": ["R56"]},
+  "fenicsx": {"accept": ["ADOPTED"], "rows": ["R62"]},
+  "fmi": {"accept": ["ADOPTED"], "rows": ["R63"]},
+  "rust-selective": {"accept": ["RESOLVED"], "rows": ["R67"]},
+  "authority-substrate": {"accept": ["ADOPTED"], "rows": ["R40", "R42"]}
+ },
+ "required_rows": "ALL",
+ "required_audits": [
+  "pass_semantics",
+  "neural_legacy_semantics",
+  "framework_boundary",
+  "claims_boundary",
+  "workflow_contract"
+ ],
+ "required_facts": {
+  "legacy_qta_pass_count_is_legacy_only": "docs/neural/current_status.json legacy section is LEGACY_QTA_ONLY and no other section reads the gate table",
+  "learned_outputs_refused": "docs/neural/claims.json learned_refused_states is exactly PROMOTED and VERIFIED",
+  "flagship_not_allocated_or_trained": "docs/neural/current_status.json: flagship real weights not allocated, large model not trained"
+ },
+ "outside_this_software_completion": [
+  {"id": "physical-experiment", "class": "EXPERIMENTAL_SCIENCE", "statement": "no physical experiment has been performed; nothing here is experimentally validated"},
+  {"id": "hardware-validation", "class": "HARDWARE", "statement": "no physical hardware validation; the legacy QTA apparatus does not exist"},
+  {"id": "flagship-allocation-and-training", "class": "PAID_COMPUTE", "statement": "the ~1T flagship is parameterised and meta-validated, never allocated or trained"},
+  {"id": "development-model-science", "class": "MODEL_RESEARCH", "statement": "the development model's scientific performance is unestablished and its epistemic uncertainty not assessed"},
+  {"id": "distributed-accelerators", "class": "HARDWARE", "statement": "no distributed accelerator hardware validation; tensor and pipeline parallelism are plans"},
+  {"id": "arbitrary-host-byte-identity", "class": "EPISTEMIC", "statement": "byte identity of floating-point results on an arbitrary host is not guaranteed and not claimed"},
+  {"id": "historical-qta-equivalence", "class": "OWNER_DECISION", "statement": "scientific equivalence of the historical QTA corpus across backends may remain NOT_ESTABLISHED; migrating it needs the owner"},
+  {"id": "learned-model-admission", "class": "OWNER_DECISION", "statement": "no admission policy for learned models exists; learned outputs stay NON_AUTHORITATIVE"},
+  {"id": "signature-is-not-truth", "class": "EPISTEMIC", "statement": "a valid signature attests origin and integrity, never scientific validity"},
+  {"id": "one-benchmark-is-not-all-models", "class": "EPISTEMIC", "statement": "one FEniCSx benchmark does not verify every scientific model"}
+ ]
+}

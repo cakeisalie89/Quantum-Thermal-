@@ -1,0 +1,43 @@
+{
+ "checkpoint_digest": "25e4afea25237423a5de8f2a551225eb6a4de5e1e2a8164025b62f5947ad2dbd",
+ "checkpoint_format": "safetensors-layout/1 (numpy writer; no pickle)",
+ "data_position": {
+  "batch_in_epoch": 20,
+  "batches_per_epoch": 33,
+  "epoch": 60,
+  "step": 2000
+ },
+ "dataset_digest": "5b7332a5377abe4986c3aef905ec25bc6a9c730eb4eda4752f02a91a1db8a137",
+ "epoch": 60,
+ "model_config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+ "optimizer_state_presence": true,
+ "parent_checkpoint": null,
+ "precision": {
+  "compute_dtype": "float32",
+  "param_dtype": "float32",
+  "router_dtype": "float32"
+ },
+ "rng": {
+  "data_order": "PCG64(data_order_seed + epoch) permutation",
+  "data_order_seed": 1,
+  "initialization_seed": 0
+ },
+ "schema": "scientific-moe-checkpoint-manifest/1",
+ "shard_count": 1,
+ "shards": [
+  {
+   "bytes": 5191312,
+   "digest": "25e4afea25237423a5de8f2a551225eb6a4de5e1e2a8164025b62f5947ad2dbd",
+   "index": 0,
+   "stored_at": {
+    "unavailable": "not retained: a lineage-experiment checkpoint; its digest is its identity"
+   }
+  }
+ ],
+ "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "tensor_count": 108,
+ "tensor_index_digest": "20e8e72a11b9ec5dcab343f7067a315eebd4562bfa2a3399524aa48715cf372c",
+ "training_manifest_digest": "51ed6c0a361179280dd4a2bdc119e92ffd5b0d53a977e09ae75050dd3bd70148",
+ "training_run_id": "nf1t-dev-52e707b0a2dd-resume-a",
+ "training_step": 2000
+}

@@ -1,0 +1,94 @@
+{
+ "title": "Crash and recovery around the proposal-to-decision path (section 44, D-2026-110)",
+ "note": "PCR1-PCR12: a durable proposal stranded by a crash at any append is taken up by resubmitting it -- admitted, dispatched, its live dispatch resumed by the same worker identity only, its completed attempt verified from records that agree -- under the policy in force, never for an EXTERNAL tool, and its decision returned rather than made twice, and only for the same check's report.",
+ "suites": [
+  "tests/test_proposal_crash_recovery.py",
+  "tests/test_agent_idempotency.py"
+ ],
+ "mutations": [
+  {
+   "name": "PCR1_a_resubmission_only_reports",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        if not (state in (TaskState.CREATED, TaskState.VALIDATED)\n",
+   "replace": "        if True or not (state in (TaskState.CREATED, TaskState.VALIDATED)\n",
+   "rationale": "the defect itself: a durable proposal stranded by a crash is reported forever and never reaches a decision"
+  },
+  {
+   "name": "PCR2_a_live_dispatch_is_dispatched_again",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                takeover=job if held else None)",
+   "replace": "                takeover=None)",
+   "rationale": "the attempt a dead dispatcher began is dispatched a second time, which the queue refuses: the proposal stalls behind its own lease"
+  },
+  {
+   "name": "PCR3_any_worker_takes_over_a_live_lease",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                and job.lease_holder == worker\n",
+   "replace": "                and job.lease_holder is not None\n",
+   "rationale": "another worker identity takes over a lease it was never granted and runs work leased to someone else"
+  },
+  {
+   "name": "PCR4_the_queue_is_not_reconciled_before_resuming",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        self.scheduler.reconcile(resolve=self.evidence.contains)\n        job = (self.scheduler.catch_up().all_jobs().get(prior.job_id)\n",
+   "replace": "        job = (self.scheduler.catch_up().all_jobs().get(prior.job_id)\n",
+   "rationale": "a lapsed lease is read as still dispatched, so work whose lease ran out long ago is never taken up again"
+  },
+  {
+   "name": "PCR5_an_external_effect_is_resumed",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        if task is None or spec.side_effect is SideEffect.EXTERNAL:\n            return self._report_duplicate(prior, spec)\n        # The queue brought",
+   "replace": "        if task is None:\n            return self._report_duplicate(prior, spec)\n        # The queue brought",
+   "rationale": "a tool declaring EXTERNAL effects is re-run after a crash, repeating an effect nobody here can see or undo"
+  },
+  {
+   "name": "PCR6_a_completed_task_is_verified_from_records_that_disagree",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        if not artifacts or self._check_declared_outputs(outputs, artifacts):",
+   "replace": "        if not artifacts:",
+   "rationale": "a completion whose execution record and capture disagree is verified on resume, with an obligation discharged on an agreement that does not hold"
+  },
+  {
+   "name": "PCR7_a_completed_task_is_left_without_its_verdict",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "                or recorded is not None):",
+   "replace": "                or False):",
+   "rationale": "a task completed before the crash waits forever for a verifier nobody runs"
+  },
+  {
+   "name": "PCR8_the_policy_is_not_asked_on_resume",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "            actor=submitter, target=task.task_id)\n        decision.raise_if_denied()\n        if recorded is not None",
+   "replace": "            actor=submitter, target=task.task_id)\n        if recorded is not None",
+   "rationale": "a resumed attempt runs under the rules of the moment it was first submitted, not those in force when it runs"
+  },
+  {
+   "name": "PCR9_a_validated_task_is_validated_again",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        if task.state is TaskState.CREATED:\n            # Validation is a real gate",
+   "replace": "        if True:\n            # Validation is a real gate",
+   "rationale": "a task resumed after validation is moved VALIDATED -> VALIDATED, which the machine refuses: the proposal stalls"
+  },
+  {
+   "name": "PCR10_an_enqueued_job_is_enqueued_twice",
+   "path": "qta_agent/governed_stage10.py",
+   "find": "        if job_id not in self.scheduler.catch_up().all_jobs():",
+   "replace": "        if True:",
+   "rationale": "a job already in the queue is enqueued again under its own id, which the queue refuses: the proposal stalls"
+  },
+  {
+   "name": "PCR11_a_decided_record_is_decided_again",
+   "path": "qta_agent/governed_model.py",
+   "find": "        if current.state in (State.VERIFIED, State.REJECTED):",
+   "replace": "        if False:",
+   "rationale": "a decision already in the log is attempted a second time on resume, and the path fails on its own verdict"
+  },
+  {
+   "name": "PCR12_a_decision_on_another_report_is_returned",
+   "path": "qta_agent/governed_model.py",
+   "find": "            if current.evidence.get(\"verification_report\") != \\\n                    check.report_sha256:",
+   "replace": "            if False:",
+   "rationale": "a verdict given on one check's report is handed back as the answer to a decision on another"
+  }
+ ]
+}

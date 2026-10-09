@@ -177,7 +177,11 @@ Carried since Stage 2 (campaign-continuity layer):
    canonical CSV; PLACEHOLDER 1-monolayer capacity) across B->C->D and
    across cycles; outputs `cryopanel_loading_3d.csv`; the static CSV remains
    the assumption/measurement ledger. Capacity and sticking remain
-   EXPERIMENTALLY_UNMEASURED.
+   EXPERIMENTALLY_UNMEASURED. Tranche 4 (directive 22): the equations --
+   density, impingement flux, exact capture -- are
+   `scientific/models/surface_adsorption.py`, a generic model with an
+   independent check; the cryopanel module is legacy and computes through
+   them, its rows unchanged bit for bit.
 3. Cumulative energy -- CLOSED: `campaign_state_3d.attach_energy_ledger`
    emits `energy_ledger_cumulative_3d.csv` (identical-cycle sums of the
    existing phase closures; shared tolerance).

@@ -1,0 +1,156 @@
+{
+ "title": "Harness completion status and hosted-evidence attachment",
+ "note": "HS1-HS15: the derived status refusing COMPLETE (stale or absent evidence, residual gaps, classifications, unclassified elements, audits, facts, external-blocker attribution, stale documents, --require-complete); AE1-AE6: the evidence tool refusing runs that are not green on exactly the commit, and digesting the commit's tree rather than the working tree.",
+ "suites": [
+  "tests/test_harness_status.py"
+ ],
+ "mutations": [
+  {
+   "name": "HS1_blocked_whenever_anything_unsatisfied",
+   "path": "tools/harness_status.py",
+   "find": "    elif all(u[\"external\"] for u in unsatisfied):\n",
+   "replace": "    elif True:\n",
+   "rationale": "an actionable gap is reported as an external blocker"
+  },
+  {
+   "name": "HS2_stale_evidence_counts",
+   "path": "tools/harness_status.py",
+   "find": "    return st[\"classification\"] == CM.COMPLETE and \\\n        st[\"evidence\"] == CM.EV_COVERS and st[\"residual_gaps\"] == 0\n",
+   "replace": "    return st[\"classification\"] == CM.COMPLETE and \\\n        st[\"residual_gaps\"] == 0\n",
+   "rationale": "evidence that predates the implementation, or was never run, satisfies a row"
+  },
+  {
+   "name": "HS3_residual_gaps_ignored",
+   "path": "tools/harness_status.py",
+   "find": "        st[\"evidence\"] == CM.EV_COVERS and st[\"residual_gaps\"] == 0\n",
+   "replace": "        st[\"evidence\"] == CM.EV_COVERS\n",
+   "rationale": "a complete row with an open residual gap satisfies the contract"
+  },
+  {
+   "name": "HS4_classification_ignored",
+   "path": "tools/harness_status.py",
+   "find": "    return st[\"classification\"] == CM.COMPLETE and \\\n",
+   "replace": "    return True and \\\n",
+   "rationale": "a row below complete satisfies the contract"
+  },
+  {
+   "name": "HS5_unlisted_element_ignored",
+   "path": "tools/harness_status.py",
+   "find": "        if eid not in contract[\"required_stack\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "a stack element the contract does not mention escapes classification"
+  },
+  {
+   "name": "HS6_missing_audit_is_clean",
+   "path": "tools/harness_status.py",
+   "find": "        if not au.get(name, {}).get(\"ok\"):\n",
+   "replace": "        if not au.get(name, {\"ok\": True}).get(\"ok\"):\n",
+   "rationale": "an audit that was not run counts as clean"
+  },
+  {
+   "name": "HS7_legacy_label_not_required",
+   "path": "tools/harness_status.py",
+   "find": "            \"ok\": lg[\"classification\"] == \"LEGACY_QTA_ONLY\",\n",
+   "replace": "            \"ok\": True,\n",
+   "rationale": "the legacy PASS count may lose its LEGACY_QTA_ONLY label"
+  },
+  {
+   "name": "HS8_trained_flagship_accepted",
+   "path": "tools/harness_status.py",
+   "find": "            \"ok\": fl[\"real_weights_allocated\"] is False\n            and fl[\"large_model_trained\"] is False,\n",
+   "replace": "            \"ok\": fl[\"real_weights_allocated\"] is False,\n",
+   "rationale": "a status saying the large model was trained passes"
+  },
+  {
+   "name": "HS9_refused_states_subset",
+   "path": "tools/harness_status.py",
+   "find": "            \"ok\": cl[\"learned_refused_states\"] == [\"PROMOTED\", \"VERIFIED\"]\n",
+   "replace": "            \"ok\": \"PROMOTED\" in cl[\"learned_refused_states\"]\n",
+   "rationale": "learned outputs may become VERIFIED"
+  },
+  {
+   "name": "HS10_refusal_not_demonstrated",
+   "path": "tools/harness_status.py",
+   "find": "            and cl[\"acceptance_attempt\"][\"refused\"] is True,\n",
+   "replace": "            and True,\n",
+   "rationale": "the claims record need not show the acceptance attempt refused"
+  },
+  {
+   "name": "HS11_staged_element_external",
+   "path": "tools/harness_status.py",
+   "find": "                                \"external\": status == EXTERNALLY_BLOCKED})\n",
+   "replace": "                                \"external\": True})\n",
+   "rationale": "a STAGED element reads as an external blocker"
+  },
+  {
+   "name": "HS12_row_external",
+   "path": "tools/harness_status.py",
+   "find": "                                \"external\": st[\"classification\"]\n                                == EXTERNALLY_BLOCKED})\n",
+   "replace": "                                \"external\": True})\n",
+   "rationale": "an actionable row reads as an external blocker"
+  },
+  {
+   "name": "HS13_stale_document_accepted",
+   "path": "tools/harness_status.py",
+   "find": "        if not p.is_file() or p.read_text(encoding=\"utf-8\") != want:\n",
+   "replace": "        if not p.is_file():\n",
+   "rationale": "a hand-edited status document passes verify"
+  },
+  {
+   "name": "HS14_require_complete_ignored",
+   "path": "tools/harness_status.py",
+   "find": "    if require_complete and st[\"outcome\"] != COMPLETE:\n",
+   "replace": "    if False:\n",
+   "rationale": "--require-complete passes an incomplete harness"
+  },
+  {
+   "name": "HS15_absent_row_satisfies",
+   "path": "tools/harness_status.py",
+   "find": "        backing = {r: rows.get(r, {\"classification\": \"ABSENT\",\n",
+   "replace": "        backing = {r: rows.get(r, {\"classification\": CM.COMPLETE,\n",
+   "rationale": "a stack element backed by a row that does not exist is satisfied"
+  },
+  {
+   "name": "AE1_any_commit",
+   "path": "tools/attach_hosted_evidence.py",
+   "find": "    if run.get(\"head_sha\") != commit:\n",
+   "replace": "    if False:\n",
+   "rationale": "a run on another commit is recorded as evidence about this one"
+  },
+  {
+   "name": "AE2_unfinished_run",
+   "path": "tools/attach_hosted_evidence.py",
+   "find": "    if run.get(\"status\") != \"completed\" or run.get(\"conclusion\") != \"success\":\n",
+   "replace": "    if run.get(\"conclusion\") == \"failure\":\n",
+   "rationale": "an in-progress or cancelled run is evidence"
+  },
+  {
+   "name": "AE3_skipped_job",
+   "path": "tools/attach_hosted_evidence.py",
+   "find": "           if j.get(\"conclusion\") != \"success\"]\n",
+   "replace": "           if j.get(\"conclusion\") not in (\"success\", \"skipped\")]\n",
+   "rationale": "a green summary over a skipped job is evidence about that job"
+  },
+  {
+   "name": "AE4_no_jobs",
+   "path": "tools/attach_hosted_evidence.py",
+   "find": "    if bad or not jobs.get(\"jobs\"):\n",
+   "replace": "    if bad:\n",
+   "rationale": "a run listing no jobs is evidence"
+  },
+  {
+   "name": "AE5_working_tree_digest",
+   "path": "tools/attach_hosted_evidence.py",
+   "find": "    read, listdir = _at_commit(full, root)\n",
+   "replace": "    read = lambda p: (root / p).read_bytes() if (root / p).is_file() else None  # noqa: E731\n    listdir = lambda p: []  # noqa: E731\n",
+   "rationale": "the digest is taken from the working tree, stamping edits made after the run as covered"
+  },
+  {
+   "name": "AE6_unknown_row",
+   "path": "tools/attach_hosted_evidence.py",
+   "find": "        if row is None:\n            raise EvidenceRefused(f\"no row {rid}\")\n",
+   "replace": "        if row is None:\n            continue\n",
+   "rationale": "a misspelt row id is silently skipped"
+  }
+ ]
+}

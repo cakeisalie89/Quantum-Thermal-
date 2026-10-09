@@ -1,0 +1,254 @@
+{
+  "title": "The backend a run actually used, and reuse refused where it is not known",
+  "note": "scientific.backend_probe and scientific.run_identity (D-2026-94): the runtime probe (NumPy's dispatched CPU features, every bundled OpenBLAS found by its distribution's RECORD and asked its kernel, the system C and math libraries by their bytes) independent of import order; the native build by its installed bytes as well as its RECORD; backend_status digested with the identity; an UNRESOLVED backend recomputed, never reused; the governed identity and its bundle computed from the one probed environment. BK27-BK33 (D-2026-97): NumPy's per-function runtime dispatch and each OpenBLAS's runtime thread count and threading model recorded, unresolved when unanswered; GLIBC_TUNABLES a backend variable. BK34-BK35 (D-2026-101): the interpreter executing the process, by its installed bytes.",
+  "suites": [
+    "tests/test_backend_identity.py"
+  ],
+  "mutations": [
+    {
+      "name": "BK1_the_probe_reads_what_the_process_loaded",
+      "path": "scientific/backend_probe.py",
+      "find": "    bundled = _bundled_blas()\n",
+      "replace": "    bundled = [b for b in _bundled_blas()\n               if b[\"distribution\"] in __import__(\"sys\").modules]\n",
+      "rationale": "the BLAS recorded is the one this process happened to import first, so the identity check and the run disagree"
+    },
+    {
+      "name": "BK2_scipys_blas_is_not_recorded",
+      "path": "scientific/backend_probe.py",
+      "find": "BLAS_DISTRIBUTIONS = (\"numpy\", \"scipy\")\n",
+      "replace": "BLAS_DISTRIBUTIONS = (\"numpy\",)\n",
+      "rationale": "scipy.linalg runs on an OpenBLAS the identity never names"
+    },
+    {
+      "name": "BK3_the_kernel_is_assumed",
+      "path": "scientific/backend_probe.py",
+      "find": "                entry.update(kernel=_ask(handle, _CORENAME) or UNRESOLVED,\n",
+      "replace": "                entry.update(kernel=\"SkylakeX\",\n",
+      "rationale": "the kernel is written down rather than asked, and a BLAS that cannot say is taken as resolved"
+    },
+    {
+      "name": "BK4_the_blas_bytes_are_assumed",
+      "path": "scientific/backend_probe.py",
+      "find": "                     \"sha256\": installed_sha256(path) or UNRESOLVED}\n",
+      "replace": "                     \"sha256\": \"0\" * 64}\n",
+      "rationale": "a BLAS library replaced or unreadable is recorded as the same bytes"
+    },
+    {
+      "name": "BK5_an_unresolved_blas_part_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "            if lib[part] == UNRESOLVED:\n",
+      "replace": "            if False:\n",
+      "rationale": "an UNRESOLVED kernel or library leaves the runtime RESOLVED"
+    },
+    {
+      "name": "BK6_a_missing_math_library_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "            if name not in OPTIONAL_LIBRARIES:\n                unresolved.append(f\"lib{name}\")\n",
+      "replace": "            if False:\n                unresolved.append(f\"lib{name}\")\n",
+      "rationale": "the loader cannot find libm and the backend is still RESOLVED"
+    },
+    {
+      "name": "BK7_the_math_library_is_not_recorded",
+      "path": "scientific/backend_probe.py",
+      "find": "SYSTEM_LIBRARIES = (\"c\", \"m\", \"gomp\", \"gfortran\")\n",
+      "replace": "SYSTEM_LIBRARIES = (\"c\",)\n",
+      "rationale": "libm -- every exp and log -- is outside the identity"
+    },
+    {
+      "name": "BK8_a_relative_mapping_is_believed",
+      "path": "scientific/backend_probe.py",
+      "find": "        if len(parts) == 6 and parts[5].startswith(\"/\"):\n",
+      "replace": "        if len(parts) == 6:\n",
+      "rationale": "a maps line naming no absolute file is taken for the library the loader resolved"
+    },
+    {
+      "name": "BK9_the_probe_imports_numpy_at_import",
+      "path": "scientific/backend_probe.py",
+      "find": "from pathlib import Path\n\nRESOLVED = \"RESOLVED\"\n",
+      "replace": "from pathlib import Path\nimport numpy  # noqa: F401\n\nRESOLVED = \"RESOLVED\"\n",
+      "rationale": "the top-level scientific interfaces need NumPy merely to state an identity"
+    },
+    {
+      "name": "BK10_the_runtime_never_reaches_the_environment",
+      "path": "scientific/run_identity.py",
+      "find": "            \"runtime\": runtime,\n",
+      "replace": "            \"runtime\": None,\n",
+      "rationale": "the probed backend is computed and dropped: a different kernel is the same environment"
+    },
+    {
+      "name": "BK11_installed_bytes_are_not_hashed",
+      "path": "scientific/run_identity.py",
+      "find": "        installed.update(f\"{f}\\0sha256:{now}\\n\".encode())\n",
+      "replace": "        pass\n",
+      "rationale": "a library replaced after installation changes nothing the identity records"
+    },
+    {
+      "name": "BK12_a_modified_build_is_not_noticed",
+      "path": "scientific/run_identity.py",
+      "find": "        if f.hash.mode == \"sha256\" and _b64_sha(now) != f.hash.value:\n",
+      "replace": "        if False:\n",
+      "rationale": "bytes that no longer match the wheel's RECORD are called RESOLVED"
+    },
+    {
+      "name": "BK13_an_unreadable_file_is_skipped",
+      "path": "scientific/run_identity.py",
+      "find": "        if now is None:\n            unreadable.append(str(f))\n            continue\n",
+      "replace": "        if now is None:\n            continue\n",
+      "rationale": "a native file that cannot be read is left out instead of making the record UNRESOLVED"
+    },
+    {
+      "name": "BK14_the_byte_cache_ignores_a_rewrite",
+      "path": "scientific/run_identity.py",
+      "find": "    key = (str(path), st.st_size, st.st_mtime_ns, st.st_ino)\n",
+      "replace": "    key = str(path)\n",
+      "rationale": "a file rewritten in the same process keeps the digest of its old bytes"
+    },
+    {
+      "name": "BK15_status_ignores_the_native_build",
+      "path": "scientific/run_identity.py",
+      "find": "    if any(n.get(\"status\") != \"RESOLVED\" for n in natives.values()\n",
+      "replace": "    if False and any(n.get(\"status\") != \"RESOLVED\" for n in natives.values()\n",
+      "rationale": "a MODIFIED or unreadable native build leaves the backend RESOLVED"
+    },
+    {
+      "name": "BK16_status_ignores_the_probe_verdict",
+      "path": "scientific/run_identity.py",
+      "find": "    if not isinstance(runtime, dict) or runtime.get(\"status\") != \"RESOLVED\":\n",
+      "replace": "    if not isinstance(runtime, dict):\n",
+      "rationale": "a probe that could not resolve the backend is read as having resolved it"
+    },
+    {
+      "name": "BK17_status_without_a_probe_is_resolved",
+      "path": "scientific/run_identity.py",
+      "find": "    if not isinstance(runtime, dict) or runtime.get(\"status\") != \"RESOLVED\":\n",
+      "replace": "    if isinstance(runtime, dict) and runtime.get(\"status\") != \"RESOLVED\":\n",
+      "rationale": "an environment nobody probed is RESOLVED"
+    },
+    {
+      "name": "BK18_an_unresolved_backend_is_reused",
+      "path": "scientific/run_identity.py",
+      "find": "        if ident.backend_status != \"RESOLVED\":\n",
+      "replace": "        if False:\n",
+      "rationale": "two runs that could not say which backend they ran on are reused as the same"
+    },
+    {
+      "name": "BK19_only_the_prior_status_is_checked",
+      "path": "scientific/run_identity.py",
+      "find": "    for which, ident in ((\"prior\", prior), (\"current\", current)):\n",
+      "replace": "    for which, ident in ((\"prior\", prior),):\n",
+      "rationale": "a current run on an unresolved backend reuses a resolved prior"
+    },
+    {
+      "name": "BK20_backend_status_is_not_digested",
+      "path": "scientific/run_identity.py",
+      "find": "                \"upstream_evidence\": list(self.upstream_evidence),\n                \"backend_status\": self.backend_status}\n",
+      "replace": "                \"upstream_evidence\": list(self.upstream_evidence)}\n",
+      "rationale": "an unresolved and a resolved identity digest the same"
+    },
+    {
+      "name": "BK21_the_governed_identity_is_not_probed",
+      "path": "scientific/model.py",
+      "find": "    env = run_environment()\n    return RunIdentity(\n",
+      "replace": "    from .run_identity import environment_record\n    env = environment_record()\n    return RunIdentity(\n",
+      "rationale": "the worker's identity never asks the runtime, so it is UNRESOLVED and never reusable"
+    },
+    {
+      "name": "BK22_the_bundle_describes_another_environment",
+      "path": "scientific/models/thermal_1d.py",
+      "find": "        env = run_environment()\n",
+      "replace": "        env = __import__(\"scientific.run_identity\", fromlist=[\"_\"]).environment_record()\n",
+      "rationale": "the bundle's environment and the identity's are computed differently and disagree"
+    },
+    {
+      "name": "BK23_a_missing_loader_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "    if sha is None:\n        unresolved.append(\"dynamic loader\")\n",
+      "replace": "    if False:\n        unresolved.append(\"dynamic loader\")\n",
+      "rationale": "the dynamic loader cannot be found or read and the backend is still RESOLVED"
+    },
+    {
+      "name": "BK24_no_numpy_is_a_crash",
+      "path": "scientific/backend_probe.py",
+      "find": "    if importlib.util.find_spec(\"numpy\") is None:\n",
+      "replace": "    if False:\n",
+      "rationale": "a model that never uses NumPy has no identity in an environment without it"
+    },
+    {
+      "name": "BK25_an_unidentified_blas_is_assumed",
+      "path": "scientific/backend_probe.py",
+      "find": "        if \"openblas\" not in name or \"numpy\" not in have:\n",
+      "replace": "        if False:\n",
+      "rationale": "a NumPy on MKL, Accelerate or a system BLAS is RESOLVED with its linear algebra unnamed"
+    },
+    {
+      "name": "BK26_an_unbundled_scipy_blas_is_assumed",
+      "path": "scientific/backend_probe.py",
+      "find": "    if _installed(\"scipy\") and \"scipy\" not in have:\n",
+      "replace": "    if False:\n",
+      "rationale": "scipy.linalg runs on a BLAS nobody named and the backend is RESOLVED"
+    },
+    {
+      "name": "BK27_the_dispatch_is_a_constant",
+      "path": "scientific/backend_probe.py",
+      "find": "    dispatch = _numpy_dispatch()\n",
+      "replace": "    dispatch = {\"functions\": 1, \"targets\": {\"X86_V3\": 1}, \"sha256\": \"0\" * 64}\n",
+      "rationale": "the record names a dispatch whatever NumPy actually chose"
+    },
+    {
+      "name": "BK28_an_unanswered_dispatch_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "    if dispatch is None:\n        unresolved.append(\"numpy runtime dispatch\")\n",
+      "replace": "    if dispatch is None:\n        pass\n",
+      "rationale": "a NumPy that cannot say what it dispatched is called resolved"
+    },
+    {
+      "name": "BK29_the_dispatch_digest_is_over_names_only",
+      "path": "scientific/backend_probe.py",
+      "find": "                \"\\0\".join(r) for r in rows).encode()).hexdigest()}\n",
+      "replace": "                \"\\0\".join(r[:2]) for r in rows).encode()).hexdigest()}\n",
+      "rationale": "two processes that dispatch the same functions to different targets get one digest"
+    },
+    {
+      "name": "BK30_the_thread_count_is_assumed",
+      "path": "scientific/backend_probe.py",
+      "find": "                threads = _ask_int(handle, _THREADS)\n",
+      "replace": "                threads = os.cpu_count()\n",
+      "rationale": "the thread count is the host's CPU count, not what the library will run"
+    },
+    {
+      "name": "BK31_an_unanswered_thread_count_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "        for part in (\"sha256\", \"kernel\", \"config\", \"threads\", \"parallel\"):\n",
+      "replace": "        for part in (\"sha256\", \"kernel\", \"config\"):\n",
+      "rationale": "a BLAS that cannot say how many threads it runs is called resolved"
+    },
+    {
+      "name": "BK32_an_empty_dispatch_table_is_an_answer",
+      "path": "scientific/backend_probe.py",
+      "find": "    if not rows:\n        return None\n",
+      "replace": "    if not rows and False:\n        return None\n",
+      "rationale": "an empty table -- nothing dispatched, nothing said -- reads as a dispatch"
+    },
+    {
+      "name": "BK33_glibc_tunables_are_not_recorded",
+      "path": "scientific/run_identity.py",
+      "find": "    \"OPENBLAS_CORETYPE\", \"MKL_CBWR\", \"MKL_ENABLE_INSTRUCTIONS\",\n    \"GLIBC_TUNABLES\")",
+      "replace": "    \"OPENBLAS_CORETYPE\", \"MKL_CBWR\", \"MKL_ENABLE_INSTRUCTIONS\")",
+      "rationale": "a tunable masking libm's FMA/AVX2 variants changes nothing in the identity"
+    },
+    {
+      "name": "BK34_an_unreadable_interpreter_is_not_flagged",
+      "path": "scientific/backend_probe.py",
+      "find": "        unresolved.append(\"interpreter bytes\")\n",
+      "replace": "        pass\n",
+      "rationale": "an interpreter whose bytes could not be read is called resolved"
+    },
+    {
+      "name": "BK35_the_interpreter_is_named_not_hashed",
+      "path": "scientific/backend_probe.py",
+      "find": "    out = {\"name\": os.path.basename(exe), \"sha256\": sha or UNRESOLVED}\n",
+      "replace": "    out = {\"name\": os.path.basename(exe), \"sha256\": \"0\" * 64}\n",
+      "rationale": "two builds of one Python release are the same interpreter"
+    }
+  ]
+}

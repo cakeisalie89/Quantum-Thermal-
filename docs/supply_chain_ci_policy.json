@@ -1,0 +1,12 @@
+{
+ "schema": "supply-chain-ci-policy/1",
+ "label": "CI_VALIDATION_ONLY",
+ "what_this_is": "The exact signer identity and OIDC issuer a CI-validation signature from .github/workflows/supply-chain.yml on this branch carries. It lets the supply-chain path -- build, SBOM, provenance, keyless signature, verification, tamper refusal -- be exercised end to end on a hosted runner.",
+ "what_this_is_not": "Not a release trust root. It authorizes no release, no tag and no consumer's trust: the release trust root is QTA_stage9_release_verification/release_trust_policy.json, whose pins stay PENDING until the owner authorizes a release. A signature verified against this file attests origin and integrity of a CI artifact, never scientific validity.",
+ "source_repository": "https://github.com/cakeisalie89/Quantum-Thermal-",
+ "workflow_path": ".github/workflows/supply-chain.yml",
+ "ref": "refs/heads/claude/scientific-python-stack-7rsq3m",
+ "signer_identity": "https://github.com/cakeisalie89/Quantum-Thermal-/.github/workflows/supply-chain.yml@refs/heads/claude/scientific-python-stack-7rsq3m",
+ "oidc_issuer": "https://token.actions.githubusercontent.com",
+ "wildcards_forbidden": true
+}

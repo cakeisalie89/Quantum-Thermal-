@@ -13,6 +13,7 @@ fail-closed paths are tested unconditionally.
 """
 import csv
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -48,6 +49,22 @@ DET = settings(max_examples=25, deadline=None, derandomize=True,
 ROOT = WS.repo_root()
 TEST_WS = "verification/stage10/pytest"
 TINY_MESH = Grid3DConfig(nx=5, ny=5, nz=6)
+
+
+def _declare_corpus(root):
+    """Write the allowlist for a temporary corpus, as a commit would.
+
+    Retrieval refuses a corpus nobody declared, so every test corpus has to
+    declare itself. That is the mechanism working, not scaffolding around it:
+    a test that could build an index over an undeclared tree would be testing
+    a build the production path cannot do.
+    """
+    import json as _json
+    doc = RAG.allowlist_document(root)
+    out = root / RAG.CORPUS_ALLOWLIST
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return doc
 
 
 @pytest.fixture(scope="module")
@@ -396,6 +413,39 @@ def test_corpus_excludes_non_governed_trees():
                        for part in pathlib.Path(rel).parts)
 
 
+def test_a_virtualenv_is_excluded_whatever_it_is_called(tmp_path):
+    """THE DEFECT, and why a name was the wrong thing to exclude on.
+
+    EXCLUDED_DIRS named ``.venv`` exactly. A hosted job that builds a second
+    environment as ``.venv-alt`` to run the suite on another interpreter put
+    64 site-packages ``.txt`` files into the corpus scan, and the membership
+    check refused them as undeclared governed text. It was right; the scan
+    was looking in a place no reviewer would ever put a document.
+
+    ``pyvenv.cfg`` is what the interpreter writes when it creates a virtual
+    environment, so this is the definition rather than a guess -- and the
+    name in the test is deliberately one nobody has used.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "real.md").write_text("a governed document\n")
+    for name in (".venv-alt", "env-for-py315", "whatever"):
+        site = tmp_path / name / "lib" / "python9.9" / "site-packages" / "pkg"
+        site.mkdir(parents=True)
+        (tmp_path / name / "pyvenv.cfg").write_text("home = /usr\n")
+        (site / "entry_points.txt").write_text("not a document\n")
+        (site / "LICENSE.txt").write_text("neither is this\n")
+
+    found = RAG.corpus_files(tmp_path)
+    assert found == ["docs/real.md"], found
+
+    # ANTI-VACUITY: a directory WITHOUT pyvenv.cfg is not silently pruned,
+    # or this would pass by excluding everything.
+    plain = tmp_path / "notes"
+    plain.mkdir()
+    (plain / "kept.md").write_text("still a document\n")
+    assert RAG.corpus_files(tmp_path) == ["docs/real.md", "notes/kept.md"]
+
+
 def test_index_is_deterministic_and_hits_carry_provenance():
     a = RAG.build_index()
     b = RAG.build_index()
@@ -438,6 +488,7 @@ def test_stale_index_is_detected(tmp_path):
     root = tmp_path / "corpus"
     root.mkdir()
     (root / "doc.md").write_text("# Heading\nalpha beta gamma\n")
+    _declare_corpus(root)
     index = RAG.build_index(root=root)
     assert index.stale_files() == []
     (root / "doc.md").write_text("# Heading\ndelta epsilon\n")
@@ -529,11 +580,43 @@ def test_default_backend_is_numpy_without_the_env_var(monkeypatch):
         assert RUST.backend_in_force(name) == "numpy"
 
 
-def test_enabling_rust_without_the_extension_still_yields_numpy(monkeypatch):
+def test_requesting_rust_for_a_rejected_kernel_is_refused_not_rerouted(
+        monkeypatch):
+    """An explicit request is answered or refused -- never silently served
+    by NumPy, and never decided by an on-host parity verdict (D-2026-58)."""
     monkeypatch.setenv(RUST.ENABLE_ENV_VAR, "1")
-    monkeypatch.setattr(RUST, "rust_available", lambda: False)
     for name in RUST.KERNELS:
-        assert RUST.backend_in_force(name) == "numpy"
+        assert RUST.backend_in_force(name) == "REFUSED"
+        with pytest.raises(RUST.BackendRefused, match="REJECTED"):
+            RUST.dispatch(name)
+        assert RUST.dispatch(name, backend="numpy") is \
+            RUST.KERNELS[name]["numpy"]
+
+
+def test_an_adopted_decision_still_needs_a_certificate_for_this_process(
+        monkeypatch, tmp_path):
+    doc = RUST.decisions()
+    doc["kernels"]["face_conductance"]["decision"] = \
+        "RUST_KERNEL_face_conductance_ADOPTED"
+    doc["measured_on"]["numpy_version"] = "0.0.0"
+    p = tmp_path / "d.json"
+    p.write_text(json.dumps(doc))
+    monkeypatch.setattr(RUST, "DECISIONS", p)
+    with pytest.raises(RUST.BackendRefused, match="certified against"):
+        RUST.dispatch("face_conductance", backend="rust")
+
+
+def test_a_missing_decision_registry_refuses_rust(monkeypatch, tmp_path):
+    monkeypatch.setattr(RUST, "DECISIONS", tmp_path / "absent.json")
+    with pytest.raises(RUST.BackendRefused, match="no readable"):
+        RUST.dispatch("face_conductance", backend="rust")
+    assert RUST.dispatch("face_conductance", backend="numpy") is \
+        RUST.KERNELS["face_conductance"]["numpy"]
+
+
+def test_an_unknown_backend_name_is_an_error():
+    with pytest.raises(ValueError, match="backend"):
+        RUST.dispatch("face_conductance", backend="gpu")
 
 
 def test_dispatch_rejects_unknown_kernels():
@@ -542,27 +625,33 @@ def test_dispatch_rejects_unknown_kernels():
 
 
 def test_parity_verdicts_are_consistent():
-    """Adoption implies bit identity -- 'close enough' is never adoption."""
+    """A parity measurement decides nothing; the committed decisions do,
+    and every one of them is a decision -- adopted or rejected."""
     report = RUST.status_report()
     assert report["default_backend"] == "numpy"
     assert report["admission_rule"] == RUST.PARITY_RULE
     assert RUST.PARITY_RULE == "bit_for_bit_identical_to_numpy_reference"
     for kernel in report["kernels"]:
-        if kernel.get("adopted"):
-            assert kernel["bit_identical"] is True
+        assert "adopted" not in kernel and "backend_in_force" not in kernel
+        if kernel["parity"] == "BIT_IDENTICAL":
             assert kernel["max_ulp_difference"] == 0
-        else:
-            assert kernel["backend_in_force"] == "numpy"
-    assert set(report["adopted_kernels"]) <= set(RUST.KERNELS)
+    assert set(report["decisions"]) == set(RUST.KERNELS)
+    for name, decision in report["decisions"].items():
+        assert decision in (f"RUST_KERNEL_{name}_ADOPTED",
+                            f"RUST_KERNEL_{name}_REJECTED")
+    assert report["adopted_kernels"] == []
+    assert report["backend"] == "RUST_BACKEND_NOT_ACTIVE"
 
 
-@pytest.mark.skipif(not RUST.rust_available(),
-                    reason="qta_kernels extension not built")
 def test_built_extension_is_checked_kernel_by_kernel():
+    if not RUST.rust_available():
+        if os.environ.get("QTA_RUST_REQUIRED") == "1":
+            pytest.fail("QTA_RUST_REQUIRED=1 and qta_kernels is not built")
+        pytest.skip("qta_kernels extension not built")
     for name in sorted(RUST.KERNELS):
         rep = RUST.kernel_parity(name)
         assert rep["availability"] == "AVAILABLE"
-        assert rep["verdict"] in ("ADOPTED", "REJECTED_NOT_BIT_IDENTICAL")
+        assert rep["parity"] in ("BIT_IDENTICAL", "NOT_BIT_IDENTICAL")
         assert rep["max_relative_difference"] < 1e-12   # sane either way
 
 
@@ -643,12 +732,28 @@ def test_registry_rejects_edits_that_would_weaken_it():
     with pytest.raises(ValidationError):
         REG.StackRegistry.model_validate(doc)
     # a non-adopted element with nothing outstanding
+    for status in ("STAGED", "DEFERRED", "ADOPTED_ADMISSION_MECHANISM_ONLY"):
+        doc = json.loads((ROOT / "stack.json").read_text())
+        for element in doc["elements"]:
+            if element["id"] == "fmi":
+                element["status"], element["open_items"] = status, []
+        with pytest.raises(ValidationError):
+            REG.StackRegistry.model_validate(doc)
+    # a status the document's own adoption_levels does not define
     doc = json.loads((ROOT / "stack.json").read_text())
-    for element in doc["elements"]:
-        if element["id"] == "fmi":
-            element["open_items"] = []
+    del doc["adoption_levels"]["RESOLVED"]
     with pytest.raises(ValidationError):
         REG.StackRegistry.model_validate(doc)
+
+
+def test_settled_rungs_need_not_list_open_items():
+    """ADOPTED and RESOLVED are settled; a RESOLVED element with nothing
+    outstanding validates, as an ADOPTED one does."""
+    doc = json.loads((ROOT / "stack.json").read_text())
+    for element in doc["elements"]:
+        if element["id"] == "rust-selective":
+            element["open_items"] = []
+    REG.StackRegistry.model_validate(doc)
 
 
 def test_every_declared_stack_element_is_documented():
@@ -658,19 +763,121 @@ def test_every_declared_stack_element_is_documented():
         assert row in STACK_MD, f"{element.id} missing from STACK.md"
 
 
+# ---- documents against the registry (directive s.38; D-2026-130) --------
+#
+# Each check is a function over TEXT, so it is tested twice: on the shipped
+# document, which must pass, and on the stale text the hostile review found,
+# which must fail. A mutation of the document itself cannot measure these:
+# any edit to a governed document is refused first by the corpus allowlist
+# (test_index_is_deterministic_and_hits_carry_provenance), which would be a
+# kill for the wrong reason.
+
+def _ladder_mismatches(stack_md: str) -> list:
+    import re
+    lines = stack_md.splitlines()
+    out = []
+    for element in REGISTRY.elements:
+        row = next((ln for ln in lines
+                    if ln.startswith(f"| {element.doc_key} |")), None)
+        if row is None:
+            out.append((element.id, "no row"))
+            continue
+        stated = re.sub(r"[*\u00b9\u00b2\u00b3]", "",
+                        row.split("|")[2]).strip()
+        if stated != element.status:
+            out.append((element.id, stated, element.status))
+    return out
+
+
+def _rejected_kernels() -> list:
+    decisions = json.loads((ROOT / "docs" / "rust_kernel_decisions.json")
+                           .read_text(encoding="utf-8"))
+    return [k for k, v in decisions["kernels"].items()
+            if v["decision"].endswith("_REJECTED")]
+
+
+def _rows_calling_a_rejected_kernel_adopted(text: str) -> list:
+    rejected = _rejected_kernels()
+    return [ln for ln in text.splitlines()
+            if ln.startswith("|") and any(k in ln for k in rejected)
+            and "ADOPTED" in ln]
+
+
+def _stated_status(text: str, name: str):
+    import re
+    m = re.search(re.escape(name) + r"[^()]*\((ADOPTED|RESOLVED|STAGED|"
+                  r"DEFERRED|REJECTED)", text)
+    return m.group(1) if m else None
+
+
+def test_the_ladder_table_states_each_elements_registered_status():
+    """STACK.md's ladder is what people read; stack.json is what the tests
+    read. Row by row they must say the same thing."""
+    assert _ladder_mismatches(STACK_MD) == []
+    stale = STACK_MD.replace("| FEniCSx | ADOPTED\u00b9 |",
+                             "| FEniCSx | STAGED\u00b9 |")
+    assert stale != STACK_MD
+    assert _ladder_mismatches(stale) == [("fenicsx", "STAGED", "ADOPTED")]
+
+
+def test_no_table_row_calls_a_rejected_rust_kernel_adopted():
+    """The committed decisions reject both kernels, and STACK.md still
+    carried the first parity table with face_conductance ADOPTED and "rust
+    (when enabled)" in force (D-2026-130). The control is that row."""
+    assert _rejected_kernels()
+    for doc in ("STACK.md", "README.md", "HARNESS_STATUS.md"):
+        text = (ROOT / doc).read_text(encoding="utf-8")
+        assert _rows_calling_a_rejected_kernel_adopted(text) == [], doc
+    stale_row = ("| `face_conductance` \u2014 `A / (dL/kL + dR/kR)` | 0 | "
+                 "**ADOPTED** | rust (when enabled) |")
+    assert _rows_calling_a_rejected_kernel_adopted(stale_row) == [stale_row]
+
+
+@pytest.mark.parametrize("eid, name", [
+    ("fenicsx", "FEniCSx"), ("fmi", "FMI 3.0"), ("rust-selective", "Rust")])
+def test_the_readme_states_each_integrations_registered_status(eid, name):
+    """README's retained-capability paragraph gives FEniCSx, FMI and Rust a
+    status in parentheses; each must be the registry's. The control is a
+    sentence giving the element another status, which the reader must
+    return as stated rather than as the registry's."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert _stated_status(readme, name) == REGISTRY.by_id(eid).status
+    other = "DEFERRED" if REGISTRY.by_id(eid).status != "DEFERRED" \
+        else "ADOPTED"
+    assert _stated_status(f"the {name} element ({other}, said here)",
+                          name) == other
+
+
 def test_registry_statuses_match_what_the_code_reports():
-    assert REGISTRY.by_id("fenicsx").status == FEM.ADOPTION_STATUS == "STAGED"
-    assert REGISTRY.by_id("fmi").status == FMI.ADOPTION_STATUS == "DEFERRED"
+    """The FEniCSx and FMI elements are the harness's integrations, run on a
+    hosted runner; the Stage-10 adapters for the LEGACY solvers keep their
+    own, narrower status, and say so."""
+    assert REGISTRY.by_id("fenicsx").status == "ADOPTED"
+    assert REGISTRY.by_id("fenicsx").owner_module == \
+        "scientific.checks.fenicsx_slab"
+    assert FEM.ADOPTION_STATUS == "STAGED"           # the legacy adapter
+    assert REGISTRY.by_id("fmi").status == "ADOPTED"
+    assert REGISTRY.by_id("fmi").owner_module == "scientific.fmi_boundary"
+    assert FMI.ADOPTION_STATUS == "DEFERRED"         # the legacy export
+    for eid in ("fenicsx", "fmi"):
+        assert "legacy" in REGISTRY.by_id(eid).boundary, eid
     unadopted = {e.id for e in REGISTRY.elements if e.status != "ADOPTED"}
-    # rust-selective is ADOPTED_ADMISSION_MECHANISM_ONLY: the bit-parity rule
-    # is in force and verified, but no scientific path consumes the kernels.
-    # containers is STAGED: ADOPTED requires "in use, exercised by CI or the
-    # workflow, and its behaviour is verified in this repository", and the
-    # image has never been built or run, so none of the three clauses holds.
-    assert unadopted == {"slsa-sigstore", "fenicsx", "fmi", "rust-selective",
-                         "containers"}
-    assert REGISTRY.by_id("rust-selective").status == \
-        "ADOPTED_ADMISSION_MECHANISM_ONLY"
+    # rust-selective is RESOLVED: each kernel decided by the measured rule,
+    # both REJECTED, the decision re-derived by the hosted rust-kernels job.
+    assert unadopted == {"rust-selective"}
+    assert REGISTRY.by_id("rust-selective").status == "RESOLVED"
+
+
+def test_every_element_adopted_on_hosted_evidence_cites_its_run():
+    """ADOPTED means "in use, exercised by CI or the workflow, and its
+    behaviour is verified in this repository". The four elements adopted on
+    the strength of hosted runs name those runs, so the claim can be checked
+    rather than taken."""
+    import re
+    for eid in ("containers", "fenicsx", "fmi", "slsa-sigstore",
+                "rust-selective"):
+        boundary = REGISTRY.by_id(eid).boundary
+        assert re.search(r"run \d{8,}", boundary), eid
 
 
 def test_stage10_owner_modules_are_importable():
@@ -682,7 +889,10 @@ def test_stage10_owner_modules_are_importable():
 
 
 def test_registry_verification_targets_exist_in_the_workflow():
-    snakefile = (ROOT / "Snakefile").read_text()
+    # the Snakefile and what it includes (the legacy QTA rules)
+    snakefile = "\n".join(
+        p.read_text() for p in [ROOT / "Snakefile",
+                                *sorted((ROOT / "workflow").glob("*.smk"))])
     for element in REGISTRY.elements:
         command = element.verification.split("#")[0].strip()
         if not command.startswith("snakemake"):
@@ -695,15 +905,46 @@ def test_registry_verification_targets_exist_in_the_workflow():
 
 
 def test_rust_open_item_matches_the_measured_verdict():
-    """The documented rejection must track reality, not a stale note."""
+    """The documented note must track reality, not a stale note.
+
+    It used to assert ``documented_rejection == (verdict is False)``, which
+    pinned ONE HOST'S ANSWER. Measured: ``conductivity_power_law`` differs
+    from NumPy by 2 ulp where AVX-512 is available and is bit-identical --
+    adopted -- where it is not, because the reference side of a bit-parity
+    comparison is NumPy and NumPy's ``**`` loop moves with the CPU. Run under
+    ``NPY_DISABLE_CPU_FEATURES=X86_V4`` the old assertion fails, on code
+    nobody has touched. D-2026-58.
+
+    So the note is required to acknowledge the dependence, and the verdict is
+    checked against the dispatch it was measured under rather than against a
+    remembered value.
+    """
     items = REGISTRY.by_id("rust-selective").open_items
-    documented_rejection = any("conductivity_power_law" in t for t in items)
+    note = next((t for t in items if "conductivity_power_law" in t), None)
+    assert note, "the rust element no longer carries a conductivity note"
+    assert "host" in note.lower() or "dispatch" in note.lower(), (
+        "the note states a verdict that depends on the host's SIMD dispatch "
+        "without saying so: " + note)
     if not RUST.rust_available():
         return          # nothing measured here; the note stands as recorded
-    verdicts = {k["kernel"]: k.get("adopted")
-                for k in RUST.status_report()["kernels"]}
-    assert documented_rejection == (verdicts["conductivity_power_law"]
-                                    is False)
+
+    report = RUST.status_report()
+    kernels = {k["kernel"]: k for k in report["kernels"]}
+    entry = kernels["conductivity_power_law"]
+    dispatch = report["numpy_dispatch"]
+    assert entry["numpy_dispatch"] == dispatch, \
+        "a verdict measured under a dispatch other than the one reported"
+    assert entry.get("verdict_is_dispatch_conditional") is True
+    # The relationship, not the value: AVX-512 is the configuration the
+    # committed note describes, and only there is a parity failure the
+    # expected answer. Anywhere else the kernel may be bit-identical -- and
+    # is still REJECTED, because the decision is not this host's verdict.
+    if "X86_V4" in dispatch:
+        assert entry["parity"] == "NOT_BIT_IDENTICAL", (
+            "the note records 2 ulp under AVX-512 and this host, which has "
+            f"{dispatch}, measured bit identity")
+    assert report["decisions"]["conductivity_power_law"].endswith(
+        "_REJECTED")
 
 
 # ------------------- §27: adoption truthfulness + RAG completeness ----------
@@ -730,71 +971,67 @@ def test_rust_is_not_presented_as_an_active_scientific_backend():
 
 def test_no_scientific_module_imports_the_rust_kernels():
     """The claim above must stay true, not just be written down."""
-    import subprocess
-    r = subprocess.run(
-        ["git", "-C", str(ROOT), "grep", "-lE", r"^\s*import\s+qta_kernels",
-         "--", "*.py"],
-        capture_output=True, text=True)
-    importers = [f for f in r.stdout.split() if f]
-    assert importers == ["qta_multiphysics/stack/rust_kernel.py"], \
+    import sys as _sys
+
+    _sys.path.insert(0, str(ROOT / "tools"))
+    from repo_scope import files_matching
+
+    # Over tracked AND untracked-unignored files: a new module importing the
+    # Rust kernels would otherwise be invisible to this guard until it was
+    # committed, which is the blind spot that has cost this repository three
+    # red pushes in other guards.
+    importers = list(files_matching(r"^\s*import\s+qta_kernels"))
+    # the mechanism, and the decision tool's measuring child (which runs in
+    # its own interpreter to time and compare the kernels, consuming none)
+    assert importers == ["qta_multiphysics/stack/rust_kernel.py",
+                         "tools/rust_kernel_decision.py"], \
         f"unexpected qta_kernels importers: {importers}"
 
 
-def test_container_is_not_presented_as_runtime_verified():
-    """Same failure mode as Selective Rust, caught the same way.
-
-    "Reproducible container | ADOPTED" read as an image that CI builds and
-    runs, while no build has ever completed. ADOPTED is defined as "in use,
-    exercised by CI or the workflow, and its behaviour is verified in this
-    repository" -- the container satisfies none of those three clauses, so the
-    row was false by the repository's own vocabulary.
-    """
+def test_container_is_adopted_on_a_hosted_run_and_claims_no_more():
+    """The row once said ADOPTED with no build ever completed; then STAGED,
+    truthfully. It is ADOPTED now because a hosted runner built and ran the
+    image -- and the row says what that establishes and what it does not:
+    the runs it hosts, never a scientific result, and no byte identity."""
     import json as _json
     stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
     c = next(e for e in stack["elements"] if e["id"] == "containers")
-    assert c["status"] == "STAGED", \
-        "ADOPTED reads as an image CI builds and runs; none has been built"
-    assert "never been built or run" in c["boundary"]
-    assert "certifies nothing" in c["boundary"]
+    assert c["status"] == "ADOPTED"
+    assert "never a scientific result" in c["boundary"]
+    assert "never required equal" in c["boundary"]
     md = (ROOT / "STACK.md").read_text(encoding="utf-8")
-    assert "| Reproducible container | **STAGED**" in md
+    assert "| Reproducible container | ADOPTED |" in md
 
 
-def test_container_open_items_state_the_real_blocker():
-    """The blocker is egress on layer blobs, not a missing daemon, and not an
-    unresolved digest. Both earlier claims were false and must not return."""
-    import json as _json
-    stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
-    c = next(e for e in stack["elements"] if e["id"] == "containers")
-    items = " ".join(c["open_items"])
-    assert "ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS" in items
-    assert "RUNTIME_BUILT=NO" in items
-    # The digest IS resolved and pinned; claiming otherwise is the stale bug.
-    assert "digest still UNRESOLVED" not in items
-    md = (ROOT / "STACK.md").read_text(encoding="utf-8")
-    assert "base-image digest still `UNRESOLVED`" not in md
-    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    assert "@sha256:" in dockerfile, "the digest pin must actually be there"
-
-
-def test_container_doc_does_not_claim_a_missing_daemon():
-    """dockerd and containerd run here; only the blob egress is blocked."""
+def test_container_doc_keeps_the_local_facts_and_states_the_hosted_ones():
+    """dockerd and containerd run here; only the blob egress is blocked, and
+    that stays recorded beside the hosted build that got past it. The digest
+    IS resolved and pinned; claiming otherwise is the stale bug."""
     doc = (ROOT / "container_verification.md").read_text(encoding="utf-8")
     assert "LOCAL_RUNTIME` | `AVAILABLE" in doc
     assert "ATTEMPTED_BUT_BLOCKED_BY_BLOB_EGRESS" in doc
     assert "production.cloudfront.docker.com" in doc
-    assert "RUNTIME_SCIENTIFICALLY_REPRODUCED` | `NO" in doc
-    # workflow_dispatch reachability must be stated, not assumed away.
+    assert "RUNTIME_BUILT` | `YES_HOSTED" in doc
+    assert "Reproduction is not correctness" in doc
+    assert "Byte identity between image and\n  native is not claimed" in doc
+    # workflow_dispatch reachability is stated, not assumed away
     assert "default branch" in doc
+    assert "base-image digest still `UNRESOLVED`" not in (
+        ROOT / "STACK.md").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "@sha256:" in dockerfile, "the digest pin must actually be there"
 
 
-def test_fenicsx_is_not_presented_as_certifying_anything():
+def test_fenicsx_is_a_verifier_never_a_producer():
+    """Adopted as an INDEPENDENT check, and the row may not drift into
+    reading as a second producer or a benchmark of anything but the slab."""
     import json as _json
     stack = _json.loads((ROOT / "stack.json").read_text(encoding="utf-8"))
     fx = next(e for e in stack["elements"] if e["id"] == "fenicsx")
-    assert fx["status"] == "STAGED"
-    assert "certifies nothing" in fx["boundary"] or \
-        "not an independent benchmark" in fx["boundary"]
+    assert fx["status"] == "ADOPTED"
+    assert "a verifier, never a producer" in fx["boundary"]
+    assert "One problem class" in fx["boundary"]
+    assert fx["open_items"], "the uncovered models are outstanding"
 
 
 def _governed_text_files():
@@ -804,7 +1041,11 @@ def _governed_text_files():
     tracked = [f for f in out.split() if f.endswith((".md", ".txt"))]
     return {f for f in tracked
             if not any(part in RAG.EXCLUDED_DIRS
-                       for part in pathlib.Path(f).parts)}
+                       for part in pathlib.Path(f).parts)
+            # Excluded BY NAME as well as by directory. A derived digest and
+            # a git bundle both match *.txt and are neither governed nor
+            # documents; see rag_index.EXCLUDED_FILES for why each is there.
+            and f not in RAG.EXCLUDED_FILES}
 
 
 def test_rag_indexes_every_governed_document():
@@ -825,3 +1066,47 @@ def test_rag_indexes_nothing_beyond_governed_documents():
 
 def test_rag_corpus_completeness_is_exact_in_both_directions():
     assert set(RAG.corpus_files()) == _governed_text_files()
+
+
+def test_a_dot_directory_under_the_root_is_never_governed_text(tmp_path):
+    """Tooling state that lives in the repo is not a document.
+
+    OBSERVED, NOT IMAGINED. The mutation harness quarantines a tracked file
+    it finds changed under a running matrix, into `.mutation-quarantine/`.
+    Those are COPIES of governed documents. The corpus scan walked them, and
+    the allowlist regeneration tool ADMITTED one -- a copy of
+    AGENT_SUBSTRATE.md was written into docs/corpus_allowlist.json as a
+    governed document in its own right.
+
+    That is exactly what the allowlist exists to stop: a file becoming
+    governed by being created rather than by being reviewed. It was caught
+    only by the both-directions completeness check afterwards, and only
+    because the directory still existed to compare against.
+
+    The named exclusion list has to be remembered. This rule does not.
+    """
+    for rel in (".mutation-quarantine/20260101T000000/AGENT_SUBSTRATE.md",
+                ".git/hooks/README.md",
+                ".scratch/notes.txt",
+                ".some-future-tool/copy-of-a-real-document.md"):
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("# not governed text\n", encoding="utf-8")
+    (tmp_path / "REAL.md").write_text("# governed\n", encoding="utf-8")
+
+    found = RAG.corpus_files(tmp_path)
+    assert found == ["REAL.md"], (
+        f"the scan offered tooling state as governed text: "
+        f"{[f for f in found if f != 'REAL.md']}")
+
+
+def test_the_dot_rule_does_not_exclude_dotfiles_that_are_documents(tmp_path):
+    """Anti-vacuity: the rule is about DIRECTORIES, not about leading dots.
+
+    Excluding every path with a dot in it would pass the test above and quietly
+    drop real documents whose own name begins with one.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / ".hidden-but-a-document.md").write_text(
+        "# governed\n", encoding="utf-8")
+    assert RAG.corpus_files(tmp_path) == ["docs/.hidden-but-a-document.md"]

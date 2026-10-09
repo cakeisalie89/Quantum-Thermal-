@@ -1,0 +1,340 @@
+{
+ "allocation_mode": "meta",
+ "architecture_family": "scientific-feature-token-moe",
+ "architecture_variant": "development",
+ "attention_parameters": 32768,
+ "claim_status": {
+  "claims": {
+   "ARCHITECTURE_DEFINED": {
+    "evidence": [
+     "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+    ],
+    "holds": true,
+    "reason": "the manifest's configuration re-derives the subject digest",
+    "scope": "SUBJECT"
+   },
+   "ARCHITECTURE_META_VALIDATED": {
+    "evidence": [
+     "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+    ],
+    "holds": true,
+    "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
+    "scope": "SUBJECT"
+   },
+   "ARCHITECTURE_PARAMETER_VERIFIED": {
+    "evidence": [
+     "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d",
+     "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+    ],
+    "holds": true,
+    "reason": "manifest, recomputed count and abstract tensors agree category by category",
+    "scope": "SUBJECT"
+   },
+   "CHECKPOINT_RELOAD_VALIDATED": {
+    "evidence": [
+     "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+    ],
+    "holds": true,
+    "reason": "a checkpoint of this configuration reloaded to identical outputs",
+    "scope": "SUBJECT"
+   },
+   "DEVELOPMENT_MODEL_TRAINED": {
+    "evidence": [
+     "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+     "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e"
+    ],
+    "holds": true,
+    "reason": "a completed training run of this configuration",
+    "scope": "SUBJECT"
+   },
+   "DISTRIBUTED_HARDWARE_VALIDATED": {
+    "evidence": [],
+    "holds": false,
+    "reason": "no execution on distributed hardware",
+    "scope": "SUBJECT"
+   },
+   "DISTRIBUTED_SOFTWARE_READY": {
+    "evidence": [
+     "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
+    ],
+    "holds": true,
+    "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
+    "scope": "FAMILY"
+   },
+   "LARGE_MODEL_TRAINED": {
+    "evidence": [],
+    "holds": false,
+    "reason": "no evidence",
+    "scope": "SUBJECT"
+   },
+   "SCIENTIFIC_PERFORMANCE_ESTABLISHED": {
+    "evidence": [],
+    "holds": false,
+    "reason": "established only by an authority acceptance outside this package; the store refuses one for learned records",
+    "scope": "SUBJECT"
+   }
+  },
+  "plain_language": "development: 431,784 trainable parameters, 135,912 active per token (exact counts). Its architecture was first validated by zero-allocation (abstract) construction; this configuration was then allocated and trained end to end on its development dataset. Its checkpoint was reloaded to identical outputs and evaluated on held-out splits. Its scientific performance is not established.",
+  "status": "EVALUATED",
+  "status_history": [
+   {
+    "evidence": [
+     "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+    ],
+    "from": null,
+    "to": "ARCHITECTURE_DEFINED"
+   },
+   {
+    "evidence": [
+     "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+    ],
+    "from": "ARCHITECTURE_DEFINED",
+    "to": "META_VALIDATED"
+   },
+   {
+    "evidence": [
+     "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+     "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e"
+    ],
+    "from": "META_VALIDATED",
+    "to": "TRAINED"
+   },
+   {
+    "evidence": [
+     "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+    ],
+    "from": "TRAINED",
+    "to": "EVALUATED"
+   }
+  ]
+ },
+ "configuration": {
+  "attention": {
+   "head_dim": 16,
+   "num_heads": 4,
+   "num_kv_heads": 4
+  },
+  "context_vocab_size": 4,
+  "dense_ffn_hidden": 0,
+  "family": "scientific-feature-token-moe",
+  "feature_vocab_size": 8,
+  "heads": [
+   {
+    "kind": "gaussian",
+    "lower": null,
+    "name": "admitted_fluence",
+    "upper": null
+   },
+   {
+    "kind": "bounded_gaussian",
+    "lower": 0.0,
+    "name": "final_coverage",
+    "upper": 1.0
+   },
+   {
+    "kind": "gaussian",
+    "lower": null,
+    "name": "final_inventory",
+    "upper": null
+   },
+   {
+    "kind": "gaussian",
+    "lower": null,
+    "name": "impingement_flux",
+    "upper": null
+   }
+  ],
+  "hidden_size": 64,
+  "moe": {
+   "aux_loss_coef": 0.01,
+   "capacity_factor": null,
+   "expert_hidden": 128,
+   "normalize_top_k": true,
+   "num_experts": 8,
+   "num_shared_experts": 0,
+   "router_temperature": 1.0,
+   "routing_profiles": [],
+   "shared_hidden": 0,
+   "top_k": 2
+  },
+  "moe_layer_interval": 1,
+  "moe_layer_start": 0,
+  "num_layers": 2,
+  "num_readout_tokens": 1,
+  "precision": {
+   "compute_dtype": "float32",
+   "param_dtype": "float32",
+   "router_dtype": "float32"
+  },
+  "reconstruction_head": "none",
+  "schema_version": "scientific-moe-config/1",
+  "value_encoder_hidden": 32,
+  "variant": "development"
+ },
+ "configuration_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+ "embedding_parameters": 3936,
+ "estimated_active_parameters_per_token": 135912,
+ "expert_active_parameters": 98304,
+ "expert_hidden_size": 128,
+ "expert_parameters": 393216,
+ "expert_parameters_per_expert": 24576,
+ "experts_per_moe_layer": 8,
+ "experts_selected_per_token": 2,
+ "head_dimension": 16,
+ "hidden_size": 64,
+ "moe_layers": 2,
+ "non_trainable_parameters": 24,
+ "num_attention_heads": 4,
+ "num_kv_heads": 4,
+ "num_layers": 2,
+ "output_parameters": 260,
+ "parameter_accounting": {
+  "active_by_category": {
+   "attention": 32768,
+   "context_embedding": 128,
+   "dense_ffn": 0,
+   "dimensional_encoder": 512,
+   "expert": 98304,
+   "feature_embedding": 64,
+   "normalization": 320,
+   "numerical_encoder": 2272,
+   "output_head": 260,
+   "readout_embedding": 0,
+   "reconstruction_head": 0,
+   "router": 1024,
+   "shared_expert": 0,
+   "uncertainty_head": 260
+  },
+  "attention_parameters": 32768,
+  "by_category": {
+   "attention": 32768,
+   "context_embedding": 384,
+   "dense_ffn": 0,
+   "dimensional_encoder": 704,
+   "expert": 393216,
+   "feature_embedding": 512,
+   "normalization": 320,
+   "numerical_encoder": 2272,
+   "output_head": 260,
+   "readout_embedding": 64,
+   "reconstruction_head": 0,
+   "router": 1024,
+   "shared_expert": 0,
+   "uncertainty_head": 260
+  },
+  "config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+  "embedding_parameters": 3936,
+  "estimated_total_active_parameters_per_token": 135912,
+  "expert_active_parameters": 98304,
+  "expert_parameters": 393216,
+  "expert_parameters_per_expert": 24576,
+  "experts_selected_per_token": 2,
+  "moe_layer_count": 2,
+  "non_trainable_parameters": 24,
+  "num_experts_per_moe_layer": 8,
+  "output_head_parameters": 260,
+  "router_parameters": 1024,
+  "routing_profiles": {
+   "standard": {
+    "active_parameters_per_token": 135912,
+    "expert_active_parameters": 98304,
+    "top_k": 2
+   }
+  },
+  "shared_active_parameters": 37608,
+  "shared_parameters": 38568,
+  "tied_parameters": 0,
+  "total_parameters": 431808,
+  "trainable_parameters": 431784,
+  "uncertainty_head_parameters": 260
+ },
+ "precision_memory_estimates": {
+  "activations": {
+   "batch_tokens": 1048576,
+   "batch_with_checkpointing_bytes": 268435456,
+   "batch_without_checkpointing_bytes": 5100273664,
+   "category": "under 1 TiB",
+   "label": "activation bytes per token kept for backward",
+   "with_checkpointing_bytes_per_token": 256,
+   "without_checkpointing_bytes_per_token": 4864
+  },
+  "assumptions": {
+   "activation_dtype": "bfloat16",
+   "batch_tokens": 1048576,
+   "dispatch_capacity_factor": 1.25,
+   "expert_parallel_degree": 8,
+   "gradient_dtype": "float32",
+   "master_dtype": "float32",
+   "optimizer": "adam",
+   "tokens_per_sample": 16
+  },
+  "checkpoint": {
+   "label": "checkpoint bytes",
+   "parameters_only_bytes": 1727232,
+   "with_optimizer_state_bytes": 5181504
+  },
+  "communication": {
+   "bytes_per_forward_flop": 0.003296250515039143,
+   "combine_bytes_per_token_per_moe_layer": 256,
+   "dispatch_buffer_bytes_per_moe_layer": 335544320,
+   "dispatch_bytes_per_token_per_moe_layer": 256,
+   "experts_selected_per_token": 2,
+   "label": "expert-parallel routing traffic, forward pass",
+   "note": "the cost of high activation: each token's representation travels to top_k experts and back in every MoE layer",
+   "remote_fraction": 0.875,
+   "routed_bytes_per_batch_forward": 939524096.0,
+   "routed_bytes_per_token_forward": 896.0,
+   "router_logit_buffer_bytes_per_moe_layer": 33554432
+  },
+  "config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+  "flops": {
+   "active_parameters_per_token": 135912,
+   "batch_tokens": 1048576,
+   "forward_flops_per_token": 280016,
+   "label": "matmul and attention FLOPs per token (multiply-add = 2)",
+   "training_flops_per_batch": 880854171648,
+   "training_flops_per_token": 840048,
+   "training_flops_per_token_with_checkpointing": 1120064
+  },
+  "inference_state": {
+   "activation_bytes_per_token": 512,
+   "label": "inference: the compute copy plus a few live activations per token; no key/value cache (set encoder)",
+   "parameter_bytes": 1727136
+  },
+  "parameter_storage": {
+   "bfloat16_bytes": 863568,
+   "float32_bytes": 1727136,
+   "float8_e4m3_bytes": 431892,
+   "float8_note": "FP8 e4m3 weights plus one float32 scale per 128x128 block; an ESTIMATE of storage only -- FP8 is not validated for any scientific workload here",
+   "label": "parameter-only storage of the trainable parameters",
+   "non_trainable_float32_bytes": 96
+  },
+  "status": "ESTIMATE -- arithmetic over exact parameter counts and the assumptions below; not a benchmark, not a measurement on any hardware",
+  "training_state": {
+   "bytes_per_parameter": 16.0,
+   "compute_copy_bytes": 1727136,
+   "gradient_bytes": 1727136,
+   "label": "mixed-precision Adam training state, excluding activations and communication buffers",
+   "master_weights_bytes": 0,
+   "optimizer_moments_bytes": 3454272,
+   "total_bytes": 6908544
+  }
+ },
+ "router_parameters": 1024,
+ "routing_profiles": {
+  "standard": {
+   "active_parameters_per_token": 135912,
+   "expert_active_parameters": 98304,
+   "top_k": 2
+  }
+ },
+ "schema": "scientific-moe-model-manifest/1",
+ "schema_version": "scientific-moe-config/1",
+ "shared_active_parameters": 37608,
+ "shared_parameters": 38568,
+ "solve": null,
+ "source_commit": "8ee1e5b93461d2d6b8f1abbaf5dccc5820be5f34",
+ "total_parameters": 431808,
+ "trainable_parameters": 431784,
+ "uncertainty_head_parameters": 260
+}

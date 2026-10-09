@@ -2,6 +2,12 @@
 
 MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
 
+SCOPE. This is the contract for exporting the LEGACY solvers as FMUs, which
+is not done, and its status is its own. The registry's ``fmi`` element is
+the harness's FMU runtime and boundary (``scientific/fmi_boundary.py``, one
+generic FMU built, loaded and stepped on a hosted runner); nothing here is
+that.
+
 The stack declares FMI "later", and this module is what "later" should mean
 in a governed project: the interface is specified now, the blockers are named
 now, and nothing is shipped that could be mistaken for a working FMU.

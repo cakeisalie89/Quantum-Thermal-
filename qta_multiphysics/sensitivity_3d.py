@@ -14,6 +14,7 @@ import copy
 
 from .config import MultiphysicsConfig, default_config
 from .mesh_3d import Grid3DConfig
+from .numerics import require_converged
 from .thermal_3d_transient import solve_thermal_3d
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
@@ -23,7 +24,12 @@ STEP = 0.10   # +10% one-sided
 
 
 def _rise(cfg):
-    r = solve_thermal_3d(cfg, CI, n_eval=9)
+    # A perturbed configuration is the one most likely not to converge,
+    # and a failed solve returns a SHORTER trajectory whose last probe
+    # sample is cooler -- which would be published as a negative
+    # sensitivity to the parameter that was raised.
+    r = require_converged(solve_thermal_3d(cfg, CI, n_eval=9),
+                          "sensitivity_3d: probe-rise solve")
     return float(r.probe_timeseries_K()[-1]) - cfg.fridge.T_fridge_K
 
 

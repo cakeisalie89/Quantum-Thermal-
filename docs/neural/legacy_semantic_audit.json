@@ -1,0 +1,4499 @@
+{
+ "active_generic_semantic_leaks": 0,
+ "active_neural_semantic_leaks": 0,
+ "by_class": {
+  "ACTIVE_GENERIC_SEMANTIC_LEAK": {
+   "files": 0,
+   "hits": 0
+  },
+  "ACTIVE_NEURAL_SEMANTIC_LEAK": {
+   "files": 0,
+   "hits": 0
+  },
+  "DOCUMENTATION_HISTORY": {
+   "files": 34,
+   "hits": 226
+  },
+  "FALSE_POSITIVE": {
+   "files": 0,
+   "hits": 0
+  },
+  "LEGACY_COMPATIBILITY": {
+   "files": 49,
+   "hits": 461
+  },
+  "LEGACY_SCIENTIFIC_HISTORY": {
+   "files": 78,
+   "hits": 1691
+  },
+  "LEGACY_SCOPED_SECTION": {
+   "files": 1,
+   "hits": 2
+  },
+  "QTA_MODEL_PLUGIN_DOMAIN": {
+   "files": 10,
+   "hits": 83
+  },
+  "TEST_OF_BOUNDARY": {
+   "files": 3,
+   "hits": 21
+  },
+  "TOOLING_CLASSIFIER_REFERENCE": {
+   "files": 9,
+   "hits": 33
+  },
+  "UNCLASSIFIED": {
+   "files": 0,
+   "hits": 0
+  }
+ },
+ "disposition_rules": {
+  "DELETE_GENERATED_AND_REBUILD": "LEGACY_SCIENTIFIC_HISTORY",
+  "EXTRACT_GENERIC": "LEGACY_COMPATIBILITY",
+  "KEEP_AND_HARDEN": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+  "KEEP_AS_IS": "ACTIVE_GENERIC_SEMANTIC_LEAK",
+  "KEEP_AS_MODEL_PLUGIN": "QTA_MODEL_PLUGIN_DOMAIN",
+  "REGENERATE": "LEGACY_SCIENTIFIC_HISTORY",
+  "RETIRE_TO_HISTORY": "LEGACY_SCIENTIFIC_HISTORY",
+  "REWRITE_GENERIC": "LEGACY_COMPATIBILITY"
+ },
+ "findings": [
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 1,
+    "methane_routing": 2
+   },
+   "lines": {
+    "helium_routing": [
+     662
+    ],
+    "machine_mode_label": [
+     187
+    ],
+    "methane_routing": [
+     660,
+     688
+    ]
+   },
+   "path": ".github/workflows/agent-substrate.yml",
+   "why": "workflow comments recording why a step exists"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     32
+    ]
+   },
+   "path": ".github/workflows/claude.yml",
+   "why": "workflow comments recording why a step exists"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     76
+    ]
+   },
+   "path": ".github/workflows/release.yml",
+   "why": "workflow comments recording why a step exists"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "mode_sequence": 3
+   },
+   "lines": {
+    "helium_routing": [
+     821
+    ],
+    "machine_mode_label": [
+     1258,
+     1683,
+     2209,
+     2211
+    ],
+    "mode_sequence": [
+     145,
+     830,
+     1639
+    ]
+   },
+   "path": "ARCHITECTURE_CONVERGENCE_PLAN.md",
+   "why": "prose"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 10,
+    "machine_mode_label": 21,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     26,
+     27,
+     28,
+     29,
+     40,
+     83,
+     99,
+     100,
+     104,
+     119
+    ],
+    "machine_mode_label": [
+     30,
+     32,
+     33,
+     41,
+     42,
+     43,
+     70,
+     71,
+     72,
+     75,
+     91,
+     92,
+     93,
+     94,
+     95,
+     96,
+     97,
+     98,
+     115,
+     116
+    ],
+    "mode_sequence": [
+     121
+    ]
+   },
+   "path": "BOM.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     53
+    ]
+   },
+   "path": "CLAIMS_BOUNDARY.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 6,
+    "mode_sequence": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     37,
+     48,
+     51,
+     182,
+     233,
+     255
+    ],
+    "mode_sequence": [
+     183,
+     233,
+     255
+    ]
+   },
+   "path": "DEPENDENCY_CUTOVER.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     451
+    ]
+   },
+   "path": "EVIDENCE_CLOSURE.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 2,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     81
+    ],
+    "machine_mode_label": [
+     20,
+     81
+    ],
+    "methane_routing": [
+     81
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N0.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     81
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     81,
+     102
+    ],
+    "methane_routing": [
+     81
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N1.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     82
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     82,
+     103
+    ],
+    "methane_routing": [
+     82
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N2.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     80
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     80,
+     101
+    ],
+    "methane_routing": [
+     80
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N3.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     8,
+     83
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     83,
+     104
+    ],
+    "methane_routing": [
+     83
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-N4.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     83
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     83,
+     104
+    ],
+    "methane_routing": [
+     83
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-P1.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     82
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     82,
+     103
+    ],
+    "methane_routing": [
+     82
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-S1.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     83
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     83,
+     104
+    ],
+    "methane_routing": [
+     83
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-T1.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     83
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     83,
+     104
+    ],
+    "methane_routing": [
+     83
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-T2.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     83
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     83,
+     104
+    ],
+    "methane_routing": [
+     83
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-V1.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 3,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     83
+    ],
+    "machine_mode_label": [
+     20,
+     23,
+     83
+    ],
+    "methane_routing": [
+     83
+    ]
+   },
+   "path": "EXPERIMENT_PLAYBOOKS/EXP-V2.md",
+   "why": "prose"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 7,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     318
+    ],
+    "machine_mode_label": [
+     318,
+     322,
+     366,
+     374,
+     380,
+     393,
+     745
+    ],
+    "mode_sequence": [
+     322
+    ]
+   },
+   "path": "FILE_DISPOSITION.csv",
+   "why": "generated by tools/file_disposition.py: each legacy file's disposition quotes what it contains"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 6
+   },
+   "lines": {
+    "helium_routing": [
+     35,
+     129
+    ],
+    "machine_mode_label": [
+     95,
+     100,
+     117,
+     118,
+     122,
+     129
+    ]
+   },
+   "path": "FIRST_VALIDATION_EXPERIMENTS.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "methane_routing": 2
+   },
+   "lines": {
+    "helium_routing": [
+     6,
+     7
+    ],
+    "methane_routing": [
+     5,
+     6
+    ]
+   },
+   "path": "GLOSSARY.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     7,
+     10,
+     11
+    ]
+   },
+   "path": "MACHINE_FSM.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     36
+    ]
+   },
+   "path": "MANUSCRIPT_CHANGELOG.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     28
+    ]
+   },
+   "path": "MANUSCRIPT_CONSISTENCY_REPORT.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     22,
+     23,
+     24
+    ]
+   },
+   "path": "NUMERICAL_METHODS.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 3,
+    "mode_sequence": 2
+   },
+   "lines": {
+    "helium_routing": [
+     120
+    ],
+    "machine_mode_label": [
+     96,
+     168,
+     169
+    ],
+    "mode_sequence": [
+     153,
+     177
+    ]
+   },
+   "path": "PHYSICS_INVENTORY.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     43
+    ]
+   },
+   "path": "RELEASE_POLICY.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     22
+    ]
+   },
+   "path": "VALIDATION_PLAN.md",
+   "why": "prose"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 42
+   },
+   "in_witnessed_generator_closure": false,
+   "lines": {
+    "helium_routing": [
+     427
+    ],
+    "machine_mode_label": [
+     10,
+     11,
+     12,
+     697,
+     1078,
+     1079,
+     1096,
+     1097,
+     1114,
+     1115,
+     1483,
+     1490,
+     1501,
+     1508,
+     1519,
+     1526,
+     1537,
+     1544,
+     1555,
+     1562
+    ]
+   },
+   "path": "assumed_parameters.json",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     71,
+     82,
+     83
+    ]
+   },
+   "path": "attic/delivery_artifacts/QTA_cleanup_remove_slop_log.patch",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 4,
+    "machine_mode_label": 230,
+    "methane_routing": 7,
+    "mode_sequence": 6
+   },
+   "lines": {
+    "helium_routing": [
+     2315,
+     2325,
+     4189,
+     4199
+    ],
+    "machine_mode_label": [
+     152,
+     245,
+     304,
+     315,
+     346,
+     347,
+     348,
+     349,
+     350,
+     351,
+     352,
+     353,
+     354,
+     355,
+     356,
+     357,
+     358,
+     359,
+     360,
+     361
+    ],
+    "methane_routing": [
+     153,
+     758,
+     2448,
+     4650,
+     5010,
+     5323,
+     5328
+    ],
+    "mode_sequence": [
+     152,
+     1452,
+     2321,
+     4195,
+     4749,
+     6404
+    ]
+   },
+   "path": "attic/delivery_artifacts/QTA_qta_multiphysics_repair.patch",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCOPED_SECTION",
+   "hits": {
+    "machine_mode_label": 1,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     289
+    ],
+    "methane_routing": [
+     218
+    ]
+   },
+   "path": "authorities.json",
+   "why": "every occurrence is under a legacy* key"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     10,
+     20
+    ]
+   },
+   "path": "best_forecast_operating_point.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 1,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     118
+    ],
+    "machine_mode_label": [
+     118
+    ],
+    "methane_routing": [
+     117
+    ]
+   },
+   "path": "build_stage6_playbooks.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 18,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     340
+    ],
+    "machine_mode_label": [
+     127,
+     128,
+     159,
+     160,
+     161,
+     188,
+     215,
+     216,
+     217,
+     243,
+     265,
+     285,
+     305,
+     326,
+     343,
+     344,
+     372,
+     373
+    ],
+    "mode_sequence": [
+     165
+    ]
+   },
+   "path": "build_stage6_registries.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 4
+   },
+   "lines": {
+    "machine_mode_label": [
+     8,
+     21,
+     34,
+     90
+    ]
+   },
+   "path": "campaign_state_3d.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 15
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     16,
+     17
+    ]
+   },
+   "path": "coupled_mode_recovery_metrics.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 17
+   },
+   "lines": {
+    "machine_mode_label": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     17,
+     18,
+     95,
+     96
+    ]
+   },
+   "path": "coupled_mode_state_summary.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 18
+   },
+   "lines": {
+    "machine_mode_label": [
+     12,
+     43,
+     44,
+     51,
+     56,
+     57,
+     64,
+     77,
+     90,
+     116,
+     129,
+     181,
+     194,
+     207,
+     245,
+     255,
+     265,
+     275
+    ]
+   },
+   "path": "coupling_ledger_3d.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     11
+    ]
+   },
+   "path": "cryo_stack_3d_budget.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 27
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21
+    ]
+   },
+   "path": "cryopanel_loading_3d.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 8,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ],
+    "methane_routing": [
+     3
+    ]
+   },
+   "path": "cryopanel_memory_model.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 9,
+    "machine_mode_label": 21
+   },
+   "lines": {
+    "helium_routing": [
+     901,
+     932,
+     964,
+     995,
+     1407,
+     2828,
+     3411,
+     3559,
+     3958
+    ],
+    "machine_mode_label": [
+     1012,
+     1089,
+     1091,
+     1127,
+     1441,
+     1448,
+     1482,
+     1509,
+     1516,
+     2453,
+     2487,
+     3099,
+     3147,
+     3187,
+     3194,
+     3241,
+     3288,
+     3335,
+     3353,
+     3857
+    ]
+   },
+   "path": "design_component_registry.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 4,
+    "machine_mode_label": 32
+   },
+   "lines": {
+    "helium_routing": [
+     228,
+     436,
+     448,
+     2138
+    ],
+    "machine_mode_label": [
+     14,
+     27,
+     80,
+     93,
+     133,
+     204,
+     216,
+     491,
+     593,
+     630,
+     654,
+     655,
+     667,
+     668,
+     1104,
+     2154,
+     2155,
+     2156,
+     2157,
+     2158
+    ]
+   },
+   "path": "design_interface_graph.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "methane_routing": 1
+   },
+   "lines": {
+    "methane_routing": [
+     27
+    ]
+   },
+   "path": "distributed_thermal_metrics.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 28,
+    "methane_routing": 8
+   },
+   "lines": {
+    "helium_routing": [
+     5730,
+     5762
+    ],
+    "machine_mode_label": [
+     758,
+     759,
+     800,
+     802,
+     805,
+     1669,
+     1671,
+     4970,
+     5708,
+     5731,
+     5943,
+     5945,
+     5949,
+     5961,
+     6360,
+     6366,
+     6395,
+     6432,
+     6437,
+     6445
+    ],
+    "methane_routing": [
+     4970,
+     5708,
+     5712,
+     5799,
+     6129,
+     6286,
+     6437,
+     8767
+    ]
+   },
+   "path": "docs/DEFECT_LEDGER.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 2,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     42,
+     44
+    ],
+    "methane_routing": [
+     44
+    ]
+   },
+   "path": "docs/clip_provenance.json",
+   "why": "documentation and records"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     38
+    ]
+   },
+   "path": "docs/framework_boundary.json",
+   "why": "documentation and records"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 3,
+    "machine_mode_label": 15,
+    "methane_routing": 4,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     27,
+     45,
+     180
+    ],
+    "machine_mode_label": [
+     9,
+     31,
+     41,
+     45,
+     98,
+     100,
+     104,
+     112,
+     118,
+     137,
+     143,
+     161,
+     177,
+     180,
+     182
+    ],
+    "methane_routing": [
+     10,
+     160,
+     161,
+     177
+    ],
+    "mode_sequence": [
+     9
+    ]
+   },
+   "path": "docs/legacy/qta/CLAIMS_BOUNDARY.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 3,
+    "machine_mode_label": 9,
+    "mode_sequence": 3
+   },
+   "lines": {
+    "helium_routing": [
+     6,
+     43,
+     48
+    ],
+    "machine_mode_label": [
+     38,
+     41,
+     44,
+     47,
+     50,
+     61,
+     168,
+     171,
+     215
+    ],
+    "mode_sequence": [
+     31,
+     61,
+     83
+    ]
+   },
+   "path": "docs/legacy/qta/README.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "machine_mode_label": 9
+   },
+   "lines": {
+    "machine_mode_label": [
+     683,
+     684,
+     685,
+     701,
+     702,
+     703,
+     710,
+     711,
+     712
+    ]
+   },
+   "path": "docs/resolution_inventory.json",
+   "why": "documentation and records"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 9
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ]
+   },
+   "path": "energy_ledger_cumulative_3d.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 12
+   },
+   "lines": {
+    "helium_routing": [
+     29
+    ],
+    "machine_mode_label": [
+     5,
+     6,
+     7,
+     9,
+     14,
+     16,
+     19,
+     21,
+     25,
+     32,
+     34,
+     36
+    ]
+   },
+   "path": "engineering_fixes.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "helium_routing": [
+     7
+    ],
+    "machine_mode_label": [
+     7
+    ]
+   },
+   "path": "experiment_falsification_map.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 40,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     791,
+     1049
+    ],
+    "machine_mode_label": [
+     23,
+     27,
+     30,
+     31,
+     121,
+     122,
+     123,
+     124,
+     127,
+     128,
+     129,
+     214,
+     217,
+     220,
+     221,
+     306,
+     307,
+     310,
+     311,
+     314
+    ],
+    "mode_sequence": [
+     140
+    ]
+   },
+   "path": "experiment_registry.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     3
+    ]
+   },
+   "path": "experimental_design_candidates.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     6,
+     11
+    ]
+   },
+   "path": "falsification_report_3d.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 11,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     22
+    ],
+    "machine_mode_label": [
+     19,
+     20,
+     21,
+     22,
+     23,
+     59,
+     74,
+     81,
+     427,
+     448,
+     511
+    ],
+    "mode_sequence": [
+     511
+    ]
+   },
+   "path": "final_manifest.json",
+   "why": "disposition REGENERATE"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     153
+    ]
+   },
+   "path": "hardware_registry.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     14
+    ]
+   },
+   "path": "integrated_layers_summary.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 8,
+    "machine_mode_label": 32
+   },
+   "lines": {
+    "helium_routing": [
+     11,
+     20,
+     31,
+     33,
+     36,
+     48,
+     49,
+     57
+    ],
+    "machine_mode_label": [
+     2,
+     3,
+     8,
+     9,
+     21,
+     22,
+     27,
+     28,
+     29,
+     30,
+     31,
+     34,
+     52,
+     53,
+     54,
+     55,
+     56,
+     58,
+     59,
+     60
+    ]
+   },
+   "path": "interface_map.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     12
+    ]
+   },
+   "path": "interlock_table.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 7,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     2
+    ],
+    "machine_mode_label": [
+     5,
+     7,
+     8,
+     9,
+     10,
+     11,
+     13
+    ],
+    "mode_sequence": [
+     13
+    ]
+   },
+   "path": "kill_gate_ranking.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     2
+    ]
+   },
+   "path": "lumped_vs_nonlumped_comparison.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 51
+   },
+   "lines": {
+    "machine_mode_label": [
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30
+    ]
+   },
+   "path": "machine_fsm_campaign_trace.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 26
+   },
+   "lines": {
+    "machine_mode_label": [
+     16,
+     20,
+     25,
+     30,
+     53,
+     54,
+     55,
+     56,
+     57,
+     58,
+     59,
+     60,
+     61,
+     62,
+     63,
+     64,
+     65,
+     66,
+     67,
+     68
+    ]
+   },
+   "path": "machine_fsm_diagram.mmd",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "helium_routing": [
+     15
+    ],
+    "machine_mode_label": [
+     12
+    ]
+   },
+   "path": "machine_fsm_interlocks.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 17
+   },
+   "lines": {
+    "machine_mode_label": [
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27
+    ]
+   },
+   "path": "machine_fsm_lifecycle_trace.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 18,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     31
+    ],
+    "methane_routing": [
+     16
+    ]
+   },
+   "path": "machine_fsm_states.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     2
+    ]
+   },
+   "path": "machine_fsm_summary.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 28
+   },
+   "lines": {
+    "machine_mode_label": [
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30,
+     31,
+     32,
+     33,
+     34
+    ]
+   },
+   "path": "machine_fsm_transitions.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 9
+   },
+   "lines": {
+    "machine_mode_label": [
+     15,
+     136,
+     146,
+     147,
+     148,
+     151,
+     153,
+     155,
+     167
+    ]
+   },
+   "path": "manuscript_consistency_check.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 11
+   },
+   "lines": {
+    "machine_mode_label": [
+     18,
+     39,
+     60,
+     70,
+     81,
+     108,
+     118,
+     135,
+     156,
+     175,
+     177
+    ]
+   },
+   "path": "measurement_comparison_3d.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 8
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9
+    ]
+   },
+   "path": "measurement_comparison_rows.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 48
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21
+    ]
+   },
+   "path": "mode_recovery_3d_timeline.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 4
+   },
+   "lines": {
+    "helium_routing": [
+     2,
+     4
+    ],
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "path": "mode_transition_acceptance_tests.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 11
+   },
+   "lines": {
+    "machine_mode_label": [
+     5,
+     6,
+     12,
+     13,
+     15,
+     25,
+     43,
+     58,
+     59,
+     62,
+     63
+    ]
+   },
+   "path": "monte_carlo_gate_failure_rates.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 22
+   },
+   "lines": {
+    "machine_mode_label": [
+     37,
+     38,
+     99,
+     100,
+     101,
+     121,
+     122,
+     123,
+     124,
+     125,
+     126,
+     127,
+     128,
+     129,
+     130,
+     131,
+     132,
+     133,
+     134,
+     135
+    ]
+   },
+   "path": "monte_carlo_parameter_registry.csv",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 7
+   },
+   "lines": {
+    "helium_routing": [
+     2
+    ],
+    "machine_mode_label": [
+     5,
+     6,
+     8,
+     9,
+     10,
+     11,
+     13
+    ]
+   },
+   "path": "monte_carlo_sensitivity_rankings.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     14,
+     28,
+     29
+    ]
+   },
+   "path": "monte_carlo_summary.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 24,
+    "methane_routing": 2,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     38,
+     39,
+     40,
+     41,
+     42,
+     43,
+     44,
+     45,
+     46,
+     47,
+     48,
+     49,
+     50,
+     52,
+     53,
+     98,
+     107,
+     116,
+     125,
+     134
+    ],
+    "methane_routing": [
+     35,
+     188
+    ],
+    "mode_sequence": [
+     183
+    ]
+   },
+   "path": "multiphysics_summary.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     13,
+     14,
+     36,
+     44
+    ],
+    "methane_routing": [
+     44
+    ]
+   },
+   "path": "nv_eligibility_3d.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     34
+    ]
+   },
+   "path": "nv_spin_parameter_provenance.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 6
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ]
+   },
+   "path": "optical_line_of_sight_audit.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 67,
+    "methane_routing": 4,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     83,
+     1514,
+     1515,
+     1516,
+     1517,
+     1518,
+     1519,
+     1520,
+     1521,
+     1522,
+     1523,
+     1524,
+     1526,
+     1527,
+     1528,
+     1529,
+     1530,
+     1531,
+     1630,
+     1631
+    ],
+    "methane_routing": [
+     1675,
+     1676,
+     1677,
+     1678
+    ],
+    "mode_sequence": [
+     2105
+    ]
+   },
+   "path": "package_consistency_check.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     37,
+     38
+    ]
+   },
+   "path": "parameter_registry.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 242,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     13,
+     2775
+    ],
+    "machine_mode_label": [
+     8,
+     11,
+     14,
+     18,
+     24,
+     25,
+     26,
+     27,
+     28,
+     30,
+     128,
+     210,
+     213,
+     314,
+     366,
+     367,
+     445,
+     479,
+     689,
+     699
+    ],
+    "methane_routing": [
+     206
+    ]
+   },
+   "path": "qta_full_sim.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "hits": {
+    "helium_routing": 15,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     31,
+     52,
+     104,
+     137,
+     297,
+     303,
+     327,
+     464,
+     485,
+     540,
+     541,
+     543,
+     599,
+     620,
+     746
+    ],
+    "machine_mode_label": [
+     532,
+     550,
+     724,
+     728
+    ],
+    "methane_routing": [
+     489
+    ]
+   },
+   "path": "qta_manuscript_v4.tex",
+   "why": "the manuscript"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 45,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     15,
+     43,
+     44,
+     45,
+     46,
+     47,
+     48,
+     49,
+     50,
+     51,
+     52,
+     59,
+     60,
+     81,
+     91,
+     137,
+     138,
+     139,
+     140,
+     142
+    ],
+    "methane_routing": [
+     137
+    ],
+    "mode_sequence": [
+     1
+    ]
+   },
+   "path": "qta_multiphysics/campaign_state_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     144,
+     145
+    ],
+    "mode_sequence": [
+     9
+    ]
+   },
+   "path": "qta_multiphysics/campaign_uncertainty_3d.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     69,
+     128,
+     139
+    ]
+   },
+   "path": "qta_multiphysics/config.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 32,
+    "methane_routing": 4
+   },
+   "lines": {
+    "machine_mode_label": [
+     1,
+     5,
+     7,
+     8,
+     10,
+     14,
+     41,
+     43,
+     46,
+     64,
+     65,
+     69,
+     75,
+     79,
+     97,
+     128,
+     138,
+     139,
+     140,
+     141
+    ],
+    "methane_routing": [
+     113,
+     151,
+     152,
+     167
+    ]
+   },
+   "path": "qta_multiphysics/coupled_mode_solver.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 12
+   },
+   "lines": {
+    "machine_mode_label": [
+     47,
+     61,
+     63,
+     64,
+     66,
+     71,
+     74,
+     84,
+     90,
+     112,
+     115,
+     122
+    ]
+   },
+   "path": "qta_multiphysics/coupling_ledger_3d.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     68
+    ]
+   },
+   "path": "qta_multiphysics/cryo_stack_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 6,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     37,
+     38
+    ],
+    "machine_mode_label": [
+     17,
+     121,
+     125,
+     190,
+     191,
+     192
+    ],
+    "methane_routing": [
+     116
+    ],
+    "mode_sequence": [
+     17
+    ]
+   },
+   "path": "qta_multiphysics/cryopanel_dynamics_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 4,
+    "machine_mode_label": 9,
+    "methane_routing": 5,
+    "mode_sequence": 2
+   },
+   "lines": {
+    "helium_routing": [
+     12,
+     107,
+     109,
+     111
+    ],
+    "machine_mode_label": [
+     11,
+     12,
+     99,
+     101,
+     102,
+     104,
+     106,
+     107,
+     109
+    ],
+    "methane_routing": [
+     10,
+     11,
+     102,
+     104,
+     106
+    ],
+    "mode_sequence": [
+     9,
+     148
+    ]
+   },
+   "path": "qta_multiphysics/deep_expdesign/design_space.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     322
+    ],
+    "methane_routing": [
+     9
+    ],
+    "mode_sequence": [
+     11
+    ]
+   },
+   "path": "qta_multiphysics/design/registry.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 11,
+    "methane_routing": 3
+   },
+   "lines": {
+    "helium_routing": [
+     25
+    ],
+    "machine_mode_label": [
+     102,
+     110,
+     112,
+     119,
+     121,
+     126,
+     127,
+     132,
+     135,
+     139,
+     145
+    ],
+    "methane_routing": [
+     24,
+     102,
+     110
+    ]
+   },
+   "path": "qta_multiphysics/design/validation.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 10
+   },
+   "lines": {
+    "machine_mode_label": [
+     35,
+     38,
+     39,
+     40,
+     44,
+     62,
+     69,
+     71,
+     80,
+     104
+    ]
+   },
+   "path": "qta_multiphysics/falsification_3d.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     33
+    ],
+    "methane_routing": [
+     40
+    ],
+    "mode_sequence": [
+     33
+    ]
+   },
+   "path": "qta_multiphysics/future_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "machine_mode_label": [
+     7,
+     8,
+     32,
+     203
+    ],
+    "methane_routing": [
+     204
+    ]
+   },
+   "path": "qta_multiphysics/gas_transport_1d.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 5
+   },
+   "lines": {
+    "machine_mode_label": [
+     11,
+     151,
+     162,
+     165,
+     188
+    ]
+   },
+   "path": "qta_multiphysics/integrated_layers.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 95,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     106
+    ],
+    "machine_mode_label": [
+     5,
+     99,
+     326,
+     327,
+     330,
+     342,
+     344,
+     352,
+     354,
+     361,
+     362,
+     378,
+     380,
+     381,
+     383,
+     390,
+     401,
+     404,
+     411,
+     413
+    ],
+    "methane_routing": [
+     363
+    ]
+   },
+   "path": "qta_multiphysics/machine_fsm.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "machine_mode_label": [
+     40,
+     145
+    ]
+   },
+   "path": "qta_multiphysics/material_models.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 13
+   },
+   "lines": {
+    "machine_mode_label": [
+     17,
+     21,
+     49,
+     112,
+     116,
+     133,
+     136,
+     138,
+     145,
+     148,
+     151,
+     159,
+     162
+    ]
+   },
+   "path": "qta_multiphysics/measurement_ingest_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 43,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     188,
+     198
+    ],
+    "machine_mode_label": [
+     9,
+     27,
+     32,
+     38,
+     42,
+     45,
+     51,
+     57,
+     63,
+     70,
+     78,
+     86,
+     93,
+     114,
+     115,
+     116,
+     120,
+     121,
+     122,
+     128
+    ],
+    "methane_routing": [
+     174
+    ],
+    "mode_sequence": [
+     194
+    ]
+   },
+   "path": "qta_multiphysics/metrics.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 72,
+    "methane_routing": 7,
+    "mode_sequence": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     1,
+     8,
+     9,
+     10,
+     11,
+     12,
+     17,
+     18,
+     20,
+     21,
+     41,
+     45,
+     46,
+     47,
+     48,
+     55,
+     67,
+     69,
+     71,
+     92
+    ],
+    "methane_routing": [
+     8,
+     17,
+     23,
+     94,
+     114,
+     137,
+     227
+    ],
+    "mode_sequence": [
+     123,
+     149
+    ]
+   },
+   "path": "qta_multiphysics/mode_sequence_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1,
+    "methane_routing": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     165
+    ],
+    "methane_routing": [
+     165,
+     192
+    ]
+   },
+   "path": "qta_multiphysics/numerics.py",
+   "why": "disposition EXTRACT_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 7,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     34,
+     35,
+     40,
+     47,
+     52,
+     55,
+     57
+    ],
+    "methane_routing": [
+     57
+    ]
+   },
+   "path": "qta_multiphysics/nv_eligibility_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 10
+   },
+   "lines": {
+    "machine_mode_label": [
+     4,
+     7,
+     34,
+     120,
+     142,
+     147,
+     151,
+     159,
+     161,
+     174
+    ]
+   },
+   "path": "qta_multiphysics/nv_spin/runner.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "machine_mode_label": [
+     18,
+     19
+    ]
+   },
+   "path": "qta_multiphysics/nv_spin/spin_config.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 3,
+    "machine_mode_label": 6,
+    "methane_routing": 3,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     132,
+     133,
+     194
+    ],
+    "machine_mode_label": [
+     128,
+     134,
+     136,
+     193,
+     194,
+     291
+    ],
+    "methane_routing": [
+     114,
+     131,
+     134
+    ],
+    "mode_sequence": [
+     259
+    ]
+   },
+   "path": "qta_multiphysics/runner.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 4,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     123,
+     172,
+     231,
+     232
+    ],
+    "methane_routing": [
+     299
+    ],
+    "mode_sequence": [
+     123
+    ]
+   },
+   "path": "qta_multiphysics/runner_3d.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     9
+    ]
+   },
+   "path": "qta_multiphysics/sources_3d.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 15,
+    "methane_routing": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     8,
+     12,
+     14,
+     16,
+     77,
+     78,
+     86,
+     88,
+     90,
+     97,
+     103,
+     110,
+     115,
+     120,
+     123
+    ],
+    "methane_routing": [
+     8,
+     17,
+     77
+    ]
+   },
+   "path": "qta_multiphysics/species_accounting_3d.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 7,
+    "methane_routing": 9
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "helium_routing": [
+     33,
+     206
+    ],
+    "machine_mode_label": [
+     35,
+     61,
+     64,
+     67,
+     81,
+     87,
+     90
+    ],
+    "methane_routing": [
+     10,
+     15,
+     34,
+     36,
+     37,
+     38,
+     41,
+     112,
+     233
+    ]
+   },
+   "path": "qta_multiphysics/species_transport_3d.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     29,
+     85
+    ]
+   },
+   "path": "qta_multiphysics/stack/fmi_contract.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 8
+   },
+   "lines": {
+    "machine_mode_label": [
+     28,
+     34,
+     56,
+     60,
+     67,
+     81,
+     82,
+     86
+    ]
+   },
+   "path": "qta_multiphysics/stage7_boundary_models.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 8
+   },
+   "lines": {
+    "machine_mode_label": [
+     14,
+     15,
+     16,
+     19,
+     51,
+     53,
+     55,
+     57
+    ]
+   },
+   "path": "qta_multiphysics/state_machine_3d.py",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "machine_mode_label": [
+     133
+    ]
+   },
+   "path": "qta_multiphysics/surface_coverage.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "helium_routing": [
+     8
+    ],
+    "machine_mode_label": [
+     1,
+     11,
+     12,
+     68
+    ],
+    "methane_routing": [
+     10
+    ]
+   },
+   "path": "qta_multiphysics/surface_coverage_3d.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "methane_routing": 1
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "methane_routing": [
+     34
+    ]
+   },
+   "path": "qta_multiphysics/thermal_1d.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "methane_routing": 2
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "methane_routing": [
+     30,
+     35
+    ]
+   },
+   "path": "qta_multiphysics/thermal_2d_axisymmetric.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 14
+   },
+   "lines": {
+    "machine_mode_label": [
+     48,
+     91,
+     92,
+     104,
+     120,
+     136,
+     166,
+     167,
+     168,
+     169,
+     170,
+     171,
+     172,
+     181
+    ]
+   },
+   "path": "qta_multiphysics/uncertainty.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "QTA_MODEL_PLUGIN_DOMAIN",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "in_witnessed_generator_closure": true,
+   "lines": {
+    "machine_mode_label": [
+     30,
+     58,
+     59
+    ]
+   },
+   "path": "qta_multiphysics/vibration_transfer.py",
+   "why": "disposition KEEP_AS_MODEL_PLUGIN"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     163
+    ]
+   },
+   "path": "qta_sim_stages.py",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 9
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ]
+   },
+   "path": "radiation_rf_leakage_budget.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 28,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     83,
+     84
+    ],
+    "machine_mode_label": [
+     5,
+     6,
+     8,
+     10,
+     11,
+     12,
+     13,
+     15,
+     18,
+     20,
+     21,
+     25,
+     34,
+     43,
+     47,
+     55,
+     58,
+     59,
+     62,
+     63
+    ],
+    "mode_sequence": [
+     84
+    ]
+   },
+   "path": "results_gate_table.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 9,
+    "machine_mode_label": 27
+   },
+   "lines": {
+    "helium_routing": [
+     13,
+     14,
+     33,
+     50,
+     65,
+     66,
+     68,
+     69,
+     84
+    ],
+    "machine_mode_label": [
+     4,
+     18,
+     20,
+     21,
+     26,
+     35,
+     36,
+     58,
+     70,
+     71,
+     77,
+     78,
+     79,
+     80,
+     81,
+     82,
+     84,
+     85,
+     88,
+     90
+    ]
+   },
+   "path": "risk_register.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 12,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13
+    ],
+    "methane_routing": [
+     10
+    ]
+   },
+   "path": "shielding_stack_register.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 5
+   },
+   "lines": {
+    "machine_mode_label": [
+     69,
+     70,
+     82,
+     98,
+     99
+    ]
+   },
+   "path": "source_gap_register.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 4
+   },
+   "lines": {
+    "helium_routing": [
+     32,
+     54
+    ],
+    "machine_mode_label": [
+     33,
+     34,
+     47,
+     57
+    ]
+   },
+   "path": "source_map.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 8
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9
+    ]
+   },
+   "path": "species_accounting_3d.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 9,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     4
+    ],
+    "machine_mode_label": [
+     7,
+     13,
+     19,
+     46,
+     51,
+     161,
+     166,
+     176,
+     181
+    ],
+    "methane_routing": [
+     194
+    ]
+   },
+   "path": "species_transport_3d_summary.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     20
+    ]
+   },
+   "path": "superseded_best_operating_point_v3.json",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 17
+   },
+   "lines": {
+    "machine_mode_label": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18
+    ]
+   },
+   "path": "surface_coverage_3d_summary.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 13
+   },
+   "lines": {
+    "machine_mode_label": [
+     16,
+     44,
+     72,
+     87,
+     100,
+     129,
+     159,
+     188,
+     208,
+     217,
+     245,
+     265,
+     273
+    ]
+   },
+   "path": "synthetic_measurements_example.json",
+   "why": "disposition REWRITE_GENERIC"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     211,
+     217
+    ]
+   },
+   "path": "tests/test_authority_consistency.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 5
+   },
+   "lines": {
+    "machine_mode_label": [
+     33,
+     34,
+     37,
+     38,
+     91
+    ]
+   },
+   "path": "tests/test_authority_invariants.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 10
+   },
+   "lines": {
+    "machine_mode_label": [
+     76,
+     77,
+     78,
+     83,
+     114,
+     117,
+     148,
+     191,
+     196,
+     197
+    ]
+   },
+   "path": "tests/test_campaign_3d.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 4
+   },
+   "lines": {
+    "machine_mode_label": [
+     45,
+     46,
+     66,
+     67
+    ]
+   },
+   "path": "tests/test_campaign_uncertainty.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     450
+    ]
+   },
+   "path": "tests/test_checker_missing_outputs.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     143,
+     144
+    ]
+   },
+   "path": "tests/test_claims_boundary.py",
+   "why": "the claims boundary test"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     43,
+     44
+    ]
+   },
+   "path": "tests/test_claude_workflow_prompt.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 21
+   },
+   "lines": {
+    "machine_mode_label": [
+     49,
+     50,
+     51,
+     52,
+     53,
+     54,
+     55,
+     56,
+     60,
+     61,
+     63,
+     71,
+     72,
+     97,
+     98,
+     118,
+     120,
+     122,
+     124,
+     186
+    ]
+   },
+   "path": "tests/test_coupled_3d.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     106,
+     107,
+     479
+    ]
+   },
+   "path": "tests/test_cross_env_semantics.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 3,
+    "methane_routing": 2,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     101
+    ],
+    "machine_mode_label": [
+     88,
+     95,
+     126
+    ],
+    "methane_routing": [
+     95,
+     110
+    ],
+    "mode_sequence": [
+     111
+    ]
+   },
+   "path": "tests/test_deep_expdesign.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 1,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     70
+    ],
+    "machine_mode_label": [
+     107
+    ],
+    "methane_routing": [
+     61
+    ]
+   },
+   "path": "tests/test_design.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     39,
+     145
+    ]
+   },
+   "path": "tests/test_hardware_governance.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     58,
+     61
+    ]
+   },
+   "path": "tests/test_integration.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "hits": {
+    "machine_mode_label": 6,
+    "methane_routing": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     6,
+     57,
+     103,
+     111,
+     113,
+     114
+    ],
+    "methane_routing": [
+     114,
+     115
+    ]
+   },
+   "path": "tests/test_legacy_qta_claims.py",
+   "why": "the legacy claims boundary test"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 19
+   },
+   "lines": {
+    "machine_mode_label": [
+     36,
+     64,
+     65,
+     85,
+     86,
+     87,
+     102,
+     107,
+     109,
+     118,
+     120,
+     128,
+     130,
+     159,
+     162,
+     163,
+     164,
+     178,
+     181
+    ]
+   },
+   "path": "tests/test_machine_fsm.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 4,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     51,
+     126,
+     188,
+     231
+    ],
+    "methane_routing": [
+     14
+    ]
+   },
+   "path": "tests/test_material_floors.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 12
+   },
+   "lines": {
+    "machine_mode_label": [
+     23,
+     50,
+     68,
+     69,
+     71,
+     74,
+     82,
+     91,
+     95,
+     103,
+     109,
+     117
+    ]
+   },
+   "path": "tests/test_measurement_ingest.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 29,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     32,
+     34,
+     36,
+     37,
+     38,
+     41,
+     43,
+     44,
+     45,
+     46,
+     49,
+     51,
+     52,
+     53,
+     56,
+     61,
+     62,
+     65,
+     71,
+     73
+    ],
+    "methane_routing": [
+     41
+    ]
+   },
+   "path": "tests/test_mode_species_3d.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 7,
+    "methane_routing": 2,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     197
+    ],
+    "machine_mode_label": [
+     158,
+     160,
+     161,
+     162,
+     174,
+     176,
+     195
+    ],
+    "methane_routing": [
+     159,
+     196
+    ],
+    "mode_sequence": [
+     196
+    ]
+   },
+   "path": "tests/test_neural_boundary.py",
+   "why": "the test that keeps these semantics out of the substrate"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 6
+   },
+   "lines": {
+    "machine_mode_label": [
+     150,
+     151,
+     161,
+     164,
+     166,
+     172
+    ]
+   },
+   "path": "tests/test_nv_spin.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     144
+    ]
+   },
+   "path": "tests/test_optimized_mode_invariants.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 2,
+    "machine_mode_label": 2,
+    "methane_routing": 7
+   },
+   "lines": {
+    "helium_routing": [
+     6,
+     56
+    ],
+    "machine_mode_label": [
+     8,
+     57
+    ],
+    "methane_routing": [
+     3,
+     8,
+     57,
+     101,
+     164,
+     178,
+     203
+    ]
+   },
+   "path": "tests/test_output_resolution.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 6,
+    "methane_routing": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     5,
+     6,
+     55,
+     79,
+     80,
+     82
+    ],
+    "methane_routing": [
+     5,
+     38,
+     49
+    ]
+   },
+   "path": "tests/test_parameter_semantics.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 12,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     8,
+     136,
+     171,
+     175,
+     222,
+     223,
+     225,
+     226,
+     233,
+     234,
+     249,
+     252
+    ],
+    "methane_routing": [
+     175
+    ]
+   },
+   "path": "tests/test_quantity_resolution.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 7
+   },
+   "lines": {
+    "machine_mode_label": [
+     70,
+     103,
+     105,
+     106,
+     178,
+     183,
+     184
+    ]
+   },
+   "path": "tests/test_single_source_of_truth.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 19
+   },
+   "lines": {
+    "machine_mode_label": [
+     1,
+     6,
+     23,
+     41,
+     42,
+     43,
+     44,
+     63,
+     119,
+     134,
+     228,
+     233,
+     238,
+     247,
+     250,
+     257,
+     264,
+     266,
+     762
+    ]
+   },
+   "path": "tests/test_solver_failclosed.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     114
+    ]
+   },
+   "path": "tests/test_stage6_roadmap.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 15
+   },
+   "lines": {
+    "machine_mode_label": [
+     43,
+     46,
+     47,
+     49,
+     51,
+     52,
+     53,
+     55,
+     56,
+     172,
+     173,
+     186,
+     187,
+     189,
+     190
+    ]
+   },
+   "path": "tests/test_stage7_boundary.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 3
+   },
+   "lines": {
+    "machine_mode_label": [
+     139,
+     141,
+     186
+    ]
+   },
+   "path": "tests/test_surface_adsorption.py",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 3,
+    "methane_routing": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     6,
+     7,
+     8
+    ],
+    "methane_routing": [
+     257
+    ]
+   },
+   "path": "thermal_3d_readiness.json",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     24
+    ]
+   },
+   "path": "tools/claims_enforcement.py",
+   "why": "the generic claims boundary, naming what it excludes"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 2,
+    "methane_routing": 2
+   },
+   "lines": {
+    "helium_routing": [
+     18
+    ],
+    "machine_mode_label": [
+     13,
+     18
+    ],
+    "methane_routing": [
+     6,
+     18
+    ]
+   },
+   "path": "tools/clip_provenance.py",
+   "why": "a tool that reads or audits the legacy corpus by its names"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 8,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     381
+    ],
+    "machine_mode_label": [
+     364,
+     372,
+     381,
+     408,
+     409,
+     430,
+     441,
+     882
+    ],
+    "mode_sequence": [
+     372
+    ]
+   },
+   "path": "tools/file_disposition.py",
+   "why": "classifies every file, legacy ones by what they contain"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     53
+    ]
+   },
+   "path": "tools/framework_boundary.py",
+   "why": "the active/legacy boundary counts mode labels"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     11
+    ]
+   },
+   "path": "tools/generic_consistency.py",
+   "why": "states which legacy concepts the generic check excludes"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     4,
+     19
+    ]
+   },
+   "path": "tools/legacy_qta_claims.py",
+   "why": "enforces the legacy claims boundary, quoting the claims"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     27,
+     28
+    ]
+   },
+   "path": "tools/mutations/legacy/cryopanel_operating_point.json",
+   "why": "mutation specs keeping legacy behaviour under test"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     154
+    ]
+   },
+   "path": "tools/mutations/neural_authority.json",
+   "why": "mutation specs keeping legacy behaviour under test"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "helium_routing": 1,
+    "machine_mode_label": 2,
+    "methane_routing": 3
+   },
+   "lines": {
+    "helium_routing": [
+     15
+    ],
+    "machine_mode_label": [
+     15,
+     57
+    ],
+    "methane_routing": [
+     3,
+     15,
+     57
+    ]
+   },
+   "path": "tools/mutations/output_resolution.json",
+   "why": "mutation specs keeping legacy behaviour under test"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     48
+    ]
+   },
+   "path": "tools/mutations/quantity_resolution.json",
+   "why": "mutation specs keeping legacy behaviour under test"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "hits": {
+    "machine_mode_label": 4
+   },
+   "lines": {
+    "machine_mode_label": [
+     13,
+     20,
+     167,
+     179
+    ]
+   },
+   "path": "tools/mutations/solver_failclosed.json",
+   "why": "mutation specs keeping legacy behaviour under test"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "helium_routing": 1,
+    "methane_routing": 1,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "helium_routing": [
+     5
+    ],
+    "methane_routing": [
+     5
+    ],
+    "mode_sequence": [
+     4
+    ]
+   },
+   "path": "tools/neural_legacy_audit.py",
+   "why": "this audit: its patterns name what it looks for"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "machine_mode_label": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     53
+    ]
+   },
+   "path": "tools/resolution_inventory.py",
+   "why": "a tool that reads or audits the legacy corpus by its names"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "helium_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     4
+    ]
+   },
+   "path": "validation_experiment_ranking.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 40,
+    "mode_sequence": 1
+   },
+   "lines": {
+    "machine_mode_label": [
+     23,
+     75,
+     76,
+     77,
+     78,
+     79,
+     80,
+     81,
+     83,
+     111,
+     112,
+     113,
+     114,
+     115,
+     116,
+     117,
+     118,
+     119,
+     120,
+     121
+    ],
+    "mode_sequence": [
+     83
+    ]
+   },
+   "path": "validation_matrix.csv",
+   "why": "disposition RETIRE_TO_HISTORY"
+  },
+  {
+   "class": "LEGACY_SCIENTIFIC_HISTORY",
+   "hits": {
+    "machine_mode_label": 2
+   },
+   "lines": {
+    "machine_mode_label": [
+     3,
+     4
+    ]
+   },
+   "path": "vibration_transfer_metrics.csv",
+   "why": "disposition DELETE_GENERATED_AND_REBUILD"
+  }
+ ],
+ "patterns": {
+  "helium_routing": "(?i)\\bhelium\\b",
+  "machine_mode_label": "(?i)\\bmode[_ ]?[abcd](?:_|\\b)",
+  "methane_routing": "(?i)\\bmethane\\b",
+  "mode_sequence": "\\bB\\s*(?:->|\u2192)\\s*C\\s*(?:->|\u2192)\\s*D\\b"
+ },
+ "rules": [
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "docs/neural/legacy_semantic_audit.json",
+   "why": "this audit's own report (line numbers only; never scanned for content)"
+  },
+  {
+   "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
+   "path": "scientific_ai/*",
+   "why": "the learned-model substrate"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/neural_legacy_audit.py",
+   "why": "this audit: its patterns name what it looks for"
+  },
+  {
+   "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
+   "path": "tools/neural*.py",
+   "why": "the substrate's tools"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "path": "tests/test_neural_boundary.py",
+   "why": "the test that keeps these semantics out of the substrate"
+  },
+  {
+   "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
+   "path": "tests/test_neural*.py",
+   "why": "the substrate's tests"
+  },
+  {
+   "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
+   "path": "docs/neural/*",
+   "why": "the substrate's evidence documents"
+  },
+  {
+   "class": "ACTIVE_NEURAL_SEMANTIC_LEAK",
+   "path": "SCIENTIFIC_AI_STATUS.md",
+   "why": "the current Scientific-AI status, generated from that evidence"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "FILE_DISPOSITION.csv",
+   "why": "generated by tools/file_disposition.py: each legacy file's disposition quotes what it contains"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/framework_boundary.py",
+   "why": "the active/legacy boundary counts mode labels"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/file_disposition.py",
+   "why": "classifies every file, legacy ones by what they contain"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/legacy_qta_claims.py",
+   "why": "enforces the legacy claims boundary, quoting the claims"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/claims_enforcement.py",
+   "why": "the generic claims boundary, naming what it excludes"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/generic_consistency.py",
+   "why": "states which legacy concepts the generic check excludes"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "path": "tools/mutations/*",
+   "why": "mutation specs keeping legacy behaviour under test"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "path": "tools/*.py",
+   "why": "a tool that reads or audits the legacy corpus by its names"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": ".github/*",
+   "why": "workflow comments recording why a step exists"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "path": "tests/test_framework_boundary.py",
+   "why": "the active/legacy boundary test"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "path": "tests/test_claims_boundary.py",
+   "why": "the claims boundary test"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "path": "tests/test_legacy_qta_claims.py",
+   "why": "the legacy claims boundary test"
+  },
+  {
+   "class": "TEST_OF_BOUNDARY",
+   "path": "tests/test_generic_consistency.py",
+   "why": "asserts the generic check never names legacy concepts"
+  },
+  {
+   "class": "LEGACY_COMPATIBILITY",
+   "path": "tests/*",
+   "why": "tests that exercise legacy modules and outputs"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "*.md",
+   "why": "prose"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "*.tex",
+   "why": "the manuscript"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "*.txt",
+   "why": "text records"
+  },
+  {
+   "class": "DOCUMENTATION_HISTORY",
+   "path": "docs/*",
+   "why": "documentation and records"
+  }
+ ],
+ "schema": "neural-legacy-semantic-audit/1",
+ "unclassified": 0
+}

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from .config import MultiphysicsConfig, default_config
 from .mesh_3d import Grid3DConfig
+from .numerics import require_converged, resolution_class
 from .thermal_3d_transient import solve_thermal_3d
 
 LABEL = "MODEL_ONLY FORECAST_ONLY NOT_MEASURED_IN_THIS_SYSTEM"
@@ -46,17 +47,33 @@ def _probe(res):
     return float(res.probe_timeseries_K()[-1])
 
 
+def rel_change_resolution(rel_change: float, *rtols: float) -> tuple:
+    """``(floor, class)`` for a relative change between solves integrated to
+    the relative tolerances ``rtols``.
+
+    Each solve is determined only to the tolerance it was integrated to; a
+    change between them smaller than the TIGHTEST of those tolerances is
+    below what any of the compared integrations was asked to establish,
+    whatever its digits. The time check's change was 0.0 on one backend and
+    1.29e-16 -- one ulp of the probe -- on another: the same fact, unchanged
+    to far below rtol, published once as an exact zero (D-2026-98)."""
+    floor = min(float(r) for r in rtols)
+    return floor, resolution_class(rel_change, floor)
+
+
 def convergence_report(cfg: MultiphysicsConfig | None = None,
                        ci: Grid3DConfig | None = None,
                        refined: Grid3DConfig | None = None) -> dict:
     cfg = cfg or default_config()
     ci = ci or CI
     refined = refined or REFINED
-    base = solve_thermal_3d(cfg, ci, n_eval=13)
+    base = require_converged(solve_thermal_3d(cfg, ci, n_eval=13),
+                             "convergence_report: CI-mesh solve")
     p0, hot0 = _probe(base), float(base.T_xyz(-1).max())
 
     # ---- mesh refinement ----
-    ref = solve_thermal_3d(cfg, refined, n_eval=13)
+    ref = require_converged(solve_thermal_3d(cfg, refined, n_eval=13),
+                            "convergence_report: refined-mesh solve")
     p1, hot1 = _probe(ref), float(ref.T_xyz(-1).max())
     mesh_rel = abs(p1 - p0) / max(abs(p1), 1e-30)
     hot_rel = abs(hot1 - hot0) / max(abs(hot1), 1e-30)
@@ -74,13 +91,22 @@ def convergence_report(cfg: MultiphysicsConfig | None = None,
                f"t_end/{MAX_STEP_DIVISOR_TIGHT:g} (halved)")
     try:
         sol.rtol = rtol0 * RTOL_TIGHTEN_FACTOR
-        tight = solve_thermal_3d(cfg, ci, n_eval=13,
-                                 max_step_divisor=MAX_STEP_DIVISOR_TIGHT)
+        tight = require_converged(
+            solve_thermal_3d(cfg, ci, n_eval=13,
+                             max_step_divisor=MAX_STEP_DIVISOR_TIGHT),
+            "convergence_report: tightened-integration solve")
     finally:
         sol.rtol = rtol0
     p2 = _probe(tight)
     time_rel = abs(p2 - p0) / max(abs(p2), 1e-30)
     time_ok = time_rel < TOL_TIME_REL
+    # What each relative change can resolve (rel_change_resolution): the
+    # mesh pair was integrated to rtol0 both times, the time pair to rtol0
+    # and to the tightened tolerance.
+    mesh_floor, probe_cls = rel_change_resolution(mesh_rel, rtol0, rtol0)
+    _, hot_cls = rel_change_resolution(hot_rel, rtol0, rtol0)
+    time_floor, time_cls = rel_change_resolution(
+        time_rel, rtol0, rtol0 * RTOL_TIGHTEN_FACTOR)
 
     return {
         "meaning": "numerical verification only (solution-change under mesh "
@@ -94,6 +120,9 @@ def convergence_report(cfg: MultiphysicsConfig | None = None,
             "probe_rel_change": mesh_rel,
             "hotspot_CI_K": hot0, "hotspot_refined_K": hot1,
             "hotspot_rel_change": hot_rel,
+            "rel_change_resolution_floor": mesh_floor,
+            "probe_rel_change_resolution": probe_cls,
+            "hotspot_rel_change_resolution": hot_cls,
             "tolerance": TOL_MESH_REL,
             "probe_tolerance": TOL_MESH_REL,
             "hotspot_tolerance": TOL_HOTSPOT_REL,
@@ -112,6 +141,8 @@ def convergence_report(cfg: MultiphysicsConfig | None = None,
             "target": "NV-layer probe temperature at t_end (K)",
             "probe_base_K": p0, "probe_tightened_K": p2,
             "rel_change": time_rel,
+            "rel_change_resolution_floor": time_floor,
+            "rel_change_resolution": time_cls,
             "tolerance": TOL_TIME_REL,
             "status": "DERIVED_CHECK" if time_ok else "CONDITIONAL",
             "stability_note": "implicit BDF; no CFL-limited explicit stepping",

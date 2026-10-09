@@ -1,0 +1,80 @@
+{
+ "title": "Restarting from checkpoints (R41): classified audit, recovery decided by it",
+ "note": "CR1-CR8: each checkpoint class told apart, NONE_USABLE and UNPARSEABLE never healthy, a checkpoint never used when none describes the log, the weaker trust reported, the governed runtime restarting through the audit.",
+ "suites": [
+  "tests/test_checkpoint_recovery.py",
+  "tests/test_harness_demo.py"
+ ],
+ "mutations": [
+  {
+   "name": "CR1_stale_called_foreign",
+   "path": "qta_agent/checkpoint.py",
+   "find": "                classified.append((seq, CP_AHEAD_OF_LOG))\n",
+   "replace": "                classified.append((seq, CP_FOREIGN_LOG))\n",
+   "rationale": "a checkpoint ahead of a truncated log reads as another log's"
+  },
+  {
+   "name": "CR2_corrupt_unclassified",
+   "path": "qta_agent/checkpoint.py",
+   "find": "                problems.append(f\"seq {seq}: {exc}\")\n                classified.append((seq, CP_CORRUPT))\n",
+   "replace": "                problems.append(f\"seq {seq}: {exc}\")\n",
+   "rationale": "a corrupt checkpoint disappears from the classification"
+  },
+  {
+   "name": "CR3_none_usable_healthy",
+   "path": "qta_agent/store.py",
+   "find": "                      refusal=None, healthy=audit.verdict == \"EMPTY\")\n",
+   "replace": "                      refusal=None, healthy=True)\n",
+   "rationale": "a recovery whose checkpoints are all useless reports health"
+  },
+  {
+   "name": "CR4_unparseable_healthy",
+   "path": "qta_agent/store.py",
+   "find": "                healthy=audit.verdict == \"USABLE\" and not refusal)\n",
+   "replace": "                healthy=not refusal)\n",
+   "rationale": "a corrupt newest checkpoint is skipped as if nothing were wrong"
+  },
+  {
+   "name": "CR5_checkpoint_when_none_usable",
+   "path": "qta_agent/store.py",
+   "find": "        if audit.verdict in (\"USABLE\", \"UNPARSEABLE\"):\n",
+   "replace": "        if audit.verdict != \"EMPTY\":\n",
+   "rationale": "a recovery reports CHECKPOINT_ASSISTED when nothing describes the log"
+  },
+  {
+   "name": "CR6_trust_overstated",
+   "path": "qta_agent/store.py",
+   "find": "                prefix_verified=store.loaded_prefix_verified,\n                refusal=refusal,\n",
+   "replace": "                prefix_verified=True,\n                refusal=refusal,\n",
+   "rationale": "a checkpoint-assisted load reports a verified prefix"
+  },
+  {
+   "name": "CR7_runtime_ignores_checkpoints",
+   "path": "qta_agent/governed_model.py",
+   "find": "        if checkpoints is not None:\n",
+   "replace": "        if False:\n",
+   "rationale": "the governed runtime replays from genesis whatever it is given, so checkpoint health gates nothing"
+  },
+  {
+   "name": "CR8_newest_not_selected",
+   "path": "qta_agent/store.py",
+   "find": "                checkpoint_seq=None if refusal else audit.describing[-1],\n",
+   "replace": "                checkpoint_seq=None if refusal else audit.describing[0],\n",
+   "rationale": "recovery reports the oldest usable checkpoint as the one it used"
+  },
+  {
+   "name": "CR9_a_byte_shortfall_is_read_as_lost_records",
+   "path": "qta_agent/checkpoint.py",
+   "find": "        if last is not None and last >= cp.seq:",
+   "replace": "        if False:",
+   "rationale": "D-2026-109: a foreign checkpoint whose records are longer is classed AHEAD_OF_LOG, records removed, instead of FOREIGN_LOG"
+  },
+  {
+   "name": "CR10_a_torn_tail_is_read_as_a_record",
+   "path": "qta_agent/checkpoint.py",
+   "find": "    lines = tail.split(b\"\\n\")[:-1]           # drop a torn or empty remainder",
+   "replace": "    lines = tail.split(b\"\\n\")",
+   "rationale": "the torn fragment after the last newline is parsed as the last record, so a crash mid-append hides the log's real head"
+  }
+ ]
+}

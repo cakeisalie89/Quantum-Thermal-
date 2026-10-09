@@ -2,6 +2,12 @@
 
 MODEL-ONLY / FORECAST-ONLY / PRE-EXPERIMENTAL. Zero PASS. No measured data.
 
+SCOPE. This is the Stage-10 adapter for the LEGACY finite-volume backends,
+and its status is its own. The registry's ``fenicsx`` element is the
+harness's independent verifier, ``scientific/checks/fenicsx_slab.py``,
+adopted on hosted evidence; nothing here is that, and nothing there makes
+this adapter adopted.
+
 FEniCSx is the intended route to an unstructured, higher-fidelity FEM thermal
 solve. It is **not adopted**: dolfinx is not a wheel-installable dependency,
 it is not in the container, and no result from it is canonical. What this

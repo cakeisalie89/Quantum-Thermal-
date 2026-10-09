@@ -1,0 +1,534 @@
+{
+ "title": "The canonical reference backend: a recipe that fixes the arithmetic, a runtime that is the declared one",
+ "note": "tools/reference_backend.py and reference_backend/ (D-2026-102): the recipe check refuses anything that leaves the arithmetic to the host (DYNAMIC_ARCH, a host TARGET, threads, NumPy runtime dispatch or a native baseline, forbidden flags in the spec or the scripts' code, FMA contraction, a passthrough CPU, an unstated FP policy, unpinned sources, scripts that do not apply the spec); the conformance check, run inside the reference runtime, refuses a backend that is not the declared one, failing closed on anything unrecorded; the reference identity keeps what the dispatchers saw and leaves out the host's cpuinfo. RBS1-RBS15 mutate the recipe itself -- spec.json, build.sh, run.sh -- as directive 7 s.37 lists: each must be refused by the recipe check the CI runs.",
+ "suites": [
+  "tests/test_reference_backend.py"
+ ],
+ "mutations": [
+  {
+   "name": "RB1_dynamic_arch_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "    if ob.get(\"DYNAMIC_ARCH\") != \"0\":\n",
+   "replace": "    if False:\n",
+   "rationale": "the host picks the OpenBLAS kernel at load time and the recipe still passes"
+  },
+  {
+   "name": "RB2_a_host_target_is_one_target",
+   "path": "tools/reference_backend.py",
+   "find": "    if not ob.get(\"TARGET\") or ob[\"TARGET\"].upper() in (\"HOST\", \"NATIVE\"):\n",
+   "replace": "    if not ob.get(\"TARGET\"):\n",
+   "rationale": "TARGET=HOST builds for whatever machine compiles it"
+  },
+  {
+   "name": "RB3_threading_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "    if ob.get(\"USE_THREAD\") != \"0\" or ob.get(\"NUM_THREADS\") != \"1\" or \\\n            ob.get(\"USE_OPENMP\") != \"0\":\n",
+   "replace": "    if ob.get(\"USE_THREAD\") != \"0\":\n",
+   "rationale": "a threaded OpenBLAS reorders reductions by thread count"
+  },
+  {
+   "name": "RB4_numpy_dispatch_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "    if np_.get(\"cpu-dispatch\") != \"none\":\n",
+   "replace": "    if np_.get(\"cpu-dispatch\") is None:\n",
+   "rationale": "NumPy keeps AVX2/AVX-512 implementations for the runtime dispatcher to prefer"
+  },
+  {
+   "name": "RB5_a_native_baseline_is_fixed",
+   "path": "tools/reference_backend.py",
+   "find": "    if np_.get(\"cpu-baseline\") in (\"native\", \"max\", \"\", None):\n",
+   "replace": "    if np_.get(\"cpu-baseline\") in (\"\", None):\n",
+   "rationale": "cpu-baseline=native compiles the build host's ISA into every function"
+  },
+  {
+   "name": "RB6_forbidden_flags_only_in_the_spec",
+   "path": "tools/reference_backend.py",
+   "find": "        if f in flags or f in build or f in run:\n",
+   "replace": "        if f in flags:\n",
+   "rationale": "a -march=native in build.sh itself passes the recipe check"
+  },
+  {
+   "name": "RB7_comments_are_code",
+   "path": "tools/reference_backend.py",
+   "find": "    return \"\\n\".join(line for line in text.splitlines()\n                     if not line.lstrip().startswith(\"#\"))\n",
+   "replace": "    return text\n",
+   "rationale": "a script that says it never uses -march=native is refused for saying so"
+  },
+  {
+   "name": "RB8_fma_contraction_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "        if \"-ffp-contract=off\" not in text:\n",
+   "replace": "        if False:\n",
+   "rationale": "the compiler fuses multiply-adds where the target has FMA"
+  },
+  {
+   "name": "RB9_thread_variables_are_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "        if v != \"1\":\n            out.append(f\"{k} is {v!r}, not 1\")\n",
+   "replace": "        pass\n",
+   "rationale": "the runtime may start as many threads as the host has cores"
+  },
+  {
+   "name": "RB10_a_passthrough_cpu_is_a_software_cpu",
+   "path": "tools/reference_backend.py",
+   "find": "    if cpu.get(\"cpu\", \"\").lower() in PASSTHROUGH_CPUS:\n",
+   "replace": "    if cpu.get(\"cpu\", \"\").lower() == \"native\":\n",
+   "rationale": "-cpu host/max hands the physical CPU's features to the dispatchers"
+  },
+  {
+   "name": "RB11_no_emulator_is_needed",
+   "path": "tools/reference_backend.py",
+   "find": "    if cpu.get(\"emulator\") != \"qemu-x86_64\":\n",
+   "replace": "    if False:\n",
+   "rationale": "the recipe runs on the physical CPU and calls it a software CPU"
+  },
+  {
+   "name": "RB12_an_unresolved_fp_policy_is_stated",
+   "path": "tools/reference_backend.py",
+   "find": "        if not v or \"UNRESOLVED\" in v.upper():\n",
+   "replace": "        if v is None:\n",
+   "rationale": "an empty or UNRESOLVED floating-point policy passes as stated"
+  },
+  {
+   "name": "RB13_sources_need_not_be_pinned",
+   "path": "tools/reference_backend.py",
+   "find": "        if not _HEX64.match(sha):\n",
+   "replace": "        if not sha:\n",
+   "rationale": "a source fetched by name alone, any bytes accepted"
+  },
+  {
+   "name": "RB14_build_script_need_not_apply_the_spec",
+   "path": "tools/reference_backend.py",
+   "find": "        if needle not in build:\n",
+   "replace": "        if False:\n",
+   "rationale": "build.sh may ignore the declared DYNAMIC_ARCH/TARGET/dispatch"
+  },
+  {
+   "name": "RB15_run_script_need_not_apply_the_spec",
+   "path": "tools/reference_backend.py",
+   "find": "        if needle not in run:\n",
+   "replace": "        if False:\n",
+   "rationale": "run.sh may run on the host CPU with the caller's environment"
+  },
+  {
+   "name": "RB16_host_cpu_passthrough_in_run_is_accepted",
+   "path": "tools/reference_backend.py",
+   "find": "    if re.search(r\"-cpu\\s+(host|max)\\b\", run):\n",
+   "replace": "    if False:\n",
+   "rationale": "run.sh passes -cpu max after the declared CPU and the last one wins"
+  },
+  {
+   "name": "RB17_an_unresolved_backend_conforms",
+   "path": "tools/reference_backend.py",
+   "find": "    if not isinstance(rt, dict) or record.get(\"backend_status\") != \"RESOLVED\":\n",
+   "replace": "    if not isinstance(rt, dict):\n",
+   "rationale": "a backend the probe could not name is certified as the reference"
+  },
+  {
+   "name": "RB18_dispatch_outside_the_baseline_conforms",
+   "path": "tools/reference_backend.py",
+   "find": "    if not targets or not all(t.startswith(\"baseline\") for t in targets):\n",
+   "replace": "    if not targets:\n",
+   "rationale": "NumPy ran AVX2 kernels and the runtime conforms"
+  },
+  {
+   "name": "RB19_compiled_dispatch_is_ignored",
+   "path": "tools/reference_backend.py",
+   "find": "    if fp.get(\"compiled_dispatch\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "a NumPy built with dispatch targets conforms while the CPU happens not to offer them"
+  },
+  {
+   "name": "RB20_baseline_is_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "    if (n.get(\"simd\") or {}).get(\"baseline\") != exp[\"numpy_baseline\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "a NumPy built for X86_V3 conforms"
+  },
+  {
+   "name": "RB21_cpu_features_are_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "        if f in (n.get(\"cpu_features\") or []):\n",
+   "replace": "        if False:\n",
+   "rationale": "the CPU offers AVX2/FMA: not the declared software CPU, and it conforms"
+  },
+  {
+   "name": "RB22_no_openblas_conforms",
+   "path": "tools/reference_backend.py",
+   "find": "    if not bundled:\n        out.append(\"no OpenBLAS was identified\")\n",
+   "replace": "    pass\n",
+   "rationale": "a runtime with no identified BLAS conforms vacuously"
+  },
+  {
+   "name": "RB23_kernel_is_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "        if b[\"kernel\"] != exp[\"openblas_kernel\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "OpenBLAS runs Haswell kernels and the runtime conforms"
+  },
+  {
+   "name": "RB24_blas_threads_are_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "        if b[\"threads\"] != exp[\"openblas_threads\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "OpenBLAS runs 4 threads and the runtime conforms"
+  },
+  {
+   "name": "RB25_blas_parallel_is_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "        if b[\"parallel\"] != exp[\"openblas_parallel\"]:\n",
+   "replace": "        if False:\n",
+   "rationale": "a threaded OpenBLAS build conforms"
+  },
+  {
+   "name": "RB26_dynamic_arch_config_is_accepted",
+   "path": "tools/reference_backend.py",
+   "find": "            if token in str(b[\"config\"]):\n",
+   "replace": "            if False:\n",
+   "rationale": "a DYNAMIC_ARCH OpenBLAS conforms because it happened to pick the right kernel"
+  },
+  {
+   "name": "RB27_unrecorded_thread_variable_is_as_declared",
+   "path": "tools/reference_backend.py",
+   "find": "        if variables.get(k) != v:          # unrecorded is not \"as declared\"\n",
+   "replace": "        if variables.get(k, v) != v:\n",
+   "rationale": "a thread variable the probe never recorded passes as 1"
+  },
+  {
+   "name": "RB28_interpreter_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "    if (rt.get(\"interpreter\") or {}).get(\"sha256\") != \\\n            spec[\"sources\"][\"python\"][\"binary_sha256\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "another build of Python 3.12 conforms"
+  },
+  {
+   "name": "RB29_no_build_record_skips_the_libraries",
+   "path": "tools/reference_backend.py",
+   "find": "    if not rootfs_libraries:\n        out.append(\"no build record names the root filesystem's libraries: \"\n                   \"the C and math libraries cannot be checked\")\n    else:\n",
+   "replace": "    if rootfs_libraries:\n",
+   "rationale": "without BUILD_RECORD.json the host's libm is accepted"
+  },
+  {
+   "name": "RB30_libraries_are_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "            if got is None or got != rootfs_libraries.get(name):\n",
+   "replace": "            if got is None:\n",
+   "rationale": "the host's libm, not the rootfs's, conforms"
+  },
+  {
+   "name": "RB31_flushed_subnormals_conform",
+   "path": "tools/reference_backend.py",
+   "find": "    if not fp.get(\"subnormal_survives\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "FTZ/DAZ on and the runtime conforms"
+  },
+  {
+   "name": "RB32_rounding_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "    if not fp.get(\"ties_to_even\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "a non-default rounding mode conforms"
+  },
+  {
+   "name": "RB33_identity_includes_host_cpuinfo",
+   "path": "tools/reference_backend.py",
+   "find": "    return {\"spec\": digest(spec),\n",
+   "replace": "    return {\"spec\": digest(spec), \"cpu\": record.get(\"cpu\"),\n",
+   "rationale": "two hosts on the same software CPU never share an identity: qemu-user shows each the host's cpuinfo"
+  },
+  {
+   "name": "RB34_identity_drops_numpy_runtime",
+   "path": "tools/reference_backend.py",
+   "find": "            \"numpy\": rt.get(\"numpy\"), \"blas\": rt.get(\"blas\"),\n",
+   "replace": "            \"blas\": rt.get(\"blas\"),\n",
+   "rationale": "two runs whose NumPy saw different CPUs share an identity"
+  },
+  {
+   "name": "RB35_identity_drops_system_libraries",
+   "path": "tools/reference_backend.py",
+   "find": "            \"system_libraries\": rt.get(\"system_libraries\"),\n",
+   "replace": "            \"system_libraries\": None,\n",
+   "rationale": "two runs on different libm builds share an identity"
+  },
+  {
+   "name": "RB36_identity_drops_the_spec",
+   "path": "tools/reference_backend.py",
+   "find": "    return {\"spec\": digest(spec),\n",
+   "replace": "    return {\n",
+   "rationale": "a different declared software CPU yields the same identity"
+  },
+  {
+   "name": "RB37_identity_drops_the_native_build",
+   "path": "tools/reference_backend.py",
+   "find": "            \"native\": record.get(\"native\"),\n",
+   "replace": "            \"native\": None,\n",
+   "rationale": "a rebuilt NumPy or SciPy with other native bytes shares the reference identity"
+  },
+  {
+   "name": "RB38_libm_is_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "        for key, name in ((\"c\", \"libc.so.6\"), (\"m\", \"libm.so.6\"),\n",
+   "replace": "        for key, name in ((\"c\", \"libc.so.6\"),\n",
+   "rationale": "the host's libm, whose IFUNCs pick FMA variants, passes as the rootfs's"
+  },
+  {
+   "name": "RB39_the_loader_is_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "                          (\"loader\", \"ld-linux-x86-64.so.2\")):\n            got",
+   "replace": "                          ):\n            got",
+   "rationale": "a different dynamic loader resolves the IFUNCs and passes"
+  },
+  {
+   "name": "RB40_identity_drops_the_virtual_cpu",
+   "path": "tools/reference_backend.py",
+   "find": "    return {\"spec\": digest(spec),\n",
+   "replace": "    spec = dict(spec, software_cpu=None)\n    return {\"spec\": digest(spec),\n",
+   "rationale": "a different declared software CPU yields the same identity"
+  },
+  {
+   "name": "RB41_verify_certifies_whatever_runs",
+   "path": "tools/reference_backend.py",
+   "find": "    problems = conformance(spec, record, fp_environment(), rootfs)\n",
+   "replace": "    problems = []\n",
+   "rationale": "the runtime identity is accepted however it differs from the declaration"
+  },
+  {
+   "name": "RB42_identity_named_despite_nonconformance",
+   "path": "tools/reference_backend.py",
+   "find": "    identity = reference_identity(spec, record) if not problems else None\n",
+   "replace": "    identity = reference_identity(spec, record)\n",
+   "rationale": "a non-conformant runtime still publishes a reference identity digest"
+  },
+  {
+   "name": "RB43_verify_ignores_the_build_record",
+   "path": "tools/reference_backend.py",
+   "find": "        rootfs = json.loads(rec_path.read_text())[\"rootfs_libraries\"]\n",
+   "replace": "        rootfs = None\n",
+   "rationale": "the rootfs's library digests are never compared"
+  },
+  {
+   "name": "RB44_a_patch_is_not_compared_to_its_pin",
+   "path": "tools/reference_backend.py",
+   "find": "        elif sha256(ROOT / pt[\"path\"]) != pt[\"sha256\"]:\n",
+   "replace": "        elif False:\n",
+   "rationale": "an edited patch file is applied to the reference OpenBLAS unnoticed"
+  },
+  {
+   "name": "RB45_a_patch_need_not_be_explained",
+   "path": "tools/reference_backend.py",
+   "find": "        if pt.get(\"applies_to\") != \"openblas\" or not pt.get(\"reason\") or \\\n                not _HEX64.match(pt.get(\"sha256\") or \"\"):\n",
+   "replace": "        if not _HEX64.match(pt.get(\"sha256\") or \"\"):\n",
+   "rationale": "a patch with no stated reason or target changes the reference source"
+  },
+  {
+   "name": "RB46_patch_verification_in_build_is_not_checked",
+   "path": "tools/reference_backend.py",
+   "find": "    if spec.get(\"patches\") and not re.search(\n",
+   "replace": "    if False and not re.search(\n",
+   "rationale": "build.sh applies patches it never verified"
+  },
+  {
+   "name": "RBT1_one_cpu_class_is_two_hosts",
+   "path": "tools/reference_backend.py",
+   "find": "    if host_class(a[\"physical_host\"]) == host_class(b[\"physical_host\"]):\n",
+   "replace": "    if False:\n",
+   "rationale": "the same machine twice is reported as host independence"
+  },
+  {
+   "name": "RBT2_reference_identities_are_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "    if a[\"identity_digest\"] != b[\"identity_digest\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "two hosts whose reference runtimes differ are compared byte for byte as if they were one"
+  },
+  {
+   "name": "RBT3_a_missing_output_is_agreement",
+   "path": "tools/reference_backend.py",
+   "find": "              if a[\"outputs\"].get(n) is None or\n              a[\"outputs\"].get(n) != b[\"outputs\"].get(n)]\n",
+   "replace": "              if a[\"outputs\"].get(n) != b[\"outputs\"].get(n)]\n",
+   "rationale": "a file neither host produced counts as identical"
+  },
+  {
+   "name": "RBT4_exempt_files_are_compared",
+   "path": "tools/reference_backend.py",
+   "find": "    scope = sorted(set(declared) - set(exempt))\n",
+   "replace": "    scope = sorted(set(declared))\n",
+   "rationale": "the exempt file's run-to-run bytes fail a proof they are not part of"
+  },
+  {
+   "name": "RBT5_conformance_is_not_required",
+   "path": "tools/reference_backend.py",
+   "find": "        if rec.get(\"conformance\") != [] or not rec.get(\"identity_digest\"):\n",
+   "replace": "        if not rec.get(\"identity_digest\"):\n",
+   "rationale": "a host whose runtime was not the declared one takes part in the proof"
+  },
+  {
+   "name": "RBT6_emulators_are_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "    if not a.get(\"emulator_sha256\") or \\\n            a.get(\"emulator_sha256\") != b.get(\"emulator_sha256\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "two different emulator builds are the same software CPU"
+  },
+  {
+   "name": "RBT7_recipes_are_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "    if a[\"spec_digest\"] != b[\"spec_digest\"]:\n",
+   "replace": "    if False:\n",
+   "rationale": "two hosts running different recipes are compared"
+  },
+  {
+   "name": "RBT8_the_marketing_name_is_the_class",
+   "path": "tools/reference_backend.py",
+   "find": "    return (host.get(\"vendor\"), host.get(\"family\"), host.get(\"model\"),\n            host.get(\"flags_sha256\"))\n",
+   "replace": "    return (host.get(\"vendor\"), host.get(\"family\"), host.get(\"model\"),\n            host.get(\"flags_sha256\"), host.get(\"model_name\"))\n",
+   "rationale": "one CPU sold under two names is two hosts"
+  },
+  {
+   "name": "RBT9_the_feature_set_is_not_the_class",
+   "path": "tools/reference_backend.py",
+   "find": "    return (host.get(\"vendor\"), host.get(\"family\"), host.get(\"model\"),\n            host.get(\"flags_sha256\"))\n",
+   "replace": "    return (host.get(\"vendor\"), host.get(\"family\"), host.get(\"model\"))\n",
+   "rationale": "a host with and without AVX-512 is one CPU class"
+  },
+  {
+   "name": "RBT10_no_scope_is_a_proof",
+   "path": "tools/reference_backend.py",
+   "find": "    if not scope:\n        return \"REFUSED\", [\"no canonical outputs are declared\"]\n",
+   "replace": "    pass\n",
+   "rationale": "zero files compared is a two-host proof"
+  },
+  {
+   "name": "RBT11_the_command_passes_whatever_the_verdict",
+   "path": "tools/reference_backend.py",
+   "find": "        return 0 if verdict == TWO_HOST_IDENTICAL else 1\n",
+   "replace": "        return 0\n",
+   "rationale": "the workflow step is green for BYTES_DIFFER"
+  },
+  {
+   "name": "RBT12_the_physical_host_need_not_be_recorded",
+   "path": "tools/reference_backend.py",
+   "find": "        if not rec.get(\"physical_host\") or \\\n                not rec[\"physical_host\"].get(\"flags_sha256\"):\n",
+   "replace": "        if False:\n",
+   "rationale": "a run whose CPU nobody recorded is counted as a second host"
+  },
+  {
+   "name": "RBT13_generators_are_not_compared",
+   "path": "tools/reference_backend.py",
+   "find": "    if not a.get(\"generator_digest\") or \\\n            a.get(\"generator_digest\") != b.get(\"generator_digest\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "host A's outputs from one generator are compared with host B's from another"
+  },
+  {
+   "name": "RBS1_spec_enables_dynamic_arch",
+   "path": "reference_backend/spec.json",
+   "find": "    \"DYNAMIC_ARCH\": \"0\",\n",
+   "replace": "    \"DYNAMIC_ARCH\": \"1\",\n",
+   "rationale": "OpenBLAS picks its kernel on whatever CPU loads it"
+  },
+  {
+   "name": "RBS2_spec_targets_the_host",
+   "path": "reference_backend/spec.json",
+   "find": "    \"TARGET\": \"NEHALEM\",\n",
+   "replace": "    \"TARGET\": \"HOST\",\n",
+   "rationale": "the build machine's CPU decides the kernels"
+  },
+  {
+   "name": "RBS3_spec_enables_numpy_dispatch",
+   "path": "reference_backend/spec.json",
+   "find": "    \"cpu-dispatch\": \"none\"\n",
+   "replace": "    \"cpu-dispatch\": \"max -xop -fma4\"\n",
+   "rationale": "NumPy carries AVX2/AVX-512 loops for the runtime dispatcher"
+  },
+  {
+   "name": "RBS4_spec_native_numpy_baseline",
+   "path": "reference_backend/spec.json",
+   "find": "    \"cpu-baseline\": \"X86_V2\",\n",
+   "replace": "    \"cpu-baseline\": \"native\",\n",
+   "rationale": "the build host's ISA becomes NumPy's baseline"
+  },
+  {
+   "name": "RBS5_spec_raises_the_blas_threads",
+   "path": "reference_backend/spec.json",
+   "find": "    \"OPENBLAS_NUM_THREADS\": \"1\",\n",
+   "replace": "    \"OPENBLAS_NUM_THREADS\": \"4\",\n",
+   "rationale": "reductions are split by thread count"
+  },
+  {
+   "name": "RBS6_spec_threaded_openblas_build",
+   "path": "reference_backend/spec.json",
+   "find": "    \"NUM_THREADS\": \"1\",\n",
+   "replace": "    \"NUM_THREADS\": \"64\",\n",
+   "rationale": "OpenBLAS is built to start up to 64 threads"
+  },
+  {
+   "name": "RBS7_spec_host_passthrough_cpu",
+   "path": "reference_backend/spec.json",
+   "find": "    \"cpu\": \"Nehalem-v1\",\n",
+   "replace": "    \"cpu\": \"max\",\n",
+   "rationale": "qemu offers the host's features to the dispatchers"
+  },
+  {
+   "name": "RBS8_spec_unresolved_fp_policy",
+   "path": "reference_backend/spec.json",
+   "find": "    \"fast_math\": \"never\",\n",
+   "replace": "    \"fast_math\": \"UNRESOLVED\",\n",
+   "rationale": "the floating-point policy is left open"
+  },
+  {
+   "name": "RBS9_spec_allows_fma_contraction",
+   "path": "reference_backend/spec.json",
+   "find": "  \"cflags\": \"-O2 -g0 -fno-fast-math -ffp-contract=off\",\n",
+   "replace": "  \"cflags\": \"-O2 -g0 -fno-fast-math\",\n",
+   "rationale": "gcc contracts a*b+c into FMA where the target has it"
+  },
+  {
+   "name": "RBS10_build_ignores_the_declared_dispatch",
+   "path": "reference_backend/build.sh",
+   "find": "-Csetup-args=-Dcpu-dispatch=\"$QTA_REF_NP_CPU_DISPATCH\"",
+   "replace": "-Csetup-args=-Dcpu-dispatch=max",
+   "rationale": "build.sh builds NumPy with every dispatch target whatever the spec says"
+  },
+  {
+   "name": "RBS11_build_ignores_the_declared_target",
+   "path": "reference_backend/build.sh",
+   "find": "OB=(TARGET=\"$QTA_REF_OB_TARGET\" DYNAMIC_ARCH=\"$QTA_REF_OB_DYNAMIC_ARCH\"",
+   "replace": "OB=(DYNAMIC_ARCH=1",
+   "rationale": "build.sh lets OpenBLAS detect the build host and dispatch at load time"
+  },
+  {
+   "name": "RBS12_build_trusts_what_it_fetches",
+   "path": "reference_backend/build.sh",
+   "find": "  echo \"$2  $3\" | sha256sum -c --quiet - || die \"$3 does not have the pinned sha256\"\n",
+   "replace": "  true\n",
+   "rationale": "any bytes at the source URL are built"
+  },
+  {
+   "name": "RBS13_run_on_the_host_cpu",
+   "path": "reference_backend/run.sh",
+   "find": "\"$QTA_REF_EMULATOR\" -cpu \"$QTA_REF_CPU\" -L",
+   "replace": "\"$QTA_REF_EMULATOR\" -cpu max -L",
+   "rationale": "run.sh hands the host's CPU features to the runtime"
+  },
+  {
+   "name": "RBS14_run_on_the_host_userspace",
+   "path": "reference_backend/run.sh",
+   "find": "-cpu \"$QTA_REF_CPU\" -L \"$QTA_REF_PREFIX/rootfs\" \\\n",
+   "replace": "-cpu \"$QTA_REF_CPU\" \\\n",
+   "rationale": "the host's libc, libm and loader run the reference"
+  },
+  {
+   "name": "RBS15_run_inherits_the_environment",
+   "path": "reference_backend/run.sh",
+   "find": "exec env -i \\\n",
+   "replace": "exec env \\\n",
+   "rationale": "the caller's OPENBLAS_CORETYPE or NPY_DISABLE_CPU_FEATURES reach the reference"
+  },
+  {
+   "name": "RBS16_build_applies_unverified_patches",
+   "path": "reference_backend/build.sh",
+   "find": "    echo \"$ps  $pf\" | sha256sum -c --quiet - || die \"$pf does not have the pinned sha256\"\n",
+   "replace": "    true\n",
+   "rationale": "whatever the patch file says is compiled into the reference"
+  }
+ ]
+}

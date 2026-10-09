@@ -1,0 +1,301 @@
+# Independent numerical verifiers and the FMI boundary, executed on a hosted
+# runner (Scientific-AI harness completion programme).
+#
+# WHAT EACH JOB ANSWERS
+#   fenicsx -- does the finite-element path run, in an environment created
+#              from its lock and checked package by package, and does it
+#              behave as an independent verifier: convergence at the
+#              a-priori orders, reduction to the 1D slab, energy balance,
+#              determinism, and rejection of three deliberately wrong
+#              inputs? (tools/fenicsx_acceptance.py)
+#   fmi     -- does a real FMI 3.0 FMU build, load in an independent
+#              runtime (fmpy), step, restore its state, keep its units and
+#              claim boundary, agree with the closed form, and is every
+#              tampered copy refused? (tools/fmi_acceptance.py)
+#   end-to-end -- the generic demonstration with both runtimes, through
+#              the Snakemake rule: FEniCSx admits the slab result and the
+#              fault FMU (the negative twin) is REJECTED by the independent
+#              check (tools/harness_demo.py; the judge decides the exit).
+#   ro-crate -- does the RO-Crate community's validator (roc-validator,
+#              profile ro-crate-1.1, from a hash-pinned lock) agree with
+#              this repository's own on the committed crate, and do both
+#              refuse four broken ones? A disagreement fails the job and is
+#              reported, never resolved (tools/ro_crate_conformance.py).
+#   performance-telemetry -- the R49 guards on a hosted runner: every
+#              DETERMINISTIC_WORK counter at its invariant (gating), every
+#              ENVIRONMENT_SENSITIVE_TIMING shape under its gross bound, and
+#              all of it published with the runner's identity as an
+#              artifact. Linux /proc is assumed and recorded, not implied
+#              portable (tools/performance_baseline.py --telemetry).
+#   rust-kernels -- does the selective-Rust decision re-derive on this
+#              runner? The crate is built twice with a pinned toolchain (the
+#              shared objects must be byte-identical), every kernel is
+#              measured in three NumPy dispatch configurations, timed, and
+#              its call sites counted; each committed decision must be what
+#              this measurement decides (tools/rust_kernel_decision.py).
+#
+# NON-AUTHORITATIVE. Neither job can move a gate, a threshold or an authority
+# state: contents: read and nothing else. Their products are evidence --
+# acceptance reports uploaded as artifacts, recorded per commit.
+#
+# PINNED BY COMMIT SHA (RELEASE_POLICY.md #3): every `uses:` below is an
+# immutable commit object, the same ones the repository's other workflows
+# pin.
+name: harness-integrations
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "integrations/**"
+      - "scientific/**"
+      - "tools/fenicsx_env.py"
+      - "tools/fenicsx_acceptance.py"
+      - "tools/fmi_build.py"
+      - "tools/isolated_runtime.py"
+      - "tools/fmi_acceptance.py"
+      - "tests/test_harness_integrations.py"
+      - "tools/harness_demo.py"
+      - "tests/test_harness_demo.py"
+      - "Snakefile"
+      - "rust/**"
+      - "ro_crate_tools.py"
+      - "ro-crate/**"
+      - "tools/ro_crate_conformance.py"
+      - "qta_multiphysics/stack/rust_kernel.py"
+      - "tools/rust_kernel_decision.py"
+      - "tools/performance_baseline.py"
+      - "tests/test_agent_performance.py"
+      - "qta_agent/**"
+      - "docs/rust_kernel_decisions.json"
+      - ".github/workflows/harness-integrations.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+  pull_request:
+  workflow_dispatch:
+permissions: {}            # default-deny
+jobs:
+  fenicsx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: the lock and its sha256 record agree
+        run: uv run python tools/fenicsx_env.py check-lock
+      - name: create the FEniCSx environment from the lock, every package hashed
+        run: |
+          set -euo pipefail
+          uv run python tools/fenicsx_env.py create \
+            --prefix "$RUNNER_TEMP/fenicsx" --root "$RUNNER_TEMP/mamba" \
+            | tee fenicsx_environment.json
+      - name: FEniCSx acceptance (A-F), negative controls included
+        run: |
+          set -euo pipefail
+          QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
+            uv run python tools/fenicsx_acceptance.py --out fenicsx_acceptance.json
+      - name: the integration tests, with FEniCSx REQUIRED (a skip is a failure)
+        # the whole file, not a -k selection: test names do not all carry
+        # the runtime's name, and a selection that matches nothing passes
+        run: |
+          QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
+          QTA_INTEGRATIONS_REQUIRED=fenicsx \
+            uv run python -m pytest -q -rs tests/test_harness_integrations.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: fenicsx-acceptance
+          path: |
+            fenicsx_acceptance.json
+            fenicsx_environment.json
+          if-no-files-found: error
+
+  fmi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: create the FMI runtime (fmpy) from its hash-pinned lock
+        run: |
+          set -euo pipefail
+          uv run python tools/isolated_runtime.py create fmi --prefix "$RUNNER_TEMP/fmi-runtime" \
+            | tee fmi_runtime.json
+      - name: the FMU builds from the vendored headers, twice, byte-identically
+        # the build tool run directly, on the real tree: it refuses headers
+        # whose sha256 is not the recorded one, and two builds on one host
+        # must give the same archive
+        run: |
+          set -euo pipefail
+          uv run python tools/fmi_build.py --out fmu_build_a > fmu_build_a.json
+          uv run python tools/fmi_build.py --out fmu_build_b > fmu_build_b.json
+          python3 -c "import json,sys; a,b=(json.load(open(f)) for f in sys.argv[1:]); assert a['fmu_sha256']==b['fmu_sha256'], (a,b); print('fmu', a['fmu_sha256'])" fmu_build_a.json fmu_build_b.json
+      - name: FMI 3.0 acceptance (P1-P5, tamper refusals, fault FMU)
+        run: |
+          set -euo pipefail
+          QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
+            uv run python tools/fmi_acceptance.py --work fmi_work --out fmi_acceptance.json
+      - name: the integration tests, with FMI REQUIRED (a skip is a failure)
+        run: |
+          QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
+          QTA_INTEGRATIONS_REQUIRED=fmi \
+            uv run python -m pytest -q -rs tests/test_harness_integrations.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: fmi-acceptance
+          path: |
+            fmi_acceptance.json
+            fmi_runtime.json
+            fmi_work/thermal_rc2.fmu
+          if-no-files-found: error
+
+  end-to-end:
+    # Section 48 with both runtimes: the generic demonstration through the
+    # Snakemake default target's rule, FEniCSx admitting the slab result
+    # (an INDEPENDENT_IMPLEMENTATION check) and the FMU leg with its negative
+    # twin -- the fault FMU, whose own invariants hold, REJECTED by the
+    # independent check. The rule exits non-zero unless the judge accepts,
+    # and the tests then run with both runtimes REQUIRED.
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: both runtimes, each from its own lock
+        run: |
+          set -euo pipefail
+          uv run python tools/fenicsx_env.py create \
+            --prefix "$RUNNER_TEMP/fenicsx" --root "$RUNNER_TEMP/mamba" \
+            | tee fenicsx_environment.json
+          uv run python tools/isolated_runtime.py create fmi \
+            --prefix "$RUNNER_TEMP/fmi-runtime" | tee fmi_runtime.json
+      - name: the demonstration, through the generic Snakemake rule
+        run: |
+          set -euo pipefail
+          export QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python"
+          export QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python"
+          uv run snakemake harness_demo --cores 1 --forcerun harness_demo
+          cp verification/stage10/harness_demo_report.json .
+      - name: the demonstration's tests, both runtimes REQUIRED
+        run: |
+          QTA_FENICSX_PYTHON="$RUNNER_TEMP/fenicsx/bin/python" \
+          QTA_FMI_PYTHON="$RUNNER_TEMP/fmi-runtime/bin/python" \
+          QTA_INTEGRATIONS_REQUIRED=fenicsx,fmi \
+            uv run python -m pytest -q -rs tests/test_harness_demo.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: end-to-end-demonstration
+          path: |
+            harness_demo_report.json
+            fenicsx_environment.json
+            fmi_runtime.json
+          if-no-files-found: error
+
+  ro-crate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: the validator runtime, from its hash-pinned lock
+        run: |
+          set -euo pipefail
+          uv run python tools/isolated_runtime.py create rocrate --prefix "$RUNNER_TEMP/roc" \
+            | tee ro_crate_runtime.json
+      - name: both validators on the committed crate and four broken ones
+        run: |
+          uv run python tools/ro_crate_conformance.py \
+            --validator "$RUNNER_TEMP/roc/bin/rocrate-validator" --out ro_crate_conformance.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: ro-crate-conformance
+          path: |
+            ro_crate_conformance.json
+            ro_crate_runtime.json
+          if-no-files-found: error
+
+  performance-telemetry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: the guards, classed and published with the runner's identity
+        run: uv run python tools/performance_baseline.py --telemetry performance_telemetry.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: performance-telemetry
+          path: performance_telemetry.json
+          if-no-files-found: error
+
+  rust-kernels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: "1.94.1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+        with: {persist-credentials: false}
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86   # v5
+      - run: uv sync --frozen --all-groups
+      - name: the pinned Rust toolchain
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustc --version
+      - name: build the extension twice; the shared objects must be byte-identical
+        run: |
+          set -euo pipefail
+          for i in 1 2; do
+            CARGO_TARGET_DIR="$RUNNER_TEMP/target$i" uvx --from maturin==1.9.4 \
+              maturin build --release --manifest-path rust/qta_kernels/Cargo.toml \
+              -i .venv/bin/python --out "$RUNNER_TEMP/wheels$i"
+            unzip -p "$RUNNER_TEMP"/wheels$i/*.whl 'qta_kernels/*.so' \
+              | sha256sum | tee "so$i.sha256"
+          done
+          cmp so1.sha256 so2.sha256
+      - name: install the build into this job's environment only
+        run: uv pip install --python .venv/bin/python "$RUNNER_TEMP"/wheels1/*.whl
+      - name: measure on this runner; every committed decision must re-derive
+        run: |
+          set -euo pipefail
+          uv run --no-sync python tools/rust_kernel_decision.py measure \
+            --python .venv/bin/python --out rust_measurement.json
+          uv run --no-sync python tools/rust_kernel_decision.py check rust_measurement.json
+      - name: the Rust tests, with the extension REQUIRED (a skip is a failure)
+        run: |
+          QTA_RUST_REQUIRED=1 .venv/bin/python -m pytest -q tests/test_stage10_stack.py \
+            -k "rust or Rust or parity or dispatch or kernel"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
+        if: always()
+        with:
+          name: rust-kernel-measurement
+          path: |
+            rust_measurement.json
+            so1.sha256
+            so2.sha256
+          if-no-files-found: error

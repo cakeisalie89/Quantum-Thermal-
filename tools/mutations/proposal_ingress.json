@@ -1,0 +1,205 @@
+{
+ "title": "AI proposal ingress: non-authority, content addressing, governed submission, second reader; D-2026-105",
+ "note": "PI1-PI16 the envelope and the ingress; PI17-PI18 the anchored receipt view (D-2026-119); SR1-SR7 the second reader's restated envelope rules; AU1-AU2 the distinct-actor pickup in the gate and in the reader; GM1 the resumable decision.",
+ "suites": [
+  "tests/test_proposal_ingress.py"
+ ],
+ "mutations": [
+  {
+   "name": "PI1_authority_any",
+   "path": "qta_agent/proposals.py",
+   "find": "        if rec[\"authority\"] != AUTHORITY:\n",
+   "replace": "        if False:\n",
+   "rationale": "a proposal may call itself authoritative"
+  },
+  {
+   "name": "PI2_forbidden_keys_ignored",
+   "path": "qta_agent/proposals.py",
+   "find": "            if k.lower() in FORBIDDEN_KEYS:\n",
+   "replace": "            if False:\n",
+   "rationale": "a proposal may carry a verdict, a state, a signature or an output path"
+  },
+  {
+   "name": "PI3_credentials_accepted",
+   "path": "qta_agent/proposals.py",
+   "find": "        if _CREDENTIAL.search(obj):\n",
+   "replace": "        if False:\n",
+   "rationale": "a credential in a proposal is stored in the log"
+  },
+  {
+   "name": "PI4_id_chosen_freely",
+   "path": "qta_agent/proposals.py",
+   "find": "        if not isinstance(rec[\"proposal_id\"], str) or \\\n                rec[\"proposal_id\"] != proposal_id_of(rec):\n",
+   "replace": "        if not isinstance(rec[\"proposal_id\"], str):\n",
+   "rationale": "a proposal names its own id instead of being content-addressed"
+  },
+  {
+   "name": "PI5_agent_is_ingress",
+   "path": "qta_agent/proposals.py",
+   "find": "        if env.agent_id == self.actor:\n",
+   "replace": "        if False:\n",
+   "rationale": "the proposing agent can write its own receipt"
+  },
+  {
+   "name": "PI6_stale_context_accepted",
+   "path": "qta_agent/proposals.py",
+   "find": "                if now != c[\"source_sha256\"]:\n",
+   "replace": "                if False:\n",
+   "rationale": "a proposal citing a changed source is received"
+  },
+  {
+   "name": "PI7_duplicate_appended",
+   "path": "qta_agent/proposals.py",
+   "find": "            if have is not None:\n                raise _AlreadyReceived(have)\n",
+   "replace": "            if False:\n                raise _AlreadyReceived(have)\n",
+   "rationale": "a resent proposal is received twice"
+  },
+  {
+   "name": "PI8_submitter_not_agent",
+   "path": "qta_agent/proposals.py",
+   "find": "                            submitter=env.agent_id, reuse=False,\n",
+   "replace": "                            submitter=\"stage10-submitter\", reuse=False,\n",
+   "rationale": "the governed run is submitted in another name than the proposing agent's"
+  },
+  {
+   "name": "PI9_no_idempotency",
+   "path": "qta_agent/proposals.py",
+   "find": "                            idempotency_key=proposal_id)\n",
+   "replace": "                            idempotency_key=None)\n",
+   "rationale": "a resubmitted proposal computes again"
+  },
+  {
+   "name": "PI10_any_kind_executed",
+   "path": "qta_agent/proposals.py",
+   "find": "        if env.kind != \"MODEL_RUN\":\n",
+   "replace": "        if False:\n",
+   "rationale": "a diagnostic or a code patch is executed"
+  },
+  {
+   "name": "PI11_fmu_without_admission",
+   "path": "qta_agent/proposals.py",
+   "find": "            if fmu is None:\n",
+   "replace": "            if False:\n",
+   "rationale": "an FMU proposal runs without the ingress naming the binary"
+  },
+  {
+   "name": "PI12_receipt_digest_unchecked",
+   "path": "qta_agent/proposals.py",
+   "find": "        if p.get(\"envelope_digest\") != env.digest():\n",
+   "replace": "        if False:\n",
+   "rationale": "a receipt whose digest is not its envelope's projects"
+  },
+  {
+   "name": "PI14_parent_iteration_incoherent",
+   "path": "qta_agent/proposals.py",
+   "find": "        if (parent is None) != (it == 0):\n",
+   "replace": "        if False:\n",
+   "rationale": "a later iteration need not name its parent"
+  },
+  {
+   "name": "PI15_target_unchecked",
+   "path": "qta_agent/proposals.py",
+   "find": "        if ev.target != env.proposal_id:\n",
+   "replace": "        if False:\n",
+   "rationale": "a receipt filed under another proposal's id projects"
+  },
+  {
+   "name": "PI16_unknown_field_accepted",
+   "path": "qta_agent/proposals.py",
+   "find": "    extra, missing = set(obj) - set(keys), set(keys) - set(obj)\n    if extra or missing:\n",
+   "replace": "    extra, missing = set(obj) - set(keys), set(keys) - set(obj)\n    if missing:\n",
+   "rationale": "an envelope may carry fields the schema does not name"
+  },
+  {
+   "name": "PI17_every_receipt_rereads_history",
+   "path": "qta_agent/proposals.py",
+   "find": "        if self._anchor is not None:\n            try:\n                events, self._anchor = self.log.advance(self._anchor)\n",
+   "replace": "        if False:\n            try:\n                events, self._anchor = self.log.advance(self._anchor)\n",
+   "rationale": "D-2026-119 reopened: every receipt re-reads and re-verifies the whole log, quadratic over a long history"
+  },
+  {
+   "name": "PI18_catch_up_skips_a_receipt",
+   "path": "qta_agent/proposals.py",
+   "find": "                _fold_receipts([ev for ev in events\n                                if ev.seq > self._folded_through],\n",
+   "replace": "                _fold_receipts([ev for ev in events\n                                if ev.seq > self._folded_through + 1],\n",
+   "rationale": "the anchored view drops the first receipt another writer appended since this ingress last looked"
+  },
+  {
+   "name": "SR1_reader_authority_any",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if env.get(\"authority\") != _PROP_AUTHORITY:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader accepts a proposal claiming authority"
+  },
+  {
+   "name": "SR2_reader_forbidden_keys",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if bad:\n        _note(out, ev, f\"a proposal carrying authority-bearing keys \"\n",
+   "replace": "    if False:\n        _note(out, ev, f\"a proposal carrying authority-bearing keys \"\n",
+   "rationale": "the second reader ignores authority-bearing keys"
+  },
+  {
+   "name": "SR3_reader_digest",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if p.get(\"envelope_digest\") != whole:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader ignores a wrong receipt digest"
+  },
+  {
+   "name": "SR4_reader_writer",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if p.get(\"received_by\") != ev.actor:\n",
+   "replace": "    if False:\n",
+   "rationale": "a receipt in another writer's name passes the second reader"
+  },
+  {
+   "name": "SR5_reader_self_receipt",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if ev.actor == env.get(\"agent_id\"):\n",
+   "replace": "    if False:\n",
+   "rationale": "an agent's own receipt passes the second reader"
+  },
+  {
+   "name": "SR6_reader_id",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if pid != want:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader accepts a chosen id"
+  },
+  {
+   "name": "SR7_reader_fields",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    if set(env) != _PROP_FIELDS:\n",
+   "replace": "    if False:\n",
+   "rationale": "the second reader accepts unknown envelope fields"
+  },
+  {
+   "name": "AU1_pickup_by_proposer",
+   "path": "qta_agent/authority.py",
+   "find": "        E(State.PROPOSED, State.UNDER_REVIEW, frozenset({Role.VERIFIER}),\n          requires_distinct_actor=True,\n",
+   "replace": "        E(State.PROPOSED, State.UNDER_REVIEW, frozenset({Role.VERIFIER}),\n          requires_distinct_actor=False,\n",
+   "rationale": "D-2026-105: a proposer takes its own claim into review"
+  },
+  {
+   "name": "AU2_reader_pickup_by_proposer",
+   "path": "qta_agent/reconstruct.py",
+   "find": "    (\"PROPOSED\", \"UNDER_REVIEW\"): _Rule(frozenset({\"VERIFIER\"}),\n                                        distinct_actor=True),\n",
+   "replace": "    (\"PROPOSED\", \"UNDER_REVIEW\"): _Rule(frozenset({\"VERIFIER\"})),\n",
+   "rationale": "D-2026-105, second reader: a proposer's own pickup replays clean"
+  },
+  {
+   "name": "GM1_decide_not_resumable",
+   "path": "qta_agent/governed_model.py",
+   "find": "        if self.authority.get(run.record_id).state is not State.UNDER_REVIEW:\n",
+   "replace": "        if True:\n",
+   "rationale": "a decision interrupted after the pickup cannot complete"
+  },
+  {
+   "name": "PI_RV_an_unreadable_history_projects_empty",
+   "path": "qta_agent/proposals.py",
+   "find": "    report, events = log.read_verified()\n    report.raise_if_bad()\n",
+   "replace": "    report, events = log.read_verified()\n",
+   "rationale": "a broken or unauthenticated history yields an empty receipt projection instead of a refusal"
+  }
+ ]
+}

@@ -12,6 +12,8 @@ import math
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from .numerics import require_converged, require_integrated
+
 from .config import MultiphysicsConfig, default_config
 from .grids import Grid1D, thermal_depth_refinement, thermal_radial_refinement
 from .material_models import diamond_k, diamond_cp
@@ -43,6 +45,10 @@ def diffusion_sanity_1d(n=200, L=4.0e-5, k_const=2000.0, rho=3510.0, cp_const=1.
     t_end = 0.2 * L**2 / alpha
     teval = np.linspace(0, t_end, 30)
     so = solve_ivp(rhs, (0, t_end), T0, method="BDF", t_eval=teval, rtol=1e-8, atol=1e-12)
+    # An MMS check fits a decay rate to this trajectory and compares it to
+    # the analytic one. Fitted to a truncated trajectory, the comparison is
+    # between an analytic rate and an artefact of where the solver stopped.
+    require_integrated(so, "MMS decay-rate verification")
     amp = so.y.max(axis=0) - so.y.min(axis=0)  # peak-to-... amplitude of cosine mode
     amp0 = amp[amp > 0]
     # fit log(amp) vs t
@@ -107,7 +113,10 @@ def mesh_convergence_1d(cfg):
     rows = []
     vals = {}
     for n in (100, 200, 400):
-        r = solve_thermal_1d(cfg, source_mode="averaged", n_cells=n, n_eval=30)
+        r = require_converged(
+            solve_thermal_1d(cfg, source_mode="averaged", n_cells=n,
+                             n_eval=30),
+            f"mesh_convergence_1d: n={n}")
         vals[n] = r.nv_layer_temperature_K()
         rows.append({"model": "thermal_1d", "mesh": f"n={n}",
                      "metric": "NV_layer_T_K", "value": vals[n],
@@ -121,7 +130,10 @@ def mesh_convergence_2d(cfg):
     rows = []
     vals = {}
     for tag, (nr, nz) in [("coarse", (24, 32)), ("medium", (32, 40)), ("fine", (40, 48))]:
-        r = solve_thermal_2d(cfg, source_mode="averaged", n_r=nr, n_z=nz, n_eval=12)
+        r = require_converged(
+            solve_thermal_2d(cfg, source_mode="averaged", n_r=nr, n_z=nz,
+                             n_eval=12),
+            f"mesh_convergence_2d: {tag}")
         vals[tag] = r.nv_layer_max_K()
         rows.append({"model": "thermal_2d", "mesh": f"{tag}({nr}x{nz})",
                      "metric": "NV_layer_max_T_K", "value": vals[tag],
@@ -133,7 +145,10 @@ def mesh_convergence_2d(cfg):
 
 def axis_symmetry_2d(cfg):
     """No singularity at r=0; radial gradient at the axis is small."""
-    r = solve_thermal_2d(cfg, source_mode="averaged", n_r=32, n_z=40, n_eval=10)
+    r = require_converged(
+        solve_thermal_2d(cfg, source_mode="averaged", n_r=32, n_z=40,
+                         n_eval=10),
+        "axis_symmetry_2d")
     finite = r.T_final.is_finite()
     rg = r.T_final.radial_gradient()
     axis_grad = float(np.max(np.abs(rg[0, :])))
@@ -150,10 +165,16 @@ def reduction_2d_to_1d(cfg):
     exactly the 1D slab areal power, so the hottest 2D column (near r=0) must
     match the 1D NV temperature. (Overriding the spot would change the source
     normalization and is therefore NOT done here.)"""
-    r1 = solve_thermal_1d(cfg, source_mode="averaged", n_cells=cfg.solver.n_z_2d, n_eval=20)
+    r1 = require_converged(
+        solve_thermal_1d(cfg, source_mode="averaged",
+                         n_cells=cfg.solver.n_z_2d, n_eval=20),
+        "reduction_2d_to_1d: 1D solve")
     # fine near-axis radial resolution so the axis column sits close to r=0
-    r2 = solve_thermal_2d(cfg, source_mode="averaged", n_r=24, n_z=cfg.solver.n_z_2d,
-                          n_eval=12, disable_radial=True)
+    r2 = require_converged(
+        solve_thermal_2d(cfg, source_mode="averaged", n_r=24,
+                         n_z=cfg.solver.n_z_2d, n_eval=12,
+                         disable_radial=True),
+        "reduction_2d_to_1d: 2D radial-disabled solve")
     nv1 = r1.nv_layer_temperature_K()
     nv2 = r2.nv_layer_max_K()
     rel = abs(nv2 - nv1) / max(abs(nv1), 1e-12)
@@ -166,7 +187,10 @@ def coupling_checks(cfg):
     from .surface_coverage import surface_coverage_1d
     out = {}
     # optical Q feeds thermal: averaged laser produces heating above base
-    rT = solve_thermal_1d(cfg, source_mode="averaged", n_cells=80, n_eval=20)
+    rT = require_converged(
+        solve_thermal_1d(cfg, source_mode="averaged", n_cells=80,
+                         n_eval=20),
+        "coupling_checks: optical-feeds-thermal solve")
     out["optical_feeds_thermal"] = bool(rT.hotspot_temperature_K() > cfg.fridge.T_fridge_K * 1.01)
     # gas flux feeds surface adsorption: nonzero gas -> nonzero coverage
     covWith, _, _ = surface_coverage_1d({"CH4": 1e17}, T_surface_K=20.0, t_end=0.5, mode="B")

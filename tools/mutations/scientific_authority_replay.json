@@ -1,0 +1,186 @@
+{
+  "title": "Replay re-admits scientific authority, in two readers that share no code for it",
+  "note": "The store's replay and snapshot restore re-decide each scientific_result admission under the policy the transition names, with origin bound to the governed tasks that captured the report and the bundle; the independent reader decides it again in its own code. SA mutates the store, the policy dispatch and the origin view; RX mutates the second reader; GR21-GR22 are reuse's admission and origin-now filters.",
+  "suites": [
+    "tests/test_scientific_authority_replay.py",
+    "tests/test_agent_result_rules.py",
+    "tests/test_governed_model_reuse.py"
+  ],
+  "mutations": [
+    {
+      "name": "SA1_replay_does_not_re_admit",
+      "path": "qta_agent/store.py",
+      "find": "        if rec.kind != result_rules.KIND or dst not in (State.VERIFIED,\n",
+      "replace": "        if True or dst not in (State.VERIFIED,\n",
+      "rationale": "a forged edge into VERIFIED is applied on replay because it is in the log"
+    },
+    {
+      "name": "SA2_replay_admits_what_it_refutes",
+      "path": "qta_agent/store.py",
+      "find": "        if problems:\n            raise StoreError(\n                f\"seq {seq}: {rec.record_id!r} -> {dst.value} is not \"\n",
+      "replace": "        if False:\n            raise StoreError(\n                f\"seq {seq}: {rec.record_id!r} -> {dst.value} is not \"\n",
+      "rationale": "evidence that resolves and refutes the transition is admitted on replay"
+    },
+    {
+      "name": "SA3_unreadable_evidence_is_admitted",
+      "path": "qta_agent/store.py",
+      "find": "            return result_rules.UNVERIFIABLE, {**basis, \"detail\": str(exc)}\n",
+      "replace": "            return result_rules.ADMITTED, basis\n",
+      "rationale": "a record whose evidence is gone reads as silently VERIFIED"
+    },
+    {
+      "name": "SA4_canonical_ignores_admission",
+      "path": "qta_agent/store.py",
+      "find": "                    and rec.admission != result_rules.ADMITTED):\n",
+      "replace": "                    and False):\n",
+      "rationale": "PROMOTED on evidence nobody can read is canonical"
+    },
+    {
+      "name": "SA5_a_snapshot_is_inherited",
+      "path": "qta_agent/store.py",
+      "find": "            for rid, rec in list(rebuilt.items()):\n                if rec.admission is None:\n",
+      "replace": "            for rid, rec in []:\n                if rec.admission is None:\n",
+      "rationale": "a restored snapshot keeps the admission another store decided"
+    },
+    {
+      "name": "SA6_the_policy_is_not_recorded",
+      "path": "qta_agent/store.py",
+      "find": "                payload[\"admission_policy\"] = result_rules.CURRENT_POLICY\n",
+      "replace": "                pass\n",
+      "rationale": "a transition that does not name its rule cannot be re-decided under it"
+    },
+    {
+      "name": "SA7_any_policy_name_is_the_current_one",
+      "path": "qta_agent/result_rules.py",
+      "find": "    if policy != POLICY_V1:\n",
+      "replace": "    if False:\n",
+      "rationale": "an unknown policy is silently decided under the current rule"
+    },
+    {
+      "name": "SA8_origin_is_not_asked",
+      "path": "qta_agent/result_rules.py",
+      "find": "    return list(origins.problems(\n",
+      "replace": "    return [] and list(origins.problems(\n",
+      "rationale": "a well-formed PASS nobody's governed verification produced is admitted"
+    },
+    {
+      "name": "SA9_evidence_captured_after_the_verdict_counts",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if not (seq < verified < horizon):\n",
+      "replace": "            if not (verified < horizon):\n",
+      "rationale": "a report attached to a check task after its verdict counts as what it checked"
+    },
+    {
+      "name": "SA10_origin_is_judged_at_the_head",
+      "path": "qta_agent/governed_model.py",
+      "find": "        horizon = float(\"inf\") if before_seq is None else before_seq\n",
+      "replace": "        horizon = float(\"inf\")\n",
+      "rationale": "a later invalidation makes the older history refuse to load"
+    },
+    {
+      "name": "SA11_an_invalidated_check_still_counts",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if left is not None and left < horizon:\n                continue\n",
+      "replace": "            if False:\n                continue\n",
+      "rationale": "a check invalidated before the transition still admits it"
+    },
+    {
+      "name": "SA12_the_checker_may_be_the_decider",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if not any(ran is not None and ran not in (proposer, actor)\n                       and ran not in run_executors\n",
+      "replace": "            if not any(ran is not None\n",
+      "rationale": "a check run by the decider, proposer or model runner admits the result"
+    },
+    {
+      "name": "SA13_the_executor_is_whoever_ran_last",
+      "path": "qta_agent/governed_model.py",
+      "find": "                    when[tid] = (ev.seq, None, ran.get(tid))\n",
+      "replace": "                    when[tid] = (ev.seq, None, \"somebody-else\")\n",
+      "rationale": "the executor the separation rule measures is not the one the verdict judged"
+    },
+    {
+      "name": "RX1_the_second_reader_does_not_re_admit",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if (reauthorize and cur[\"kind\"] == _SCI_KIND\n",
+      "replace": "            if (False and cur[\"kind\"] == _SCI_KIND\n",
+      "rationale": "the independent reader applies a forged admission the store refuses"
+    },
+    {
+      "name": "RX2_the_second_reader_reads_no_content",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    failed = [asked for asked, question in _SCI_CONTENT\n              if not question(bundle, report, subject)]\n",
+      "replace": "    failed = []\n",
+      "rationale": "the second reader admits a FAIL report from a governed check"
+    },
+    {
+      "name": "RX3_the_second_reader_admits_the_unreadable",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        return _SCI_UNVERIFIABLE, str(exc)\n",
+      "replace": "        return _SCI_ADMITTED, str(exc)\n",
+      "rationale": "the second reader reads lost evidence as admitted"
+    },
+    {
+      "name": "RX4_the_second_reader_ignores_admission_for_canon",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            if rec[\"kind\"] == _SCI_KIND and rec[\"admission\"] != _SCI_ADMITTED:\n                return False\n",
+      "replace": "            pass\n",
+      "rationale": "the second reader calls an unverifiable promotion canonical"
+    },
+    {
+      "name": "RX5_the_second_reader_takes_late_evidence",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if not any(seq < verdict and dg == sha\n",
+      "replace": "        if not any(dg == sha\n",
+      "rationale": "the second reader counts a report attached after the check's verdict"
+    },
+    {
+      "name": "RX6_the_second_reader_ignores_the_state_then",
+      "path": "qta_agent/reconstruct.py",
+      "find": "        if state_then != \"VERIFIED\" or verdict is None:\n",
+      "replace": "        if verdict is None:\n",
+      "rationale": "the second reader counts a check invalidated before the transition"
+    },
+    {
+      "name": "RX7_the_second_reader_does_not_separate",
+      "path": "qta_agent/reconstruct.py",
+      "find": "                   if who is not None and who != proposer and who != actor\n                   and who not in ran_it]\n",
+      "replace": "                   if who is not None]\n",
+      "rationale": "the second reader admits a check its decider ran"
+    },
+    {
+      "name": "RX8_the_second_reader_takes_any_policy",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if policy not in _SCI_POLICIES:\n",
+      "replace": "    if False:\n",
+      "rationale": "the second reader decides an unknown policy under its current rule"
+    },
+    {
+      "name": "RX9_compare_does_not_compare_admission",
+      "path": "qta_agent/reconstruct.py",
+      "find": "            (\"admission\", lv.admission, rc[\"admission\"]),\n",
+      "replace": "            # admission is not compared\n",
+      "rationale": "two readers disagreeing about admission report agreement"
+    },
+    {
+      "name": "RX10_the_second_reader_trusts_the_store",
+      "path": "qta_agent/reconstruct.py",
+      "find": "    if not isinstance(raw, (bytes, bytearray)) \\\n            or hashlib.sha256(raw).hexdigest() != sha:\n",
+      "replace": "    if not isinstance(raw, (bytes, bytearray)):\n",
+      "rationale": "bytes that are not the cited digest are read as the cited document"
+    },
+    {
+      "name": "GR21_reuse_ignores_admission",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if rec.admission != result_rules.ADMITTED:\n                continue\n",
+      "replace": "            if False:\n                continue\n",
+      "rationale": "a result this reader could not admit is reused once its evidence is back"
+    },
+    {
+      "name": "GR22_reuse_does_not_ask_origin_now",
+      "path": "qta_agent/governed_model.py",
+      "find": "            if self.origins.problems(\n",
+      "replace": "            if False and self.origins.problems(\n",
+      "rationale": "a result whose check has since been invalidated is reused"
+    }
+  ]
+}

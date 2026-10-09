@@ -1,0 +1,241 @@
+{
+ "acceptance_attempt": {
+  "dst": "VERIFIED",
+  "reason": "learned_evaluation:dba7c660c2934066: a learned_evaluation record cannot become VERIFIED: no admission policy for learned models exists, and a learned output is LEARNED_PREDICTION, NON_AUTHORITATIVE, REQUIRES_EXTERNAL_VERIFICATION",
+  "record": "learned_evaluation:dba7c660c2934066",
+  "refused": true
+ },
+ "learned_refused_states": [
+  "PROMOTED",
+  "VERIFIED"
+ ],
+ "records": [
+  "learned_architecture:452f9c9d978260b0",
+  "learned_architecture:da7c5bea9cbad7dc",
+  "learned_checkpoint:2f2faaf95e975ca3",
+  "learned_checkpoint:3a536ce7e5c6dc84",
+  "learned_checkpoint:64cba94026d2a550",
+  "learned_dataset:2ccd97740518c8af",
+  "learned_distributed:80af626ce7843818",
+  "learned_evaluation:dba7c660c2934066",
+  "learned_meta_validation:2d8ec64b55921a32",
+  "learned_meta_validation:780a0f3028ac94e7",
+  "learned_training_run:51ed6c0a36117928",
+  "learned_training_run:5e7e900c72218d64",
+  "learned_training_run:7969408954b4fe96"
+ ],
+ "schema": "scientific-moe-claims/1",
+ "semantics": [
+  "LEARNED_PREDICTION",
+  "NON_AUTHORITATIVE",
+  "REQUIRES_EXTERNAL_VERIFICATION"
+ ],
+ "subjects": {
+  "development": {
+   "claims": {
+    "ARCHITECTURE_DEFINED": {
+     "evidence": [
+      "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+     ],
+     "holds": true,
+     "reason": "the manifest's configuration re-derives the subject digest",
+     "scope": "SUBJECT"
+    },
+    "ARCHITECTURE_META_VALIDATED": {
+     "evidence": [
+      "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+     ],
+     "holds": true,
+     "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
+     "scope": "SUBJECT"
+    },
+    "ARCHITECTURE_PARAMETER_VERIFIED": {
+     "evidence": [
+      "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d",
+      "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+     ],
+     "holds": true,
+     "reason": "manifest, recomputed count and abstract tensors agree category by category",
+     "scope": "SUBJECT"
+    },
+    "CHECKPOINT_RELOAD_VALIDATED": {
+     "evidence": [
+      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+     ],
+     "holds": true,
+     "reason": "a checkpoint of this configuration reloaded to identical outputs",
+     "scope": "SUBJECT"
+    },
+    "DEVELOPMENT_MODEL_TRAINED": {
+     "evidence": [
+      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
+      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154"
+     ],
+     "holds": true,
+     "reason": "a completed training run of this configuration",
+     "scope": "SUBJECT"
+    },
+    "DISTRIBUTED_HARDWARE_VALIDATED": {
+     "evidence": [],
+     "holds": false,
+     "reason": "no execution on distributed hardware",
+     "scope": "SUBJECT"
+    },
+    "DISTRIBUTED_SOFTWARE_READY": {
+     "evidence": [
+      "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
+     ],
+     "holds": true,
+     "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
+     "scope": "FAMILY"
+    },
+    "LARGE_MODEL_TRAINED": {
+     "evidence": [],
+     "holds": false,
+     "reason": "no evidence",
+     "scope": "SUBJECT"
+    },
+    "SCIENTIFIC_PERFORMANCE_ESTABLISHED": {
+     "evidence": [],
+     "holds": false,
+     "reason": "established only by an authority acceptance outside this package; the store refuses one for learned records",
+     "scope": "SUBJECT"
+    }
+   },
+   "config_digest": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+   "status": "EVALUATED",
+   "status_history": [
+    {
+     "evidence": [
+      "80299b740fbc44912227c6f9d82a144a9668eec11ab991bf7f3a4ff18d4b867d"
+     ],
+     "from": null,
+     "to": "ARCHITECTURE_DEFINED"
+    },
+    {
+     "evidence": [
+      "780a0f3028ac94e78c12fb719a0fc4de4372d5308a4147504938d94fa958881d"
+     ],
+     "from": "ARCHITECTURE_DEFINED",
+     "to": "META_VALIDATED"
+    },
+    {
+     "evidence": [
+      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
+      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154"
+     ],
+     "from": "META_VALIDATED",
+     "to": "TRAINED"
+    },
+    {
+     "evidence": [
+      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+     ],
+     "from": "TRAINED",
+     "to": "EVALUATED"
+    }
+   ]
+  },
+  "flagship": {
+   "claims": {
+    "ARCHITECTURE_DEFINED": {
+     "evidence": [
+      "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18"
+     ],
+     "holds": true,
+     "reason": "the manifest's configuration re-derives the subject digest",
+     "scope": "SUBJECT"
+    },
+    "ARCHITECTURE_META_VALIDATED": {
+     "evidence": [
+      "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+     ],
+     "holds": true,
+     "reason": "resolved by abstract evaluation with no allocation; a real allocation was refused",
+     "scope": "SUBJECT"
+    },
+    "ARCHITECTURE_PARAMETER_VERIFIED": {
+     "evidence": [
+      "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18",
+      "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+     ],
+     "holds": true,
+     "reason": "manifest, recomputed count and abstract tensors agree category by category",
+     "scope": "SUBJECT"
+    },
+    "CHECKPOINT_RELOAD_VALIDATED": {
+     "evidence": [
+      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+     ],
+     "holds": true,
+     "member": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+     "reason": "a family MEMBER's checkpoint reloaded; no checkpoint of the subject exists",
+     "scope": "FAMILY_MEMBER"
+    },
+    "DEVELOPMENT_MODEL_TRAINED": {
+     "evidence": [
+      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
+      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154"
+     ],
+     "holds": true,
+     "member": "52e707b0a2dd22af5e8fd489227d990e70aa673feb36ec04495ccc73c82cdbb1",
+     "reason": "a development-scale MEMBER of the family was trained; the subject was not",
+     "scope": "FAMILY_MEMBER"
+    },
+    "DISTRIBUTED_HARDWARE_VALIDATED": {
+     "evidence": [],
+     "holds": false,
+     "reason": "no execution on distributed hardware",
+     "scope": "SUBJECT"
+    },
+    "DISTRIBUTED_SOFTWARE_READY": {
+     "evidence": [
+      "80af626ce784381835962830c5afcfa46a3637531fed44a49d60cc995c4bb627"
+     ],
+     "holds": true,
+     "reason": "SIMULATED_MULTI_DEVICE SOFTWARE-PATH VALIDATION ONLY: every parallel check passed on 8 devices of that profile; hardware_executed is not true, so this is not distributed hardware validation; tensor and pipeline parallelism are PLAN_ONLY (validated as plans, never executed)",
+     "scope": "FAMILY"
+    },
+    "LARGE_MODEL_TRAINED": {
+     "evidence": [],
+     "holds": false,
+     "reason": "no evidence",
+     "scope": "SUBJECT"
+    },
+    "SCIENTIFIC_PERFORMANCE_ESTABLISHED": {
+     "evidence": [],
+     "holds": false,
+     "reason": "established only by an authority acceptance outside this package; the store refuses one for learned records",
+     "scope": "SUBJECT"
+    }
+   },
+   "config_digest": "64a47fd2cb3bd51552fd31b5983cbcdde1a2540b368f8d9f2faa30d0bc4ee40a",
+   "status": "DEVELOPMENT_PIPELINE_VALIDATED",
+   "status_history": [
+    {
+     "evidence": [
+      "00631bfb342682e59a410d2e6118433d30fc6dce583ae7d5b928546632f72f18"
+     ],
+     "from": null,
+     "to": "ARCHITECTURE_DEFINED"
+    },
+    {
+     "evidence": [
+      "2d8ec64b55921a320630362efa90d99c39203b90de529c101a4ff0ec40e0289d"
+     ],
+     "from": "ARCHITECTURE_DEFINED",
+     "to": "META_VALIDATED"
+    },
+    {
+     "evidence": [
+      "5e7e900c72218d6492fbe273fdf5f5153ae3b215bc1298e99c325a3a9e9d163e",
+      "7969408954b4fe96f37d4c71010d4de6e19d1a731d1d312152c334303564d154",
+      "dba7c660c29340669adc7c525845bdeb08673ce2999a2ed416d7a971e6aa65c4"
+     ],
+     "from": "META_VALIDATED",
+     "to": "DEVELOPMENT_PIPELINE_VALIDATED"
+    }
+   ]
+  }
+ }
+}

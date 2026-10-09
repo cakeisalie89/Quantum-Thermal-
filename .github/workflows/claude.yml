@@ -20,14 +20,20 @@
 #
 # GOVERNANCE NOTE. This job holds `contents: write`, so Claude can push
 # commits and open PRs here. That is the action's normal mode and is what
-# makes it useful, but this repository's whole design is that no automated
-# actor may move scientific state: PASS=0, can_PASS_now=NO,
-# measured_in_this_system=false, automatic_gate_effect=NONE, and canonical
-# outputs byte-gated against regeneration. Permissions do not enforce that --
-# CI does. Any branch Claude pushes is still subject to
-# package_consistency_check.py and stack-verify.yml, which fail on a changed
-# canonical output or a non-zero PASS count. The system prompt below states
-# the boundary; the checkers are what hold it.
+# makes it useful, but this repository's design is that no automated actor
+# certifies its own work or moves authoritative scientific state except
+# through the governed, event-sourced path -- and permissions do not enforce
+# that; CI does. Any branch Claude pushes is still subject to the full test
+# suite, the framework boundary (tools/framework_boundary.py), the mutation
+# shards and the byte gate over committed outputs. The system prompt below
+# states the rules; the checkers are what hold them.
+#
+# The prompt used to state the hardware-era invariants of the QTA package --
+# a PASS count of zero, can_PASS_now=NO, forecast-only Mode B/D claim
+# boundaries -- as if they were this repository's purpose. They were true of
+# QTA and remain in its history; they are not the framework's invariants
+# (directive 11), and a prompt that keeps teaching them keeps the migration
+# from happening.
 name: Claude Code
 on:
   issue_comment:
@@ -46,11 +52,47 @@ concurrency:
   cancel-in-progress: false
 jobs:
   claude:
+    # WHO MAY INVOKE A CREDENTIALED AGENT, not merely who may say the word.
+    #
+    # This repository is PUBLIC. The condition below used to be the '@claude'
+    # mention alone, so any GitHub account -- with no association to this
+    # repository at all -- could start a job holding ANTHROPIC_API_KEY with
+    # contents: write, pull-requests: write and issues: write, simply by
+    # commenting on an issue.
+    #
+    # The checkout step already reasons carefully about the OTHER half of
+    # this: it refuses to check out a fork PR's head at the workspace root
+    # because that would run untrusted CODE beside the secret. Untrusted
+    # INSTRUCTIONS reaching a credentialed agent is the same exposure through
+    # the other door, and nothing here was closing it.
+    #
+    # author_association is computed by GitHub from the actor's relationship
+    # to this repository and is not settable by the commenter. OWNER, MEMBER
+    # and COLLABORATOR are the people who already have write access, so this
+    # grants the agent to exactly those who could make the same change by
+    # hand. Everyone else is ignored silently -- the job simply does not run.
+    #
+    # Fail-closed by construction: an association GitHub adds later, or one
+    # this list does not name (CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, NONE),
+    # does not match and the job does not start.
+    #
+    # The upstream action may well perform its own permission check. That is
+    # a property of a third-party SHA, read from its own repository, and the
+    # authorization of an agent that can push to this one should not rest on
+    # a default nobody here has read. This is the same rule the rest of the
+    # package applies to proxies.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      ) && (
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+                 github.event.comment.author_association ||
+                 github.event.review.author_association ||
+                 github.event.issue.author_association)
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30      # bound a runaway loop's Actions and API spend
     permissions:
@@ -85,4 +127,4 @@ jobs:
           use_commit_signing: true
           claude_args: |
             --model claude-opus-5
-            --system-prompt "QTA is a forecast-only, pre-experimental package. Hold these invariants in every change you make or propose: the scientific gate PASS count is zero and stays zero; can_PASS_now is NO; measured_in_this_system is false everywhere; automatic_gate_effect is NONE. Canonical outputs live at the repository root and are byte-gated by final_manifest.json -- regenerate them only with qta_full_sim.py, and regenerate final_manifest.json only with generate_manifest.py. Never edit a canonical output, a gate status, or a manifest hash by hand. STACK.md and AUTHORITIES.md record which module owns which concept; code is the authority and docs mirror it. Before pushing, run package_consistency_check.py and stage6_preservation_check.py and report their RESULT lines."
+            --system-prompt "This repository is a governed scientific-agent framework, migrating out of a hardware-era package called QTA. Hold these rules in every change you make or propose. AUTHORITY: authority is event-sourced -- state is what replay of the hash-chained log re-authorizes, and presence in the log is not authority. Proposal, execution and verification are separate principals; nothing verifies or promotes its own work, and an AI cannot self-certify. EVIDENCE: a simulation is not a measurement; numerical verification (an independent implementation agreeing) is not experimental validation; artifact integrity (the same bytes) is neither scientific verification nor authority. Never fabricate evidence, CI results, hardware data or a pass; report a failure as a failure. LEGACY: files dispositioned RETIRE_TO_HISTORY in FILE_DISPOSITION.csv are legacy QTA. Nothing in the active framework may import, open or take authority from them (tools/framework_boundary.py --check); they may be read to extract reusable physics. Do not delete a useful numerical or scientific method because its QTA wrapper is retired, and do not mass-delete hardware files before their unique equations are extracted and tested. BYTES: committed outputs are byte-gated by final_manifest.json; regenerate an output only with its producer and the manifest only with generate_manifest.py; never edit an output or a hash by hand, and never widen a tolerance to make a runner pass. PROCESS: do not merge, do not rewrite published history, do not force-push. Before pushing, run the test suite and tools/framework_boundary.py --check and report their results."
