@@ -178,6 +178,7 @@ docs/neural/nf1t_inventory.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW 
 docs/pass_semantics_audit.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (NF-1T closure): where the legacy gate table's PASS vocabulary appears and why, by rule; written only by tools/pass_semantics_audit.py.",tests/test_claim_hygiene.py
 docs/performance_baseline.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/reference_backend_host_a.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): host A's measured run of the reference backend -- physical CPU class, emulator bytes, recipe and generator digests, reference identity, output digests; re-recorded when the recipe or the generator changes (a test refuses a stale one). Not the corpus.",R59-E
+docs/repository_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/resolution_inventory.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/rust_kernel_decisions.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
 docs/supply_chain_ci_policy.json,REGENERATE,every change; new set in 7,Tool-generated inventories/baselines (identity/unit/resolution/performance/clip/blas).,written by tools/*.py
@@ -680,6 +681,7 @@ tests/test_release_trust_enforcement.py,KEEP_AS_IS,-,Release trust boundary (dir
 tests/test_release_workflow_contract.py,KEEP_AS_IS,-,Release workflow executable.,"imports yaml (undeclared, see DEPENDENCY_CUTOVER.md)"
 tests/test_replay_origin_view.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-88): one view of governed execution per replay, counted against the questions asked, with the probe shown to see a view per question.",
 tests/test_repo_contract.py,KEEP_AS_IS,-,Repository file-set contract.,
+tests/test_repo_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (transformation): the inventory is held to its rules and to the tree, and each way of making it lie is caught.",
 tests/test_reproduction_verdict.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (D-2026-101): which question a byte comparison answers; the witness profile; directive-7 CASES 1-17.,
 tests/test_resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution inventory.,
 tests/test_review_binding.py,RETIRE_TO_HISTORY,5,Hardware review binding.,imports hardware_governance_3d
@@ -850,6 +852,7 @@ tools/pass_semantics_audit.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,NEW (NF
 tools/performance_baseline.py,KEEP_AS_IS,-,Scaling-guard drift record.,
 tools/reference_backend.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-102): the canonical reference backend's recipe check, build record, in-runtime conformance and identity. STAGED: it defines no canonical bytes until an owner-authorised migration (directive 7 s.35).",R59-D5
 tools/regenerate_instrumented.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-101): runs the canonical generator in-process, records its measured input closure and probes the backend of that same process.",R59-B
+tools/repo_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (transformation): every file tracked at the transformation baseline classified, its measured dependencies, and its final disposition recomputed from the tree.",tests/test_repo_inventory.py
 tools/repo_scope.py,KEEP_AS_IS,-,Single definition of 'a file in this repository'.,
 tools/reproduction_witness.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (D-2026-101): establishes, checks and consults the byte-reproduction witness profile; the release's early strict refusal.",R59-B/D
 tools/resolution_inventory.py,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Method-resolution inventory; holds deferred D-2026-69 (artefact-as-method proxy).,D-2026-66/69

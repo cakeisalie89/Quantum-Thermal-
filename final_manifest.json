@@ -2417,7 +2417,7 @@
     {
       "filename": "ro-crate/ro-crate-metadata.json",
       "size_bytes": 11015,
-      "sha256": "64277c32dae0d59ec6af07551d0f72408f06488fbd64d1d1a21e5119cda05dbc",
+      "sha256": "85e74f044232a20eed8abe1c1c66834821225321de19fab79f687c9cc64fcea4",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4194,8 +4194,8 @@
     },
     {
       "filename": "FILE_DISPOSITION.csv",
-      "size_bytes": 175023,
-      "sha256": "f0fc1f0bd01ee1e32dc8f60d58c5fd0aad0c8eab7c1dac3511b76dc679d0545b",
+      "size_bytes": 175652,
+      "sha256": "975f29cf02ba733a5bc55c7c197da54fc17d4afedc804d6f72dcd2db31f10aec",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4222,8 +4222,8 @@
     },
     {
       "filename": "tools/file_disposition.py",
-      "size_bytes": 84573,
-      "sha256": "dae980b199114b34f2fe01db8e2e4ef4d6fe60a1ca5e74b66965bc4320c59510",
+      "size_bytes": 85013,
+      "sha256": "94372886df98d1d0479d93f1ba0af907d5631126df537c43ed093ea47c35b581",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -4579,8 +4579,8 @@
     },
     {
       "filename": "docs/framework_boundary.json",
-      "size_bytes": 4390,
-      "sha256": "d51d8460489e21b0283ff4583f711680740c0862c599fb4efbd656293356f08f",
+      "size_bytes": 4707,
+      "sha256": "188698d12cf1895fb2a921e738fa54bb6bbb76902b3eb500e8d11a82baa45044",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5098,7 +5098,7 @@
     {
       "filename": "docs/neural/legacy_semantic_audit.json",
       "size_bytes": 72594,
-      "sha256": "46b8f18ac13b910cc380da94eeeb58e114df06aaa6931e4b87ffcd4553cdf789",
+      "sha256": "cddec9877ba1db05277077e52e40af653a6abe2152db3e7b3e13621e4685af43",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -5594,8 +5594,8 @@
     },
     {
       "filename": "docs/pass_semantics_audit.json",
-      "size_bytes": 61761,
-      "sha256": "95bad32708338efcf826d8950401c1f25043742918b32b3ecdcde820ee65193d",
+      "size_bytes": 62025,
+      "sha256": "36d978e93d78dcb679dfc6e40f325d44c9628c5456c75a0d3745e2ba5137a592",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "forecast-layer artifact (qta_multiphysics)"
     },
@@ -6200,6 +6200,27 @@
       "sha256": "adc40081c6e89ae5dc805830c623f0863a15244d98ee16da59333e5341b747ae",
       "generated_by": "forecast-layer (qta_multiphysics)",
       "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "docs/repository_inventory.json",
+      "size_bytes": 1211045,
+      "sha256": "8e1216ec4d9231c0bc14c44fd83c9496cc8df7110ffbe24bfd2b7189837c1b97",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
+    },
+    {
+      "filename": "tests/test_repo_inventory.py",
+      "size_bytes": 6903,
+      "sha256": "d91b197deabff0af8656562f1450ceb0cb2ac991e4c36c7b47e8005a0e2314c4",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "test suite (physics / numerical / determinism)"
+    },
+    {
+      "filename": "tools/repo_inventory.py",
+      "size_bytes": 44903,
+      "sha256": "95f9755b6c68d40c4b58c223378c048f48e1ceb23db395b9feb4422f000f516e",
+      "generated_by": "forecast-layer (qta_multiphysics)",
+      "purpose": "forecast-layer artifact (qta_multiphysics)"
     }
   ],
   "self_hash_policy": "DETACHED MANIFEST HASHING. Two files are intentionally NOT listed in files[]: (1) final_manifest.json \u2014 cannot hash itself; (2) manifest_hash.txt \u2014 contains the SHA-256 of final_manifest.json, written after this manifest is finalized. manifest_hash.txt is therefore the detached, externally-verifiable record of the manifest's integrity. The package_consistency_check.py verifies that manifest_hash.txt matches the actual SHA-256 of final_manifest.json (Step 11). Files removed from the package this pass: README.txt (README.md is canonical); grep_report.txt (superseded by stale_language_audit.txt). Pass 15: added 26 non-lumped multiphysics output files and 28 qta_multiphysics/ package source modules to files[]; all hashed here. manifest_hash.txt remains the detached record."

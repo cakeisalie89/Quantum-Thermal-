@@ -43,6 +43,11 @@
       "why": "It names every tracked file in order to place it on a side of this boundary; it reads none of them, and the legacy names are what it classifies."
     },
     {
+      "module": "tools.repo_inventory",
+      "rule": "OPEN",
+      "why": "The forensic inventory names every file tracked at the transformation baseline in order to classify it and record what became of it; it reads the baseline from the Git object store, and the legacy names are what it classifies."
+    },
+    {
       "module": "qta_multiphysics.stack.rag_index",
       "rule": "OPEN",
       "names": [

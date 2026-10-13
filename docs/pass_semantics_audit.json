@@ -18,8 +18,8 @@
    "occurrences": 302
   },
   "LEGACY_QTA_CANONICAL": {
-   "files": 54,
-   "occurrences": 199
+   "files": 55,
+   "occurrences": 313
   },
   "TOOLING_REFERENCE": {
    "files": 21,
@@ -928,6 +928,17 @@
    "path": "docs/reference_backend_host_a.json",
    "rule_class": "TOOLING_REFERENCE",
    "why": "the reference backend's host record, by canonical file"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_QTA_CANONICAL": {
+     "results_gate_table": 114
+    }
+   },
+   "path": "docs/repository_inventory.json",
+   "rule_class": "LEGACY_QTA_CANONICAL",
+   "why": "legacy forecast registries, schemas and outputs"
   },
   {
    "leaks": [],
