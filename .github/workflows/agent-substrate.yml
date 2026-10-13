@@ -480,6 +480,7 @@ jobs:
               tools/mutations/fuzz_harness.json
               tools/mutations/governed_breadth.json
               tools/mutations/hdf5_bundle.json
+              tools/mutations/performance_measurement.json
               tools/mutations/proposal_ingress.json
               tools/mutations/ranking_equivalence.json
               tools/mutations/scientific_slab_mol.json

@@ -816,6 +816,7 @@ tools/mutations/neural_tokens.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"N
 tools/mutations/neural_training.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,"NEW (NF-1T): mutation matrices of the learned-model substrate -- accounting, tokens, routing, authority, training, parallel plans.",
 tools/mutations/output_resolution.json,KEEP_AND_HARDEN,1 (this tranche) / ongoing,Resolution discipline mutations (numerics + PCC).,
 tools/mutations/performance_counters.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
+tools/mutations/performance_measurement.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/performance_telemetry.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/proposal_crash_recovery.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec
 tools/mutations/proposal_ingress.json,KEEP_AS_IS,-,"Mutation spec over a retained subject (agent substrate, tools, release, RAG).",targets listed in the spec

@@ -67,14 +67,14 @@
    },
    "lines": {
     "helium_routing": [
-     662
+     663
     ],
     "machine_mode_label": [
      187
     ],
     "methane_routing": [
-     660,
-     688
+     661,
+     689
     ]
    },
    "path": ".github/workflows/agent-substrate.yml",

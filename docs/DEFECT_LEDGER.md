@@ -10318,3 +10318,33 @@ test_the_stated_estimate_holds_on_every_admissible_grid`, over every even
 other value is refused. The convergence-order test now uses 24/48/96.
 Mutation spec `scientific_slab_grid` puts the old rule back (`% 2`) and the
 multiple to 4; both are killed by the sweep, and by nothing else.
+
+## D-2026-132 — a timing shape was decided by one unrepeated call at its largest size
+
+**CLASS** — `FLAKY_GUARD`, found by hosted CI. `tests/test_agent_performance.py`.
+
+**DEMONSTRATION.** The harness-integrations push run 38416047261 at
+`c381498` failed `performance-telemetry`:
+`test_projection_load_has_a_linear_shape` measured 2.38, 9.0 and 180.24 ms
+at n = 100, 400 and 1600 and fitted n^1.56 against a ceiling of 1.45. The
+pull_request run of the same commit passed it, and so did both runs at
+`6c2eef9`. The 1600 point is five times what the two smaller points imply
+for a linear shape; nothing in that commit touched the code measured.
+
+**ROOT CAUSE.** `_per_call` repeated an operation until ONE batch cleared
+20 ms and returned that batch. At the largest size a single call already
+clears the floor, so the point that dominates a three-point slope was one
+call, unrepeated, while the smaller points were averaged over hundreds. One
+preemption or collector pause at n = 1600 was the whole measurement.
+
+**REPAIR.** The fastest of three independent batches (`BATCHES`).
+Interference only adds time, so the minimum estimates the operation; an
+operation that really scales badly is slow in every batch and stays
+caught. The ceilings are unchanged.
+
+**EVIDENCE.**
+`test_one_interrupted_call_does_not_decide_a_measurement` (a 30 ms
+operation whose first call is delayed to 150 ms must measure under 100 ms)
+and its control `test_a_uniformly_slow_operation_is_not_hidden`. Mutation
+spec `performance_measurement`: PM1 (back to one batch) is killed by the
+first, 1/1.

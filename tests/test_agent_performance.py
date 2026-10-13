@@ -111,9 +111,14 @@ EXPONENT_CEILING = 1.45
 
 
 
+#: Independent batches per measurement; the fastest is kept (D-2026-132).
+BATCHES = 3
+
+
 def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
-              max_reps: int = 512) -> float:
-    """Seconds per call, timed over enough repetitions to clear the floor.
+              max_reps: int = 512, batches: int = BATCHES) -> float:
+    """Seconds per call: the FASTEST of ``batches`` independent batches,
+    each repeated until it clears the floor.
 
     Written after the first version of this file SKIPPED four of its own
     guards on a fast machine: the operations were 4-6 ms and the floor was
@@ -121,7 +126,21 @@ def _per_call(fn, *, floor: float = MIN_MEASURABLE_S,
     the answer is to measure the operation more times rather than to stop
     measuring it. Only usable for operations with no side effects, which is
     why the append guards below still use the one-shot form.
+
+    WHY THE MINIMUM OF SEVERAL (D-2026-132). One batch was the whole
+    measurement, and at the LARGEST size a single call already clears the
+    floor -- so the point that decides a fitted exponent was one call,
+    unrepeated. A hosted runner measured 2.4, 9.0 and 180 ms at n = 100,
+    400 and 1600 and failed the shape at n^1.56: a preemption, not the
+    code. Interference only ever ADDS time, so the fastest batch is the
+    estimate of the operation; and an algorithm that really is superlinear
+    is slow in every batch, so the minimum does not hide it.
     """
+    return min(_one_batch(fn, floor=floor, max_reps=max_reps)
+               for _ in range(batches))
+
+
+def _one_batch(fn, *, floor: float, max_reps: int) -> float:
     gc.collect()
     reps = 1
     while True:
@@ -826,6 +845,27 @@ def test_the_governed_executor_leaves_no_child_processes(tmp_path):
 # that is linear-with-a-large-constant would be invisible to them. Two points
 # fit any line; three have a slope. Each guard below measures the same
 # operation at 100, 400 and 1600 records and asserts on the fitted exponent.
+
+def test_one_interrupted_call_does_not_decide_a_measurement():
+    """D-2026-132. An operation that takes 30 ms, whose FIRST call is
+    delayed to 150 ms -- what a preemption does to the largest point of a
+    curve, where one call already clears the floor. The measurement must
+    report the operation, not the interruption; with a single batch it
+    reported 150 ms and failed a linear algorithm as superlinear."""
+    calls = []
+
+    def op():
+        time.sleep(0.15 if not calls else 0.03)
+        calls.append(1)
+
+    assert _per_call(op) < 0.1
+
+
+def test_a_uniformly_slow_operation_is_not_hidden():
+    """CONTROL: the minimum is not a way to make slow code look fast. An
+    operation slow in every call is measured slow."""
+    assert _per_call(lambda: time.sleep(0.03)) >= 0.03
+
 
 def test_full_verification_has_a_linear_shape(tmp_path):
     sizes, times = _curve(
