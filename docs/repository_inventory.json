@@ -32,9 +32,10 @@
   },
   "by_final_disposition": {
    "MOVED": 41,
-   "PENDING": 470,
+   "PENDING": 462,
    "PROVENANCE_RESOLVED": 11,
    "REGENERATED": 8,
+   "REMOVED": 8,
    "RETAINED": 344
   },
   "cut_imports": 25,
@@ -25123,7 +25124,7 @@
     "scientific/models/thermal_1d.py",
     "tools/mutations/scientific_thermal_1d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "scientific/checks/reduction_3d.py",
@@ -25153,7 +25154,7 @@
     "scientific/models/thermal_2d.py",
     "tools/mutations/scientific_thermal_2d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "scientific/checks/slab_series.py",
@@ -25539,7 +25540,7 @@
     "tools/mutations/governed_model_reuse.json",
     "tools/mutations/scientific_thermal_1d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "scientific/models/thermal_2d.py",
@@ -25573,7 +25574,7 @@
     "final_manifest.json",
     "tools/mutations/scientific_thermal_2d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "scientific/models/thermal_rc2.py",
@@ -32401,7 +32402,7 @@
     "tools/file_disposition.py",
     "tools/mutations/scientific_thermal_1d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_scientific_thermal_2d.py",
@@ -32437,7 +32438,7 @@
     "final_manifest.json",
     "tools/mutations/scientific_thermal_2d.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tests/test_second_reader_audit_actions.py",
@@ -36880,7 +36881,7 @@
     "FILE_DISPOSITION.csv",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/scientific_thermal_2d.json",
@@ -36905,7 +36906,7 @@
     "docs/completion_matrix.json",
     "final_manifest.json"
    ],
-   "final_disposition": "PENDING"
+   "final_disposition": "REMOVED"
   },
   {
    "path": "tools/mutations/second_reader_audit_actions.json",

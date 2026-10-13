@@ -57,6 +57,10 @@ MODEL_VERSION = "1.0.0"
 SAMPLE_FRACTIONS = (0.0, 0.25, 0.5, 0.75, 1.0)
 SAMPLE_NAMES = ("T_at_0", "T_at_quarter", "T_at_half", "T_at_three_quarter",
                 "T_at_L")
+#: Every sample point must lie on a cell face of the run's grid AND of the
+#: half-resolution grid the estimate is taken against: L/4 is a face of an
+#: n-cell grid when 4 | n, and of the n/2-cell grid when 8 | n.
+SAMPLE_GRID_MULTIPLE = 8
 #: Crank-Nicolson with a trapezoid boundary flux is conservative to rounding;
 #: n_steps x n_cells accumulated roundings of order eps stay far below this.
 ENERGY_RESIDUAL_MAX = 1e-9
@@ -168,7 +172,8 @@ class SlabTransientModel(ModelBase):
         Parameter("t_end_s", "float", unit="s", minimum=1e-9, maximum=1e12,
                   description="simulated time"),
         Parameter("n_cells", "int", unit="1", minimum=8, maximum=20000,
-                  default=80, description="finite-volume cells (even)"),
+                  default=80,
+                  description="finite-volume cells (a multiple of 8)"),
         Parameter("n_steps", "int", unit="1", minimum=8, maximum=10000000,
                   default=240, description="Crank-Nicolson steps (even)"),
     ))
@@ -185,6 +190,17 @@ class SlabTransientModel(ModelBase):
                       "largest undershoot <= 64 eps max|T|"),
     )
     independent_checks = (
+        CheckSpec("thermal.slab_method_of_lines",
+                  "vertex-centred finite differences with ghost-node "
+                  "boundaries, integrated by SciPy's adaptive BDF: a "
+                  "different grid, closure, time integrator and linear "
+                  "solver from this one",
+                  "DIFFERENT_DISCRETIZATION",
+                  shared_components=("the slab equations and their "
+                                     "boundary conditions",),
+                  limitations=("agreement of two discretizations of one "
+                               "model, not of the model with "
+                               "measurement",)),
         CheckSpec("thermal.slab_series",
                   "the closed-form eigenfunction series of the same "
                   "problem, against this solver's outputs at its own "
@@ -221,6 +237,15 @@ class SlabTransientModel(ModelBase):
                 raise ValueError(f"{name} must be even: the discretization "
                                  "estimate repeats the run at half "
                                  "resolution")
+        if p["n_cells"] % SAMPLE_GRID_MULTIPLE:
+            raise ValueError(
+                f"n_cells must be a multiple of {SAMPLE_GRID_MULTIPLE}: the "
+                "discretization estimate compares this run with one on "
+                "n_cells/2 cells, and it holds only where every sample "
+                "point (0, L/4, L/2, 3L/4, L) lies on a cell face of BOTH "
+                "grids. Otherwise the two grids interpolate a sample on "
+                "different stencils and the estimate can understate the "
+                "error by an order of magnitude (D-2026-131)")
         return p
 
     def run(self, inputs: dict) -> ResultBundle:

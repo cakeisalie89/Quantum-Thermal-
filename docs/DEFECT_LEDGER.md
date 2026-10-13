@@ -10275,3 +10275,46 @@ STACK.md and README.md was killed 3/3, but every kill came from
 `test_index_is_deterministic_and_hits_carry_provenance`, the corpus
 allowlist refusing a changed governed document. That is a kill for the
 wrong reason, so these tests carry their own controls instead.
+
+## D-2026-131 — the slab model stated a discretization estimate that did not hold on most of the grids it accepted
+
+**CLASS** — `WRONG_CLAIM`, transformation programme (Phase 8 defect audit;
+found while retargeting the governed-path tests from the retired thermal
+model to `thermal.slab_transient`). `scientific/models/slab_transient.py`.
+
+**DEMONSTRATION** (`7a3f228`). The model's five sample temperatures each
+carry a DISCRETIZATION_ESTIMATE, |T(n, m) - T(n/2, m/2)| / 3 (Richardson,
+second order). The model required only that `n_cells` be even. The
+independent series check (`thermal.slab_series`) compares the samples with
+the exact solution against three times that estimate. Sweeping `n_cells`
+from 8 to 160 at `n_steps` 240: every `n_cells` divisible by 8 PASSES at a
+ratio of 0.333; every other even value FAILS -- 12: 16.5, 20: 16.4,
+44: 14.8, 82: 3.47, 84: 11.0, 100: 9.5. The model was publishing a
+resolution up to sixteen times too small on half the grids it accepted.
+
+**ROOT CAUSE.** A sample at L/4, L/2 or 3L/4 is read from the cell-centred
+field by linear interpolation. It lands on a cell face of an n-cell grid
+when 4 | n, and on a face of the n/2-cell comparison grid when 8 | n.
+Otherwise the fine grid reads the sample at a cell centre (exact) and the
+coarse grid between two centres (second-order interpolation error), or the
+reverse: the two runs carry different error constants, so their difference
+is not the fine run's error times three, and Richardson's premise fails.
+
+**WHY NOTHING WAS ADMITTED WRONGLY.** The independent check caught it every
+time: a FAIL is not support, so no such result could reach VERIFIED. What
+was wrong was the RESOLUTION the bundle stated -- which equivalence at
+declared resolution, resolution-aware ranking and the OpenMDAO exploration
+all read as the truth.
+
+**REPAIR** -- the smallest one, fail-closed. `validate` refuses `n_cells`
+not divisible by `SAMPLE_GRID_MULTIPLE` (8), and the parameter's
+description says so. Every caller in the repository already used 40 or 80.
+A different estimator (sampling on faces directly) would accept more grids;
+it is a design change, not this repair.
+
+**EVIDENCE.** `tests/test_harness_integrations.py::
+test_the_stated_estimate_holds_on_every_admissible_grid`, over every even
+`n_cells` from 8 to 128: each multiple of 8 PASSES the series check, each
+other value is refused. The convergence-order test now uses 24/48/96.
+Mutation spec `scientific_slab_grid` puts the old rule back (`% 2`) and the
+multiple to 4; both are killed by the sweep, and by nothing else.

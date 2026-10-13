@@ -1,6 +1,6 @@
 """A scientific-model result, from proposal to authority, with no self-certification.
 
-The whole Phase-2 target line, run for real on thermal 1D:
+The whole target line, run for real on the transient slab:
 
     propose -> governed run (policy, capability, bounded subprocess,
     evidence, re-execution by a separate verifier) -> ResultBundle
@@ -31,8 +31,8 @@ from agent_substrate.authority import Role, State, TransitionError  # noqa: E402
 from agent_substrate.events import EventLog  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
 from agent_substrate.governed_model import (  # noqa: E402
-    CHECK_WORKER_ID, REVIEWER_ID, TOOL_RUN, TOOL_RUN_2D, GovernedModelRuns,
-    ModelRunRefused,
+    CHECK_WORKER_ID, REVIEWER_ID, TOOL_RUN_SLAB, TOOL_RUN_SURFACE,
+    GovernedModelRuns, ModelRunRefused,
 )
 from agent_substrate.governed_tasks import (  # noqa: E402
     SUBMITTER_ID, WORKER_ID,
@@ -41,8 +41,7 @@ from agent_substrate.store import StoreError  # noqa: E402
 from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_models"
-CHECK = "thermal_1d.reduction_2d_radial_disabled"
-PARAMS = {"n_cells": 60, "n_eval": 20}
+from governed_case import CHECK, INVALID, MODEL, PARAMS  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -54,8 +53,7 @@ def world():
     log = EventLog(base / "log.jsonl")
     ev = EvidenceStore(base / "evidence")
     g = GovernedModelRuns(root=ROOT, log=log, evidence=ev)
-    run = g.propose(model_id="thermal.conduction_1d", model_version="1.0.0",
-                    parameters=PARAMS, out_dir=f"{WS}/shared/run")
+    run = g.propose(**MODEL, parameters=PARAMS, out_dir=f"{WS}/shared/run")
     chk = g.check(run, check_id=CHECK, out_dir=f"{WS}/shared/check")
     yield g, run, chk, log, ev
     if base.exists():
@@ -226,12 +224,10 @@ def test_a_failed_run_is_never_proposed(world):
     g, _, _, _, _ = world
     before = set(g.authority.all_records())
     with pytest.raises(ModelRunRefused, match="identity task was"):
-        g.propose(model_id="thermal.conduction_1d", model_version="1.0.0",
-                  parameters={"n_cells": 5},
+        g.propose(**MODEL, parameters=INVALID,
                   out_dir=f"{WS}/shared/badrun-reuse")
     with pytest.raises(ModelRunRefused, match="governed run was"):
-        g.propose(model_id="thermal.conduction_1d", model_version="1.0.0",
-                  parameters={"n_cells": 5}, reuse=False,
+        g.propose(**MODEL, parameters=INVALID, reuse=False,
                   out_dir=f"{WS}/shared/badrun-noreuse")
     assert set(g.authority.all_records()) == before
 
@@ -248,16 +244,17 @@ def test_the_record_cites_the_identity_its_bundle_carries(world):
     assert identity["parameter_digest"] and identity["implementation_digest"]
 
 
-# ---- a second model through the same path (Phase 4) -------------------------
+# ---- a second model, and a check the admission policy does not name -------
 
-T2D = {"model_id": "thermal.conduction_2d_axisymmetric",
-       "model_version": "1.0.0"}
-SMALL_2D = {"n_r": 16, "n_z": 24, "n_eval": 10}
+SURFACE = {"model_id": "surface.langmuir_capture", "model_version": "1.0.0"}
+SURFACE_PARAMS = {"pressure_Pa": 1e-4, "T_gas_K": 300.0, "mass_amu": 17.035,
+                  "sticking": 0.55, "capacity_per_m2": 1e19,
+                  "window_s": 1.0, "n_windows": 3}
 
 
 @pytest.fixture(scope="module")
-def world2d():
-    base = ROOT / WS / "twod"
+def world2():
+    base = ROOT / WS / "second"
     if base.exists():
         shutil.rmtree(base)
     base.mkdir(parents=True)
@@ -269,35 +266,51 @@ def world2d():
         shutil.rmtree(base)
 
 
-def test_thermal_2d_through_the_governed_path_is_verified(world2d):
-    """The second model reaches VERIFIED by the same line, checked by the 3D
-    solver, and the history names the tool that ran IT."""
-    g, log = world2d
-    run = g.propose(**T2D, parameters={**SMALL_2D,
-                                       "lateral_boundary": "adiabatic"},
-                    out_dir=f"{WS}/twod/adiabatic")
-    chk = g.check(run, check_id="thermal_2d.reduction_3d_adiabatic_lateral",
-                  out_dir=f"{WS}/twod/check")
+def test_a_second_model_through_the_governed_path_is_verified(world2):
+    """A different model, a different check (RK4 on the pressure form), the
+    same line -- and the history names the tool that ran IT."""
+    g, log = world2
+    run = g.propose(**SURFACE, parameters=SURFACE_PARAMS,
+                    out_dir=f"{WS}/second/surface")
+    chk = g.check(run, check_id="surface_adsorption.rk4_pressure_form",
+                  out_dir=f"{WS}/second/surface-check")
     report = json.loads(g.evidence.get(chk.report_sha256))
     assert report["status"] == "PASS", report
     assert g.decide(run, chk).state is State.VERIFIED
     _, events = log.read_verified()
     tools = {e.payload["tool_id"] for e in events
              if e.action == "task.create"}
-    assert TOOL_RUN_2D in tools and TOOL_RUN not in tools
+    assert TOOL_RUN_SURFACE in tools and TOOL_RUN_SLAB not in tools
 
 
-def test_a_cold_contact_2d_result_has_no_check_and_is_not_verified(world2d):
-    """The production lateral boundary has no independent check here. The
-    check says NOT_RUN, and NOT_RUN is not support."""
-    g, _ = world2d
-    run = g.propose(**T2D, parameters=SMALL_2D, out_dir=f"{WS}/twod/cold")
-    chk = g.check(run, check_id="thermal_2d.reduction_3d_adiabatic_lateral",
-                  out_dir=f"{WS}/twod/coldcheck")
+def test_a_passing_analytic_reference_is_not_admission(world2):
+    """Admission policy scientific_result.admission/1 admits an
+    INDEPENDENT_IMPLEMENTATION check. The slab's exact-series check is an
+    ANALYTIC_REFERENCE: it passes, and the result is still REJECTED -- a
+    PASS of a kind the policy does not name is not support, and nothing
+    here widens the policy to make a test pass."""
+    g, _ = world2
+    run = g.propose(**MODEL, parameters=PARAMS, out_dir=f"{WS}/second/slab")
+    chk = g.check(run, check_id="thermal.slab_series",
+                  out_dir=f"{WS}/second/slab-series")
+    assert json.loads(g.evidence.get(chk.report_sha256))["status"] == "PASS"
     rec = g.decide(run, chk)
     assert rec.state is State.REJECTED
     reason = json.loads(g.evidence.get(rec.evidence["rejection_reason"]))
-    assert any("reported NOT_RUN" in p for p in reason["problems"])
+    assert reason["problems"] == ["the report is not an independent check"]
+
+
+def test_a_check_admitted_for_another_model_is_refused(world2):
+    """The surface model's RK4 check run on a slab bundle refuses to compare
+    unlike problems: the check task fails, and nothing reaches the
+    reviewer."""
+    g, _ = world2
+    run = g.propose(**MODEL, parameters={**PARAMS, "n_cells": 48},
+                    out_dir=f"{WS}/second/slab2")
+    with pytest.raises(ModelRunRefused, match="check task was"):
+        g.check(run, check_id="surface_adsorption.rk4_pressure_form",
+                out_dir=f"{WS}/second/wrongcheck")
+    assert g.authority.get(run.record_id).state is State.PROPOSED
 
 
 def test_a_model_with_no_governed_tool_is_refused(world):

@@ -113,7 +113,7 @@
         }
       ],
       "tests": [
-        "tests/test_governed_model.py::test_a_cold_contact_2d_result_has_no_check_and_is_not_verified",
+        "tests/test_governed_model.py::test_a_passing_analytic_reference_is_not_admission",
         "tests/test_governed_model.py::test_no_executor_wrote_an_authority_event"
       ],
       "note": "A VERIFIED task is provenance. A result is accepted only by a decision through the store, under the admission policy; with no independent check it is REJECTED."

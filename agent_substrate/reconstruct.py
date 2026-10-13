@@ -470,11 +470,15 @@ _SCI_REPORT_FIELDS = (
 #: Governed tools whose captured artefacts count, by what they are. A report
 #: from any other tool -- or from no tool -- is not a governed verification.
 _SCI_CHECK_TOOLS = frozenset({"model.independent_check"})
-_SCI_RUN_TOOLS = frozenset({"model.thermal.conduction_1d.run",
-                            "model.thermal.conduction_2d_axisymmetric.run",
-                            "model.thermal.slab_transient.run",
+#: The last two are run tools of models this repository no longer carries:
+#: no task can be created under them, and they are recognised so that a
+#: history which used them replays to what it recorded.
+_SCI_RUN_TOOLS = frozenset({"model.thermal.slab_transient.run",
                             "model.thermal.rc2_network.run",
-                            "model.fmi.thermal_rc2.run"})
+                            "model.surface.langmuir_capture.run",
+                            "model.fmi.thermal_rc2.run",
+                            "model.thermal.conduction_1d.run",
+                            "model.thermal.conduction_2d_axisymmetric.run"})
 
 
 class _SciUnreadable(Exception):

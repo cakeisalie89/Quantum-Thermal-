@@ -74,10 +74,18 @@ from .tasks import TaskState
 from .tools import (Determinism, Field_, OutputFile, Registry, SideEffect,
                     ToolSpec)
 
-TOOL_RUN = "model.thermal.conduction_1d.run"
-TOOL_RUN_2D = "model.thermal.conduction_2d_axisymmetric.run"
 TOOL_RUN_SLAB = "model.thermal.slab_transient.run"
 TOOL_RUN_RC2 = "model.thermal.rc2_network.run"
+TOOL_RUN_SURFACE = "model.surface.langmuir_capture.run"
+#: Run tools of models this repository no longer carries. No tool by these
+#: ids is registered, so no task can be created under one; they stay
+#: recognised as PRODUCERS so that a history which used them replays to the
+#: decisions it recorded rather than to "unknown tool". Protocol
+#: identifiers, kept verbatim (see AGENT_SUBSTRATE.md, protocol
+#: identifiers).
+RETIRED_MODEL_RUN_TOOLS = frozenset({
+    "model.thermal.conduction_1d.run",
+    "model.thermal.conduction_2d_axisymmetric.run"})
 #: An external model: an FMI 3.0 FMU executed in its own runtime. Its
 #: bundle is a SIMULATION_RESULT like any model's and enters the same
 #: evidence boundary -- checked by an admitted independent check, decided
@@ -88,18 +96,14 @@ TOOL_IDENTITY = "model.run_identity"
 #: Which governed tool runs which model. One tool per model, so a policy
 #: decision and the task history name the model that ran; a model with no
 #: tool here is refused before anything is submitted.
-MODEL_TOOLS = {"thermal.conduction_1d": TOOL_RUN,
-               "thermal.conduction_2d_axisymmetric": TOOL_RUN_2D,
-               "thermal.slab_transient": TOOL_RUN_SLAB,
-               "thermal.rc2_network": TOOL_RUN_RC2}
+MODEL_TOOLS = {"thermal.slab_transient": TOOL_RUN_SLAB,
+               "thermal.rc2_network": TOOL_RUN_RC2,
+               "surface.langmuir_capture": TOOL_RUN_SURFACE}
 #: Models whose run writes a temperature field beside the bundle.
-_FIELD_MODELS = frozenset({"thermal.conduction_1d",
-                           "thermal.conduction_2d_axisymmetric",
-                           "thermal.slab_transient"})
-_TOOL_MODULES = {TOOL_RUN: "scientific._governed_run",
-                 TOOL_RUN_2D: "scientific._governed_run",
-                 TOOL_RUN_SLAB: "scientific._governed_run",
+_FIELD_MODELS = frozenset({"thermal.slab_transient"})
+_TOOL_MODULES = {TOOL_RUN_SLAB: "scientific._governed_run",
                  TOOL_RUN_RC2: "scientific._governed_run",
+                 TOOL_RUN_SURFACE: "scientific._governed_run",
                  TOOL_RUN_FMU: "scientific._governed_fmu",
                  TOOL_CHECK: "scientific._governed_check",
                  TOOL_IDENTITY: "scientific._governed_identity"}
@@ -224,7 +228,8 @@ class CheckRun:
 #: origin, and as a ResultBundle's. Restated as data in
 #: agent_substrate.reconstruct; a conformance test holds the two to each other.
 VERIFIER_TOOLS = frozenset({TOOL_CHECK})
-MODEL_RUN_TOOLS = frozenset(MODEL_TOOLS.values()) | {TOOL_RUN_FMU}
+MODEL_RUN_TOOLS = (frozenset(MODEL_TOOLS.values()) | {TOOL_RUN_FMU}
+                   | RETIRED_MODEL_RUN_TOOLS)
 
 
 class GovernedOrigins:

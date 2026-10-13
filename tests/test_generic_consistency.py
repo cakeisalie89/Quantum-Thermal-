@@ -32,9 +32,7 @@ from agent_substrate.governed_model import REVIEWER_ID, GovernedModelRuns  # noq
 from agent_substrate.reconstruct import Divergence  # noqa: E402
 
 WS = "verification/stage10/_pytest_generic_consistency"
-MODEL = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
-PARAMS = {"n_cells": 60, "n_eval": 20}
-CHECK = "thermal_1d.reduction_2d_radial_disabled"
+from governed_case import CHECK, MODEL, PARAMS  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -227,7 +225,7 @@ def test_an_unadmitted_model_or_check_is_a_finding(world):
         _fetch(ROOT / WS / "genuine"))
     assert GC.identity_findings(bundle, vr, models(), check) == []
     assert GC.identity_findings(bundle, vr, ModelRegistry(), check) == [
-        "thermal.conduction_1d@1.0.0 is not an admitted model"]
+        "thermal.slab_transient@1.0.0 is not an admitted model"]
 
     def nothing(check_id):
         raise KeyError(check_id)

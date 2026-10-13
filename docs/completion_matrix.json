@@ -2751,10 +2751,12 @@
         "scientific/catalog.py",
         "scientific/hdf5_bundle.py",
         "scientific/models/slab_transient.py",
-        "scientific/models/thermal_1d.py",
-        "scientific/models/thermal_2d.py",
         "agent_substrate/governed_model.py",
-        "tools/generic_consistency.py"
+        "tools/generic_consistency.py",
+        "scientific/checks/slab_mol.py",
+        "scientific/integrations/vtk_export.py",
+        "scientific/integrations/usd_export.py",
+        "scientific/integrations/openmdao_doe.py"
       ],
       "callers": [
         "tools/harness_demo.py",
@@ -2776,11 +2778,10 @@
       "tests": [
         "tests/test_hdf5_bundle.py",
         "tests/test_scientific_interfaces.py",
-        "tests/test_scientific_thermal_1d.py",
-        "tests/test_scientific_thermal_2d.py",
         "tests/test_generic_consistency.py",
         "tests/test_governed_model.py",
-        "tests/test_harness_integrations.py"
+        "tests/test_harness_integrations.py",
+        "tests/test_scientific_integrations.py"
       ],
       "property_tests": [],
       "mutation_tests": [

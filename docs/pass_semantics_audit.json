@@ -14,8 +14,8 @@
    "occurrences": 0
   },
   "LEGACY_COMPATIBILITY_GUARD": {
-   "files": 83,
-   "occurrences": 302
+   "files": 84,
+   "occurrences": 304
   },
   "LEGACY_QTA_CANONICAL": {
    "files": 55,
@@ -2175,6 +2175,18 @@
    "path": "tools/pass_semantics_audit.py",
    "rule_class": "TOOLING_REFERENCE",
    "why": "this audit: its patterns name what it looks for"
+  },
+  {
+   "leaks": [],
+   "occurrences": {
+    "LEGACY_COMPATIBILITY_GUARD": {
+     "pass_count": 1,
+     "results_gate_table": 1
+    }
+   },
+   "path": "tools/repo_content_audit.py",
+   "rule_class": "LEGACY_COMPATIBILITY_GUARD",
+   "why": "a tool that reads or checks the legacy corpus"
   },
   {
    "leaks": [],

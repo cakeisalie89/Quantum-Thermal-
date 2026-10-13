@@ -48,6 +48,11 @@
       "why": "The forensic inventory names every file tracked at the transformation baseline in order to classify it and record what became of it; it reads the baseline from the Git object store, and the legacy names are what it classifies."
     },
     {
+      "module": "tools.repo_content_audit",
+      "rule": "OPEN",
+      "why": "The content audit names the retired roots, outputs and vocabulary in order to detect them in the current tree; it imports none of them."
+    },
+    {
       "module": "qta_multiphysics.stack.rag_index",
       "rule": "OPEN",
       "names": [

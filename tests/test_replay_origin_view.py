@@ -40,8 +40,7 @@ from agent_substrate.governed_model import (  # noqa: E402
 from agent_substrate.store import AuthorityStore  # noqa: E402
 
 WS = "verification/stage10/_pytest_origin_view"
-CHECK = "thermal_1d.reduction_2d_radial_disabled"
-MODEL = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
+from governed_case import CHECK, MODEL, OTHER, PARAMS  # noqa: E402
 PROMOTER = "result-promoter"
 #: Admissions in the world: three results into VERIFIED, two of them on
 #: into PROMOTED.
@@ -61,9 +60,7 @@ def world():
                           evidence=EvidenceStore(base / "genuine" /
                                                  "evidence"))
     out = {}
-    for name, params in (("a", {"n_cells": 60, "n_eval": 20}),
-                         ("a2", {"n_cells": 60, "n_eval": 20}),
-                         ("b", {"n_cells": 40, "n_eval": 16})):
+    for name, params in (("a", PARAMS), ("a2", PARAMS), ("b", OTHER)):
         run = g.propose(**MODEL, parameters=params, reuse=False,
                         out_dir=f"{WS}/genuine/{name}-run")
         chk = g.check(run, check_id=CHECK,

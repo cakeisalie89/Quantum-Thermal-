@@ -655,13 +655,17 @@ rule s10_governed_index:
 
 
 # ---- the governed SCIENTIFIC-MODEL path ------------------------------------
-# The production caller of agent_substrate.governed_model: thermal.conduction_1d at
-# its declared (forecast) configuration, run as a governed task, checked by
-# an independent implementation as a second governed task by a different
-# executor, and decided by a reviewer through the authority store -- which
-# enforces the content rule on the edge itself. Then the SAME proposal again:
-# it must reuse the verified result (no second model run), and a proposal
-# with other parameters must not.
+# The production caller of agent_substrate.governed_model: the transient slab
+# at declared inputs, run as a governed task, checked by an independent
+# implementation (a method-of-lines solve) as a second governed task by a
+# different executor, and decided by a reviewer through the authority store
+# -- which enforces the content rule on the edge itself. Then the SAME
+# proposal again: it must reuse the verified result (no second model run),
+# and a proposal with other parameters must not. Then a second model by the
+# same line (Langmuir capture, RK4 check), VERIFIED; and the slab's
+# exact-series check, which PASSES and is still not admission, because the
+# policy admits independent implementations and the series is an analytic
+# reference.
 #
 # A VERIFIED scientific_result is a checked simulation result. It is not a
 # measurement, not experimental validation, not PROMOTED, and not a gate:
@@ -678,7 +682,8 @@ rule s10_governed_model:
         from agent_substrate.authority import State
         from agent_substrate.events import EventLog
         from agent_substrate.evidence import EvidenceStore
-        from agent_substrate.governed_model import TOOL_RUN, GovernedModelRuns
+        from agent_substrate.governed_model import (TOOL_RUN_SLAB,
+                                                    GovernedModelRuns)
         from agent_substrate.tasks import TaskState
 
         root = Path(".").resolve()
@@ -692,21 +697,24 @@ rule s10_governed_model:
         log = EventLog(base / "task_log.jsonl")
         g = GovernedModelRuns(root=root, log=log,
                               evidence=EvidenceStore(base / "evidence"))
-        model = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
-        params = {}
+        model = {"model_id": "thermal.slab_transient",
+                 "model_version": "1.0.0"}
+        params = {"L_m": 0.05, "k_W_m_K": 15.0, "rho_c_J_m3_K": 3.6e6,
+                  "q_W_m3": 2e5, "h_W_m2_K": 50.0, "T_inf_K": 300.0,
+                  "T0_K": 300.0, "t_end_s": 600.0}
 
         def model_runs():
             report, events = log.read_verified()
             assert report.ok, "the model task log does not verify"
             return sum(1 for e in events if e.action == "task.create"
-                       and e.payload.get("tool_id") == TOOL_RUN)
+                       and e.payload.get("tool_id") == TOOL_RUN_SLAB)
 
         first = g.propose(**model, parameters=params,
                           out_dir=f"{W10}/governed_model/first")
         assert first.reused_from == "", (
             "a fresh history had something to reuse")
         assert first.governed.state is TaskState.VERIFIED
-        check = g.check(first, check_id="thermal_1d.reduction_2d_radial_disabled",
+        check = g.check(first, check_id="thermal.slab_method_of_lines",
                         out_dir=f"{W10}/governed_model/check")
         decided = g.decide(first, check)
         assert decided.state is State.VERIFIED, (
@@ -722,28 +730,42 @@ rule s10_governed_model:
             "an identical proposal did not reuse the verified result")
         assert model_runs() == runs, "reuse ran the model anyway"
 
-        other = g.propose(**model, parameters={"n_cells": 201},
+        other = g.propose(**model, parameters={**params, "n_cells": 40,
+                                               "n_steps": 120},
                           out_dir=f"{W10}/governed_model/other")
         assert other.reused_from == "", (
             "a proposal with other parameters reused a result")
         assert model_runs() == runs + 1
 
-        # The SECOND model, by the same line: thermal 2D axisymmetric with
-        # adiabatic sides, checked by the 3D Cartesian solver. At the
-        # production (cold-contact) boundary there is no independent check,
-        # and the rule does not pretend otherwise by running it here.
-        model2 = {"model_id": "thermal.conduction_2d_axisymmetric",
+        # The SECOND model, by the same line: Langmuir surface capture,
+        # checked by an RK4 integration of its pressure form.
+        model2 = {"model_id": "surface.langmuir_capture",
                   "model_version": "1.0.0"}
-        params2 = {"lateral_boundary": "adiabatic"}
+        params2 = {"pressure_Pa": 1e-4, "T_gas_K": 300.0, "mass_amu": 17.035,
+                   "sticking": 0.55, "capacity_per_m2": 1e19,
+                   "window_s": 1.0, "n_windows": 3}
         second = g.propose(**model2, parameters=params2,
                            out_dir=f"{W10}/governed_model/second")
         check2 = g.check(second,
-                         check_id="thermal_2d.reduction_3d_adiabatic_lateral",
+                         check_id="surface_adsorption.rk4_pressure_form",
                          out_dir=f"{W10}/governed_model/check2")
         decided2 = g.decide(second, check2)
         assert decided2.state is State.VERIFIED, (
-            f"the 2D result was {decided2.state.value}: "
+            f"the second result was {decided2.state.value}: "
             f"{decided2.evidence.get('rejection_reason')}")
+
+        # A PASS the policy does not name: the slab's exact-series check is
+        # an ANALYTIC_REFERENCE, and scientific_result.admission/1 admits an
+        # INDEPENDENT_IMPLEMENTATION. The rule shows the refusal rather than
+        # widening the policy.
+        third = g.propose(**model, parameters={**params, "n_cells": 48},
+                          out_dir=f"{W10}/governed_model/third")
+        check3 = g.check(third, check_id="thermal.slab_series",
+                         out_dir=f"{W10}/governed_model/check3")
+        assert json.loads(g.evidence.get(check3.report_sha256))[
+            "status"] == "PASS"
+        decided3 = g.decide(third, check3)
+        assert decided3.state is State.REJECTED, decided3.state.value
 
         assert log.verify().ok, "the model task log does not verify"
         from agent_substrate.audit import AuditIndex
@@ -772,6 +794,7 @@ rule s10_governed_model:
         for rid in (first.record_id, second.record_id):
             assert authority.records[rid]["admission"] == "ADMITTED", rid
             assert g.authority.get(rid).admission == "ADMITTED", rid
+        assert g.authority.get(third.record_id).state is State.REJECTED
 
         bundle = json.loads(g.evidence.get(first.bundle_sha256))
         verification = json.loads(g.evidence.get(check.report_sha256))
@@ -792,7 +815,7 @@ rule s10_governed_model:
                 "report_sha256": check.report_sha256},
             "reuse": {"identical_proposal_reused": again.reused_from,
                       "other_parameters_recomputed": other.record_id,
-                      "thermal_1d_model_runs": model_runs()},
+                      "model_runs": model_runs()},
             "second_model": {
                 "model": model2, "parameters": params2,
                 "record_id": second.record_id,

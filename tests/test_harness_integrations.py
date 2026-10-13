@@ -32,6 +32,7 @@ import scientific.models.slab_transient as ST  # noqa: E402
 from scientific import fmi_boundary as FB  # noqa: E402
 from scientific.checks import fenicsx_slab as FX  # noqa: E402
 from scientific.checks import slab_series as SS  # noqa: E402
+from scientific.checks import slab_mol as MOL  # noqa: E402
 from scientific.models.thermal_rc2 import (  # noqa: E402
     FMI_VARIABLES, ThermalRC2Model, closed_form,
 )
@@ -96,16 +97,127 @@ def test_an_odd_resolution_is_refused():
         ST.SlabTransientModel().run({**SLAB, "n_cells": 41})
 
 
+@pytest.mark.parametrize("n", range(8, 129, 2))
+def test_the_stated_estimate_holds_on_every_admissible_grid(n):
+    """D-2026-131. The estimate is a claim about the error; it must hold
+    against the exact series on every grid the model accepts, and every
+    grid on which it does not hold must be refused. Before the repair
+    n_cells only had to be even, and on n = 12, 20, 82, 84, 100 ... the
+    series check failed the model's own stated resolution by up to 16x."""
+    params = {**SLAB, "n_cells": n, "n_steps": 240}
+    if n % ST.SAMPLE_GRID_MULTIPLE:
+        with pytest.raises(ValueError, match="multiple of 8"):
+            ST.SlabTransientModel().run(params)
+        return
+    b = ST.SlabTransientModel().run(params)
+    assert SS.run_check(b, verifier_id="t").status.value == "PASS", n
+
+
 def test_the_slab_converges_at_second_order():
     xs = [0.0]
     ref = SS.series_temperature(SLAB, xs)[0]
     errs = []
-    for n, m in ((20, 60), (40, 120), (80, 240)):
+    for n, m in ((24, 72), (48, 144), (96, 288)):
         b = ST.SlabTransientModel().run({**SLAB, "n_cells": n,
                                          "n_steps": m})
         errs.append(abs(b.output("T_at_0").quantity.value - ref))
     orders = [math.log(a / b) / math.log(2) for a, b in zip(errs, errs[1:])]
     assert all(o > 1.8 for o in orders), orders
+
+
+# ---- the method-of-lines check -------------------------------------------
+
+def test_the_mol_check_passes_the_correct_solver(slab_bundle):
+    r = MOL.run_check(slab_bundle, verifier_id="test")
+    assert r.status is Status.PASS
+    assert r.measured.value <= 1.0
+    assert r.check_type.value == "INDEPENDENT_IMPLEMENTATION"
+    assert r.independence.value == "DIFFERENT_DISCRETIZATION"
+
+
+@pytest.mark.parametrize("fk, fh", [(1.10, 1.0), (1.0, 1.5), (0.95, 1.0)])
+def test_the_mol_check_rejects_a_wrong_solver(fk, fh):
+    """CONTROL: a solver run with the wrong conductivity or film
+    coefficient, labelled as the declared one, must FAIL -- the check is
+    only as good as its ability to disagree."""
+    bad = _wrong(SLAB, fk, fh)
+    assert MOL.run_check(bad, verifier_id="test").status is Status.FAIL
+
+
+def test_the_mol_check_agrees_with_the_exact_series():
+    """The check's own answer, against the closed form, inside its own
+    stated estimate: a check that is wrong in the same direction as the
+    producer would pass it, so the check is checked too."""
+    xs = [f * SLAB["L_m"] for f in MOL.SAMPLE_FRACTIONS]
+    exact = SS.series_temperature(SLAB, xs)
+    coarse = MOL.mol_temperature(SLAB, MOL.NODES)
+    fine = MOL.mol_temperature(SLAB, 2 * MOL.NODES)
+    for e, c, f in zip(exact, coarse, fine):
+        # the check answers with the fine solution and states |c - f| / 3
+        # as its error; the exact series must sit inside that, with the
+        # same factor of safety the criterion uses
+        assert abs(f - e) <= MOL.GCI_SAFETY * abs(c - f) / 3.0
+
+
+def _with_samples(bundle, values, resolution):
+    """The bundle with its five sample outputs replaced: a producer whose
+    answer is exactly ``values``, stating ``resolution`` as its error."""
+    import dataclasses
+    from scientific.quantity import Quantity, ResolutionClass
+    by = dict(zip(MOL.SAMPLE_NAMES, values))
+    outs = []
+    for o in bundle.outputs:
+        if o.name in by:
+            q = Quantity(by[o.name], "K", resolution=resolution,
+                         resolution_class=ResolutionClass
+                         .DISCRETIZATION_ESTIMATE,
+                         resolution_basis="test producer",
+                         reporting_digits=12)
+            o = dataclasses.replace(o, quantity=q)
+        outs.append(o)
+    return dataclasses.replace(bundle, outputs=tuple(outs))
+
+
+def test_the_mol_check_passes_a_perfect_producer(slab_bundle):
+    """A producer that returns the EXACT solution, claiming almost no
+    error, must pass: the check answers with its fine solution, whose error
+    its stated estimate covers. Answering with the coarse solution instead
+    (four times the error, the same estimate) fails this producer -- which
+    is how that defect in this check's first draft was caught."""
+    xs = [f * SLAB["L_m"] for f in MOL.SAMPLE_FRACTIONS]
+    exact = SS.series_temperature(SLAB, xs)
+    perfect = _with_samples(slab_bundle, exact, 1e-12)
+    r = MOL.run_check(perfect, verifier_id="test")
+    assert r.status is Status.PASS, r.measured
+
+
+def test_the_mol_check_fails_a_near_miss(slab_bundle):
+    """CONTROL at the edge: the exact solution moved by five times the
+    check's own tolerance must FAIL. A wrong solver off by a percent would
+    fail almost any criterion; this one fails only if the check's own error
+    estimate is the small one it states."""
+    xs = [f * SLAB["L_m"] for f in MOL.SAMPLE_FRACTIONS]
+    exact = SS.series_temperature(SLAB, xs)
+    coarse = MOL.mol_temperature(SLAB, MOL.NODES)
+    fine = MOL.mol_temperature(SLAB, 2 * MOL.NODES)
+    tol = max(MOL.GCI_SAFETY * abs(c - f) / 3.0
+              for c, f in zip(coarse, fine))
+    near = _with_samples(slab_bundle, [e + 5.0 * tol for e in exact], 1e-12)
+    assert MOL.run_check(near, verifier_id="test").status is Status.FAIL
+
+
+def test_the_mol_check_refuses_another_model():
+    b = ThermalRC2Model().run({"t_end_s": 10.0})
+    with pytest.raises(ValueError, match="this check is for"):
+        MOL.run_check(b, verifier_id="test")
+
+
+def test_the_mol_check_shares_no_code_with_the_producer():
+    assert MOL.check_digest() != ST.SlabTransientModel(
+    ).implementation_digest()
+    src = (ROOT / "scientific/checks/slab_mol.py").read_text()
+    assert "slab_transient" not in src.split('"""', 2)[2].replace(
+        'MODEL_ID = "thermal.slab_transient"', "")
 
 
 # ---- the series check ----------------------------------------------------

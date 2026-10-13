@@ -389,8 +389,8 @@ def test_a_failed_output_is_not_compared(monkeypatch, model):
 
 
 def test_the_check_refuses_another_model():
-    from scientific.models import thermal_1d as T1
+    from scientific.models import slab_transient as ST
     b = run_model(SA.SurfaceAdsorptionModel(), BASE)
-    b = dataclasses.replace(b, model_id=T1.MODEL_ID)
+    b = dataclasses.replace(b, model_id=ST.MODEL_ID)
     with pytest.raises(ValueError, match="this check is for"):
         RK.run_check(b, verifier_id="t")

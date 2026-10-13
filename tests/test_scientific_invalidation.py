@@ -44,8 +44,7 @@ from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
 from agent_substrate.tasks import TaskState, TaskTransitionError  # noqa: E402
 
 WS = "verification/stage10/_pytest_invalidation"
-CHECK = "thermal_1d.reduction_2d_radial_disabled"
-MODEL = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
+from governed_case import CHECK, MODEL, OTHER, PARAMS  # noqa: E402
 PROMOTER = "result-promoter"
 
 
@@ -62,8 +61,7 @@ def world():
                           evidence=EvidenceStore(base / "genuine" /
                                                  "evidence"))
     out = {}
-    for name, params in (("a", {"n_cells": 60, "n_eval": 20}),
-                         ("b", {"n_cells": 40, "n_eval": 16})):
+    for name, params in (("a", PARAMS), ("b", OTHER)):
         run = g.propose(**MODEL, parameters=params,
                         out_dir=f"{WS}/genuine/{name}-run")
         chk = g.check(run, check_id=CHECK,

@@ -20,8 +20,8 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import framework_boundary as FB  # noqa: E402
 
-CLEAN = "scientific/models/thermal_1d.py"
-CLEAN_MOD = "scientific.models.thermal_1d"
+CLEAN = "scientific/models/slab_transient.py"
+CLEAN_MOD = "scientific.models.slab_transient"
 
 
 def _plant(path: str, extra: str) -> "FB.Boundary":

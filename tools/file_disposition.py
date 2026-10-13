@@ -748,6 +748,11 @@ RULES = [
      "mypy over the active tree, enforced in CI; the modules frozen by "
      "NF-1T provenance; legacy typing debt measured and recorded apart.",
      "tests/test_typecheck_scope.py"),
+    ("tools/repo_content_audit.py", KAH,
+     "NEW (transformation): reads the current tree for retired content -- "
+     "paths, imports, gate dependencies, vocabulary, unclassified files -- "
+     "with declared protocol identifiers and allowances.",
+     "tests/test_repo_content_audit.py"),
     ("tools/repo_inventory.py", KAH,
      "NEW (transformation): every file tracked at the transformation "
      "baseline classified, its measured dependencies, and its final "
@@ -1269,6 +1274,9 @@ RULES = [
      "NEW (harness programme): every Python file in one type-check scope, "
      "the override held to the real frozen closure, every ignore local "
      "and explained.", ""),
+    ("tests/governed_case.py", KAH,
+     "NEW (transformation): the one generic case the governed-path tests "
+     "drive -- the transient slab and its method-of-lines check.", ""),
     ("tests/test_repo_inventory.py", KAH,
      "NEW (transformation): the inventory is held to its rules and to the "
      "tree, and each way of making it lie is caught.", ""),

@@ -41,9 +41,7 @@ from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
 from agent_substrate.store import AuthorityStore, StoreError  # noqa: E402
 
 WS = "verification/stage10/_pytest_models_replay"
-CHECK = "thermal_1d.reduction_2d_radial_disabled"
-MODEL = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
-PARAMS = {"n_cells": 60, "n_eval": 20}
+from governed_case import CHECK, MODEL, PARAMS  # noqa: E402
 PROMOTER = "result-promoter"
 
 
@@ -489,10 +487,10 @@ def test_the_auditor_refuses_a_forged_admission(world):
 
 @pytest.fixture(scope="module")
 def pair():
-    from scientific.checks.reduction_2d import run_check
+    from scientific.checks.slab_mol import run_check
     from scientific.model import run_model
-    from scientific.models.thermal_1d import Thermal1DModel
-    bundle = run_model(Thermal1DModel(), PARAMS)
+    from scientific.models.slab_transient import SlabTransientModel
+    bundle = run_model(SlabTransientModel(), PARAMS)
     report = run_check(bundle, verifier_id="checker")
     return bundle.to_record(), report.to_record()
 
@@ -514,7 +512,7 @@ class _Blobs:
 
 def _view(bundle_sha, report_sha, *, checker="checker", worker="worker"):
     return {
-        "run": {"tool_id": "model.thermal.conduction_1d.run",
+        "run": {"tool_id": "model.thermal.slab_transient.run",
                 "history": [(1, "CREATED"), (6, "VERIFIED")],
                 "captured": [(4, bundle_sha)], "executions": [(3, worker)]},
         "chk": {"tool_id": "model.independent_check",

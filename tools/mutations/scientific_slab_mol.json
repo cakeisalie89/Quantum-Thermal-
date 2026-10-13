@@ -1,0 +1,51 @@
+{
+ "title": "The method-of-lines check of the slab disagrees when it should",
+ "note": "ML1-ML6: the second independent check of the slab (a vertex-centred finite-difference grid integrated by BDF). Each mutation weakens the comparison, the check's own answer or its boundary closure; each must be killed by a test that compares with a wrong solver or with the exact series.",
+ "suites": [
+  "tests/test_harness_integrations.py"
+ ],
+ "mutations": [
+  {
+   "name": "ML1_ratio_ignored",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "        ratio = max(ratio, abs(q.value - tf) / tol)\n",
+   "replace": "        ratio = max(ratio, 0.0 * tol)\n",
+   "rationale": "a check that never measures the disagreement passes every solver"
+  },
+  {
+   "name": "ML2_coarse_answer",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "        ratio = max(ratio, abs(q.value - tf) / tol)\n",
+   "replace": "        ratio = max(ratio, abs(q.value - tc) / tol)\n",
+   "rationale": "the coarse answer with the fine answer's error estimate: the defect this check was written with and its own test caught"
+  },
+  {
+   "name": "ML3_own_error_dropped",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "        r_check = abs(tc - tf) / 3.0       # the error of tf, not of tc\n",
+   "replace": "        r_check = abs(tc - tf) * 100.0\n",
+   "rationale": "an inflated own-error estimate widens the tolerance until a wrong solver passes"
+  },
+  {
+   "name": "ML4_insulated_ghost",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "    upper[0] = 2.0 * a                     # ghost T_{-1} = T_1\n",
+   "replace": "    upper[0] = a\n",
+   "rationale": "a leaky insulated face: the check solves another problem"
+  },
+  {
+   "name": "ML5_convective_ghost",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "    main[-1] = -2.0 * a - 2.0 * a * dx * h / k\n",
+   "replace": "    main[-1] = -2.0 * a - a * dx * h / k\n",
+   "rationale": "half the film coefficient at the convective face"
+  },
+  {
+   "name": "ML6_status_forced",
+   "path": "scientific/checks/slab_mol.py",
+   "find": "        **common, status=Status.PASS if ratio <= 1.0 else Status.FAIL,\n",
+   "replace": "        **common, status=Status.PASS,\n",
+   "rationale": "a check that cannot FAIL"
+  }
+ ]
+}

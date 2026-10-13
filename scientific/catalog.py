@@ -13,12 +13,8 @@ from .registry import ModelRegistry
 def models() -> ModelRegistry:
     from .models.slab_transient import SlabTransientModel
     from .models.surface_adsorption import SurfaceAdsorptionModel
-    from .models.thermal_1d import Thermal1DModel
-    from .models.thermal_2d import Thermal2DModel
     from .models.thermal_rc2 import ThermalRC2Model
     reg = ModelRegistry()
-    reg.register(Thermal1DModel())
-    reg.register(Thermal2DModel())
     reg.register(SurfaceAdsorptionModel())
     reg.register(SlabTransientModel())
     reg.register(ThermalRC2Model())
@@ -57,15 +53,12 @@ def external_model_problems(bundle) -> list:
 
 def check(check_id: str):
     """``(run_check, check_digest)`` for an admitted independent check."""
-    if check_id == "thermal_1d.reduction_2d_radial_disabled":
-        from .checks import reduction_2d
-        return reduction_2d.run_check, reduction_2d.check_digest
-    if check_id == "thermal_2d.reduction_3d_adiabatic_lateral":
-        from .checks import reduction_3d
-        return reduction_3d.run_check, reduction_3d.check_digest
     if check_id == "surface_adsorption.rk4_pressure_form":
         from .checks import langmuir_rk4
         return langmuir_rk4.run_check, langmuir_rk4.check_digest
+    if check_id == "thermal.slab_method_of_lines":
+        from .checks import slab_mol
+        return slab_mol.run_check, slab_mol.check_digest
     if check_id == "thermal.slab_series":
         from .checks import slab_series
         return slab_series.run_check, slab_series.check_digest

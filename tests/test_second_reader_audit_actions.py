@@ -65,8 +65,8 @@ def governed():
     g = GovernedModelRuns(root=ROOT,
                           log=EventLog(base / "genuine" / "log.jsonl"),
                           evidence=EvidenceStore(base / "genuine" / "ev"))
-    g.propose(model_id="thermal.conduction_1d", model_version="1.0.0",
-              parameters={"n_cells": 60, "n_eval": 20},
+    from governed_case import MODEL, PARAMS
+    g.propose(**MODEL, parameters=PARAMS,
               out_dir=f"{WS}/genuine/run")
     yield base / "genuine"
     if base.exists():

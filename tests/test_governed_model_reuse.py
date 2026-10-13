@@ -27,22 +27,20 @@ from agent_substrate.canonical import digest  # noqa: E402
 from agent_substrate.events import EventLog  # noqa: E402
 from agent_substrate.evidence import EvidenceStore  # noqa: E402
 from agent_substrate.governed_model import (  # noqa: E402
-    REVIEWER_ID, TOOL_RUN, GovernedModelRuns, ModelRunRefused,
+    REVIEWER_ID, TOOL_RUN_SLAB, GovernedModelRuns, ModelRunRefused,
 )
 from agent_substrate.governed_tasks import SUBMITTER_ID  # noqa: E402
 from agent_substrate.tasks import TaskState  # noqa: E402
 
 WS = "verification/stage10/_pytest_models_reuse"
-CHECK = "thermal_1d.reduction_2d_radial_disabled"
-MODEL = {"model_id": "thermal.conduction_1d", "model_version": "1.0.0"}
-PARAMS = {"n_cells": 60, "n_eval": 20}
+from governed_case import CHECK, MODEL, OTHER, PARAMS  # noqa: E402
 
 
 def _model_runs(log) -> int:
     report, events = log.read_verified()
     assert report.ok
     return sum(1 for e in events if e.action == "task.create"
-               and e.payload.get("tool_id") == TOOL_RUN)
+               and e.payload.get("tool_id") == TOOL_RUN_SLAB)
 
 
 @pytest.fixture(scope="module")
@@ -90,7 +88,7 @@ def test_the_identity_task_agrees_with_the_bundle(world):
 def test_other_parameters_are_recomputed(world):
     g, first, _, log, _ = world
     runs = _model_runs(log)
-    other = g.propose(**MODEL, parameters={**PARAMS, "n_cells": 61},
+    other = g.propose(**MODEL, parameters=OTHER,
                       out_dir=f"{WS}/other")
     assert other.reused_from == ""
     assert other.governed.state is TaskState.VERIFIED
@@ -219,7 +217,7 @@ def test_a_record_citing_an_identity_its_bundle_does_not_carry(world):
     carries another. The bundle is believed, not the citation, and only this
     check excludes it."""
     g, first, _, _, _ = world
-    other = g.propose(**MODEL, parameters={**PARAMS, "n_cells": 61},
+    other = g.propose(**MODEL, parameters=OTHER,
                       out_dir=f"{WS}/carried", reuse=False)
     ochk = g.check(other, check_id=CHECK, out_dir=f"{WS}/carried-check")
     rid = _record(world, "carries-another", bundle_sha=other.bundle_sha256,
@@ -465,11 +463,11 @@ def test_the_identity_is_this_model_these_parameters_this_environment(world):
     -- of the environment the governed tool RAN in, whose thread counts are
     pinned, not of this test process's."""
     import subprocess
-    from scientific.models.thermal_1d import Thermal1DModel
+    from scientific.models.slab_transient import SlabTransientModel
     g, first, _, _, ev = world
     ident = _doc(ev, g.authority.get(first.record_id)
                  .evidence["run_identity"])
-    model = Thermal1DModel()
+    model = SlabTransientModel()
     assert ident["model_id"] == MODEL["model_id"]
     assert ident["model_version"] == MODEL["model_version"]
     assert ident["implementation_digest"] == model.implementation_digest()

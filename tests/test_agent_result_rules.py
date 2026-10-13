@@ -29,10 +29,11 @@ from agent_substrate.store import AuthorityStore  # noqa: E402
 @pytest.fixture(scope="module")
 def pair():
     """A real ResultBundle and the real independent check of it."""
-    from scientific.checks.reduction_2d import run_check
+    from scientific.checks.slab_mol import run_check
     from scientific.model import run_model
-    from scientific.models.thermal_1d import Thermal1DModel
-    bundle = run_model(Thermal1DModel(), {"n_cells": 60, "n_eval": 20})
+    from scientific.models.slab_transient import SlabTransientModel
+    from governed_case import PARAMS
+    bundle = run_model(SlabTransientModel(), PARAMS)
     report = run_check(bundle, verifier_id="checker")
     return bundle.to_record(), report.to_record()
 

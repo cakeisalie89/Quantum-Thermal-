@@ -450,9 +450,10 @@ def test_a_governed_identity_is_resolved_and_its_bundle_agrees(runtime):
     environment: both go through the one helper that probes the runtime."""
     from scientific.catalog import models
     from scientific.model import run_identity_for, run_model
-    model = models().lookup("thermal.conduction_1d", "1.0.0")
-    params = model.validate({})
+    from governed_case import PARAMS
+    model = models().lookup("thermal.slab_transient", "1.0.0")
+    params = model.validate(PARAMS)
     ident = run_identity_for(model, params)
     assert ident.backend_status == "RESOLVED"
-    bundle = run_model(model, {})
+    bundle = run_model(model, PARAMS)
     assert bundle.environment_digest == ident.environment_digest

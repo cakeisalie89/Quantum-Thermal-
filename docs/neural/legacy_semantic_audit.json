@@ -39,8 +39,8 @@
    "hits": 21
   },
   "TOOLING_CLASSIFIER_REFERENCE": {
-   "files": 9,
-   "hits": 33
+   "files": 10,
+   "hits": 35
   },
   "UNCLASSIFIED": {
    "files": 0,
@@ -511,7 +511,7 @@
      375,
      381,
      394,
-     747
+     748
     ],
     "mode_sequence": [
      323
@@ -4129,7 +4129,7 @@
      409,
      430,
      441,
-     887
+     892
     ],
     "mode_sequence": [
      372
@@ -4278,6 +4278,23 @@
    },
    "path": "tools/neural_legacy_audit.py",
    "why": "this audit: its patterns name what it looks for"
+  },
+  {
+   "class": "TOOLING_CLASSIFIER_REFERENCE",
+   "hits": {
+    "helium_routing": 1,
+    "methane_routing": 1
+   },
+   "lines": {
+    "helium_routing": [
+     77
+    ],
+    "methane_routing": [
+     76
+    ]
+   },
+   "path": "tools/repo_content_audit.py",
+   "why": "a tool that reads or audits the legacy corpus by its names"
   },
   {
    "class": "TOOLING_CLASSIFIER_REFERENCE",
